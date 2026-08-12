@@ -15,6 +15,158 @@ function resetAISections() {
   }
 }
 
+/* ── Passage section headings ──────────────────────────────────────────────
+   The lines a printed Bible carries through a chapter — "Gideon Defeats the
+   Midianites". A chapter usually holds more than one scene, so this returns a
+   list anchored to verse numbers rather than a single title on top.
+
+   Generated once per chapter and cached under `passageHeading-`, which is in
+   firebase-sync's SYNC_DYNAMIC_PREFIXES — so a chapter titled on the phone is
+   already titled on the laptop instead of costing a second call. */
+const _HEADING_KEY = (book, chapter) => `passageHeading-${book}-${chapter}`;
+
+// Bumped on every passage render. A response that lands after you've already
+// flipped to the next chapter belongs to a passage that's no longer on
+// screen, and inserting it would caption the wrong verses.
+let _headingGen = 0;
+
+function _cleanHeading(text) {
+  const clean = String(text || "")
+    .replace(/^["'“”‘’\s]+|["'“”‘’\s.]+$/g, "")
+    .trim();
+  // A model that ignores the word cap returns a sentence — better to show
+  // nothing than a paragraph pretending to be a heading.
+  return clean && clean.length <= 60 ? clean : "";
+}
+
+function _insertPassageHeadings(sections, gen) {
+  if (gen !== _headingGen) return;
+  const output = document.getElementById("output");
+  if (!output || !Array.isArray(sections)) return;
+
+  const added = [];
+
+  sections.forEach((section) => {
+    const title = _cleanHeading(section?.title);
+    const verseNum = parseInt(section?.verse, 10);
+    if (!title || !verseNum) return;
+
+    // .verse-header carries id="<verseNum>" (set in the render loop), which is
+    // also what the verse-chip scroll fallback resolves against.
+    const wrap = document.getElementById(String(verseNum))?.closest(".verse");
+    if (!wrap || wrap.parentNode !== output) return;
+    // A re-render can race a cached read; never stack two headings on a verse.
+    if (wrap.previousElementSibling?.classList.contains("passage-heading")) return;
+
+    // The span is what makes the open animation possible: the h2 animates
+    // grid-template-rows 0fr → 1fr, and a grid row can only collapse around a
+    // real element — a bare text node becomes an anonymous item that can't
+    // take the min-height: 0 the collapse needs.
+    const h = document.createElement("h2");
+    h.className = "passage-heading";
+    const span = document.createElement("span");
+    span.textContent = title;
+    h.appendChild(span);
+    output.insertBefore(h, wrap);
+    added.push(h);
+  });
+
+  // Reveal on the next frame, so the browser has a 0fr start value to animate
+  // FROM — setting the end state in the same frame as insertion just snaps.
+  //
+  // The setTimeout is not belt-and-braces, it's load-bearing: rAF does not run
+  // in a background tab, and the heading is inserted with opacity 0 and a
+  // collapsed row. Without a fallback, a response landing while the app is
+  // backgrounded leaves the heading permanently invisible. Adding the class
+  // twice is harmless.
+  if (added.length) {
+    const reveal = () =>
+      added.forEach((h, i) => {
+        h.style.transitionDelay = `${Math.min(i * 90, 400)}ms`;
+        h.classList.add("passage-heading-in");
+      });
+    requestAnimationFrame(reveal);
+    setTimeout(reveal, 80);
+  }
+}
+
+/* Returns the section list for a chapter, from cache or the API. Split out
+   from the reader's insertion so Retell can use the same sections instead of
+   generating a second, differently-worded set for the same chapter. */
+// Opening a chapter and hitting Retell fires two calls for the same sections
+// before either has cached — and they come back differently worded, so the
+// reader and the retelling disagree about what the chapter's sections are
+// called. The second caller awaits the first instead. (Same pattern as
+// _inflight in js/03-tts.js, for the same reason.)
+const _headingInflight = new Map();
+
+async function _fetchPassageSections(book, chapter, versesText) {
+  if (!versesText) return null;
+  const key = _HEADING_KEY(book, chapter);
+
+  try {
+    const cached = localStorage.getItem(key);
+    if (cached) {
+      try {
+        return JSON.parse(cached);
+      } catch {
+        // Written by the single-heading version of this feature — treat the
+        // bare string as one section covering the chapter from verse 1.
+        return [{ verse: 1, title: cached }];
+      }
+    }
+  } catch {}
+
+  if (_headingInflight.has(key)) return _headingInflight.get(key);
+
+  const flight = _fetchPassageSectionsUncached(key, versesText).finally(() =>
+    _headingInflight.delete(key),
+  );
+  _headingInflight.set(key, flight);
+  return flight;
+}
+
+async function _fetchPassageSectionsUncached(key, versesText) {
+  try {
+    const raw = await callGemini(
+      `Split this chapter into its sections the way a printed study Bible does, and give each one a heading — like "Gideon Defeats the Midianites" or "The Birth of Jesus".
+
+Return ONLY a JSON array, no markdown fence, no commentary:
+[{"verse": 1, "title": "Gideon Defeats the Midianites"}, {"verse": 15, "title": "..."}]
+
+RULES:
+- "verse" is the verse number the section STARTS at. The first section must start at verse 1.
+- Break only where the chapter genuinely changes scene, speaker, or subject. A short or single-scene chapter gets ONE heading — do not invent breaks to pad the list.
+- Most chapters need 1 to 4 headings. Never more than 5.
+- Each title is 3 to 6 words, Title Case, naming what actually happens there using the names the chapter itself uses.
+- No verse numbers, book names, or chapter numbers inside a title. No trailing punctuation.
+
+CHAPTER:
+${versesText}`,
+      { maxOutputTokens: 300, temperature: 0.2 },
+    );
+
+    const text = String(raw || "");
+    const start = text.indexOf("[");
+    const end = text.lastIndexOf("]");
+    if (start === -1 || end <= start) throw new Error("no JSON array in response");
+    const sections = JSON.parse(text.slice(start, end + 1));
+    if (!Array.isArray(sections) || !sections.length) throw new Error("no sections");
+
+    try { localStorage.setItem(key, JSON.stringify(sections)); } catch {}
+    return sections;
+  } catch (err) {
+    // Missing headings aren't worth surfacing — the chapter reads fine.
+    console.warn("[passage headings]", err);
+    return null;
+  }
+}
+
+async function _loadPassageHeadings(book, chapter, versesText, gen) {
+  const sections = await _fetchPassageSections(book, chapter, versesText);
+  if (sections) _insertPassageHeadings(sections, gen);
+}
+
 // ── Verse-action button feedback ──────────────────────────────────────────
 // Touch devices never fire :hover, so a tap on Context / Ask / Note used to
 // look identical to no tap at all — and Context takes a second or two to
@@ -1375,6 +1527,8 @@ async function loadPassage() {
     _allNotesOpen = false;
     document.getElementById("notesToggleBtn")?.classList.remove("ctrl-icon-active");
 
+    _headingGen++;
+
     // Carried across the whole passage — quoted speech routinely opens in one
     // verse and closes in a later one.
     const quoteStack = [];
@@ -1509,6 +1663,17 @@ async function loadPassage() {
         if (verseWrap) requestAnimationFrame(() => _syncVerseActionStates(verseWrap));
       });
       output._verseActionSyncWired = true;
+    }
+
+    // Section headings, the way a printed Bible carries them through a chapter
+    // ("Gideon Defeats the Midianites"). MUST run after the verses are in the
+    // DOM: each heading anchors to the verse it starts at, and on a cache hit
+    // this inserts synchronously — called before the render loop it would find
+    // nothing to anchor to and silently do nothing on every visit after the
+    // first. Skipped for single-verse views, where a section heading would be
+    // describing text that isn't on screen.
+    if (!single) {
+      _loadPassageHeadings(bookId, chapterNum, fullVersesText, _headingGen);
     }
 
     // Add Reflect button below the last verse

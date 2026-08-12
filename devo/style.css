@@ -247,18 +247,37 @@ select:disabled {
   transition: background 0.25s ease;
 }
 
-/* The specifically styled quoted text */
+/* Quoted speech reads in the SAME voice as the narration around it — same
+   colour, weight and upright face — and is marked by a soft wash instead.
+   Recolouring it pink and italicising it meant the part you most want to read
+   had the lowest contrast on the screen, and four lines of italic is tiring in
+   a way one italic phrase never is.
+
+   `box-decoration-break: clone` is load-bearing: without it a wrapped inline
+   only gets padding and rounded corners on the first and last fragments, so
+   the middle lines lose the inset and the block looks broken. */
 .quote-style {
-  color: #db2777;
-  font-style: italic;
-  font-weight: 500;
+  background: rgba(219, 39, 119, 0.26);
+  /* Pure white rather than the body's #e2e8f0 — the wash is strong enough now
+     that the text needs to sit clearly on top of it, not blend into it. */
+  color: #fff;
+  font-style: normal;
+  font-weight: inherit;
+  padding: 0.14em 0.4em;
+  border-radius: 8px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
 }
-/* A quote inside a quote is a different speaker, so it shifts hue rather than
-   just tint — a lighter pink would read as emphasis on the same voice. Amber
-   sits far enough from the pink to separate cleanly while staying warm
-   against the navy; it inherits the italic so both levels still read as
-   speech. Levels past 2 keep this styling. */
-.quote-style-nested { color: #e8a33d; }
+/* A quote inside a quote is a different speaker. It deliberately does NOT get
+   its own wash — nesting one background inside another composites into a
+   muddy third colour — so the outer wash carries through (it IS still inside
+   that speech) and only the text shifts. Violet, not the amber this started
+   as: amber was chosen against a near-transparent navy, but now there's a
+   pink wash beneath it in both themes, and orange next to magenta fights —
+   badly in light mode, where both end up dark-on-light and compete. Violet is
+   adjacent to pink on the wheel, so it separates the voice without clashing.
+   Levels past 2 keep this styling. */
+.quote-style-nested { color: #cbb4ff; }
 
 /* Ensure the verse header layout is clean */
 .verse-header {
@@ -271,7 +290,9 @@ select:disabled {
 
 .verse-content {
   flex: 1;
-  line-height: 1.6;
+  /* Nudged up from 1.6 to give the quote wash room to breathe — at 1.6 the
+     tinted line fragments nearly touch and read as one solid slab. */
+  line-height: 1.75;
   color: #e2e8f0; /* Default text color */
 }
 
@@ -2763,13 +2784,15 @@ body.light {
   background: transparent;
 }
 
+/* Light mode carries less alpha for the same visual weight — a tint reads
+   stronger on cream than the same tint does on navy. Text stays dark. */
 .light .quote-style {
-  color: black;
+  color: inherit;
+  background: rgba(219, 39, 119, 0.18);
 }
-/* Light mode renders the outer quote as plain black, so the nested level
-   needs a darker, higher-contrast amber than the dark-mode value to stay
-   readable on cream — and to still separate from the black around it. */
-.light .quote-style-nested { color: #a86514; }
+/* Deeper violet for the light theme — same hue relationship to the wash, but
+   dark enough to hold contrast against cream instead of against navy. */
+.light .quote-style-nested { color: #5b21b6; }
 
 /* ---------- VERSE CHAT UI ---------- */
 .verse-chat-wrapper {
@@ -12677,3 +12700,411 @@ body.cfg-sheet-open.light .bc-picker-btn .material-symbols-outlined { color: rgb
   border-color: transparent;
 }
 .devo-share-go:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(190, 24, 93, 0.35); }
+
+/* ============================================================
+   RETELL — chapter as narration + dialogue (js/09-narrate.js)
+   ============================================================ */
+
+/* The overlay is one element across all three stages (curtain → loading →
+   scroll) so nothing ever unmounts mid-transition and flashes the reader
+   underneath. `nr-rising` wipes it up from the bottom; `nr-falling` sends it
+   back down. Same easing as the canvas study intro. */
+.nr-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10240; /* above canvas (10050) and the book picker (10200), deliberately BELOW
+                    the verse peek (10250) so chips can open over the retelling */
+  background: #0b1220;
+  transform: translateY(100%);
+  transition: transform 0.52s cubic-bezier(0.22, 1, 0.36, 1);
+  display: flex;
+  flex-direction: column;
+}
+.nr-overlay.nr-rising { transform: none; }
+.nr-overlay.nr-falling { transform: translateY(100%); }
+.light .nr-overlay { background: #faf7f0; }
+
+/* Body scroll lock while the retelling is open — without it the reader
+   underneath scrolls when the scroll container hits its ends on iOS. */
+body.nr-locked { overflow: hidden; }
+
+/* A soft glow that rises with the curtain, so the wipe reads as a surface
+   arriving rather than a rectangle sliding. Purely decorative. */
+.nr-curtain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(90% 55% at 50% 0%, rgba(219, 39, 119, 0.16), transparent 70%),
+    radial-gradient(70% 45% at 15% 100%, rgba(96, 165, 250, 0.10), transparent 70%);
+}
+.light .nr-curtain {
+  background:
+    radial-gradient(90% 55% at 50% 0%, rgba(219, 39, 119, 0.10), transparent 70%),
+    radial-gradient(70% 45% at 15% 100%, rgba(96, 165, 250, 0.08), transparent 70%);
+}
+
+.nr-shell {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0; /* lets .nr-scroll actually scroll inside the flex column */
+}
+
+.nr-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: calc(env(safe-area-inset-top, 0px) + 16px) 18px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  flex: 0 0 auto;
+}
+.light .nr-bar { border-bottom-color: rgba(0, 0, 0, 0.08); }
+.nr-bar-title { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.nr-bar-label {
+  font-size: 10.5px;
+  letter-spacing: 2.4px;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: #db2777;
+}
+.nr-bar-title strong {
+  font-size: 17px;
+  font-weight: 700;
+  color: #e6edf7;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.light .nr-bar-title strong { color: #1a1a2e; }
+
+.nr-close {
+  flex: 0 0 auto !important;
+  width: 38px;
+  height: 38px;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: #e6edf7;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.12s;
+}
+.nr-close:active { transform: scale(0.93); }
+.light .nr-close {
+  border-color: rgba(0, 0, 0, 0.12) !important;
+  background: rgba(0, 0, 0, 0.05) !important;
+  color: #1a1a2e;
+}
+
+.nr-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 22px 18px calc(env(safe-area-inset-bottom, 0px) + 60px);
+  max-width: 760px;
+  width: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.nr-loading { padding: 18vh 0; text-align: center; }
+.nr-loading-sub {
+  margin-top: 14px;
+  font-size: 13px;
+  color: rgba(230, 237, 247, 0.5);
+}
+.light .nr-loading-sub { color: rgba(0, 0, 0, 0.45); }
+.nr-error { color: rgba(230, 237, 247, 0.75); font-size: 14px; }
+.nr-retry {
+  margin-top: 14px;
+  padding: 9px 18px;
+  border-radius: 999px;
+  border: 1px solid rgba(219, 39, 119, 0.5) !important;
+  background: rgba(219, 39, 119, 0.14) !important;
+  color: #ffb3d9;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.nr-logline {
+  margin: 0 0 26px;
+  font-size: 15.5px;
+  line-height: 1.6;
+  font-weight: 600;
+  color: rgba(230, 237, 247, 0.72);
+  border-left: 2px solid rgba(219, 39, 119, 0.55);
+  padding-left: 14px;
+}
+.light .nr-logline { color: rgba(0, 0, 0, 0.6); }
+
+/* Beats stagger in via inline animation-delay set in JS, so the screen fills
+   in reading order instead of appearing all at once. */
+.nr-line {
+  opacity: 0;
+  animation: nrBeatIn 0.42s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+@keyframes nrBeatIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.nr-narr {
+  margin: 0 0 22px;
+  font-size: 16px;
+  line-height: 1.75;
+  color: #d7e0ee;
+}
+.light .nr-narr { color: #23242e; }
+.nr-narr p { margin: 0; }
+
+/* A turn beat is the pause between scenes — centred, spaced, quieter. */
+.nr-turn {
+  margin: 30px 0;
+  text-align: center;
+  font-size: 15px;
+  font-style: italic;
+  letter-spacing: 0.3px;
+  color: rgba(230, 237, 247, 0.55);
+}
+.light .nr-turn { color: rgba(0, 0, 0, 0.45); }
+
+.nr-line-say {
+  display: flex;
+  gap: 11px;
+  align-items: flex-start;
+  margin: 0 0 18px;
+}
+/* Consecutive bubbles from one speaker: keep the avatar column but empty, so
+   the bubbles stay aligned while reading as a single continuing turn. */
+.nr-line-say.nr-run { margin-top: -10px; }
+.nr-avatar {
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1.5px solid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+}
+.nr-run .nr-avatar { border-color: transparent !important; background: none !important; }
+
+.nr-bubble-wrap { min-width: 0; flex: 1 1 auto; }
+.nr-who {
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  margin: 0 0 5px 2px;
+}
+.nr-to {
+  font-weight: 500;
+  opacity: 0.6;
+  margin-left: 6px;
+  font-size: 11.5px;
+}
+.nr-bubble {
+  border: 1px solid;
+  border-radius: 16px;
+  border-top-left-radius: 5px;
+  padding: 13px 15px;
+  font-size: 15.5px;
+  line-height: 1.65;
+  color: #edf2fa;
+}
+.light .nr-bubble { color: #1f2029; }
+.nr-run .nr-bubble { border-top-left-radius: 16px; }
+
+/* Verse chips reuse .reflection-link so tapping opens the peek sheet — the
+   same affordance as in the reflection questions. */
+.nr-chip {
+  display: inline-block;
+  margin-left: 8px;
+  vertical-align: middle;
+  font-size: 11px;
+}
+.nr-narr .nr-chip { margin-left: 0; margin-top: 8px; }
+
+.nr-end {
+  margin: 40px 0 10px;
+  text-align: center;
+  font-size: 11.5px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: rgba(230, 237, 247, 0.35);
+}
+.light .nr-end { color: rgba(0, 0, 0, 0.35); }
+
+@media (prefers-reduced-motion: reduce) {
+  .nr-overlay { transition: none; }
+  .nr-line { animation: none; opacity: 1; }
+}
+
+/* `hidden` is a UA-stylesheet `display: none`, and the author-level
+   `display: flex` above outranks it — without this the overlay would sit
+   visible over the reader from first paint. */
+.nr-overlay[hidden] { display: none; }
+
+/* Speech inside speech. Colour only — no second wash, since the bubble it
+   sits in is already tinted and stacking one background inside another
+   composites into a muddy third colour. Same violet as the reader's nested
+   quotes, so an inner voice looks the same wherever you meet it. */
+.nr-inner { color: #cbb4ff; }
+.light .nr-inner { color: #5b21b6; }
+
+/* Divine speaker — a plain cross fills the circle and the ring gets a soft
+   outer glow, so the Lord's turns are recognisable at a glance while
+   scrolling without needing to read the name. */
+.nr-cross {
+  width: 20px;
+  height: 20px;
+  display: block;
+}
+.nr-avatar-divine {
+  box-shadow:
+    0 0 0 3px rgba(219, 39, 119, 0.10),
+    0 0 16px rgba(219, 39, 119, 0.28);
+}
+.light .nr-avatar-divine {
+  box-shadow:
+    0 0 0 3px rgba(219, 39, 119, 0.09),
+    0 0 14px rgba(219, 39, 119, 0.18);
+}
+/* A continuing turn hides the mark, so the glow would otherwise float over an
+   empty circle. */
+.nr-run .nr-avatar-divine { box-shadow: none; }
+
+/* Paged reading — the retelling advances a screen at a time instead of
+   scrolling, so a beat is never cut in half by the fold. Overflow is hidden
+   except on a page holding one oversized bubble, which gets to scroll. */
+.nr-scroll {
+  position: relative; /* offsetTop of the beats is measured against this */
+  overflow: hidden;
+}
+.nr-scroll.nr-scrollable-page { overflow-y: auto; }
+
+.nr-pager {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 12px 18px calc(env(safe-area-inset-bottom, 0px) + 14px);
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+.light .nr-pager { border-top-color: rgba(0, 0, 0, 0.08); }
+.nr-pager[hidden] { display: none; }
+
+.nr-page-btn {
+  width: 46px;
+  height: 46px;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid rgba(219, 39, 119, 0.4) !important;
+  background: rgba(219, 39, 119, 0.14) !important;
+  color: #ffb3d9;
+  cursor: pointer;
+  transition: transform 0.12s, opacity 0.15s;
+}
+.nr-page-btn:active { transform: scale(0.92); }
+.nr-page-btn:disabled {
+  opacity: 0.28;
+  cursor: default;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+  color: rgba(230, 237, 247, 0.6);
+}
+.light .nr-page-btn { color: #a8005f; }
+.light .nr-page-btn:disabled {
+  border-color: rgba(0, 0, 0, 0.12) !important;
+  background: rgba(0, 0, 0, 0.04) !important;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.nr-page-ind {
+  min-width: 62px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  color: rgba(230, 237, 247, 0.55);
+  font-feature-settings: "frac" 0; /* keep 3/12 from becoming a vulgar fraction */
+}
+.light .nr-page-ind { color: rgba(0, 0, 0, 0.5); }
+
+/* The old bottom padding existed to clear the scroll fold; in paged mode the
+   pager is its own footer, so that space is just a shorter page. */
+.nr-scroll { padding-bottom: 24px; }
+
+/* Section headings through the passage, the way a printed study Bible carries
+   them. They arrive after the verses are already on screen, so they open
+   rather than appear: the row expands 0fr → 1fr while the text fades and
+   settles, and the margins grow with it. Animating the height is the point —
+   inserting at full size would shove every verse below down in one jump. */
+.passage-heading {
+  display: grid;
+  grid-template-rows: 0fr;
+  margin: 0;
+  opacity: 0;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  line-height: 1.4;
+  color: #e2e8f0;
+  transition:
+    grid-template-rows 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    margin 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.34s ease-out 0.08s,
+    transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  transform: translateY(-4px);
+}
+.passage-heading > span {
+  min-height: 0;
+  overflow: hidden;
+}
+.passage-heading-in {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transform: none;
+  margin: 30px 0 14px;
+}
+/* The heading above verse 1 opens the chapter — no space to push against. */
+#output > .passage-heading-in:first-child { margin-top: 0; }
+.light .passage-heading { color: #1a1a2e; }
+
+@media (prefers-reduced-motion: reduce) {
+  .passage-heading { transition: none; }
+}
+
+/* Section heading inside the retelling — same text the reader shows above the
+   passage, so a chapter reads as the same shape in both places. Styled as a
+   divider rather than a bubble, since it belongs to neither speaker. */
+.nr-heading {
+  margin: 34px 0 18px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #db2777;
+}
+/* Opening a page or the retelling, there's nothing above to separate from. */
+.nr-scroll > .nr-heading:first-child,
+.nr-logline + .nr-heading { margin-top: 6px; }
+.light .nr-heading {
+  border-bottom-color: rgba(0, 0, 0, 0.1);
+  color: #a8005f;
+}

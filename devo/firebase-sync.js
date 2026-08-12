@@ -39,7 +39,7 @@ const SYNC_STATIC_KEYS = [
 // itself (see DECISIONS #26). Existing entries stay in RTDB but are never read
 // or written again — same quiet-decay treatment the SOAP keys got.
 
-const SYNC_DYNAMIC_PREFIXES = ["reflection-", "devo.canvas.", "chapterContext.", "passageRecap-"];
+const SYNC_DYNAMIC_PREFIXES = ["reflection-", "devo.canvas.", "chapterContext.", "passageRecap-", "passageHeading-"];
 
 // Per-user RTDB path map. Charlie's path is the legacy "devo-sync" so his
 // existing data stays at the root we've always used (no migration needed).
@@ -162,6 +162,7 @@ function _injectAppScript() {
     "js/06-notes.js",
     "js/07-immersive.js",
     "js/08-story.js",
+    "js/09-narrate.js",
     "js/10-creator-canvas.js",
     "js/11-boot.js",
   ];

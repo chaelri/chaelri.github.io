@@ -280,6 +280,10 @@
                 <span class="material-icons">volunteer_activism</span>
                 Reflect
               </button>
+              <button id="passageNarrateBtn" class="action-reflect-btn" onclick="openNarrate()">
+                <span class="material-icons">forum</span>
+                Retell
+              </button>
             </div>
           </div>
           <!-- Story button removed — used image generation via Gemini. -->
@@ -559,6 +563,33 @@
       </div>
     </div>
 
+    <!-- RETELL — chapter as narration + dialogue. Built by js/09-narrate.js.
+         Three stages live in here: the curtain that wipes up over the reader,
+         the loading state, and the scroll itself. -->
+    <div id="narrateOverlay" class="nr-overlay" hidden>
+      <div class="nr-curtain" id="nrCurtain"></div>
+      <div class="nr-shell">
+        <header class="nr-bar">
+          <div class="nr-bar-title">
+            <span class="nr-bar-label">Retold</span>
+            <strong id="nrTitle"></strong>
+          </div>
+          <button class="nr-close" id="nrClose" aria-label="Back to chapter">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </header>
+        <div class="nr-scroll" id="nrScroll"></div>
+        <footer class="nr-pager" id="nrPager" hidden>
+          <button class="nr-page-btn" id="nrPrev" aria-label="Previous page">
+            <span class="material-symbols-outlined">arrow_back</span>
+          </button>
+          <span class="nr-page-ind" id="nrPageInd"></span>
+          <button class="nr-page-btn" id="nrNext" aria-label="Next page">
+            <span class="material-symbols-outlined">arrow_forward</span>
+          </button>
+        </footer>
+      </div>
+    </div>
 
     <!-- IMAGE CREATOR PANEL -->
     <div id="imgCreatorPanel" class="imgcr-panel" hidden>
