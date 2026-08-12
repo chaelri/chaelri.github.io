@@ -2085,6 +2085,36 @@ function _wireReflectionTextarea(area) {
 // not a class, so it matched no CSS rule while still swallowing the click.)
 function _normalizeReflectionLinks(scope) {
   if (!scope) return;
+
+  // The AI sometimes emits a range as TWO links with a bare dash between them
+  // — `vv. 16` — `17` — instead of one `vv. 16–17`. That renders as two chips
+  // and, worse, peeking either one shows a single verse when the question is
+  // about the whole span. Merge them back into one link before anything else
+  // reads the labels. Only a dash joins a range; a comma ("v. 3, v. 9") is two
+  // genuinely separate references and is left alone.
+  scope.querySelectorAll('a[href^="#"]').forEach((a) => {
+    if (!a.isConnected) return; // already swallowed by an earlier merge
+    let next = a.nextSibling;
+    while (next) {
+      const gap = next;
+      if (gap.nodeType !== Node.TEXT_NODE || !/^\s*[–—-]\s*$/.test(gap.textContent)) break;
+      const partner = gap.nextSibling;
+      if (!partner || partner.nodeName !== "A" || !partner.getAttribute?.("href")?.startsWith("#")) break;
+
+      const start = (a.textContent.match(/\d+/) || [])[0];
+      const end = (partner.textContent.match(/\d+/) || [])[0];
+      if (!start || !end) break;
+
+      a.textContent = `vv. ${start}–${end}`;
+      gap.remove();
+      partner.remove();
+      next = a.nextSibling; // a range could in principle chain further
+    }
+  });
+
+  // Href always points at the FIRST verse so the scroll fallback in
+  // js/05-render-init.js can resolve it with getElementById. The peek sheet
+  // reads the full range off the label instead — see _ensureReflectionRetryUI.
   scope.querySelectorAll('a[href^="#"]').forEach((a) => {
     const fromText = (a.textContent.match(/\d+/) || [])[0];
     const fromHref = (a.getAttribute("href").match(/\d+/) || [])[0];
@@ -2103,14 +2133,18 @@ function _normalizeReflectionLinks(scope) {
 // gospel lens (`christ`) is deliberately the ONLY one that reaches outside the
 // chapter, and _pickAnglesForPassage only lets it into the pool on ~1 in 3
 // chapters — see the note there for why.
+// Every angle anchors in the chapter AND lands on the reader. Earlier versions
+// let `observe` and `tension` stop at analysis ("what feels unfair about
+// Gideon's punishment of Succoth?") — a fine study question, but it gives the
+// reader nothing to carry into their own day, which is the whole point here.
 const _REFLECTION_ANGLES = [
-  { id: "observe",   label: "WHAT ACTUALLY HAPPENS",  desc: "Make the reader look straight at something in the chapter — a specific person, action, number, object, place, or word choice — and say what they make of it. The question is unanswerable by anyone who didn't read THIS chapter." },
-  { id: "character", label: "CHARACTER OF GOD",       desc: "What God does or says IN THIS CHAPTER, and what that shows about who He is. Point at the actual verse where He acts — not a general truth about God that could be pulled from anywhere." },
-  { id: "heart",     label: "HEART PRINCIPLE",        desc: "The internal posture this chapter exposes or invites — pride, fear, trust, complacency, longing, resentment. Name a real attitude, not a moral lesson." },
-  { id: "tension",   label: "HONEST TENSION",         desc: "What is hard, strange, uncomfortable, or confusing about this chapter for a modern reader — and invite honesty about it instead of a tidy answer. Good for laws, judgment, lists, and violence. Never resolve the tension for the reader." },
-  { id: "action",    label: "THIS WEEK",              desc: "One concrete step this week that follows from what this chapter actually says. Tied to the chapter's own principle — not a generic 'serve God more' prompt." },
-  { id: "prayer",    label: "PRAYER-SHAPED",          desc: "A question the reader could pray honestly in one breath — surfaces a felt confession, a longing, a thanksgiving, or a cry, sparked by something specific in this chapter. Visceral, not polished." },
-  { id: "christ",    label: "GOSPEL LENS",            desc: "ONLY if this chapter itself pictures something Jesus completes (sacrifice, priest, temple, passover, rest, ransom, king). Must still name the concrete thing in THIS chapter that carries the picture. If the chapter has no such picture, use the CHARACTER OF GOD angle instead — do NOT force a Jesus connection." },
+  { id: "observe",   label: "WHAT ACTUALLY HAPPENS",  desc: "Point at something specific in the chapter — a person's choice, an action, a number, an object, a word — then ask where the reader recognises that same thing in their own life. The detail is the anchor; the reader is the destination. Unanswerable by anyone who didn't read THIS chapter." },
+  { id: "character", label: "CHARACTER OF GOD",       desc: "What God does or says IN THIS CHAPTER and what it shows about who He is — then ask what that means for how the reader relates to Him right now. Point at the actual verse where He acts, not a general truth pulled from anywhere." },
+  { id: "heart",     label: "HEART PRINCIPLE",        desc: "An internal posture this chapter exposes — pride, fear, trust, complacency, longing, resentment. Name the real attitude as it shows up in the chapter, then ask the reader where the same thing shows up in them." },
+  { id: "tension",   label: "HONEST TENSION",         desc: "Something hard, strange, or uncomfortable here — but don't stop at 'what's odd about this'. Ask how the reader actually sits with it, or when they've felt the same pull themselves. Good for laws, judgment, and violence. Never resolve the tension for them." },
+  { id: "action",    label: "THIS WEEK",              desc: "One small, doable thing this week that follows from this chapter's own principle. An INVITATION, never an assignment — 'what's one thing you could…', not 'you must…'. Never a rule to keep or a box to tick." },
+  { id: "prayer",    label: "PRAYER-SHAPED",          desc: "A question the reader could pray honestly in one breath — a felt confession, longing, thanksgiving, or cry, sparked by something specific in this chapter. Visceral, not polished." },
+  { id: "christ",    label: "GOSPEL LENS",            desc: "ONLY if this chapter itself pictures something Jesus completes (sacrifice, priest, temple, passover, rest, ransom, king). Name the concrete thing in THIS chapter that carries the picture, then ask what it means for the reader today. If the chapter has no such picture, use CHARACTER OF GOD instead — do NOT force a Jesus connection." },
 ];
 
 function _hashStr(s) {
@@ -2241,6 +2275,37 @@ This guard is ONLY about not putting the reader back under the law. It is NOT an
 Universal moral commands (love, honesty, purity, prayer, generosity, justice), wisdom literature, narrative, and all NT passages need no redirection at all — ask about them directly.
 
 
+RULE 3 — IT HAS TO LAND ON THE READER:
+
+The reader isn't studying this chapter for an exam. They just read it and want something to sit with. So the chapter detail is the ANCHOR of the question; the reader's own life is the DESTINATION. A question that only asks them to analyse the text has failed, even when it's a good observation.
+
+Every question must reach one of these: something they've actually felt, done, or wanted; a relationship or situation they're in now; an attitude they'd recognise in themselves; something they could bring to God honestly.
+
+These examples are all from Judges 8 (Gideon) purely to show the shape — never lift their wording or their subject matter into a different chapter.
+
+❌ BAD (analysis — nothing for the reader to answer from their own life):
+- "What feels strange or unfair about Gideon's harsh punishment of Succoth and Peniel in vv. 16–17?"
+- "Why do you think Gideon made an ephod from the gold in v. 27?"
+- "What does Gideon's refusal to rule in v. 23 show about leadership?"
+
+✅ GOOD (same chapter, same verses — now the reader is in it):
+- "When have you wanted someone to pay for failing you, like Gideon made Succoth pay in vv. 16–17?"
+- "What good thing in your life could quietly turn into the ephod of v. 27?"
+- "Where are you tempted to take credit that Gideon handed back to God in v. 23?"
+
+Note what stayed: the concrete detail, the verse link, the honesty. Only the destination moved.
+
+
+RULE 4 — INVITE, DON'T PRESCRIBE:
+
+Reverent about Scripture, never legalistic with the reader. This is a conversation, not an audit.
+
+- No "you must", "you should", "make sure you", "commit to".
+- No spiritual performance checklists, no scorekeeping, no implied guilt for a wrong answer.
+- "I don't know yet" must be a legitimate answer to every question you write.
+- Ask what's true of them, not what they ought to do about it. When you do point at an action (THIS WEEK angle), offer it — "what's one thing you could…" — and keep it small enough to actually happen.
+
+
 TASK:
 Generate EXACTLY ${count} numbered questions based on the passage.
 ${angleBlock}${exclusionBlock}${priorBlock}
@@ -2259,7 +2324,8 @@ CRITICAL LINKING RULE (MUST FOLLOW):
 - The href MUST always point to the FIRST verse in the reference
 - DO NOT include any verse numbers outside of <a> tags
 - STRICTOR RULE: DO NOT include parentheses around the link or the text inside the link (e.g., write "v. 5", NOT "(v. 5)" and NOT "<a>(v. 5)</a>")
-- If a question references multiple verses or ranges, EACH one must be linked
+- A RANGE IS ONE SINGLE LINK. The dash lives INSIDE the anchor text: <a href="#16" class="reflection-link">vv. 16–17</a>. NEVER split it into two links with a dash between them — "vv. 16" — "17" is WRONG, it renders as two separate chips and loses the range
+- Only when a question points at genuinely SEPARATE verses (not a span) does each get its own link, e.g. "v. 3" and "v. 9"
 - Final output must contain ZERO plain-text verse references and ZERO parentheses surrounding verse links
 
 
@@ -2270,8 +2336,10 @@ QUESTION STYLE (STRICT — FOLLOW EXACTLY):
 - ONE single idea per question. If you're tempted to use "considering…", "in light of…", "given that…" — STOP and split into two questions or pick one angle
 - Use plain, everyday English. A 16-year-old should understand every word without a dictionary
 - Prefer CONCRETE over abstract. "What would you do if…" beats "What does this teach you about…"
-- If the THIS WEEK angle is in the required set above, that question names a specific action for this week. At most ONE question does this — the rest stay reflective
+- If the THIS WEEK angle is in the required set above, that question offers one small step for this week. At most ONE question does this — the rest stay reflective
 - VARY the opening — don't start every question with "What" or "How"
+- Openings that pull the reader in beat openings that point at the page: "When have you…", "Where are you…", "What would it take for you to…", "Who in your life…" all land better than "What does this show about…"
+- Before emitting each question, check it against RULE 3: can the reader answer this from their own life, or only by re-reading the chapter? If it's the second one, rewrite it
 
 BANNED WORDS / PHRASES (do not use any of these):
 - theological, implications, undeserving, unified, turning towards, in light of, considering, ultimate, collective response, encompassing, holistic, grapple, wrestle with, challenge your understanding, sovereign, providence, salvific, eschatological
