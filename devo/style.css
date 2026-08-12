@@ -22,7 +22,12 @@ body {
 }
 
 body {
+  /* Nunito is the default on every device. The Settings sheet can opt back
+     out to the old system stack via `body.font-system` (further down) — the
+     default lives here rather than in JS so there's no flash of the wrong
+     font before the scripts run. */
   font-family:
+    "Nunito",
     system-ui,
     -apple-system,
     BlinkMacSystemFont,
@@ -80,7 +85,10 @@ select,
 input,
 button,
 textarea {
-  font-family: Arial;
+  /* Was a hardcoded `Arial`, which is why form controls and buttons didn't
+     match the body font. Inheriting keeps them in step with whichever font
+     is active. */
+  font-family: inherit;
   flex: 1;
   font-size: 16px;
   padding: 12px 14px;
@@ -245,6 +253,12 @@ select:disabled {
   font-style: italic;
   font-weight: 500;
 }
+/* A quote inside a quote is a different speaker, so it shifts hue rather than
+   just tint — a lighter pink would read as emphasis on the same voice. Amber
+   sits far enough from the pink to separate cleanly while staying warm
+   against the navy; it inherits the italic so both levels still read as
+   speech. Levels past 2 keep this styling. */
+.quote-style-nested { color: #e8a33d; }
 
 /* Ensure the verse header layout is clean */
 .verse-header {
@@ -546,11 +560,7 @@ select:disabled {
   border-radius: 14px;
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
   color: #ffffff;
-  font-family:
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    sans-serif;
+  font-family: inherit;
   font-size: 16px;
   display: flex;
   align-items: center;
@@ -1199,6 +1209,11 @@ select:disabled {
    the already-rendered canvas underneath. ~1.4s total. The wrapper's
    animationend triggers cleanup in JS. */
 .cm-intro {
+  /* All four intro animations run on one shared timeline — their keyframe
+     percentages are choreographed against each other, so the duration lives
+     here and nowhere else. Change this one number to retime the whole intro;
+     the JS cleanup fallback in _playStudyIntro is sized off it too. */
+  --cm-intro-dur: 2100ms;
   position: fixed;
   inset: 0;
   z-index: 10100; /* above #canvasModeOverlay (10050) */
@@ -1207,7 +1222,7 @@ select:disabled {
   align-items: center;
   justify-content: center;
   pointer-events: none;
-  animation: cmIntroWrap 3600ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: cmIntroWrap var(--cm-intro-dur) cubic-bezier(0.22, 1, 0.36, 1) both;
   will-change: opacity;
 }
 @keyframes cmIntroWrap {
@@ -1242,7 +1257,7 @@ select:disabled {
   z-index: 1;
   white-space: nowrap;
   /* Title rises into place, holds, then drifts up & out. */
-  animation: cmIntroTitle 3600ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: cmIntroTitle var(--cm-intro-dur) cubic-bezier(0.22, 1, 0.36, 1) both;
   will-change: opacity, transform;
 }
 @keyframes cmIntroTitle {
@@ -1283,7 +1298,7 @@ select:disabled {
   z-index: 0;
   filter: drop-shadow(0 2px 4px var(--cm-hi-glow));
   /* Slight rotation echoes a hand-drawn highlighter stroke. */
-  animation: cmIntroHighlight 3600ms cubic-bezier(0.45, 0, 0.55, 1) both;
+  animation: cmIntroHighlight var(--cm-intro-dur) cubic-bezier(0.45, 0, 0.55, 1) both;
   will-change: transform, opacity;
 }
 @keyframes cmIntroHighlight {
@@ -1320,7 +1335,7 @@ span.cm-intro-marker.material-symbols-outlined {
   transform: translate(-50%, -100%) rotate(-22deg);
   transform-origin: bottom center;
   filter: drop-shadow(0 6px 14px rgba(200, 48, 134, 0.32));
-  animation: cmIntroMarker 3600ms cubic-bezier(0.45, 0, 0.55, 1) both;
+  animation: cmIntroMarker var(--cm-intro-dur) cubic-bezier(0.45, 0, 0.55, 1) both;
   will-change: left, opacity;
 }
 @keyframes cmIntroMarker {
@@ -1649,8 +1664,29 @@ span.cm-intro-marker.material-symbols-outlined {
   list-style: none;
 }
 
+/* Numbers sit flush with the surrounding copy ("No notes yet for this
+   passage.") instead of being indented by the browser's default list padding.
+   The native marker can't do that — with `outside` positioning it renders in
+   the padding area, so removing the padding would push it out of the box. A
+   counter on ::before puts the number exactly at the left edge, and the li's
+   own inline padding gives the text a hanging indent so wrapped lines still
+   line up under the first word. */
 #aiReflection ol {
-  padding-inline-start: 2rem;
+  padding-inline-start: 0;
+  list-style: none;
+  counter-reset: refl-n;
+}
+#aiReflection ol > li {
+  counter-increment: refl-n;
+  position: relative;
+  padding-inline-start: 2.1em;
+}
+#aiReflection ol > li::before {
+  content: counter(refl-n) ".";
+  position: absolute;
+  inset-inline-start: 0;
+  top: 0;
+  font-weight: 700;
 }
 
 #aiReflection textarea {
@@ -2730,6 +2766,10 @@ body.light {
 .light .quote-style {
   color: black;
 }
+/* Light mode renders the outer quote as plain black, so the nested level
+   needs a darker, higher-contrast amber than the dark-mode value to stay
+   readable on cream — and to still separate from the black around it. */
+.light .quote-style-nested { color: #a86514; }
 
 /* ---------- VERSE CHAT UI ---------- */
 .verse-chat-wrapper {
@@ -3067,17 +3107,142 @@ body.light {
   font-size: 13px;
   cursor: pointer;
   opacity: 0.55;
-  transition: opacity 0.15s, background 0.15s;
+  transition:
+    opacity 0.15s,
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s,
+    transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1);
   white-space: nowrap;
+  /* Kills the blue tap flash on Android Chrome so our own press state is the
+     only thing the user sees. */
+  -webkit-tap-highlight-color: transparent;
 }
-.verse-action-btn .material-icons { font-size: 16px; }
+.verse-action-btn .material-icons { font-size: 16px; transition: color 0.15s; }
 .verse-action-btn > span:not(.material-icons) { font-size: 13px; font-weight: 500; }
 .verse-action-btn:hover { opacity: 1; background: rgba(255,255,255,0.1); }
+
+/* Press state — the only feedback that fires on touch, where :hover never
+   does. Squash is immediate; the spring easing above pops it back. */
+.verse-action-btn:active {
+  opacity: 1;
+  transform: scale(0.93);
+  background: rgba(255,255,255,0.16);
+}
+
+/* Lit while the panel this button opened is showing — answers "which one did
+   I tap?" after the press animation ends. Toggled by _syncVerseActionStates. */
+.verse-action-btn-on {
+  opacity: 1;
+  color: #f7a8d0;
+  border-color: rgba(200, 48, 134, 0.5);
+  background: rgba(200, 48, 134, 0.18);
+}
+.verse-action-btn-on .material-icons { color: #f7a8d0; }
+
 .light .verse-action-btn {
   border-color: rgba(0,0,0,0.12);
   background: rgba(0,0,0,0.04);
 }
 .light .verse-action-btn:hover { background: rgba(0,0,0,0.08); }
+.light .verse-action-btn:active { background: rgba(0,0,0,0.14); }
+.light .verse-action-btn-on {
+  color: #a01f68;
+  border-color: rgba(200, 48, 134, 0.45);
+  background: rgba(200, 48, 134, 0.12);
+}
+.light .verse-action-btn-on .material-icons { color: #c83086; }
+
+/* ── Font choice (Settings sheet → Font) ──────────────────────────────────
+   Nunito is the default (see `body` at the top of this file). This class is
+   the opt-out, restoring the stack the app used before — including the
+   hardcoded Arial that form controls and buttons used to carry. Everything
+   else either inherits from body, so it follows for free, or declares a
+   deliberate font of its own (Google Sans Flex labels, the italic display
+   title, the icon fonts) and is untouched by either mode. */
+body.font-system {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
+body.font-system select,
+body.font-system input,
+body.font-system button,
+body.font-system textarea {
+  font-family: Arial;
+}
+
+/* ── Panel reveal: the card grows out of the button you pressed ────────────
+   The mount is a 1-row grid so the row can animate 0fr → 1fr, which gives a
+   real height expansion — verses below get pushed down smoothly instead of
+   jumping. The card inside rises and scales up from `--ai-origin-x`, the
+   x-center of the tapped button (set in JS), so the motion visibly starts at
+   the finger rather than in the middle of the screen. */
+.inline-ai-mount {
+  display: grid;
+  grid-template-rows: 1fr;
+  transform-origin: var(--ai-origin-x, 32px) top;
+}
+.inline-ai-mount > * { min-height: 0; }
+
+/* The whole entrance is ONE animation on ONE element. It was originally split
+   across the mount (height) and the card (rise), which meant the card's
+   animation-name flipped from aiCardReveal back to its own aiFadeSlideIn the
+   moment the class came off — and a changed animation-name restarts from
+   frame zero, replaying the entrance a second time. */
+.inline-ai-mount--revealing {
+  overflow: hidden;
+  animation: aiMountReveal 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes aiMountReveal {
+  from {
+    grid-template-rows: 0fr;
+    opacity: 0;
+    transform: translateY(-8px) scale(0.97);
+  }
+  to {
+    grid-template-rows: 1fr;
+    opacity: 1;
+    transform: none;
+  }
+}
+/* The card ships its own aiFadeSlideIn for use outside a mount. Inside one,
+   the mount owns the entrance — leaving both on played two fades at once.
+   `:not(.dig-deeper)` keeps the Dig Deeper card's infinite digGlow intact. */
+.inline-ai-mount > .inline-ai-card:not(.dig-deeper) { animation: none; }
+@keyframes aiCardReveal {
+  from { opacity: 0; transform: translateY(-10px) scale(0.96); }
+  to   { opacity: 1; transform: none; }
+}
+/* Body swap (loader → answer) fades up instead of hard-cutting. The card
+   shell around it never repaints, so the header, gradient and border stay
+   perfectly still through the whole transition. */
+.ai-card-body--fresh { animation: aiBodyFade 0.32s ease-out; }
+@keyframes aiBodyFade {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Notes panel gets the same origin-anchored rise (no height animation — it
+   opens small enough that the push isn't jarring). The markup also carries
+   .ai-fade-in, whose animation would double up with this one and then restart
+   as soon as the reveal class came off — so inside a verse it's flattened to
+   a static end state, leaving exactly one entrance. */
+.verse .comments.ai-fade-in {
+  opacity: 1;
+  transform: none;
+  animation: none;
+}
+.verse .comments.comments--revealing {
+  transform-origin: var(--ai-origin-x, 32px) top;
+  animation: aiCardReveal 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .verse-action-btn { transition: opacity 0.15s, background 0.15s, color 0.15s; }
+  .verse-action-btn:active { transform: none; }
+  .inline-ai-mount--revealing,
+  .ai-card-body--fresh,
+  .comments.comments--revealing { animation: none; }
+}
 
 /* ── LIGHT MODE: NOTES APP ── */
 .light .notes-app { background: #faf9f6; color: #1a1a1a; }
@@ -10263,7 +10428,8 @@ body.tts-canvas-active .cm-listen-bar {
   position: fixed;
   pointer-events: none;
   z-index: 10100;
-  font-family: "Google Sans Flex", "Google Sans", system-ui, sans-serif;
+  /* Matches the passage it was grabbed from. */
+  font-family: inherit;
   font-weight: 600;
   font-size: 19px;
   line-height: 1.25;
@@ -10474,7 +10640,9 @@ body.tts-canvas-active .cm-listen-bar {
 .cm-passage {
   position: relative;
   color: #1a1a2e;
-  font-family: "Google Sans Flex", "Google Sans", system-ui, sans-serif;
+  /* Inherit so canvas reading text tracks the Font setting like the main
+     view does, rather than pinning its own face. */
+  font-family: inherit;
   font-size: 19px;
   line-height: 1.95;
   letter-spacing: 0.1px;
@@ -10486,7 +10654,7 @@ body.tts-canvas-active .cm-listen-bar {
 /* ── Compact context accordion (canvas mode, above first verse) ─────────── */
 .cm-context {
   margin: 0 0 18px;
-  font-family: "Google Sans Flex", "Google Sans", system-ui, sans-serif;
+  font-family: inherit;
   user-select: none;
   -webkit-user-select: none;
 }
@@ -10526,24 +10694,9 @@ body.tts-canvas-active .cm-listen-bar {
     backdrop-filter: blur(6px);
   }
 }
-/* Nunito across the whole Context · Ask block — header pill, summary card,
-   ask input, and the Q&A thread. Scoped to .cm-ctx-* so the passage text and
-   the rest of canvas mode keep their own type. */
-.cm-ctx-head,
-.cm-ctx-panel,
-.cm-ctx-thread,
-.cm-ctx-head *,
-.cm-ctx-panel *,
-.cm-ctx-thread * {
-  font-family: "Nunito", system-ui, -apple-system, sans-serif;
-}
-/* Icon fonts must win — the wildcards above would otherwise turn the book /
-   refresh / chevron / help glyphs into literal ligature text. */
-.cm-ctx-head .material-symbols-outlined,
-.cm-ctx-panel .material-symbols-outlined,
-.cm-ctx-thread .material-symbols-outlined {
-  font-family: "Material Symbols Outlined" !important;
-}
+/* (The Context · Ask panel used to pin Nunito here explicitly. Nunito is now
+   the app-wide default on `body`, so the panel inherits it and the override —
+   plus the icon-font pins it needed — is gone.) */
 
 .cm-ctx-head {
   display: flex;
@@ -11029,7 +11182,7 @@ body.tts-canvas-active .cm-listen-bar {
   border: 1px solid rgba(0,0,0,0.1);
   border-radius: 10px;
   padding: 10px 12px;
-  font-family: "Google Sans Flex", system-ui, sans-serif;
+  font-family: inherit;
   font-size: 15px;
   line-height: 1.5;
   color: #1a1a2e;
@@ -11109,7 +11262,7 @@ body.tts-canvas-active .cm-listen-bar {
 .cm-note-view-close:hover { background: rgba(0,0,0,0.1); color: #1a1a2e; }
 .cm-note-view-close .material-symbols-outlined { font-size: 16px; }
 .cm-note-view-body {
-  font-family: "Google Sans Flex", system-ui, sans-serif;
+  font-family: inherit;
   font-size: 15px;
   line-height: 1.55;
   color: #1a1a2e;

@@ -1713,7 +1713,16 @@ async function _imgcrShare() {
     intro.addEventListener("animationend", (e) => {
       if (e.target === intro) remove();
     });
-    setTimeout(remove, 3800);
+    // Fallback sized off --cm-intro-dur (style.css .cm-intro) plus a margin,
+    // so retiming the intro there doesn't strand this number.
+    const durRaw = getComputedStyle(intro).getPropertyValue("--cm-intro-dur").trim();
+    const durNum = parseFloat(durRaw);
+    const introMs = !durNum
+      ? 2100
+      : durRaw.endsWith("ms")
+        ? durNum
+        : durNum * 1000; // tolerate an `s` value
+    setTimeout(remove, introMs + 300);
   }
 
   function close() {
@@ -1945,6 +1954,28 @@ async function _imgcrShare() {
     p.addEventListener("click", () => setTimeout(syncSheetVerPills, 10))
   );
   syncSheetVerPills();
+
+  // Font choice — Nunito is the CSS default on every device; picking SYSTEM
+  // adds `body.font-system`, which restores the old stack (see that block in
+  // style.css). Persisted so the choice survives reloads, but NOT synced to
+  // RTDB: font is a per-device reading preference, and a phone and a laptop
+  // can reasonably differ.
+  const mtSheetFont = document.getElementById("mtSheetFont");
+  function applyFontChoice(choice) {
+    // Nunito is the CSS default, so only the opt-out carries a class.
+    document.body.classList.toggle("font-system", choice === "system");
+    mtSheetFont?.querySelectorAll(".mt-sheet-ver").forEach((b) => {
+      b.classList.toggle("active", b.dataset.font === choice);
+    });
+  }
+  mtSheetFont?.addEventListener("click", (e) => {
+    const btn = e.target.closest(".mt-sheet-ver");
+    if (!btn) return;
+    const choice = btn.dataset.font === "nunito" ? "nunito" : "system";
+    try { localStorage.setItem(_FONT_CHOICE_KEY, choice); } catch {}
+    applyFontChoice(choice);
+  });
+  applyFontChoice(_getFontChoice());
 
   // Overflow sheet
   function openOverflow() { mtOverflowSheet.hidden = false; }

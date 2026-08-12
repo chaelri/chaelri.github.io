@@ -49,6 +49,134 @@ const AI_TONE = `Be direct — no greetings, no filler, no "Hey there!", no "Gre
   } catch {}
 })();
 
+/* ---------- CANONICAL VERSE-TEXT NORMALIZER ----------
+ * The Bible JSON has verses where a space is missing after sentence
+ * punctuation ("the LORD.Then Gideon"), so every consumer patched it with its
+ * own inline regex. That grew to six near-copies across four files which then
+ * drifted into two different variants — and the digit-tolerant variant broke
+ * thousands separators: "22,000" rendered as "22, 000".
+ *
+ * Everything now calls this one function. That also makes the TTS cache-key
+ * invariant structural rather than a comment: loadPassage and
+ * _ttsPrefetchSpecific cannot drift apart if they share the implementation.
+ * (See DECISIONS #20f — the same class of bug, when a curly apostrophe in the
+ * punctuation class turned "Aaron's" into "Aaron' s".)
+ */
+function normalizeVerseText(raw) {
+  return String(raw ?? "")
+    .trim()
+    // A letter directly after punctuation is always a missing space.
+    .replace(/([.!?,;:])(?=[A-Za-z])/g, "$1 ")
+    // A digit after punctuation is only a missing space when the punctuation
+    // isn't sitting *between* digits — otherwise "22,000" becomes "22, 000",
+    // "3.5" becomes "3. 5", and "1:1" becomes "1: 1". Written with a capture
+    // rather than a lookbehind so it runs on older iOS Safari.
+    .replace(/(\d?)([.!?,;:])(?=\d)/g, (match, prevDigit, punct) =>
+      prevDigit ? match : `${punct} `,
+    )
+    // Sentence punctuation can sit INSIDE a quote, putting the closing mark
+    // between it and the next word: "do that!’So Gideon". The rule above sees
+    // ! followed by ’ (not a letter) and stops. Requiring the punctuation
+    // before the quote is what keeps this off apostrophes — the ’ in
+    // "Gideon’s" has a letter before it, not a full stop, so it never matches.
+    .replace(/([.!?,;:][”’"]+)(?=[A-Za-z])/g, "$1 ")
+    .replace(/\s+/g, " ");
+}
+
+/* ---------- QUOTED-SPEECH FORMATTING ----------
+ * Wraps quoted speech in `.quote-style` so the Lord's words read differently
+ * from narration. Two things make this harder than a toggle:
+ *
+ * 1. Quotes NEST. "So say to the men, “…”" sits inside the Lord's own ‘…’,
+ *    and a naive toggle reads the inner “ as a closer — which flipped the
+ *    nested speech back to plain white mid-sentence and left the ” and ’
+ *    themselves styled as if they opened something.
+ * 2. Quotes SPAN VERSES. The Lord's speech opens in v2 and closes in v3, so
+ *    the caller carries `stack` across the whole passage.
+ *
+ * So delimiters are matched by direction against a stack of expected closers,
+ * and only the outermost level opens/closes a span — everything at depth ≥ 1
+ * is one continuous run, which is what you want when the speaker hasn't
+ * changed.
+ */
+const _QUOTE_PAIRS = { "“": "”", "‘": "’" };
+
+// A right single quote between two letters is a possessive or contraction
+// ("Gideon’s"), never a closing delimiter. Trailing possessives ("Moses’ ")
+// stay ambiguous — they only misfire inside a ‘…’ quote, which is rare.
+function _isApostrophe(chars, i) {
+  return /[A-Za-z]/.test(chars[i - 1] || "") && /[A-Za-z]/.test(chars[i + 1] || "");
+}
+
+function formatVerseQuotes(text, stack) {
+  const chars = [...String(text ?? "")];
+
+  // Depth 1 and depth 2 get their own spans — a quote inside a quote is a
+  // different speaker (the Lord relaying what Gideon should say), so it reads
+  // in its own colour. Levels past 2 stay inside the nested span rather than
+  // inventing more colours.
+  const openTo = (depth) =>
+    (depth >= 1 ? '<span class="quote-style">' : "") +
+    (depth >= 2 ? '<span class="quote-style-nested">' : "");
+  const closeFrom = (depth) => (depth >= 2 ? "</span>" : "") + (depth >= 1 ? "</span>" : "");
+
+  let html = openTo(stack.length);
+
+  for (let i = 0; i < chars.length; i++) {
+    const char = chars[i];
+    const expected = stack[stack.length - 1];
+
+    // Closer for whatever is currently open.
+    if (expected && char === expected && !(char === "’" && _isApostrophe(chars, i))) {
+      html += char; // the mark belongs inside the run it closes
+      stack.pop();
+      if (stack.length < 2) html += "</span>"; // left the nested or outer level
+      continue;
+    }
+
+    // Opener. Straight " has no direction, so it toggles against the stack.
+    const isStraight = char === '"';
+    if (_QUOTE_PAIRS[char] || isStraight) {
+      stack.push(isStraight ? '"' : _QUOTE_PAIRS[char]);
+      if (stack.length === 1) html += '<span class="quote-style">';
+      else if (stack.length === 2) html += '<span class="quote-style-nested">';
+      html += char; // the mark belongs inside the run it opens
+      continue;
+    }
+
+    html += char;
+  }
+
+  // Close at the verse boundary so the markup stays valid; `stack` still
+  // carries the open quotes and the next verse reopens them at the same depth.
+  html += closeFrom(stack.length);
+  return html;
+}
+
+/* ---------- FONT CHOICE ----------
+ * "system" (the default stack the app has always used) or "nunito".
+ * Deliberately NOT in firebase-sync's SYNC_STATIC_KEYS — font is a per-device
+ * reading preference, so the phone and the laptop can differ.
+ */
+const _FONT_CHOICE_KEY = "devo.fontChoice";
+function _getFontChoice() {
+  try {
+    // Nunito is the default on every device — only an explicit opt-out counts.
+    return localStorage.getItem(_FONT_CHOICE_KEY) === "system" ? "system" : "nunito";
+  } catch {
+    return "nunito";
+  }
+}
+// Nunito needs no class (it's the CSS default), so this only ever ADDS the
+// opt-out class — meaning a device that has never touched the setting, or one
+// where localStorage throws, still gets Nunito with no JS involved at all.
+(function _applyFontChoiceOnBoot() {
+  const apply = () =>
+    document.body?.classList.toggle("font-system", _getFontChoice() === "system");
+  if (document.body) apply();
+  else document.addEventListener("DOMContentLoaded", apply, { once: true });
+})();
+
 /* ---------- SHARED: Call Gemini Proxy ---------- */
 async function callGemini(prompt, generationConfig) {
   const body = { task: 'summary', contents: [{ parts: [{ text: prompt }] }] };
@@ -431,7 +559,8 @@ function openCrossRefPeek(refStr, anchorEl) {
   }
 
   const rows = verseNums.map(v => {
-    const text = bookContent?.[ch]?.[String(v)]?.trim()?.replace(/([.!?,;:])(?=[a-zA-Z])/g, "$1 ")?.replace(/\s+/g, " ");
+    const raw = bookContent?.[ch]?.[String(v)];
+    const text = raw ? normalizeVerseText(raw) : "";
     return { num: v, text: text || "Verse not available." };
   });
 

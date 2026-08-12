@@ -15,21 +15,133 @@ function resetAISections() {
   }
 }
 
+// ── Verse-action button feedback ──────────────────────────────────────────
+// Touch devices never fire :hover, so a tap on Context / Ask / Note used to
+// look identical to no tap at all — and Context takes a second or two to
+// render its card. Feedback is now continuity rather than decoration: the
+// press scales the button (CSS :active), and the panel it opens grows out of
+// that button, so the card visibly comes from where the finger was.
+// `navigator.vibrate` is a no-op on iOS Safari; the visual cues carry it.
+function _verseActionTap(btn) {
+  if (!btn) return;
+  try { navigator.vibrate?.(8); } catch {}
+}
+
+// Plays the open animation on `panel`, anchored to the tapped button's
+// x-center so the reveal starts under the finger. The class is stripped on
+// animationend — leaving it on would replay the whole thing when the loader
+// card is swapped for the real content a second or two later.
+function _revealFromButton(panel, btn, cls) {
+  if (!panel || !btn) return;
+  try {
+    const panelBox = panel.getBoundingClientRect();
+    const btnBox = btn.getBoundingClientRect();
+    const originX = btnBox.left - panelBox.left + btnBox.width / 2;
+    panel.style.setProperty("--ai-origin-x", `${Math.round(originX)}px`);
+  } catch {}
+  panel.classList.remove(cls);
+  void panel.offsetWidth; // reflow — restarts the animation on a rapid re-tap
+  panel.classList.add(cls);
+  // Only the panel's own animation ends the reveal. animationend bubbles, so
+  // an inner animation (a fast body swap, a loader) would otherwise strip the
+  // class mid-flight and snap the panel to its final size.
+  const done = (e) => {
+    if (e.target !== panel) return;
+    panel.classList.remove(cls);
+    panel.removeEventListener("animationend", done);
+  };
+  panel.addEventListener("animationend", done);
+}
+
+// Keeps the button lit for as long as the panel it opened is showing, so the
+// row also answers "which one did I tap?" after the press animation ends.
+// Context and Ask share one .inline-ai-mount, so state is read from what's
+// actually rendered rather than tracked in a flag.
+function _syncVerseActionStates(wrap) {
+  if (!wrap) return;
+  const mount = wrap.querySelector(".inline-ai-mount");
+  const commentsEl = wrap.querySelector(".comments");
+  const openState = {
+    context: !!mount?.querySelector(".inline-ai-card"),
+    ask: !!mount?.querySelector(".verse-chat-wrapper"),
+    note: !!commentsEl && !commentsEl.hidden,
+  };
+  wrap.querySelectorAll(".verse-action-btn").forEach((b) => {
+    b.classList.toggle("verse-action-btn-on", !!openState[b.dataset.action]);
+  });
+}
+
+// ── Inline AI card: build once, swap the body ─────────────────────────────
+// Every card state used to rewrite mountEl.innerHTML in full — loader, then
+// answer, then error. That tore down and rebuilt the entire subtree each
+// time, so one tap read as the card blinking two or three separate times.
+// The shell is now created once and only `.ai-card-body` changes.
+function _mountAICardShell(mountEl, { label, extraClass = "", effectsHTML = "" }) {
+  mountEl.innerHTML = `<div class="inline-ai-card ${extraClass}">
+    ${effectsHTML}
+    <div class="ai-card-gradient">
+      <div class="ai-card-header">
+        <span class="ai-card-label">${label}</span>
+        <button class="ai-card-close" title="Close">✕</button>
+      </div>
+      <div class="ai-card-body"></div>
+    </div>
+  </div>`;
+  mountEl.querySelector(".ai-card-close").onclick = () => {
+    mountEl.innerHTML = "";
+    const verseWrap = mountEl.closest?.(".verse");
+    if (verseWrap) _syncVerseActionStates(verseWrap);
+  };
+  return {
+    card: mountEl.querySelector(".inline-ai-card"),
+    body: mountEl.querySelector(".ai-card-body"),
+  };
+}
+
+// Runs `mutate` (which rewrites the card body) between two height
+// measurements and animates the mount between them, so loader → answer is
+// the card growing rather than snapping to a new size. The incoming body
+// fades up over the same curve so the text doesn't hard-cut.
+function _swapCardBody(mountEl, mutate) {
+  const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+  const start = mountEl.getBoundingClientRect().height;
+  mutate();
+  if (reduce) return;
+
+  const body = mountEl.querySelector(".ai-card-body");
+  if (body) {
+    body.classList.remove("ai-card-body--fresh");
+    void body.offsetWidth; // reflow so a rapid second swap replays the fade
+    body.classList.add("ai-card-body--fresh");
+  }
+
+  const end = mountEl.getBoundingClientRect().height;
+  if (Math.abs(end - start) < 1) return;
+
+  mountEl.style.overflow = "hidden";
+  mountEl.style.height = `${start}px`;
+  void mountEl.offsetWidth;
+  mountEl.style.transition = "height 0.38s cubic-bezier(0.22, 1, 0.36, 1)";
+  mountEl.style.height = `${end}px`;
+
+  const cleanup = () => {
+    mountEl.style.height = "";
+    mountEl.style.overflow = "";
+    mountEl.style.transition = "";
+  };
+  mountEl.addEventListener("transitionend", cleanup, { once: true });
+  // Belt and braces: if the mount is detached mid-transition (user closes the
+  // card, passage reloads) transitionend never fires and the inline height
+  // would stick.
+  setTimeout(cleanup, 600);
+}
+
 async function fetchInlineQuickContext(
   { book, chapter, verse, text },
   mountEl,
 ) {
-  // Show sparkle loader inside a card shell
-  mountEl.innerHTML = `<div class="inline-ai-card">
-    <div class="ai-card-gradient">
-      <div class="ai-card-header">
-        <span class="ai-card-label">Quick Context</span>
-        <button class="ai-card-close" title="Close">✕</button>
-      </div>
-      ${sparkleLoaderHTML('Quick context…')}
-    </div>
-  </div>`;
-  mountEl.querySelector('.ai-card-close').onclick = () => { mountEl.innerHTML = ''; };
+  const { card, body } = _mountAICardShell(mountEl, { label: "Quick Context" });
+  body.innerHTML = sparkleLoaderHTML("Quick context…");
 
   try {
     const aiText = await callGemini(`You are a Bible study assistant. Be extremely concise.
@@ -40,36 +152,29 @@ IMPORTANT: Bold the key theological terms and important words using **double ast
 
 "${text}"`);
 
-    mountEl.innerHTML = `<div class="inline-ai-card">
-      <div class="ai-card-gradient">
-        <div class="ai-card-header">
-          <span class="ai-card-label">Quick Context</span>
-          <button class="ai-card-close" title="Close">✕</button>
-        </div>
-        <div class="ai-md-content">${mdToHTML(aiText)}</div>
-      </div>
-      <div class="inline-ai-dig-footer" title="Dig Deeper">
-        <span class="material-icons">auto_awesome</span>
-        <span class="dig-footer-label">Dig Deeper</span>
-        <span class="material-icons chevron">chevron_right</span>
-      </div>
-    </div>`;
-
-    mountEl.querySelector('.ai-card-close').onclick = () => { mountEl.innerHTML = ''; };
-    mountEl.querySelector('.inline-ai-dig-footer').onclick = () => {
-      fetchInlineDigDeeper({ book, chapter, verse, text }, mountEl);
-    };
+    _swapCardBody(mountEl, () => {
+      body.innerHTML = `<div class="ai-md-content">${mdToHTML(aiText)}</div>`;
+      // Footer is appended to the existing card rather than rebuilt with it,
+      // so the header and gradient never repaint.
+      if (!card.querySelector(".inline-ai-dig-footer")) {
+        const footer = document.createElement("div");
+        footer.className = "inline-ai-dig-footer";
+        footer.title = "Dig Deeper";
+        footer.innerHTML =
+          `<span class="material-icons">auto_awesome</span>` +
+          `<span class="dig-footer-label">Dig Deeper</span>` +
+          `<span class="material-icons chevron">chevron_right</span>`;
+        footer.onclick = () => {
+          fetchInlineDigDeeper({ book, chapter, verse, text }, mountEl);
+        };
+        card.appendChild(footer);
+      }
+    });
   } catch {
-    mountEl.innerHTML = `<div class="inline-ai-card">
-      <div class="ai-card-gradient">
-        <div class="ai-card-header">
-          <span class="ai-card-label">Quick Context</span>
-          <button class="ai-card-close" title="Close">✕</button>
-        </div>
-        <p style="color:rgba(255,255,255,0.7);font-size:13px;">Failed to load quick context.</p>
-      </div>
-    </div>`;
-    mountEl.querySelector('.ai-card-close').onclick = () => { mountEl.innerHTML = ''; };
+    _swapCardBody(mountEl, () => {
+      body.innerHTML =
+        `<p style="color:rgba(255,255,255,0.7);font-size:13px;">Failed to load quick context.</p>`;
+    });
   }
 }
 
@@ -353,38 +458,28 @@ function _digDeeperEffectsHTML() {
 }
 
 async function fetchInlineDigDeeper({ book, chapter, verse, text }, mountEl) {
-  mountEl.innerHTML = `<div class="inline-ai-card dig-deeper">
-    ${_digDeeperEffectsHTML()}
-
-    <div class="ai-card-gradient">
-      <div class="ai-card-header">
-        <span class="ai-card-label">Dig Deeper</span>
-        <button class="ai-card-close" title="Close">✕</button>
-      </div>
-      ${sparkleLoaderHTML('Digging deeper…')}
-    </div>
-  </div>`;
-  mountEl.querySelector('.ai-card-close').onclick = () => { mountEl.innerHTML = ''; };
+  // One shell, built once. This used to write the same markup twice in a row
+  // — loader shell, then an identical shell with a stream target — which was
+  // a wasted teardown before the request had even started.
+  // Swapping the Quick Context card for this one is a genuine rebuild (new
+  // label, new background effects), so it rides the same height animation
+  // instead of snapping. The stream target is created up front and the loader
+  // lives inside it, overwritten by the first streamed chunk.
+  let shell;
+  _swapCardBody(mountEl, () => {
+    shell = _mountAICardShell(mountEl, {
+      label: "Dig Deeper",
+      extraClass: "dig-deeper",
+      effectsHTML: _digDeeperEffectsHTML(),
+    });
+    shell.body.innerHTML =
+      `<div class="ai-md-content" id="dig-deeper-stream">${sparkleLoaderHTML('Digging deeper…')}</div>`;
+  });
+  const body = shell.body;
 
   const verseText = text || '';
 
   try {
-    // Build the final card shell immediately so streaming has a text target.
-    // Pre-fill the content area with the sparkle loader so the user sees
-    // activity while we wait for the first streamed chunk.
-    mountEl.innerHTML = `<div class="inline-ai-card dig-deeper">
-    ${_digDeeperEffectsHTML()}
-
-      <div class="ai-card-gradient">
-        <div class="ai-card-header">
-          <span class="ai-card-label">Dig Deeper</span>
-          <button class="ai-card-close" title="Close">✕</button>
-        </div>
-        <div class="ai-md-content" id="dig-deeper-stream">${sparkleLoaderHTML('Digging deeper…')}</div>
-      </div>
-    </div>`;
-    mountEl.querySelector('.ai-card-close').onclick = () => { mountEl.innerHTML = ''; };
-
     const streamEl = mountEl.querySelector('#dig-deeper-stream');
 
     await callGeminiStream(
@@ -415,18 +510,10 @@ STRICT: No greetings. No "this verse tells us". No padding. Start with #### Orig
 
   } catch (err) {
     console.error(err);
-    mountEl.innerHTML = `<div class="inline-ai-card dig-deeper">
-    ${_digDeeperEffectsHTML()}
-  
-      <div class="ai-card-gradient">
-        <div class="ai-card-header">
-          <span class="ai-card-label">Dig Deeper</span>
-          <button class="ai-card-close" title="Close">✕</button>
-        </div>
-        <p style="color:rgba(255,255,255,0.7);font-size:13px;">Failed to load deeper context.</p>
-      </div>
-    </div>`;
-    mountEl.querySelector('.ai-card-close').onclick = () => { mountEl.innerHTML = ''; };
+    _swapCardBody(mountEl, () => {
+      body.innerHTML =
+        `<p style="color:rgba(255,255,255,0.7);font-size:13px;">Failed to load deeper context.</p>`;
+    });
   }
 }
 
@@ -481,7 +568,7 @@ async function _openDailyStory(bookKey, ch) {
   const chapterData = bookContent[ch];
   const versesText = Object.entries(chapterData)
     .sort((a, b) => parseInt(a[0]) - parseInt(b[0]))
-    .map(([v, text]) => `${v}. ${text.trim().replace(/([.!?,;:])(?=[a-zA-Z])/g, "$1 ").replace(/\s+/g, " ")}`)
+    .map(([v, text]) => `${v}. ${normalizeVerseText(text)}`)
     .join("\n");
 
   // Temporarily set __aiPayload so the story modal can use it
@@ -673,11 +760,7 @@ function getVerseText(bookId, chapter, verse) {
 
   const chapterData = bookData[chapter];
   // Regex to fix ".Word" -> ". Word"
-  const clean = (txt) =>
-    txt
-      .trim()
-      .replace(/([.!?,;:])(?=[a-zA-Z])/g, "$1 ")
-      .replace(/\s+/g, " ");
+  const clean = normalizeVerseText;
 
   if (chapterData[verse]) return clean(chapterData[verse]);
 
@@ -1254,10 +1337,7 @@ async function loadPassage() {
       book_id: bookId,
       chapter: Number(chapterNum),
       verse: vNum, // Keep as string (e.g. "1-4")
-      text: text
-        .trim()
-        .replace(/([.,!?])(?=[a-zA-Z0-9])/g, "$1 ")
-        .replace(/\s+/g, " "),
+      text: normalizeVerseText(text),
     }));
 
     // Sort by numeric start so range keys like "1-4" don’t get pushed to the end
@@ -1295,48 +1375,16 @@ async function loadPassage() {
     _allNotesOpen = false;
     document.getElementById("notesToggleBtn")?.classList.remove("ctrl-icon-active");
 
-    let isInsideQuote = false;
+    // Carried across the whole passage — quoted speech routinely opens in one
+    // verse and closes in a later one.
+    const quoteStack = [];
 
     verses.forEach((v) => {
       const key = keyOf(v.book_id, v.chapter, v.verse);
       const count = comments[key]?.length || 0;
       const isFav = isFavorite(key);
 
-      let formattedText = "";
-
-      // If we are already inside a quote from the previous verse,
-      // start this verse with the opening span.
-      if (isInsideQuote) {
-        formattedText += '<span class="quote-style">';
-      }
-
-      for (let char of v.text) {
-        if (
-          char === '"' ||
-          char === "“" ||
-          char === "”" ||
-          char === `‘` ||
-          char === `’`
-        ) {
-          if (!isInsideQuote) {
-            // Transition: Outside -> Inside
-            formattedText += '<span class="quote-style">' + char;
-            isInsideQuote = true;
-          } else {
-            // Transition: Inside -> Outside
-            formattedText += char + "</span>";
-            isInsideQuote = false;
-          }
-        } else {
-          formattedText += char;
-        }
-      }
-
-      // SAFETY: If the verse ends but the quote is still open,
-      // close the span for this div so it doesn't break the layout.
-      if (isInsideQuote) {
-        formattedText += "</span>";
-      }
+      const formattedText = formatVerseQuotes(v.text, quoteStack);
 
       const wrap = document.createElement("div");
       wrap.className = "verse" + (isFav ? " highlighted" : "");
@@ -1383,9 +1431,11 @@ async function loadPassage() {
 
       aiBtn.onclick = (e) => {
         e.stopPropagation();
+        _verseActionTap(aiBtn);
         const mount = wrap.querySelector(".inline-ai-mount");
         if (mount.innerHTML.trim()) {
           mount.innerHTML = "";
+          _syncVerseActionStates(wrap);
           return;
         }
         fetchInlineQuickContext(
@@ -1397,12 +1447,18 @@ async function loadPassage() {
           },
           mount,
         );
+        // Loader card is written synchronously above, so it's in the DOM to
+        // animate by the time we get here.
+        _revealFromButton(mount, aiBtn, "inline-ai-mount--revealing");
+        _syncVerseActionStates(wrap);
       };
 
       const chatBtn = wrap.querySelector('[data-action="ask"]');
       chatBtn.onclick = (e) => {
         e.stopPropagation();
+        _verseActionTap(chatBtn);
         const mount = wrap.querySelector(".inline-ai-mount");
+        const wasOpen = !!mount.querySelector(".verse-chat-wrapper");
         toggleVerseChat(
           key,
           BIBLE_META[v.book_id].name,
@@ -1411,14 +1467,21 @@ async function loadPassage() {
           v.text,
           mount,
         );
+        if (!wasOpen) _revealFromButton(mount, chatBtn, "inline-ai-mount--revealing");
+        _syncVerseActionStates(wrap);
       };
 
       const noteActionBtn = wrap.querySelector('[data-action="note"]');
       if (noteActionBtn) {
         noteActionBtn.onclick = (e) => {
           e.stopPropagation();
+          _verseActionTap(noteActionBtn);
           commentsEl.hidden = !commentsEl.hidden;
-          if (!commentsEl.hidden) renderComments(key, commentsEl);
+          if (!commentsEl.hidden) {
+            renderComments(key, commentsEl);
+            _revealFromButton(commentsEl, noteActionBtn, "comments--revealing");
+          }
+          _syncVerseActionStates(wrap);
         };
       }
 
@@ -1434,6 +1497,19 @@ async function loadPassage() {
 
       output.appendChild(wrap);
     });
+
+    // Any click inside a verse can change what's open — the card's own ✕, a
+    // chat close, a note toggle. One delegated listener re-syncs the button
+    // lit-states on the next frame instead of threading callbacks through
+    // every card renderer. #output is a stable node across passage loads, so
+    // guard against stacking duplicate listeners.
+    if (!output._verseActionSyncWired) {
+      output.addEventListener("click", (e) => {
+        const verseWrap = e.target.closest?.(".verse");
+        if (verseWrap) requestAnimationFrame(() => _syncVerseActionStates(verseWrap));
+      });
+      output._verseActionSyncWired = true;
+    }
 
     // Add Reflect button below the last verse
     const reflectRow = document.createElement("div");
@@ -1784,6 +1860,29 @@ function _ensureReflectionRetryUI(mount) {
       }
     });
 
+    // Verse chips → peek sheet instead of scrolling the page away. The
+    // fullscreen reflect modal has always done this (js/08-story.js); the
+    // inline panel was the odd one out, falling through to the global
+    // `a[href^="#"]` delegate in js/05-render-init.js that smooth-scrolls and
+    // flashes .verse-highlight — which means losing your place in the
+    // questions to go look at one verse.
+    //
+    // This listener sits on #aiReflection, so it runs during bubbling BEFORE
+    // that document-level delegate; stopPropagation is what keeps the scroll
+    // from also firing.
+    mount.addEventListener("click", (e) => {
+      const link = e.target.closest("a.reflection-link, a[href^='#']");
+      if (!link || !mount.contains(link)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      // Read the range off the label, not the href: _normalizeReflectionLinks
+      // collapses href to the FIRST verse, so "vv. 16–17" would peek only 16.
+      const verseRef =
+        link.textContent.replace(/[^0-9,\-–\s]/g, "").trim() ||
+        link.getAttribute("href")?.replace("#", "");
+      if (verseRef) openVersePeek(verseRef, link);
+    });
+
     // Input on any reflection textarea → recompute button state. Delegation
     // means it works for textareas added later (partial regen creates new ones).
     mount.addEventListener("input", (e) => {
@@ -1970,23 +2069,20 @@ function _wireReflectionTextarea(area) {
   });
 }
 
-// Verse-chip clicks are NOT handled here. The global delegate in
-// js/05-render-init.js already catches any `a[href^="#"]`, resolves it with
-// getElementById, and runs smoothScrollTo + `.verse-highlight` (the push-right
-// blue-border sweep). Every `.verse-header` is rendered with `id="<verseNum>"`
-// in loadPassage, so that lookup is all the wiring the chips need.
+// Verse-chip clicks open the peek sheet — see the delegated handler in
+// _ensureReflectionRetryUI. They used to fall through to the global
+// `a[href^="#"]` delegate in js/05-render-init.js, which smooth-scrolled the
+// page to the verse; that's still the fallback for chips rendered anywhere
+// else, so the href must stay well-formed.
 //
-// There used to be a per-link handler here that called preventDefault() and
-// then added a class named "verseGlow" — but `verseGlow` is the @keyframes
-// name, not a class, so it matched no CSS rule. It intercepted the click
-// before the working global delegate could see it, which is why freshly
-// generated questions never animated while cached ones (never wired) did.
+// The AI sometimes emits `#v.7` or `#vv. 41` instead of `#7` / `#41`, and
+// getElementById then finds nothing, so the delegate bails and the browser
+// follows the dead hash. Rewriting the href to the first verse number in the
+// label fixes those without touching the click path.
 //
-// All this needs is a well-formed href. The AI sometimes emits `#v.7` or
-// `#vv. 41` instead of `#7` / `#41`, and getElementById then finds nothing, so
-// the delegate bails and the browser follows the dead hash. Rewriting the href
-// to the first verse number in the label fixes those without touching the
-// click path.
+// (Historical note: a per-link handler here once called preventDefault() and
+// added a class named "verseGlow" — but `verseGlow` is the @keyframes name,
+// not a class, so it matched no CSS rule while still swallowing the click.)
 function _normalizeReflectionLinks(scope) {
   if (!scope) return;
   scope.querySelectorAll('a[href^="#"]').forEach((a) => {

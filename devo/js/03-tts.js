@@ -945,10 +945,9 @@ async function _ttsPrefetchSpecific(ref, onlyVerseNums, opts) {
     // the punct class, which mangled possessives ("Aaron’s" → "Aaron’ s") and
     // sent malformed text to TTS — produces a wrong-sounding read AND sometimes
     // chokes the downstream synth, leaving stuck verses that never cache.
-    const text = raw
-      .trim()
-      .replace(/([.,!?])(?=[a-zA-Z0-9])/g, "$1 ")
-      .replace(/\s+/g, " ");
+    // MUST match loadPassage's normalization or the cache key won't line up —
+    // guaranteed now by both calling normalizeVerseText (js/01-core.js).
+    const text = normalizeVerseText(raw);
     // The chapter-title prefix only belongs on verseNum "1" — when retrying a
     // mid-chapter verse, do NOT prepend it (would produce a different cache
     // key than the original full-chapter prefetch saved under).

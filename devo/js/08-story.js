@@ -1173,7 +1173,7 @@ function _peekGetVerseText(v, allVerses) {
     const { book, chapter: ch } = window.__aiPayload;
     const bookContent = bibleData[book] || bibleData[book?.toUpperCase()];
     if (bookContent && bookContent[ch] && bookContent[ch][String(v)]) {
-      return bookContent[ch][String(v)].trim().replace(/([.!?,;:])(?=[a-zA-Z])/g, "$1 ").replace(/\s+/g, " ");
+      return normalizeVerseText(bookContent[ch][String(v)]);
     }
   }
   return null;
