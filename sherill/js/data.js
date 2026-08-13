@@ -696,9 +696,11 @@ const BANKS = BANK_RATES.map((b) => b.name);
    `end` the calculator silently falls back to the standard rate, so a stale
    promo can never quote a rate that no longer exists.
 
-   Only the customer-facing half of Sherill's promo material belongs here. The
-   flyers also carry dealer mechanics (DMF subsidy, dealer incentive %, display
-   guidelines, YANA tagging) — that stays off the site, same as the DI column. */
+   Only the customer-facing half of Sherill's promo material belongs here. Her
+   flyers mix that with dealer-operations content; none of that ships. See
+   ~/Documents/sherill-bank-DI-internal.md for what is held back and why.
+   Comments in this file are served to the public — keep them free of the
+   internal terminology too, not just the figures. */
 const RATE_PROMOS = [
   {
     id: 'rcbc-xtrail-2026',
