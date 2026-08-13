@@ -1,8 +1,8 @@
 /* ==========================================================================
    drive-with-sherill — all site content lives here.
    Edit this file to update prices, variants, colors and promos.
-   Prices are SRP, VAT-inclusive, as published on nissan.ph + Sherill's
-   official flyers (August 2026). Always confirm before quoting a client.
+   Prices are SRP, VAT-inclusive, taken from the Nissan Quezon Avenue
+   price list Sherill issued (August 2026). Always confirm before quoting.
    ========================================================================== */
 
 const AGENT = {
@@ -13,7 +13,7 @@ const AGENT = {
   mobile: '09778093768',
   mobileIntl: '+639778093768',
   email: 'sherillf20@gmail.com',
-  address: '1090 Quezon Ave, Paligsahan, Quezon City, Metro Manila',
+  address: '138 Quezon Ave, Brgy. Tatalon, Quezon City, Metro Manila',
   mapQuery: 'Nissan Quezon Avenue, Quezon City',
   hours: 'Mon–Sat · 8:00 AM – 6:00 PM  |  Sun · by appointment',
   promoWindow: 'August – September 2026',
@@ -42,8 +42,8 @@ const MODELS = [
     variants: [
       { name: 'Almera 1.0 VE Turbo CVT with NissanConnect', trans: 'CVT', price: 1099000 },
       { name: 'Almera 1.0 VE Turbo CVT with NissanConnect (Premium Color)', trans: 'CVT', price: 1119000 },
-      { name: 'Almera 1.0 VL Turbo CVT with NissanConnect', trans: 'CVT', price: 1199000 },
-      { name: 'Almera 1.0 VL Turbo CVT with NissanConnect (Premium Color)', trans: 'CVT', price: 1219000 },
+      { name: 'Almera 1.0 VL Turbo CVT with NissanConnect', trans: 'CVT', price: 1219000 },
+      { name: 'Almera 1.0 VL Turbo CVT with NissanConnect (Premium Color)', trans: 'CVT', price: 1239000 },
     ],
     colorGroups: [
       {
@@ -177,7 +177,7 @@ const MODELS = [
     sub: 'Premium comfort with e-POWER drive.',
     priceFrom: 2290000,
     seats: 5,
-    heroColor: '#1f4d7a',
+    heroColor: '#96131f',
     highlights: [
       { icon: 'bolt', title: 'e-POWER drive', desc: 'Electric-motor drive, no charging needed.' },
       { icon: 'chair', title: 'Premium cabin', desc: 'Quiet, refined, generously equipped.' },
@@ -185,16 +185,27 @@ const MODELS = [
       { icon: 'terrain', title: 'Confident everywhere', desc: 'Drive modes for every road condition.' },
     ],
     variants: [
-      { name: 'X-Trail e-POWER', trans: 'e-POWER AT', price: 2290000 },
+      { name: 'X-Trail e-POWER (Cardinal Red Metallic / Sahara Dune Metallic)', trans: 'e-POWER AT', price: 2290000 },
+      { name: 'X-Trail e-POWER Premium Monotone (Everest White / Stealth Pearl Gray)', trans: 'e-POWER AT', price: 2310000 },
+      { name: 'X-Trail e-POWER 2-Tone (Sahara Dune Metallic with Black Roof)', trans: 'e-POWER AT', price: 2310000 },
+      { name: 'X-Trail e-POWER Premium 2-Tone (Everest White / Stealth Pearl Gray with Black Roof)', trans: 'e-POWER AT', price: 2320000 },
     ],
     colorGroups: [
       {
-        label: 'Available colors',
+        label: 'Monotone',
         colors: [
-          { name: 'Pearl White with Black Roof', hex: '#eef0f1', roof: '#151515' },
-          { name: 'Champagne Silver', hex: '#c3bdb2' },
-          { name: 'Gun Metallic', hex: '#5b5f63' },
-          { name: 'Galaxy Black', hex: '#111214' },
+          { name: 'Cardinal Red Metallic', hex: '#96131f' },
+          { name: 'Sahara Dune Metallic', hex: '#bfae95' },
+          { name: 'Everest White', hex: '#eef0f1', extra: 20000 },
+          { name: 'Stealth Pearl Gray', hex: '#a8adb1', extra: 20000 },
+        ],
+      },
+      {
+        label: '2-tone with black roof',
+        colors: [
+          { name: 'Sahara Dune Metallic with Black Roof', hex: '#bfae95', roof: '#151515', extra: 20000 },
+          { name: 'Everest White with Black Roof', hex: '#eef0f1', roof: '#151515', extra: 30000 },
+          { name: 'Stealth Pearl Gray with Black Roof', hex: '#a8adb1', roof: '#151515', extra: 30000 },
         ],
       },
     ],
@@ -306,7 +317,8 @@ const MODELS = [
           { name: 'Brilliant Silver', hex: '#c2c5c8' },
           { name: 'Twilight Gray', hex: '#5b5f63' },
           { name: 'Burning Red', hex: '#9d1219' },
-          { name: 'White', hex: '#eef0f1' },
+          { name: 'Aspen Pearl White', hex: '#eef0f1', extra: 20000 },
+          { name: 'Stealth Pearl Gray', hex: '#7d8286', extra: 20000 },
         ],
       },
     ],
@@ -373,7 +385,7 @@ const MODELS = [
     body: 'suv',
     tagline: 'Power. Presence. Prestige.',
     sub: 'The all-new 2026 Nissan Patrol.',
-    priceFrom: 5335000,
+    priceFrom: 5385000,
     seats: 7,
     heroColor: '#eef0f1',
     ltoNote: '₱25,000 · 3 years LTO registration',
@@ -385,26 +397,24 @@ const MODELS = [
       { icon: 'terrain', title: 'Commanding capability', desc: 'Built to conquer every terrain.' },
     ],
     variants: [
-      { name: 'Nissan Patrol 3.5L V6 TT AT 4x4', trans: '7-speed Automatic', price: 5335000, lto: 25000 },
-      { name: 'Nissan Patrol 3.5L V6 TT AT 4x4 (Premium Color)', trans: '7-speed Automatic', price: 5365000, lto: 25000 },
-      { name: 'Nissan Patrol 3.5L V6 TT AT 4x4 with Rear Display', trans: '7-speed Automatic', price: 5385000, lto: 25000 },
-      { name: 'Nissan Patrol 3.5L V6 TT AT 4x4 with Rear Display (Premium Color)', trans: '7-speed Automatic', price: 5415000, lto: 25000 },
-      { name: 'Nissan Patrol 3.5L V6 TT AT 4x4 with Rear Display (2-Tone Color)', trans: '7-speed Automatic', price: 5405000, lto: 25000 },
-      { name: 'Nissan Patrol 3.5L V6 TT AT 4x4 with Rear Display (Premium 2-Tone Color)', trans: '7-speed Automatic', price: 5435000, lto: 25000 },
+      { name: 'Patrol 3.5 V6 Twin Turbo — Granite Black', trans: '7-speed Automatic', price: 5385000, lto: 25000 },
+      { name: 'Patrol 3.5 V6 Twin Turbo — Gun Metallic 2-Tone', trans: '7-speed Automatic', price: 5405000, lto: 25000 },
+      { name: 'Patrol 3.5 V6 Twin Turbo — Everest White', trans: '7-speed Automatic', price: 5415000, lto: 25000 },
+      { name: 'Patrol 3.5 V6 Twin Turbo — Everest White 2-Tone', trans: '7-speed Automatic', price: 5435000, lto: 25000 },
     ],
     colorGroups: [
       {
-        label: 'Premium 2-tone option',
+        label: 'Monotone',
         colors: [
-          { name: 'Everest White with Black Roof', hex: '#eef0f1', roof: '#151515' },
-          { name: 'Gun Metallic with Black Roof', hex: '#5b5f63', roof: '#151515' },
+          { name: 'Granite Black', hex: '#111214' },
+          { name: 'Everest White', hex: '#eef0f1', extra: 30000 },
         ],
       },
       {
-        label: 'Solid color options',
+        label: '2-tone with black roof',
         colors: [
-          { name: 'Everest White', hex: '#eef0f1' },
-          { name: 'Granite Black', hex: '#111214' },
+          { name: 'Gun Metallic with Black Roof', hex: '#5b5f63', roof: '#151515', extra: 20000 },
+          { name: 'Everest White with Black Roof', hex: '#eef0f1', roof: '#151515', extra: 50000 },
         ],
       },
     ],
