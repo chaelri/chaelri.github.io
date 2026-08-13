@@ -39,7 +39,7 @@ Personal site for **Tita Sherill Obillo**, Nissan Marketing Professional at Niss
 - **Quirks:**
   - A three.js low-poly car viewer was built, then removed — real Nissan photography reads far better on a car sales page.
   - Model images are pulled from nissan.ph's DAM; the price-guide thumbnails are only 300 px, the usable ones are the desktop KV JPGs on each model page (1920–2880 px). Needs a browser UA + `Referer: https://www.nissan.ph/`.
-  - Prices combine nissan.ph's price guide with Sherill's own flyers (premium-color rows, Patrol LTO column). **KICKS e-POWER prices are unconfirmed** — ask her.
+  - Prices come from Sherill's own Nissan Quezon Avenue price list, not nissan.ph (it carries the premium-color rows and the Patrol LTO column). Refreshed 2026-08-13: Patrol is now priced **by colour** (₱5,385,000–₱5,435,000, the old ₱5,335,000 base is gone) and X-Trail e-POWER's palette was corrected to Cardinal Red Metallic / Sahara Dune Metallic / Everest White / Stealth Pearl Gray across four price tiers. **KICKS e-POWER prices are still unconfirmed** — her flyer omits the model entirely. Ask her.
   - The quotation form has no backend: it composes a message for Viber / SMS / email / clipboard. The Viber button copies first because Viber links can't carry text.
   - Footer states it is not an official Nissan Philippines website.
 - **Full docs:** See `knowledge/sherill/SUMMARY.md` and `sherill/README.md`.

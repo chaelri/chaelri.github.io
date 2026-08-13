@@ -65,9 +65,13 @@ requirement. The design system in `style.css` covers the same ground with no run
   and any residual matte fringe is white-on-white and therefore invisible. Dark grid → bright
   product sheet also reads well as a transition.
 - **The detail sheet is a CSS 3D turntable.** `perspective: 1500px` on `.turntable`, the car
-  image animated with `rotateY(±14deg)`, a counter-animated contact shadow, and a pointer
-  handler (`bindTurntable` in app.js) that takes over the angle on hover. No WebGL, no plate
-  or border around the car — it floats directly on the sheet's white.
+  image animated with `rotateY(±14deg)` and a counter-animated contact shadow. No WebGL, no
+  plate or border around the car — it floats directly on the sheet's white. It is an **idle
+  sway only, not interactive**: a `bindTurntable` pointer handler existed but was never called
+  from anywhere, so the "Move your cursor to turn it" hint promised an interaction that never
+  ran. Charlie caught it 2026-08-13; the hint, the dead function and the orphaned
+  `.turntable__hint` / `.is-manual` CSS were all removed. Don't re-add the hint without
+  actually wiring the handler.
 - **Where the studio shots came from:** Zigwheels PH's colour gallery
   (`imgcdn.zigwheels.ph/large/gallery/color/…`, 930×620 manufacturer studio shots on white).
   Pick a **non-white** body colour where one exists — it segments and reads better.
@@ -80,8 +84,23 @@ requirement. The design system in `style.css` covers the same ground with no run
   The *thumbnails* linked from the price guide are only 300–400 px — too soft. The usable
   images are the desktop KV/overview JPGs on each model page (1920–2880 px), cropped to 16:9.
   Fetch them with a browser UA + `Referer: https://www.nissan.ph/`.
-- **Prices** come from nissan.ph's price guide plus Sherill's own flyers (the flyers carry
-  premium-color rows the website omits, and the Patrol's ₱25,000 3-year LTO column).
+- **Prices** come from Sherill's own Nissan Quezon Avenue price list — it is the authority,
+  not nissan.ph. It carries premium-color rows the website omits and the Patrol's ₱25,000
+  3-year LTO column. Last refresh **2026-08-13** from her scanned August 2026 list:
+  - **Patrol is now priced by colour, not by rear display.** The old ₱5,335,000 base and the
+    separate "with Rear Display" tier are gone. Four rows: Granite Black ₱5,385,000, Gun
+    Metallic 2-Tone ₱5,405,000, Everest White ₱5,415,000, Everest White 2-Tone ₱5,435,000.
+    Only three colours exist — Everest White, Granite Black, Gun Metallic — and Gun Metallic
+    is **2-tone only** (no monotone row).
+  - **X-Trail e-POWER's palette was wrong before this.** Champagne Silver / Gun Metallic /
+    Galaxy Black never existed on the PH car. The real four are Cardinal Red Metallic, Sahara
+    Dune Metallic, Everest White, Stealth Pearl Gray, sold as four price tiers: base
+    ₱2,290,000 (red / dune), premium monotone ₱2,310,000 (white / gray), 2-tone ₱2,310,000
+    (dune + black roof), premium 2-tone ₱2,320,000 (white or gray + black roof).
+  - Almera VL moved ₱1,199,000 → ₱1,219,000.
+  - Premium-colour surcharge of ₱20,000 on **Navara and Terra** applies to Aspen Pearl White
+    and Stealth Pearl Gray specifically — that's a footnote on the flyer, easy to miss.
+  - Navara, Urvan, Livina and Terra were re-checked line by line and were already correct.
 - **KICKS e-POWER prices are unconfirmed** — the official price guide omits the model and
   public listings disagree by ~₱60k per variant. Her "LE Plus" variant isn't published
   anywhere, so it renders as "Ask for price" instead of an invented number. **Ask her.**
