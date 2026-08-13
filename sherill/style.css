@@ -836,6 +836,27 @@ h3 { font-size: clamp(21px, 2.6vw, 30px); letter-spacing: -.03em; }
   border-radius: var(--r);
 }
 .bank-strip__label { font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--txt-3); }
+/* promo callout under the estimate hero */
+.estimate__promo {
+  margin: 12px 0 0;
+  padding: 11px 13px;
+  border: 1px solid rgba(198,18,44,.35);
+  border-radius: 12px;
+  background: rgba(198,18,44,.08);
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--txt-2);
+}
+.estimate__promo[hidden] { display: none; }
+.est-promo {
+  margin-left: 6px; padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--red); color: #fff;
+  font-size: 10px; font-style: normal; font-weight: 700;
+  letter-spacing: .08em; text-transform: uppercase;
+}
+.est-save { color: #4ade80; }
+
 /* ── auto loan application ─────────────────────────────────────────────── */
 .apply-reqs {
   max-width: 780px;

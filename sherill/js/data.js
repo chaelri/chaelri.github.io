@@ -190,6 +190,15 @@ const MODELS = [
     priceFrom: 2290000,
     seats: 5,
     heroColor: '#96131f',
+    /* The ₱10,000 half is conditional — it only lands if the sale closes during
+       a car display — so the headline figure here is the ₱40,000 everyone gets.
+       Quoting ₱50,000 flat would over-promise. */
+    promo: {
+      label: 'Nissan × RCBC promo',
+      period: 'August 10 – December 31, 2026',
+      cashDiscount: 40000,
+      cashNote: 'Up to ₱50,000 total savings when the sale is closed during a car display event.',
+    },
     highlights: [
       { icon: 'bolt', title: 'e-POWER drive', desc: 'Electric-motor drive, no charging needed.' },
       { icon: 'chair', title: 'Premium cabin', desc: 'Quiet, refined, generously equipped.' },
@@ -496,6 +505,12 @@ const MODELS = [
 /* ---------------------------------------------------------------- promos */
 const PROMOS = [
   {
+    icon: 'trending_down',
+    title: 'X-Trail e-POWER · RCBC low-rate promo',
+    desc: 'Add-on rates down to 12.81% for 36 months, 17.75% for 48 and 22.88% for 60 — plus ₱40,000 off in cash, and up to ₱50,000 when the sale closes during a car display. Until December 31, 2026. Down payment and terms subject to RCBC approval.',
+    tag: 'X-Trail',
+  },
+  {
     icon: 'payments',
     title: 'Cash discount',
     desc: 'Special cash-out pricing for straight-cash buyers. Ask for the exact discount on your chosen variant — it changes per unit and per month.',
@@ -675,6 +690,27 @@ const BANK_RATES = [
 ];
 
 const BANKS = BANK_RATES.map((b) => b.name);
+
+/* Manufacturer-tied rate promos that beat the bank's standard AOR for one
+   model. Matched on bank + model + term, and they expire on their own — past
+   `end` the calculator silently falls back to the standard rate, so a stale
+   promo can never quote a rate that no longer exists.
+
+   Only the customer-facing half of Sherill's promo material belongs here. The
+   flyers also carry dealer mechanics (DMF subsidy, dealer incentive %, display
+   guidelines, YANA tagging) — that stays off the site, same as the DI column. */
+const RATE_PROMOS = [
+  {
+    id: 'rcbc-xtrail-2026',
+    label: 'Nissan × RCBC low interest rate promo',
+    bank: 'RCBC',
+    models: ['xtrail'],
+    start: '2026-08-10',
+    end: '2026-12-31',
+    aor: { 36: 12.81, 48: 17.75, 60: 22.88 },
+    note: 'Down payment amount and loan terms are subject to RCBC approval.',
+  },
+];
 
 const TESTIMONIAL_POINTS = [
   { icon: 'emoji_events', label: 'Top sales' },

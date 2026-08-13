@@ -318,17 +318,40 @@
   }
 
   /* AOR is total add-on interest across the whole term, not per year. */
+  function amortize(loan, aor, months) {
+    return (loan * (1 + aor / 100)) / months;
+  }
   function monthlyFor(loan, bank, months) {
     const aor = bank.aor[months];
     if (aor == null) return null;
-    return (loan * (1 + aor / 100)) / months;
+    return amortize(loan, aor, months);
   }
+
+  /* A promo rate only applies while it is actually running — once `end` passes
+     this returns null and the standard bank rate takes over on its own. */
+  function activePromo(modelId, bankName, months, today = new Date()) {
+    const d = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    return RATE_PROMOS.find((p) =>
+      p.bank === bankName &&
+      p.models.includes(modelId) &&
+      p.aor[months] != null &&
+      d >= p.start && d <= p.end) || null;
+  }
+
+  const fmtDate = (iso) => {
+    const [y, mo, d] = iso.split('-').map(Number);
+    return new Date(y, mo - 1, d).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' });
+  };
 
   function renderEstimate() {
     const { m, v } = currentPick();
     const rows = $('#estRows');
+    const promoNote = $('#estPromoNote');
     const heroLabel = $('#estHeroLabel');
     const heroValue = $('#estHeroValue');
+
+    promoNote.hidden = true;
+    promoNote.textContent = '';
 
     if (!m) {
       $('#estModel').textContent = '—';
@@ -355,26 +378,36 @@
     }
 
     if (pay === 'cash') {
+      const cd = m.promo && m.promo.cashDiscount;
       rows.innerHTML = `
         <div><span>Payment</span><b>Straight cash</b></div>
-        <div><span>Cash discount</span><b>Ask for this month's</b></div>
+        <div><span>Cash discount</span><b>${cd ? peso(cd) : "Ask for this month's"}</b></div>
         ${v.lto ? `<div><span>3-year LTO registration</span><b>${peso(v.lto)}</b></div>` : ''}`;
-      heroLabel.textContent = 'Cash-out (before discount)';
-      heroValue.textContent = peso(v.price + (v.lto || 0));
+      heroLabel.textContent = cd ? 'Cash-out after discount' : 'Cash-out (before discount)';
+      heroValue.textContent = peso(v.price + (v.lto || 0) - (cd || 0));
+      promoNote.textContent = cd ? `${m.promo.label} · until ${fmtDate('2026-12-31')}. ${m.promo.cashNote}` : '';
+      promoNote.hidden = !cd;
     } else {
       const dpPct = +qDp.value;
       const dp = v.price * (dpPct / 100);
       const loan = v.price - dp;
       const bank = currentBank();
-      const monthly = monthlyFor(loan, bank, term);
+      const promo = activePromo(m.id, bank.name, term);
+      const stdAor = bank.aor[term];
+      const aor = promo ? promo.aor[term] : stdAor;
+      const monthly = amortize(loan, aor, term);
+      const saving = promo ? amortize(loan, stdAor, term) - monthly : 0;
       rows.innerHTML = `
         <div><span>Down payment (${dpPct}%)</span><b>${peso(dp)}</b></div>
         <div><span>Amount financed</span><b>${peso(loan)}</b></div>
         <div><span>Term</span><b>${term} months</b></div>
-        <div><span>${esc(bank.name)} add-on rate</span><b>${bank.aor[term].toFixed(2)}%</b></div>
+        <div><span>${esc(bank.name)} add-on rate</span><b>${aor.toFixed(2)}%${promo ? ' <em class="est-promo">promo</em>' : ''}</b></div>
+        ${promo ? `<div><span>vs. standard ${stdAor.toFixed(2)}%</span><b class="est-save">you save ${peso(saving)}/mo</b></div>` : ''}
         ${v.lto ? `<div><span>3-year LTO registration</span><b>${peso(v.lto)}</b></div>` : ''}`;
       heroLabel.textContent = `Estimated monthly · ${term} months`;
       heroValue.textContent = peso(monthly);
+      promoNote.textContent = promo ? `${promo.label} · until ${fmtDate(promo.end)}. ${promo.note}` : '';
+      promoNote.hidden = !promo;
     }
     flip($('#estHero'));
   }
@@ -453,8 +486,11 @@
       L.push(`Down payment: ${dpPct}%${v && v.price ? ' — ' + peso(v.price * dpPct / 100) : ''}`);
       L.push(`Term: ${term} months`);
       if (v && v.price) {
-        const est = monthlyFor(v.price * (1 - dpPct / 100), bank, term);
-        if (est) L.push(`My estimate from your site: ${peso(est)}/month (${bank.aor[term].toFixed(2)}% add-on)`);
+        const promo = m ? activePromo(m.id, bank.name, term) : null;
+        const aor = promo ? promo.aor[term] : bank.aor[term];
+        const est = amortize(v.price * (1 - dpPct / 100), aor, term);
+        L.push(`My estimate from your site: ${peso(est)}/month (${aor.toFixed(2)}% add-on)`);
+        if (promo) L.push(`Promo applied: ${promo.label}`);
       }
     }
     L.push(`Trade-in: ${$('#qTrade').checked ? ($('#qTradeDetail').value.trim() || 'Yes — details to follow') : 'None'}`);
