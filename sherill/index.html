@@ -278,18 +278,13 @@
 
         <div class="field field--full">
           <label>Term</label>
-          <div class="seg seg--wrap" id="qTerm" role="radiogroup">
-            <button type="button" class="seg__btn" data-term="12" role="radio" aria-checked="false">12 mo</button>
-            <button type="button" class="seg__btn" data-term="24" role="radio" aria-checked="false">24 mo</button>
-            <button type="button" class="seg__btn is-active" data-term="36" role="radio" aria-checked="true">36 mo</button>
-            <button type="button" class="seg__btn" data-term="48" role="radio" aria-checked="false">48 mo</button>
-            <button type="button" class="seg__btn" data-term="60" role="radio" aria-checked="false">60 mo</button>
-          </div>
+          <div class="seg seg--wrap" id="qTerm" role="radiogroup"></div>
         </div>
 
         <div class="field field--full">
           <label for="qBank">Preferred bank</label>
           <div class="select"><select id="qBank" name="bank"></select><span class="ms">expand_more</span></div>
+          <p class="field__note" id="qBankNote" hidden></p>
         </div>
       </div>
 
@@ -339,9 +334,10 @@
         </div>
 
         <p class="estimate__note">
-          Estimate only, using indicative bank factor rates. The bank's approved
-          rate, insurance, chattel and LTO charges determine the final figure —
-          I'll send you the exact computation.
+          Estimate only, computed from each bank's published add-on rate as of
+          June 15, 2026. The bank's approved rate, insurance, chattel and LTO
+          charges determine the final figure — I'll send you the exact
+          computation.
         </p>
       </div>
     </aside>

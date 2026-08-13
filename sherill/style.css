@@ -949,6 +949,13 @@ td.name { color: var(--txt); font-weight: 500; }
   display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0;
 }
 .field label em { text-transform: none; letter-spacing: 0; font-style: normal; }
+.field__note {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--txt-3);
+}
+.field__note[hidden] { display: none; }
 .field output { color: var(--red-lift); font-weight: 600; letter-spacing: 0; font-variant-numeric: tabular-nums; }
 
 input[type="text"], input[type="tel"], select, textarea {

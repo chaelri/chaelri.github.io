@@ -519,18 +519,37 @@ const EPOWER_COMPARE = {
 };
 
 /* --------------------------------------------------------- financing --- */
-/* Indicative monthly factor rates used by PH banks for auto loans.
-   monthly amortization ≈ (SRP − down payment) × factor.
-   These are estimates only — the bank's approved rate governs. */
-const FACTOR_RATES = {
-  12: 0.0908,
-  24: 0.0492,
-  36: 0.0355,
-  48: 0.0289,
-  60: 0.0250,
-};
+/* Add-on rates (AOR) from Sherill's in-house bank panel, as of June 15, 2026.
+   AOR is the total interest added across the WHOLE term, not per year:
+     monthly amortization = (SRP − down payment) × (1 + AOR/100) ÷ term
+   Estimates only — the bank's approved rate governs the final figure.
 
-const BANKS = ['RCBC', 'BDO', 'BPI', 'Security Bank', 'Metrobank', 'Other / whichever approves best'];
+   NOTE: the source sheet also carries a "STD DI" (dealer's incentive) column.
+   That is Sherill's commission per bank and is deliberately NOT in this file —
+   anything here is readable by anyone via view-source. Keep it offline. */
+const BANK_RATES = [
+  { name: 'PSBank',                  aor: { 12: 10.33, 18: 12.86, 24: 24.06, 36: 34.97, 48: 44.57, 60: 54.70 } },
+  { name: 'RCBC',                    aor: { 12: 11.40, 18: 13.40, 24: 24.00, 36: 39.39, 48: 47.48, 60: 56.55, 72: 68.57, 84: 82.39 },
+    note: '72 and 84 months are promo terms — booking closes October 14, 2026.' },
+  { name: 'BDO',                     aor: { 12: 11.40, 18: 13.40, 24: 24.00, 36: 37.00, 48: 44.50, 60: 56.21 } },
+  { name: 'Chinabank Savings',       aor: { 12: 11.91, 18: 14.40, 24: 24.00, 36: 37.00, 48: 44.50, 60: 55.23 } },
+  { name: 'EastWest Bank',           aor: { 12:  9.58,            24: 23.60, 36: 38.75, 48: 46.95, 60: 55.90 },
+    note: '60 months bundled with Car+ insurance is 58.70% instead.' },
+  { name: 'BPI',                     aor: { 12: 11.28, 18: 14.10, 24: 23.22, 36: 38.16, 48: 46.32, 60: 54.80, 72: 64.55, 84: 73.86 },
+    note: '84 months is available on 1.4L engine displacement and up only.' },
+  { name: 'Bank of Commerce',        aor: {                                  36: 36.65, 48: 44.47, 60: 56.68 } },
+  { name: 'Security Bank',           aor: {                                  36: 35.32, 48: 43.78, 60: 53.05 } },
+  { name: 'Maybank',                 aor: { 12:  9.40, 18: 12.50, 24: 23.80, 36: 34.00, 48: 42.00, 60: 56.03 } },
+  { name: 'Sterling Bank of Asia',   aor: {                       24: 24.00, 36: 36.00, 48: 44.50, 60: 53.00 } },
+  { name: 'PNB',                     aor: { 12:  9.65,            24: 21.25, 36: 36.25, 48: 44.25, 60: 54.00 } },
+  { name: 'UnionBank',               aor: { 12: 27.80, 18: 31.02, 24: 34.29, 36: 40.99, 48: 47.90, 60: 55.00 } },
+  /* Sherill's sheet lists First United twice with different 36/48 rates.
+     TODO — ask her which programme is current, then delete the other. */
+  { name: 'First United Finance & Leasing',            aor: { 36: 38.90, 48: 45.59, 60: 53.47 } },
+  { name: 'First United Finance & Leasing (low-rate)', aor: { 36: 30.58, 48: 38.92, 60: 53.47 } },
+];
+
+const BANKS = BANK_RATES.map((b) => b.name);
 
 const TESTIMONIAL_POINTS = [
   { icon: 'emoji_events', label: 'Top sales' },

@@ -282,7 +282,23 @@
 
   qModel.innerHTML = '<option value="">Select a model…</option>' +
     MODELS.map((m) => `<option value="${m.id}">${esc(m.full)}</option>`).join('');
-  qBank.innerHTML = BANKS.map((b) => `<option>${esc(b)}</option>`).join('');
+  qBank.innerHTML = BANK_RATES.map((b) => `<option>${esc(b.name)}</option>`).join('');
+
+  const currentBank = () => BANK_RATES.find((b) => b.name === qBank.value) || BANK_RATES[0];
+
+  /* Terms differ per bank — Security Bank starts at 36, RCBC and BPI reach 84.
+     Rebuild the segmented control from whichever bank is selected, keeping the
+     chosen term when the new bank also offers it. */
+  function renderTerms() {
+    const bank = currentBank();
+    const terms = Object.keys(bank.aor).map(Number).sort((a, b) => a - b);
+    if (!terms.includes(term)) term = terms.includes(36) ? 36 : terms[terms.length - 1];
+    $('#qTerm').innerHTML = terms.map((t) => `
+      <button type="button" class="seg__btn${t === term ? ' is-active' : ''}" data-term="${t}"
+        role="radio" aria-checked="${t === term}">${t} mo</button>`).join('');
+    $('#qBankNote').textContent = bank.note || '';
+    $('#qBankNote').hidden = !bank.note;
+  }
 
   function fillVariants() {
     const m = MODELS.find((x) => x.id === qModel.value);
@@ -299,6 +315,13 @@
     if (!m) return { m: null, v: null };
     const v = m.variants[+qVariant.value] || m.variants[0];
     return { m, v };
+  }
+
+  /* AOR is total add-on interest across the whole term, not per year. */
+  function monthlyFor(loan, bank, months) {
+    const aor = bank.aor[months];
+    if (aor == null) return null;
+    return (loan * (1 + aor / 100)) / months;
   }
 
   function renderEstimate() {
@@ -342,11 +365,13 @@
       const dpPct = +qDp.value;
       const dp = v.price * (dpPct / 100);
       const loan = v.price - dp;
-      const monthly = loan * FACTOR_RATES[term];
+      const bank = currentBank();
+      const monthly = monthlyFor(loan, bank, term);
       rows.innerHTML = `
         <div><span>Down payment (${dpPct}%)</span><b>${peso(dp)}</b></div>
         <div><span>Amount financed</span><b>${peso(loan)}</b></div>
         <div><span>Term</span><b>${term} months</b></div>
+        <div><span>${esc(bank.name)} add-on rate</span><b>${bank.aor[term].toFixed(2)}%</b></div>
         ${v.lto ? `<div><span>3-year LTO registration</span><b>${peso(v.lto)}</b></div>` : ''}`;
       heroLabel.textContent = `Estimated monthly · ${term} months`;
       heroValue.textContent = peso(monthly);
@@ -356,6 +381,7 @@
 
   qModel.addEventListener('change', () => { fillVariants(); renderEstimate(); });
   qVariant.addEventListener('change', renderEstimate);
+  qBank.addEventListener('change', () => { renderTerms(); renderEstimate(); });
 
   function setDpFill() {
     const pct = ((qDp.value - qDp.min) / (qDp.max - qDp.min)) * 100;
@@ -422,10 +448,14 @@
       L.push('Payment: Cash — please send the cash discount computation.');
     } else {
       const dpPct = +qDp.value;
-      L.push(`Payment: Bank financing (${$('#qBank').value})`);
+      const bank = currentBank();
+      L.push(`Payment: Bank financing (${bank.name})`);
       L.push(`Down payment: ${dpPct}%${v && v.price ? ' — ' + peso(v.price * dpPct / 100) : ''}`);
       L.push(`Term: ${term} months`);
-      if (v && v.price) L.push(`My estimate from your site: ${peso((v.price * (1 - dpPct / 100)) * FACTOR_RATES[term])}/month`);
+      if (v && v.price) {
+        const est = monthlyFor(v.price * (1 - dpPct / 100), bank, term);
+        if (est) L.push(`My estimate from your site: ${peso(est)}/month (${bank.aor[term].toFixed(2)}% add-on)`);
+      }
     }
     L.push(`Trade-in: ${$('#qTrade').checked ? ($('#qTradeDetail').value.trim() || 'Yes — details to follow') : 'None'}`);
     const notes = $('#qNotes').value.trim();
@@ -494,6 +524,7 @@
   });
 
   fillVariants();
+  renderTerms();
   setDpFill();
   renderEstimate();
 
