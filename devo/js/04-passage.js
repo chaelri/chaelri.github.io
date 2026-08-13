@@ -1298,10 +1298,17 @@ async function loadDashGreetingMsg() {
     el.innerHTML = `<span class="dash-greeting-glow-loader"><span class="gdot"></span><span class="gdot"></span><span class="gdot"></span></span>`;
   }
 
-  const notesCtx = _getRecentNotesContext();
-  const prompt = notesCtx
-    ? `You are greeting ${name || "a friend"} in a Bible devotion app this ${timeOfDay}. Their recent reflections and notes: "${notesCtx.slice(0, 300)}". Write ONE sentence (max 18 words) referencing something from their notes. You may reference personal content (like people they mention) BUT never combine personal names with divine attributes or glory — that would be idolatry. Keep God's glory for God alone. Be warm, casual, like a close friend. No emojis, no guilt. Reply with ONLY the sentence.`
-    : `Write ONE warm greeting sentence (max 15 words) for ${name || "a friend"} opening a Bible app this ${timeOfDay}. Casual, caring, like a friend. No emojis, no guilt. Reply with ONLY the sentence.`;
+  // 2026-08-13: this used to pass _getRecentNotesContext() — the first 300
+  // chars of recent reflections and notes — so the greeting could reference
+  // something personal. Dropped when the proxy moved to a free-tier Gemini
+  // key: free tier does NOT carry the paid tier's exclusion from training, and
+  // reflections/notes are the most personal thing in the app. The greeting is
+  // ambient dashboard chrome; it isn't worth sending private journalling to a
+  // training-eligible endpoint for. Only the name and time of day go out now.
+  //
+  // If we ever return to a paid key, restore the notes branch — don't
+  // reintroduce it while GEMINI_API_KEY points at a billing-free project.
+  const prompt = `Write ONE warm greeting sentence (max 15 words) for ${name || "a friend"} opening a Bible app this ${timeOfDay}. Casual, caring, like a friend. No emojis, no guilt. Reply with ONLY the sentence.`;
 
   try {
     const res = await fetch("https://gemini-proxy-668755364170.asia-southeast1.run.app", {

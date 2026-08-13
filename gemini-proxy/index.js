@@ -32,17 +32,28 @@ app.use((req, res, next) => {
 //
 // If the caller passes { stream: true } in the body, we pipe Server-Sent
 // Events from Gemini back to the client as they arrive.
+// 2026-08-13: moved to a free-tier API key (project chaelri-gemini-free, no
+// billing account) ahead of the Oct 12 2026 Prepay migration. Two consequences
+// that are load-bearing here:
+//
+//   1. The whole Gemini 2.5 family 404s on a new project — "no longer
+//      available to new users". The old key was grandfathered in; this one is
+//      not. So 2.5-flash-lite/flash/pro are gone from the whitelist.
+//   2. Pro-class models return 429 on the free tier. Left out deliberately —
+//      whitelisting them would just surface as confusing runtime failures.
+//
+// gemini-3.1-flash-lite is the drop-in successor to 2.5-flash-lite: it's the
+// only flash-lite that still ACCEPTS thinkingConfig.thinkingBudget = 0 (3.5
+// rejects it with a 400), which is what keeps the default path non-thinking
+// and fast. Verified 0 thinking tokens, ~1.2 s on a greeting prompt.
 const MODEL_WHITELIST = new Set([
-  "gemini-2.5-flash-lite",
-  "gemini-2.5-flash",
-  "gemini-2.5-pro",
-  // Latest preview lines (verified callable in this project):
-  "gemini-3.1-pro-preview",
+  "gemini-3.1-flash-lite",
+  "gemini-3.5-flash-lite",
   "gemini-3.5-flash",
-  "gemini-pro-latest",
+  "gemini-flash-lite-latest",
   "gemini-flash-latest",
 ]);
-const DEFAULT_MODEL = "gemini-2.5-flash-lite";
+const DEFAULT_MODEL = "gemini-3.1-flash-lite";
 
 app.post("/", async (req, res) => {
   try {
