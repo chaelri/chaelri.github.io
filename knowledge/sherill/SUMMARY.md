@@ -84,23 +84,41 @@ requirement. The design system in `style.css` covers the same ground with no run
   The *thumbnails* linked from the price guide are only 300–400 px — too soft. The usable
   images are the desktop KV/overview JPGs on each model page (1920–2880 px), cropped to 16:9.
   Fetch them with a browser UA + `Referer: https://www.nissan.ph/`.
-- **Prices** come from Sherill's own Nissan Quezon Avenue price list — it is the authority,
-  not nissan.ph. It carries premium-color rows the website omits and the Patrol's ₱25,000
-  3-year LTO column. Last refresh **2026-08-13** from her scanned August 2026 list:
-  - **Patrol is now priced by colour, not by rear display.** The old ₱5,335,000 base and the
-    separate "with Rear Display" tier are gone. Four rows: Granite Black ₱5,385,000, Gun
-    Metallic 2-Tone ₱5,405,000, Everest White ₱5,415,000, Everest White 2-Tone ₱5,435,000.
-    Only three colours exist — Everest White, Granite Black, Gun Metallic — and Gun Metallic
-    is **2-tone only** (no monotone row).
-  - **X-Trail e-POWER's palette was wrong before this.** Champagne Silver / Gun Metallic /
-    Galaxy Black never existed on the PH car. The real four are Cardinal Red Metallic, Sahara
-    Dune Metallic, Everest White, Stealth Pearl Gray, sold as four price tiers: base
-    ₱2,290,000 (red / dune), premium monotone ₱2,310,000 (white / gray), 2-tone ₱2,310,000
-    (dune + black roof), premium 2-tone ₱2,320,000 (white or gray + black roof).
-  - Almera VL moved ₱1,199,000 → ₱1,219,000.
-  - Premium-colour surcharge of ₱20,000 on **Navara and Terra** applies to Aspen Pearl White
-    and Stealth Pearl Gray specifically — that's a footnote on the flyer, easy to miss.
-  - Navara, Urvan, Livina and Terra were re-checked line by line and were already correct.
+- **The price authority is the dealership's internal promo master, not nissan.ph and not the
+  scanned flyer.** Sherill has two documents and they are NOT equivalent:
+  - **`INTERNAL PROMO-AUGUST -SEPT 2026.pdf`** — the real one. Marked *Confidential*, prepared
+    by the F&I Manager, GM-approved, carries an explicit promo period. Filed at
+    `~/Documents/` (outside this repo on purpose). **Use this.**
+  - A scanned **"SALES COPY"** flyer — abbreviated, and it misled us twice on 2026-08-13
+    before the PDF arrived. Do not treat it as complete.
+- **Only the price/variant/inclusives half of that PDF is public.** Its **Cash Discount** and
+  per-bank **Promo Cash Out** columns are deliberately NOT in `data.js` — that's the
+  dealership's subsidy structure and Sherill's negotiating room, and anything in this repo is
+  readable via view-source. Same rule as the bank sheet's DI column. See
+  `~/Documents/sherill-bank-DI-internal.md`.
+- **Two corrections the scan caused, don't reintroduce them:**
+  - Almera VL is **₱1,199,000**. The scan's ₱1,199,000-vs-₱1,219,000 confusion is because
+    ₱1,219,000 is the *premium-colour* row, not the base.
+  - Patrol has **six** rows and its base is **₱5,335,000** (no rear display). The scan listed
+    only the rear-display tier renamed by colour, which made it look like a 4-row lineup
+    starting at ₱5,385,000 — collapsing it that way deletes a genuinely cheaper option.
+    Colour surcharges relative to base: premium colour +₱30,000, 2-tone +₱20,000,
+    premium 2-tone +₱50,000, rear display +₱50,000.
+- **KICKS prices are confirmed as of 2026-08-13** — EL ₱1,179,000 / VE ₱1,279,000 /
+  VL ₱1,479,000, each +₱20,000 for premium colour. There is **no "LE Plus"** in the master
+  list, so the old "ask for price" placeholder is gone. The long-standing "unconfirmed, ask
+  her" note is retired.
+- **X-Trail e-POWER's palette was wrong before 2026-08-13.** Champagne Silver / Gun Metallic /
+  Galaxy Black never existed on the PH car. The real four are Cardinal Red Metallic, Sahara
+  Dune Metallic, Everest White, Stealth Pearl Gray, sold as four price tiers: base
+  ₱2,290,000 (red / dune), premium monotone ₱2,310,000 (white / gray), 2-tone ₱2,310,000
+  (dune + black roof), premium 2-tone ₱2,320,000 (white or gray + black roof).
+- **Navara colours are per-variant-group**, not one flat list — VL 4x2/4x4, VE Calibre 4x2
+  MT/AT, and EL 4x2 MT + VE 4x4 MT each have their own set. The pre-2026-08-13 flat list
+  (Twilight Gray, Burning Red, Stealth Pearl Gray) was wrong on all three.
+- **Open with Sherill:** PRO-4X 4x4 AT and Calibre-X AT 4x2 have no colour list yet, and
+  First United Finance & Leasing appears twice in the bank sheet with different 36/48-month
+  rates (both are on the site, labelled, pending her answer).
 - **KICKS e-POWER prices are unconfirmed** — the official price guide omits the model and
   public listings disagree by ~₱60k per variant. Her "LE Plus" variant isn't published
   anywhere, so it renders as "Ask for price" instead of an invented number. **Ask her.**
