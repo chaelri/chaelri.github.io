@@ -836,6 +836,34 @@ h3 { font-size: clamp(21px, 2.6vw, 30px); letter-spacing: -.03em; }
   border-radius: var(--r);
 }
 .bank-strip__label { font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--txt-3); }
+/* real showroom photos inside the model sheet — horizontal scroll strip */
+.shots__note { margin: -6px 0 14px; font-size: 13px; color: var(--txt-3); }
+.shots {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 6px;
+}
+.shots__item {
+  flex: 0 0 auto;
+  margin: 0;
+  scroll-snap-align: start;
+  border-radius: 14px;
+  overflow: hidden;
+  background: rgba(255,255,255,.03);
+  border: 1px solid var(--line);
+}
+.shots__item img {
+  display: block;
+  height: 210px;
+  width: auto;
+  max-width: none;
+  object-fit: cover;
+}
+@media (max-width: 640px) { .shots__item img { height: 168px; } }
+
 .promo-fineprint {
   max-width: 62ch;
   margin: 22px auto 0;

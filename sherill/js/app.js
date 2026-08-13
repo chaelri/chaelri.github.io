@@ -550,6 +550,24 @@
         </div>
       </div>`).join('');
 
+    /* Real photos of stock on the floor, when Sherill has sent some.
+       Deliberately NOT loading="lazy": this markup is only built when the user
+       opens the sheet, so lazy saves nothing, and the observer never fires in
+       here anyway — the sheet scrolls its own container, not the viewport, so
+       the images sat at 0x0 forever. */
+    const photosHTML = !m.photos ? '' : `
+      <div class="sheet-block">
+        <h4>${esc(m.photos.label)}</h4>
+        ${m.photos.note ? `<p class="shots__note">${esc(m.photos.note)}</p>` : ''}
+        <div class="shots">
+          ${m.photos.shots.map((p) => `
+            <figure class="shots__item">
+              <img src="assets/models/photos/${p.src}.webp" alt="${esc(p.alt)}"
+                   width="${p.w}" height="${p.h}" decoding="async" />
+            </figure>`).join('')}
+        </div>
+      </div>`;
+
     sheetBody.innerHTML = `
       <div class="sheet-hero">
         <p class="sheet-hero__kicker">${esc(m.kicker)}</p>
@@ -602,6 +620,8 @@
         <h4>Colors</h4>
         ${colorHTML}
       </div>
+
+      ${photosHTML}
 
       ${m.why ? `
       <div class="sheet-block">

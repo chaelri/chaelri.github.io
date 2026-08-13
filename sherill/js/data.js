@@ -412,6 +412,23 @@ const MODELS = [
       ['Seating', '12 to 15 depending on variant'],
       ['Key features', 'Rear A/C, high-roof body, dual sliding-door options'],
     ],
+    /* Sherill's own photos of stock on the showroom floor. Premium (bubble
+       top) — the CX MT and AT share this exact exterior, they just come
+       without the seats fitted. */
+    photos: {
+      label: 'Actual unit on the showroom floor',
+      note: 'Urvan Premium — the CX MT and AT share the same exterior, without the seats fitted.',
+      /* w/h are required, not decorative: the strip sizes images by height with
+         width:auto, so without intrinsic dimensions the box is 0px wide and the
+         lazy-load observer never fires. */
+      shots: [
+        { src: 'urvan-1', w: 618, h: 1100, alt: 'Nissan Urvan Premium, front three-quarter view on the showroom floor' },
+        { src: 'urvan-2', w: 618, h: 1100, alt: 'Nissan Urvan Premium, head-on front view' },
+        { src: 'urvan-3', w: 1100, h: 618, alt: 'Nissan Urvan Premium, side view showing the high-roof body' },
+        { src: 'urvan-4', w: 618, h: 1100, alt: 'Urvan Premium passenger seating, still factory-wrapped' },
+        { src: 'urvan-5', w: 618, h: 1100, alt: 'Urvan Premium rear seat rows, still factory-wrapped' },
+      ],
+    },
   },
 
   /* ------------------------------------------------------------------ */
