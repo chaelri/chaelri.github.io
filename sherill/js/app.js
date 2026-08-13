@@ -534,7 +534,6 @@
             <span class="turntable__shadow" aria-hidden="true"></span>
           </div>
         </div>
-        <p class="turntable__hint"><span class="ms">3d_rotation</span>Move your cursor to turn it</p>
       </div>
 
       <div class="sheet-block">
@@ -602,30 +601,6 @@
     requestAnimationFrame(() => { sheetBody.scrollTop = 0; });
     $('.sheet__close').focus({ preventScroll: true });
 
-  }
-
-  /* 3D turntable: follow the pointer, drift on its own when idle */
-  function bindTurntable(root) {
-    root.querySelectorAll('[data-turntable]').forEach((tt) => {
-      if (reduced) return;
-      const set = (ry, rx) => {
-        tt.style.setProperty('--ry', ry.toFixed(2) + 'deg');
-        tt.style.setProperty('--rx', rx.toFixed(2) + 'deg');
-      };
-      const track = (e) => {
-        const r = tt.getBoundingClientRect();
-        const px = (e.clientX - r.left) / r.width - 0.5;   // -0.5 … 0.5
-        const py = (e.clientY - r.top) / r.height - 0.5;
-        tt.classList.add('is-manual');
-        set(px * 34, -py * 9);
-      };
-      tt.addEventListener('pointermove', track, { passive: true });
-      tt.addEventListener('pointerleave', () => {
-        tt.classList.remove('is-manual');
-        tt.style.removeProperty('--ry');
-        tt.style.removeProperty('--rx');
-      });
-    });
   }
 
   /* bound once — the sheet body is reused for every model */
