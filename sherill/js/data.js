@@ -16,7 +16,7 @@ const AGENT = {
   address: '138 Quezon Ave, Brgy. Tatalon, Quezon City, Metro Manila',
   mapQuery: 'Nissan Quezon Avenue, Quezon City',
   hours: 'Mon–Sat · 8:00 AM – 6:00 PM  |  Sun · by appointment',
-  promoWindow: 'August – September 2026',
+  promoWindow: 'August 1 – September 30, 2026',
 };
 
 /* Body silhouettes used by the 3D viewer: sedan | mpv | crossover | suv | pickup | van */
@@ -30,7 +30,7 @@ const MODELS = [
     body: 'sedan',
     tagline: 'Smart. Stylish. Turbocharged.',
     sub: 'Built for everyday confidence.',
-    priceFrom: 1099000,
+    priceFrom: 845000,
     seats: 5,
     heroColor: '#9aa0a6',
     highlights: [
@@ -40,10 +40,12 @@ const MODELS = [
       { icon: 'wifi', title: 'NissanConnect', desc: 'Remote engine start, vehicle tracking, geo-fencing.' },
     ],
     variants: [
+      { name: 'Almera 1.0 EL Turbo MT', trans: 'Manual', price: 845000 },
+      { name: 'Almera 1.0 EL Turbo MT (Premium Color)', trans: 'Manual', price: 865000 },
       { name: 'Almera 1.0 VE Turbo CVT with NissanConnect', trans: 'CVT', price: 1099000 },
       { name: 'Almera 1.0 VE Turbo CVT with NissanConnect (Premium Color)', trans: 'CVT', price: 1119000 },
-      { name: 'Almera 1.0 VL Turbo CVT with NissanConnect', trans: 'CVT', price: 1219000 },
-      { name: 'Almera 1.0 VL Turbo CVT with NissanConnect (Premium Color)', trans: 'CVT', price: 1239000 },
+      { name: 'Almera 1.0 VL Turbo CVT with NissanConnect', trans: 'CVT', price: 1199000 },
+      { name: 'Almera 1.0 VL Turbo CVT with NissanConnect (Premium Color)', trans: 'CVT', price: 1219000 },
     ],
     colorGroups: [
       {
@@ -58,6 +60,14 @@ const MODELS = [
         label: 'Available colors (VE)',
         colors: [
           { name: 'Cayenne Red', hex: '#a1131f' },
+          { name: 'Pearl White', hex: '#eef0f1', extra: 20000 },
+          { name: 'Gun Metallic', hex: '#5b5f63' },
+          { name: 'Galaxy Black', hex: '#111214' },
+        ],
+      },
+      {
+        label: 'Available colors (EL)',
+        colors: [
           { name: 'Pearl White', hex: '#eef0f1', extra: 20000 },
           { name: 'Gun Metallic', hex: '#5b5f63' },
           { name: 'Galaxy Black', hex: '#111214' },
@@ -94,9 +104,11 @@ const MODELS = [
     ],
     variants: [
       { name: 'KICKS e-POWER EL', trans: 'e-POWER AT', price: 1179000 },
+      { name: 'KICKS e-POWER EL (Premium Color)', trans: 'e-POWER AT', price: 1199000 },
       { name: 'KICKS e-POWER VE', trans: 'e-POWER AT', price: 1279000 },
+      { name: 'KICKS e-POWER VE (Premium Color)', trans: 'e-POWER AT', price: 1299000 },
       { name: 'KICKS e-POWER VL', trans: 'e-POWER AT', price: 1479000 },
-      { name: 'KICKS e-POWER LE Plus', trans: 'e-POWER AT', price: null, note: 'Ask Sherill for the latest SRP & availability' },
+      { name: 'KICKS e-POWER VL (Premium Color)', trans: 'e-POWER AT', price: 1499000 },
     ],
     colorGroups: [
       {
@@ -141,10 +153,10 @@ const MODELS = [
       { icon: 'local_gas_station', title: 'Fuel efficient', desc: '1.5L engine tuned for city driving.' },
     ],
     variants: [
-      { name: 'Livina 1.5 VE AT', trans: '4-speed Automatic', price: 1214000 },
-      { name: 'Livina 1.5 VE AT (Premium Color)', trans: '4-speed Automatic', price: 1234000 },
-      { name: 'Livina 1.5 VL AT', trans: '4-speed Automatic', price: 1274000 },
-      { name: 'Livina 1.5 VL AT (Premium Color)', trans: '4-speed Automatic', price: 1294000 },
+      { name: 'Livina 1.5 VE AT — New Display Audio', trans: '4-speed Automatic', price: 1214000 },
+      { name: 'Livina 1.5 VE AT (Premium Color) — New Display Audio', trans: '4-speed Automatic', price: 1234000 },
+      { name: 'Livina 1.5 VL AT — New Display Audio', trans: '4-speed Automatic', price: 1274000 },
+      { name: 'Livina 1.5 VL AT (Premium Color) — New Display Audio', trans: '4-speed Automatic', price: 1294000 },
     ],
     colorGroups: [
       {
@@ -227,7 +239,7 @@ const MODELS = [
     body: 'suv',
     tagline: 'Dominate every journey.',
     sub: 'Power. Presence. Purpose.',
-    priceFrom: 1969000,
+    priceFrom: 1729000,
     seats: 7,
     heroColor: '#8a9096',
     highlights: [
@@ -238,6 +250,7 @@ const MODELS = [
       { icon: 'wifi', title: 'NissanConnect Services', desc: 'Remote start, tracking, security alerts.' },
     ],
     variants: [
+      { name: 'Terra 2.5L EL MT 4x2', trans: '6-speed Manual', price: 1729000 },
       { name: 'Terra 2.5L VE AT 4x2', trans: '7-speed Automatic', price: 1969000 },
       { name: 'Terra 2.5L VE AT 4x2 (Premium Color)', trans: '7-speed Automatic', price: 1989000 },
       { name: 'Terra 2.5L VL AT 4x2', trans: '7-speed Automatic', price: 2119000 },
@@ -299,26 +312,49 @@ const MODELS = [
       { icon: 'local_gas_station', title: '2.5L turbo diesel', desc: 'Proven, efficient, easy to service.' },
     ],
     variants: [
-      { name: 'Navara 2.5 EL 4x2 MT', trans: 'Manual', price: 1240000 },
-      { name: 'Navara 2.5 VE Calibre 4x2 MT', trans: 'Manual', price: 1595000 },
-      { name: 'Navara 2.5 VE Calibre 4x2 AT', trans: 'Automatic', price: 1695000 },
-      { name: 'Navara 2.5 VL Calibre 4x2 AT', trans: 'Automatic', price: 1870000 },
-      { name: 'Navara 2.5 Calibre-X AT 4x2', trans: 'Automatic', price: 1965000 },
-      { name: 'Navara 2.5 VE 4x4 MT', trans: 'Manual', price: 1750000 },
-      { name: 'Navara 2.5 VL 4x4 MT', trans: 'Manual', price: 1990000 },
-      { name: 'Navara 2.5 VL 4x4 AT', trans: 'Automatic', price: 2090000 },
-      { name: 'Navara 2.5 PRO-4X 4x4 AT', trans: 'Automatic', price: 2220000 },
+      { name: 'Navara 2.5L EL MT 4x2', trans: 'Manual', price: 1240000 },
+      { name: 'Navara 2.5L VE Calibre MT 4x2', trans: 'Manual', price: 1595000 },
+      { name: 'Navara 2.5L VE Calibre AT 4x2', trans: 'Automatic', price: 1695000 },
+      { name: 'Navara 2.5L VE MT 4x4', trans: 'Manual', price: 1750000 },
+      { name: 'Navara 2.5L VL Calibre AT 4x2', trans: 'Automatic', price: 1870000 },
+      { name: 'Navara 2.5L VL Calibre AT 4x2 (Premium Color)', trans: 'Automatic', price: 1890000 },
+      { name: 'Navara 2.5L Calibre-X AT 4x2', trans: 'Automatic', price: 1965000 },
+      { name: 'Navara 2.5L Calibre-X AT 4x2 (Premium Color)', trans: 'Automatic', price: 1985000 },
+      { name: 'Navara 2.5L VL MT 4x4', trans: 'Manual', price: 1990000 },
+      { name: 'Navara 2.5L VL MT 4x4 (Premium Color)', trans: 'Manual', price: 2010000 },
+      { name: 'Navara 2.5L VL AT 4x4', trans: 'Automatic', price: 2090000 },
+      { name: 'Navara 2.5L VL AT 4x4 (Premium Color)', trans: 'Automatic', price: 2110000 },
+      { name: 'Navara 2.5L PRO-4X AT 4x4', trans: 'Automatic', price: 2220000 },
+      { name: 'Navara 2.5L PRO-4X AT 4x4 (Premium Color)', trans: 'Automatic', price: 2240000 },
     ],
+    /* PRO-4X 4x4 AT and Calibre-X AT 4x2 have no colour list yet — Sherill's
+       2026-08-13 message covered VL, VE Calibre and EL only. Ask her. */
     colorGroups: [
       {
-        label: 'Available colors',
+        label: 'Available colors (VL 4x2 & 4x4)',
+        colors: [
+          { name: 'Aspen Pearl White', hex: '#eef0f1', extra: 20000 },
+          { name: 'Forged Metallic Copper', hex: '#b8621f' },
+          { name: 'Galaxy Black', hex: '#111214' },
+          { name: 'Lunar Metallic Gray', hex: '#575b5f' },
+        ],
+      },
+      {
+        label: 'Available colors (VE Calibre 4x2 MT & AT)',
         colors: [
           { name: 'Galaxy Black', hex: '#111214' },
           { name: 'Brilliant Silver', hex: '#c2c5c8' },
-          { name: 'Twilight Gray', hex: '#5b5f63' },
-          { name: 'Burning Red', hex: '#9d1219' },
-          { name: 'Aspen Pearl White', hex: '#eef0f1', extra: 20000 },
-          { name: 'Stealth Pearl Gray', hex: '#7d8286', extra: 20000 },
+          { name: 'Alpine White', hex: '#eef0f1' },
+          { name: 'Forged Metallic Copper', hex: '#b8621f' },
+          { name: 'Lunar Metallic Gray', hex: '#575b5f' },
+        ],
+      },
+      {
+        label: 'Available colors (EL 4x2 MT & VE 4x4 MT)',
+        colors: [
+          { name: 'Galaxy Black', hex: '#111214' },
+          { name: 'Alpine White', hex: '#eef0f1' },
+          { name: 'Brilliant Silver', hex: '#c2c5c8' },
         ],
       },
     ],
@@ -356,7 +392,9 @@ const MODELS = [
       { name: 'Urvan 2.5 CX MT', trans: 'Manual', price: 1820000 },
       { name: 'Urvan 2.5 CX AT', trans: 'Automatic', price: 1880000 },
       { name: 'Urvan 2.5 Premium MT', trans: 'Manual', price: 2105000 },
+      { name: 'Urvan 2.5 Premium MT (Premium Color)', trans: 'Manual', price: 2125000 },
       { name: 'Urvan 2.5 Premium AT', trans: 'Automatic', price: 2165000 },
+      { name: 'Urvan 2.5 Premium AT (Premium Color)', trans: 'Automatic', price: 2185000 },
     ],
     colorGroups: [
       {
@@ -385,7 +423,7 @@ const MODELS = [
     body: 'suv',
     tagline: 'Power. Presence. Prestige.',
     sub: 'The all-new 2026 Nissan Patrol.',
-    priceFrom: 5385000,
+    priceFrom: 5335000,
     seats: 7,
     heroColor: '#eef0f1',
     ltoNote: '₱25,000 · 3 years LTO registration',
@@ -397,10 +435,12 @@ const MODELS = [
       { icon: 'terrain', title: 'Commanding capability', desc: 'Built to conquer every terrain.' },
     ],
     variants: [
-      { name: 'Patrol 3.5 V6 Twin Turbo — Granite Black', trans: '7-speed Automatic', price: 5385000, lto: 25000 },
-      { name: 'Patrol 3.5 V6 Twin Turbo — Gun Metallic 2-Tone', trans: '7-speed Automatic', price: 5405000, lto: 25000 },
-      { name: 'Patrol 3.5 V6 Twin Turbo — Everest White', trans: '7-speed Automatic', price: 5415000, lto: 25000 },
-      { name: 'Patrol 3.5 V6 Twin Turbo — Everest White 2-Tone', trans: '7-speed Automatic', price: 5435000, lto: 25000 },
+      { name: 'Patrol 3.5-L V6 TT AT 4x4', trans: '7-speed Automatic', price: 5335000, lto: 25000 },
+      { name: 'Patrol 3.5-L V6 TT AT 4x4 (Premium Color)', trans: '7-speed Automatic', price: 5365000, lto: 25000 },
+      { name: 'Patrol 3.5-L V6 TT AT 4x4 with Rear Display', trans: '7-speed Automatic', price: 5385000, lto: 25000 },
+      { name: 'Patrol 3.5-L V6 TT AT 4x4 with Rear Display (2-Tone Color)', trans: '7-speed Automatic', price: 5405000, lto: 25000 },
+      { name: 'Patrol 3.5-L V6 TT AT 4x4 with Rear Display (Premium Color)', trans: '7-speed Automatic', price: 5415000, lto: 25000 },
+      { name: 'Patrol 3.5-L V6 TT AT 4x4 with Rear Display (Premium 2-Tone Color)', trans: '7-speed Automatic', price: 5435000, lto: 25000 },
     ],
     colorGroups: [
       {
@@ -458,8 +498,8 @@ const PROMOS = [
   },
   {
     icon: 'shield',
-    title: 'Free 1-year insurance',
-    desc: 'Comprehensive insurance included on qualified units — Acts of Nature coverage available.',
+    title: 'Free 1-year comprehensive insurance',
+    desc: 'Locked-in comprehensive cover for the first year — Acts of Nature coverage available.',
     tag: 'Freebie',
   },
   {
