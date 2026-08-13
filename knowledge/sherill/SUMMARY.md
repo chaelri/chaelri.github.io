@@ -122,6 +122,20 @@ requirement. The design system in `style.css` covers the same ground with no run
 - **KICKS e-POWER prices are unconfirmed** — the official price guide omits the model and
   public listings disagree by ~₱60k per variant. Her "LE Plus" variant isn't published
   anywhere, so it renders as "Ask for price" instead of an invented number. **Ask her.**
+- **The auto loan application (`#apply`) is copy-only, and that is a hard constraint.** Added
+  2026-08-13 at Sherill's request — she wanted the in-house credit application on the site,
+  "di lang quote". It collects real PII: TIN, monthly income, home address, employer, plus a
+  co-maker's details, i.e. a *third party's* data. There is no backend, so the only transport
+  is the clipboard. Specifically: it never touches localStorage, and the email button opens a
+  **blank** message — do NOT "finish the job" by prefilling a `mailto` body, because that
+  would put the applicant's TIN and income into a URL. The only URLs the flow builds are
+  Sherill's own Viber number and email plus a static subject. An on-form notice also tells
+  applicants not to upload IDs to the page.
+- **Requirements come from Sherill's message, not the promo flyer** — she lists **3** valid
+  government IDs (the flyer says 2), ITR 1707 w/ AFS for self-employed, and proof of billing
+  for all three categories. Her formal `CREDIT APPLICATION FORM- MGM_2026.xlsx` has more
+  (bank references, 3 personal references, a partnership/corporation sheet); the site
+  deliberately implements only her practical field list.
 - **The quotation form has no backend by design.** It composes a message and hands it to
   Viber / SMS / email / clipboard. Viber can't take pre-filled text from a deep link, so the
   Viber button copies the message first, then opens the chat, and the toast says to paste.
