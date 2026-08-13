@@ -131,6 +131,25 @@ requirement. The design system in `style.css` covers the same ground with no run
   would put the applicant's TIN and income into a URL. The only URLs the flow builds are
   Sherill's own Viber number and email plus a static subject. An on-form notice also tells
   applicants not to upload IDs to the page.
+- **Manufacturer rate promos live in `RATE_PROMOS` and expire by themselves.** First one:
+  Nissan × RCBC on the X-Trail, Aug 10 – Dec 31 2026, add-on 12.81 / 17.75 / 22.88% for
+  36 / 48 / 60 months against RCBC's standard 39.39 / 47.48 / 56.55%. That is roughly ₱10,000
+  a month at 60 months, so quoting the standard rate on an X-Trail is badly wrong. Resolution
+  is bank + model + term, and `activePromo()` gates on the promo's own dates — no cleanup task
+  when it lapses. Its cash side ships as **₱40,000**, not the flyer's ₱50,000 headline: the
+  extra ₱10,000 only applies to sales closed at a car display, so the bigger number is an
+  "up to" in the note.
+- **Her promo flyers are mixed documents** — a customer-offer panel on top, dealer operations
+  underneath (display guidelines, event subsidies and their reimbursement rules, dealer
+  incentive %, internal tagging requirements). Only the customer half ships, same call as the
+  bank sheet's DI column and the promo master's cash-out grid.
+- **Comments in `sherill/js/*` are served to the public.** A leak sweep on 2026-08-13 caught a
+  code comment that named the internal programme mechanics it was explaining we withhold — no
+  figures, but the terminology alone identifies the programme. Keep internal vocabulary out of
+  comments, not just out of values. Worth re-running a sweep after any promo edit:
+  `curl` the deployed `data.js` / `app.js` / `index.html` and grep for internal terms, but
+  anchor the numeric patterns — unanchored ones match inside legitimate SRPs (`110000` hits
+  `2110000`).
 - **Requirements come from Sherill's message, not the promo flyer** — she lists **3** valid
   government IDs (the flyer says 2), ITR 1707 w/ AFS for self-employed, and proof of billing
   for all three categories. Her formal `CREDIT APPLICATION FORM- MGM_2026.xlsx` has more
