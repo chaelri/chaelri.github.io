@@ -528,6 +528,153 @@
   setDpFill();
   renderEstimate();
 
+  /* ═════════════════════════════════════════════ auto loan application */
+  /* Copy-only by design — see the note above LOAN_REQUIREMENTS in data.js.
+     No localStorage, no mailto/sms body, nothing leaves the page. */
+  (function initApply() {
+    const form = $('#applyForm');
+    if (!form) return;
+
+    const fieldHTML = (f, ns) => {
+      const id = `${ns}_${f.key}`;
+      const req = f.required ? ' <span class="req" aria-hidden="true">*</span>' : '';
+      const input = f.type === 'select'
+        ? `<div class="select"><select id="${id}" data-fkey="${f.key}">
+             <option value="">—</option>
+             ${f.options.map((o) => `<option>${esc(o)}</option>`).join('')}
+           </select><span class="ms">expand_more</span></div>`
+        : `<input id="${id}" data-fkey="${f.key}" type="${f.type}"
+             ${f.autocomplete ? `autocomplete="${f.autocomplete}"` : ''}
+             ${f.type === 'tel' ? 'inputmode="tel"' : ''} />`;
+      return `<div class="field"><label for="${id}">${esc(f.label)}${req}</label>${input}</div>`;
+    };
+
+    $('#applicantFields').innerHTML = APPLICATION_FIELDS.map((f) => fieldHTML(f, 'ap')).join('');
+    $('#comakerFields').innerHTML = APPLICATION_FIELDS.map((f) => fieldHTML(f, 'cm')).join('');
+
+    /* requirements tabs */
+    const tabs = $('#reqTabs');
+    const panel = $('#reqPanel');
+    const drawReq = (id) => {
+      const r = LOAN_REQUIREMENTS.find((x) => x.id === id);
+      panel.innerHTML = `<ul class="req-list">${r.items
+        .map((i) => `<li><span class="ms">check_circle</span>${esc(i)}</li>`).join('')}</ul>`;
+      $$('.seg__btn', tabs).forEach((b) => {
+        const on = b.dataset.req === id;
+        b.classList.toggle('is-active', on);
+        b.setAttribute('aria-selected', String(on));
+      });
+    };
+    tabs.innerHTML = LOAN_REQUIREMENTS.map((r, i) =>
+      `<button type="button" class="seg__btn${i === 0 ? ' is-active' : ''}" data-req="${r.id}"
+        role="tab" aria-selected="${i === 0}"><span class="ms">${r.icon}</span>${esc(r.label)}</button>`).join('');
+    tabs.addEventListener('click', (e) => {
+      const b = e.target.closest('.seg__btn');
+      if (b) drawReq(b.dataset.req);
+    });
+    drawReq(LOAN_REQUIREMENTS[0].id);
+
+    /* unit pickers */
+    const aModel = $('#aModel'), aVariant = $('#aVariant'), aColor = $('#aColor');
+    aModel.innerHTML = '<option value="">Select a model…</option>' +
+      MODELS.map((m) => `<option value="${m.id}">${esc(m.full)}</option>`).join('');
+    function fillUnit() {
+      const m = MODELS.find((x) => x.id === aModel.value);
+      if (!m) {
+        aVariant.innerHTML = '<option value="">Choose a model first</option>';
+        aColor.innerHTML = '<option value="">Choose a model first</option>';
+        return;
+      }
+      aVariant.innerHTML = m.variants.map((v) =>
+        `<option>${esc(v.name)}${v.price ? ' — ' + peso(v.price) : ''}</option>`).join('');
+      aColor.innerHTML = m.colorGroups.flatMap((g) => g.colors)
+        .filter((c, i, arr) => arr.findIndex((x) => x.name === c.name) === i)
+        .map((c) => `<option>${esc(c.name)}</option>`).join('');
+    }
+    aModel.addEventListener('change', fillUnit);
+    fillUnit();
+
+    /* co-maker toggle */
+    const comaker = $('#comakerBlock');
+    $('#aHasComaker').addEventListener('change', (e) => {
+      comaker.classList.toggle('is-collapsed', !e.target.checked);
+    });
+
+    const val = (ns, key) => (form.querySelector(`#${ns}_${key}`)?.value || '').trim();
+
+    function block(ns) {
+      return APPLICATION_FIELDS
+        .map((f) => `${f.label}: ${val(ns, f.key) || '—'}`)
+        .join('\n');
+    }
+
+    function buildApplication() {
+      const L = [];
+      L.push('AUTO LOAN APPLICATION');
+      L.push('');
+      L.push('APPLICANT');
+      L.push(block('ap'));
+      L.push('');
+      L.push('UNIT');
+      L.push(`Model: ${aModel.value ? aModel.options[aModel.selectedIndex].text : '—'}`);
+      L.push(`Variant: ${aVariant.value || '—'}`);
+      L.push(`Color: ${aColor.value || '—'}`);
+      if ($('#aHasComaker').checked) {
+        L.push('');
+        L.push('SPOUSE / CO-MAKER');
+        L.push(`Relationship to applicant: ${$('#aRelation').value.trim() || '—'}`);
+        L.push(block('cm'));
+      }
+      L.push('');
+      L.push('Requirements to follow as attachments.');
+      L.push('Sent from drive-with-sherill');
+      return L.join('\n');
+    }
+
+    function validateApply() {
+      let bad = null;
+      for (const f of APPLICATION_FIELDS.filter((x) => x.required)) {
+        const el = form.querySelector(`#ap_${f.key}`);
+        const ok = !!el.value.trim();
+        el.classList.toggle('is-invalid', !ok);
+        if (!ok && !bad) bad = el;
+      }
+      if (bad) {
+        toast('Please fill in your name and mobile number.');
+        bad.focus();
+        bad.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        return false;
+      }
+      return true;
+    }
+
+    const foot = $('#applyFoot');
+    async function copyApplication() {
+      if (!validateApply()) return false;
+      const ok = await copyText(buildApplication());
+      toast(ok ? 'Application copied — paste it to Sherill 📋' : 'Could not copy — please select and copy manually.');
+      if (ok) {
+        foot.textContent = `Copied. Paste it in your message to Sherill, then attach your requirements. Email: ${AGENT.email} · Mobile: ${AGENT.mobile}`;
+      }
+      return ok;
+    }
+
+    $('#applyCopy').addEventListener('click', copyApplication);
+
+    $('#applyViber').addEventListener('click', async () => {
+      if (!(await copyApplication())) return;
+      setTimeout(() => { location.href = `viber://chat?number=${encodeURIComponent(AGENT.mobileIntl)}`; }, 450);
+    });
+
+    /* Opens a blank email to Sherill. The body is deliberately NOT prefilled —
+       it would put the applicant's TIN, income and address in a URL. */
+    $('#applyEmail').addEventListener('click', async () => {
+      if (!(await copyApplication())) return;
+      const subject = encodeURIComponent('Auto loan application');
+      setTimeout(() => { location.href = `mailto:${AGENT.email}?subject=${subject}`; }, 450);
+    });
+  })();
+
   /* ═════════════════════════════════════════════════════ model sheet */
   const sheet = $('#sheet');
   const sheetBody = $('#sheetBody');

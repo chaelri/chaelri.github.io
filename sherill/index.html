@@ -45,6 +45,7 @@
       <a href="#promos" data-nav>Promos</a>
       <a href="#epower" data-nav>e-POWER</a>
       <a href="#quote" data-nav>Quotation</a>
+      <a href="#apply" data-nav>Apply</a>
       <a href="#contact" data-nav>Contact</a>
     </nav>
 
@@ -67,6 +68,7 @@
     <a href="#promos" data-nav><span class="ms">local_offer</span>Promos</a>
     <a href="#epower" data-nav><span class="ms">bolt</span>KICKS e-POWER</a>
     <a href="#quote" data-nav><span class="ms">request_quote</span>Get a quotation</a>
+    <a href="#apply" data-nav><span class="ms">assignment</span>Apply for a loan</a>
     <a href="#contact" data-nav><span class="ms">call</span>Contact me</a>
   </nav>
   <div class="drawer__foot">
@@ -346,6 +348,86 @@
         </p>
       </div>
     </aside>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════ loan application -->
+<section class="section section--tint" id="apply">
+  <header class="section__head">
+    <p class="eyebrow reveal"><span class="dot"></span>In-house financing</p>
+    <h2 class="reveal" data-delay="1">Apply for an auto loan</h2>
+    <p class="section__lead reveal" data-delay="2">
+      Skip the back-and-forth — fill this in, send it to me with your
+      requirements, and I'll file it with the banks right away.
+    </p>
+  </header>
+
+  <div class="apply-reqs reveal">
+    <h3 class="apply-reqs__title">What to prepare</h3>
+    <div class="seg seg--wrap" id="reqTabs" role="tablist"></div>
+    <div id="reqPanel" class="apply-reqs__panel"></div>
+  </div>
+
+  <div class="apply-wrap">
+    <form class="quote-form apply-form reveal" id="applyForm" novalidate autocomplete="on">
+      <p class="apply-privacy">
+        <span class="ms">lock</span>
+        <span>
+          This form runs entirely in your browser. Nothing is saved and nothing
+          is sent from this page — pressing <strong>Copy application</strong>
+          puts it on your clipboard, and you paste it to me yourself. Please
+          don't upload IDs or documents here; attach them in Messenger or email
+          where only I can see them.
+        </span>
+      </p>
+
+      <h3 class="apply-form__step">Applicant</h3>
+      <div class="apply-grid" id="applicantFields"></div>
+
+      <h3 class="apply-form__step">Unit you're applying for</h3>
+      <div class="apply-grid">
+        <div class="field">
+          <label for="aModel">Unit model</label>
+          <div class="select"><select id="aModel"></select><span class="ms">expand_more</span></div>
+        </div>
+        <div class="field">
+          <label for="aVariant">Variant</label>
+          <div class="select"><select id="aVariant"></select><span class="ms">expand_more</span></div>
+        </div>
+        <div class="field">
+          <label for="aColor">Color</label>
+          <div class="select"><select id="aColor"></select><span class="ms">expand_more</span></div>
+        </div>
+      </div>
+
+      <label class="check apply-comaker-toggle">
+        <input type="checkbox" id="aHasComaker" />
+        <span class="check__box"><span class="ms">check</span></span>
+        <span>I have a spouse or co-maker</span>
+      </label>
+
+      <div id="comakerBlock" class="is-collapsed">
+        <h3 class="apply-form__step">Spouse / co-maker</h3>
+        <p class="apply-hint">
+          If you're an OFW and not married, please give a close relative as
+          co-maker.
+        </p>
+        <div class="apply-grid" id="comakerFields"></div>
+        <div class="field field--full">
+          <label for="aRelation">Relationship to applicant</label>
+          <input id="aRelation" type="text" placeholder="e.g. Spouse, Brother, Mother" />
+        </div>
+      </div>
+
+      <div class="quote-form__actions">
+        <button type="button" class="btn btn--primary btn--lg" id="applyCopy">
+          <span class="ms">content_copy</span><span>Copy application</span>
+        </button>
+        <button type="button" class="btn btn--ghost" id="applyViber"><span class="ms">chat</span><span>Copy &amp; open Viber</span></button>
+        <button type="button" class="btn btn--ghost" id="applyEmail"><span class="ms">mail</span><span>Copy &amp; open email</span></button>
+      </div>
+      <p class="apply-foot" id="applyFoot"></p>
+    </form>
   </div>
 </section>
 

@@ -836,6 +836,58 @@ h3 { font-size: clamp(21px, 2.6vw, 30px); letter-spacing: -.03em; }
   border-radius: var(--r);
 }
 .bank-strip__label { font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--txt-3); }
+/* ── auto loan application ─────────────────────────────────────────────── */
+.apply-reqs {
+  max-width: 780px;
+  margin: 0 auto 34px;
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255,255,255,.02);
+}
+.apply-reqs__title {
+  margin: 0 0 14px;
+  font-size: 13px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--txt-3);
+}
+.apply-reqs__panel { margin-top: 16px; }
+.req-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.req-list li { display: flex; align-items: flex-start; gap: 10px; font-size: 15px; color: var(--txt-2); }
+.req-list .ms { font-size: 19px; color: var(--red); flex: 0 0 auto; }
+
+.apply-wrap { max-width: 900px; margin: 0 auto; }
+/* .quote-form is a 2-column grid and is declared later in this file, so this
+   needs both classes to win: the apply form supplies its own sub-grids and
+   must be a plain block, letting .apply-grid do the columns. */
+.quote-form.apply-form { display: block; }
+.apply-privacy {
+  display: flex; gap: 11px; align-items: flex-start;
+  margin: 0 0 26px; padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255,255,255,.02);
+  font-size: 13px; line-height: 1.6; color: var(--txt-3);
+}
+.apply-privacy .ms { font-size: 19px; color: var(--red); flex: 0 0 auto; margin-top: 1px; }
+.apply-privacy strong { color: var(--txt-2); }
+.apply-form__step {
+  margin: 30px 0 14px;
+  font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: var(--txt-3);
+}
+.apply-form__step:first-of-type { margin-top: 6px; }
+.apply-hint { margin: -8px 0 14px; font-size: 13px; color: var(--txt-3); }
+.apply-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(215px, 1fr)); }
+.apply-comaker-toggle { margin-top: 26px; }
+.apply-foot { margin: 14px 0 0; font-size: 13px; line-height: 1.6; color: var(--txt-3); }
+/* .field label is a space-between flex (it holds the DP % output on the quote
+   form), so a bare asterisk would get flung to the far right. */
+.field label .req { color: var(--red); margin: 0 auto 0 -4px; }
+.field .is-invalid,
+input.is-invalid { border-color: var(--red); }
+#comakerBlock.is-collapsed { display: none; }
+
 /* real showroom photos inside the model sheet — horizontal scroll strip */
 .shots__note { margin: -6px 0 14px; font-size: 13px; color: var(--txt-3); }
 .shots {

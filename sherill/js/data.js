@@ -545,6 +545,74 @@ const PROMOS = [
   },
 ];
 
+/* ------------------------------------------------- auto loan application */
+/* Sherill's in-house credit application. The site has no backend and this
+   form carries real PII — TIN, income, home address, and a co-maker's
+   details too — so it is COPY-ONLY by design. Nothing is stored, nothing is
+   put in a mailto/sms URL, nothing leaves the browser. The applicant copies
+   the filled form and pastes it to her themselves. Do not "improve" this by
+   prefilling a mail body. */
+const LOAN_REQUIREMENTS = [
+  {
+    id: 'employed',
+    label: 'Employed',
+    icon: 'badge',
+    items: [
+      "3 valid government IDs",
+      'Certificate of Employment (COE)',
+      'Latest ITR 2316',
+      'Latest proof of billing',
+    ],
+  },
+  {
+    id: 'self',
+    label: 'Self-employed',
+    icon: 'storefront',
+    items: [
+      "3 valid government IDs",
+      'DTI registration or business permit',
+      'Latest ITR 1707 with AFS',
+      'Latest proof of billing',
+    ],
+  },
+  {
+    id: 'ofw',
+    label: "OFW / Seafarer",
+    icon: 'flight_takeoff',
+    items: [
+      "3 valid government IDs",
+      'Certificate of Employment (COE)',
+      'Latest contract',
+      'Proof of remittance or allotment',
+      'Bank statement',
+      'Latest proof of billing',
+    ],
+  },
+];
+
+const CIVIL_STATUS = ['Single', 'Married', 'Separated', 'Widowed', 'Annulled'];
+
+/* Shared by the applicant and the co-maker. `only` marks applicant-only rows. */
+const APPLICATION_FIELDS = [
+  { key: 'first',    label: 'First name',              type: 'text',  autocomplete: 'given-name',  required: true },
+  { key: 'middle',   label: 'Middle name',             type: 'text',  autocomplete: 'additional-name' },
+  { key: 'last',     label: 'Last name',               type: 'text',  autocomplete: 'family-name', required: true },
+  { key: 'birthday', label: 'Birthday',                type: 'date' },
+  { key: 'mobile',   label: 'Mobile number',           type: 'tel',   autocomplete: 'tel', required: true },
+  { key: 'tin',      label: 'TIN number',              type: 'text' },
+  { key: 'email',    label: 'Email address',           type: 'email', autocomplete: 'email' },
+  { key: 'civil',    label: 'Civil status',            type: 'select', options: CIVIL_STATUS },
+  { key: 'address',  label: 'Home address',            type: 'text' },
+  { key: 'addrYrs',  label: 'Years at this address',   type: 'text' },
+  { key: 'tel',      label: 'Telephone number',        type: 'tel' },
+  { key: 'position', label: 'Position',                type: 'text' },
+  { key: 'employer', label: 'Employer / business name', type: 'text' },
+  { key: 'workYrs',  label: 'Years in work / business', type: 'text' },
+  { key: 'office',   label: 'Office address',          type: 'text' },
+  { key: 'bank',     label: 'Bank and branch',         type: 'text' },
+  { key: 'income',   label: 'Monthly income',          type: 'text' },
+];
+
 /* -------------------------------------------------------- e-POWER story */
 const EPOWER_STEPS = [
   { icon: 'local_gas_station', title: 'You refuel — normally', desc: 'Petrol goes into the tank exactly like any other car. No plug, no charging station, no waiting.' },
