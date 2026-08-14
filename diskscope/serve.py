@@ -51,13 +51,17 @@ import shutil
 import socketserver
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 import webbrowser
 from urllib.parse import urlparse, parse_qs, unquote
 
+import editor
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 CACHE_DIR = os.path.expanduser("~/Library/Caches/diskscope")
+THUMB_DIR = os.path.join(CACHE_DIR, "thumbs")
 CACHE_VERSION = 3
 
 # How many "biggest files" to remember from a scan. The Big-files view never
@@ -326,6 +330,48 @@ class Scanner:
         with self.lock:
             return self.dirs.get(path)
 
+    def forget(self, target, size, files, subdirs):
+        """Drop a trashed path from the index and shrink every ancestor by what
+        it weighed. Without this the folder you are looking at keeps claiming
+        the bytes you just reclaimed until the next full scan."""
+        prefix = target.rstrip("/") + os.sep
+        with self.lock:
+            self.dirs.pop(target, None)
+            for key in [k for k in self.dirs if k.startswith(prefix)]:
+                del self.dirs[key]
+            self.top = [r for r in self.top
+                        if r[1] != target and not r[1].startswith(prefix)]
+
+            cur = os.path.dirname(target)
+            while True:
+                node = self.dirs.get(cur)
+                if node:
+                    node[0] = max(0, node[0] - size)
+                    node[1] = max(0, node[1] - files)
+                    node[2] = max(0, node[2] - subdirs)
+                parent = os.path.dirname(cur)
+                if cur == self.root or parent == cur:
+                    break
+                cur = parent
+
+            self.seen_bytes = max(0, self.seen_bytes - size)
+            self.seen_files = max(0, self.seen_files - files)
+            self.seen_dirs = max(0, self.seen_dirs - subdirs)
+
+    def weigh(self, path):
+        """(bytes, files, dirs) for something about to leave — from the index if
+        it is a folder we already measured, otherwise straight off the disk."""
+        if os.path.isdir(path) and not os.path.islink(path):
+            node = self.dir_info(path)
+            if node:
+                return node[0], node[1], node[2] + 1
+            node = self.measure(path)
+            return node[0], node[1], node[2] + 1
+        try:
+            return os.lstat(path).st_size, 1, 0
+        except OSError:
+            return 0, 0, 0
+
     def measure(self, path):
         """Walk a directory that post-dates the scan, then remember it."""
         total = files = subdirs = 0
@@ -345,6 +391,133 @@ class Scanner:
         with self.lock:
             self.dirs[path] = node
         return node
+
+
+# --------------------------------------------------------------------------- #
+# Trash
+# --------------------------------------------------------------------------- #
+#
+# Moving a file to the Trash frees nothing — the bytes are still on the volume
+# until it is emptied. So the UI has to be able to say "this much is sitting in
+# the Trash waiting", which means measuring it. The walk runs on its own thread
+# behind a short TTL: a Trash with a 40 GB folder in it must not stall a poll.
+
+TRASH_DIR = os.path.expanduser("~/.Trash")
+TRASH_TTL = 12.0
+
+
+def _walk_trash():
+    """Exact figures, but only when the terminal has Full Disk Access."""
+    total = 0
+    items = 0
+    try:
+        names = os.listdir(TRASH_DIR)
+    except OSError:
+        return None                     # almost always TCC, not a missing folder
+    for name in names:
+        items += 1
+        path = os.path.join(TRASH_DIR, name)
+        try:
+            st = os.lstat(path)
+        except OSError:
+            continue
+        if not os.path.isdir(path) or os.path.islink(path):
+            total += st.st_size
+            continue
+        for base, _dirs, files in os.walk(path, followlinks=False):
+            for fname in files:
+                try:
+                    total += os.lstat(os.path.join(base, fname)).st_size
+                except OSError:
+                    continue
+    return {"bytes": total, "items": items, "partial": False}
+
+
+def _finder_trash():
+    """Ask Finder, which is allowed to look. It sizes files but returns
+    `missing value` for folders, so a Trash holding folders reports a floor —
+    flagged as partial so the UI can say "at least"."""
+    script = ('tell application "Finder" to get {count of items of trash} & '
+              '(physical size of every item of trash)')
+    try:
+        out = subprocess.run(["/usr/bin/osascript", "-e", script],
+                             capture_output=True, timeout=30, text=True)
+    except (subprocess.SubprocessError, OSError):
+        return None
+    if out.returncode != 0:
+        return None
+    parts = [p.strip() for p in out.stdout.strip().split(",")]
+    if not parts or not parts[0]:
+        return None
+    try:
+        items = int(float(parts[0]))
+    except ValueError:
+        return None
+    total = 0
+    partial = False
+    for chunk in parts[1:]:
+        try:
+            total += int(float(chunk))
+        except ValueError:
+            partial = True
+    return {"bytes": total, "items": items, "partial": partial}
+
+
+class TrashWatch:
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.bytes = 0
+        self.items = 0
+        self.at = 0.0
+        self.busy = False
+        self.partial = False
+        self.gen = 0
+
+    def add(self, size, count=1):
+        """Something just landed in the Trash. Count it now rather than making
+        the UI wait on a walk — and bump the generation so a measure already in
+        flight, which saw the Trash before this arrived, cannot overwrite it."""
+        with self.lock:
+            self.bytes += max(0, size)
+            self.items += count
+            self.at = time.time()
+            self.gen += 1
+
+    def reset(self):
+        with self.lock:
+            self.bytes = 0
+            self.items = 0
+            self.at = time.time()
+            self.gen += 1
+
+    def snapshot(self, force=False):
+        with self.lock:
+            stale = (time.time() - self.at) > TRASH_TTL
+            start = (stale or force) and not self.busy
+            if start:
+                self.busy = True
+            out = {"bytes": self.bytes, "items": self.items,
+                   "partial": self.partial}
+        if start:
+            threading.Thread(target=self._measure, daemon=True).start()
+        return out
+
+    def _measure(self):
+        with self.lock:
+            gen = self.gen
+        data = _walk_trash()
+        if data is None:
+            # ~/.Trash is TCC-protected, so without Full Disk Access we cannot
+            # even list it — but Finder can, and it will answer for us.
+            data = _finder_trash() or {"bytes": 0, "items": 0, "partial": True}
+        with self.lock:
+            self.busy = False
+            if gen != self.gen:
+                return          # the Trash changed while we were measuring it
+            self.bytes = data["bytes"]
+            self.items = data["items"]
+            self.partial = data.get("partial", False)
+            self.at = time.time()
 
 
 # --------------------------------------------------------------------------- #
@@ -415,6 +588,135 @@ def kind_for(name, is_dir=False):
 
 
 # --------------------------------------------------------------------------- #
+# Thumbnails
+# --------------------------------------------------------------------------- #
+#
+# A row that says "Video · Jul 12" tells you nothing about which clip it is. A
+# poster frame does. macOS already renders these for Finder, so we ask the same
+# engine rather than shipping a decoder:
+#
+#   * plain rasters go through `sips`, which is one fast process and handles
+#     HEIC without any help;
+#   * everything else (video, PDF, iWork/Office, RAW, .app bundles) goes through
+#     `qlmanage -t`, the Quick Look thumbnailer Finder itself uses.
+#
+# Results are cached on disk keyed by path+mtime+size, so scrolling a folder a
+# second time costs nothing, and failures are cached too — without that, every
+# scroll past a clip Quick Look can't read would fork another doomed process.
+
+# The tile is 80x45 CSS px, so a Retina panel wants 160x90 real pixels — 256 on
+# the long edge leaves headroom for portrait clips, which `cover` crops the
+# other way, and still lands around 10 KB per JPEG.
+THUMB_PX = 256
+_THUMB_GATE = threading.BoundedSemaphore(3)   # qlmanage is not cheap; don't swarm
+
+THUMB_IMAGE = {".jpg", ".jpeg", ".png", ".gif", ".heic", ".heif", ".webp",
+               ".tiff", ".tif", ".bmp", ".avif", ".ico"}
+THUMB_QL = {
+    ".mp4", ".mov", ".m4v", ".mkv", ".avi", ".webm", ".m2ts", ".mts", ".insv",
+    ".lrv", ".lrf", ".3gp", ".mpg", ".mpeg", ".wmv", ".flv",
+    ".pdf", ".psd", ".ai", ".svg", ".raw", ".cr2", ".nef", ".arw", ".dng",
+    ".key", ".pages", ".numbers", ".doc", ".docx", ".ppt", ".pptx",
+    ".xls", ".xlsx", ".epub", ".rtf",
+}
+
+
+def thumbable(name, is_dir=False):
+    ext = os.path.splitext(name)[1].lower()
+    if is_dir:
+        return ext in (".app", ".photoslibrary")
+    return ext in THUMB_IMAGE or ext in THUMB_QL
+
+
+def _run(args, timeout):
+    try:
+        return subprocess.run(args, capture_output=True, timeout=timeout).returncode == 0
+    except (subprocess.SubprocessError, OSError):
+        return False
+
+
+def _sips_thumb(src, out):
+    tmp = out + ".part"
+    ok = _run(["/usr/bin/sips", "-Z", str(THUMB_PX), "-s", "format", "png",
+               src, "--out", tmp], 25)
+    if ok and os.path.isfile(tmp) and os.path.getsize(tmp) > 0:
+        os.replace(tmp, out)
+        return True
+    _quiet_rm(tmp)
+    return False
+
+
+def _ql_thumb(src, out):
+    """Quick Look writes `<basename>.png` into an output directory, so give it a
+    private one and take whatever lands there."""
+    try:
+        stage = tempfile.mkdtemp(dir=THUMB_DIR)
+    except OSError:
+        return False
+    try:
+        _run(["/usr/bin/qlmanage", "-t", "-s", str(THUMB_PX), "-o", stage, src], 30)
+        made = [os.path.join(stage, n) for n in os.listdir(stage)
+                if not n.startswith(".")]
+        made = [p for p in made if os.path.isfile(p) and os.path.getsize(p) > 0]
+        if not made:
+            return False
+        png = made[0]
+        # These are all opaque, and JPEG makes them ~5x smaller for the same
+        # 160 px — worth 15 ms when a folder holds 400 clips.
+        tmp = out + ".part"
+        if _run(["/usr/bin/sips", "-s", "format", "jpeg", "-s", "formatOptions", "72",
+                 png, "--out", tmp], 20) and os.path.getsize(tmp) > 0:
+            os.replace(tmp, out)
+        else:
+            _quiet_rm(tmp)
+            shutil.copyfile(png, out)      # the PNG on its own is still fine
+        return True
+    except OSError:
+        return False
+    finally:
+        shutil.rmtree(stage, ignore_errors=True)
+
+
+def _quiet_rm(path):
+    try:
+        os.remove(path)
+    except OSError:
+        pass
+
+
+def thumb_file(target):
+    """Path to a cached thumbnail for `target`, or None if it can't be made."""
+    try:
+        st = os.lstat(target)
+    except OSError:
+        return None
+    key = hashlib.sha1(("%s|%d|%d|%d" % (
+        target, int(st.st_mtime), st.st_size, THUMB_PX)).encode("utf-8")).hexdigest()
+    out = os.path.join(THUMB_DIR, key)
+    if os.path.isfile(out):
+        return out
+    if os.path.isfile(out + ".fail"):
+        return None
+    try:
+        os.makedirs(THUMB_DIR, exist_ok=True)
+    except OSError:
+        return None
+
+    with _THUMB_GATE:
+        if os.path.isfile(out):       # another request got there while we queued
+            return out
+        ext = os.path.splitext(target)[1].lower()
+        ok = _sips_thumb(target, out) if ext in THUMB_IMAGE else _ql_thumb(target, out)
+    if ok:
+        return out
+    try:
+        open(out + ".fail", "wb").close()
+    except OSError:
+        pass
+    return None
+
+
+# --------------------------------------------------------------------------- #
 # HTTP
 # --------------------------------------------------------------------------- #
 
@@ -423,6 +725,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
     scanner = None      # injected below
+    trash = None
     token = ""
     root = ""
     verbose = False
@@ -440,11 +743,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
             body = json.dumps(body).encode("utf-8")
         elif isinstance(body, str):
             body = body.encode("utf-8")
+        extra = extra or {}
         self.send_response(code)
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(body)))
-        self.send_header("Cache-Control", "no-store")
-        for key, value in (extra or {}).items():
+        if "Cache-Control" not in extra:
+            self.send_header("Cache-Control", "no-store")
+        for key, value in extra.items():
             self.send_header(key, value)
         self.end_headers()
         if self.command == "HEAD":
@@ -509,6 +814,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if path.startswith("/media/"):
             return self._media(path)
 
+        # Same token-in-the-path shape as /media, for the same reason: these are
+        # <img src> loads issued by the network service, not fetch() calls.
+        if path.startswith("/thumb/"):
+            return self._thumb(path)
+
         if path.startswith("/api/"):
             if not self._authed(query):
                 return self._send(401, {"error": "bad token"})
@@ -516,19 +826,52 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
         return self._static(path)
 
-    def _media(self, path):
+    def _tokened_path(self, path):
+        """Pull the target out of /<route>/<token>/<base64url-path>."""
         parts = path.split("/", 3)          # ['', 'media', token, b64path]
         if len(parts) != 4 or not secrets.compare_digest(parts[2], self.token):
-            return self._send(401, {"error": "bad token"})
+            self._send(401, {"error": "bad token"})
+            return None
         try:
             pad = "=" * (-len(parts[3]) % 4)
             target = base64.urlsafe_b64decode(parts[3] + pad).decode("utf-8")
         except (ValueError, UnicodeDecodeError):
-            return self._send(400, {"error": "bad path"})
+            self._send(400, {"error": "bad path"})
+            return None
         target = self._safe(target)
-        if not target or not os.path.isfile(target):
+        if not target:
+            self._send(404, {"error": "outside root"})
+            return None
+        return target
+
+    def _media(self, path):
+        target = self._tokened_path(path)
+        if not target:
+            return
+        if not os.path.isfile(target):
             return self._send(404, {"error": "no such file"})
         return self._stream(target)
+
+    def _thumb(self, path):
+        target = self._tokened_path(path)
+        if not target:
+            return
+        if not os.path.exists(target) or not thumbable(
+                os.path.basename(target), os.path.isdir(target)):
+            return self._send(404, {"error": "no thumbnail"})
+        made = thumb_file(target)
+        if not made:
+            return self._send(404, {"error": "no thumbnail"})
+        try:
+            with open(made, "rb") as fh:
+                data = fh.read()
+        except OSError:
+            return self._send(404, {"error": "no thumbnail"})
+        ctype = "image/png" if data[:4] == b"\x89PNG" else "image/jpeg"
+        # The client hangs the file's mtime off the URL as ?v=, so an edited file
+        # asks for a different URL and this one can sit in the browser cache —
+        # which matters because re-rendering the list rebuilds every <img>.
+        self._send(200, data, ctype, {"Cache-Control": "private, max-age=86400"})
 
     def do_HEAD(self):
         self.do_GET()
@@ -562,15 +905,21 @@ class Handler(http.server.BaseHTTPRequestHandler):
         one = lambda k, d="": (query.get(k) or [d])[0]   # noqa: E731
 
         if path == "/api/status":
-            return self._send(200, self.scanner.status())
+            # The poll already runs every few seconds, so it is the natural place
+            # to carry live volume + Trash figures: the gauge then tracks a
+            # trash or an empty on its own, whatever caused it.
+            st = self.scanner.status()
+            st["volume"] = self._usage()
+            st["trash"] = self.trash.snapshot()
+            return self._send(200, st)
 
         if path == "/api/config":
-            usage = shutil.disk_usage(self.root)
             return self._send(200, {
                 "root": self.root,
                 "home": os.path.expanduser("~"),
                 "wholeDisk": self.root == "/",
                 "fullDiskAccess": _has_full_disk_access(),
+                "hostApp": _host_app(),
                 "jumps": [p for p in (
                     os.path.expanduser("~"),
                     os.path.expanduser("~/Downloads"),
@@ -582,12 +931,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 ) if os.path.isdir(p) and (
                     self.root == "/" or p.startswith(self.root.rstrip("/") + os.sep) or p == self.root
                 )],
-                "volume": {
-                    "total": usage.total,
-                    "used": usage.used,
-                    "free": usage.free,
-                    "name": self._volume_name(),
-                },
+                "volume": dict(self._usage(), name=self._volume_name()),
+                "trash": self.trash.snapshot(force=True),
                 "status": self.scanner.status(),
             })
 
@@ -623,6 +968,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     "mtime": mtime,
                     "kind": k,
                     "preview": preview_kind(name),
+                    "thumb": thumbable(name),
                     "parent": os.path.dirname(fpath),
                 })
                 if len(out) >= limit:
@@ -647,6 +993,52 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 "kinds": sorted(buckets.values(), key=lambda r: -r["bytes"])
             })
 
+        # -- editor ---------------------------------------------------------- #
+
+        if path == "/api/projects":
+            return self._send(200, {"projects": editor.list_projects(),
+                                    "ffmpeg": editor.have_ffmpeg(),
+                                    "merge": editor.have_merge()})
+
+        if path == "/api/project":
+            data = editor.read_project(one("id"))
+            if not data:
+                return self._send(404, {"error": "no such project"})
+            for asset in data.get("assets") or []:
+                asset["missing"] = not os.path.isfile(asset["path"])
+            return self._send(200, data)
+
+        if path == "/api/analysis":
+            data = editor.read_project(one("id"))
+            if not data:
+                return self._send(404, {"error": "no such project"})
+            asset = next((a for a in data["assets"] if a["id"] == one("asset")), None)
+            if not asset:
+                return self._send(404, {"error": "no such asset"})
+            try:
+                length = max(1.0, min(120.0, float(one("length", "8"))))
+                count = max(1, min(6, int(one("count", "1"))))
+            except ValueError:
+                length, count = 8.0, 1
+            # Analysing on demand costs a fraction of a second, so a clip that
+            # was added after the batch run still opens instantly.
+            editor.analyse_asset(asset)
+            series = editor.read_analysis(asset) or {"levels": [], "step": editor.STEP}
+            return self._send(200, {
+                "asset": asset["id"], "dur": asset.get("dur"),
+                "step": series.get("step"), "levels": series.get("levels"),
+                "suggestions": editor.suggest(asset, length, count),
+            })
+
+        if path == "/api/jobs":
+            job = one("id")
+            if job:
+                snap = editor.get_job(job)
+                if not snap:
+                    return self._send(404, {"error": "no such job"})
+                return self._send(200, snap)
+            return self._send(200, {"jobs": editor.active_jobs()})
+
         if path == "/api/info":
             target = self._safe(one("path"))
             if not target:
@@ -668,6 +1060,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 "ctime": int(st.st_ctime),
                 "kind": kind_for(os.path.basename(target), is_dir),
                 "preview": None if is_dir else preview_kind(target),
+                "thumb": thumbable(os.path.basename(target), is_dir),
                 "mode": oct(st.st_mode & 0o777),
             })
 
@@ -706,6 +1099,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             target = self._safe(body.get("path"))
             if not target or not os.path.exists(target):
                 return self._send(404, {"error": "no such path"})
+            # Weigh it before it moves — afterwards the path is gone.
+            size, files, subdirs = self.scanner.weigh(target)
             # Finder's own move-to-Trash: recoverable, and it updates the UI the
             # user already trusts. Never `rm`.
             script = (
@@ -720,10 +1115,172 @@ class Handler(http.server.BaseHTTPRequestHandler):
                                                  or "Finder refused"})
             except (subprocess.SubprocessError, OSError) as exc:
                 return self._send(500, {"error": str(exc)})
-            with self.scanner.lock:
-                self.scanner.dirs.pop(target, None)
-                self.scanner.top = [r for r in self.scanner.top if r[1] != target]
-            return self._send(200, {"ok": True, "path": target})
+            self.scanner.forget(target, size, files, subdirs)
+            self.trash.add(size)
+            return self._send(200, {"ok": True, "path": target, "size": size,
+                                    "trash": self.trash.snapshot()})
+
+        # -- editor ---------------------------------------------------------- #
+
+        if path == "/api/project-new":
+            return self._send(200, editor.create_project(body.get("name")))
+
+        if path == "/api/project-delete":
+            ok = editor.delete_project(body.get("id") or "")
+            return self._send(200 if ok else 404, {"ok": ok})
+
+        if path == "/api/project-add":
+            paths = [p for p in (self._safe(raw) for raw in body.get("paths") or []) if p]
+            data, report = editor.add_assets(body.get("id") or "", paths)
+            if data is None:
+                return self._send(404, {"error": "no such project"})
+            return self._send(200, {"project": editor.read_project(data["id"], light=True),
+                                    **report})
+
+        if path == "/api/project-remove-asset":
+            data = editor.remove_asset(body.get("id") or "", body.get("asset") or "")
+            if data is None:
+                return self._send(404, {"error": "no such project"})
+            return self._send(200, {"ok": True})
+
+        if path == "/api/project-save":
+            data = editor.set_clips(body.get("id") or "", body.get("clips"),
+                                    body.get("aspect"), body.get("name"))
+            if data is None:
+                return self._send(404, {"error": "no such project"})
+            return self._send(200, {"ok": True, "duration": editor.timeline_duration(data)})
+
+        if path == "/api/project-auto":
+            try:
+                target = max(30.0, min(3600.0, float(body.get("target") or 300)))
+                moment = max(2.0, min(60.0, float(body.get("moment") or 8)))
+            except (TypeError, ValueError):
+                target, moment = 300.0, 8.0
+            try:
+                out = editor.auto_edit(body.get("id") or "", target, moment,
+                                       1 if body.get("perClip") else 0)
+            except RuntimeError as exc:
+                return self._send(400, {"error": str(exc)})
+            if out is None:
+                return self._send(404, {"error": "no such project"})
+            return self._send(200, out)
+
+        if path == "/api/project-analyse":
+            out = editor.analyse_project(body.get("id") or "")
+            if out is None:
+                return self._send(404, {"error": "no such project"})
+            return self._send(200, out)
+
+        if path == "/api/project-export":
+            try:
+                out = editor.export(body.get("id") or "", body.get("out"))
+            except RuntimeError as exc:
+                return self._send(400, {"error": str(exc)})
+            if out is None:
+                return self._send(404, {"error": "no such project"})
+            return self._send(200, out)
+
+        if path == "/api/merge":
+            paths = [p for p in (self._safe(raw) for raw in body.get("paths") or []) if p]
+            try:
+                out = editor.merge_upload(
+                    paths, body.get("title"),
+                    body.get("privacy") or "unlisted",
+                    upload=bool(body.get("upload", True)),
+                    sort=bool(body.get("sort", True)),
+                    trash_after=bool(body.get("trashAfter")),
+                    encode=bool(body.get("encode", True)))
+            except RuntimeError as exc:
+                return self._send(400, {"error": str(exc)})
+            return self._send(200, out)
+
+        if path == "/api/merge-check":
+            paths = [p for p in (self._safe(raw) for raw in body.get("paths") or []) if p]
+            return self._send(200, editor.upload_ready(paths))
+
+        if path == "/api/job-cancel":
+            with editor.JOBS_LOCK:
+                job = editor.JOBS.get(body.get("id") or "")
+            if not job:
+                return self._send(404, {"error": "no such job"})
+            job.cancel()
+            return self._send(200, {"ok": True})
+
+        if path == "/api/fda":
+            # Opens the pane. Granting is the user's toggle to flip — TCC gives
+            # no API for that, by design.
+            try:
+                subprocess.run(
+                    ["/usr/bin/open",
+                     "x-apple.systempreferences:com.apple.preference.security"
+                     "?Privacy_AllFilesAccess"],
+                    check=True, timeout=10)
+            except (subprocess.SubprocessError, OSError) as exc:
+                return self._send(500, {"error": str(exc)})
+            return self._send(200, {"ok": True, "host": _host_app()})
+
+        if path == "/api/trash-many":
+            targets = [p for p in (self._safe(raw) for raw in body.get("paths") or []) if p]
+            targets = [p for p in targets if os.path.exists(p)]
+            if not targets:
+                return self._send(404, {"error": "nothing to trash"})
+            # Weigh everything before it moves, and hand Finder the whole list in
+            # one go — one osascript per file turns a 40-clip selection into 40
+            # round trips through the Apple Event machinery.
+            weighed = [(p,) + self.scanner.weigh(p) for p in targets]
+            freed = sum(w[1] for w in weighed)
+            done, failed = [], []
+            for chunk in [targets[i:i + 150] for i in range(0, len(targets), 150)]:
+                items = ", ".join('POSIX file "%s"' % p.replace('"', '\\"') for p in chunk)
+                script = 'tell application "Finder" to delete {%s}' % items
+                try:
+                    subprocess.run(["/usr/bin/osascript", "-e", script],
+                                   check=True, timeout=180, capture_output=True)
+                    done.extend(chunk)
+                except subprocess.CalledProcessError as exc:
+                    failed.append((exc.stderr or b"").decode().strip() or "Finder refused")
+                except (subprocess.SubprocessError, OSError) as exc:
+                    failed.append(str(exc))
+            gone = set(done)
+            moved = 0
+            for path_, size, files, subdirs in weighed:
+                if path_ in gone:
+                    self.scanner.forget(path_, size, files, subdirs)
+                    self.trash.add(size)
+                    moved += size
+            return self._send(200, {
+                "ok": not failed, "trashed": len(done), "failed": failed[:3],
+                "freed": moved if done else 0,
+                "requested": len(targets), "weighed": freed,
+                "trash": self.trash.snapshot(),
+            })
+
+        if path == "/api/trash-open":
+            if not os.path.isdir(TRASH_DIR):
+                return self._send(404, {"error": "no Trash folder"})
+            try:
+                subprocess.run(["/usr/bin/open", TRASH_DIR], check=True, timeout=10)
+            except (subprocess.SubprocessError, OSError) as exc:
+                return self._send(500, {"error": str(exc)})
+            return self._send(200, {"ok": True, "path": TRASH_DIR})
+
+        if path == "/api/trash-empty":
+            # The one irreversible thing in this app. It is Finder's own empty,
+            # so Finder's warning preference still applies, and the UI arms the
+            # button twice before it ever gets here.
+            try:
+                subprocess.run(
+                    ["/usr/bin/osascript", "-e",
+                     'tell application "Finder" to empty the trash'],
+                    check=True, timeout=180, capture_output=True)
+            except subprocess.CalledProcessError as exc:
+                return self._send(500, {"error": (exc.stderr or b"").decode().strip()
+                                                 or "Finder refused"})
+            except (subprocess.SubprocessError, OSError) as exc:
+                return self._send(500, {"error": str(exc)})
+            self.trash.reset()
+            return self._send(200, {"ok": True, "volume": self._usage(),
+                                    "trash": self.trash.snapshot()})
 
         return self._send(404, {"error": "unknown endpoint"})
 
@@ -831,6 +1388,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     "mtime": int(st.st_mtime),
                     "kind": kind_for(entry.name, is_dir and not link),
                     "preview": None if is_dir else preview_kind(entry.name),
+                    "thumb": thumbable(entry.name, is_dir and not link),
                     "hidden": entry.name.startswith("."),
                     "skipped": entry.path in SKIP_NAMES,
                 })
@@ -861,6 +1419,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
             crumbs[0]["name"] = os.path.basename(self.root) or self.root
         return crumbs
 
+    def _usage(self):
+        try:
+            u = shutil.disk_usage(self.root)
+        except OSError:
+            return {"total": 0, "used": 0, "free": 0}
+        return {"total": u.total, "used": u.used, "free": u.free}
+
     def _volume_name(self):
         try:
             out = subprocess.run(["/usr/sbin/diskutil", "info", "/"],
@@ -879,6 +1444,55 @@ class Server(socketserver.ThreadingMixIn, http.server.HTTPServer):
 
 
 # --------------------------------------------------------------------------- #
+
+TOKEN_FILE = os.path.join(CACHE_DIR, "token")
+
+
+def _token(fresh=False):
+    """The per-machine token, remembered between runs.
+
+    It used to be minted per process, which meant every restart silently turned
+    every open tab into a dead page answering "bad token" to everything. The
+    secret is no weaker for being reused: still 24 random bytes, still only
+    reachable from 127.0.0.1, and now stored 0600 in a cache directory only this
+    user can read. `--new-token` rotates it.
+    """
+    if not fresh:
+        try:
+            with open(TOKEN_FILE, "r", encoding="utf-8") as fh:
+                saved = fh.read().strip()
+            if len(saved) >= 24:
+                return saved
+        except OSError:
+            pass
+    token = secrets.token_urlsafe(24)
+    try:
+        os.makedirs(CACHE_DIR, exist_ok=True)
+        fd = os.open(TOKEN_FILE, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w") as fh:
+            fh.write(token)
+    except OSError:
+        pass        # a token that only lives in memory still works for this run
+    return token
+
+
+def _host_app():
+    """Which app has to be granted Full Disk Access. TCC does not judge python3
+    — it judges whatever launched it, so the name to add to the list is the
+    terminal or editor this process was started from."""
+    by_term = {
+        "vscode": "Visual Studio Code",
+        "iTerm.app": "iTerm",
+        "Apple_Terminal": "Terminal",
+        "WarpTerminal": "Warp",
+        "ghostty": "Ghostty",
+        "Hyper": "Hyper",
+    }
+    name = by_term.get(os.environ.get("TERM_PROGRAM", ""))
+    if name:
+        return name
+    return "the terminal running serve.py"
+
 
 def _has_full_disk_access():
     """A cheap probe: this folder is TCC-protected, so being able to list it
@@ -899,6 +1513,8 @@ def main():
     ap.add_argument("--fresh", action="store_true", help="ignore the cached index")
     ap.add_argument("--no-open", action="store_true", help="don't launch the browser")
     ap.add_argument("--verbose", action="store_true", help="log every request")
+    ap.add_argument("--new-token", action="store_true",
+                    help="mint a new token, invalidating old links")
     args = ap.parse_args()
 
     root = os.path.realpath(os.path.expanduser(args.root))
@@ -906,9 +1522,10 @@ def main():
         sys.exit("not a folder: %s" % root)
 
     scanner = Scanner(root)
-    token = secrets.token_urlsafe(24)
+    token = _token(fresh=args.new_token)
 
     Handler.scanner = scanner
+    Handler.trash = TrashWatch()
     Handler.token = token
     Handler.root = root
     Handler.verbose = args.verbose

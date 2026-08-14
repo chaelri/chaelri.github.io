@@ -29,7 +29,7 @@ ONCE=0
 for a in "$@"; do [ "$a" = "--once" ] && ONCE=1; done
 
 C_DIM=$'\033[38;5;244m'; C_OK=$'\033[38;5;114m'; C_RUN=$'\033[38;5;111m'
-C_HEAD=$'\033[1m'; C_ACC=$'\033[38;5;213m'; C_OFF=$'\033[0m'
+C_HEAD=$'\033[1m'; C_ACC=$'\033[38;5;213m'; C_OFF=$'\033[0m'; C_ERR=$'\033[38;5;203m'
 # Time the JOB, not this script — otherwise a `--once` snapshot of an
 # already-running job reports an elapsed of ~1 s and a nonsense ETA. The log /
 # progress file's birth time is when the job actually started.
@@ -37,6 +37,7 @@ _clock_src="${3:-}"
 [ "$MODE" = "upload" ] && _clock_src="${2:-}"
 [ "$MODE" = "encode" ] && _clock_src="${2:-}"
 [ "$MODE" = "multi" ] && _clock_src="${2:-}"
+[ "$MODE" = "job" ] && _clock_src="${2:-}"
 if [ -n "$_clock_src" ] && [ -e "$_clock_src" ]; then
   START=$(stat -f%B "$_clock_src" 2>/dev/null || date +%s)
 else
@@ -90,10 +91,23 @@ secs_from_prog() {  # last out_time_us, in whole seconds
 
 draw_multi() {
   local dir="$1" total="$2" label="${3:-rendering}" secs_done=0 n=0 finished=0
+  # A 42-clip batch prints more rows than the window is tall, so the frame
+  # scrolls and the whole thing reads as jitter. Only list what's in flight
+  # once the batch outgrows the window; finished clips collapse to a count.
+  local rows="${LINES:-0}"
+  [ "$rows" -lt 5 ] && rows=$(tput lines 2>/dev/null || echo 30)
+  local budget=$(( rows - 9 ))
+  [ "$budget" -lt 3 ] && budget=3
+  local njobs=0 pf
+  for pf in "$dir"/*.prog; do [ -f "$pf" ] && njobs=$(( njobs + 1 )); done
+  local compact=0
+  [ "$njobs" -gt "$budget" ] && compact=1
+
   printf '%s  %s%s\n\n' "$C_HEAD" "$label" "$C_OFF"
+  local rowbuf=""
   for pf in "$dir"/*.prog; do
     [ -f "$pf" ] || continue
-    local pct col state clip_total s
+    local pct col state clip_total s is_done=0
     # Each clip's own duration lives in a sidecar .dur written by the caller.
     # Without it a per-clip bar would be measured against the whole batch and
     # could never pass (clip duration / batch duration) percent.
@@ -103,15 +117,23 @@ draw_multi() {
     s=$(secs_from_prog "$pf")
     pct=$(( s * 100 / clip_total ))
     if grep -q '^progress=end' "$pf" 2>/dev/null; then
-      pct=100; col="$C_OK"; state="done"; s="$clip_total"; finished=$(( finished + 1 ))
+      pct=100; col="$C_OK"; state="done"; s="$clip_total"; is_done=1
+      finished=$(( finished + 1 ))
     else
       [ "$pct" -gt 99 ] && pct=99; col="$C_RUN"; state="encoding"
     fi
-    printf '  %-22s %s %3d%%  %s%s%s\n' \
-      "$(basename "$pf" .prog)" "$(bar "$pct" 32 "$col")" "$pct" "$col" "$state" "$C_OFF"
+    if [ "$compact" = "0" ] || [ "$is_done" = "0" ]; then
+      rowbuf+=$(printf '  %-22s %s %3d%%  %s%s%s' \
+        "$(basename "$pf" .prog)" "$(bar "$pct" 32 "$col")" "$pct" "$col" "$state" "$C_OFF")
+      rowbuf+=$'\n'
+    fi
     secs_done=$(( secs_done + s )); n=$(( n + 1 ))
   done
   [ "$n" -eq 0 ] && { printf '  %swaiting for jobs…%s\n' "$C_DIM" "$C_OFF"; return 0; }
+  if [ "$compact" = "1" ]; then
+    printf '  %s%d of %d clips done%s\n\n' "$C_DIM" "$finished" "$njobs" "$C_OFF"
+  fi
+  printf '%s' "$rowbuf"
   # Overall is video-seconds encoded / video-seconds total, so a long clip
   # counts for more than a short one instead of averaging the percentages.
   # Done is "every job wrote progress=end", NOT "the percentage reached 100".
@@ -140,7 +162,7 @@ draw_upload() {
     return 1
   fi
   if grep -qi 'error' "$log" 2>/dev/null; then
-    printf '  %sERROR: %s%s\n' "$'\033[38;5;203m'" "$(grep -i error "$log" | tail -1)" "$C_OFF"
+    printf '  %sERROR: %s%s\n' "$C_ERR" "$(grep -i error "$log" | tail -1)" "$C_OFF"
     return 1
   fi
   [ -z "${last:-}" ] && { printf '  %sopening resumable session…%s\n' "$C_DIM" "$C_OFF"; return 0; }
@@ -152,20 +174,51 @@ draw_upload() {
   return 0
 }
 
+# One window for the whole pipeline. Encoding and uploading used to be two
+# separate watchers, which meant two Terminal windows — the first left sitting
+# dead on "[Process completed]" while the second popped up over it. Here the
+# phase is derived from the filesystem: the upload log only exists once the
+# encode is finished and the parts are concatenated, so its presence IS the
+# handover signal. Only the upload phase may end the loop.
+draw_job() {
+  local dir="$1" total="$2" ulog="$3" label="${4:-rendering}" rc=0
+  if [ -f "$ulog" ]; then
+    draw_upload "$ulog" "$label  ·  uploading to YouTube"
+    return $?
+  fi
+  draw_multi "$dir" "$total" "$label  ·  encoding" || rc=1
+  # Between the last ffmpeg exiting and the upload starting there's a
+  # stream-copy concat of every part — on a 3 GB batch that is not instant,
+  # and a bar frozen at 100% with no label reads as a hang.
+  [ "$rc" = "1" ] && printf '\n  %smerging parts…%s\n' "$C_DIM" "$C_OFF"
+  return 0
+}
+
 run() {
   case "$MODE" in
     encode) draw_encode "$2" "$3" "${4:-encoding}" ;;
     multi)  draw_multi  "$2" "$3" "${4:-rendering}" ;;
     upload) draw_upload "$2" "${3:-uploading}" ;;
+    job)    draw_job    "$2" "$3" "$4" "${5:-rendering}" ;;
     *) echo "unknown mode: $MODE" >&2; exit 2 ;;
   esac
 }
 
 if [ "$ONCE" = "1" ]; then run "$@"; exit 0; fi
 
-printf '\033[?25l'; trap 'printf "\033[?25h\n"; exit 0' INT TERM
+printf '\033[?25l\033[2J'; trap 'printf "\033[?25h\n"; exit 0' INT TERM
+# Draw by overwriting in place, never by clearing first. `\033[2J` blanks the
+# screen and leaves it blank until the next frame lands — at 1 fps that gap is
+# the blink Charlie sees. Instead: render the frame into a buffer, home the
+# cursor, erase each line as it is rewritten (\033[K) and erase whatever the
+# last frame left below (\033[J), all in ONE write so nothing renders half-done.
+frame=""; rc=0; line=""
 while true; do
-  printf '\033[H\033[2J'
-  run "$@" || { printf '\033[?25h\n'; break; }
+  frame=$(run "$@") || rc=$?
+  buf=$'\033[H'
+  while IFS= read -r line; do buf+="$line"$'\033[K\n'; done <<< "$frame"
+  buf+=$'\033[J'
+  printf '%s' "$buf"
+  [ "$rc" -ne 0 ] && { printf '\033[?25h\n'; break; }
   sleep 1
 done

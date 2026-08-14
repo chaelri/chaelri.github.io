@@ -25,8 +25,27 @@ async function api(path, body) {
     body: body ? JSON.stringify(body) : undefined,
   });
   const data = await res.json().catch(() => ({}));
+  // A 401 means this tab is holding a token the server no longer honours.
+  // Every later click would fail the same way, so say it once, loudly, instead
+  // of firing "bad token" at whatever the user happens to press next.
+  if (res.status === 401) { showStale(); throw new Error('this page is out of date'); }
   if (!res.ok) throw new Error(data.error || res.status);
   return data;
+}
+
+let staleShown = false;
+function showStale() {
+  if (staleShown) return;
+  staleShown = true;
+  clearTimeout(pollTimer);
+  clearTimeout(jobTimer);
+  const bar = el('div', 'stale-bar');
+  bar.appendChild(Object.assign(el('span', 'ms'), { textContent: 'sync_problem' }));
+  bar.appendChild(el('span', null, 'diskscope restarted — this page is out of date.'));
+  const b = el('button', 'mini', 'Reload');
+  b.onclick = () => location.reload();
+  bar.appendChild(b);
+  document.body.appendChild(bar);
 }
 
 /* macOS reports storage in decimal units, so diskscope does too — otherwise the
@@ -94,6 +113,8 @@ const S = {
   /* On by default: a tool whose whole job is "where did my disk go" must not
      hide ~/.Trash, ~/.cache or a 1.8 GB .git from you. */
   showHidden: true,
+  thumbs: true,
+  previewMuted: true,
   minSize: 0,
   query: '',
   kindFilter: 'all',
@@ -106,6 +127,9 @@ const S = {
   limit: 400,
   selected: null,
   sheetItem: null,
+  marked: new Set(),       // multi-select, for sending a batch to a project
+  anchor: null,            // where a shift-range starts from
+  project: null,           // the open project, if any
 };
 
 /* ── boot ───────────────────────────────────────────────────────────────── */
@@ -118,8 +142,12 @@ const S = {
   try {
     const cfg = await api('/api/config');
     S.root = cfg.root;
+    S.home = cfg.home;
     S.volume = cfg.volume;
+    S.trash = cfg.trash;
+    S.hostApp = cfg.hostApp;
     S.wholeDisk = cfg.wholeDisk;
+    drawTrash();
     $('#vol-name').textContent = cfg.wholeDisk ? cfg.volume.name : rootLabel();
     $('#vol-total').textContent = `of ${sizeText(cfg.volume.total)}`;
     $('#vol-used').textContent = sizeText(cfg.volume.used);
@@ -131,7 +159,68 @@ const S = {
     return;
   }
   pollStatus();
+  loadProjects();
+  pollJobs();
 })();
+
+/* ── auto clip ──────────────────────────────────────────────────────────── */
+
+const AUTO = { target: 300, moment: 8, perClip: false };
+
+function openAuto() {
+  if (!S.project || !S.project.assets.length) {
+    return toast('Add clips to a project first', true, 'auto_awesome');
+  }
+  const n = S.project.assets.length;
+  $('#auto-sum').textContent = `${fmtCount(n)} clip${n === 1 ? '' : 's'} in “${S.project.name}”`;
+  syncAuto();
+  $('#auto-scrim').classList.add('on');
+  $('#auto-box').classList.add('on');
+}
+
+function closeAuto() {
+  $('#auto-scrim').classList.remove('on');
+  $('#auto-box').classList.remove('on');
+}
+
+function syncAuto() {
+  $$('#auto-target button').forEach((b) => b.classList.toggle('on',
+    b.dataset.t === 'every' ? AUTO.perClip : (!AUTO.perClip && Number(b.dataset.t) === AUTO.target)));
+  $$('#auto-moment button').forEach((b) => b.classList.toggle('on', Number(b.dataset.m) === AUTO.moment));
+}
+
+async function runAuto() {
+  try {
+    await api('/api/project-auto', {
+      id: S.project.id, target: AUTO.target, moment: AUTO.moment, perClip: AUTO.perClip,
+    });
+    closeAuto();
+    toast('Listening, then cutting — watch the progress bar', false, 'auto_awesome');
+    pollJobs(true);
+    watchAuto();
+  } catch (err) { toast(`Auto clip failed: ${err.message}`, true); }
+}
+
+/* When the cut lands, go straight into reviewing it — the point of an auto
+   edit is the thing it made, not the notification that it finished. */
+function watchAuto() {
+  clearInterval(S.autoWatch);
+  S.autoWatch = setInterval(async () => {
+    let jobs;
+    try { jobs = (await api('/api/jobs')).jobs || []; } catch { return; }
+    const auto = jobs.find((j) => j.kind === 'auto');
+    if (!auto || auto.state === 'running') return;
+    clearInterval(S.autoWatch);
+    if (auto.state !== 'done') return;
+    const m = auto.meta || {};
+    // The cut is its own project, so switch to it — the one it was made from
+    // is still in the picker, untouched.
+    await loadProjects(m.project);
+    toast(`“${m.name}” · ${fmtCount(m.clips)} moments · ${clock(m.seconds)}`,
+      false, 'auto_awesome');
+    openReview('picks');
+  }, 1500);
+}
 
 /* ── status polling ─────────────────────────────────────────────────────── */
 
@@ -147,6 +236,18 @@ async function pollStatus() {
   }
   const wasScanning = S.status && S.status.state === 'scanning';
   S.status = st;
+
+  // The volume figures come back on every poll, so the gauge tracks a trash, an
+  // empty, or anything else touching the disk without waiting for a rescan.
+  if (st.volume && S.volume) {
+    const moved = S.volume.used !== st.volume.used;
+    Object.assign(S.volume, st.volume);
+    $('#vol-used').textContent = sizeText(S.volume.used);
+    $('#vol-total').textContent = `of ${sizeText(S.volume.total)}`;
+    $('#foot-left').textContent = `${sizeText(S.volume.free)} free`;
+    if (moved) drawVolume();
+  }
+  if (st.trash) { S.trash = st.trash; drawTrash(); }
 
   const strip = $('#scan-strip');
   const scanning = st.state === 'scanning';
@@ -218,13 +319,27 @@ function syncJumps() {
 }
 
 function showFullDiskNotice() {
+  const app = S.hostApp || 'the terminal running serve.py';
   const n = el('div', 'notice');
   n.appendChild(Object.assign(el('span', 'ms'), { textContent: 'lock' }));
   n.appendChild(el('span', null,
-    'Some folders will show as unreadable until the terminal running serve.py has ' +
-    'Full Disk Access (System Settings › Privacy & Security › Full Disk Access). ' +
-    'Everything else still scans.'));
+    `Some folders — including the Trash — can’t be read until ${app} has Full ` +
+    'Disk Access. Everything else still scans.'));
+  const b = el('button', 'mini', 'Open Settings');
+  b.onclick = openFdaSettings;
+  n.appendChild(b);
   $('#volume-card').insertBefore(n, $('#scan-strip'));
+}
+
+/* macOS offers no API to grant this — the pane is as far as anything can go,
+   the toggle is the user's. The grant only takes effect once the app is
+   quit and reopened, which is worth saying out loud. */
+async function openFdaSettings() {
+  const app = S.hostApp || 'your terminal';
+  try {
+    await api('/api/fda', {});
+    toast(`Add ${app} to the list, then quit and reopen it`, false, 'lock_open');
+  } catch (err) { toast(String(err), true); }
 }
 
 /* ── volume bar ─────────────────────────────────────────────────────────── */
@@ -256,23 +371,45 @@ async function drawVolume() {
     // system volume, other users' folders, snapshots, TCC-blocked paths.
     segs.push({
       label: S.wholeDisk ? 'macOS system & snapshots' : 'Outside this folder',
-      bytes: elsewhere, color: 'var(--k-free)', path: null,
+      bytes: elsewhere, color: 'var(--k-system)', path: null,
     });
   }
   S.volume.segments = segs;
 
   const bar = $('#vol-bar');
-  bar.innerHTML = '';
   const legend = $('#vol-legend');
   legend.innerHTML = '';
 
+  /* Segments are matched by label and updated in place. Rebuilding them meant
+     every poll that moved a byte replayed the whole staggered sweep from zero,
+     which reads as a flicker rather than as an update. The sweep is an
+     entrance — it belongs to a segment appearing, not to it changing. */
+  const seen = new Set();
   segs.forEach((s, i) => {
-    const seg = el('div', 'vol-seg');
+    seen.add(s.label);
+    let seg = bar.querySelector(`.vol-seg[data-key="${CSS.escape(s.label)}"]`);
+    const fresh = !seg;
+    if (fresh) {
+      seg = el('div', 'vol-seg');
+      seg.dataset.key = s.label;
+      bar.appendChild(seg);
+    }
     seg.style.background = s.color;
     seg.title = `${s.label} — ${sizeText(s.bytes)}`;
-    bar.appendChild(seg);
-    requestAnimationFrame(() =>
-      setTimeout(() => { seg.style.width = `${(s.bytes / total) * 100}%`; }, 40 + i * 45));
+    // ~/.Trash lives inside one of these segments; remember which, so the band
+    // can be drawn at that segment's own edge instead of guessing at pixels.
+    if (s.path && S.home && (S.home + '/').startsWith(s.path.replace(/\/?$/, '/'))) {
+      seg.dataset.holdsTrash = String(s.bytes);
+    } else {
+      delete seg.dataset.holdsTrash;
+    }
+
+    const width = `${(s.bytes / total) * 100}%`;
+    if (fresh) {
+      requestAnimationFrame(() => setTimeout(() => { seg.style.width = width; }, 40 + i * 45));
+    } else {
+      seg.style.width = width;      // the CSS transition eases it from where it was
+    }
 
     const b = el('button');
     b.style.color = s.color;
@@ -286,8 +423,52 @@ async function drawVolume() {
     legend.appendChild(b);
   });
 
+  // A folder that shrank out of the top six leaves its bar behind otherwise.
+  bar.querySelectorAll('.vol-seg').forEach((seg) => {
+    if (!seen.has(seg.dataset.key)) seg.remove();
+  });
+  $('#vol-bar .vol-shimmer')?.remove();
+
+  if (S.trash?.bytes) {
+    const b = el('button');
+    b.style.color = 'var(--danger)';
+    b.appendChild(el('i', 'stripe'));
+    const name = el('span', null, 'In Trash');
+    name.style.color = 'var(--text-2)';
+    b.appendChild(name);
+    b.appendChild(el('b', null, sizeText(S.trash.bytes)));
+    b.title = 'Counted inside the segments above — emptying the Trash frees it';
+    b.onclick = () => $('#trash-strip').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    legend.appendChild(b);
+  }
+
   $('#vol-used').textContent = sizeText(S.volume.used);
   $('#foot-left').textContent = `${sizeText(S.volume.free)} free`;
+  drawTrashBand();
+}
+
+/* Drawn at the trailing edge of whichever segment actually contains ~/.Trash —
+   normally Users. Anchoring it to the end of *used* instead put it over the
+   system-and-snapshots chunk, which is the one place those bytes are not. */
+function drawTrashBand() {
+  const bar = $('#vol-bar');
+  const total = S.volume?.total;
+  const bytes = S.trash?.bytes || 0;
+  let band = document.getElementById('vol-trash');
+  const host = bar?.querySelector('.vol-seg[data-holds-trash]');
+  if (!total || !bytes || !host) { if (band) band.remove(); return; }
+  if (!band || band.parentElement !== host) {
+    if (band) band.remove();
+    band = el('div', 'vol-trash');
+    band.id = 'vol-trash';
+    host.appendChild(band);
+  }
+  // As a share of its host segment, so it rides that segment's own animation
+  // and stays correct however the bar is scaled.
+  const hostBytes = Number(host.dataset.holdsTrash) || bytes;
+  band.style.width = `${Math.min(100, (bytes / hostBytes) * 100)}%`;
+  band.title = `${S.trash.partial ? 'At least ' : ''}${sizeText(bytes)} in the Trash — `
+    + 'emptying it turns this into free space';
 }
 
 /* ── navigation ─────────────────────────────────────────────────────────── */
@@ -303,10 +484,20 @@ function navigate(path, opts = {}) {
   }
   S.path = path;
   S.limit = 400;
-  S.selected = null;
+  S.selected = opts.select || null;
+  closeSheet();          // the panel described a row in the folder we just left
   syncNavButtons();
   syncJumps();
-  reload();
+  const listed = reload();
+  // Landing in the right folder and leaving you to find the file yourself is
+  // only half the jump. The row cannot be scrolled to until it exists, which
+  // is after the listing comes back.
+  if (opts.select) {
+    listed.then(() => {
+      document.querySelector(`#rows .row[data-path="${CSS.escape(opts.select)}"]`)
+        ?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    });
+  }
 }
 
 function syncNavButtons() {
@@ -318,6 +509,8 @@ function goBack() {
   if (S.hIndex <= 0) return;
   S.hIndex--;
   S.path = S.history[S.hIndex];
+  S.selected = null;
+  closeSheet();
   syncNavButtons();
   reload();
 }
@@ -325,6 +518,8 @@ function goForward() {
   if (S.hIndex >= S.history.length - 1) return;
   S.hIndex++;
   S.path = S.history[S.hIndex];
+  S.selected = null;
+  closeSheet();
   syncNavButtons();
   reload();
 }
@@ -383,6 +578,13 @@ function drawCrumbs() {
     b.onclick = () => navigate(p);
     wrap.appendChild(b);
   });
+  // Deep paths overflow: keep the folder you are actually in on screen.
+  wrap.scrollLeft = wrap.scrollWidth;
+  // …and the left-edge fade only exists to say that something is off-screen,
+  // so it follows the scroll rather than being painted on every path.
+  const syncFade = () => wrap.classList.toggle('scrolled', wrap.scrollLeft > 1);
+  wrap.onscroll = syncFade;
+  syncFade();
 }
 
 function visibleEntries() {
@@ -418,6 +620,9 @@ function render() {
   const total = shown.reduce((a, e) => a + (e.size || 0), 0);
   const parentSize = S.view === 'list' ? (S.listing?.size ?? total) : total;
 
+  // The tiles about to be thrown away are still observed; drop them before the
+  // new ones register or the observer keeps every detached row alive.
+  if (thumbObserver) thumbObserver.disconnect();
   rows.innerHTML = '';
   $('#empty').classList.toggle('hidden', list.length > 0);
 
@@ -431,9 +636,15 @@ function render() {
     : '';
 
   if (!list.length) {
-    $('#empty-text').textContent = S.query
-      ? `No match for “${S.query}”`
-      : S.minSize ? 'Nothing above that size here' : 'This folder is empty';
+    // A folder we were refused is not an empty folder — ~/.Trash reads exactly
+    // like this without Full Disk Access, and saying "empty" would be a lie.
+    const denied = S.listing?.error && /denied|not permitted/i.test(S.listing.error);
+    $('#empty-text').textContent = denied
+      ? `macOS won’t let this folder be read — ${S.hostApp || 'the terminal running serve.py'} needs Full Disk Access`
+      : S.listing?.error ? `Can’t read this folder — ${S.listing.error}`
+        : S.query ? `No match for “${S.query}”`
+          : S.minSize ? 'Nothing above that size here' : 'This folder is empty';
+    $('#empty-act').classList.toggle('hidden', !denied);
     return;
   }
 
@@ -456,12 +667,30 @@ function makeRow(e, i, max, parentSize) {
   row.style.setProperty('--c', kind.color);
   row.style.animationDelay = `${Math.min(i * 9, 260)}ms`;
   row.dataset.path = e.path;
+  row.dataset.i = i;
   row.tabIndex = 0;
   if (e.dir) row.classList.add('drillable');
   if (S.selected === e.path) row.classList.add('sel');
+  if (S.marked.has(e.path)) row.classList.add('marked');
+
+  // Any row can be dragged to the tray; dragging one of a marked set takes the
+  // whole set, which is what makes "select a dozen, throw them in" work.
+  row.draggable = true;
+  row.ondragstart = (ev) => {
+    const batch = S.marked.has(e.path) ? [...S.marked] : [e.path];
+    ev.dataTransfer.effectAllowed = 'copy';
+    ev.dataTransfer.setData('text/plain', batch.join('\n'));
+    dragPayload = batch;
+    document.body.classList.add('dragging');
+  };
+  row.ondragend = () => {
+    dragPayload = null;
+    document.body.classList.remove('dragging');
+  };
 
   const tile = el('div', 'tile');
   tile.appendChild(Object.assign(el('span', 'ms'), { textContent: kind.icon }));
+  if (S.thumbs && e.thumb) wantThumb(tile, e);
   row.appendChild(tile);
 
   const main = el('div', 'row-main');
@@ -522,14 +751,31 @@ function makeRow(e, i, max, parentSize) {
   } else {
     acts.appendChild(el('span', 'row-act-gap'));
   }
-  acts.appendChild(iconAct('folder_open', 'Reveal in Finder', (ev) => {
+  // No Reveal and no Details button: double-clicking a row already reveals it,
+  // and selecting one already opens the panel. Space reveals whatever is
+  // selected, which is how a folder still gets there.
+  if (!e.dir) {
+    acts.appendChild(iconAct('library_add', 'Add to project', (ev) => {
+      ev.stopPropagation();
+      addToProject(S.marked.has(e.path) ? [...S.marked] : [e.path]);
+    }));
+    if (S.mergeReady && VIDEO_RE.test(e.name)) {
+      acts.appendChild(iconAct('smart_display', 'Upload to YouTube', (ev) => {
+        ev.stopPropagation();
+        openMerge(S.marked.has(e.path) ? [...S.marked] : [e.path]);
+      }));
+    }
+  }
+  const trash = iconAct('delete', `Move ${e.name} to Trash`, (ev) => {
     ev.stopPropagation();
-    reveal(e.path);
-  }));
-  acts.appendChild(iconAct('info', 'Details', (ev) => {
-    ev.stopPropagation();
-    openSheet(e);
-  }));
+    rowTrash(e, trash);
+  });
+  trash.classList.add('danger');
+  acts.appendChild(trash);
+  // Arming then confirming the trash button IS a double click, and dblclick is a
+  // separate event — stopPropagation on the click never sees it, so the row's
+  // own dblclick would fire Reveal (or open the folder) underneath.
+  acts.ondblclick = (ev) => ev.stopPropagation();
   row.appendChild(acts);
 
   const chev = el('div', 'row-chev');
@@ -537,13 +783,675 @@ function makeRow(e, i, max, parentSize) {
   else chev.style.width = '18px';
   row.appendChild(chev);
 
-  row.onclick = () => {
-    S.selected = e.path;
-    if (e.dir) navigate(e.path);
-    else { render(); openSheet(e); }
+  row.onclick = (ev) => {
+    if (ev.metaKey || ev.ctrlKey) return markToggle(e);
+    if (ev.shiftKey) return markRange(e);
+    // A plain click is where the next shift-range will start from.
+    S.marked.clear();
+    setAnchor(e.path, false);
+    syncMarks();
+    if (e.dir) { S.selected = e.path; return navigate(e.path); }
+    select(e);
   };
   row.ondblclick = () => { if (!e.dir) reveal(e.path); };
   return row;
+}
+
+/* Moving the selection must not rebuild 400 rows — swap the class in place and
+   let the panel follow. That is what makes holding ↓ feel like a list and not
+   like a re-render. */
+function select(entry) {
+  S.selected = entry.path;
+  let node = null;
+  $$('#rows .row').forEach((r) => {
+    const on = r.dataset.path === S.selected;
+    r.classList.toggle('sel', on);
+    if (on) node = r;
+  });
+  // Focus follows the selection. Clicking a row focuses it, and the first key
+  // press then makes Chrome decide the ring should be visible — so without this
+  // the ring stays on the row you clicked while the highlight walks away from
+  // it, and two different rows look current.
+  node?.focus({ preventScroll: true });
+  openSheet(entry);
+}
+
+/* ── multi-select ───────────────────────────────────────────────────────── */
+
+/* A second, coarser selection than S.selected: that one drives the inspector
+   and only ever holds one row, this one is the batch you are about to send
+   somewhere. ⌘-click toggles, shift-click takes the run in between. */
+
+let dragPayload = null;
+
+/* Shift extends from the anchor, and the anchor moves on any plain or ⌘ click —
+   including a plain click, which is the one that used to leave it unset so the
+   first shift-click had nothing to reach back to.
+   `markBase` is what was selected when the anchor was placed, so shifting again
+   REPLACES the run instead of piling ranges on top of each other. Without it,
+   shifting down and then back up leaves both runs marked. */
+function setAnchor(path, keepExisting) {
+  S.anchor = path;
+  S.markBase = new Set(keepExisting ? S.marked : []);
+}
+
+function markToggle(entry) {
+  if (S.marked.has(entry.path)) S.marked.delete(entry.path);
+  else S.marked.add(entry.path);
+  setAnchor(entry.path, true);
+  syncMarks();
+}
+
+function markRange(entry) {
+  const list = visibleEntries().slice(0, S.limit);
+  const to = list.findIndex((e) => e.path === entry.path);
+  if (to < 0) return;
+  const from = S.anchor ? list.findIndex((e) => e.path === S.anchor) : -1;
+  if (from < 0) {
+    S.marked.add(entry.path);
+    setAnchor(entry.path, true);
+    return syncMarks();
+  }
+  // Direction is irrelevant once both ends are indices.
+  const [a, b] = from < to ? [from, to] : [to, from];
+  const next = new Set(S.markBase);
+  for (let i = a; i <= b; i++) if (!list[i].dir) next.add(list[i].path);
+  S.marked = next;
+  syncMarks();
+}
+
+function syncMarks() {
+  $$('#rows .row').forEach((r) => r.classList.toggle('marked', S.marked.has(r.dataset.path)));
+  const n = S.marked.size;
+  $('#list-mark').classList.toggle('hidden', !n);
+  $('#list-mark-text').textContent = `${fmtCount(n)} selected`;
+  // The button says what it will take. One click sends a batch to the Trash, so
+  // the size has to be on the button, not in a dialog after the fact.
+  const bytes = markedBytes();
+  $('#mark-trash').textContent = bytes ? `Trash · ${sizeText(bytes)}` : 'Trash';
+  if (n) drawTray();
+}
+
+const markedBytes = () =>
+  [...S.marked].reduce((a, p) => a + (S.entries.find((e) => e.path === p)?.size || 0), 0);
+
+async function trashMarked() {
+  const paths = [...S.marked];
+  if (!paths.length) return;
+  const bytes = markedBytes();
+  const btn = $('#mark-trash');
+  btn.disabled = true;
+  btn.textContent = 'Trashing…';
+  try {
+    const res = await api('/api/trash-many', { paths });
+    bumpTrash(res.freed, res.trash);
+    // Drop them locally first so the list settles before the refetch.
+    const gone = new Set(paths);
+    S.entries = S.entries.filter((e) => !gone.has(e.path));
+    clearMarks();
+    render();
+    reload();
+    toast(res.failed?.length
+      ? `Trashed ${fmtCount(res.trashed)} of ${fmtCount(res.requested)} — ${res.failed[0]}`
+      : `${fmtCount(res.trashed)} → Trash · ${sizeText(bytes)} reclaimable`,
+    !!res.failed?.length, 'delete');
+  } catch (err) {
+    toast(`Trash failed: ${err.message}`, true);
+  } finally {
+    btn.disabled = false;
+    syncMarks();
+  }
+}
+
+function clearMarks() {
+  S.marked.clear();
+  S.anchor = null;
+  S.markBase = new Set();
+  syncMarks();
+}
+
+/* ── projects ───────────────────────────────────────────────────────────── */
+
+async function loadProjects(pickId) {
+  let res;
+  try { res = await api('/api/projects'); } catch { return; }
+  S.ffmpeg = res.ffmpeg;
+  S.mergeReady = res.merge;
+  $('#mark-merge').classList.toggle('hidden', !res.merge);
+  S.projects = res.projects || [];
+  const want = pickId || S.project?.id || localStorage.getItem('diskscope:project');
+  const found = S.projects.find((p) => p.id === want) || S.projects[0];
+  if (found) await openProject(found.id);
+  else { S.project = null; drawTray(); drawProjects(); }
+}
+
+async function openProject(id) {
+  try {
+    S.project = await api(`/api/project?id=${encodeURIComponent(id)}`);
+    localStorage.setItem('diskscope:project', id);
+  } catch {
+    // The remembered project is gone — deleted here or elsewhere. Forget it and
+    // fall back to another, rather than leaving the whole panel blank because
+    // of a stale id in localStorage.
+    S.project = null;
+    localStorage.removeItem('diskscope:project');
+    S.projects = (S.projects || []).filter((p) => p.id !== id);
+    if (S.projects.length) return openProject(S.projects[0].id);
+  }
+  drawTray();
+  drawProjects();
+}
+
+async function refreshProject() {
+  // Refetch the list too: clip counts and durations on the cards go stale the
+  // moment anything is edited.
+  if (S.project) await loadProjects(S.project.id);
+}
+
+async function newProject(name) {
+  const p = await api('/api/project-new', { name: name || `Project ${(S.projects?.length || 0) + 1}` });
+  await loadProjects(p.id);
+  toast(`Created “${p.name}”`, false, 'movie_edit');
+  return p;
+}
+
+/* Both routes into a project — the drop and the row button — land here. */
+async function addToProject(paths) {
+  if (!paths || !paths.length) return;
+  if (!S.ffmpeg) {
+    return toast('ffmpeg isn’t on PATH — install it with: brew install ffmpeg', true);
+  }
+  if (!S.project) await newProject();
+  if (!S.project) return;
+  const label = paths.length === 1 ? baseName(paths[0]) : `${paths.length} files`;
+  toast(`Reading ${label}…`, false, 'hourglass_top');
+  try {
+    const res = await api('/api/project-add', { id: S.project.id, paths });
+    await refreshProject();
+    const n = res.added.length;
+    const bad = res.skipped.length;
+    toast(
+      n ? `Added ${fmtCount(n)} to “${S.project.name}”${bad ? ` · ${bad} skipped` : ''}`
+        : bad ? `Nothing added — ${bad} not readable by ffmpeg` : 'Already in the project',
+      !n, n ? 'library_add' : 'error');
+    clearMarks();
+  } catch (err) { toast(`Could not add: ${err.message}`, true); }
+}
+
+/* A project is a thing you come back to over days — it needs somewhere it can
+   be seen, not just a dock in the corner that only exists while one is open. */
+function drawProjects() {
+  const card = $('#projects-card');
+  const list = S.projects || [];
+  card.classList.toggle('hidden', !list.length);
+  if (!list.length) return;
+
+  const total = list.reduce((a, p) => a + (p.duration || 0), 0);
+  $('#projects-meta').textContent =
+    `${fmtCount(list.length)} project${list.length === 1 ? '' : 's'}` +
+    (total ? ` · ${clock(total)} cut` : '');
+
+  const row = $('#projects-row');
+  row.innerHTML = '';
+  list.forEach((p) => {
+    const card2 = el('div', `proj${p.id === S.project?.id ? ' on' : ''}`);
+    card2.onclick = () => openProject(p.id);
+
+    const shot = el('div', 'proj-shot');
+    if (p.poster) {
+      const img = el('img');
+      img.alt = '';
+      img.loading = 'lazy';
+      img.src = `/thumb/${encodeURIComponent(TOKEN)}/${b64Path(p.poster)}?v=${p.created || 0}`;
+      img.onerror = () => img.remove();
+      shot.appendChild(img);
+    }
+    shot.appendChild(Object.assign(el('span', 'ms'), { textContent: 'movie_edit' }));
+    card2.appendChild(shot);
+
+    const body = el('div', 'proj-body');
+    body.appendChild(el('div', 'proj-name', p.name));
+    body.appendChild(el('div', 'proj-meta',
+      p.clips
+        ? `${fmtCount(p.clips)} clip${p.clips === 1 ? '' : 's'} · ${clock(p.duration)}`
+        : `${fmtCount(p.assets)} in the bin · not cut yet`));
+    body.appendChild(el('div', 'proj-when', `edited ${relAge(Math.max(0, (Date.now() / 1000) - (p.updated || 0)))} ago`));
+
+    card2.appendChild(body);
+
+    const acts = el('div', 'proj-acts');
+    const act = (icon, title, fn) => {
+      const b = el('button', 'row-act');
+      b.title = title;
+      b.appendChild(Object.assign(el('span', 'ms'), { textContent: icon }));
+      b.onclick = async (ev) => {
+        ev.stopPropagation();
+        if (p.id !== S.project?.id) await openProject(p.id);
+        fn();
+      };
+      acts.appendChild(b);
+    };
+    act('auto_awesome', 'Auto clip', openAuto);
+    act('rate_review', 'Review', () => openReview());
+    act('movie_edit', 'Open in the editor', () => openEditor());
+    const del = el('button', 'row-act danger');
+    del.title = 'Delete this project';
+    del.appendChild(Object.assign(el('span', 'ms'), { textContent: 'delete' }));
+    del.onclick = async (ev) => {
+      ev.stopPropagation();
+      if (!confirm(`Delete “${p.name}”?\n\nYour footage is not touched — only the edit.`)) return;
+      await api('/api/project-delete', { id: p.id });
+      if (S.project?.id === p.id) S.project = null;
+      loadProjects();
+    };
+    acts.appendChild(del);
+    card2.appendChild(acts);
+
+    // An export is the point of a project, so the card says whether one exists
+    // and walks you to it. It gets its own row rather than a line in the body:
+    // beside the action icons there is only room for "Exported ·…". The server
+    // reports exports that are still on disk, so this never points at nothing.
+    if (p.export) {
+      const ex = el('button', 'proj-export');
+      ex.title = `${p.export.path}\n\nShow it in the file list`;
+      ex.appendChild(Object.assign(el('span', 'ms'), { textContent: 'movie' }));
+      ex.appendChild(el('span', null,
+        `Exported · ${sizeText(p.export.bytes)} · ${relAge(Math.max(0, (Date.now() / 1000) - (p.export.at || 0)))} ago`));
+      ex.appendChild(Object.assign(el('span', 'ms go'), { textContent: 'arrow_forward' }));
+      ex.onclick = (ev) => { ev.stopPropagation(); goToExport(p.export); };
+      card2.appendChild(ex);
+    }
+    row.appendChild(card2);
+  });
+
+  const add = el('button', 'proj new');
+  add.appendChild(Object.assign(el('span', 'ms'), { textContent: 'add' }));
+  add.appendChild(el('span', null, 'New project'));
+  add.onclick = () => {
+    const name = prompt('Project name', `Project ${(S.projects?.length || 0) + 1}`);
+    if (name !== null) newProject(name.trim() || undefined);
+  };
+  row.appendChild(add);
+}
+
+/* Walk to the exported file inside diskscope itself — this is a file browser,
+   so being handed off to Finder to answer "where did it go" is an admission of
+   defeat. Only possible when the export sits inside whatever was scanned;
+   outside that there is no listing to walk to, and Finder is the honest
+   fallback rather than a dead button. */
+function goToExport(ex) {
+  const dir = parentOf(ex.path);
+  const inRoot = dir === S.root || dir.startsWith(S.root === '/' ? '/' : `${S.root}/`);
+  if (!inRoot) return reveal(ex.path);
+  if (S.view !== 'list') setView('list');
+  navigate(dir, { select: ex.path });
+}
+
+function drawTray() {
+  const tray = $('#tray');
+  const p = S.project;
+  tray.classList.toggle('hidden', !p && !S.marked.size);
+  if (!p) {
+    $('#tray-name-text').textContent = 'No project';
+    $('#tray-meta').textContent = '';
+    $('#tray-assets').innerHTML = '';
+    $('#tray-hint').classList.remove('hidden');
+    return;
+  }
+  $('#tray-name-text').textContent = p.name;
+  const secs = (p.clips || []).reduce((a, c) => a + Math.max(0, c.out - c.in), 0);
+  $('#tray-meta').textContent =
+    `${fmtCount(p.assets.length)} asset${p.assets.length === 1 ? '' : 's'}` +
+    (p.clips.length ? ` · ${p.clips.length} clip${p.clips.length === 1 ? '' : 's'} · ${clock(secs)}` : '');
+
+  const wrap = $('#tray-assets');
+  wrap.innerHTML = '';
+  $('#tray-hint').classList.toggle('hidden', p.assets.length > 0);
+  p.assets.forEach((a) => {
+    const card = el('div', `tray-card${a.missing ? ' gone' : ''}`);
+    card.title = `${a.name}\n${a.w}×${a.h} · ${clock(a.dur)}`;
+    const img = el('img');
+    img.alt = '';
+    img.src = `/thumb/${encodeURIComponent(TOKEN)}/${b64Path(a.path)}?v=${a.added}`;
+    img.onerror = () => img.remove();
+    card.appendChild(img);
+    card.appendChild(el('span', 'tray-dur', a.still ? 'still' : clock(a.dur)));
+    const x = el('button', 'tray-x');
+    x.appendChild(Object.assign(el('span', 'ms'), { textContent: 'close' }));
+    x.title = 'Remove from project';
+    x.onclick = async (ev) => {
+      ev.stopPropagation();
+      await api('/api/project-remove-asset', { id: p.id, asset: a.id });
+      refreshProject();
+    };
+    card.appendChild(x);
+    card.onclick = () => openEditor(a.id);
+    wrap.appendChild(card);
+  });
+}
+
+const clock = (s) => {
+  s = Math.max(0, s || 0);
+  const m = Math.floor(s / 60);
+  const r = s - m * 60;
+  return `${m}:${(r < 10 ? '0' : '')}${r.toFixed(r < 10 ? 1 : 0).replace(/\.0$/, '')}`;
+};
+
+function trayMenu() {
+  const menu = $('#tray-menu');
+  menu.innerHTML = '';
+  (S.projects || []).forEach((p) => {
+    const b = el('button', p.id === S.project?.id ? 'on' : '');
+    b.appendChild(el('span', null, p.name));
+    b.appendChild(el('span', 'ms tick', 'check'));
+    b.onclick = () => { menu.classList.remove('open'); openProject(p.id); };
+    menu.appendChild(b);
+  });
+  if (S.projects?.length) menu.appendChild(el('div', 'menu-sep'));
+  const add = el('button', null, 'New project…');
+  add.onclick = () => {
+    menu.classList.remove('open');
+    const name = prompt('Project name', `Project ${(S.projects?.length || 0) + 1}`);
+    if (name !== null) newProject(name.trim() || undefined);
+  };
+  menu.appendChild(add);
+  if (S.project) {
+    const del = el('button', null, `Delete “${S.project.name}”`);
+    del.style.color = 'var(--danger)';
+    del.onclick = async () => {
+      menu.classList.remove('open');
+      if (!confirm(`Delete the project “${S.project.name}”?\n\nYour footage is not touched.`)) return;
+      await api('/api/project-delete', { id: S.project.id });
+      S.project = null;
+      localStorage.removeItem('diskscope:project');
+      loadProjects();
+    };
+    menu.appendChild(del);
+  }
+  menu.classList.toggle('open');
+}
+
+/* ── merge & upload ─────────────────────────────────────────────────────── */
+
+/* The encode/concat/upload pipeline is camera01-archive/merge-upload.sh — this
+   is only a way to point it at a selection and watch it without a terminal. */
+
+const VIDEO_RE = /\.(mp4|mov|m4v|mkv|avi|insv|lrv|lrf|mts|m2ts|3gp|mpg|mpeg|wmv|flv)$/i;
+const M = {
+  paths: [], privacy: 'unlisted', upload: true, sort: true, trashAfter: false,
+  // Re-encoding a file that is already 1080p H.264 costs minutes and a
+  // generation of quality for nothing, so this answers itself from a probe
+  // rather than making you know the answer. `why` is what it found.
+  encode: true, why: '',
+};
+
+/* `which` is an explicit list of paths, or nothing to mean "whatever is
+   selected". Guarded because wiring this straight to onclick hands it a
+   MouseEvent, which is not a list and has no .filter. */
+function openMerge(which) {
+  const from = Array.isArray(which) ? which : [...S.marked];
+  const paths = from.filter((p) => VIDEO_RE.test(p));
+  if (!paths.length) return toast('Select some video files first', true, 'movie_filter');
+  if (!S.mergeReady) {
+    return toast('camera01-archive/merge-upload.sh isn’t where diskscope expects it', true);
+  }
+  // Sorted the same way the script will sort them, so the list you approve is
+  // the order that gets rendered.
+  M.paths = [...paths].sort(byDigits);
+  M.upload = true;
+  M.sort = true;
+  M.trashAfter = false;
+  // Assume an encode until the probe comes back, so a slow ffprobe can never
+  // leave the dialog offering to skip work it hasn't checked.
+  M.encode = true;
+  M.why = 'checking…';
+
+  // One clip is not a merge — it is an upload, and saying "Merge" over a single
+  // file just makes you wonder what it is merging with.
+  const one = M.paths.length === 1;
+  $('#merge-box').classList.toggle('single', one);
+  $('#merge-head-title').textContent = one ? 'Upload to YouTube' : 'Merge & Upload';
+  $('#merge-go-label').textContent = one ? 'Upload' : 'Start';
+
+  // Sizes are what the listing knows; the true running time is ffprobe's answer
+  // and the job reports it once the pipeline has actually looked.
+  const bytes = M.paths.reduce((a, p) => a + (S.entries.find((e) => e.path === p)?.size || 0), 0);
+  $('#merge-sum').textContent = (one ? baseName(M.paths[0]) :
+    `${fmtCount(M.paths.length)} clips`) +
+    (bytes ? ` · ${sizeText(bytes)}` : '') + ` · from ${shortPath(parentOf(M.paths[0]))}`;
+  $('#merge-title').value = suggestTitle(M.paths);
+  drawMergeList();
+  syncMergeToggles();
+  $('#merge-scrim').classList.add('on');
+  $('#merge-box').classList.add('on');
+  setTimeout(() => $('#merge-title').select(), 60);
+  checkEncode(M.paths);
+}
+
+/* Late answers are dropped: open the dialog on one clip, close it, open it on
+   another, and the first probe must not land on the second selection. */
+let encodeSeq = 0;
+async function checkEncode(paths) {
+  const seq = ++encodeSeq;
+  let res;
+  try { res = await api('/api/merge-check', { paths }); } catch { res = null; }
+  if (seq !== encodeSeq) return;
+  M.encode = !(res && res.ok);
+  M.why = res ? res.why : 'could not check — encoding to be safe';
+  syncMergeToggles();
+}
+
+const parentOf = (p) => p.slice(0, p.lastIndexOf('/'));
+const byDigits = (a, b) =>
+  (baseName(a).replace(/\D/g, '') || '').localeCompare(baseName(b).replace(/\D/g, '') || '');
+
+/* A first guess from the folder, since that is usually the day or the outing. */
+function suggestTitle(paths) {
+  const dated = () => {
+    const stamp = baseName(paths[0]).match(/(20\d{2})(\d{2})(\d{2})/);
+    if (!stamp) return null;
+    const d = new Date(`${stamp[1]}-${stamp[2]}-${stamp[3]}T12:00:00`);
+    return d.toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' });
+  };
+  // For one clip the date it was shot beats the folder it happens to sit in.
+  if (paths.length === 1) return dated() || baseName(paths[0]).replace(/\.[^.]+$/, '');
+  const folder = baseName(parentOf(paths[0]));
+  if (folder && !/^\d{4}-\d{2}-\d{2}$/.test(folder) && folder !== 'untitled folder') return folder;
+  return dated() || folder || 'Merged clips';
+}
+
+function drawMergeList() {
+  const list = $('#merge-list');
+  list.innerHTML = '';
+  M.paths.forEach((p) => {
+    const li = el('li');
+    li.appendChild(el('span', 'merge-n', ''));
+    li.appendChild(el('span', null, baseName(p)));
+    list.appendChild(li);
+  });
+}
+
+function syncMergeToggles() {
+  $$('#merge-privacy button').forEach((b) => b.classList.toggle('on', b.dataset.p === M.privacy));
+  $('#merge-upload-toggle').classList.toggle('on', M.upload);
+  $('#merge-upload-toggle').lastElementChild.textContent =
+    M.upload ? 'Upload to YouTube when it’s merged' : 'Render only — don’t upload';
+  const enc = $('#merge-encode-toggle');
+  enc.classList.toggle('on', M.encode);
+  enc.lastElementChild.textContent = M.encode
+    ? `Re-encode to 1080p first${M.why ? ` — ${M.why}` : ''}`
+    : `Upload as-is, no re-encode — ${M.why}`;
+
+  $('#merge-sort-toggle').classList.toggle('on', M.sort);
+  $('#merge-sort-toggle').lastElementChild.textContent =
+    M.sort ? 'Order chronologically by filename' : 'Keep the order shown';
+
+  // Deleting the source only makes sense once YouTube has it, so this follows
+  // the upload toggle and is worded as what it will do, not as a setting.
+  const trash = $('#merge-trash-toggle');
+  const n = M.paths.length;
+  trash.classList.toggle('on', M.trashAfter && M.upload);
+  trash.classList.toggle('armed', M.trashAfter && M.upload);
+  trash.lastElementChild.textContent = !M.upload
+    ? 'Nothing to delete — not uploading'
+    : M.trashAfter
+      ? `Trash the ${n === 1 ? 'source clip' : n + ' source clips'} once the link is live`
+      : `Keep the source${n === 1 ? '' : 's'} after uploading`;
+  trash.style.opacity = M.upload ? '1' : '0.4';
+  trash.style.pointerEvents = M.upload ? '' : 'none';
+
+  $('#merge-privacy').style.opacity = M.upload ? '1' : '0.4';
+  $('#merge-privacy').style.pointerEvents = M.upload ? '' : 'none';
+}
+
+function closeMerge() {
+  $('#merge-scrim').classList.remove('on');
+  $('#merge-box').classList.remove('on');
+}
+
+async function startMerge() {
+  const title = $('#merge-title').value.trim();
+  if (!title) { $('#merge-title').focus(); return toast('It needs a title', true); }
+  try {
+    await api('/api/merge', {
+      paths: M.paths, title, privacy: M.privacy, upload: M.upload, sort: M.sort,
+      trashAfter: M.trashAfter, encode: M.encode,
+    });
+    closeMerge();
+    clearMarks();
+    toast(`Started “${title}” — progress is bottom left`, false, 'rocket_launch');
+    pollJobs(true);
+  } catch (err) { toast(`Could not start: ${err.message}`, true); }
+}
+
+/* ── job progress ───────────────────────────────────────────────────────── */
+
+/* Anything that takes minutes shows a real percentage and an ETA, never a
+   spinner — ffmpeg reports its position, so there is no excuse not to. */
+let jobTimer = null;
+const dismissedJobs = new Set();
+
+async function pollJobs(fast) {
+  clearTimeout(jobTimer);
+  let res;
+  try { res = await api('/api/jobs'); } catch { jobTimer = setTimeout(pollJobs, 3000); return; }
+  const jobs = (res.jobs || []).filter((j) => !dismissedJobs.has(j.id));
+  drawJobs(jobs);
+  const busy = jobs.some((j) => j.state === 'running');
+  if (busy || fast) jobTimer = setTimeout(() => pollJobs(busy), busy ? 700 : 2500);
+}
+
+/* Cards are patched in place, never rebuilt. Throwing the list away and
+   recreating it on every poll replayed each card's entrance animation twice a
+   second, which is the blinking. */
+function drawJobs(jobs) {
+  const wrap = $('#jobs');
+  const alive = new Set(jobs.map((j) => j.id));
+  [...wrap.children].forEach((c) => { if (!alive.has(c.dataset.id)) c.remove(); });
+
+  jobs.forEach((j) => {
+    const existing = wrap.querySelector(`.job[data-id="${j.id}"]`);
+    if (existing && existing.dataset.state === j.state) return patchJob(existing, j);
+    const card = buildJob(j);
+    if (existing) existing.replaceWith(card);
+    else wrap.appendChild(card);
+    // The project card carries the export, so it has to hear about it the
+    // moment there is one. This only runs on a state change — patchJob takes
+    // the other polls — so it fires once per finished export.
+    if (j.kind === 'export' && j.state === 'done') refreshProject();
+    // A job that failed or was called off has said everything it has to say.
+    // Let it go on its own instead of making you sweep up after it. Finished
+    // ones stay, because they carry the link and the Reveal button.
+    if (j.state === 'error' || j.state === 'cancelled') {
+      setTimeout(() => {
+        dismissedJobs.add(j.id);
+        card.classList.add('going');
+        setTimeout(() => card.remove(), 260);
+      }, 5000);
+    }
+  });
+}
+
+/* Only the numbers move between polls. */
+function patchJob(card, j) {
+  card.querySelector('.job-label').textContent = j.label;
+  card.querySelector('.job-bar i').style.width = `${j.state === 'done' ? 100 : j.percent}%`;
+  if (j.state === 'running') {
+    const spans = card.querySelectorAll('.job-foot > span');
+    if (spans[0]) spans[0].textContent = `${j.percent.toFixed(0)}%`;
+    if (spans[1]) spans[1].textContent = j.eta != null ? `${clock(j.eta)} left` : 'estimating…';
+  }
+}
+
+function buildJob(j) {
+  const card = el('div', `job ${j.state}`);
+  card.dataset.id = j.id;
+  card.dataset.state = j.state;
+  const top = el('div', 'job-top');
+  top.appendChild(Object.assign(el('span', 'ms'), {
+    textContent: j.state === 'done' ? 'check_circle'
+      : j.state === 'error' ? 'error'
+        : j.kind === 'merge' ? 'movie_filter' : 'movie',
+  }));
+  top.appendChild(el('span', 'job-label', j.label));
+  // Running: cancel. Finished: dismiss — a card that has said its piece and
+  // cannot be got rid of is just clutter sitting over the page.
+  // Different jobs, different buttons. One stops work in progress, the other
+  // tidies away a card that has finished talking — showing the same × for both
+  // is how four running exports got cancelled by someone clearing the pile.
+  const running = j.state === 'running';
+  const x = el('button', `job-x${running ? ' stop' : ''}`);
+  x.appendChild(Object.assign(el('span', 'ms'), {
+    textContent: running ? 'stop_circle' : 'close',
+  }));
+  x.title = running ? 'Stop this render' : 'Dismiss';
+  x.onclick = () => {
+    if (running) api('/api/job-cancel', { id: j.id }).then(() => pollJobs(true));
+    else { dismissedJobs.add(j.id); card.remove(); }
+  };
+  top.appendChild(x);
+  card.appendChild(top);
+
+  const bar = el('div', 'job-bar');
+  const fill = el('i');
+  fill.style.width = `${j.state === 'done' ? 100 : j.percent}%`;
+  bar.appendChild(fill);
+  card.appendChild(bar);
+
+  const foot = el('div', 'job-foot');
+  if (j.state === 'running') {
+    foot.appendChild(el('span', null, `${j.percent.toFixed(0)}%`));
+    foot.appendChild(el('span', null,
+      j.eta != null ? `${clock(j.eta)} left` : 'estimating…'));
+  } else if (j.state === 'done') {
+    foot.appendChild(el('span', null, `Done in ${clock(j.elapsed)}`));
+    const acts = el('span', 'job-acts');
+    if (j.link) {
+      // The whole point of the run — make it one click, and copyable.
+      // A link is not a path: /api/open resolves against the filesystem and
+      // refuses anything outside the scan root, so a youtu.be URL could never
+      // have worked through it. The browser opens a URL by itself.
+      const open = el('button', 'job-link', 'Open on YouTube');
+      open.onclick = () => window.open(j.link, '_blank', 'noopener');
+      acts.appendChild(open);
+      const copy = el('button', 'job-link', 'Copy link');
+      copy.onclick = async () => {
+        await navigator.clipboard.writeText(j.link);
+        toast('YouTube link copied', false, 'content_copy');
+      };
+      acts.appendChild(copy);
+    }
+    if (j.output) {
+      const b = el('button', 'job-link', 'Reveal');
+      b.onclick = () => reveal(j.output);
+      acts.appendChild(b);
+    }
+    foot.appendChild(acts);
+  } else {
+    foot.appendChild(el('span', null, j.error || j.state));
+  }
+  card.appendChild(foot);
+  return card;
 }
 
 function iconAct(icon, title, fn) {
@@ -653,6 +1561,66 @@ async function renderKinds(seq) {
   });
 }
 
+/* ── thumbnails ─────────────────────────────────────────────────────────── */
+
+/* Quick Look does the rendering on the Python side; the only decision here is
+   *when* to ask. A folder holding 400 clips must not fire 400 requests the
+   moment it draws, so a row asks only once it is actually near the viewport —
+   and a file Quick Look has already refused is never asked about twice. */
+
+const thumbFailed = new Set();
+const thumbSeen = new Set();
+let thumbObserver = null;
+
+/* mtime rides along as ?v= so an edited file lands on a different URL and the
+   browser can cache the rest — re-rendering the list rebuilds every <img>. */
+const thumbUrl = (e) =>
+  `/thumb/${encodeURIComponent(TOKEN)}/${b64Path(e.path)}?v=${e.mtime || 0}`;
+
+function wantThumb(tile, entry) {
+  if (thumbFailed.has(entry.path)) return;
+  tile.classList.add('thumbing');
+  tile.__entry = entry;
+  if (!thumbObserver) {
+    thumbObserver = new IntersectionObserver((items) => {
+      items.forEach((it) => {
+        if (!it.isIntersecting) return;
+        thumbObserver.unobserve(it.target);
+        loadThumb(it.target);
+      });
+    }, { rootMargin: '400px 0px' });
+  }
+  thumbObserver.observe(tile);
+}
+
+function loadThumb(tile) {
+  const entry = tile.__entry;
+  if (!entry || thumbFailed.has(entry.path)) return;
+  const img = el('img');
+  img.alt = '';
+  img.decoding = 'async';
+  // Arrow-keying down the list re-renders every row. A thumbnail already in the
+  // browser cache should just be there — fading it in again reads as a flicker.
+  if (thumbSeen.has(entry.path)) tile.classList.add('shot', 'instant');
+  img.onload = () => {
+    thumbSeen.add(entry.path);
+    // A tall frame in a 16:9 box loses most of its height to the crop. Centring
+    // that would show a document's middle and a vertical clip's midriff — the
+    // top is where the title and the faces are.
+    if (img.naturalHeight > img.naturalWidth) img.style.objectPosition = 'center top';
+    tile.classList.add('shot');
+  };
+  img.onerror = () => {
+    // Nothing Quick Look can draw — keep the kind icon, and stop asking.
+    thumbFailed.add(entry.path);
+    thumbSeen.delete(entry.path);
+    img.remove();
+    tile.classList.remove('thumbing', 'shot', 'instant');
+  };
+  img.src = thumbUrl(entry);
+  tile.appendChild(img);
+}
+
 /* ── player ─────────────────────────────────────────────────────────────── */
 
 /* Media goes through /media/<token>/<base64url-path> rather than a query
@@ -660,10 +1628,12 @@ async function renderKinds(seq) {
    ?token=…&path=… gets dropped by privacy extensions before it reaches the
    socket — the request simply never arrives and the player sits on `stalled`
    forever with no error to catch. A plain path segment always survives. */
-function fileUrl(path) {
-  const b64 = btoa(String.fromCharCode(...new TextEncoder().encode(path)))
+function b64Path(path) {
+  return btoa(String.fromCharCode(...new TextEncoder().encode(path)))
     .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-  return `/media/${encodeURIComponent(TOKEN)}/${b64}`;
+}
+function fileUrl(path) {
+  return `/media/${encodeURIComponent(TOKEN)}/${b64Path(path)}`;
 }
 
 /* Build the element that can show this file. `compact` is the little pane
@@ -681,6 +1651,26 @@ function makePlayer(entry, compact) {
     v.playsInline = true;
     v.onerror = () => v.replaceWith(cannotPlay(entry,
       'Chrome can’t decode this codec (often HEVC or ProRes).'));
+    if (compact) {
+      // Selecting a row starts the clip. Muted by default — arrowing down a
+      // folder of thirty videos should not shout — but the moment you unmute
+      // one, every later selection keeps the sound.
+      v.autoplay = true;
+      v.loop = true;
+      v.muted = S.previewMuted;
+
+      let forced = false;
+      v.onvolumechange = () => {
+        // Chrome's own fallback below also fires volumechange. Remembering that
+        // as a preference would silently undo an unmute the user just made.
+        if (forced) { forced = false; return; }
+        if (v.muted === S.previewMuted) return;
+        S.previewMuted = v.muted;
+        savePrefs();
+      };
+      // The autoplay policy rejects the promise rather than throwing.
+      v.play().catch(() => { forced = true; v.muted = true; v.play().catch(() => {}); });
+    }
     return v;
   }
 
@@ -736,14 +1726,10 @@ function cannotPlay(entry, why) {
 }
 
 function fillPreview(entry) {
-  const wrap = $('#sheet-preview');
   const stage = $('#preview-stage');
   stage.innerHTML = '';
-  if (!entry || entry.dir || !entry.preview) {
-    wrap.classList.add('hidden');
-    return;
-  }
-  wrap.classList.remove('hidden');
+  if (!entry || entry.dir || !entry.preview) return;
+  $('#sheet-preview').classList.remove('hidden');
   stage.appendChild(makePlayer(entry, true));
 }
 
@@ -755,12 +1741,14 @@ function openTheater(entry) {
   const small = $('#preview-stage').firstElementChild;
   const at = small && 'currentTime' in small ? small.currentTime : 0;
   const wasPlaying = small && 'paused' in small && !small.paused;
+  const wasMuted = small && 'muted' in small ? small.muted : S.previewMuted;
   if (small && 'pause' in small) small.pause();
 
   const stage = $('#theater-stage');
   stage.innerHTML = '';
   const big = makePlayer(entry, false);
   if ('currentTime' in big) {
+    big.muted = wasMuted;      // expanding a muted clip must not suddenly shout
     big.onloadedmetadata = () => {
       big.currentTime = at;
       if (wasPlaying) big.play().catch(() => {});
@@ -788,7 +1776,13 @@ function closeTheater() {
 
 /* ── detail sheet ───────────────────────────────────────────────────────── */
 
-async function openSheet(entry) {
+let detailTimer = null;
+
+/* Fills the docked panel. The text goes in synchronously so holding ↓ feels
+   immediate; the expensive half — building a player and asking the server for
+   ctime — waits for the selection to settle, or arrowing past a 17 GB clip
+   would open a range request per keypress. */
+function openSheet(entry) {
   S.sheetItem = entry;
   const kind = kindOf(entry.dir ? 'folder' : entry.kind);
   const icon = $('#sheet-icon');
@@ -812,11 +1806,23 @@ async function openSheet(entry) {
     ? `${((entry.size / denom) * 100).toFixed(1)}% of ${inFolder ? 'this folder' : rootLabel()}`
     : '';
 
-  fillPreview(entry);
-  disarmTrash();
-  $('#scrim').classList.add('on');
+  // The panel carries every action the row does — losing the row's buttons to
+  // decluttering shouldn't cost you the action itself.
+  const canYt = !entry.dir && S.mergeReady && VIDEO_RE.test(entry.name);
+  $('#act-yt').classList.toggle('hidden', !canYt);
+  $('#act-proj').classList.toggle('hidden', !!entry.dir);
+  $('#act-proj').classList.toggle('span', !canYt);
+
+  dropPreview();
   $('#sheet').classList.add('on');
 
+  clearTimeout(detailTimer);
+  detailTimer = setTimeout(() => settleDetails(entry), 170);
+}
+
+async function settleDetails(entry) {
+  if (S.sheetItem !== entry) return;
+  fillPreview(entry);
   try {
     const info = await api(`/api/info?path=${encodeURIComponent(entry.path)}`);
     if (S.sheetItem !== entry) return;
@@ -826,24 +1832,52 @@ async function openSheet(entry) {
   } catch { /* the row already shows everything essential */ }
 }
 
-function closeSheet() {
-  $('#scrim').classList.remove('on');
-  $('#sheet').classList.remove('on');
-  const media = $('#preview-stage').firstElementChild;
+/* Tear the media down rather than just hiding it, so Chrome drops the range
+   request it is holding against a multi-gigabyte file. */
+function dropPreview() {
+  const stage = $('#preview-stage');
+  const media = stage.firstElementChild;
   if (media && 'pause' in media) media.pause();
   if (media && 'src' in media) media.removeAttribute('src');
-  $('#preview-stage').innerHTML = '';
-  S.sheetItem = null;
-  disarmTrash();
+  stage.innerHTML = '';
+  $('#sheet-preview').classList.add('hidden');
 }
 
-let trashArmed = false;
-function disarmTrash() {
-  trashArmed = false;
-  const b = $('#act-trash');
-  b.classList.remove('armed');
-  b.lastChild.textContent = 'Move to Trash';
+function closeSheet() {
+  clearTimeout(detailTimer);
+  $('#sheet').classList.remove('on');
+  dropPreview();
+  S.sheetItem = null;
 }
+
+/* One click trashes. The Trash is the undo — anything here is recoverable from
+   Finder, so making you confirm twice would be ceremony for nothing. The
+   irreversible step is Empty Trash, and that is where the confirmation lives.
+   The lockout is the real hazard guard: without it a fast second click lands on
+   whichever row slid up into that spot. */
+let trashBusy = false;
+
+async function rowTrash(entry, btn) {
+  if (trashBusy) return;
+  trashBusy = true;
+  if (btn) btn.classList.add('going');
+  try {
+    const res = await api('/api/trash', { path: entry.path });
+    bumpTrash(res.size ?? entry.size, res.trash);
+    toast(`${entry.name} → Trash · ${sizeText(entry.size)} reclaimable`, false, 'delete');
+    if (S.sheetItem && S.sheetItem.path === entry.path) closeSheet();
+    // Drop it locally first so the list and its total settle before the refetch.
+    S.entries = S.entries.filter((e) => e.path !== entry.path);
+    render();
+    reload();
+  } catch (err) {
+    if (btn) btn.classList.remove('going');
+    toast(`Trash failed: ${err.message}`, true);
+  } finally {
+    setTimeout(() => { trashBusy = false; }, 320);
+  }
+}
+
 
 /* ── actions ────────────────────────────────────────────────────────────── */
 
@@ -861,23 +1895,73 @@ async function openIt(path) {
   } catch (err) { toast(`Could not open: ${err.message}`, true); }
 }
 
-async function doTrash() {
-  const item = S.sheetItem;
-  if (!item) return;
-  if (!trashArmed) {
-    trashArmed = true;
-    const b = $('#act-trash');
+/* A declaration, not a const: wire() runs before this line is reached, and a
+   const would still be in its temporal dead zone. */
+function doTrash() {
+  if (S.sheetItem) rowTrash(S.sheetItem, null);
+}
+
+/* ── the Trash itself ───────────────────────────────────────────────────── */
+
+/* Trashing frees nothing on its own — the bytes sit in ~/.Trash until it is
+   emptied. So the strip shows what is waiting there, ticks up the instant you
+   trash something, and the gauge above it moves for real once you empty. */
+function bumpTrash(size, fromServer) {
+  S.trash = fromServer
+    || { bytes: (S.trash?.bytes || 0) + (size || 0), items: (S.trash?.items || 0) + 1 };
+  drawTrash();
+}
+
+function drawTrash() {
+  const strip = $('#trash-strip');
+  const t = S.trash || { bytes: 0, items: 0 };
+  strip.classList.toggle('hidden', !t.items && !t.bytes);
+  drawTrashBand();          // the bar has to move the moment the number does
+  if (!t.items && !t.bytes) return;
+  const share = S.volume?.total ? (t.bytes / S.volume.total) * 100 : 0;
+  // Without Full Disk Access the figure comes from Finder, which won't size
+  // folders — say "at least" rather than quietly under-reporting.
+  $('#trash-text').textContent =
+    `${t.partial ? 'at least ' : ''}${sizeText(t.bytes)} in the Trash` +
+    (t.items ? ` · ${fmtCount(t.items)} item${t.items === 1 ? '' : 's'}` : '') +
+    (share >= 0.1 && !t.partial ? ` · ${share.toFixed(1)}% of the disk` : '');
+}
+
+let emptyArmed = false;
+let emptyTimer = null;
+
+function disarmEmpty() {
+  emptyArmed = false;
+  clearTimeout(emptyTimer);
+  const b = $('#trash-empty');
+  b.classList.remove('armed');
+  b.textContent = 'Empty Trash';
+}
+
+async function emptyTrash() {
+  const t = S.trash || { bytes: 0 };
+  if (!emptyArmed) {
+    // The only step in this app nothing can undo.
+    emptyArmed = true;
+    const b = $('#trash-empty');
     b.classList.add('armed');
-    b.lastChild.textContent = `Trash ${sizeText(item.size)}?`;
-    setTimeout(disarmTrash, 4000);
+    b.textContent = `Delete ${sizeText(t.bytes)} for good?`;
+    emptyTimer = setTimeout(disarmEmpty, 5000);
     return;
   }
+  disarmEmpty();
+  $('#trash-empty').textContent = 'Emptying…';
   try {
-    await api('/api/trash', { path: item.path });
-    toast(`${item.name} moved to Trash — ${sizeText(item.size)} reclaimed`, false, 'delete');
-    closeSheet();
-    reload();
-  } catch (err) { toast(`Trash failed: ${err.message}`, true); }
+    const res = await api('/api/trash-empty', {});
+    if (res.volume) Object.assign(S.volume, res.volume);
+    S.trash = res.trash || { bytes: 0, items: 0 };
+    toast(`Trash emptied — ${sizeText(t.bytes)} freed`, false, 'delete_forever');
+  } catch (err) {
+    toast(`Could not empty the Trash: ${err.message}`, true);
+  }
+  $('#trash-empty').textContent = 'Empty Trash';
+  drawTrash();
+  drawVolume();
 }
 
 let toastTimer;
@@ -915,7 +1999,8 @@ function movePill() {
 
 function savePrefs() {
   localStorage.setItem('diskscope:prefs', JSON.stringify({
-    view: S.view, sort: S.sort, desc: S.desc,
+    view: S.view, sort: S.sort, desc: S.desc, thumbs: S.thumbs,
+    previewMuted: S.previewMuted,
     foldersFirst: S.foldersFirst, showHidden: S.showHidden, minSize: S.minSize,
   }));
 }
@@ -929,12 +2014,17 @@ function restorePrefs() {
 function syncControls() {
   $$('#view-seg button').forEach((b) => b.classList.toggle('on', b.dataset.view === S.view));
   $$('#min-chips button').forEach((b) => b.classList.toggle('on', Number(b.dataset.min) === S.minSize));
-  $$('#sort-menu button[data-sort]').forEach((b) => b.classList.toggle('on', b.dataset.sort === S.sort));
-  $('#sort-menu button[data-toggle="dir"]').classList.toggle('on', S.desc);
+  $$('#sort-chips button').forEach((b) => {
+    const on = b.dataset.sort === S.sort;
+    b.classList.toggle('on', on);
+    b.classList.toggle('asc', on && !S.desc);
+    b.title = on
+      ? `Sorted by ${b.dataset.sort === 'mtime' ? 'date' : b.dataset.sort} — click to reverse`
+      : '';
+  });
+  $('#sort-menu button[data-toggle="thumbs"]').classList.toggle('on', S.thumbs);
   $('#sort-menu button[data-toggle="folders"]').classList.toggle('on', S.foldersFirst);
   $('#sort-menu button[data-toggle="hidden"]').classList.toggle('on', S.showHidden);
-  $('#sort-label').textContent =
-    { size: 'Size', name: 'Name', mtime: 'Date', kind: 'Kind' }[S.sort];
   movePill();
 }
 
@@ -978,17 +2068,18 @@ function wire() {
   document.addEventListener('click', () => menu.classList.remove('open'));
   menu.onclick = (ev) => ev.stopPropagation();
 
-  $$('#sort-menu button[data-sort]').forEach((b) => {
+  // Clicking the active sort reverses it, the way a column header does.
+  $$('#sort-chips button').forEach((b) => {
     b.onclick = () => {
       if (S.sort === b.dataset.sort) S.desc = !S.desc;
       else { S.sort = b.dataset.sort; S.desc = b.dataset.sort !== 'name'; }
       syncControls();
       savePrefs();
-      render();
+      if (S.view === 'kinds') setView('list'); else render();
     };
   });
-  $('#sort-menu button[data-toggle="dir"]').onclick = () => {
-    S.desc = !S.desc; syncControls(); savePrefs(); render();
+  $('#sort-menu button[data-toggle="thumbs"]').onclick = () => {
+    S.thumbs = !S.thumbs; syncControls(); savePrefs(); render();
   };
   $('#sort-menu button[data-toggle="folders"]').onclick = () => {
     S.foldersFirst = !S.foldersFirst; syncControls(); savePrefs(); render();
@@ -1007,8 +2098,7 @@ function wire() {
     }, 90);
   };
 
-  $('#sheet-close').onclick = closeSheet;
-  $('#scrim').onclick = closeSheet;
+  $('#sheet-close').onclick = () => { S.selected = null; render(); closeSheet(); };
 
   $('#preview-expand').onclick = () => openTheater(S.sheetItem);
   $('#preview-stage').ondblclick = () => openTheater(S.sheetItem);
@@ -1024,7 +2114,105 @@ function wire() {
     await navigator.clipboard.writeText(S.sheetItem.path);
     toast('Path copied', false, 'content_copy');
   };
+  $('#act-yt').onclick = () => S.sheetItem && openMerge([S.sheetItem.path]);
+  $('#act-proj').onclick = () => S.sheetItem && addToProject([S.sheetItem.path]);
   $('#act-trash').onclick = doTrash;
+
+  $('#trash-browse').onclick = () => {
+    const path = `${S.home}/.Trash`;
+    // Only browsable in-app when the Trash is inside whatever we scanned.
+    if (!path.startsWith(S.root === '/' ? '/' : S.root + '/')) {
+      return $('#trash-finder').click();
+    }
+    if (S.view !== 'list') setView('list');
+    navigate(path);
+  };
+  $('#trash-finder').onclick = async () => {
+    try {
+      await api('/api/trash-open', {});
+      toast('Opened the Trash in Finder', false, 'folder_open');
+    } catch (err) { toast(String(err), true); }
+  };
+  $('#trash-empty').onclick = emptyTrash;
+  $('#empty-act').onclick = openFdaSettings;
+
+  // -- projects + tray -- //
+  $('#mark-add').onclick = () => addToProject([...S.marked]);
+  $('#mark-merge').onclick = () => openMerge();
+  $('#mark-trash').onclick = trashMarked;
+  $('#mark-clear').onclick = clearMarks;
+
+  $('#merge-close').onclick = closeMerge;
+  $('#merge-cancel').onclick = closeMerge;
+  $('#merge-scrim').onclick = closeMerge;
+  $('#merge-go').onclick = startMerge;
+  $('#merge-title').onkeydown = (ev) => { if (ev.key === 'Enter') startMerge(); };
+  $$('#merge-privacy button').forEach((b) => {
+    b.onclick = () => { M.privacy = b.dataset.p; syncMergeToggles(); };
+  });
+  $('#merge-upload-toggle').onclick = () => { M.upload = !M.upload; syncMergeToggles(); };
+  $('#merge-encode-toggle').onclick = () => {
+    M.encode = !M.encode;
+    // Overriding the probe should not leave its verdict on screen as if it
+    // still applied — the toggle now says what you chose, not what it found.
+    M.why = M.encode ? 'your call' : 'your call — it will be copied, not encoded';
+    syncMergeToggles();
+  };
+  $('#merge-trash-toggle').onclick = () => { M.trashAfter = !M.trashAfter; syncMergeToggles(); };
+  $('#merge-sort-toggle').onclick = () => {
+    M.sort = !M.sort;
+    if (M.sort) M.paths = [...M.paths].sort(byDigits);
+    drawMergeList();
+    syncMergeToggles();
+  };
+  $('#tray-name').onclick = (ev) => { ev.stopPropagation(); trayMenu(); };
+  $('#tray-menu').onclick = (ev) => ev.stopPropagation();
+  document.addEventListener('click', () => $('#tray-menu').classList.remove('open'));
+  $('#tray-min').onclick = () => {
+    const t = $('#tray');
+    t.classList.toggle('folded');
+    $('#tray-min').firstElementChild.textContent =
+      t.classList.contains('folded') ? 'expand_less' : 'expand_more';
+  };
+  $('#tray-auto').onclick = openAuto;
+  $('#tray-review').onclick = () => openReview();
+  $('#auto-close').onclick = closeAuto;
+  $('#auto-cancel').onclick = closeAuto;
+  $('#auto-scrim').onclick = closeAuto;
+  $('#auto-go').onclick = runAuto;
+  $$('#auto-target button').forEach((b) => {
+    b.onclick = () => {
+      if (b.dataset.t === 'every') AUTO.perClip = true;
+      else { AUTO.perClip = false; AUTO.target = Number(b.dataset.t); }
+      syncAuto();
+    };
+  });
+  $$('#auto-moment button').forEach((b) => {
+    b.onclick = () => { AUTO.moment = Number(b.dataset.m); syncAuto(); };
+  });
+  $('#tray-edit').onclick = () => openEditor();
+
+  const tray = $('#tray');
+  tray.addEventListener('dragover', (ev) => {
+    ev.preventDefault();
+    ev.dataTransfer.dropEffect = 'copy';
+    tray.classList.add('over');
+  });
+  tray.addEventListener('dragleave', (ev) => {
+    if (!tray.contains(ev.relatedTarget)) tray.classList.remove('over');
+  });
+  tray.addEventListener('drop', (ev) => {
+    ev.preventDefault();
+    tray.classList.remove('over');
+    const text = ev.dataTransfer.getData('text/plain');
+    const paths = dragPayload || (text ? text.split('\n').filter(Boolean) : []);
+    addToProject(paths.filter((p) => p.startsWith('/')));
+  });
+  // Clicking anywhere else backs out of the armed Empty rather than leaving a
+  // loaded button sitting there.
+  document.addEventListener('click', (ev) => {
+    if (emptyArmed && ev.target.id !== 'trash-empty') disarmEmpty();
+  });
 
   window.addEventListener('resize', movePill);
   // The segmented buttons contain Material Symbols glyphs, so their widths jump
@@ -1073,8 +2261,7 @@ function onKey(ev) {
     ev.preventDefault();
     const next = Math.max(0, Math.min(list.length - 1, idx + (ev.key === 'ArrowDown' ? 1 : -1)));
     if (!list[next]) return;
-    S.selected = list[next].path;
-    render();
+    select(list[next]);
     document.querySelector(`.row[data-path="${CSS.escape(S.selected)}"]`)
       ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     return;
@@ -1082,7 +2269,7 @@ function onKey(ev) {
   if (ev.key === 'ArrowRight' || ev.key === 'Enter') {
     const e = list[idx];
     if (e?.dir) navigate(e.path);
-    else if (e) openSheet(e);
+    else if (e) select(e);
     return;
   }
   if (ev.key === 'ArrowLeft') { goUp(); return; }

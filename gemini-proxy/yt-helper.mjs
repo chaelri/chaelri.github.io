@@ -27,6 +27,7 @@
 //   node yt-helper.mjs upload <video> [--title ...] [--description ...]
 //                                    [--tags a,b,c] [--privacy unlisted|private|public]
 //                                    [--category 22]
+//                                    [--progress <path to upload.json>]
 //
 // Quota: each upload costs 1600 units. Default daily quota = 10,000 units
 // → ~6 uploads per day per project. Plenty.
@@ -165,7 +166,12 @@ async function cmdUpload(videoPath, opts) {
   const category = opts.category || "22";
 
   // upload.json sits next to the video file; the Render Progress.app polls it.
-  const progressPath = abs.replace(/[^/]+$/, "upload.json");
+  // --progress moves it: when a clip is uploaded straight from where it lies,
+  // "next to the video" is the source folder, and the watchers are all looking
+  // in the run's _render folder instead.
+  const progressPath = opts.progress
+    ? resolvePath(opts.progress)
+    : abs.replace(/[^/]+$/, "upload.json");
   const writeProgress = async (state) => {
     const tmp = progressPath + ".tmp";
     await writeFile(tmp, JSON.stringify({
@@ -210,9 +216,33 @@ async function cmdUpload(videoPath, opts) {
   console.log("Resumable session opened. Uploading…");
 
   const CHUNK = 8 * 1024 * 1024;
+  const MAX_TRIES = 8;
+
+  // The whole point of a resumable session is that a dropped connection or a
+  // transient 5xx does not cost you the bytes already committed. Ask the
+  // session how far it actually got, then carry on from there. Google's own
+  // guidance for the 500 it returns mid-upload is to wait and resume — not to
+  // start a 3 GB file over.
+  const queryCommitted = async () => {
+    const r = await fetch(uploadUrl, {
+      method: "PUT",
+      headers: { "Content-Length": "0", "Content-Range": `bytes */${total}` },
+    });
+    if (r.status === 308) {
+      const range = r.headers.get("range");
+      // No Range header means the server holds nothing yet.
+      return { done: false, offset: range ? parseInt(range.split("-")[1], 10) + 1 : 0 };
+    }
+    if (r.status === 200 || r.status === 201) {
+      return { done: true, json: await r.json() };
+    }
+    throw new Error(`session query failed: ${r.status} ${(await r.text()).slice(0, 200)}`);
+  };
+
   const fh = await open(abs, "r");
   try {
     let offset = 0;
+    let tries = 0;
     const t0 = Date.now();
     while (offset < total) {
       const end = Math.min(offset + CHUNK, total) - 1;
@@ -220,15 +250,60 @@ async function cmdUpload(videoPath, opts) {
       const buf = Buffer.alloc(len);
       await fh.read(buf, 0, len, offset);
 
-      const r = await fetch(uploadUrl, {
-        method: "PUT",
-        headers: {
-          "Content-Length": String(len),
-          "Content-Range": `bytes ${offset}-${end}/${total}`,
-        },
-        body: buf,
-      });
+      let r = null;
+      let netErr = null;
+      try {
+        r = await fetch(uploadUrl, {
+          method: "PUT",
+          headers: {
+            "Content-Length": String(len),
+            "Content-Range": `bytes ${offset}-${end}/${total}`,
+          },
+          body: buf,
+        });
+      } catch (e) {
+        netErr = e;
+      }
 
+      // Retry a dropped socket or a 5xx; anything else is a real refusal.
+      if (netErr || r.status >= 500) {
+        tries++;
+        const why = netErr ? netErr.message : `HTTP ${r.status}`;
+        if (tries > MAX_TRIES) {
+          await writeProgress({
+            status: "error",
+            uploadedBytes: offset, percent: (offset / total) * 100, mbps: 0,
+            error: `gave up after ${MAX_TRIES} retries: ${why}`,
+          });
+          throw new Error(`upload failed after ${MAX_TRIES} retries: ${why}`);
+        }
+        const waitMs = Math.min(60000, 2000 * 2 ** (tries - 1)) + Math.floor(Math.random() * 1000);
+        process.stdout.write(`\n  ${why} — retry ${tries}/${MAX_TRIES} in ${Math.round(waitMs / 1000)}s\n`);
+        await new Promise((res) => setTimeout(res, waitMs));
+        try {
+          const q = await queryCommitted();
+          if (q.done) {
+            const id = q.json.id;
+            console.log(`\nDone. videoId = ${id}`);
+            console.log(`  https://youtu.be/${id}`);
+            console.log(`  studio: https://studio.youtube.com/video/${id}/edit`);
+            await writeProgress({
+              status: "done",
+              uploadedBytes: total, percent: 100, mbps: 0,
+              videoId: id,
+              url: `https://youtu.be/${id}`,
+              studioUrl: `https://studio.youtube.com/video/${id}/edit`,
+            });
+            return;
+          }
+          offset = q.offset;
+        } catch (e) {
+          process.stdout.write(`  could not read session offset (${e.message}) — retrying same chunk\n`);
+        }
+        continue;
+      }
+
+      tries = 0;
       if (r.status === 308) {
         const range = r.headers.get("range");
         const last = range ? parseInt(range.split("-")[1], 10) : end;

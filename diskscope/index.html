@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="color-scheme" content="dark light" />
 <title>diskscope</title>
+<!-- Inline, so the browser stops asking the server for a file that was never
+     going to exist and logging a 404 on every load. -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%230a84ff'/%3E%3Cpath d='M16 6a10 10 0 0 1 10 10h-10z' fill='%23fff'/%3E%3Ccircle cx='16' cy='16' r='3.5' fill='%23111'/%3E%3C/svg%3E" />
 
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -67,12 +70,30 @@
 
     <div class="jumps" id="jumps"></div>
 
+    <div id="trash-strip" class="trash-strip hidden">
+      <span class="ms">delete</span>
+      <span id="trash-text">Trash</span>
+      <span class="spacer"></span>
+      <button id="trash-browse" class="mini">Look inside</button>
+      <button id="trash-finder" class="mini">Finder</button>
+      <button id="trash-empty" class="mini danger">Empty Trash</button>
+    </div>
+
     <div id="scan-strip" class="scan-strip">
       <div class="scan-dot"></div>
       <span id="scan-text">Scanning…</span>
       <span class="spacer"></span>
       <span id="scan-path" class="scan-path mono"></span>
     </div>
+  </section>
+
+  <!-- ── video projects ─────────────────────────────────────────────────── -->
+  <section class="card projects-card hidden" id="projects-card">
+    <div class="list-head">
+      <span>Video projects</span>
+      <span id="projects-meta" class="muted"></span>
+    </div>
+    <div id="projects-row" class="projects-row"></div>
   </section>
 
   <!-- ── controls ───────────────────────────────────────────────────────── -->
@@ -92,17 +113,21 @@
         <button data-min="1073741824">1&nbsp;GB+</button>
       </div>
 
+      <span class="ctl-sep"></span>
+
+      <div class="chips sorts" id="sort-chips">
+        <button data-sort="size">Size<span class="ms dir">arrow_downward</span></button>
+        <button data-sort="name">Name<span class="ms dir">arrow_downward</span></button>
+        <button data-sort="mtime">Date<span class="ms dir">arrow_downward</span></button>
+        <button data-sort="kind">Kind<span class="ms dir">arrow_downward</span></button>
+      </div>
+
       <div class="menu-wrap">
-        <button id="sort-btn" class="pill-btn">
-          <span class="ms">swap_vert</span><span id="sort-label">Size</span>
+        <button id="sort-btn" class="pill-btn icon-only" title="List options">
+          <span class="ms">tune</span>
         </button>
         <div id="sort-menu" class="menu">
-          <button data-sort="size">Size<span class="ms tick">check</span></button>
-          <button data-sort="name">Name<span class="ms tick">check</span></button>
-          <button data-sort="mtime">Date modified<span class="ms tick">check</span></button>
-          <button data-sort="kind">Kind<span class="ms tick">check</span></button>
-          <div class="menu-sep"></div>
-          <button data-toggle="dir">Descending<span class="ms tick">check</span></button>
+          <button data-toggle="thumbs">Thumbnails<span class="ms tick">check</span></button>
           <button data-toggle="folders">Folders first<span class="ms tick">check</span></button>
           <button data-toggle="hidden">Show hidden<span class="ms tick">check</span></button>
         </div>
@@ -110,61 +135,72 @@
     </div>
   </div>
 
-  <!-- ── rows ───────────────────────────────────────────────────────────── -->
-  <section class="card list-card">
-    <div id="list-head" class="list-head">
-      <span id="list-title">Contents</span>
-      <span id="list-meta" class="muted"></span>
-    </div>
-    <div id="rows" class="rows"></div>
-    <div id="empty" class="empty hidden">
-      <span class="ms">inbox</span>
-      <p id="empty-text">Nothing here</p>
-    </div>
-  </section>
+  <!-- ── rows + the docked inspector ────────────────────────────────────── -->
+  <div class="work">
+    <section class="card list-card">
+      <div id="list-head" class="list-head">
+        <span id="list-title">Contents</span>
+        <div id="list-mark" class="list-mark hidden">
+          <span id="list-mark-text"></span>
+          <button id="mark-add" class="mini">Add to project</button>
+          <button id="mark-merge" class="mini accent">Merge &amp; Upload</button>
+          <button id="mark-trash" class="mini danger">Trash</button>
+          <button id="mark-clear" class="mini">Clear</button>
+        </div>
+        <span id="list-meta" class="muted"></span>
+      </div>
+      <div id="rows" class="rows"></div>
+      <div id="empty" class="empty hidden">
+        <span class="ms">inbox</span>
+        <p id="empty-text">Nothing here</p>
+        <button id="empty-act" class="mini hidden">Open Settings</button>
+      </div>
+    </section>
+
+    <aside id="sheet" class="sheet card" aria-label="Selected item">
+      <div class="sheet-head">
+        <div id="sheet-icon" class="tile lg"><span class="ms">draft</span></div>
+        <div class="sheet-title">
+          <h2 id="sheet-name">—</h2>
+          <p id="sheet-kind" class="muted"></p>
+        </div>
+        <button id="sheet-close" class="icon-btn" title="Close  Esc"><span class="ms">close</span></button>
+      </div>
+
+      <div id="sheet-preview" class="preview hidden">
+        <div class="preview-stage" id="preview-stage"></div>
+        <button id="preview-expand" class="preview-expand" title="Expand  P">
+          <span class="ms">open_in_full</span>
+        </button>
+      </div>
+
+      <div class="sheet-size"><span id="sheet-size">—</span><span id="sheet-share" class="muted"></span></div>
+
+      <dl class="sheet-rows">
+        <div><dt>Where</dt><dd id="sheet-where" class="mono"></dd></div>
+        <div><dt>Modified</dt><dd id="sheet-mtime"></dd></div>
+        <div><dt>Created</dt><dd id="sheet-ctime"></dd></div>
+        <div><dt>Contains</dt><dd id="sheet-items"></dd></div>
+      </dl>
+
+      <div class="sheet-actions">
+        <button id="act-reveal" class="act primary"><span class="ms">folder_open</span>Reveal in Finder</button>
+        <button id="act-yt" class="act hidden"><span class="ms">smart_display</span>Upload to YouTube</button>
+        <button id="act-proj" class="act hidden"><span class="ms">library_add</span>Add to project</button>
+        <button id="act-open" class="act"><span class="ms">open_in_new</span>Open</button>
+        <button id="act-copy" class="act"><span class="ms">content_copy</span>Copy path</button>
+        <button id="act-trash" class="act danger"><span class="ms">delete</span>Move to Trash</button>
+      </div>
+
+      <p class="sheet-hint muted">↑ ↓ to move · P to expand · Esc to close</p>
+    </aside>
+  </div>
 
   <footer class="foot muted">
     <span id="foot-left"></span>
     <span id="foot-right"></span>
   </footer>
 </main>
-
-<!-- ── detail sheet ───────────────────────────────────────────────────────-->
-<div id="scrim" class="scrim"></div>
-<aside id="sheet" class="sheet" role="dialog" aria-modal="true">
-  <div class="sheet-grip"></div>
-  <div class="sheet-head">
-    <div id="sheet-icon" class="tile lg"><span class="ms">draft</span></div>
-    <div class="sheet-title">
-      <h2 id="sheet-name">—</h2>
-      <p id="sheet-kind" class="muted"></p>
-    </div>
-    <button id="sheet-close" class="icon-btn"><span class="ms">close</span></button>
-  </div>
-
-  <div id="sheet-preview" class="preview hidden">
-    <div class="preview-stage" id="preview-stage"></div>
-    <button id="preview-expand" class="preview-expand" title="Expand  P">
-      <span class="ms">open_in_full</span>
-    </button>
-  </div>
-
-  <div class="sheet-size"><span id="sheet-size">—</span><span id="sheet-share" class="muted"></span></div>
-
-  <dl class="sheet-rows">
-    <div><dt>Where</dt><dd id="sheet-where" class="mono"></dd></div>
-    <div><dt>Modified</dt><dd id="sheet-mtime"></dd></div>
-    <div><dt>Created</dt><dd id="sheet-ctime"></dd></div>
-    <div><dt>Contains</dt><dd id="sheet-items"></dd></div>
-  </dl>
-
-  <div class="sheet-actions">
-    <button id="act-reveal" class="act primary"><span class="ms">folder_open</span>Reveal in Finder</button>
-    <button id="act-open" class="act"><span class="ms">open_in_new</span>Open</button>
-    <button id="act-copy" class="act"><span class="ms">content_copy</span>Copy path</button>
-    <button id="act-trash" class="act danger"><span class="ms">delete</span>Move to Trash</button>
-  </div>
-</aside>
 
 <!-- ── theater (full-size player) ─────────────────────────────────────────── -->
 <div id="theater" class="theater" role="dialog" aria-modal="true">
@@ -180,8 +216,230 @@
   <div class="theater-stage" id="theater-stage"></div>
 </div>
 
+<!-- ── project tray (the asset bin) ────────────────────────────────────────── -->
+<aside id="tray" class="tray hidden" aria-label="Project">
+  <div class="tray-head">
+    <span class="ms tray-grip">movie_edit</span>
+    <button id="tray-name" class="tray-title" title="Switch project">
+      <span id="tray-name-text">No project</span>
+      <span class="ms">expand_more</span>
+    </button>
+    <span id="tray-meta" class="muted"></span>
+    <button id="tray-min" class="icon-btn sm" title="Collapse"><span class="ms">expand_more</span></button>
+  </div>
+
+  <div id="tray-menu" class="menu tray-menu"></div>
+
+  <div id="tray-body" class="tray-body">
+    <div id="tray-assets" class="tray-assets"></div>
+    <p id="tray-hint" class="tray-hint">Drag clips here from the list, or use the <span class="ms">library_add</span> button on a row.</p>
+  </div>
+
+  <div class="tray-foot">
+    <button id="tray-auto" class="act primary sm" title="Let it cut a first pass"><span class="ms">auto_awesome</span>Auto clip</button>
+    <button id="tray-review" class="act sm" title="Keep or skip, one clip at a time"><span class="ms">rate_review</span>Review</button>
+    <button id="tray-edit" class="act sm"><span class="ms">movie_edit</span>Editor</button>
+  </div>
+</aside>
+
+<!-- ── merge & upload ──────────────────────────────────────────────────────── -->
+<div id="merge-scrim" class="merge-scrim"></div>
+<div id="merge-box" class="merge-box" role="dialog" aria-modal="true">
+  <div class="merge-head">
+    <span class="ms">movie_filter</span>
+    <h2 id="merge-head-title">Merge &amp; Upload</h2>
+    <button id="merge-close" class="icon-btn sm"><span class="ms">close</span></button>
+  </div>
+  <p id="merge-sum" class="muted"></p>
+
+  <label class="merge-field">
+    <span>Title</span>
+    <input id="merge-title" spellcheck="false" placeholder="Kuya J's with Lovey" />
+  </label>
+
+  <div class="merge-field">
+    <span>Privacy</span>
+    <div class="chips" id="merge-privacy">
+      <button data-p="unlisted" class="on">Unlisted</button>
+      <button data-p="private">Private</button>
+      <button data-p="public">Public</button>
+    </div>
+  </div>
+
+  <button id="merge-upload-toggle" class="ed-toggle on">
+    <span class="ms">cloud_upload</span><span>Upload to YouTube when it's merged</span>
+  </button>
+  <button id="merge-encode-toggle" class="ed-toggle on">
+    <span class="ms">movie_filter</span><span>Re-encode to 1080p first</span>
+  </button>
+  <button id="merge-sort-toggle" class="ed-toggle on">
+    <span class="ms">sort</span><span>Order chronologically by filename</span>
+  </button>
+  <button id="merge-trash-toggle" class="ed-toggle">
+    <span class="ms">delete</span><span>Keep the source after uploading</span>
+  </button>
+
+  <ol id="merge-list" class="merge-list"></ol>
+
+  <div class="merge-foot">
+    <button id="merge-cancel" class="act">Cancel</button>
+    <button id="merge-go" class="act primary">
+      <span class="ms">rocket_launch</span><span id="merge-go-label">Start</span>
+    </button>
+  </div>
+</div>
+
+<!-- ── job progress ────────────────────────────────────────────────────────── -->
+<div id="jobs" class="jobs"></div>
+
+<!-- ── editor ──────────────────────────────────────────────────────────────── -->
+<div id="editor" class="editor" role="dialog" aria-modal="true">
+  <div class="ed-bar">
+    <button id="ed-close" class="icon-btn" title="Back to files"><span class="ms">arrow_back</span></button>
+    <input id="ed-name" class="ed-name" spellcheck="false" />
+    <span id="ed-dur" class="muted mono"></span>
+    <span class="spacer"></span>
+    <div class="chips" id="ed-aspect">
+      <button data-aspect="source" class="on">Source</button>
+      <button data-aspect="16:9">16:9</button>
+      <button data-aspect="9:16">9:16</button>
+      <button data-aspect="1:1">1:1</button>
+      <button data-aspect="4:5">4:5</button>
+    </div>
+    <button id="ed-export" class="act primary sm"><span class="ms">movie</span>Export</button>
+  </div>
+
+  <div class="ed-main">
+    <div class="ed-left">
+      <div class="ed-stage" id="ed-stage">
+        <div class="ed-canvas" id="ed-canvas"></div>
+      </div>
+      <div class="ed-transport">
+        <button id="ed-play" class="icon-btn"><span class="ms">play_arrow</span></button>
+        <span id="ed-time" class="mono">0:00.00 / 0:00.00</span>
+        <span class="spacer"></span>
+        <button id="ed-split" class="act sm" title="Split at playhead  S"><span class="ms">content_cut</span>Split</button>
+        <button id="ed-dupe" class="act sm" title="Duplicate  D"><span class="ms">content_copy</span>Duplicate</button>
+        <button id="ed-del" class="act sm danger" title="Remove  ⌫"><span class="ms">delete</span>Remove</button>
+      </div>
+    </div>
+
+    <aside class="ed-side" id="ed-side">
+      <div id="ed-inspect" class="ed-inspect"></div>
+    </aside>
+  </div>
+
+  <div class="ed-timeline">
+    <div class="ed-tl-head">
+      <span id="ed-tl-label" class="muted">Timeline</span>
+      <span class="spacer"></span>
+      <button id="ed-zoom-out" class="icon-btn sm" title="Zoom out  −"><span class="ms">zoom_out</span></button>
+      <button id="ed-zoom-fit" class="icon-btn sm" title="Fit"><span class="ms">fit_screen</span></button>
+      <button id="ed-zoom-in" class="icon-btn sm" title="Zoom in  +"><span class="ms">zoom_in</span></button>
+    </div>
+    <div class="ed-track-wrap" id="ed-track-wrap">
+      <div class="ed-ruler" id="ed-ruler"></div>
+      <div class="ed-track" id="ed-track"></div>
+      <div class="ed-playhead" id="ed-playhead"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── auto clip ───────────────────────────────────────────────────────────── -->
+<div id="auto-scrim" class="merge-scrim"></div>
+<div id="auto-box" class="merge-box" role="dialog" aria-modal="true">
+  <div class="merge-head">
+    <span class="ms">auto_awesome</span>
+    <h2>Auto clip</h2>
+    <button id="auto-close" class="icon-btn sm"><span class="ms">close</span></button>
+  </div>
+  <p id="auto-sum" class="muted"></p>
+
+  <div class="merge-field">
+    <span>How long should the cut be</span>
+    <div class="chips" id="auto-target">
+      <button data-t="120">2 min</button>
+      <button data-t="300" class="on">5 min</button>
+      <button data-t="600">10 min</button>
+      <button data-t="1200">20 min</button>
+      <button data-t="every">One per clip</button>
+    </div>
+  </div>
+
+  <div class="merge-field">
+    <span>How long is each moment</span>
+    <div class="chips" id="auto-moment">
+      <button data-m="5">5s</button>
+      <button data-m="8" class="on">8s</button>
+      <button data-m="12">12s</button>
+      <button data-m="20">20s</button>
+    </div>
+  </div>
+
+  <p class="rv-tip muted" style="text-align:left">
+    Saved as a <b>new project</b> — this one is left exactly as it is, so you can
+    cut it again at another length and compare. It listens for the liveliest
+    moments: talking, laughing, waves. It can't tell a joke from a passing
+    motorbike, so treat it as a first pass and review it after.
+  </p>
+
+  <div class="merge-foot">
+    <button id="auto-cancel" class="act">Cancel</button>
+    <button id="auto-go" class="act primary"><span class="ms">auto_awesome</span>Cut it</button>
+  </div>
+</div>
+
+<!-- ── review (triage + auto-clip) ─────────────────────────────────────────── -->
+<div id="review" class="review" role="dialog" aria-modal="true">
+  <div class="rv-bar">
+    <button id="rv-close" class="icon-btn"><span class="ms">close</span></button>
+    <div class="rv-head">
+      <span id="rv-name">—</span>
+      <span id="rv-sub" class="muted"></span>
+    </div>
+    <div class="chips" id="rv-scope">
+      <button data-scope="picks">The cut</button>
+      <button data-scope="all" class="on">Everything</button>
+    </div>
+    <span id="rv-count" class="mono"></span>
+    <div class="rv-progress" id="rv-progress"><i></i></div>
+    <span id="rv-kept" class="muted"></span>
+    <button id="rv-analyse" class="act sm" title="Listen to every clip up front"><span class="ms">graphic_eq</span>Listen to all</button>
+    <button id="rv-done" class="act primary sm"><span class="ms">check</span>Finish</button>
+  </div>
+
+  <div class="rv-stage" id="rv-stage">
+    <div id="rv-flash" class="rv-flash"></div>
+  </div>
+
+  <div class="rv-mapwrap">
+    <div class="rv-map" id="rv-map">
+      <canvas id="rv-canvas"></canvas>
+      <div class="rv-window" id="rv-window"><span id="rv-window-label"></span></div>
+    </div>
+    <p class="rv-tip muted">Drag the box to pick a different moment · louder is taller</p>
+  </div>
+
+  <div class="rv-foot">
+    <button id="rv-prev" class="icon-btn" title="Previous  ←"><span class="ms">chevron_left</span></button>
+    <div class="chips" id="rv-lengths">
+      <button data-len="5">5s</button>
+      <button data-len="8" class="on">8s</button>
+      <button data-len="12">12s</button>
+      <button data-len="20">20s</button>
+      <button data-len="whole">Whole clip</button>
+    </div>
+    <span class="spacer"></span>
+    <button id="rv-skip" class="act danger"><span class="ms">close</span><span>Skip  X</span></button>
+    <button id="rv-keep" class="act primary"><span class="ms">check</span><span>Keep  K</span></button>
+    <button id="rv-next" class="icon-btn" title="Next  →"><span class="ms">chevron_right</span></button>
+  </div>
+</div>
+
 <div id="toast" class="toast"></div>
 
 <script src="app.js"></script>
+<script src="editor.js"></script>
+<script src="review.js"></script>
 </body>
 </html>
