@@ -162,6 +162,85 @@ requirement. The design system in `style.css` covers the same ground with no run
   rates. Labelled an estimate everywhere it appears.
 - Footer carries an explicit "not an official Nissan Philippines website" disclaimer.
 
+## Low all-in DP promo (added 2026-08-13)
+
+Sherill asked for the promo down payment to show **per unit** on the site rather than
+only over chat, and sent the figures herself. This is the first time promo cash-out
+numbers ship — the earlier "keep Promo Cash Out out of the repo" rule was Charlie's
+protective default, and the data owner has now published them deliberately. The bank
+sheet's **Dealer's Incentive is still held back.**
+
+- `DP_PROMO` (window, terms, note) + `DP_PROMO_UNITS` (variant name → pesos) in `data.js`.
+  A small IIFE stamps `v.promoDp` onto the matching variants and `console.warn`s any
+  lookup key that matches no variant — a rename is a loud failure, not a silent no-op.
+- **All-in** = down payment + chattel mortgage + insurance, not the DP alone.
+- **The bank still approves on a 20% DP basis**, so `amount financed` and the monthly are
+  unchanged; the promo only changes the cash out. Getting this backwards would understate
+  every monthly on the site.
+- **36 / 48 / 60 months only.** At 24 and below, DP, chattel and insurance are paid
+  separately and the computation differs — the calculator says so instead of guessing.
+- At 30/40/50% DP the all-in figure is a different number she quotes by hand; the
+  calculator surfaces that rather than showing the 20% figure.
+- Everything keys off `dpPromoRunning()` — past `DP_PROMO.end` the badges, the sheet
+  column and the calculator note all switch themselves off. Same discipline as `RATE_PROMOS`.
+- Variants she didn't name (Terra EL, Navara EL / VE MT 4x4 / VL, KICKS, X-Trail, Urvan)
+  carry no figure and stay quiet.
+- ⚠️ Her list puts **Navara Calibre VE MT at ₱128K above the AT at ₱98K** — backwards from
+  the usual pattern. Transcribed as sent; confirm before treating it as settled.
+
+## Promo poster studio — `poster/` (added 2026-08-13)
+
+Sherill posts promo images to Facebook and wanted hers to out-pull the other dealers'.
+`poster/` is an internal tool (noindex, linked only from the footer) that renders a
+1080 square or 1080×1920 story PNG on a canvas: her name, the model cut-out, the big
+all-in figure, SRP, contact, and the not-an-official-Nissan-site line.
+
+- Reads `../js/data.js` directly, so a promo edit reprints every poster. Nothing is typed
+  into the poster code.
+- **All vertical metrics live in the `SIZES` object**, not sprinkled through `draw()`.
+  The square canvas is genuinely tight — it drops the perk chips that the story keeps.
+- The footer is measured **up from the bottom edge** and only the phone row has a
+  right-hand item; the fine print is wide enough to collide with anything beside it.
+- Canvas needs `document.fonts.ready` before the first paint or Inter hasn't loaded and
+  every `measureText` is wrong.
+- Uses her own branding deliberately — it does not reproduce a Nissan or other-dealer
+  ad layout.
+
+## Test drive + service booking — `#book` (added 2026-08-13)
+
+Sherill asked for nissan.ph's "Book a test drive" and "Schedule a service appointment".
+Both are **copy-only, same contract as the loan application** — no backend, no
+localStorage, no personal data in a mailto/Viber URL.
+
+- `TESTDRIVE_GROUPS` / `SERVICE_GROUPS` in `data.js` use the same `{group → fields}` shape
+  as `APPLICATION_GROUPS`, so `fieldHTML()` / `groupsHTML()` / `validateForm()` in `app.js`
+  are shared by all three forms. Adding a fourth form is data, not code.
+- Both panels render up front and one is `hidden`, so switching tabs keeps what was typed.
+- Date inputs get `min = today` — a booking in the past helps nobody.
+
+## Form UI conventions (reworked 2026-08-13)
+
+- `input[type="date"]` and `[type="email"]` were **missing from the base input selector**,
+  so Chrome painted them as white default boxes on the dark form. The selector now lists
+  every text-ish type and carries `color-scheme: dark`.
+- An empty date input renders `mm/dd/yyyy` as **real text, not a placeholder**, and
+  `:placeholder-shown` does not apply to it — `app.js` toggles `.is-empty` so CSS can mute
+  the mask.
+- Labels inside `.apply-form` are sentence case, not the site's uppercase — 17 shouty
+  labels in a column is a wall. Only **required** fields get a tag; tagging the majority
+  "Optional" is louder than the labels.
+- `.apply-grid` is a 12-column bed with `.field--s4/6/8/12`, collapsing to 2 columns at
+  860 px and 1 at 620 px. Inputs go to 16 px on phones so iOS Safari doesn't zoom on focus.
+- Groups are spread across several containers within a step, so spacing is
+  `.apply-group { margin-top }` plus a first-child reset — a sibling selector can't see
+  the container boundaries.
+
+## Showroom photo lightbox
+
+`.shots__open` buttons in the model sheet open `#lightbox` (z-index 190, above the sheet's
+120). Escape closes the lightbox first and leaves the sheet open, and the body stays
+locked while the sheet is still up. Arrow keys and touch swipe page through.
+
 ## Gotchas
 
 - `img { height: auto }` is load-bearing — the HTML `width`/`height` attributes otherwise beat

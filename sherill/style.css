@@ -848,6 +848,12 @@ h3 { font-size: clamp(21px, 2.6vw, 30px); letter-spacing: -.03em; }
   color: var(--txt-2);
 }
 .estimate__promo[hidden] { display: none; }
+/* The note slot is shared with the rate promo, so it recolours to match
+   whichever promo is talking. */
+.estimate__promo.is-dp {
+  border-color: rgba(74,222,128,.24);
+  background: rgba(74,222,128,.07);
+}
 .est-promo {
   margin-left: 6px; padding: 2px 7px;
   border-radius: 999px;
@@ -856,6 +862,38 @@ h3 { font-size: clamp(21px, 2.6vw, 30px); letter-spacing: -.03em; }
   letter-spacing: .08em; text-transform: uppercase;
 }
 .est-save { color: #4ade80; }
+
+/* ── low down payment promo ────────────────────────────────────────────── */
+/* Green, not the site red — it reads as a saving rather than as more branding,
+   and it keeps the CTA the only red thing in a model card. */
+.dp-tag {
+  /* The card body is a stretch flex column — without this the pill spans it. */
+  display: inline-flex; align-self: flex-start; width: fit-content;
+  align-items: center; gap: 7px;
+  margin: 12px 0 0; padding: 6px 11px 6px 8px;
+  border: 1px solid rgba(74,222,128,.26);
+  border-radius: 999px;
+  background: rgba(74,222,128,.09);
+  font-size: 12.5px; color: #86efac;
+}
+.dp-tag .ms { font-size: 16px; }
+.dp-tag strong { font-weight: 700; color: #bbf7d0; }
+
+td.dp { color: #86efac; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.dp-note {
+  display: flex; align-items: flex-start; gap: 10px;
+  margin: 14px 0 0; padding: 12px 14px;
+  border: 1px solid rgba(74,222,128,.2);
+  border-radius: 12px;
+  background: rgba(74,222,128,.06);
+  font-size: 13px; line-height: 1.6; color: var(--txt-2);
+}
+.dp-note .ms { font-size: 18px; color: #86efac; flex: 0 0 auto; margin-top: 1px; }
+.dp-note strong { color: #bbf7d0; }
+.sheet__panel .dp-note { color: #14532d; background: rgba(22,163,74,.08); border-color: rgba(22,163,74,.28); }
+.sheet__panel .dp-note .ms, .sheet__panel .dp-note strong { color: #15803d; }
+.sheet__panel td.dp { color: #15803d; }
 
 /* ── auto loan application ─────────────────────────────────────────────── */
 .apply-reqs {
@@ -878,14 +916,17 @@ h3 { font-size: clamp(21px, 2.6vw, 30px); letter-spacing: -.03em; }
 .req-list li { display: flex; align-items: flex-start; gap: 10px; font-size: 15px; color: var(--txt-2); }
 .req-list .ms { font-size: 19px; color: var(--red); flex: 0 0 auto; }
 
-.apply-wrap { max-width: 900px; margin: 0 auto; }
-/* .quote-form is a 2-column grid and is declared later in this file, so this
-   needs both classes to win: the apply form supplies its own sub-grids and
-   must be a plain block, letting .apply-grid do the columns. */
-.quote-form.apply-form { display: block; }
+.apply-wrap { max-width: 1000px; margin: 0 auto; }
+/* .quote-form is a bordered 2-column card. The apply form is long enough that
+   one big card reads as a wall, so it drops the card entirely and lets each
+   .apply-step be its own panel instead. */
+.quote-form.apply-form {
+  display: flex; flex-direction: column; gap: 18px;
+  padding: 0; border: 0; background: none;
+}
 .apply-privacy {
   display: flex; gap: 11px; align-items: flex-start;
-  margin: 0 0 26px; padding: 14px 16px;
+  margin: 0; padding: 14px 16px;
   border: 1px solid var(--line);
   border-radius: 14px;
   background: rgba(255,255,255,.02);
@@ -893,21 +934,98 @@ h3 { font-size: clamp(21px, 2.6vw, 30px); letter-spacing: -.03em; }
 }
 .apply-privacy .ms { font-size: 19px; color: var(--red); flex: 0 0 auto; margin-top: 1px; }
 .apply-privacy strong { color: var(--txt-2); }
-.apply-form__step {
-  margin: 30px 0 14px;
-  font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: var(--txt-3);
+
+/* ── one numbered panel per step ── */
+.apply-step {
+  padding: clamp(20px, 2.6vw, 30px);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.008));
 }
-.apply-form__step:first-of-type { margin-top: 6px; }
-.apply-hint { margin: -8px 0 14px; font-size: 13px; color: var(--txt-3); }
-.apply-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(215px, 1fr)); }
-.apply-comaker-toggle { margin-top: 26px; }
+.apply-step__head {
+  display: flex; align-items: flex-start; gap: 14px;
+  padding-bottom: 18px; margin-bottom: 22px;
+  border-bottom: 1px solid var(--line);
+}
+.apply-step__num {
+  flex: 0 0 auto;
+  display: grid; place-items: center;
+  width: 30px; height: 30px; border-radius: 50%;
+  border: 1px solid rgba(195,0,47,.4);
+  background: rgba(195,0,47,.12);
+  color: var(--red-lift);
+  font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums;
+}
+.apply-step__text { min-width: 0; }
+.apply-step__text h3 {
+  margin: 3px 0 0; font-size: clamp(17px, 2vw, 19px);
+  font-weight: 600; letter-spacing: -.01em; color: var(--txt);
+}
+.apply-step__text p { margin: 5px 0 0; font-size: 13.5px; line-height: 1.55; color: var(--txt-3); }
+
+/* ── labelled groups inside a step ── */
+/* Groups are spread across several containers inside a step — some written in
+   the HTML, some injected into a render target like #tdFields — so a sibling
+   selector can't see all the boundaries. Space every group and then zero out
+   whichever one comes first in each step. */
+.apply-group { margin-top: 26px; }
+.apply-step__head + .apply-group,
+.apply-step__head + div > .apply-group:first-child,
+.apply-comaker-toggle + div > .apply-group:first-child { margin-top: 0; }
+.apply-group__label {
+  display: flex; align-items: center; gap: 8px;
+  margin: 0 0 14px;
+  font-size: 11px; font-weight: 700; letter-spacing: .13em; text-transform: uppercase;
+  color: var(--txt-3);
+}
+.apply-group__label .ms { font-size: 16px; color: var(--red-lift); }
+
+/* 12-column bed; each .field carries its own span. */
+.apply-grid { display: grid; gap: 18px 18px; grid-template-columns: repeat(12, minmax(0, 1fr)); }
+.apply-grid .field--s4  { grid-column: span 4; }
+.apply-grid .field--s6  { grid-column: span 6; }
+.apply-grid .field--s8  { grid-column: span 8; }
+.apply-grid .field--s12 { grid-column: span 12; }
+
+.apply-comaker-toggle { margin: 0 0 22px; }
+#comakerBlock.is-collapsed { display: none; }
+
+/* Booking tabs sit above the form card, so they need their own breathing room
+   and a bigger hit area than the requirements tabs inside a panel. */
+.book-tabs { max-width: 1000px; margin: 0 auto 18px; }
+.book-tabs .seg__btn { padding: 12px 18px; }
+/* The two booking steps use an icon instead of a step number — there is no
+   sequence to count, you are on one branch or the other. */
+.apply-step__num .ms { font-size: 17px; }
+
+.apply-actions { margin-top: 4px; }
 .apply-foot { margin: 14px 0 0; font-size: 13px; line-height: 1.6; color: var(--txt-3); }
-/* .field label is a space-between flex (it holds the DP % output on the quote
-   form), so a bare asterisk would get flung to the far right. */
-.field label .req { color: var(--red); margin: 0 auto 0 -4px; }
+.apply-foot:empty { display: none; }
+
+/* ── apply-form field chrome (scoped so the quote form keeps its own look) ── */
+.apply-form .field label {
+  justify-content: flex-start; gap: 8px;
+  font-size: 13px; font-weight: 500; letter-spacing: 0; text-transform: none;
+  color: var(--txt-2);
+}
+.apply-form .field label > span:first-child { min-width: 0; }
+.field__req, .field__opt {
+  margin-left: auto; flex: 0 0 auto;
+  font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+}
+.field__req { color: var(--red-lift); }
+.field__opt { color: rgba(255,255,255,.26); }
+
+.field__wrap { position: relative; display: flex; align-items: center; }
+.field__prefix {
+  position: absolute; left: 15px;
+  color: var(--txt-3); font-size: 15px; pointer-events: none;
+}
+/* Needs the .field scope to outweigh the input[type=…] base rule below. */
+.field input.has-prefix { padding-left: 33px; }
+
 .field .is-invalid,
 input.is-invalid { border-color: var(--red); }
-#comakerBlock.is-collapsed { display: none; }
 
 /* real showroom photos inside the model sheet — horizontal scroll strip */
 .shots__note { margin: -6px 0 14px; font-size: 13px; color: var(--txt-3); }
@@ -928,14 +1046,93 @@ input.is-invalid { border-color: var(--red); }
   background: rgba(255,255,255,.03);
   border: 1px solid var(--line);
 }
+.shots__open {
+  display: block; position: relative;
+  padding: 0; border: 0; background: none; cursor: zoom-in;
+  -webkit-tap-highlight-color: transparent;
+}
 .shots__item img {
   display: block;
   height: 210px;
   width: auto;
   max-width: none;
   object-fit: cover;
+  transition: transform .5s var(--ease), opacity .3s var(--ease);
 }
+.shots__open:hover img { transform: scale(1.04); }
+.shots__zoom {
+  position: absolute; right: 9px; bottom: 9px;
+  display: grid; place-items: center;
+  width: 30px; height: 30px; border-radius: 9px;
+  background: rgba(8,8,10,.62);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  color: #fff; font-size: 17px;
+  opacity: 0; transform: translateY(4px);
+  transition: opacity .25s var(--ease), transform .25s var(--ease);
+}
+.shots__open:hover .shots__zoom,
+.shots__open:focus-visible .shots__zoom { opacity: 1; transform: none; }
+@media (hover: none) { .shots__zoom { opacity: .9; transform: none; } }
 @media (max-width: 640px) { .shots__item img { height: 168px; } }
+
+/* ── fullscreen photo viewer (sits above the model sheet) ── */
+.lightbox {
+  position: fixed; inset: 0; z-index: 190;
+  visibility: hidden; opacity: 0;
+  transition: opacity .3s var(--ease), visibility .3s;
+}
+.lightbox.is-open { visibility: visible; opacity: 1; }
+.lightbox__scrim {
+  position: absolute; inset: 0;
+  background: rgba(3,3,4,.94);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  cursor: zoom-out;
+}
+.lightbox__stage {
+  position: absolute; inset: 0;
+  margin: 0; padding: clamp(46px, 6vh, 72px) clamp(14px, 7vw, 96px);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 14px;
+  pointer-events: none;
+}
+.lightbox__stage img {
+  max-width: 100%; max-height: 100%;
+  min-height: 0;
+  object-fit: contain;
+  border-radius: 10px;
+  transform: scale(.97);
+  transition: transform .35s var(--spring);
+}
+.lightbox.is-open .lightbox__stage img { transform: none; }
+.lightbox__cap {
+  flex: 0 0 auto;
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: center;
+  font-size: 13px; color: rgba(255,255,255,.62); text-align: center;
+}
+.lightbox__count { font-variant-numeric: tabular-nums; color: rgba(255,255,255,.38); }
+.lightbox__close, .lightbox__nav {
+  position: absolute; z-index: 2;
+  display: grid; place-items: center;
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 50%;
+  background: rgba(255,255,255,.07);
+  color: #fff; cursor: pointer;
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  transition: background .2s var(--ease), transform .2s var(--ease), opacity .2s var(--ease);
+}
+.lightbox__close:hover, .lightbox__nav:hover { background: rgba(255,255,255,.16); }
+.lightbox__close { top: 16px; right: 16px; width: 42px; height: 42px; font-size: 22px; }
+.lightbox__nav { top: 50%; transform: translateY(-50%); width: 46px; height: 46px; font-size: 26px; }
+.lightbox__nav:hover { transform: translateY(-50%) scale(1.06); }
+.lightbox__nav--prev { left: 16px; }
+.lightbox__nav--next { right: 16px; }
+.lightbox__nav[hidden] { display: none; }
+@media (max-width: 640px) {
+  .lightbox__stage { padding: 58px 10px 64px; }
+  .lightbox__nav { width: 40px; height: 40px; font-size: 22px; }
+  .lightbox__nav--prev { left: 8px; }
+  .lightbox__nav--next { right: 8px; }
+}
 
 .promo-fineprint {
   max-width: 62ch;
@@ -1067,23 +1264,47 @@ td.name { color: var(--txt); font-weight: 500; }
 .field__note[hidden] { display: none; }
 .field output { color: var(--red-lift); font-weight: 600; letter-spacing: 0; font-variant-numeric: tabular-nums; }
 
-input[type="text"], input[type="tel"], select, textarea {
+input[type="text"], input[type="tel"], input[type="email"],
+input[type="date"], input[type="number"], input[type="url"],
+select, textarea {
   width: 100%;
   padding: 13px 15px;
   border: 1px solid var(--line);
   border-radius: 12px;
   background: rgba(255,255,255,.03);
   font-size: 15px;
-  transition: border-color .25s var(--ease), background .25s var(--ease), transform .25s var(--ease);
+  transition: border-color .25s var(--ease), background .25s var(--ease),
+              box-shadow .25s var(--ease), transform .25s var(--ease);
   appearance: none;
   -webkit-appearance: none;
+  /* Keeps the native date picker, its calendar glyph and the autofill wash
+     dark. Without it Chrome paints date inputs with a white default box. */
+  color-scheme: dark;
 }
 textarea { resize: vertical; line-height: 1.6; }
-input::placeholder, textarea::placeholder { color: var(--txt-3); }
+input::placeholder, textarea::placeholder { color: rgba(255,255,255,.3); }
 input:focus, select:focus, textarea:focus {
   outline: none;
   border-color: var(--red);
   background: rgba(195,0,47,.06);
+  box-shadow: 0 0 0 3px rgba(195,0,47,.16);
+}
+/* An empty date input renders mm/dd/yyyy as real text, not a placeholder, and
+   :placeholder-shown does not apply to it — so app.js flags the empty state
+   and this mutes the mask to match every other field's placeholder. */
+input[type="date"] { min-height: 49px; }
+input[type="date"].is-empty:not(:focus)::-webkit-datetime-edit { color: rgba(255,255,255,.3); }
+input[type="date"]::-webkit-calendar-picker-indicator {
+  opacity: .45; cursor: pointer; transition: opacity .2s var(--ease);
+}
+input[type="date"]:hover::-webkit-calendar-picker-indicator { opacity: .9; }
+/* Chrome's autofill yellow would blow a hole in the dark form. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--txt);
+  -webkit-box-shadow: 0 0 0 60px #16171b inset;
+  caret-color: var(--txt);
 }
 input.is-invalid { border-color: #ff4d67; animation: shake .4s var(--ease); }
 @keyframes shake {
@@ -1260,6 +1481,14 @@ input[type="range"]::-moz-range-thumb {
 
 /* ─────────────────────────────────────────────────────────────── footer */
 .footer { position: relative; z-index: 2; border-top: 1px solid var(--line); background: var(--ink-2); }
+.footer__tool {
+  display: inline-flex; align-items: center; gap: 7px;
+  margin-top: 14px;
+  font-size: 12.5px; color: var(--txt-3); text-decoration: none;
+  transition: color .2s var(--ease);
+}
+.footer__tool:hover { color: var(--txt-2); }
+.footer__tool .ms { font-size: 16px; }
 .footer__inner {
   max-width: var(--maxw); margin: 0 auto;
   padding: 42px var(--pad) calc(120px + env(safe-area-inset-bottom));
@@ -1465,9 +1694,37 @@ input[type="range"]::-moz-range-thumb {
   .showcase__meta strong { font-size: 15.5px; }
   .hero__stats { flex-wrap: wrap; gap: 22px 34px; }
   .quote-form { grid-template-columns: 1fr; }
+  /* Tablet: 12 columns is too fine to read — collapse to a plain 2-up, with
+     the wide fields (address, office) still spanning the full row. */
+  .apply-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .apply-grid .field--s4,
+  .apply-grid .field--s6 { grid-column: span 1; }
+  .apply-grid .field--s8,
+  .apply-grid .field--s12 { grid-column: span 2; }
   .sheet__panel { top: 42px; border-radius: 26px 26px 0 0; border-left: 0; border-top: 1px solid var(--line); transform: translate3d(0, 100%, 0); }
   .spec-list div { grid-template-columns: 1fr; gap: 4px; }
   .section { scroll-margin-top: 66px; }
+}
+
+/* Phones: one field per row. Two side-by-side inputs at this width leaves each
+   too narrow to read its own value, and thumb-typing wants a single column. */
+@media (max-width: 620px) {
+  .apply-grid { grid-template-columns: 1fr; gap: 15px; }
+  .apply-grid .field--s4,
+  .apply-grid .field--s6,
+  .apply-grid .field--s8,
+  .apply-grid .field--s12 { grid-column: 1 / -1; }
+  .apply-step { padding: 18px 16px; border-radius: var(--r); }
+  .apply-step__head { gap: 11px; padding-bottom: 14px; margin-bottom: 18px; }
+  .apply-step__num { width: 26px; height: 26px; font-size: 12px; }
+  .apply-reqs { padding: 18px 16px; }
+  /* 16px keeps iOS Safari from zooming the viewport on focus. */
+  input[type="text"], input[type="tel"], input[type="email"],
+  input[type="date"], input[type="number"], input[type="url"],
+  select, textarea { font-size: 16px; padding: 12px 14px; }
+  input[type="date"] { min-height: 47px; }
+  .apply-form .quote-form__actions { flex-direction: column; align-items: stretch; }
+  .apply-form .quote-form__actions .btn { width: 100%; }
 }
 
 @media (max-width: 460px) {

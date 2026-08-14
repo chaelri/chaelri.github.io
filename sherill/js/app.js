@@ -144,6 +144,28 @@
   const shotSrc = (id) => `assets/models/${id}.webp`;        // scenic key visual
   const cutSrc = (id) => `assets/models/cut/${id}.webp`;      // transparent studio cut-out
 
+  /* ── low-DP promo helpers ──────────────────────────────────────────────
+     Mirrors activePromo(): once DP_PROMO.end passes, every one of these goes
+     quiet on its own and the site falls back to plain percentage down
+     payments. No dated promo copy left stranded on the page.
+     Defined up here because the model cards below already need them. */
+  const isoToday = (today = new Date()) =>
+    `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+  const dpPromoRunning = () => {
+    const d = isoToday();
+    return d >= DP_PROMO.start && d <= DP_PROMO.end;
+  };
+
+  const variantPromoDp = (v) => (dpPromoRunning() ? v?.promoDp ?? null : null);
+
+  /* Lowest promo cash-out across a model's variants — what the card teases. */
+  const modelPromoDpFrom = (m) => {
+    if (!dpPromoRunning()) return null;
+    const all = m.variants.map((v) => v.promoDp).filter((x) => x != null);
+    return all.length ? Math.min(...all) : null;
+  };
+
   /* ═════════════════════════════════════════════════════ model cards */
   const CATEGORIES = [
     { id: 'all', label: 'All models' },
@@ -157,6 +179,7 @@
   grid.innerHTML = MODELS.map((m, i) => {
     const swatches = m.colorGroups.flatMap((g) => g.colors).slice(0, 6)
       .map((c) => `<i style="background:${c.hex}"></i>`).join('');
+    const dpFrom = modelPromoDpFrom(m);
     return `
     <article class="model-card reveal" data-delay="${(i % 3) + 1}" data-model="${m.id}" tabindex="0" role="button"
       aria-label="View ${esc(m.full)} details">
@@ -170,6 +193,7 @@
         <h3 class="model-card__name">${esc(m.name)}</h3>
         <p class="model-card__tag">${esc(m.tagline)}</p>
         <div class="model-card__swatches">${swatches}</div>
+        ${dpFrom ? `<p class="dp-tag"><span class="ms">savings</span>All-in DP from <strong>${peso(dpFrom)}</strong></p>` : ''}
         <div class="model-card__foot">
           <div class="model-card__price">
             <small>Starts at</small>
@@ -397,8 +421,24 @@
       const aor = promo ? promo.aor[term] : stdAor;
       const monthly = amortize(loan, aor, term);
       const saving = promo ? amortize(loan, stdAor, term) - monthly : 0;
+
+      /* Sherill's low-DP promo. The bank still books the loan at 20% down, so
+         `loan` and the monthly above are already right — the promo only
+         changes what the customer hands over on day one. It is offered at the
+         20% setting on 3-to-5-year terms; at 30/40/50% she quotes a different
+         cash-out by hand, so the UI says so rather than guessing a number. */
+      const unitDp = variantPromoDp(v);
+      const dpEligible = unitDp != null
+        && dpPct === DP_PROMO.basisPct
+        && DP_PROMO.terms.includes(term);
+      const dpWrongTerm = unitDp != null
+        && dpPct === DP_PROMO.basisPct
+        && !DP_PROMO.terms.includes(term);
+      const dpWrongPct = unitDp != null && dpPct !== DP_PROMO.basisPct;
+
       rows.innerHTML = `
         <div><span>Down payment (${dpPct}%)</span><b>${peso(dp)}</b></div>
+        ${dpEligible ? `<div><span>Promo all-in DP <em class="est-promo">promo</em></span><b class="est-save">${peso(unitDp)}</b></div>` : ''}
         <div><span>Amount financed</span><b>${peso(loan)}</b></div>
         <div><span>Term</span><b>${term} months</b></div>
         <div><span>${esc(bank.name)} add-on rate</span><b>${aor.toFixed(2)}%${promo ? ' <em class="est-promo">promo</em>' : ''}</b></div>
@@ -406,8 +446,21 @@
         ${v.lto ? `<div><span>3-year LTO registration</span><b>${peso(v.lto)}</b></div>` : ''}`;
       heroLabel.textContent = `Estimated monthly · ${term} months`;
       heroValue.textContent = peso(monthly);
-      promoNote.textContent = promo ? `${promo.label} · until ${fmtDate(promo.end)}. ${promo.note}` : '';
-      promoNote.hidden = !promo;
+
+      /* One note slot, so the rate promo and the DP promo have to share it.
+         The DP line wins when both are live — it is the bigger, more concrete
+         number to a buyer, and the rate promo still shows in the rows above. */
+      const dpMsg = dpEligible
+        ? `${DP_PROMO.label} · until ${fmtDate(DP_PROMO.end)}. Drive out for ${peso(unitDp)} all-in instead of ${peso(dp)} down plus chattel and insurance. ${DP_PROMO.note}`
+        : dpWrongTerm
+          ? `${DP_PROMO.label}: this unit's ${peso(unitDp)} all-in applies on 3-to-5-year terms. ${DP_PROMO.shortTermNote}`
+          : dpWrongPct
+            ? `${DP_PROMO.label}: this unit's ${peso(unitDp)} all-in applies at 20% down. At ${dpPct}% the all-in figure is different — message me for that quote.`
+            : '';
+      const rateMsg = promo ? `${promo.label} · until ${fmtDate(promo.end)}. ${promo.note}` : '';
+      promoNote.textContent = dpMsg || rateMsg;
+      promoNote.hidden = !promoNote.textContent;
+      promoNote.classList.toggle('is-dp', !!dpMsg);
     }
     flip($('#estHero'));
   }
@@ -564,6 +617,93 @@
   setDpFill();
   renderEstimate();
 
+  /* ══════════════════════════════════════════ shared form scaffolding */
+  /* The loan application, the test drive booking and the service appointment
+     all render from the same {group → fields} shape, so the field renderer
+     lives out here rather than inside any one of them.
+
+     `ns` namespaces the ids (ap_ / cm_ / td_ / sv_) so two forms can carry the
+     same field key on one page without colliding. */
+  function fieldHTML(f, ns, { markRequired = true } = {}) {
+    const id = `${ns}_${f.key}`;
+    /* Only required fields get a tag — labelling the majority "Optional" is
+       louder than the labels themselves. `markRequired: false` is for the
+       co-maker block, whose fields are never actually enforced. */
+    const must = !!f.required && markRequired;
+    const req = must ? '<span class="field__req">Required</span>' : '';
+    const attrs = [
+      `id="${id}"`,
+      `data-fkey="${f.key}"`,
+      /* Autofill would otherwise pour the applicant's details into the
+         co-maker's matching field. */
+      markRequired && f.autocomplete ? `autocomplete="${f.autocomplete}"` : 'autocomplete="off"',
+      f.inputmode ? `inputmode="${f.inputmode}"` : '',
+      f.placeholder ? `placeholder="${esc(f.placeholder)}"` : '',
+      must ? 'required aria-required="true"' : '',
+    ].filter(Boolean).join(' ');
+
+    let control;
+    if (f.type === 'select') {
+      control = `<div class="select"><select ${attrs}>
+           <option value="">Select…</option>
+           ${f.options.map((o) => `<option>${esc(o)}</option>`).join('')}
+         </select><span class="ms">expand_more</span></div>`;
+    } else if (f.prefix) {
+      /* ₱ sits inside the box so the value lines up with a real amount. */
+      control = `<div class="field__wrap"><span class="field__prefix">${esc(f.prefix)}</span>
+           <input ${attrs} type="${f.type}" class="has-prefix" /></div>`;
+    } else {
+      control = `<input ${attrs} type="${f.type}" />`;
+    }
+
+    return `<div class="field field--s${f.span || 4}">
+        <label for="${id}"><span>${esc(f.label)}</span>${req}</label>
+        ${control}
+      </div>`;
+  }
+
+  const groupsHTML = (groups, ns, opts) => groups.map((g) => `
+    <div class="apply-group">
+      <p class="apply-group__label"><span class="ms">${g.icon}</span>${esc(g.label)}</p>
+      <div class="apply-grid">${g.fields.map((f) => fieldHTML(f, ns, opts)).join('')}</div>
+    </div>`).join('');
+
+  /* Clears the invalid ring as soon as they start fixing it, and keeps every
+     empty date input's mm/dd/yyyy mask muted (see the note in style.css). */
+  function wireFormFeedback(form) {
+    const markEmptyDates = () => $$('input[type="date"]', form)
+      .forEach((el) => el.classList.toggle('is-empty', !el.value));
+    markEmptyDates();
+    form.addEventListener('input', (e) => {
+      if (e.target.classList?.contains('is-invalid')) {
+        e.target.classList.remove('is-invalid');
+        e.target.removeAttribute('aria-invalid');
+      }
+      if (e.target.type === 'date') e.target.classList.toggle('is-empty', !e.target.value);
+    });
+  }
+
+  /* Flags every empty required field, focuses the first, returns whether it
+     passed. Shared by all three copy-only forms. */
+  function validateForm(form, ns, fields, message) {
+    let bad = null;
+    for (const f of fields.filter((x) => x.required)) {
+      const el = form.querySelector(`#${ns}_${f.key}`);
+      if (!el) continue;
+      const ok = !!el.value.trim();
+      el.classList.toggle('is-invalid', !ok);
+      if (ok) el.removeAttribute('aria-invalid'); else el.setAttribute('aria-invalid', 'true');
+      if (!ok && !bad) bad = el;
+    }
+    if (bad) {
+      toast(message);
+      bad.focus();
+      bad.scrollIntoView({ block: 'center', behavior: reduced ? 'auto' : 'smooth' });
+      return false;
+    }
+    return true;
+  }
+
   /* ═════════════════════════════════════════════ auto loan application */
   /* Copy-only by design — see the note above LOAN_REQUIREMENTS in data.js.
      No localStorage, no mailto/sms body, nothing leaves the page. */
@@ -571,22 +711,10 @@
     const form = $('#applyForm');
     if (!form) return;
 
-    const fieldHTML = (f, ns) => {
-      const id = `${ns}_${f.key}`;
-      const req = f.required ? ' <span class="req" aria-hidden="true">*</span>' : '';
-      const input = f.type === 'select'
-        ? `<div class="select"><select id="${id}" data-fkey="${f.key}">
-             <option value="">—</option>
-             ${f.options.map((o) => `<option>${esc(o)}</option>`).join('')}
-           </select><span class="ms">expand_more</span></div>`
-        : `<input id="${id}" data-fkey="${f.key}" type="${f.type}"
-             ${f.autocomplete ? `autocomplete="${f.autocomplete}"` : ''}
-             ${f.type === 'tel' ? 'inputmode="tel"' : ''} />`;
-      return `<div class="field"><label for="${id}">${esc(f.label)}${req}</label>${input}</div>`;
-    };
+    $('#applicantFields').innerHTML = groupsHTML(APPLICATION_GROUPS, 'ap');
+    $('#comakerFields').innerHTML = groupsHTML(APPLICATION_GROUPS, 'cm', { markRequired: false });
 
-    $('#applicantFields').innerHTML = APPLICATION_FIELDS.map((f) => fieldHTML(f, 'ap')).join('');
-    $('#comakerFields').innerHTML = APPLICATION_FIELDS.map((f) => fieldHTML(f, 'cm')).join('');
+    wireFormFeedback(form);
 
     /* requirements tabs */
     const tabs = $('#reqTabs');
@@ -667,22 +795,10 @@
       return L.join('\n');
     }
 
-    function validateApply() {
-      let bad = null;
-      for (const f of APPLICATION_FIELDS.filter((x) => x.required)) {
-        const el = form.querySelector(`#ap_${f.key}`);
-        const ok = !!el.value.trim();
-        el.classList.toggle('is-invalid', !ok);
-        if (!ok && !bad) bad = el;
-      }
-      if (bad) {
-        toast('Please fill in your name and mobile number.');
-        bad.focus();
-        bad.scrollIntoView({ block: 'center', behavior: 'smooth' });
-        return false;
-      }
-      return true;
-    }
+    const validateApply = () => validateForm(
+      form, 'ap', APPLICATION_FIELDS,
+      'Please fill in your name and mobile number.',
+    );
 
     const foot = $('#applyFoot');
     async function copyApplication() {
@@ -711,15 +827,161 @@
     });
   })();
 
+  /* ═══════════════════════════════════ test drive & service booking */
+  /* Same copy-only contract as the loan application: the message is built in
+     the browser, copied to the clipboard, and the customer sends it. Nothing
+     is posted anywhere and the mail/Viber links carry no personal data in the
+     URL — see the note above the apply form's email handler. */
+  (function initBooking() {
+    const form = $('#bookForm');
+    if (!form) return;
+
+    const KINDS = {
+      testdrive: {
+        ns: 'td',
+        groups: TESTDRIVE_GROUPS,
+        title: 'TEST DRIVE REQUEST',
+        subject: 'Test drive request',
+        invalid: 'Please fill in your name, mobile number and preferred date.',
+        done: 'Test drive request copied — send it to Sherill 📋',
+      },
+      service: {
+        ns: 'sv',
+        groups: SERVICE_GROUPS,
+        title: 'SERVICE APPOINTMENT REQUEST',
+        subject: 'Service appointment request',
+        invalid: 'Please fill in your name, mobile, service type and preferred date.',
+        done: 'Service request copied — send it to Sherill 📋',
+      },
+    };
+
+    let kind = 'testdrive';
+    const cur = () => KINDS[kind];
+
+    /* Both panels render up front and one is hidden, so switching tabs keeps
+       whatever the customer already typed in the other. */
+    $('#tdFields').innerHTML = groupsHTML(TESTDRIVE_GROUPS, 'td');
+    $('#svFields').innerHTML = groupsHTML(SERVICE_GROUPS, 'sv');
+
+    /* A booking in the past helps nobody — floor the date pickers at today. */
+    const todayIso = isoToday();
+    $$('input[type="date"]', form).forEach((el) => { el.min = todayIso; });
+
+    wireFormFeedback(form);
+
+    const tabs = $('#bookTabs');
+    function setKind(next) {
+      kind = next;
+      $$('.seg__btn', tabs).forEach((b) => {
+        const on = b.dataset.kind === next;
+        b.classList.toggle('is-active', on);
+        b.setAttribute('aria-selected', String(on));
+      });
+      $('#bookTestdrive').hidden = next !== 'testdrive';
+      $('#bookService').hidden = next !== 'service';
+      $('#bookFoot').textContent = '';
+    }
+    tabs.addEventListener('click', (e) => {
+      const b = e.target.closest('.seg__btn');
+      if (b) setKind(b.dataset.kind);
+    });
+    setKind('testdrive');
+
+    /* Model picker on the test drive panel reuses the line-up. */
+    const tdModel = $('#tdModel');
+    const tdVariant = $('#tdVariant');
+    tdModel.innerHTML = '<option value="">Not sure yet — recommend one</option>'
+      + MODELS.map((m) => `<option value="${m.id}">${esc(m.full)}</option>`).join('');
+    function fillTdVariants() {
+      const m = MODELS.find((x) => x.id === tdModel.value);
+      tdVariant.innerHTML = m
+        ? '<option value="">Any variant</option>'
+          + m.variants.map((v) => `<option>${esc(v.name)}</option>`).join('')
+        : '<option value="">Choose a model first</option>';
+    }
+    tdModel.addEventListener('change', fillTdVariants);
+    fillTdVariants();
+
+    const val = (ns, key) => (form.querySelector(`#${ns}_${key}`)?.value || '').trim();
+
+    /* Dates go out as "Monday, September 1, 2026" — an ISO string in a chat
+       message is one more thing for her to decode. */
+    const prettyDate = (iso) => {
+      if (!iso) return '—';
+      const [y, mo, d] = iso.split('-').map(Number);
+      return new Date(y, mo - 1, d).toLocaleDateString('en-PH', {
+        weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
+      });
+    };
+
+    function buildBooking() {
+      const k = cur();
+      const L = [k.title, ''];
+      k.groups.forEach((g) => {
+        L.push(g.label.toUpperCase());
+        g.fields.forEach((f) => {
+          const raw = val(k.ns, f.key);
+          /* "What's the concern?: …" reads badly — drop a label's own trailing
+             punctuation before appending the colon. */
+          const label = f.label.replace(/[?:]+$/, '');
+          L.push(`${label}: ${f.type === 'date' ? prettyDate(raw) : (raw || '—')}`);
+        });
+        L.push('');
+      });
+      if (kind === 'testdrive') {
+        L.push('UNIT');
+        L.push(`Model: ${tdModel.value ? tdModel.options[tdModel.selectedIndex].text : '—'}`);
+        L.push(`Variant: ${tdVariant.value || '—'}`);
+        L.push('');
+        L.push('I understand I need to bring my driver\'s licence on the day.');
+      }
+      L.push(`Preferred times are within ${AGENT.hours}.`);
+      L.push('Sent from drive-with-sherill');
+      return L.join('\n');
+    }
+
+    const foot = $('#bookFoot');
+    async function copyBooking() {
+      const k = cur();
+      const fields = k.groups.flatMap((g) => g.fields);
+      if (!validateForm(form, k.ns, fields, k.invalid)) return false;
+      const ok = await copyText(buildBooking());
+      toast(ok ? k.done : 'Could not copy — please select and copy manually.');
+      if (ok) {
+        foot.textContent = `Copied. Paste it in your message to Sherill and she'll confirm your slot. Email: ${AGENT.email} · Mobile: ${AGENT.mobile}`;
+      }
+      return ok;
+    }
+
+    $('#bookCopy').addEventListener('click', copyBooking);
+    $('#bookViber').addEventListener('click', async () => {
+      if (!(await copyBooking())) return;
+      setTimeout(() => { location.href = `viber://chat?number=${encodeURIComponent(AGENT.mobileIntl)}`; }, 450);
+    });
+    $('#bookEmail').addEventListener('click', async () => {
+      if (!(await copyBooking())) return;
+      const subject = encodeURIComponent(cur().subject);
+      setTimeout(() => { location.href = `mailto:${AGENT.email}?subject=${subject}`; }, 450);
+    });
+  })();
+
   /* ═════════════════════════════════════════════════════ model sheet */
   const sheet = $('#sheet');
   const sheetBody = $('#sheetBody');
   let lastFocus = null;
+  /* Photos of whichever model the sheet is currently showing — the lightbox
+     pages through this rather than re-querying the DOM. */
+  let sheetShots = [];
 
   function openSheet(id) {
     const m = MODELS.find((x) => x.id === id);
     if (!m) return;
     lastFocus = document.activeElement;
+    sheetShots = m.photos?.shots || [];
+    /* Both columns are per-model: only render them when this model actually
+       has the data, so no line-up gets an all-dashes column. */
+    const hasLto = m.variants.some((v) => v.lto);
+    const hasDp = m.variants.some((v) => variantPromoDp(v) != null);
 
     const colorHTML = m.colorGroups.map((g) => `
       <div class="colorset">
@@ -743,10 +1005,14 @@
         <h4>${esc(m.photos.label)}</h4>
         ${m.photos.note ? `<p class="shots__note">${esc(m.photos.note)}</p>` : ''}
         <div class="shots">
-          ${m.photos.shots.map((p) => `
+          ${m.photos.shots.map((p, i) => `
             <figure class="shots__item">
-              <img src="assets/models/photos/${p.src}.webp" alt="${esc(p.alt)}"
-                   width="${p.w}" height="${p.h}" decoding="async" />
+              <button type="button" class="shots__open" data-shot="${i}"
+                      aria-label="View photo ${i + 1} of ${m.photos.shots.length} full screen">
+                <img src="assets/models/photos/${p.src}.webp" alt="${esc(p.alt)}"
+                     width="${p.w}" height="${p.h}" decoding="async" />
+                <span class="shots__zoom ms">fullscreen</span>
+              </button>
             </figure>`).join('')}
         </div>
       </div>`;
@@ -784,19 +1050,21 @@
         <h4>Variants &amp; prices${m.ltoNote ? ` · ${esc(m.ltoNote)}` : ''}</h4>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Variant</th><th>Transmission</th>${m.variants.some((v) => v.lto) ? '<th>LTO (3 yrs)</th>' : ''}<th>SRP (VAT incl.)</th><th></th></tr></thead>
+            <thead><tr><th>Variant</th><th>Transmission</th>${hasLto ? '<th>LTO (3 yrs)</th>' : ''}${hasDp ? '<th>All-in DP</th>' : ''}<th>SRP (VAT incl.)</th><th></th></tr></thead>
             <tbody>
               ${m.variants.map((v, i) => `
                 <tr>
                   <td class="name">${esc(v.name)}</td>
                   <td>${esc(v.trans || '—')}</td>
-                  ${m.variants.some((x) => x.lto) ? `<td>${v.lto ? peso(v.lto) : '—'}</td>` : ''}
+                  ${hasLto ? `<td>${v.lto ? peso(v.lto) : '—'}</td>` : ''}
+                  ${hasDp ? `<td class="dp">${variantPromoDp(v) ? peso(variantPromoDp(v)) : '—'}</td>` : ''}
                   <td class="price">${v.price ? peso(v.price) : esc(v.note || 'Ask for price')}</td>
                   <td><button class="btn btn--sm btn--ghost" data-quote-model="${m.id}" data-quote-variant="${i}">Quote</button></td>
                 </tr>`).join('')}
             </tbody>
           </table>
         </div>
+        ${hasDp ? `<p class="dp-note"><span class="ms">savings</span><span><strong>${esc(DP_PROMO.label)}</strong> — ${fmtDate(DP_PROMO.start)} to ${fmtDate(DP_PROMO.end)}, on ${DP_PROMO.terms[0] / 12}-to-${DP_PROMO.terms[DP_PROMO.terms.length - 1] / 12}-year terms. ${esc(DP_PROMO.note)}</span></p>` : ''}
       </div>
 
       <div class="sheet-block">
@@ -847,6 +1115,7 @@
 
   function closeSheet() {
     if (!sheet.classList.contains('is-open')) return;
+    closeLightbox();
     sheet.classList.remove('is-open');
     sheet.setAttribute('aria-hidden', 'true');
     document.body.classList.remove('is-locked');
@@ -855,7 +1124,78 @@
   }
 
   sheet.addEventListener('click', (e) => { if (e.target.closest('[data-close]')) closeSheet(); });
+
+  /* ═══════════════════════════════════════ showroom photo lightbox */
+  /* Layers above the model sheet, so Escape has to close this first and the
+     body stays locked underneath — the sheet is still open behind it. */
+  const lb = $('#lightbox');
+  const lbImg = $('#lbImg');
+  const lbPrev = $('#lbPrev');
+  const lbNext = $('#lbNext');
+  let lbIndex = 0;
+  let lbReturn = null;
+
+  const lbOpen = () => lb.classList.contains('is-open');
+
+  function lbShow(i) {
+    const p = sheetShots[i];
+    if (!p) return;
+    lbIndex = i;
+    lbImg.src = `assets/models/photos/${p.src}.webp`;
+    lbImg.alt = p.alt;
+    $('#lbAlt').textContent = p.alt;
+    $('#lbCount').textContent = `${i + 1} / ${sheetShots.length}`;
+    const solo = sheetShots.length < 2;
+    lbPrev.hidden = solo;
+    lbNext.hidden = solo;
+  }
+
+  const lbStep = (d) => lbShow((lbIndex + d + sheetShots.length) % sheetShots.length);
+
+  function openLightbox(i) {
+    if (!sheetShots.length) return;
+    lbReturn = document.activeElement;
+    lbShow(i);
+    lb.classList.add('is-open');
+    lb.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('is-locked');
+    $('.lightbox__close').focus({ preventScroll: true });
+  }
+
+  function closeLightbox() {
+    if (!lbOpen()) return;
+    lb.classList.remove('is-open');
+    lb.setAttribute('aria-hidden', 'true');
+    /* The sheet is still open behind, so only unlock when it isn't. */
+    if (!sheet.classList.contains('is-open')) document.body.classList.remove('is-locked');
+    lbReturn?.focus?.({ preventScroll: true });
+  }
+
+  sheetBody.addEventListener('click', (e) => {
+    const btn = e.target.closest('.shots__open');
+    if (btn) openLightbox(Number(btn.dataset.shot));
+  });
+  lb.addEventListener('click', (e) => { if (e.target.closest('[data-lb-close]')) closeLightbox(); });
+  lbPrev.addEventListener('click', () => lbStep(-1));
+  lbNext.addEventListener('click', () => lbStep(1));
+
+  /* Swipe between photos on touch. */
+  let lbTouchX = null;
+  lb.addEventListener('touchstart', (e) => { lbTouchX = e.changedTouches[0].clientX; }, { passive: true });
+  lb.addEventListener('touchend', (e) => {
+    if (lbTouchX === null) return;
+    const dx = e.changedTouches[0].clientX - lbTouchX;
+    lbTouchX = null;
+    if (Math.abs(dx) > 55) lbStep(dx < 0 ? 1 : -1);
+  }, { passive: true });
+
   document.addEventListener('keydown', (e) => {
+    if (lbOpen()) {
+      if (e.key === 'Escape') { e.stopPropagation(); closeLightbox(); }
+      else if (e.key === 'ArrowLeft') lbStep(-1);
+      else if (e.key === 'ArrowRight') lbStep(1);
+      return;
+    }
     if (e.key === 'Escape') { closeSheet(); closeDrawer(); }
   });
 

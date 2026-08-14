@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0a0a0b" />
+<title>Promo posters — Sherill Obillo</title>
+<meta name="description" content="Generate a shareable all-in down payment promo poster for any Nissan unit." />
+<meta name="robots" content="noindex" />
+
+<link rel="icon" href="../favicon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="../apple-touch-icon.png" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="poster.css" />
+</head>
+<body>
+
+<header class="topbar">
+  <a class="topbar__back" href="../"><span class="ms">arrow_back</span><span>Back to site</span></a>
+  <div class="topbar__title">
+    <strong>Promo posters</strong>
+    <span id="windowLabel">—</span>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="panel">
+    <h2 class="panel__title">1 · Pick the unit</h2>
+
+    <div class="field">
+      <label for="pModel">Model</label>
+      <div class="select"><select id="pModel"></select><span class="ms">expand_more</span></div>
+    </div>
+
+    <div class="field">
+      <label for="pVariant">Variant</label>
+      <div class="select"><select id="pVariant"></select><span class="ms">expand_more</span></div>
+    </div>
+
+    <p class="hint" id="dpHint"></p>
+
+    <h2 class="panel__title">2 · Style it</h2>
+
+    <div class="field">
+      <label>Theme</label>
+      <div class="seg" id="pTheme" role="tablist">
+        <button type="button" class="seg__btn is-active" data-theme="dark" role="tab">Dark</button>
+        <button type="button" class="seg__btn" data-theme="light" role="tab">Light</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Size</label>
+      <div class="seg" id="pSize" role="tablist">
+        <button type="button" class="seg__btn is-active" data-size="square" role="tab">Square 1080</button>
+        <button type="button" class="seg__btn" data-size="story" role="tab">Story 1080×1920</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="pHeadline">Headline <em>(optional override)</em></label>
+      <input id="pHeadline" type="text" placeholder="e.g. Command everything" />
+    </div>
+
+    <label class="check">
+      <input type="checkbox" id="pShowSrp" checked />
+      <span class="check__box"><span class="ms">check</span></span>
+      <span>Show the SRP on the poster</span>
+    </label>
+
+    <h2 class="panel__title">3 · Save it</h2>
+    <div class="actions">
+      <button type="button" class="btn btn--primary" id="pDownload">
+        <span class="ms">download</span><span>Download PNG</span>
+      </button>
+      <button type="button" class="btn btn--ghost" id="pCopy">
+        <span class="ms">content_copy</span><span>Copy image</span>
+      </button>
+      <button type="button" class="btn btn--ghost" id="pCaption">
+        <span class="ms">notes</span><span>Copy caption</span>
+      </button>
+    </div>
+    <p class="hint" id="saveHint"></p>
+  </section>
+
+  <section class="preview">
+    <div class="preview__stage" id="stage">
+      <canvas id="poster" width="1080" height="1080"></canvas>
+    </div>
+    <p class="preview__note">
+      Figures come straight from the site's promo data — edit
+      <code>js/data.js</code> and every poster updates with it.
+    </p>
+  </section>
+
+</main>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="../js/data.js"></script>
+<script src="poster.js"></script>
+</body>
+</html>

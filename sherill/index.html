@@ -46,6 +46,7 @@
       <a href="#epower" data-nav>e-POWER</a>
       <a href="#quote" data-nav>Quotation</a>
       <a href="#apply" data-nav>Apply</a>
+      <a href="#book" data-nav>Book</a>
       <a href="#contact" data-nav>Contact</a>
     </nav>
 
@@ -69,6 +70,7 @@
     <a href="#epower" data-nav><span class="ms">bolt</span>KICKS e-POWER</a>
     <a href="#quote" data-nav><span class="ms">request_quote</span>Get a quotation</a>
     <a href="#apply" data-nav><span class="ms">assignment</span>Apply for a loan</a>
+    <a href="#book" data-nav><span class="ms">event_available</span>Test drive or service</a>
     <a href="#contact" data-nav><span class="ms">call</span>Contact me</a>
   </nav>
   <div class="drawer__foot">
@@ -383,52 +385,168 @@
         </span>
       </p>
 
-      <h3 class="apply-form__step">Applicant</h3>
-      <div class="apply-grid" id="applicantFields"></div>
+      <section class="apply-step">
+        <header class="apply-step__head">
+          <span class="apply-step__num">1</span>
+          <div class="apply-step__text">
+            <h3>Applicant</h3>
+            <p>Your details exactly as they appear on your valid ID.</p>
+          </div>
+        </header>
+        <div id="applicantFields"></div>
+      </section>
 
-      <h3 class="apply-form__step">Unit you're applying for</h3>
-      <div class="apply-grid">
-        <div class="field">
-          <label for="aModel">Unit model</label>
-          <div class="select"><select id="aModel"></select><span class="ms">expand_more</span></div>
+      <section class="apply-step">
+        <header class="apply-step__head">
+          <span class="apply-step__num">2</span>
+          <div class="apply-step__text">
+            <h3>Unit you're applying for</h3>
+            <p>Not final — we can still change this before the bank files it.</p>
+          </div>
+        </header>
+        <div class="apply-group">
+          <div class="apply-grid">
+            <div class="field field--s4">
+              <label for="aModel"><span>Unit model</span></label>
+              <div class="select"><select id="aModel"></select><span class="ms">expand_more</span></div>
+            </div>
+            <div class="field field--s4">
+              <label for="aVariant"><span>Variant</span></label>
+              <div class="select"><select id="aVariant"></select><span class="ms">expand_more</span></div>
+            </div>
+            <div class="field field--s4">
+              <label for="aColor"><span>Color</span></label>
+              <div class="select"><select id="aColor"></select><span class="ms">expand_more</span></div>
+            </div>
+          </div>
         </div>
-        <div class="field">
-          <label for="aVariant">Variant</label>
-          <div class="select"><select id="aVariant"></select><span class="ms">expand_more</span></div>
+      </section>
+
+      <section class="apply-step">
+        <header class="apply-step__head">
+          <span class="apply-step__num">3</span>
+          <div class="apply-step__text">
+            <h3>Spouse / co-maker</h3>
+            <p>Only if you have one. If you're an OFW and not married, please
+              give a close relative instead.</p>
+          </div>
+        </header>
+
+        <label class="check apply-comaker-toggle">
+          <input type="checkbox" id="aHasComaker" />
+          <span class="check__box"><span class="ms">check</span></span>
+          <span>I have a spouse or co-maker</span>
+        </label>
+
+        <div id="comakerBlock" class="is-collapsed">
+          <div class="apply-group">
+            <div class="apply-grid">
+              <div class="field field--s12">
+                <label for="aRelation"><span>Relationship to applicant</span></label>
+                <input id="aRelation" type="text" placeholder="e.g. Spouse, Brother, Mother" />
+              </div>
+            </div>
+          </div>
+          <div id="comakerFields"></div>
         </div>
-        <div class="field">
-          <label for="aColor">Color</label>
-          <div class="select"><select id="aColor"></select><span class="ms">expand_more</span></div>
+      </section>
+
+      <div class="apply-actions">
+        <div class="quote-form__actions">
+          <button type="button" class="btn btn--primary btn--lg" id="applyCopy">
+            <span class="ms">content_copy</span><span>Copy application</span>
+          </button>
+          <button type="button" class="btn btn--ghost" id="applyViber"><span class="ms">chat</span><span>Copy &amp; open Viber</span></button>
+          <button type="button" class="btn btn--ghost" id="applyEmail"><span class="ms">mail</span><span>Copy &amp; open email</span></button>
         </div>
+        <p class="apply-foot" id="applyFoot"></p>
+      </div>
+    </form>
+  </div>
+</section>
+
+<!-- ═════════════════════════════════════════ test drive & service booking -->
+<section class="section" id="book">
+  <header class="section__head">
+    <p class="eyebrow reveal"><span class="dot"></span>Book a visit</p>
+    <h2 class="reveal" data-delay="1">Test drive or service</h2>
+    <p class="section__lead reveal" data-delay="2">
+      Tell me when you're free and I'll hold the slot. Same as the loan form —
+      this runs in your browser and you send it to me yourself.
+    </p>
+  </header>
+
+  <div class="apply-wrap">
+    <div class="seg seg--wrap book-tabs reveal" id="bookTabs" role="tablist" aria-label="Booking type">
+      <button type="button" class="seg__btn is-active" data-kind="testdrive" role="tab" aria-selected="true">
+        <span class="ms">directions_car</span>Book a test drive
+      </button>
+      <button type="button" class="seg__btn" data-kind="service" role="tab" aria-selected="false">
+        <span class="ms">build</span>Service appointment
+      </button>
+    </div>
+
+    <form class="quote-form apply-form reveal" id="bookForm" novalidate autocomplete="on">
+      <p class="apply-privacy">
+        <span class="ms">lock</span>
+        <span>
+          Nothing is saved and nothing is sent from this page. Pressing
+          <strong>Copy request</strong> puts it on your clipboard and you paste
+          it to me — I'll reply to confirm the slot.
+        </span>
+      </p>
+
+      <div id="bookTestdrive">
+        <section class="apply-step">
+          <header class="apply-step__head">
+            <span class="apply-step__num"><span class="ms">directions_car</span></span>
+            <div class="apply-step__text">
+              <h3>Test drive</h3>
+              <p>Bring your driver's licence on the day — the dealership needs to see the physical card.</p>
+            </div>
+          </header>
+
+          <div class="apply-group">
+            <p class="apply-group__label"><span class="ms">directions_car</span>Which unit</p>
+            <div class="apply-grid">
+              <div class="field field--s6">
+                <label for="tdModel"><span>Model</span></label>
+                <div class="select"><select id="tdModel"></select><span class="ms">expand_more</span></div>
+              </div>
+              <div class="field field--s6">
+                <label for="tdVariant"><span>Variant</span></label>
+                <div class="select"><select id="tdVariant"></select><span class="ms">expand_more</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div id="tdFields"></div>
+        </section>
       </div>
 
-      <label class="check apply-comaker-toggle">
-        <input type="checkbox" id="aHasComaker" />
-        <span class="check__box"><span class="ms">check</span></span>
-        <span>I have a spouse or co-maker</span>
-      </label>
+      <div id="bookService" hidden>
+        <section class="apply-step">
+          <header class="apply-step__head">
+            <span class="apply-step__num"><span class="ms">build</span></span>
+            <div class="apply-step__text">
+              <h3>Service appointment</h3>
+              <p>Booking ahead means your unit goes straight into a bay instead of the queue.</p>
+            </div>
+          </header>
+          <div id="svFields"></div>
+        </section>
+      </div>
 
-      <div id="comakerBlock" class="is-collapsed">
-        <h3 class="apply-form__step">Spouse / co-maker</h3>
-        <p class="apply-hint">
-          If you're an OFW and not married, please give a close relative as
-          co-maker.
-        </p>
-        <div class="apply-grid" id="comakerFields"></div>
-        <div class="field field--full">
-          <label for="aRelation">Relationship to applicant</label>
-          <input id="aRelation" type="text" placeholder="e.g. Spouse, Brother, Mother" />
+      <div class="apply-actions">
+        <div class="quote-form__actions">
+          <button type="button" class="btn btn--primary btn--lg" id="bookCopy">
+            <span class="ms">content_copy</span><span>Copy request</span>
+          </button>
+          <button type="button" class="btn btn--ghost" id="bookViber"><span class="ms">chat</span><span>Copy &amp; open Viber</span></button>
+          <button type="button" class="btn btn--ghost" id="bookEmail"><span class="ms">mail</span><span>Copy &amp; open email</span></button>
         </div>
+        <p class="apply-foot" id="bookFoot"></p>
       </div>
-
-      <div class="quote-form__actions">
-        <button type="button" class="btn btn--primary btn--lg" id="applyCopy">
-          <span class="ms">content_copy</span><span>Copy application</span>
-        </button>
-        <button type="button" class="btn btn--ghost" id="applyViber"><span class="ms">chat</span><span>Copy &amp; open Viber</span></button>
-        <button type="button" class="btn btn--ghost" id="applyEmail"><span class="ms">mail</span><span>Copy &amp; open email</span></button>
-      </div>
-      <p class="apply-foot" id="applyFoot"></p>
     </form>
   </div>
 </section>
@@ -501,6 +619,9 @@
       Nissan Philippines website. All model names, prices and trademarks belong
       to Nissan. Prices are SRP and may change without prior notice.
     </p>
+    <!-- Sherill's own tool for making the promo images she posts. Marked
+         noindex and kept out of the nav — it isn't for customers. -->
+    <a class="footer__tool" href="poster/"><span class="ms">image</span>Promo poster studio</a>
   </div>
 </footer>
 
@@ -518,6 +639,18 @@
     <button class="sheet__close" data-close aria-label="Close"><span class="ms">close</span></button>
     <div class="sheet__scroll" id="sheetBody"></div>
   </div>
+</div>
+
+<!-- ══════════════════════════════════════════════ showroom photo lightbox -->
+<div class="lightbox" id="lightbox" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Showroom photo">
+  <div class="lightbox__scrim" data-lb-close></div>
+  <button class="lightbox__close" data-lb-close aria-label="Close photo"><span class="ms">close</span></button>
+  <button class="lightbox__nav lightbox__nav--prev" id="lbPrev" aria-label="Previous photo"><span class="ms">chevron_left</span></button>
+  <button class="lightbox__nav lightbox__nav--next" id="lbNext" aria-label="Next photo"><span class="ms">chevron_right</span></button>
+  <figure class="lightbox__stage">
+    <img id="lbImg" alt="" />
+    <figcaption class="lightbox__cap"><span id="lbAlt"></span><span class="lightbox__count" id="lbCount"></span></figcaption>
+  </figure>
 </div>
 
 <div class="toast" id="toast" aria-live="polite"></div>

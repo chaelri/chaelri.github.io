@@ -34,13 +34,14 @@ Local workflow that takes a day-folder of mixed-orientation Insta360 / phone cli
 Personal site for **Tita Sherill Obillo**, Nissan Marketing Professional at Nissan Quezon Avenue — the full PH line-up with variant prices, current promos, a KICKS e-POWER explainer, a financing/quotation calculator and contact links.
 
 - **Tech:** vanilla JS + hand-written CSS (no framework — Tailwind was dropped for mobile performance), Material Symbols Outlined, Inter. No build step.
-- **Entry:** `index.html`, `js/data.js` (all content — prices, variants, colors, promos), `js/app.js`, `style.css`.
+- **Entry:** `index.html`, `js/data.js` (all content — prices, variants, colors, promos), `js/app.js`, `style.css`, `poster/` (internal promo-image studio).
 - **Deploy:** its **own Vercel project** `drive-with-sherill` → https://drive-with-sherill.vercel.app (separate from the repo-root deploy). Redeploy = `cd sherill && vercel --prod --yes` **then re-set the alias** — it does not follow automatically. Also on GitHub Pages at `/sherill/`.
 - **Quirks:**
   - A three.js low-poly car viewer was built, then removed — real Nissan photography reads far better on a car sales page.
   - Model images are pulled from nissan.ph's DAM; the price-guide thumbnails are only 300 px, the usable ones are the desktop KV JPGs on each model page (1920–2880 px). Needs a browser UA + `Referer: https://www.nissan.ph/`.
   - Prices come from the dealership's **internal promo master** (`INTERNAL PROMO-AUGUST -SEPT 2026.pdf`, filed in `~/Documents/`, marked Confidential), not nissan.ph and not the abbreviated scanned "SALES COPY" flyer — the scan misled on Almera VL and Patrol before the PDF arrived. **Only its prices, variants and inclusives are public**; its Cash Discount and per-bank Promo Cash Out columns are deliberately kept out of the repo, as is the bank sheet's Dealer's Incentive column. Refreshed 2026-08-13: X-Trail palette corrected, Almera EL + Terra EL added, Navara colours split per variant group, and the financing calculator now uses real per-bank add-on rates. **KICKS prices are finally confirmed** (EL/VE/VL ₱1,179,000 / ₱1,279,000 / ₱1,479,000, no "LE Plus").
-  - The quotation form has no backend: it composes a message for Viber / SMS / email / clipboard. The Viber button copies first because Viber links can't carry text.
+  - The quotation form has no backend: it composes a message for Viber / SMS / email / clipboard. The Viber button copies first because Viber links can't carry text. The **loan application, test drive booking and service appointment** (added 2026-08-13) all follow the same copy-only contract and share one field renderer.
+  - **Low all-in DP promo (2026-08-13):** Sherill published her per-unit promo cash-out herself, so `DP_PROMO` + `DP_PROMO_UNITS` now ship in `data.js` — the first promo cash-out figures in the repo. All-in = DP + chattel + insurance; **the bank still approves on a 20% DP basis**, so the monthly is unchanged and only the cash out moves. 36/48/60-month terms only. Dealer's Incentive is still held back.
   - Footer states it is not an official Nissan Philippines website.
 - **Full docs:** See `knowledge/sherill/SUMMARY.md` and `sherill/README.md`.
 

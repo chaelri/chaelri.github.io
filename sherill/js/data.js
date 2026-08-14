@@ -607,25 +607,167 @@ const LOAN_REQUIREMENTS = [
 
 const CIVIL_STATUS = ['Single', 'Married', 'Separated', 'Widowed', 'Annulled'];
 
-/* Shared by the applicant and the co-maker. `only` marks applicant-only rows. */
-const APPLICATION_FIELDS = [
-  { key: 'first',    label: 'First name',              type: 'text',  autocomplete: 'given-name',  required: true },
-  { key: 'middle',   label: 'Middle name',             type: 'text',  autocomplete: 'additional-name' },
-  { key: 'last',     label: 'Last name',               type: 'text',  autocomplete: 'family-name', required: true },
-  { key: 'birthday', label: 'Birthday',                type: 'date' },
-  { key: 'mobile',   label: 'Mobile number',           type: 'tel',   autocomplete: 'tel', required: true },
-  { key: 'tin',      label: 'TIN number',              type: 'text' },
-  { key: 'email',    label: 'Email address',           type: 'email', autocomplete: 'email' },
-  { key: 'civil',    label: 'Civil status',            type: 'select', options: CIVIL_STATUS },
-  { key: 'address',  label: 'Home address',            type: 'text' },
-  { key: 'addrYrs',  label: 'Years at this address',   type: 'text' },
-  { key: 'tel',      label: 'Telephone number',        type: 'tel' },
-  { key: 'position', label: 'Position',                type: 'text' },
-  { key: 'employer', label: 'Employer / business name', type: 'text' },
-  { key: 'workYrs',  label: 'Years in work / business', type: 'text' },
-  { key: 'office',   label: 'Office address',          type: 'text' },
-  { key: 'bank',     label: 'Bank and branch',         type: 'text' },
-  { key: 'income',   label: 'Monthly income',          type: 'text' },
+/* The applicant / co-maker form, chunked into labelled groups so a 17-field
+   wall reads as four short asks instead of one long one. Both the on-screen
+   layout and the copied plain-text block follow this order.
+
+   `span` is out of 12 on desktop; the responsive rules in style.css collapse
+   it to 2 columns on tablet and 1 on phones. */
+const APPLICATION_GROUPS = [
+  {
+    id: 'personal',
+    label: 'Personal details',
+    icon: 'badge',
+    fields: [
+      { key: 'first',    label: 'First name',    type: 'text', span: 4, required: true, autocomplete: 'given-name',      placeholder: 'Juan' },
+      { key: 'middle',   label: 'Middle name',   type: 'text', span: 4,                 autocomplete: 'additional-name', placeholder: 'Santos' },
+      { key: 'last',     label: 'Last name',     type: 'text', span: 4, required: true, autocomplete: 'family-name',     placeholder: 'Dela Cruz' },
+      { key: 'birthday', label: 'Birthday',      type: 'date', span: 4,                 autocomplete: 'bday' },
+      { key: 'civil',    label: 'Civil status',  type: 'select', span: 4, options: CIVIL_STATUS },
+      { key: 'tin',      label: 'TIN number',    type: 'text', span: 4, inputmode: 'numeric', placeholder: '000-000-000-000' },
+    ],
+  },
+  {
+    id: 'contact',
+    label: 'How to reach you',
+    icon: 'call',
+    fields: [
+      { key: 'mobile', label: 'Mobile number',    type: 'tel',   span: 4, required: true, autocomplete: 'tel', inputmode: 'tel', placeholder: '0917 123 4567' },
+      { key: 'tel',    label: 'Telephone number', type: 'tel',   span: 4, inputmode: 'tel', placeholder: '(02) 8123 4567' },
+      { key: 'email',  label: 'Email address',    type: 'email', span: 4, autocomplete: 'email', placeholder: 'juan@email.com' },
+    ],
+  },
+  {
+    id: 'address',
+    label: 'Home address',
+    icon: 'home',
+    fields: [
+      { key: 'address', label: 'Home address',          type: 'text', span: 8, autocomplete: 'street-address', placeholder: 'Unit / house no., street, barangay, city' },
+      { key: 'addrYrs', label: 'Years at this address', type: 'text', span: 4, inputmode: 'numeric', placeholder: 'e.g. 5' },
+    ],
+  },
+  {
+    id: 'work',
+    label: 'Work or business',
+    icon: 'work',
+    fields: [
+      { key: 'position', label: 'Position',                 type: 'text', span: 6, placeholder: 'e.g. Operations Supervisor' },
+      { key: 'employer', label: 'Employer / business name', type: 'text', span: 6, placeholder: 'Company or business name' },
+      { key: 'workYrs',  label: 'Years in work / business', type: 'text', span: 4, inputmode: 'numeric', placeholder: 'e.g. 3' },
+      { key: 'office',   label: 'Office address',           type: 'text', span: 8, placeholder: 'Office or business address' },
+    ],
+  },
+  {
+    id: 'finance',
+    label: 'Bank and income',
+    icon: 'account_balance',
+    fields: [
+      { key: 'bank',   label: 'Bank and branch', type: 'text', span: 6, placeholder: 'e.g. BDO — Katipunan' },
+      { key: 'income', label: 'Monthly income',  type: 'text', span: 6, inputmode: 'numeric', prefix: '₱', placeholder: '65,000' },
+    ],
+  },
+];
+
+/* Flat view — validation and the copied text block both walk this. */
+const APPLICATION_FIELDS = APPLICATION_GROUPS.flatMap((g) => g.fields);
+
+/* ───────────────────────────────────── test drive & service appointment ---
+   Sherill asked for these after seeing nissan.ph's "Book a test drive" and
+   "Schedule a service appointment" (2026-08-13).
+
+   Same copy-only posture as the loan application: no backend, no localStorage,
+   nothing leaves the page until the customer pastes it into a message to her
+   themselves. See the note above LOAN_REQUIREMENTS. */
+
+/* Her showroom hours are Mon–Sat 8:00 AM – 6:00 PM; the last bookable slot is
+   5:00 PM so there is time to finish. */
+const BOOKING_TIMES = [
+  '8:00 AM', '9:00 AM', '10:00 AM', '11:00 AM',
+  '12:00 NN', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM',
+];
+
+const TESTDRIVE_PLACES = [
+  'At Nissan Quezon Avenue',
+  'At my home',
+  'At my office',
+];
+
+const TESTDRIVE_GROUPS = [
+  {
+    id: 'you',
+    label: 'About you',
+    icon: 'person',
+    fields: [
+      { key: 'name',   label: 'Full name',     type: 'text',  span: 4, required: true, autocomplete: 'name', placeholder: 'Juan Dela Cruz' },
+      { key: 'mobile', label: 'Mobile number', type: 'tel',   span: 4, required: true, autocomplete: 'tel', inputmode: 'tel', placeholder: '0917 123 4567' },
+      { key: 'email',  label: 'Email address', type: 'email', span: 4, autocomplete: 'email', placeholder: 'juan@email.com' },
+    ],
+  },
+  {
+    id: 'when',
+    label: 'When and where',
+    icon: 'event',
+    fields: [
+      { key: 'date',  label: 'Preferred date', type: 'date',   span: 4, required: true },
+      { key: 'time',  label: 'Preferred time', type: 'select', span: 4, options: BOOKING_TIMES },
+      { key: 'place', label: 'Where',          type: 'select', span: 4, options: TESTDRIVE_PLACES },
+      { key: 'address', label: 'Address for a home or office test drive', type: 'text', span: 12, placeholder: 'Only if you picked home or office' },
+    ],
+  },
+  {
+    id: 'notes',
+    label: 'Anything else',
+    icon: 'chat',
+    fields: [
+      { key: 'license', label: 'Driver\'s licence number', type: 'text', span: 6, placeholder: 'Bring the physical licence on the day' },
+      { key: 'notes',   label: 'Notes for Sherill',        type: 'text', span: 6, placeholder: 'e.g. I want to try the e-Pedal' },
+    ],
+  },
+];
+
+const SERVICE_TYPES = [
+  'Periodic maintenance (PMS)',
+  'Repair / troubleshooting',
+  'Body and paint',
+  'Warranty claim',
+  'Parts inquiry',
+  'Other — see notes',
+];
+
+const SERVICE_GROUPS = [
+  {
+    id: 'you',
+    label: 'About you',
+    icon: 'person',
+    fields: [
+      { key: 'name',   label: 'Full name',     type: 'text',  span: 4, required: true, autocomplete: 'name', placeholder: 'Juan Dela Cruz' },
+      { key: 'mobile', label: 'Mobile number', type: 'tel',   span: 4, required: true, autocomplete: 'tel', inputmode: 'tel', placeholder: '0917 123 4567' },
+      { key: 'email',  label: 'Email address', type: 'email', span: 4, autocomplete: 'email', placeholder: 'juan@email.com' },
+    ],
+  },
+  {
+    id: 'unit',
+    label: 'Your vehicle',
+    icon: 'directions_car',
+    fields: [
+      { key: 'unit',    label: 'Model',           type: 'text', span: 4, placeholder: 'e.g. Navara VL 4x4' },
+      { key: 'year',    label: 'Year model',      type: 'text', span: 4, inputmode: 'numeric', placeholder: 'e.g. 2023' },
+      { key: 'plate',   label: 'Plate number',    type: 'text', span: 4, placeholder: 'e.g. ABC 1234' },
+      { key: 'mileage', label: 'Odometer (km)',   type: 'text', span: 4, inputmode: 'numeric', placeholder: 'e.g. 42,000' },
+      { key: 'lastPms', label: 'Last PMS',        type: 'text', span: 8, placeholder: 'e.g. 40,000 km last March, or not sure' },
+    ],
+  },
+  {
+    id: 'when',
+    label: 'What and when',
+    icon: 'event',
+    fields: [
+      { key: 'type',    label: 'Type of service', type: 'select', span: 4, required: true, options: SERVICE_TYPES },
+      { key: 'date',    label: 'Preferred date',  type: 'date',   span: 4, required: true },
+      { key: 'time',    label: 'Preferred time',  type: 'select', span: 4, options: BOOKING_TIMES },
+      { key: 'concern', label: 'What\'s the concern?', type: 'text', span: 12, placeholder: 'e.g. Aircon not cold, noise when braking' },
+    ],
+  },
 ];
 
 /* -------------------------------------------------------- e-POWER story */
@@ -713,6 +855,98 @@ const RATE_PROMOS = [
     note: 'Down payment amount and loan terms are subject to RCBC approval.',
   },
 ];
+
+/* ─────────────────────────────────────────────── low down payment promo ---
+   Sherill's August–September 2026 promo cash-out per unit, published at her
+   own request (2026-08-13) — she asked for the low DP to show per unit on the
+   site instead of only over chat.
+
+   Three rules from her, and all of them matter to the arithmetic:
+     • The figure is ALL-IN — down payment, chattel mortgage and insurance
+       together, not the down payment alone.
+     • The bank still approves the loan on a 20% down payment basis. The promo
+       figure is what the customer actually hands over, NOT the basis for the
+       amount financed — so the monthly is still computed off SRP − 20%.
+     • 3-to-5-year terms only, and only at the 20% setting. At 24 months and
+       under, DP + chattel + insurance are paid separately and the whole
+       computation changes; at 30/40/50% the all-in figure is a different
+       number she quotes by hand.
+
+   Variants she did not name (Terra EL, Navara EL / VE MT 4x4 / VL) simply have
+   no `promoDp` and the UI stays quiet for them. Same expiry discipline as
+   RATE_PROMOS — past `end` this whole layer switches itself off. */
+const DP_PROMO = {
+  label: 'Low all-in down payment promo',
+  short: 'All-in DP',
+  start: '2026-08-01',
+  end: '2026-09-30',
+  terms: [36, 48, 60],
+  basisPct: 20,
+  note: 'All-in means down payment, chattel mortgage and insurance together. The bank still approves on a 20% down payment basis, so your monthly is computed on that — the promo changes what you pay to drive out, not the amount financed. Subject to bank approval.',
+  shortTermNote: 'At 24 months and below, the down payment, chattel and insurance are paid separately, so the computation is different — message me for that quote.',
+};
+
+/* key = exact variant name; value = promo cash out in pesos.
+   Premium-colour twins share their base variant's figure. */
+const DP_PROMO_UNITS = {
+  /* Patrol — her list gives one figure for the whole line. */
+  'Patrol 3.5-L V6 TT AT 4x4': 688000,
+  'Patrol 3.5-L V6 TT AT 4x4 (Premium Color)': 688000,
+  'Patrol 3.5-L V6 TT AT 4x4 with Rear Display': 688000,
+  'Patrol 3.5-L V6 TT AT 4x4 with Rear Display (2-Tone Color)': 688000,
+  'Patrol 3.5-L V6 TT AT 4x4 with Rear Display (Premium Color)': 688000,
+  'Patrol 3.5-L V6 TT AT 4x4 with Rear Display (Premium 2-Tone Color)': 688000,
+
+  /* Terra */
+  'Terra 2.5L VE AT 4x2': 88000,
+  'Terra 2.5L VE AT 4x2 (Premium Color)': 88000,
+  'Terra 2.5L VL AT 4x2': 158000,
+  'Terra 2.5L VL AT 4x2 (Premium Color)': 158000,
+  'Terra 2.5L VL AT 4x4': 258000,
+  'Terra 2.5L VL AT 4x4 (Premium Color)': 258000,
+  'Terra 2.5L Sport AT 4x2': 98000,
+  'Terra 2.5L Sport AT 4x2 (Premium Color)': 98000,
+  'Terra 2.5L Sport AT 4x4': 258000,
+  'Terra 2.5L Sport AT 4x4 (Premium Color)': 258000,
+
+  /* Navara — her list has the Calibre VE manual ABOVE the automatic
+     (128K vs 98K), which is the opposite of the usual pattern. Transcribed as
+     sent; confirm with her before treating it as settled. */
+  'Navara 2.5L VE Calibre AT 4x2': 98000,
+  'Navara 2.5L VE Calibre MT 4x2': 128000,
+  'Navara 2.5L Calibre-X AT 4x2': 128000,
+  'Navara 2.5L Calibre-X AT 4x2 (Premium Color)': 128000,
+  'Navara 2.5L PRO-4X AT 4x4': 148000,
+  'Navara 2.5L PRO-4X AT 4x4 (Premium Color)': 148000,
+
+  /* Livina */
+  'Livina 1.5 VE AT — New Display Audio': 38000,
+  'Livina 1.5 VE AT (Premium Color) — New Display Audio': 38000,
+  'Livina 1.5 VL AT — New Display Audio': 58000,
+  'Livina 1.5 VL AT (Premium Color) — New Display Audio': 58000,
+
+  /* Almera — one figure across the line, as she sent it. */
+  'Almera 1.0 EL Turbo MT': 88000,
+  'Almera 1.0 EL Turbo MT (Premium Color)': 88000,
+  'Almera 1.0 VE Turbo CVT with NissanConnect': 88000,
+  'Almera 1.0 VE Turbo CVT with NissanConnect (Premium Color)': 88000,
+  'Almera 1.0 VL Turbo CVT with NissanConnect': 88000,
+  'Almera 1.0 VL Turbo CVT with NissanConnect (Premium Color)': 88000,
+};
+
+/* Stamp the figures onto the variants so every renderer reads `v.promoDp`
+   and nothing has to know the lookup table exists. A name that no longer
+   matches a real variant is a typo, not a silent no-op — surface it. */
+(() => {
+  const seen = new Set();
+  MODELS.forEach((m) => m.variants.forEach((v) => {
+    if (DP_PROMO_UNITS[v.name] == null) return;
+    v.promoDp = DP_PROMO_UNITS[v.name];
+    seen.add(v.name);
+  }));
+  const orphans = Object.keys(DP_PROMO_UNITS).filter((k) => !seen.has(k));
+  if (orphans.length) console.warn('DP_PROMO_UNITS names match no variant:', orphans);
+})();
 
 const TESTIMONIAL_POINTS = [
   { icon: 'emoji_events', label: 'Top sales' },
