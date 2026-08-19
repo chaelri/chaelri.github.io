@@ -16,7 +16,28 @@ the body of the email instead of a "you have a new response" link.
 
 ## URLs
 
-### The Google Form (what Sherill hands out)
+### The Google Forms
+
+One per agent. Same questions, separate inbox, separate spreadsheet — a lead for
+one is never emailed to the other, and neither is emailed to Charlie. He owns the
+script (that's why the mail is *from* his account) but is on no distribution
+list; only `[TEST]` runs reach him.
+
+| Agent | Form | Responses |
+|---|---|---|
+| Sherill Obillo — sherillf20@gmail.com | https://forms.gle/sH76wAU3CHbHziaG6 | [drive-with-sherill — leads](https://docs.google.com/spreadsheets/d/1mqDSErqFUSJ8IcXfQNnk2_6KvzjQvID-W_FhHad-QJs/edit) |
+| Victor Alvear — vicalvear13@gmail.com | https://forms.gle/AoV3LhXcBBwtfy3p7 | [drive-with-victor — leads](https://docs.google.com/spreadsheets/d/1B1_CA-O5hz4JNVoPvrctsXPTk8ZGvwpDDcbfChGKqIg/edit) |
+
+Add a third agent: append an entry to `AGENTS`, then run
+`createLeadForm('<key>')` once from the editor. It builds the form, makes them a
+spreadsheet, and installs their trigger. Paste the logged `sheetId` back into
+`AGENTS` so a re-run reuses that file instead of creating a second one.
+
+⚠️ **A submission is matched to its agent by the form's title.** Rename a form in
+the Forms UI and its leads quietly fall back to the web app's agent. Rename it
+in `AGENTS[key].formTitle` and re-run instead.
+
+### Sherill's form in detail
 
 | | |
 |---|---|
@@ -63,8 +84,9 @@ Nothing to install. For the record, this is what exists:
   (`1mqDSErqFUSJ8IcXfQNnk2_6KvzjQvID-W_FhHad-QJs`), in charliecayno@gmail.com's Drive.
 - **Script** — *drive-with-sherill — register*, bound to that sheet
   (Extensions → Apps Script), holding `apps-script.gs` verbatim.
-- **Form** — *Register your interest — Sherill Obillo · Nissan Quezon Avenue*,
-  plus an installable `onFormSubmit` trigger on it.
+- **Forms** — *Register your interest — Sherill Obillo · Nissan Quezon Avenue*
+  and *… — Victor Alvear · Nissan Quezon Avenue*, each with its own installable
+  `onFormSubmit` trigger. Victor's edit link: https://docs.google.com/forms/d/1JRR6vQN5RpwrXHaNWx1gBZRxNMgsTROL_SUlhoh870k/edit
 - **Deployment** — web app, *Execute as: Me*, *Who has access: Anyone*,
   description `register form endpoint`. Its `/exec` URL is `ENDPOINT` in
   `register.js`.

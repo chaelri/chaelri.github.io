@@ -224,6 +224,19 @@ point at it.
   *spreadsheet* form-submit shape; reading it on a form trigger yields undefined
   and mails a blank lead. That is exactly what the first live submission did.
   `onLeadFormSubmit()` handles both shapes now.
+- **Victor Alvear was added the same day** (`vicalvear13@gmail.com`, 0917 652 4422)
+  — Sherill asked for one for him so their registrations land in their own
+  inboxes. `AGENTS` in the script carries a name, role, mobile, inbox and form
+  title per person; `createLeadForm('victor')` built his form and his own
+  *drive-with-victor — leads* spreadsheet. **Charlie is on neither distribution
+  list now** — he owns the script (the mail is sent *from* his account) but only
+  `[TEST]` runs reach him.
+- **A submission is matched to its agent by the form's TITLE** (`agentForForm`).
+  Renaming a form in the Forms UI silently routes its leads to the web app's
+  agent instead. Rename it in `AGENTS[key].formTitle` and re-run.
+- **The trigger cleanup deletes only the rebuilt form's own trigger.** The first
+  version deleted every `onLeadFormSubmit` trigger, which would have unhooked
+  Sherill's form the moment Victor's was created.
 - `FORM_TEST_ONLY = true` sends form submissions to Charlie only, tagged
   `[TEST]`. Triggers run the *saved* code, so no redeploy is needed for that
   flag — unlike the web app, which serves the deployed version.
