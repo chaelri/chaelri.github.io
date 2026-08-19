@@ -23,31 +23,58 @@
 
 /* ─────────────────────────────────────────────────────────────── config ── */
 
-/** Where every lead is emailed. Both get the full details. */
-var RECIPIENTS = [
-  'sherillf20@gmail.com',
-  'charliecayno@gmail.com',
-];
+/** One entry per sales agent this script serves. Each gets their own Google
+    Form, their own spreadsheet, and their own inbox — a lead for one is never
+    emailed to the other, and neither is emailed to Charlie (he owns the script,
+    which is a different thing from being on the distribution list).
+
+    `sheetId` empty means "the spreadsheet this script is bound to". Victor's is
+    a separate file, so his carries an id. `formTitle` is how a submission is
+    matched back to its agent — see agentForForm(). */
+var AGENTS = {
+  sherill: {
+    name: 'Sherill Obillo',
+    role: 'Nissan Marketing Professional · Nissan Quezon Avenue',
+    mobile: '0977 809 3768',
+    site: 'https://drive-with-sherill.vercel.app',
+    recipients: ['sherillf20@gmail.com'],
+    sheetId: '',
+    formTitle: 'Register your interest — Sherill Obillo · Nissan Quezon Avenue',
+  },
+  victor: {
+    name: 'Victor Alvear',
+    role: 'Nissan Marketing Professional · Nissan Quezon Avenue',
+    mobile: '0917 652 4422',
+    site: '',
+    recipients: ['vicalvear13@gmail.com'],
+    sheetId: '',
+    formTitle: 'Register your interest — Victor Alvear · Nissan Quezon Avenue',
+  },
+};
+
+/** The agent the register page on drive-with-sherill posts to. */
+var WEB_APP_AGENT = 'sherill';
 
 /** Send the customer a short acknowledgement when they leave an email. */
 var SEND_ACK = true;
 
-/** A lead posted with { test: true } goes here only, subject-tagged [TEST],
-    and never acknowledges the "customer". That's how the endpoint gets
-    exercised end to end without putting a fake lead in Sherill's inbox. */
+/** A lead posted with { test: true }, or any submission while FORM_TEST_ONLY is
+    on, goes here only and is subject-tagged [TEST], with no acknowledgement to
+    the "customer". That's how the whole path gets exercised without putting a
+    fake lead in anyone's real inbox. */
 var TEST_RECIPIENT = 'charliecayno@gmail.com';
-
-/** Shown in the acknowledgement so the customer knows who will call them. */
-var AGENT_NAME = 'Sherill Obillo';
-var AGENT_ROLE = 'Nissan Marketing Professional · Nissan Quezon Avenue';
-var AGENT_MOBILE = '0977 809 3768';
-var SITE_URL = 'https://drive-with-sherill.vercel.app';
 
 /** Leave empty when this script is bound to a Sheet (Extensions → Apps
     Script). Only set it if you run the script standalone — then paste the
     spreadsheet id out of its URL. */
 var SHEET_ID = '';
 var SHEET_NAME = 'Leads';
+
+function agent(key) {
+  var a = AGENTS[key];
+  if (!a) throw new Error('Unknown agent: ' + key);
+  return a;
+}
 
 var HEADERS = [
   'Received', 'Event', 'Name', 'Mobile', 'Email', 'City / area',
@@ -93,9 +120,10 @@ function doPost(e) {
     };
 
     var isTest = d.test === true;
+    var who = agent(WEB_APP_AGENT);
     appendRow(lead);
-    notify(lead, isTest);
-    if (SEND_ACK && !isTest && isEmail(lead.email)) acknowledge(lead);
+    notify(lead, isTest, who);
+    if (SEND_ACK && !isTest && isEmail(lead.email)) acknowledge(lead, who);
 
     return json({ ok: true });
   } catch (err) {
@@ -129,7 +157,7 @@ function appendRow(l) {
 
 /* ───────────────────────────────────────────────────────────────── mail ── */
 
-function notify(l, isTest) {
+function notify(l, isTest, who) {
   var subject = (isTest ? '[TEST] ' : '') + 'New lead — ' + l.name
     + (l.models ? ' (' + l.models + ')' : '')
     + (l.event ? ' · ' + l.event : '');
@@ -179,11 +207,11 @@ function notify(l, isTest) {
   /* Replying to the notification then reaches the customer directly. */
   if (isEmail(l.email)) options.replyTo = l.email;
 
-  var to = isTest ? TEST_RECIPIENT : RECIPIENTS.join(',');
+  var to = isTest ? TEST_RECIPIENT : who.recipients.join(',');
   MailApp.sendEmail(to, subject, options.body, options);
 }
 
-function acknowledge(l) {
+function acknowledge(l, who) {
   var first = l.name.split(/\s+/)[0];
   var html = ''
     + '<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#17181c;max-width:520px;font-size:15px;line-height:1.6">'
@@ -194,16 +222,20 @@ function acknowledge(l) {
     +   'the running promo and a monthly estimate'
     +   (l.models ? ' for the ' + escapeHtml(l.models) : '') + '.</p>'
     + '<p>If you\'d like to talk sooner, just reply to this email or message me at '
-    +   '<strong>' + escapeHtml(AGENT_MOBILE) + '</strong> — I\'m quickest on Viber.</p>'
-    + '<p style="margin-top:22px">' + escapeHtml(AGENT_NAME) + '<br>'
-    +   '<span style="color:#6b7280;font-size:13px">' + escapeHtml(AGENT_ROLE) + '</span><br>'
-    +   '<a href="' + SITE_URL + '" style="color:#c3002f;font-size:13px">' + SITE_URL.replace(/^https:\/\//, '') + '</a></p>'
+    +   '<strong>' + escapeHtml(who.mobile) + '</strong> — I\'m quickest on Viber.</p>'
+    + '<p style="margin-top:22px">' + escapeHtml(who.name) + '<br>'
+    +   '<span style="color:#6b7280;font-size:13px">' + escapeHtml(who.role) + '</span><br>'
+    +   (who.site
+          ? '<a href="' + who.site + '" style="color:#c3002f;font-size:13px">'
+            + who.site.replace(/^https:\/\//, '') + '</a>'
+          : '')
+    +   '</p>'
     + '</div>';
 
-  MailApp.sendEmail(l.email, 'Thanks for registering — ' + AGENT_NAME + ', Nissan Quezon Avenue', '', {
-    name: AGENT_NAME + ' · Nissan Quezon Avenue',
+  MailApp.sendEmail(l.email, 'Thanks for registering — ' + who.name + ', Nissan Quezon Avenue', '', {
+    name: who.name + ' · Nissan Quezon Avenue',
     htmlBody: html,
-    replyTo: RECIPIENTS[0],
+    replyTo: who.recipients[0],
   });
 }
 
@@ -256,7 +288,6 @@ function selfTest() {
    spreadsheet to find out who wants a Terra. The trigger sends the whole lead
    in the body, with the customer's address as reply-to. */
 
-var FORM_TITLE = 'Register your interest — Sherill Obillo · Nissan Quezon Avenue';
 var FORM_TEST_ONLY = false;   /* true = form submissions email Charlie only */
 
 /** Question titles. Used to build the form and to read responses back, so they
@@ -281,20 +312,32 @@ var MODEL_CHOICES = [
   'Fleet / special build (ambulance, service unit)', 'Not sure yet',
 ];
 
-function createLeadForm() {
-  var ss = SHEET_ID ? SpreadsheetApp.openById(SHEET_ID) : SpreadsheetApp.getActive();
+/** Builds (or rebuilds) one agent's form. Pass an agent key: 'sherill',
+    'victor'. If that agent has no sheetId, a new spreadsheet is created for
+    them and its id is logged — paste it into AGENTS so a later re-run files
+    into the same file instead of making another one. */
+function createLeadForm(agentKey) {
+  var who = agent(agentKey || WEB_APP_AGENT);
 
-  var form = FormApp.create(FORM_TITLE)
+  var ss;
+  if (who.sheetId) {
+    ss = SpreadsheetApp.openById(who.sheetId);
+  } else if (agentKey && agentKey !== WEB_APP_AGENT) {
+    ss = SpreadsheetApp.create('drive-with-' + agentKey + ' — leads');
+  } else {
+    ss = SHEET_ID ? SpreadsheetApp.openById(SHEET_ID) : SpreadsheetApp.getActive();
+  }
+
+  var form = FormApp.create(who.formTitle)
     .setDescription(
       'Leave your details and I\'ll get back to you with the price list, the running '
       + 'promo and a monthly estimate — no obligation.\n\n'
-      + 'Sherill Obillo · Nissan Marketing Professional, Nissan Quezon Avenue · '
-      + AGENT_MOBILE + '\n'
+      + who.name + ' · ' + who.role + ' · ' + who.mobile + '\n'
       + 'Independent personal page of a Nissan sales professional. Not an official '
       + 'Nissan Philippines website.')
     .setConfirmationMessage(
       'Salamat! Nasa inbox ko na ang details mo — I\'ll message you shortly. '
-      + 'Need it sooner? Viber or text me at ' + AGENT_MOBILE + '. — Sherill')
+      + 'Need it sooner? Viber or text me at ' + who.mobile + '. — ' + who.name.split(' ')[0])
     .setCollectEmail(false)          /* signing in kills booth conversion */
     .setLimitOneResponsePerUser(false)
     .setAllowResponseEdits(false)
@@ -318,20 +361,44 @@ function createLeadForm() {
 
   form.setDestination(FormApp.DestinationType.SPREADSHEET, ss.getId());
 
-  /* one trigger only, however many times this is re-run */
+  /* Replace only THIS form's trigger. Deleting every onLeadFormSubmit trigger
+     would silently unhook the other agent's form. */
   var existing = ScriptApp.getProjectTriggers();
   for (var i = 0; i < existing.length; i++) {
-    if (existing[i].getHandlerFunction() === 'onLeadFormSubmit') ScriptApp.deleteTrigger(existing[i]);
+    if (existing[i].getHandlerFunction() === 'onLeadFormSubmit'
+        && existing[i].getTriggerSourceId() === form.getId()) {
+      ScriptApp.deleteTrigger(existing[i]);
+    }
   }
   ScriptApp.newTrigger('onLeadFormSubmit').forForm(form).onFormSubmit().create();
 
   var out = {
+    agent: who.name,
     liveUrl: form.getPublishedUrl(),
     shortUrl: form.shortenFormUrl(form.getPublishedUrl()),
     editUrl: form.getEditUrl(),
+    sheetUrl: ss.getUrl(),
+    sheetId: ss.getId(),
   };
   console.log(JSON.stringify(out, null, 2));
   return out;
+}
+
+function createSherillForm() { return createLeadForm('sherill'); }
+function createVictorForm() { return createLeadForm('victor'); }
+
+/** Matches a submission back to its agent by the form's title. Titles are set
+    from AGENTS[key].formTitle, so this stays true as long as nobody renames a
+    form in the Forms UI. Unknown title falls back to the web app's agent. */
+function agentForForm(e) {
+  var title = '';
+  try {
+    if (e && e.source && e.source.getTitle) title = e.source.getTitle();
+  } catch (err) { /* ignore — fall through to the default */ }
+  for (var key in AGENTS) {
+    if (AGENTS[key].formTitle === title) return AGENTS[key];
+  }
+  return agent(WEB_APP_AGENT);
 }
 
 /** Fires on every Google Form submission.
@@ -343,6 +410,7 @@ function createLeadForm() {
     is exactly what happened on the first try. Both are handled below. */
 function onLeadFormSubmit(e) {
   try {
+    var who = agentForForm(e);
     var answers = {};
     if (e && e.namedValues) {
       for (var k in e.namedValues) {
@@ -371,12 +439,12 @@ function onLeadFormSubmit(e) {
       timeline: v(Q.timeline),
       units: v(Q.units),
       notes: v(Q.notes),
-      source: FORM_TITLE,
+      source: who.formTitle,
     };
 
     /* The form's own responses tab already holds the row, so this only mails. */
-    notify(lead, FORM_TEST_ONLY);
-    if (SEND_ACK && !FORM_TEST_ONLY && isEmail(lead.email)) acknowledge(lead);
+    notify(lead, FORM_TEST_ONLY, who);
+    if (SEND_ACK && !FORM_TEST_ONLY && isEmail(lead.email)) acknowledge(lead, who);
   } catch (err) {
     console.error(err);
   }
