@@ -75,6 +75,31 @@ Nothing is stored or posted anywhere. The form composes a message and hands it t
 user's own app: Viber (copies the text to the clipboard, then opens the chat — Viber
 can't accept pre-filled text from a link), SMS, email, or plain clipboard copy.
 
+The same goes for the loan application and the test drive / service bookings — copy-only
+by design, because they carry real PII.
+
+## Registration → her inbox
+
+**Google Form:** https://forms.gle/sH76wAU3CHbHziaG6 — the link Sherill hands out and the one the booth QR
+encodes. Answers file into the *drive-with-sherill — leads* sheet and an Apps
+Script trigger emails the whole lead to her and to Charlie the moment it's
+submitted.
+
+### `register/` — the branded page, same destination
+
+`register/` is a QR-scannable lead capture page: five fields, Send, and the lead lands in
+Sherill's and Charlie's inbox plus a Google Sheet. Built for booths and expos, where
+nobody is going to copy a block of text into Viber.
+
+- `/register/` on her site, `/register/?event=medical-expo` for an event (adds company /
+  role / units and tags the lead).
+- Delivery is a Google Apps Script web app, **deployed and live since 2026-08-19** —
+  the code is `register/apps-script.gs`, the account-side details are in
+  `register/README.md`. It writes to the *drive-with-sherill — leads* sheet and mails
+  both inboxes. If it ever fails, the page falls back to the copy-only contract above.
+- `/register/?test=1` runs a real submission that emails Charlie only, tagged `[TEST]`.
+- `register/qr.html` prints the booth QR card. `noindex`, not linked from the site.
+
 ## Disclaimer
 
 This is a Nissan sales professional's personal site — not an official Nissan Philippines

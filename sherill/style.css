@@ -1393,6 +1393,21 @@ input[type="range"]::-moz-range-thumb {
 .finance-block.is-collapsed { display: none; }
 
 .quote-form__actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px; }
+/* the quiet route out of this form and into register/ — the one place on the
+   site that actually delivers itself to her inbox */
+.quote-form__alt {
+  grid-column: 1 / -1;
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--txt-3);
+}
+.quote-form__alt a {
+  color: var(--txt);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--red);
+}
+.quote-form__alt a:hover { color: var(--red-lift); }
 
 /* estimate card */
 .estimate { position: sticky; top: 92px; }

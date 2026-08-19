@@ -206,6 +206,83 @@ all-in figure, SRP, contact, and the not-an-official-Nissan-site line.
 - Uses her own branding deliberately — it does not reproduce a Nissan or other-dealer
   ad layout.
 
+## Registration → inbox (2026-08-19)
+
+**Charlie asked for a Google Form, and that is the front door.** Live at
+https://forms.gle/sH76wAU3CHbHziaG6 (long form `.../d/e/1FAIpQLSeuBohpsq7joJx.../viewform`), built by
+`createLeadForm()` in `sherill/register/apps-script.gs` so the questions are
+version-controlled rather than clicked into existence. The site's Register card,
+the "in a hurry" line under the quotation buttons and `register/qr.html` all
+point at it.
+
+- **An `onFormSubmit` trigger does the emailing**, not Forms' built-in
+  notification — that one reaches the owner only and carries no answers, just a
+  "you have a new response" link. The trigger mails every field with the
+  customer as `replyTo`.
+- ⚠️ **The trigger is installed on the FORM, so the event object is
+  `e.response` (a FormResponse) — NOT `e.namedValues`.** `namedValues` is the
+  *spreadsheet* form-submit shape; reading it on a form trigger yields undefined
+  and mails a blank lead. That is exactly what the first live submission did.
+  `onLeadFormSubmit()` handles both shapes now.
+- `FORM_TEST_ONLY = true` sends form submissions to Charlie only, tagged
+  `[TEST]`. Triggers run the *saved* code, so no redeploy is needed for that
+  flag — unlike the web app, which serves the deployed version.
+
+### The branded page — `register/`
+
+Charlie saw the Microsoft Forms QR page Nissan Philippines ran at the **Phil Medical Expo
+2026** (company / name / role / company email / mobile / which vehicles) and wanted the
+same for Sherill, except landing in **her** inbox and his.
+
+`register/` is the **only form on this site that leaves the browser**. That's a deliberate
+exception, not a change of policy: it's meant to be scanned off a QR at a booth by someone
+with ten seconds who will not open Viber and paste a block of text. The quotation, loan
+application and bookings stay copy-only — the loan form especially, it carries TIN and income.
+
+- **Two modes, one page.** `/register/` is the plain website form; `/register/?event=<tag>`
+  adds Company / Role / "how many units", shows an event banner, and tags the lead so a
+  booth day is one filter in the sheet. Known events live in `EVENTS` at the top of
+  `register.js`; an unknown tag still works (it title-cases the tag).
+- **Delivery is a Google Apps Script web app — set up and live since 2026-08-19.**
+  Sheet *drive-with-sherill — leads* (`1mqDSErqFUSJ8IcXfQNnk2_6KvzjQvID-W_FhHad-QJs`),
+  script *drive-with-sherill — register* bound to it, deployed as a web app
+  *Execute as me / access Anyone*. It appends a row to the `Leads` tab and emails the
+  full lead to `sherillf20@gmail.com` + `charliecayno@gmail.com` with `replyTo` set to
+  the customer, then acknowledges the customer if they left an email. Free Gmail quota is
+  100 recipients/day — a booth day is nowhere near it.
+- **Why Apps Script and not `gemini-proxy`.** The proxy was the obvious home — it already
+  has Sheets endpoints and a Gmail-scoped helper — but every OAuth refresh token in this
+  repo was dead on 2026-08-19, locally *and* in the Cloud Run env (`/sheets-labels` →
+  `invalid_grant`). That's the OAuth consent screen sitting in **Testing**, where refresh
+  tokens expire after 7 days. A lead form on that footing would break weekly. Apps Script
+  runs as Charlie with no token to expire.
+- **A brand-new deployment is slow for its first minutes** — POSTs took 55–75 s and the
+  response redirect 404'd while the sheet writes and emails still landed; it settled to
+  1–3 s on its own. Don't chase it with re-deploys.
+- **`/register/?test=1`** posts through the real endpoint but mails Charlie only, subject
+  `[TEST]`, no customer acknowledgement (`d.test` → `TEST_RECIPIENT` in the script). That
+  is how the whole path is exercised after a change without a fake lead reaching Sherill.
+- **`Content-Type: text/plain` on the POST is load-bearing.** Apps Script web apps cannot
+  answer a CORS preflight, and `application/json` triggers one. text/plain keeps it a
+  simple request; the script reads `e.postData.contents` either way.
+- **The endpoint is not committed configured** — `ENDPOINT` in `register.js` is empty until
+  the deploy URL is pasted in. With it empty the page falls back to the copy-only contract
+  (fills a text block, offers Copy + Viber), so it was safe to ship before the script existed.
+  The same fallback catches a dead network or a script error, and nothing typed is ever lost.
+- **Apps Script serves the old code until you redeploy** — Manage deployments → New version.
+  The URL stays the same.
+- Model chips come from `MODELS`, plus two things the list can't cover: *Fleet / special
+  build* (the ambulance conversions the medical expo asked about) and *Not sure yet*.
+- Consent checkbox + an off-screen honeypot (`.hp`, positioned off-canvas, not
+  `display:none`, so a bot's DOM walk still finds it). A honeypot hit gets a 200 and is dropped.
+- **`[hidden] { display: none !important; }` is in `register.css` on purpose** — the event
+  banner is `display: flex`, which beats the UA rule for the `hidden` attribute, and the
+  empty banner showed on the plain form until this was added.
+- `register/qr.html` (noindex, unlinked) generates the booth QR + a printable white table
+  card, using `qrcode-generator@1.4.4` off esm.sh — same import the elevate ticket printer uses.
+- Entry points on the main site: a **Register** card in the contact grid and a quiet
+  "In a hurry? Just leave your details" line under the quotation buttons.
+
 ## Test drive + service booking — `#book` (added 2026-08-13)
 
 Sherill asked for nissan.ph's "Book a test drive" and "Schedule a service appointment".
