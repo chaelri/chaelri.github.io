@@ -1,0 +1,6 @@
+/* Build input for tw.css. Regenerate after changing classes in index.html/app.js:
+   cd karla-mva && npx @tailwindcss/cli@4 -i tailwind.src.css -o tw.css --minify   */
+@import "tailwindcss";
+@source "./index.html";
+@source "./app.js";
+@source "./data.js";

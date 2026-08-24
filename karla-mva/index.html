@@ -20,9 +20,15 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;1,6..72,300&display=swap" rel="stylesheet" />
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
-<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+<!-- Tailwind is precompiled to tw.css. The browser CDN build was 282 KB of JS that
+     had to run before anything was styled; this is 25 KB of CSS. See tailwind.src.css. -->
+<link rel="stylesheet" href="./tw.css" />
+<!-- Inter as one variable file (47 KB, not 4 statics at 189 KB); Newsreader without
+     the opsz axis and only the two faces the page uses - 300 roman for headings,
+     400 italic for the quoted lines - which is 46 KB instead of 320 KB. -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400..700&family=Newsreader:ital,wght@0,300;1,400&display=swap" rel="stylesheet" />
+<!-- icon font subset to the 35 glyphs this page actually uses -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&icon_names=arrow_right,badge,check,check_circle,clinical_notes,close,content_copy,description,download,expand_more,fact_check,fullscreen,fullscreen_exit,groups,headphones,light_mode,menu,north_east,open_in_new,personal_injury,picture_as_pdf,play_arrow,psychology,quiz,record_voice_over,schedule,slideshow,timer,tips_and_updates,unfold_less,unfold_more,verified_user,visibility,visibility_off,wifi&display=block" rel="stylesheet" />
 
 <style>
   :root{ color-scheme: dark; --bg:#08090c; --ink:#e8ecf1; --dim:#8b95a4; --line:#1b1f27;
@@ -43,7 +49,10 @@
       radial-gradient(900px 520px at 12% -8%, rgba(94,234,212,.09), transparent 60%),
       radial-gradient(760px 480px at 92% 4%, rgba(129,140,248,.07), transparent 62%);
   }
-  main,header{ position:relative; z-index:1; }
+  /* lift content above the ambient gradient. NOT applied to <header>: an
+     unlayered rule outranks Tailwind's layered utilities whatever the
+     specificity, so `position:relative` here was silently beating `sticky`. */
+  main{ position:relative; z-index:1; }
 
   /* reveal */
   .rv{ opacity:0; transform:translateY(18px); transition:opacity .7s cubic-bezier(.22,1,.36,1), transform .7s cubic-bezier(.22,1,.36,1); }
@@ -214,7 +223,7 @@
       </p>
     </div>
 
-    <div class="rv sticky top-[60px] z-30 -mx-5 px-5 py-3 bg-[#08090c]/90 backdrop-blur-xl border-b border-[#14181f] mb-5">
+    <div class="rv sticky top-[60px] z-30 -mx-5 px-5 py-3 bg-[#08090c] border-b border-[#14181f] mb-5">
       <div class="flex flex-wrap items-center gap-2">
         <div id="cats" class="flex flex-wrap gap-1.5"></div>
         <div class="ml-auto flex items-center gap-2">
@@ -259,7 +268,7 @@
       </div>
     </div>
     <div id="cvWrap" class="rv rounded-2xl border border-[#1b1f27] overflow-hidden bg-[#0d0f14]">
-      <iframe id="cvFrame" src="./Karla-Sofia-Romantico-RMT-CV.pdf#view=FitH"
+      <iframe id="cvFrame" loading="lazy" src="./Karla-Sofia-Romantico-RMT-CV.pdf#view=FitH"
               title="Karla Sofia A. Romantico — CV"
               class="w-full block bg-white" style="height:min(150vh,1180px)"></iframe>
     </div>
