@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="en" class="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Karla — MVA Interview Prep</title>
+<meta name="description" content="Interview preparation for Karla Sofia A. Romantico, RMT — Medical Virtual Assistant." />
+<!-- the linked CV carries her PRC number, mobile and personal email; keep this page out of search indexes -->
+<meta name="robots" content="noindex, nofollow" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;1,6..72,300&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+
+<style>
+  :root{ color-scheme: dark; --bg:#08090c; --ink:#e8ecf1; --dim:#8b95a4; --line:#1b1f27;
+         --card:#0d0f14; --accent:#5eead4; --accent-dim:#0f3d38; }
+  *{ -webkit-tap-highlight-color: transparent; }
+  html{ scroll-behavior:smooth; scroll-padding-top:76px; }
+  html,body{ background:var(--bg); }
+  body{ font-family:'Inter',system-ui,-apple-system,sans-serif; color:var(--ink);
+        margin:0; -webkit-font-smoothing:antialiased; overflow-x:hidden; }
+  .serif{ font-family:'Newsreader',Georgia,serif; }
+  .ms{ font-family:'Material Symbols Outlined'; font-weight:normal; font-style:normal;
+       line-height:1; letter-spacing:normal; display:inline-block; vertical-align:middle;
+       font-variation-settings:'opsz' 24,'wght' 400,'FILL' 0,'GRAD' 0; user-select:none; }
+
+  /* ambient gradient */
+  body::before{ content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+    background:
+      radial-gradient(900px 520px at 12% -8%, rgba(94,234,212,.09), transparent 60%),
+      radial-gradient(760px 480px at 92% 4%, rgba(129,140,248,.07), transparent 62%);
+  }
+  main,header{ position:relative; z-index:1; }
+
+  /* reveal */
+  .rv{ opacity:0; transform:translateY(18px); transition:opacity .7s cubic-bezier(.22,1,.36,1), transform .7s cubic-bezier(.22,1,.36,1); }
+  .rv.in{ opacity:1; transform:none; }
+
+  /* accordion */
+  .acc-body{ display:grid; grid-template-rows:0fr; transition:grid-template-rows .42s cubic-bezier(.22,1,.36,1); }
+  .acc.open .acc-body{ grid-template-rows:1fr; }
+  .acc-inner{ overflow:hidden; opacity:0; transition:opacity .3s ease .06s; }
+  .acc.open .acc-inner{ opacity:1; }
+  .acc .chev{ transition:transform .38s cubic-bezier(.22,1,.36,1); }
+  .acc.open .chev{ transform:rotate(180deg); }
+  .acc{ transition:border-color .3s ease, background .3s ease; }
+  .acc.open{ border-color:#2a3340; background:#0f1218; }
+
+  /* buttons */
+  .btn{ transition:transform .16s cubic-bezier(.22,1,.36,1), background .2s ease, border-color .2s ease, color .2s ease; }
+  .btn:active{ transform:scale(.96); }
+  .chip{ transition:all .22s cubic-bezier(.22,1,.36,1); }
+  .chip:active{ transform:scale(.94); }
+
+  /* nav */
+  .navlink{ position:relative; transition:color .25s ease; }
+  .navlink::after{ content:''; position:absolute; left:0; right:0; bottom:-6px; height:1.5px;
+    background:var(--accent); transform:scaleX(0); transform-origin:center;
+    transition:transform .34s cubic-bezier(.22,1,.36,1); }
+  .navlink.active::after{ transform:scaleX(1); }
+  .navlink.active{ color:var(--accent); }
+
+  /* practice mode blur — click to reveal */
+  .blurred .acc-inner > *{ filter:blur(7px); opacity:.45; transition:filter .4s cubic-bezier(.22,1,.36,1), opacity .4s ease; }
+  .blurred .acc-inner{ position:relative; cursor:pointer; }
+  .blurred .acc-inner::after{ content:'Tap to reveal'; position:absolute; inset:0; display:grid; place-items:center;
+    font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:#5eead4;
+    background:linear-gradient(180deg,rgba(11,13,17,.15),rgba(11,13,17,.45)); }
+
+  /* toast */
+  #toast{ transform:translate(-50%,160%); transition:transform .48s cubic-bezier(.22,1,.36,1); }
+  #toast.show{ transform:translate(-50%,0); }
+
+  /* teleprompter */
+  #tele{ opacity:0; pointer-events:none; transition:opacity .38s ease; }
+  #tele.on{ opacity:1; pointer-events:auto; }
+
+  /* progress bar */
+  #bar{ transition:width .5s cubic-bezier(.22,1,.36,1); }
+
+  ::selection{ background:rgba(94,234,212,.25); }
+  ::-webkit-scrollbar{ width:10px; height:10px; }
+  ::-webkit-scrollbar-thumb{ background:#222833; border-radius:99px; }
+  ::-webkit-scrollbar-track{ background:transparent; }
+
+  @media (prefers-reduced-motion: reduce){
+    html{ scroll-behavior:auto; }
+    .rv{ opacity:1; transform:none; transition:none; }
+    *{ animation-duration:.01ms !important; transition-duration:.01ms !important; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ───────────────────────────────────────────────────────────────── nav -- -->
+<header class="sticky top-0 z-40 backdrop-blur-xl bg-[#08090c]/80 border-b border-[#1b1f27]">
+  <div class="mx-auto max-w-6xl px-5 h-[60px] flex items-center gap-6">
+    <a href="#top" class="flex items-center gap-2.5 shrink-0 group">
+      <span class="grid place-items-center w-8 h-8 rounded-lg bg-teal-300/10 border border-teal-300/25">
+        <span class="ms text-[18px] text-teal-300">clinical_notes</span>
+      </span>
+      <span class="text-[13.5px] font-semibold tracking-tight">Karla · MVA prep</span>
+    </a>
+    <nav class="hidden md:flex items-center gap-6 text-[13px] text-[#8b95a4] ml-2">
+      <a href="#intro"       class="navlink hover:text-white">Intro script</a>
+      <a href="#positioning" class="navlink hover:text-white">Positioning</a>
+      <a href="#qa"          class="navlink hover:text-white">Q&amp;A</a>
+      <a href="#cv"          class="navlink hover:text-white">CV</a>
+      <a href="#checklist"   class="navlink hover:text-white">Checklist</a>
+    </nav>
+    <div class="ml-auto flex items-center gap-2">
+      <a href="./Karla-Sofia-Romantico-RMT-CV.pdf" target="_blank" rel="noopener"
+         class="btn hidden sm:inline-flex items-center gap-1.5 text-[12.5px] px-3 py-1.5 rounded-lg border border-[#242a34] text-[#c3ccd8] hover:border-teal-300/40 hover:text-teal-200">
+        <span class="ms text-[16px]">picture_as_pdf</span> CV
+      </a>
+      <button id="navMenu" class="btn md:hidden grid place-items-center w-9 h-9 rounded-lg border border-[#242a34] text-[#c3ccd8]">
+        <span class="ms text-[20px]">menu</span>
+      </button>
+    </div>
+  </div>
+  <div id="mobileNav" class="md:hidden hidden border-t border-[#1b1f27] px-5 py-3 flex-col gap-1 text-[14px] bg-[#08090c]">
+    <a href="#intro"       class="py-2 text-[#a9b3c1]">Intro script</a>
+    <a href="#positioning" class="py-2 text-[#a9b3c1]">Positioning</a>
+    <a href="#qa"          class="py-2 text-[#a9b3c1]">Q&amp;A</a>
+    <a href="#cv"          class="py-2 text-[#a9b3c1]">CV</a>
+    <a href="#checklist"   class="py-2 text-[#a9b3c1]">Checklist</a>
+  </div>
+</header>
+
+<main id="top" class="mx-auto max-w-6xl px-5">
+
+  <!-- ─────────────────────────────────────────────────────────────── hero -- -->
+  <section class="pt-16 pb-12 md:pt-24 md:pb-16">
+    <div class="rv">
+      <div class="inline-flex items-center gap-2 text-[11.5px] tracking-[.14em] uppercase text-teal-300/80 mb-5">
+        <span class="w-6 h-px bg-teal-300/40"></span> Interview preparation
+      </div>
+      <h1 class="serif text-[38px] leading-[1.06] md:text-[62px] font-light tracking-[-.02em] mb-5">
+        Everything you already do,<br class="hidden sm:block" />
+        <span class="text-teal-300 italic">said out loud.</span>
+      </h1>
+      <p class="max-w-2xl text-[15.5px] md:text-[17px] leading-relaxed text-[#9aa4b2] mb-8">
+        You are not changing careers. You are describing the half of your job that never made it
+        onto a CV — the calls, the verification, the escalations — in the words a US clinic uses
+        for it. Everything on this page is drawn from your own documents. Nothing here claims
+        experience you do not have.
+      </p>
+      <div class="flex flex-wrap gap-2.5">
+        <a href="#intro" class="btn inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-teal-300 text-[#062b28] text-[14px] font-semibold hover:bg-teal-200">
+          <span class="ms text-[18px]">play_arrow</span> Start with the intro
+        </a>
+        <a href="#qa" class="btn inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-[#242a34] text-[14px] text-[#c3ccd8] hover:border-teal-300/40 hover:text-teal-200">
+          <span class="ms text-[18px]">quiz</span> Practise the questions
+        </a>
+      </div>
+    </div>
+
+    <div id="facts" class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-12 rv"></div>
+  </section>
+
+  <!-- ────────────────────────────────────────────────────────────── intro -- -->
+  <section id="intro" class="py-14 border-t border-[#14181f]">
+    <div class="rv flex flex-wrap items-end justify-between gap-4 mb-7">
+      <div>
+        <h2 class="serif text-[30px] md:text-[40px] font-light tracking-[-.02em] mb-2">The 90-second intro</h2>
+        <p class="text-[14.5px] text-[#8b95a4] max-w-xl">The only answer you can fully control. Learn the shape, not the syllables.</p>
+      </div>
+      <div class="flex gap-2">
+        <button id="teleBtn" class="btn inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-[#242a34] text-[13px] text-[#c3ccd8] hover:border-teal-300/40 hover:text-teal-200">
+          <span class="ms text-[17px]">slideshow</span> Read mode
+        </button>
+        <button id="copyIntro" class="btn inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-[#242a34] text-[13px] text-[#c3ccd8] hover:border-teal-300/40 hover:text-teal-200">
+          <span class="ms text-[17px]">content_copy</span> Copy
+        </button>
+      </div>
+    </div>
+    <div class="grid lg:grid-cols-[1.55fr_1fr] gap-5">
+      <div id="introBox" class="rv rounded-2xl border border-[#1b1f27] bg-[#0d0f14] p-6 md:p-8"></div>
+      <div id="coachBox" class="rv rounded-2xl border border-[#1b1f27] bg-[#0b0d11] p-6"></div>
+    </div>
+  </section>
+
+  <!-- ──────────────────────────────────────────────────────── positioning -- -->
+  <section id="positioning" class="py-14 border-t border-[#14181f]">
+    <div class="rv mb-7">
+      <h2 class="serif text-[30px] md:text-[40px] font-light tracking-[-.02em] mb-2">What they ask for → what you say</h2>
+      <p class="text-[14.5px] text-[#8b95a4] max-w-2xl">
+        Each line of the job description, the honest truth about your experience, and the sentence
+        that connects them. Where the honest answer is <span class="text-amber-300/90">no</span>, it says no.
+      </p>
+    </div>
+    <div id="posGrid" class="grid md:grid-cols-2 gap-3.5"></div>
+  </section>
+
+  <!-- ───────────────────────────────────────────────────────────────── qa -- -->
+  <section id="qa" class="py-14 border-t border-[#14181f]">
+    <div class="rv mb-6">
+      <h2 class="serif text-[30px] md:text-[40px] font-light tracking-[-.02em] mb-2">Questions they will ask</h2>
+      <p class="text-[14.5px] text-[#8b95a4] max-w-2xl">
+        Tap to open. Turn on practice mode to blur the answers and say yours first.
+      </p>
+    </div>
+
+    <div class="rv sticky top-[60px] z-30 -mx-5 px-5 py-3 bg-[#08090c]/90 backdrop-blur-xl border-b border-[#14181f] mb-5">
+      <div class="flex flex-wrap items-center gap-2">
+        <div id="cats" class="flex flex-wrap gap-1.5"></div>
+        <div class="ml-auto flex items-center gap-2">
+          <button id="practice" class="btn inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#242a34] text-[12.5px] text-[#c3ccd8] hover:border-teal-300/40">
+            <span class="ms text-[16px]">visibility_off</span> Practice
+          </button>
+          <button id="expandAll" class="btn inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#242a34] text-[12.5px] text-[#c3ccd8] hover:border-teal-300/40">
+            <span class="ms text-[16px]">unfold_more</span> <span class="hidden sm:inline">Expand</span>
+          </button>
+        </div>
+      </div>
+      <div class="flex items-center gap-3 mt-2.5">
+        <div class="h-1 flex-1 rounded-full bg-[#1b1f27] overflow-hidden">
+          <div id="bar" class="h-full bg-teal-300 rounded-full" style="width:0%"></div>
+        </div>
+        <span id="barTxt" class="text-[11.5px] text-[#6f7987] tabular-nums whitespace-nowrap">0 of 0 rehearsed</span>
+      </div>
+    </div>
+
+    <div id="qaList" class="space-y-2.5"></div>
+  </section>
+
+  <!-- ───────────────────────────────────────────────────────────────── cv -- -->
+  <section id="cv" class="py-14 border-t border-[#14181f]">
+    <div class="rv flex flex-wrap items-end justify-between gap-4 mb-6">
+      <div>
+        <h2 class="serif text-[30px] md:text-[40px] font-light tracking-[-.02em] mb-2">Her CV</h2>
+        <p class="text-[14.5px] text-[#8b95a4]">ATS-formatted, two pages. Verified by extracting the text back out of the PDF.</p>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <button id="fsBtn" class="btn inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-teal-300 text-[#062b28] text-[13px] font-semibold hover:bg-teal-200">
+          <span class="ms text-[17px]">fullscreen</span> Full screen
+        </button>
+        <a href="./Karla-Sofia-Romantico-RMT-CV.pdf" target="_blank" rel="noopener"
+           class="btn inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-[#242a34] text-[13px] text-[#c3ccd8] hover:border-teal-300/40 hover:text-teal-200">
+          <span class="ms text-[17px]">open_in_new</span> New tab
+        </a>
+        <a href="./Karla-Sofia-Romantico-RMT-CV.pdf" download
+           class="btn inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-[#242a34] text-[13px] text-[#c3ccd8] hover:border-teal-300/40 hover:text-teal-200">
+          <span class="ms text-[17px]">download</span> Download
+        </a>
+      </div>
+    </div>
+    <div id="cvWrap" class="rv rounded-2xl border border-[#1b1f27] overflow-hidden bg-[#0d0f14]">
+      <iframe id="cvFrame" src="./Karla-Sofia-Romantico-RMT-CV.pdf#view=FitH"
+              title="Karla Sofia A. Romantico — CV"
+              class="w-full block bg-white" style="height:min(150vh,1180px)"></iframe>
+    </div>
+    <p class="text-[12.5px] text-[#6f7987] mt-3">
+      If the preview does not load on mobile, use <span class="text-[#9aa4b2]">New tab</span> — some mobile browsers block inline PDFs.
+    </p>
+  </section>
+
+  <!-- ────────────────────────────────────────────────────────── checklist -- -->
+  <section id="checklist" class="py-14 border-t border-[#14181f]">
+    <div class="rv mb-7">
+      <h2 class="serif text-[30px] md:text-[40px] font-light tracking-[-.02em] mb-2">The hour before</h2>
+      <p class="text-[14.5px] text-[#8b95a4]">Tick these off. They save more interviews than extra rehearsal does.</p>
+    </div>
+    <div id="checkGrid" class="grid md:grid-cols-2 gap-3"></div>
+  </section>
+
+  <footer class="py-12 border-t border-[#14181f] text-[12.5px] text-[#5f6875]">
+    <p class="mb-1">Built for Karla Sofia A. Romantico, RMT · Medical Virtual Assistant application.</p>
+    <p>Every claim on this page traces to her PRC licence, certificates, CV, or her own answers. Progress is saved in this browser only.</p>
+  </footer>
+</main>
+
+<!-- ─────────────────────────────────────────────────────── teleprompter -- -->
+<div id="tele" class="fixed inset-0 z-50 bg-[#05060880] backdrop-blur-2xl overflow-y-auto">
+  <div class="min-h-full flex flex-col">
+    <div class="sticky top-0 flex items-center gap-3 px-5 py-4 bg-[#080a0c]/80 backdrop-blur-xl border-b border-[#1b1f27]">
+      <span class="ms text-[20px] text-teal-300">slideshow</span>
+      <span class="text-[13px] text-[#9aa4b2]">Read mode — say it out loud, slowly</span>
+      <button id="teleClose" class="btn ml-auto grid place-items-center w-9 h-9 rounded-lg border border-[#242a34] text-[#c3ccd8]">
+        <span class="ms text-[20px]">close</span>
+      </button>
+    </div>
+    <div id="teleBody" class="mx-auto max-w-3xl px-6 py-12 space-y-8 serif text-[24px] md:text-[30px] leading-[1.5] font-light"></div>
+  </div>
+</div>
+
+<div id="toast" class="fixed bottom-5 left-1/2 z-50">
+  <div class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-teal-300 text-[#062b28] text-[13px] font-semibold shadow-2xl">
+    <span class="ms text-[18px]">check_circle</span><span id="toastTxt">Copied</span>
+  </div>
+</div>
+
+<script type="module" src="./app.js"></script>
+</body>
+</html>
