@@ -30,12 +30,15 @@ const USAGE_PATH = '/api/oauth/usage';
 const KEYCHAIN_SERVICE = 'Claude Code-credentials';
 const SETTINGS_URL = 'https://claude.ai/settings/usage';
 const GIT_OUTPUT_NAME = 'Claude Usage — Git';
+const GITHUB_HOST = 'api.github.com';
 
 let item = null;
 let panel = null;
 let timer = null;
 let state = { limits: [], error: null, loading: false, updatedAt: null };
 let output = null;
+let deploy = { text: null, level: null, url: null };
+let deployTimer = null;
 
 /** Claude Code rotates the token, so re-read the keychain every refresh. */
 function accessToken() {
@@ -169,6 +172,7 @@ function snapshot() {
         error: state.error,
         loading: state.loading,
         updated: updatedText(),
+        deploy: deploy,
         limits: state.limits.map((limit) => ({
             kind: String(limit.kind || ''),
             label: shortLabelFor(limit),
@@ -191,6 +195,9 @@ class UsagePanel {
         view.webview.html = page();
         view.webview.onDidReceiveMessage((message) => {
             if (message === 'refresh') refresh();
+            if (message === 'deploy' && deploy.url) {
+                vscode.env.openExternal(vscode.Uri.parse(deploy.url));
+            }
         });
         // A hidden webview drops posted messages, so re-send on the way back in
         // rather than leaving a stale reading on screen.
@@ -294,6 +301,19 @@ function page() {
   button:hover { color: var(--link); background: var(--vscode-toolbar-hoverBackground); text-decoration: underline; }
   button:focus-visible { outline: 1px solid var(--vscode-focusBorder); outline-offset: 0; }
 
+  /* One line, dot + phrase. It sits above the footer rather than inside it so
+     the "is it live" answer isn't competing with the refresh control. */
+  .deploy {
+    margin-top: 14px; display: inline-flex; align-items: center; gap: 7px;
+    font-size: 11px; color: var(--vscode-descriptionForeground);
+  }
+  .deploy .dot { width: 7px; height: 7px; border-radius: 99px; flex: none; background: var(--vscode-charts-green, #3fb950); }
+  .deploy.idle .dot { background: var(--track); }
+  .deploy.run .dot { background: var(--warn); animation: breathe 1.4s ease-in-out infinite; }
+  .deploy.fail .dot { background: var(--hot); }
+  .deploy.fail { color: var(--hot); }
+  @keyframes breathe { 50% { opacity: .3; } }
+
   .notice { display: flex; gap: 9px; align-items: flex-start; font-size: 12px; line-height: 1.45; }
   .notice svg { flex: none; margin-top: 1px; color: var(--warn); }
   .notice p { margin: 0 0 4px; }
@@ -347,8 +367,17 @@ function page() {
       meter(limit.percent) + footHtml(limit) + '</div>';
   }
 
-  const footerHtml = (updated) =>
-    '<div class="footer"><span class="muted">' + esc(updated) + '</span>' +
+  // No row at all when there's nothing to say — a repo with no Actions, or no
+  // GitHub remote, shouldn't hold empty space open.
+  const deployHtml = (d) =>
+    d && d.text
+      ? '<button class="deploy ' + (d.level || '') + '" data-send="deploy" title="Open the run on GitHub">' +
+        '<span class="dot"></span><span>' + esc(d.text) + '</span></button>'
+      : '';
+
+  const footerHtml = (data) =>
+    deployHtml(data.deploy) +
+    '<div class="footer"><span class="muted">' + esc(data.updated) + '</span>' +
     '<button data-send="refresh">Refresh</button></div>';
 
   /// Applies every meter's fill after the markup lands. Deferred a frame so the
@@ -370,7 +399,7 @@ function page() {
         'm0 5.6a.85.85 0 1 0 0 1.7.85.85 0 0 0 0-1.7Z"/></svg>' +
         '<div><p>' + esc(data.error) + '</p>' +
         '<p class="muted">The endpoint could not be read, so no number is shown — a stale one is never passed off as current.</p>' +
-        '</div></div>' + footerHtml(data.updated);
+        '</div></div>' + footerHtml(data);
       return;
     }
 
@@ -379,7 +408,7 @@ function page() {
         '<div class="skeleton">' +
         heroHtml({ percent: 0, label: data.loading ? 'Loading' : 'No data', reset: '', remaining: '' }) +
         '<hr>' + rowHtml({ percent: 0, label: '\\u2014', reset: '', remaining: '' }) + '</div>' +
-        footerHtml(data.updated);
+        footerHtml(data);
       return;
     }
 
@@ -389,7 +418,7 @@ function page() {
       (session ? heroHtml(session) : '') +
       (session && rest.length ? '<hr>' : '') +
       rest.map(rowHtml).join('') +
-      footerHtml(data.updated);
+      footerHtml(data);
     paint();
   }
 
@@ -399,7 +428,7 @@ function page() {
   });
 
   window.addEventListener('message', (event) => render(event.data));
-  render({ limits: [], loading: true, updated: 'Loading…', error: null });
+  render({ limits: [], loading: true, updated: 'Loading…', error: null, deploy: null });
 </script>
 </body>
 </html>`;
@@ -526,6 +555,10 @@ async function refresh() {
         state.loading = false;
         render();
     }
+    // Separate from the usage try/catch above: a GitHub outage must not be
+    // reported as a usage error, and vice versa.
+    await refreshDeploy();
+    render();
 }
 
 /// Opens a terminal in the workspace root and starts a session in it. Always a
@@ -579,14 +612,14 @@ function gitLog(line) {
 /// git writes progress and most of its complaints to stderr even on success,
 /// so stderr is logged always and only used as the error message when the
 /// process actually exits non-zero.
-function git(args, cwd) {
+function git(args, cwd, quiet) {
     return new Promise((resolve, reject) => {
-        gitLog('$ git ' + args.join(' '));
+        if (!quiet) gitLog('$ git ' + args.join(' '));
         execFile('git', args, { cwd, timeout: 120000, maxBuffer: 4 * 1024 * 1024 }, (err, stdout, stderr) => {
             const out = String(stdout || '').trim();
             const errOut = String(stderr || '').trim();
-            if (out) gitLog(out);
-            if (errOut) gitLog(errOut);
+            if (!quiet && out) gitLog(out);
+            if (!quiet && errOut) gitLog(errOut);
             if (err) return reject(new Error(errOut || out || err.message || 'git failed'));
             resolve(out);
         });
@@ -597,12 +630,12 @@ function git(args, cwd) {
 /// there is one, otherwise the first. `--show-toplevel` rather than the folder
 /// itself, so a workspace opened on a subdirectory still commits the whole repo
 /// — which is what "all existing changes" means.
-async function repoRoot() {
+async function repoRoot(quiet) {
     const folders = vscode.workspace.workspaceFolders;
     if (!folders || !folders.length) throw new Error('No folder is open in this window');
     const active = vscode.window.activeTextEditor;
     const folder = (active && vscode.workspace.getWorkspaceFolder(active.document.uri)) || folders[0];
-    return git(['rev-parse', '--show-toplevel'], folder.uri.fsPath);
+    return git(['rev-parse', '--show-toplevel'], folder.uri.fsPath, quiet);
 }
 
 /// "Update claude-usage" for one top-level folder, "Update 3 folders" past
@@ -697,6 +730,9 @@ async function pushAll() {
             vscode.window.showInformationMessage(
                 'Pushed ' + pushed + ' commit' + (pushed === 1 ? '' : 's') + ' to ' + target + '.'
             );
+            // The run is registered a beat after the push returns; from there
+            // refreshDeploy keeps its own 15s beat until it goes green.
+            setTimeout(() => refreshDeploy().then(render), 4000);
         }
     );
 }
@@ -706,6 +742,122 @@ function failed(headline, err) {
     vscode.window.showErrorMessage('Claude Usage: ' + headline + ' — ' + first, 'Show log').then((choice) => {
         if (choice === 'Show log' && output) output.show(true);
     });
+}
+
+// MARK: - the deploy row
+
+/// One line: a coloured dot and "Deployed 4m ago". The run's own page is a
+/// click away, so nothing here tries to restate what GitHub already shows —
+/// the panel's job is only to say whether the push landed.
+///
+/// Public-repo reads work unauthenticated (60/hr per IP, and this polls 12×);
+/// the gh token is used when it's there purely to raise that ceiling.
+function ghToken() {
+    return new Promise((resolve) => {
+        // The extension host inherits a login shell's PATH only sometimes, so
+        // Homebrew's own path is tried when a bare `gh` isn't found.
+        const tryOne = (bin) =>
+            execFile(bin, ['auth', 'token'], { timeout: 5000 }, (err, stdout) => {
+                if (!err) return resolve(String(stdout).trim() || null);
+                if (bin === 'gh') return tryOne('/opt/homebrew/bin/gh');
+                resolve(null);
+            });
+        tryOne('gh');
+    });
+}
+
+function ownerRepo(remote) {
+    const match = String(remote).match(/github\.com[:/]([^/]+)\/(.+?)(?:\.git)?$/);
+    return match ? { owner: match[1], repo: match[2] } : null;
+}
+
+function latestRun(id, token) {
+    return new Promise((resolve, reject) => {
+        const headers = {
+            Accept: 'application/vnd.github+json',
+            'User-Agent': 'claude-usage-vscode',
+        };
+        if (token) headers.Authorization = 'Bearer ' + token;
+        const req = https.request(
+            {
+                host: GITHUB_HOST,
+                path: '/repos/' + id.owner + '/' + id.repo + '/actions/runs?per_page=1',
+                method: 'GET',
+                headers,
+                timeout: 15000,
+            },
+            (res) => {
+                let body = '';
+                res.on('data', (chunk) => (body += chunk));
+                res.on('end', () => {
+                    if (res.statusCode !== 200) return reject(new Error('HTTP ' + res.statusCode));
+                    try {
+                        const runs = JSON.parse(body).workflow_runs;
+                        resolve(Array.isArray(runs) && runs.length ? runs[0] : null);
+                    } catch (_) {
+                        reject(new Error('Unreadable response'));
+                    }
+                });
+            }
+        );
+        req.on('timeout', () => req.destroy(new Error('Timed out')));
+        req.on('error', reject);
+        req.end();
+    });
+}
+
+function agoText(iso) {
+    const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+    if (!isFinite(mins) || mins < 1) return 'just now';
+    if (mins < 60) return mins + 'm ago';
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return hours + 'h ago';
+    return Math.floor(hours / 24) + 'd ago';
+}
+
+/// A repo with no Actions, or no GitHub remote at all, leaves the row out
+/// entirely rather than showing an empty placeholder.
+async function refreshDeploy() {
+    if (deployTimer) clearTimeout(deployTimer);
+    let run = null;
+    let head = null;
+    try {
+        const cwd = await repoRoot(true);
+        const id = ownerRepo(await git(['remote', 'get-url', 'origin'], cwd, true));
+        if (!id) throw new Error('not a GitHub remote');
+        head = await git(['rev-parse', 'HEAD'], cwd, true);
+        run = await latestRun(id, await ghToken());
+    } catch (_) {
+        deploy = { text: null, level: null, url: null };
+        return;
+    }
+    if (!run) {
+        deploy = { text: null, level: null, url: null };
+        return;
+    }
+
+    const running = run.status !== 'completed';
+    const ok = run.conclusion === 'success';
+    // A run that deployed a different commit than the one checked out means
+    // what's on screen locally isn't what's on the site yet.
+    const stale = !running && ok && head && run.head_sha !== head;
+    deploy = {
+        url: run.html_url,
+        level: running ? 'run' : ok ? (stale ? 'idle' : '') : 'fail',
+        text: running
+            ? 'Deploying…'
+            : !ok
+            ? 'Deploy failed'
+            : stale
+            ? 'Not pushed'
+            : 'Live · ' + agoText(run.updated_at),
+    };
+    // A run in flight finishes in well under the usage poll interval, so it
+    // gets its own short beat — otherwise "Deploying…" would sit there for
+    // five minutes after the deploy was already green.
+    if (running) {
+        deployTimer = setTimeout(() => refreshDeploy().then(render), 15000);
+    }
 }
 
 function restartTimer() {
@@ -756,6 +908,7 @@ function activate(context) {
 
 function deactivate() {
     if (timer) clearInterval(timer);
+    if (deployTimer) clearTimeout(deployTimer);
 }
 
 module.exports = { activate, deactivate, USAGE_URL };
