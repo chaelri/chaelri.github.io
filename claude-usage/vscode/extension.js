@@ -29,11 +29,13 @@ const USAGE_HOST = 'api.anthropic.com';
 const USAGE_PATH = '/api/oauth/usage';
 const KEYCHAIN_SERVICE = 'Claude Code-credentials';
 const SETTINGS_URL = 'https://claude.ai/settings/usage';
+const GIT_OUTPUT_NAME = 'Claude Usage — Git';
 
 let item = null;
 let panel = null;
 let timer = null;
 let state = { limits: [], error: null, loading: false, updatedAt: null };
+let output = null;
 
 /** Claude Code rotates the token, so re-read the keychain every refresh. */
 function accessToken() {
@@ -549,6 +551,11 @@ function launchSession() {
         if (/^CLAUDE(CODE)?(_|$)/.test(key)) scrubbed[key] = null;
     }
 
+    // Todo tools (the live orange checklist) are opt-in in Claude Code 2.1.x and
+    // off unless this is set. Applied AFTER the scrub above, which would
+    // otherwise strip it along with every other CLAUDE_* variable.
+    scrubbed.CLAUDE_CODE_ENABLE_TODO_TOOLS = '1';
+
     const terminal = vscode.window.createTerminal({
         name: config.get('launchTerminalName', 'claude'),
         cwd: cwd,
@@ -557,6 +564,148 @@ function launchSession() {
     });
     terminal.show();
     terminal.sendText(command, true);
+}
+
+// MARK: - push everything to GitHub
+
+/// Git output goes to its own channel rather than a notification — a failed
+/// push says why in several lines (rejected non-fast-forward, hook output, an
+/// SSH error), and a toast truncates all of it.
+function gitLog(line) {
+    if (!output) output = vscode.window.createOutputChannel(GIT_OUTPUT_NAME);
+    output.appendLine(line);
+}
+
+/// git writes progress and most of its complaints to stderr even on success,
+/// so stderr is logged always and only used as the error message when the
+/// process actually exits non-zero.
+function git(args, cwd) {
+    return new Promise((resolve, reject) => {
+        gitLog('$ git ' + args.join(' '));
+        execFile('git', args, { cwd, timeout: 120000, maxBuffer: 4 * 1024 * 1024 }, (err, stdout, stderr) => {
+            const out = String(stdout || '').trim();
+            const errOut = String(stderr || '').trim();
+            if (out) gitLog(out);
+            if (errOut) gitLog(errOut);
+            if (err) return reject(new Error(errOut || out || err.message || 'git failed'));
+            resolve(out);
+        });
+    });
+}
+
+/// The repo the button acts on: the active editor's workspace folder when
+/// there is one, otherwise the first. `--show-toplevel` rather than the folder
+/// itself, so a workspace opened on a subdirectory still commits the whole repo
+/// — which is what "all existing changes" means.
+async function repoRoot() {
+    const folders = vscode.workspace.workspaceFolders;
+    if (!folders || !folders.length) throw new Error('No folder is open in this window');
+    const active = vscode.window.activeTextEditor;
+    const folder = (active && vscode.workspace.getWorkspaceFolder(active.document.uri)) || folders[0];
+    return git(['rev-parse', '--show-toplevel'], folder.uri.fsPath);
+}
+
+/// "Update claude-usage" for one top-level folder, "Update 3 folders" past
+/// that — a starting point to edit, not a message to accept blindly. The input
+/// box it lands in is also the confirmation step: cancelling it cancels the push.
+function defaultMessage(files) {
+    const areas = [...new Set(files.map((line) => line.slice(3).replace(/^"|"$/g, '').split('/')[0]))];
+    if (areas.length === 1) return 'Update ' + areas[0];
+    return 'Update ' + files.length + ' files across ' + areas.length + ' folders';
+}
+
+/// Stage everything, commit, push. Deliberately one button and one confirm
+/// rather than a silent one-click: pushing is outward-facing and irreversible
+/// in the way a local commit is not.
+async function pushAll() {
+    let cwd;
+    try {
+        cwd = await repoRoot();
+    } catch (err) {
+        return vscode.window.showErrorMessage('Claude Usage: ' + err.message);
+    }
+
+    let branch = '';
+    let files = [];
+    let ahead = 0;
+    let upstream = null;
+    try {
+        branch = await git(['rev-parse', '--abbrev-ref', 'HEAD'], cwd);
+        files = (await git(['status', '--porcelain'], cwd)).split('\n').filter(Boolean);
+        try {
+            upstream = await git(['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}'], cwd);
+            ahead = Number(await git(['rev-list', '--count', '@{u}..HEAD'], cwd)) || 0;
+        } catch (_) {
+            // No upstream yet — the push below sets one.
+            upstream = null;
+        }
+    } catch (err) {
+        return failed('Could not read the repo', err);
+    }
+
+    if (branch === 'HEAD') {
+        return vscode.window.showErrorMessage('Claude Usage: detached HEAD — check out a branch first.');
+    }
+    if (!files.length && !ahead && upstream) {
+        return vscode.window.showInformationMessage(
+            'Nothing to push — working tree clean and ' + branch + ' matches ' + upstream + '.'
+        );
+    }
+
+    const target = upstream || 'origin/' + branch;
+    let message = null;
+    if (files.length) {
+        message = await vscode.window.showInputBox({
+            title: 'Push all changes to ' + target,
+            prompt:
+                files.length +
+                (files.length === 1 ? ' file' : ' files') +
+                ' will be staged and committed' +
+                (ahead ? ', on top of ' + ahead + ' unpushed commit' + (ahead === 1 ? '' : 's') : ''),
+            value: defaultMessage(files),
+            ignoreFocusOut: true,
+            validateInput: (text) => (text.trim() ? null : 'A commit message is required'),
+        });
+        if (message === undefined) return; // cancelled
+    } else {
+        const go = await vscode.window.showWarningMessage(
+            'Push ' + ahead + ' commit' + (ahead === 1 ? '' : 's') + ' to ' + target + '?',
+            { modal: true },
+            'Push'
+        );
+        if (go !== 'Push') return;
+    }
+
+    await vscode.window.withProgress(
+        { location: vscode.ProgressLocation.Notification, title: 'Pushing to ' + target, cancellable: false },
+        async (progress) => {
+            try {
+                if (message) {
+                    progress.report({ message: 'staging…' });
+                    await git(['add', '-A'], cwd);
+                    progress.report({ message: 'committing…' });
+                    await git(['commit', '-m', message.trim()], cwd);
+                }
+                progress.report({ message: 'pushing…' });
+                // -u only when there is no upstream: it is what creates the
+                // tracking link for a branch that has never been pushed.
+                await git(upstream ? ['push'] : ['push', '-u', 'origin', branch], cwd);
+            } catch (err) {
+                return failed('Push failed', err);
+            }
+            const pushed = (message ? 1 : 0) + ahead;
+            vscode.window.showInformationMessage(
+                'Pushed ' + pushed + ' commit' + (pushed === 1 ? '' : 's') + ' to ' + target + '.'
+            );
+        }
+    );
+}
+
+function failed(headline, err) {
+    const first = String(err && err.message ? err.message : err).split('\n')[0];
+    vscode.window.showErrorMessage('Claude Usage: ' + headline + ' — ' + first, 'Show log').then((choice) => {
+        if (choice === 'Show log' && output) output.show(true);
+    });
 }
 
 function restartTimer() {
@@ -578,8 +727,10 @@ function activate(context) {
             webviewOptions: { retainContextWhenHidden: true },
         }),
         { dispose: () => item && item.dispose() },
+        { dispose: () => output && output.dispose() },
         vscode.commands.registerCommand('claudeUsage.refresh', refresh),
         vscode.commands.registerCommand('claudeUsage.launch', launchSession),
+        vscode.commands.registerCommand('claudeUsage.push', pushAll),
         vscode.commands.registerCommand('claudeUsage.openSettings', () =>
             vscode.env.openExternal(vscode.Uri.parse(SETTINGS_URL))
         ),

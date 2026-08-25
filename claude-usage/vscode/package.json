@@ -2,7 +2,7 @@
   "name": "claude-usage",
   "displayName": "Claude plan usage",
   "description": "Claude plan usage as a VS Code activity bar icon and status bar percentage.",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "publisher": "chaelri",
   "private": true,
   "license": "MIT",
@@ -50,6 +50,11 @@
         "command": "claudeUsage.openSettings",
         "title": "Claude Usage: Open Usage Settings",
         "icon": "$(link-external)"
+      },
+      {
+        "command": "claudeUsage.push",
+        "title": "Claude Usage: Push All Changes to GitHub",
+        "icon": "$(repo-push)"
       }
     ],
     "menus": {
@@ -68,6 +73,11 @@
           "command": "claudeUsage.openSettings",
           "when": "view == claudeUsage.limits",
           "group": "navigation@2"
+        },
+        {
+          "command": "claudeUsage.push",
+          "when": "view == claudeUsage.limits",
+          "group": "navigation@3"
         }
       ]
     },
