@@ -190,6 +190,54 @@ No packaging step: VS Code loads any folder under `~/.vscode/extensions` that ha
 a `package.json`, so a symlink to the repo copy is the whole install — no `.vsix`,
 no `vsce`, no npm, no build. Edit `extension.js` and reload the window.
 
+### Recent sessions
+
+Under the meters, the five most recent Claude sessions **for the open folder**,
+newest first, each labelled with the first thing typed into it:
+
+```
+RECENT SESSIONS
+↺  possible ba makita dito kung ano yung mga current…      just now
+↺  sinend sakin ni Jay to. pwede ba matry natin gantong…      3m ago
+↺  Help me with what Jay wanted me to do…                    57m ago
+```
+
+Click one and it opens a terminal running `claude --resume <id>` — the same
+scrubbed environment the New Session button uses, so a resumed session doesn't
+inherit the markers either. **Claude Usage: Resume a Recent Session** in the
+command palette is the same list as a quick pick.
+
+**Nothing is deleted.** `claudeUsage.recentSessions` (default 5, 0 hides the
+list) is how many rows are *shown*, not a retention policy — every older
+transcript stays on disk and stays resumable through `claude --resume` and
+`/resume`. Pruning them would be irreversible and would buy nothing: the list is
+sorted by mtime, so old sessions fall off the bottom on their own.
+
+The rows are read straight out of `~/.claude/projects/<flattened-cwd>/*.jsonl`,
+the same files the CLI reads — the workspace path with every non-alphanumeric
+character turned into a dash, so `/Users/you/chaelri.github.io` becomes
+`-Users-you-chaelri-github-io`. There is no index file and no API.
+
+Two things keep that cheap. Only the first **256 KB** of a transcript is read:
+the first user turn is at the top of the file, and a session that pasted
+screenshots carries megabytes of base64 after it. And a title, once read, is
+cached under its session id — the live session rewrites its file continuously,
+and its opening line can't change. What that leaves is a `readdir` plus a `stat`
+per file: **68 transcripts titled in ~4 ms.**
+
+Sidechain turns (subagents) and meta turns are skipped when picking the label,
+`[Image #1]` markers and slash-command envelopes are stripped, and a session with
+nothing quotable reads as *Untitled session* rather than borrowing a subagent's
+prompt — otherwise half the list would be named the same thing.
+
+An `fs.watch` on the directory keeps the list current, debounced 8 seconds: the
+session you're in touches its transcript on every turn, and the list only has to
+be right within a few seconds.
+
+Session ids are checked against `/^[0-9a-fA-F-]{8,64}$/` before they reach a
+command line. They arrive from a webview message, and a webview message is
+untrusted input no matter who wrote the page.
+
 ### The panel is a webview, not a tree
 
 It started as a `TreeView`, which is the cheap way to put rows in the sidebar —

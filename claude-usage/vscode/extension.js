@@ -23,6 +23,9 @@ const vscode = require('vscode');
 const { execFile } = require('child_process');
 const https = require('https');
 const crypto = require('crypto');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 
 const USAGE_URL = 'https://api.anthropic.com/api/oauth/usage';
 const USAGE_HOST = 'api.anthropic.com';
@@ -31,6 +34,11 @@ const KEYCHAIN_SERVICE = 'Claude Code-credentials';
 const SETTINGS_URL = 'https://claude.ai/settings/usage';
 const GIT_OUTPUT_NAME = 'Claude Usage — Git';
 const GITHUB_HOST = 'api.github.com';
+// Only the head of a transcript is read to title it: the first user turn is the
+// first thing in the file, and a session that pasted screenshots carries
+// megabytes of base64 after it that nothing here needs.
+const SESSION_SCAN_BYTES = 262144;
+const SESSION_ID = /^[0-9a-fA-F-]{8,64}$/;
 
 let item = null;
 let panel = null;
@@ -39,6 +47,13 @@ let state = { limits: [], error: null, loading: false, updatedAt: null };
 let output = null;
 let deploy = { text: null, level: null, url: null };
 let deployTimer = null;
+let sessions = [];
+let sessionWatcher = null;
+let sessionWatchTimer = null;
+// A transcript's first prompt never changes, so it's read once per session id
+// and kept — the live session rewrites its file constantly, and re-reading
+// every id on every write would be pure churn.
+const sessionTitles = new Map();
 
 /** Claude Code rotates the token, so re-read the keychain every refresh. */
 function accessToken() {
@@ -162,6 +177,174 @@ function weeklyLimit() {
     return state.limits.find((l) => l.kind === 'weekly_all') || null;
 }
 
+// MARK: - recent sessions
+
+/// Claude Code files every transcript under ~/.claude/projects, in a directory
+/// named after the working directory it started in with every non-alphanumeric
+/// character flattened to a dash. Same folder `/resume` reads, so the list here
+/// and the list in the CLI can't disagree.
+function projectDir() {
+    const folders = vscode.workspace.workspaceFolders;
+    if (!folders || !folders.length) return null;
+    const key = folders[0].uri.fsPath.replace(/[^a-zA-Z0-9]/g, '-');
+    return path.join(os.homedir(), '.claude', 'projects', key);
+}
+
+/// One line of prompt out of a JSON blob that may also hold a base64 image, a
+/// slash-command envelope, or the harness's own caveat text — none of which
+/// say what the session was about.
+function promptText(slice) {
+    const match =
+        slice.match(/"type":"text","text":"((?:[^"\\]|\\.)*)"/) ||
+        slice.match(/"content":"((?:[^"\\]|\\.)*)"/);
+    if (!match) return null;
+    let text;
+    try {
+        text = JSON.parse('"' + match[1] + '"');
+    } catch (_) {
+        return null;
+    }
+    text = text
+        .replace(/<command-[a-z-]*>[\s\S]*?<\/command-[a-z-]*>/g, ' ')
+        .replace(/<[^>]{1,60}>/g, ' ')
+        .replace(/\[Image #\d+\]/g, ' ')
+        .replace(/^Caveat:[\s\S]*/, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    if (!text) return null;
+    return text.length > 140 ? text.slice(0, 139).trimEnd() + '…' : text;
+}
+
+/// The title is whatever was typed first. Sidechain turns (subagents) and meta
+/// turns are skipped — they're the harness talking to itself, and one of them
+/// as a label would name every session the same thing.
+async function firstPrompt(file) {
+    let handle = null;
+    try {
+        handle = await fs.promises.open(file, 'r');
+        const buffer = Buffer.alloc(SESSION_SCAN_BYTES);
+        const read = await handle.read(buffer, 0, SESSION_SCAN_BYTES, 0);
+        const head = buffer.toString('utf8', 0, read.bytesRead);
+        const mark = '"type":"user"';
+        for (let at = head.indexOf(mark); at !== -1; at = head.indexOf(mark, at + mark.length)) {
+            // A window rather than the whole line: a pasted screenshot puts a
+            // megabyte of base64 after the text, and the text is always first.
+            const slice = head.slice(Math.max(0, at - 400), at + 4000);
+            if (/"isSidechain":true/.test(slice) || /"isMeta":true/.test(slice)) continue;
+            const text = promptText(slice);
+            if (text) return text;
+        }
+        return null;
+    } catch (_) {
+        return null;
+    } finally {
+        if (handle) await handle.close().catch(() => {});
+    }
+}
+
+/// Newest N by mtime. Nothing is ever deleted here — the older transcripts stay
+/// on disk and stay resumable from the CLI; this list is a shortcut to the
+/// recent ones, not a retention policy.
+async function refreshSessions() {
+    const limit = vscode.workspace.getConfiguration('claudeUsage').get('recentSessions', 5);
+    const dir = projectDir();
+    if (!dir || limit <= 0) {
+        sessions = [];
+        return;
+    }
+    let names = [];
+    try {
+        names = await fs.promises.readdir(dir);
+    } catch (_) {
+        sessions = [];
+        return;
+    }
+    const found = [];
+    for (const name of names) {
+        if (!name.endsWith('.jsonl')) continue;
+        const id = name.slice(0, -6);
+        if (!SESSION_ID.test(id)) continue;
+        try {
+            const stat = await fs.promises.stat(path.join(dir, name));
+            // A zero-byte file is a session that opened and was closed before
+            // anything was said; there's nothing to resume into.
+            if (stat.isFile() && stat.size > 0) {
+                found.push({ id: id, file: path.join(dir, name), mtime: stat.mtimeMs });
+            }
+        } catch (_) {
+            /* raced with a delete */
+        }
+    }
+    found.sort((a, b) => b.mtime - a.mtime);
+
+    const top = found.slice(0, Math.max(1, Math.min(20, limit)));
+    sessions = await Promise.all(
+        top.map(async (entry) => {
+            if (!sessionTitles.has(entry.id)) {
+                sessionTitles.set(entry.id, (await firstPrompt(entry.file)) || 'Untitled session');
+            }
+            return {
+                id: entry.id,
+                title: sessionTitles.get(entry.id),
+                when: agoText(new Date(entry.mtime).toISOString()),
+            };
+        })
+    );
+    // The cache would otherwise grow one entry per session for the life of the
+    // window; only the listed ones can ever be read again.
+    if (sessionTitles.size > 40) {
+        const keep = new Set(sessions.map((s) => s.id));
+        for (const id of sessionTitles.keys()) if (!keep.has(id)) sessionTitles.delete(id);
+    }
+}
+
+/// The live session appends to its transcript continuously, so the watcher is
+/// debounced hard — this list only has to be right within a few seconds, and
+/// every wake-up costs a readdir plus a stat per file.
+function watchSessions() {
+    if (sessionWatcher) {
+        sessionWatcher.close();
+        sessionWatcher = null;
+    }
+    const dir = projectDir();
+    if (!dir) return;
+    try {
+        sessionWatcher = fs.watch(dir, () => {
+            if (sessionWatchTimer) clearTimeout(sessionWatchTimer);
+            sessionWatchTimer = setTimeout(() => refreshSessions().then(render), 8000);
+        });
+        sessionWatcher.on('error', () => {});
+    } catch (_) {
+        // No directory yet — the first session in this folder creates it, and
+        // the poll picks the list up then.
+        sessionWatcher = null;
+    }
+}
+
+/// Resumes into a fresh terminal, same as a new session does. The id is checked
+/// against the filename shape first: it reaches a shell as part of a command
+/// line, and it arrives from a webview message.
+function resumeSession(id) {
+    if (!SESSION_ID.test(String(id || ''))) return;
+    const config = vscode.workspace.getConfiguration('claudeUsage');
+    const command = config.get('launchCommand', 'claude --dangerously-skip-permissions');
+    startTerminal(command + ' --resume ' + id, config.get('launchTerminalName', 'claude') + ' · ' + id.slice(0, 8));
+}
+
+/// Palette route to the same thing, for when the panel isn't open.
+async function pickSession() {
+    await refreshSessions();
+    if (!sessions.length) {
+        vscode.window.showInformationMessage('No Claude sessions recorded for this folder yet.');
+        return;
+    }
+    const pick = await vscode.window.showQuickPick(
+        sessions.map((s) => ({ label: s.title, description: s.when, detail: s.id, id: s.id })),
+        { placeHolder: 'Resume a Claude session in this folder', matchOnDetail: true }
+    );
+    if (pick) resumeSession(pick.id);
+}
+
 // MARK: - the activity bar panel
 
 /// What the webview is handed. Everything display-shaped is computed here, in
@@ -173,6 +356,7 @@ function snapshot() {
         loading: state.loading,
         updated: updatedText(),
         deploy: deploy,
+        sessions: sessions,
         limits: state.limits.map((limit) => ({
             kind: String(limit.kind || ''),
             label: shortLabelFor(limit),
@@ -198,10 +382,13 @@ class UsagePanel {
             if (message === 'deploy' && deploy.url) {
                 vscode.env.openExternal(vscode.Uri.parse(deploy.url));
             }
+            if (typeof message === 'string' && message.startsWith('resume:')) {
+                resumeSession(message.slice('resume:'.length));
+            }
         });
         // A hidden webview drops posted messages, so re-send on the way back in
         // rather than leaving a stale reading on screen.
-        view.onDidChangeVisibility(() => view.visible && this.post());
+        view.onDidChangeVisibility(() => view.visible && refreshSessions().then(() => this.post()));
         // Full render, not just a post: this is also where the status bar
         // fallback stands down, now that there's a panel to read.
         render();
@@ -314,6 +501,23 @@ function page() {
   .deploy.fail { color: var(--hot); }
   @keyframes breathe { 50% { opacity: .3; } }
 
+  /* Recent sessions — the same transcripts "claude --resume" reads, newest
+     first. A row is a button because it starts a terminal; it just doesn't
+     want the link colour the footer's buttons carry. */
+  .shead { font-size: 11px; text-transform: uppercase; letter-spacing: .09em; margin-bottom: 7px; }
+  .ses {
+    display: flex; align-items: center; gap: 8px;
+    width: calc(100% + 12px); margin: 0 -6px; padding: 5px 6px;
+    text-align: left; color: var(--vscode-foreground);
+  }
+  .ses:hover { color: var(--vscode-foreground); text-decoration: none; background: var(--vscode-toolbar-hoverBackground); }
+  .ses svg { flex: none; opacity: .55; }
+  .ses:hover svg { opacity: 1; color: var(--link); }
+  /* min-width: 0 is what lets the flex item shrink below its text width, which
+     is the only way the ellipsis ever appears in a flex row. */
+  .ses .t { flex: 1; min-width: 0; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ses .w { flex: none; font-size: 11px; font-variant-numeric: tabular-nums; }
+
   .notice { display: flex; gap: 9px; align-items: flex-start; font-size: 12px; line-height: 1.45; }
   .notice svg { flex: none; margin-top: 1px; color: var(--warn); }
   .notice p { margin: 0 0 4px; }
@@ -375,6 +579,27 @@ function page() {
         '<span class="dot"></span><span>' + esc(d.text) + '</span></button>'
       : '';
 
+  // The whole block drops out when there's nothing recorded for this folder —
+  // an empty heading would be worse than no heading.
+  const sessionsHtml = (list) =>
+    list && list.length
+      ? '<hr><div class="shead muted">Recent sessions</div>' +
+        list
+          .map(
+            (s) =>
+              '<button class="ses" data-send="resume:' + esc(s.id) + '" ' +
+              'title="Resume — ' + esc(s.title) + '">' +
+              '<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">' +
+              '<path d="M8 2.5a5.5 5.5 0 1 0 5.32 6.9.75.75 0 0 1 1.45.38A7 7 0 1 1 8 1a6.97 6.97 0 0 1 4.5 1.64' +
+              'V1.75a.75.75 0 0 1 1.5 0v3.5a.75.75 0 0 1-.75.75h-3.5a.75.75 0 0 1 0-1.5h1.86A5.48 5.48 0 0 0 8 2.5Z"/>' +
+              '</svg>' +
+              '<span class="t">' + esc(s.title) + '</span>' +
+              '<span class="w muted">' + esc(s.when) + '</span>' +
+              '</button>'
+          )
+          .join('')
+      : '';
+
   const footerHtml = (data) =>
     deployHtml(data.deploy) +
     '<div class="footer"><span class="muted">' + esc(data.updated) + '</span>' +
@@ -399,7 +624,7 @@ function page() {
         'm0 5.6a.85.85 0 1 0 0 1.7.85.85 0 0 0 0-1.7Z"/></svg>' +
         '<div><p>' + esc(data.error) + '</p>' +
         '<p class="muted">The endpoint could not be read, so no number is shown — a stale one is never passed off as current.</p>' +
-        '</div></div>' + footerHtml(data);
+        '</div></div>' + sessionsHtml(data.sessions) + footerHtml(data);
       return;
     }
 
@@ -408,7 +633,7 @@ function page() {
         '<div class="skeleton">' +
         heroHtml({ percent: 0, label: data.loading ? 'Loading' : 'No data', reset: '', remaining: '' }) +
         '<hr>' + rowHtml({ percent: 0, label: '\\u2014', reset: '', remaining: '' }) + '</div>' +
-        footerHtml(data);
+        sessionsHtml(data.sessions) + footerHtml(data);
       return;
     }
 
@@ -418,6 +643,7 @@ function page() {
       (session ? heroHtml(session) : '') +
       (session && rest.length ? '<hr>' : '') +
       rest.map(rowHtml).join('') +
+      sessionsHtml(data.sessions) +
       footerHtml(data);
     paint();
   }
@@ -428,7 +654,7 @@ function page() {
   });
 
   window.addEventListener('message', (event) => render(event.data));
-  render({ limits: [], loading: true, updated: 'Loading…', error: null, deploy: null });
+  render({ limits: [], loading: true, updated: 'Loading…', error: null, deploy: null, sessions: [] });
 </script>
 </body>
 </html>`;
@@ -557,6 +783,7 @@ async function refresh() {
     }
     // Separate from the usage try/catch above: a GitHub outage must not be
     // reported as a usage error, and vice versa.
+    await refreshSessions();
     await refreshDeploy();
     render();
 }
@@ -566,7 +793,15 @@ async function refresh() {
 /// typing into a running process would be worse than an extra tab.
 function launchSession() {
     const config = vscode.workspace.getConfiguration('claudeUsage');
-    const command = config.get('launchCommand', 'claude --dangerously-skip-permissions');
+    startTerminal(
+        config.get('launchCommand', 'claude --dangerously-skip-permissions'),
+        config.get('launchTerminalName', 'claude')
+    );
+}
+
+/// Shared by the new-session button and by resuming, so a resumed session gets
+/// the same scrubbed environment a fresh one does.
+function startTerminal(command, name) {
     const folders = vscode.workspace.workspaceFolders;
     // Multi-root takes the first folder; that's where a repo-wide session
     // belongs, and CLAUDE.md is read from the directory it starts in.
@@ -590,7 +825,7 @@ function launchSession() {
     scrubbed.CLAUDE_CODE_ENABLE_TODO_TOOLS = '1';
 
     const terminal = vscode.window.createTerminal({
-        name: config.get('launchTerminalName', 'claude'),
+        name: name || 'claude',
         cwd: cwd,
         iconPath: new vscode.ThemeIcon('sparkle'),
         env: scrubbed,
@@ -882,12 +1117,22 @@ function activate(context) {
         { dispose: () => output && output.dispose() },
         vscode.commands.registerCommand('claudeUsage.refresh', refresh),
         vscode.commands.registerCommand('claudeUsage.launch', launchSession),
+        vscode.commands.registerCommand('claudeUsage.resumeSession', pickSession),
         vscode.commands.registerCommand('claudeUsage.push', pushAll),
         vscode.commands.registerCommand('claudeUsage.openSettings', () =>
             vscode.env.openExternal(vscode.Uri.parse(SETTINGS_URL))
         ),
+        { dispose: () => sessionWatcher && sessionWatcher.close() },
+        vscode.workspace.onDidChangeWorkspaceFolders(() => {
+            sessionTitles.clear();
+            watchSessions();
+            refreshSessions().then(render);
+        }),
         vscode.workspace.onDidChangeConfiguration((event) => {
             if (event.affectsConfiguration('claudeUsage.pollSeconds')) restartTimer();
+            if (event.affectsConfiguration('claudeUsage.recentSessions')) {
+                refreshSessions().then(render);
+            }
             if (
                 event.affectsConfiguration('claudeUsage.position') ||
                 event.affectsConfiguration('claudeUsage.priority')
@@ -904,11 +1149,14 @@ function activate(context) {
     render();
     refresh();
     restartTimer();
+    watchSessions();
 }
 
 function deactivate() {
     if (timer) clearInterval(timer);
     if (deployTimer) clearTimeout(deployTimer);
+    if (sessionWatchTimer) clearTimeout(sessionWatchTimer);
+    if (sessionWatcher) sessionWatcher.close();
 }
 
 module.exports = { activate, deactivate, USAGE_URL };

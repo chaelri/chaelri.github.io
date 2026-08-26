@@ -14,5 +14,12 @@
       "color": "terminal.ansiMagenta"
     }
   },
-  "terminal.integrated.defaultProfile.osx": "zsh"
+  "terminal.integrated.defaultProfile.osx": "zsh",
+
+  // The Python extension "activates" a venv by TYPING `source .../activate` into
+  // a new terminal. When that terminal is already running `claude`, the text
+  // lands in Claude's prompt box instead of a shell. It was also pointing at
+  // inlove/.venv, a venv that no longer exists in this repo.
+  "python.terminal.activateEnvironment": false,
+  "python.terminal.activateEnvInCurrentTerminal": false
 }

@@ -2,7 +2,7 @@
   "name": "claude-usage",
   "displayName": "Claude plan usage",
   "description": "Claude plan usage as a VS Code activity bar icon and status bar percentage.",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "publisher": "chaelri",
   "private": true,
   "license": "MIT",
@@ -40,6 +40,11 @@
         "command": "claudeUsage.launch",
         "title": "Claude Usage: New Claude Session",
         "icon": "$(terminal)"
+      },
+      {
+        "command": "claudeUsage.resumeSession",
+        "title": "Claude Usage: Resume a Recent Session",
+        "icon": "$(history)"
       },
       {
         "command": "claudeUsage.refresh",
@@ -93,7 +98,7 @@
         "claudeUsage.launchCommand": {
           "type": "string",
           "default": "claude --dangerously-skip-permissions",
-          "description": "What the New Claude Session button runs. Spelled out in full rather than hidden behind a flag, because --dangerously-skip-permissions means tool calls execute without asking \u2014 it leans on the PreToolUse guard hook in ~/.claude/settings.json to block destructive commands. Drop the flag here to get the normal prompting session."
+          "description": "What the New Claude Session button runs. Spelled out in full rather than hidden behind a flag, because --dangerously-skip-permissions means tool calls execute without asking — it leans on the PreToolUse guard hook in ~/.claude/settings.json to block destructive commands. Drop the flag here to get the normal prompting session."
         },
         "claudeUsage.launchTerminalName": {
           "type": "string",
@@ -103,7 +108,7 @@
         "claudeUsage.showStatusBar": {
           "type": "boolean",
           "default": false,
-          "description": "Also show the percentage as text in the status bar. Off by default \u2014 the activity bar icon badge is the indicator."
+          "description": "Also show the percentage as text in the status bar. Off by default — the activity bar icon badge is the indicator."
         },
         "claudeUsage.showWeekly": {
           "type": "boolean",

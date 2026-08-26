@@ -8,16 +8,16 @@
 set -euo pipefail
 
 input=$(cat)
-cmd=$(echo "$input" | jq -r '.tool_input.command // empty' 2>/dev/null || echo "")
+cmd=$(jq -r '.tool_input.command // empty' <<< "$input" 2>/dev/null || echo "")
 [ -z "$cmd" ] && exit 0
 
 # Explicit bypass: command starts with CLAUDE_ALLOW_PUSH=1 (visible to user in tool call)
-if echo "$cmd" | grep -qE '(^|[^[:alnum:]_])CLAUDE_ALLOW_PUSH=1\b'; then
+if grep -qE '(^|[^[:alnum:]_])CLAUDE_ALLOW_PUSH=1\b' <<< "$cmd"; then
   exit 0
 fi
 
 # Match `git push` (with surrounding spaces, start, or end)
-if echo "$cmd" | grep -qE '(^|[^[:alnum:]_])git[[:space:]]+push([^[:alnum:]_]|$)'; then
+if grep -qE '(^|[^[:alnum:]_])git[[:space:]]+push([^[:alnum:]_]|$)' <<< "$cmd"; then
   echo "⛔ Auto-push blocked. Charlie controls all pushes manually." >&2
   echo "    If Charlie just told you to push, prefix with: CLAUDE_ALLOW_PUSH=1 git push ..." >&2
   exit 2

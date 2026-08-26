@@ -4,7 +4,9 @@
 #
 # Append to .claude/knowledge-stale.md so it surfaces next session.
 
-set -euo pipefail
+# No -e: this is a best-effort logging hook. A non-zero exit surfaces a
+# "SessionStart/PostToolUse hook error" banner in the UI for no user benefit.
+set -uo pipefail
 
 input=$(cat)
 file_path=$(echo "$input" | jq -r '.tool_input.file_path // empty' 2>/dev/null || echo "")
@@ -127,7 +129,9 @@ ts=$(date +"%Y-%m-%d %H:%M:%S")
   echo "## $ts"
   echo "**Edited:** \`$rel_path\` (~$total_lines lines)"
   if [ -n "$all_ids" ]; then
-    ids_inline=$(echo "$all_ids" | tr '\n' ' ' | sed 's/[[:space:]]*$//' | head -c 200)
+    # bash substring, not `| head -c` — head exits early and SIGPIPEs sed (141).
+    ids_inline=$(echo "$all_ids" | tr '\n' ' ' | sed 's/[[:space:]]*$//')
+    ids_inline="${ids_inline:0:200}"
     echo "**Identifiers touched:** \`$ids_inline\`"
   fi
   echo ""
