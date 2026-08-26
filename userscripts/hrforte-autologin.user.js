@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         HR Forte — Auto Login
 // @namespace    https://chaelri.github.io/
-// @version      1.4.0
+// @version      1.4.3
 // @description  Signs in to eva.hrforte.com, clears SELECT COMPANY, then opens E-Smart Time › Clock Out and stops at the END screen. It never presses END. Credentials live in Tampermonkey storage, never in this file.
 // @author       Charlie Cayno
 // @match        https://eva.hrforte.com/*
@@ -25,7 +25,7 @@
   const K_AUTOCLOCKOUT = 'hrf_autoclockout';   // open E-Smart Time › Clock Out after landing
   const SS_TRIED = 'hrf_autologin_tries';      // per-tab guard against submit loops
   const SS_WENT = 'hrf_company_done';          // per-tab guard against Go loops
-  const SS_CLOCK = 'hrf_clockout_opened';      // per-tab guard: only open the modal once
+  const SS_CLOCK = 'hrf_clockout_opened';      // timestamp of the last Clock Out open
   const MAX_TRIES = 2;                         // never burn more than this per tab
   const WAIT_MS = 15000;                       // how long to wait for the form to render
   const COMPANY_WAIT_MS = 180000;              // SELECT COMPANY arrives after a round trip
@@ -34,6 +34,12 @@
   const ERROR_GRACE_MS = 6000;                 // how long to watch for a failed sign-in
   const DASH_WAIT_MS = 240000;                 // login → company → dashboard can be slow
   const MAX_EST_CLICKS = 4;                    // stop poking the header widget if it's dead
+  // sessionStorage outlives a reload, so a plain "done" flag would mean the
+  // modal opens once per TAB and never again — even after Charlie hits ⌘R
+  // expecting it to. Time-box it instead: long enough that an SPA re-run or a
+  // double load can't reopen a sheet he just cancelled, short enough that a
+  // deliberate reload always retries.
+  const CLOCK_COOLDOWN_MS = 90000;
 
   const cfg = {
     email: () => GM_getValue(K_EMAIL, ''),
@@ -213,11 +219,19 @@
       return false;
     }
     const r = el.getBoundingClientRect();
-    const at = { bubbles: true, cancelable: true, view: window,
+    // No `view` here. Under Tampermonkey's sandbox `window` is a proxy object
+    // rather than a real Window, and UIEventInit rejects it outright:
+    //   Failed to construct 'PointerEvent': Failed to convert value to 'Window'
+    // That threw straight out of handleClockOut and killed the run silently.
+    // The events dispatch fine without it — React reads target/coords, not view.
+    const at = { bubbles: true, cancelable: true, composed: true,
       clientX: Math.round(r.left + r.width / 2), clientY: Math.round(r.top + r.height / 2) };
+    // Exactly one 'click' in this sequence — antd's trigger toggles, so a
+    // second click (e.g. an extra el.click() fallback) would close it again.
     for (const type of ['pointerover', 'mouseover', 'pointerenter', 'mouseenter',
       'pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']) {
-      const Ctor = type.startsWith('pointer') && window.PointerEvent ? PointerEvent : MouseEvent;
+      const Ctor = type.startsWith('pointer') && typeof PointerEvent === 'function'
+        ? PointerEvent : MouseEvent;
       el.dispatchEvent(new Ctor(type, at));
     }
     return true;
@@ -257,9 +271,26 @@
       visible(t) && /^clock\s*out$/i.test((t.textContent || '').trim())) || null;
   }
 
+  const clockRecentlyOpened = () =>
+    Date.now() - Number(sessionStorage.getItem(SS_CLOCK) || 0) < CLOCK_COOLDOWN_MS;
+  const markClockOpened = () => sessionStorage.setItem(SS_CLOCK, String(Date.now()));
+
+  // A throw anywhere below used to vanish into an unhandled promise rejection,
+  // which is exactly how the PointerEvent bug hid: no toast, no guard written,
+  // no sign on screen that anything had been attempted. Never again.
   async function handleClockOut() {
+    try {
+      await clockOutRun();
+    } catch (err) {
+      console.error('[hrf] clock-out failed:', err);
+      toast('Auto Clock Out hit an error: ' + ((err && err.message) || err)
+        + ' — open E-Smart Time yourself.', 12000);
+    }
+  }
+
+  async function clockOutRun() {
     if (!cfg.autoClockOut()) return;
-    if (sessionStorage.getItem(SS_CLOCK)) return;   // already opened once in this tab
+    if (clockRecentlyOpened()) return;              // just did this; don't nag
 
     const deadline = Date.now() + DASH_WAIT_MS;
     let clicks = 0;
@@ -268,7 +299,7 @@
       // Something is already on screen — a modal Charlie opened himself, or the
       // Clock Out sheet from an earlier run. Never talk over it.
       if (anyModalOpen()) {
-        sessionStorage.setItem(SS_CLOCK, '1');
+        markClockOpened();
         return;
       }
 
@@ -287,23 +318,49 @@
         if (!dd) { await sleep(1200); continue; }
       }
 
-      const btn = clockOutButton(dd);
+      // waitFor resolves on the first mutation that matches, which is the
+      // instant antd inserts the panel — mid mount and mid zoom-in animation.
+      // Clicking that early is what made this flaky: same reload, same page,
+      // sometimes a modal and sometimes a dropdown left sitting open. Let it
+      // finish before touching it.
+      await sleep(600);
+
+      const btn = clockOutButton(estDropdown() || dd);
+      console.log('[hrf] dropdown open; Clock Out button found: ' + !!btn);
       if (!btn) {
         // Panel is up but offers Clock In (or Break only) — nothing to do today.
         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-        sessionStorage.setItem(SS_CLOCK, '1');
+        markClockOpened();
         toast('E-Smart Time is not offering Clock Out right now — already clocked out?', 7000);
         return;
       }
 
-      realClick(btn);
-      sessionStorage.setItem(SS_CLOCK, '1');
+      markClockOpened();
 
-      // The sheet renders as a spinner first and fills in after a round trip.
+      // The widget opens on HOVER as well as click, so a dropdown appearing is
+      // no proof the click landed — only a modal is. Verify, and retry with a
+      // plain .click() before giving up. Retrying is safe here: unlike the
+      // trigger, this button is not a toggle.
+      // "Landed" means ANY modal, not the finished sheet: it renders as a bare
+      // spinner first (no title) and only fills in after a server round trip.
+      let landed = false;
+      for (let attempt = 1; attempt <= 3 && !landed; attempt++) {
+        const live = (estDropdown() && clockOutButton(estDropdown())) || btn;
+        if (attempt === 1) realClick(live); else live.click();
+        landed = !!(await waitFor(() => (anyModalOpen() ? true : null), 6000));
+        console.log('[hrf] Clock Out click attempt ' + attempt + ' → landed: ' + landed);
+      }
+
+      if (!landed) {
+        toast('Clicked Clock Out but nothing opened. Open it yourself this once, '
+          + 'and send me the console.', 12000);
+        return;
+      }
+
       const modal = await waitFor(clockOutModal, 45000);
       toast(modal
         ? 'Clock Out is open. Press END when you are ready — I will not.'
-        : 'Clicked Clock Out but the sheet never finished loading. Check the page.', 9000);
+        : 'Clock Out opened but the sheet never finished loading. Check the page.', 9000);
       return;
     }
   }
@@ -454,6 +511,13 @@
   }
 
   (async function main() {
+    // One line in the console answers "is the new version actually live?" —
+    // the whole reason v1.4.0 looked broken was Tampermonkey still serving
+    // 1.3.0 while the repo file had moved on.
+    console.log('[hrf] auto-login v1.4.3 armed', {
+      autoSubmit: cfg.autoSubmit(), autoGo: cfg.autoGo(), autoClockOut: cfg.autoClockOut(),
+    });
+
     // Both of these run in parallel with the login and with each other — they
     // poll for their own screen and carry their own guards. handleClockOut in
     // particular has to run even when there's no login form at all, because a
