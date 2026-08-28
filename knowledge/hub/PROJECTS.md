@@ -1,6 +1,6 @@
 # Hub Project Index for chaelri.github.io
 
-**Last updated:** 2026-07-30
+**Last updated:** 2026-08-28
 **Scope:** Complete mapping of top-level directories + root files, with tech stack, deployment, status, and key entry points.
 
 ## Status Legend
@@ -200,6 +200,23 @@ Event app for **Campus UNITE — Elevate's 13th Anniversary** (July 17, 2026 · 
   - Race-protected registration: `register.html` re-checks `tickets/ECU-####/registered` at submit-time, not just on load, so two simultaneous QR scans of the same ticket don't both succeed.
   - **No Firebase Security Rules yet** — same posture as `weddingbar/` etc. Lock down with rules before going public if needed.
 - **Full docs:** See `knowledge/elevate-eo-campus-unite-2026/SUMMARY.md`.
+
+### driving/  🟢
+
+Browser driving simulator built for LTO practical-exam practice after PDC — a real automatic gearbox (creep, kickdown, lock-up, engine braking), three working mirrors, a random town with traffic and lights, and six graded exercises including parallel and back-in parking.
+
+- **Tech:** three.js 0.169 via jsDelivr import map (core only, no addons), vanilla ES modules, hand-written CSS, WebAudio synthesis. **No binary assets** — every mesh and texture is generated at runtime.
+- **Entry:** `index.html`, `js/main.js` (renderer, cameras, mirrors, fixed-step loop), `js/vehicle.js` (the driving model), `js/carmodel.js` (the car asset), `js/world.js` (procedural town + driving range), `js/traffic.js`, `js/missions.js`, `js/hud.js`.
+- **Deploy:** GitHub Pages at `/driving/`.
+- **Quirks:**
+  - **The drivetrain is modelled, not faked.** Engine speed is a state with its own inertia, feeding a torque converter (capacity + torque ratio) into a 4-speed box. Idle creep (~6.6 km/h) and engine braking (0.58 m/s² in D, 1.15 m/s² in L) are emergent.
+  - **Two frames:** math (X fwd, Y left, psi CCW) for physics/world authoring, THREE (`x = X`, `z = -Y`) for rendering. `MeshBuilder`'s `rotY` is `-psi`.
+  - **The car body is an open shell** — `openRing()` leaves the cabin aperture out of the top, with bonnet/boot decks laid across the gap. Uses two squircle exponents (5.5 above the waist, 3.0 below) so the door tops land on the belt line; a single exponent of 3.4 cut them 13 cm low and the doors rendered as open slots.
+  - **Mirrors** render to render targets and composite as quads with `scale.x` negated — flipping the projection matrix instead breaks face winding. `shadowMap.autoUpdate = false` keeps the shadow pass from running four times per frame.
+  - **Wheel geometry already has its axle on +Z**; a stray 90° fix-up makes the wheels roll about the car's forward axis.
+  - Brake-shift interlock, ignition-on-brake and "stop before selecting P" are enforced with explanatory messages — that messaging is the teaching content.
+  - Background tabs suspend rAF, so verify physics by stepping `vehicle.update()` in the console, not by driving.
+- **Full docs:** See `knowledge/driving/SUMMARY.md`.
 
 ### devo/  🟢
 
@@ -454,7 +471,7 @@ Simple side-scrolling platformer (Bubu & Dudu) — canvas-based game.
 
 | Project | Hosting | Auto-deploy on push? |
 |---|---|---|
-| sherill (also on Vercel as `drive-with-sherill`), devo, monthsary, tayo, sns-dq, weddingtest, towa-no-yuugure, autoclicker, aircon, pocket-remote, mac-toggle, collaterals, flux, pray, echoes, wedding100, weddingtimeline, horizon, money, anohana, bubududu | GitHub Pages subpath | ✅ |
+| sherill (also on Vercel as `drive-with-sherill`), driving, devo, monthsary, tayo, sns-dq, weddingtest, towa-no-yuugure, autoclicker, aircon, pocket-remote, mac-toggle, collaterals, flux, pray, echoes, wedding100, weddingtimeline, horizon, money, anohana, bubududu | GitHub Pages subpath | ✅ |
 | mac-toggle (Mac agent) | root LaunchDaemon `com.chaelri.mactoggle` via `agent/install.sh` | Manual |
 | mac-toggle (menu bar) | per-user LaunchAgent `com.chaelri.mactoggle.menubar` via `menubar/install-menubar.sh` | Manual |
 | claude-usage | per-user LaunchAgent `com.chaelri.claudeusage` via `install.sh` | Manual |

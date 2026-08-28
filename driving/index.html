@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0b0e13" />
+    <title>Driving Range — automatic car & parking practice</title>
+    <meta
+      name="description"
+      content="Browser driving simulator with a real automatic gearbox, creep, engine braking, mirrors and random city traffic. Practice parking before the LTO exam."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="scene"></canvas>
+
+      <!-- mirror bezels; positions are set from JS to match the render viewports -->
+      <div class="mirror-frame" id="frame-rear"><span class="mirror-tag">rear view</span></div>
+      <div class="mirror-frame" id="frame-left"><span class="mirror-tag">left</span></div>
+      <div class="mirror-frame" id="frame-right">
+        <span class="mirror-tag">right</span>
+        <span class="mirror-warn">objects are closer than they appear</span>
+      </div>
+
+      <div id="hud">
+        <!-- ============================================ top left: mission -->
+        <section class="panel" id="mission-panel">
+          <header>
+            <span class="material-symbols-outlined">flag</span>
+            <h2 id="mission-name">Free drive</h2>
+          </header>
+          <p id="mission-hint">Warm up. Get used to creep, braking and the mirrors.</p>
+          <div id="mission-metrics"></div>
+          <div class="faults" id="faults"></div>
+        </section>
+
+        <!-- ============================================ top right: minimap -->
+        <section class="panel" id="map-panel">
+          <canvas id="minimap" width="230" height="230"></canvas>
+          <div class="map-row">
+            <span id="clock">00:00</span>
+            <span id="score">100</span>
+          </div>
+        </section>
+
+        <!-- ============================================ centre toasts -->
+        <div id="toasts"></div>
+
+        <!-- ============================================ bottom left: cluster -->
+        <section id="cluster">
+          <svg id="tach" viewBox="0 0 200 200" aria-label="tachometer">
+            <circle class="dial-bg" cx="100" cy="100" r="92" />
+            <path class="dial-red" id="tach-redzone" />
+            <g id="tach-ticks"></g>
+            <g id="tach-labels"></g>
+            <g id="tach-needle" class="needle">
+              <path d="M100 100 L100 22" />
+              <circle cx="100" cy="100" r="9" />
+            </g>
+            <text class="dial-unit" x="100" y="140">x1000 r/min</text>
+            <text class="dial-val" id="rpm-val" x="100" y="168">0</text>
+          </svg>
+
+          <div id="centre-stack">
+            <div id="gear-gate">
+              <span data-g="P">P</span><span data-g="R">R</span><span data-g="N">N</span
+              ><span data-g="D">D</span><span data-g="L">L</span>
+            </div>
+            <div id="gear-detail"><span id="gear-current">P</span><small id="gear-sub">parked</small></div>
+            <div id="pedals">
+              <div class="pedal"><i id="pedal-brake"></i><label>BRAKE · S</label></div>
+              <div class="pedal"><i id="pedal-gas"></i><label>GAS · W</label></div>
+            </div>
+          </div>
+
+          <svg id="speedo" viewBox="0 0 200 200" aria-label="speedometer">
+            <circle class="dial-bg" cx="100" cy="100" r="92" />
+            <g id="speedo-ticks"></g>
+            <g id="speedo-labels"></g>
+            <g id="speedo-needle" class="needle">
+              <path d="M100 100 L100 22" />
+              <circle cx="100" cy="100" r="9" />
+            </g>
+            <text class="dial-unit" x="100" y="140">km/h</text>
+            <text class="dial-val" id="speed-val" x="100" y="168">0</text>
+          </svg>
+        </section>
+
+        <!-- ============================================ bottom right: wheel -->
+        <section id="wheel-panel">
+          <div id="telltales">
+            <span class="tt" id="tt-engine" title="engine"><span class="material-symbols-outlined">mode_heat</span></span>
+            <span class="tt" id="tt-indL" title="left signal"><span class="material-symbols-outlined">arrow_back</span></span>
+            <span class="tt" id="tt-indR" title="right signal"><span class="material-symbols-outlined">arrow_forward</span></span>
+            <span class="tt" id="tt-hand" title="handbrake">P</span>
+            <span class="tt" id="tt-abs" title="ABS">ABS</span>
+            <span class="tt" id="tt-eb" title="engine braking">EB</span>
+            <span class="tt" id="tt-lights" title="headlights"><span class="material-symbols-outlined">light_mode</span></span>
+          </div>
+          <svg id="wheel-svg" viewBox="-110 -110 220 220" aria-label="steering wheel">
+            <g id="wheel-rot">
+              <circle class="rim" r="88" />
+              <circle class="rim-inner" r="72" />
+              <path class="spoke" d="M-72 6 L-14 20 L-14 -20 L-72 -6 Z" />
+              <path class="spoke" d="M72 6 L14 20 L14 -20 L72 -6 Z" />
+              <path class="spoke" d="M-16 14 L-26 70 L26 70 L16 14 Z" />
+              <circle class="hub" r="21" />
+              <rect class="badge" x="-11" y="-4" width="22" height="8" rx="2" />
+              <rect class="marker" x="-4" y="-92" width="8" height="14" rx="2" />
+            </g>
+          </svg>
+          <div id="wheel-readout"><b id="wheel-deg">0&deg;</b><small>steering</small></div>
+        </section>
+
+        <!-- ============================================ touch controls -->
+        <div id="touch">
+          <div class="tgroup left">
+            <button data-hold="left" class="tbtn"><span class="material-symbols-outlined">chevron_left</span></button>
+            <button data-hold="right" class="tbtn"><span class="material-symbols-outlined">chevron_right</span></button>
+          </div>
+          <div class="tgroup right">
+            <button data-tap="shiftUp" class="tbtn sm">R&#8593;</button>
+            <button data-tap="shiftDown" class="tbtn sm">D&#8595;</button>
+            <button data-hold="brake" class="tbtn brake">BRAKE</button>
+            <button data-hold="throttle" class="tbtn gas">GAS</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================ start / pause overlay -->
+      <div id="overlay">
+        <div id="overlay-card">
+          <div id="overlay-head">
+            <div>
+              <h1>Driving Range</h1>
+              <p class="sub">
+                Automatic transmission · creep · engine braking · three mirrors · random roads and traffic
+              </p>
+            </div>
+            <button id="btn-close" class="ghost" hidden>
+              <span class="material-symbols-outlined">close</span>
+            </button>
+          </div>
+
+          <div id="mission-list"></div>
+
+          <details id="controls-help">
+            <summary>Controls &amp; the start-up routine</summary>
+            <div class="help-grid">
+              <div>
+                <h3>Pedals &amp; steering</h3>
+                <ul>
+                  <li><kbd>W</kbd> accelerator</li>
+                  <li><kbd>S</kbd> brake</li>
+                  <li><kbd>A</kbd> <kbd>D</kbd> steer (the wheel winds on gradually, like a real one)</li>
+                  <li><kbd>Space</kbd> handbrake</li>
+                </ul>
+              </div>
+              <div>
+                <h3>Gear gate</h3>
+                <ul>
+                  <li><kbd>&#8593;</kbd> <kbd>&#8595;</kbd> move the lever through <b>P R N D L</b></li>
+                  <li>Brake-shift interlock: hold <kbd>S</kbd> to leave <b>P</b> or select <b>R</b>/<b>D</b></li>
+                  <li><b>L</b> holds a low gear for strong engine braking</li>
+                </ul>
+              </div>
+              <div>
+                <h3>Car</h3>
+                <ul>
+                  <li><kbd>Enter</kbd> start / stop engine (hold the brake first)</li>
+                  <li><kbd>Q</kbd> <kbd>E</kbd> turn signals &middot; <kbd>H</kbd> horn &middot; <kbd>L</kbd> headlights</li>
+                  <li><kbd>C</kbd> camera &middot; <kbd>M</kbd> mirrors &middot; <kbd>T</kbd> day/night</li>
+                  <li><kbd>R</kbd> recover &middot; <kbd>N</kbd> new random town &middot; <kbd>P</kbd> pause</li>
+                </ul>
+              </div>
+              <div>
+                <h3>Starting off, exactly like the real thing</h3>
+                <ol>
+                  <li>Hold the brake — <kbd>S</kbd></li>
+                  <li>Press <kbd>Enter</kbd> to start the engine</li>
+                  <li>Still on the brake, press <kbd>&#8595;</kbd> until the gate reads <b>D</b></li>
+                  <li>Release the brake — the car creeps forward on idle torque alone</li>
+                  <li>Squeeze <kbd>W</kbd> to pull away</li>
+                </ol>
+              </div>
+            </div>
+          </details>
+
+          <div id="overlay-opts">
+            <label>Traffic <input type="range" id="opt-traffic" min="0" max="24" step="1" value="14" /><b id="opt-traffic-v">14</b></label>
+            <label>Town seed <input type="number" id="opt-seed" value="1" min="1" max="99999" /></label>
+            <label class="chk"><input type="checkbox" id="opt-sound" checked /> Sound</label>
+            <label class="chk"><input type="checkbox" id="opt-mirrors" checked /> Mirrors</label>
+            <label class="chk"><input type="checkbox" id="opt-night" /> Night</label>
+            <label class="chk"><input type="checkbox" id="opt-shadows" checked /> Shadows</label>
+          </div>
+
+          <button id="btn-drive" class="primary">
+            <span class="material-symbols-outlined">directions_car</span> Get in the car
+          </button>
+          <p class="footnote">Keyboard recommended. Runs entirely in your browser — nothing is uploaded.</p>
+        </div>
+      </div>
+
+      <div id="result" hidden>
+        <div class="result-card">
+          <h2 id="result-title">Parked</h2>
+          <div id="result-score">100</div>
+          <ul id="result-list"></ul>
+          <div class="result-actions">
+            <button id="result-retry" class="primary">Try again</button>
+            <button id="result-menu" class="ghost">Choose another</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="loading"><div class="spin"></div><span>Building the town…</span></div>
+    </div>
+
+    <script type="module" src="js/main.js"></script>
+  </body>
+</html>
