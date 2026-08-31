@@ -12846,10 +12846,16 @@ body.nr-locked { overflow: hidden; }
 .light .nr-logline { color: rgba(0, 0, 0, 0.6); }
 
 /* Beats stagger in via inline animation-delay set in JS, so the screen fills
-   in reading order instead of appearing all at once. */
+   in reading order instead of appearing all at once.
+
+   Fill mode is `both`, NOT `forwards`, and there is deliberately no
+   `opacity: 0` here. The hidden start belongs in the keyframe's `from`, which
+   `both` holds during the delay — so the stagger looks the same, but a beat
+   whose animation never runs resolves to visible instead of to nothing. With
+   the hidden state in the base rule, any dropped restart (and _nrGoToPage
+   rebuilds these on every page turn) left the beat blank permanently. */
 .nr-line {
-  opacity: 0;
-  animation: nrBeatIn 0.42s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: nrBeatIn 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 @keyframes nrBeatIn {
   from { opacity: 0; transform: translateY(10px); }
@@ -12945,9 +12951,103 @@ body.nr-locked { overflow: hidden; }
 }
 .light .nr-end { color: rgba(0, 0, 0, 0.35); }
 
+
+/* ── Storyboard panel ──────────────────────────────────────────────────────
+   The chapter drawn as stick figures, dropped into the beat stream at the
+   moments it turns. Built in js/09-narrate.js from a fixed pose vocabulary —
+   the model directs, the renderer draws.
+
+   Scenery inherits `color` rather than carrying its own hex, so the whole set
+   re-inks for light mode from the one rule below. Figures keep their speaker
+   colour in both themes: they're solid mid-tones chosen to hold up on either
+   ground, unlike the pale bubble inks. */
+.nr-scene {
+  /* The retelling column runs to 760px, and a panel at that full width is
+     ~350px tall on its own — taller than the space left on a page after the
+     logline and a heading. Pagination then pushes it to the next page and
+     leaves a nearly empty first screen, which reads as a broken render rather
+     than as a short page. Capping the width caps the height with it (the
+     viewBox is 320×150), so panels pack instead of dominating. Below this
+     width — every phone — nothing changes. */
+  max-width: 560px;
+  margin: 4px auto 24px;
+  padding: 0;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, rgba(219, 39, 119, 0.05), rgba(255, 255, 255, 0.015));
+  overflow: hidden;
+  /* `both` + no base opacity — see .nr-line above. */
+  animation: nrBeatIn 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.light .nr-scene {
+  border-color: rgba(0, 0, 0, 0.09);
+  background: linear-gradient(180deg, rgba(219, 39, 119, 0.045), rgba(0, 0, 0, 0.012));
+}
+
+.nr-scene-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  /* Scenery ink. Deliberately quiet — the ground line and the tents are
+     staging, and the eye should land on the people. */
+  color: rgba(230, 237, 247, 0.34);
+  /* Fills the head so an arm passing behind it doesn't read as passing
+     through. Follows the panel ground, not the page, so it stays right in
+     both themes. */
+  --nr-fig-fill: #12131c;
+}
+.light .nr-scene-svg {
+  color: rgba(0, 0, 0, 0.3);
+  --nr-fig-fill: #fbf7fa;
+}
+
+.nr-scene-cap {
+  margin: 0;
+  padding: 0 16px 13px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  font-style: italic;
+  color: rgba(230, 237, 247, 0.62);
+}
+.light .nr-scene-cap { color: rgba(0, 0, 0, 0.55); }
+
+/* Who is on stage, in each person's own colour — the same colour their speech
+   bubble uses, so a figure can be matched to a voice without a label on it. */
+.nr-scene-cast {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  padding: 0 16px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.9px;
+  text-transform: uppercase;
+}
+.nr-scene-name { display: inline-flex; align-items: center; gap: 5px; }
+.nr-scene-name::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+@media (max-width: 480px) {
+  .nr-scene { margin-left: 0; margin-right: 0; }
+  .nr-scene-cap { font-size: 12.5px; padding: 0 13px 11px; }
+  .nr-scene-cast { padding: 0 13px 12px; font-size: 10px; gap: 5px 11px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .nr-overlay { transition: none; }
   .nr-line { animation: none; opacity: 1; }
+}
+
+/* SMIL timelines ignore CSS, so the figures are rendered still at the source
+   in _nrActor rather than being stopped here. This only covers the panel's
+   own entrance. */
+@media (prefers-reduced-motion: reduce) {
+  .nr-scene { animation: none; opacity: 1; }
 }
 
 /* `hidden` is a UA-stylesheet `display: none`, and the author-level
