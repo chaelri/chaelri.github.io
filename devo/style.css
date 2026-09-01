@@ -12846,16 +12846,10 @@ body.nr-locked { overflow: hidden; }
 .light .nr-logline { color: rgba(0, 0, 0, 0.6); }
 
 /* Beats stagger in via inline animation-delay set in JS, so the screen fills
-   in reading order instead of appearing all at once.
-
-   Fill mode is `both`, NOT `forwards`, and there is deliberately no
-   `opacity: 0` here. The hidden start belongs in the keyframe's `from`, which
-   `both` holds during the delay — so the stagger looks the same, but a beat
-   whose animation never runs resolves to visible instead of to nothing. With
-   the hidden state in the base rule, any dropped restart (and _nrGoToPage
-   rebuilds these on every page turn) left the beat blank permanently. */
+   in reading order instead of appearing all at once. */
 .nr-line {
-  animation: nrBeatIn 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+  opacity: 0;
+  animation: nrBeatIn 0.42s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 @keyframes nrBeatIn {
   from { opacity: 0; transform: translateY(10px); }
@@ -12941,95 +12935,6 @@ body.nr-locked { overflow: hidden; }
 }
 .nr-narr .nr-chip { margin-left: 0; margin-top: 8px; }
 
-/* ── Read aloud, per beat ─────────────────────────────────────────────────
-   The play button and the verse chip share one row so the chip's own spacing
-   rules don't need to know a button now sits next to it. */
-.nr-beat-tools {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  vertical-align: middle;
-  margin-left: 8px;
-}
-.nr-narr .nr-beat-tools { display: flex; margin-left: 0; margin-top: 10px; }
-.nr-beat-tools .nr-chip { margin: 0 !important; }
-
-.nr-play {
-  /* Pinned square from every direction. As a flex item it was being stretched
-     on the cross axis into an oval — `align-self` stops the stretch, the
-     min/max pair stops any global button rule or the icon's own line box from
-     growing it, and border-box keeps the 1px border inside the 30px. */
-  flex: 0 0 21px;
-  box-sizing: border-box;
-  align-self: center;
-  width: 21px;
-  height: 21px;
-  min-width: 21px;
-  max-width: 21px;
-  min-height: 21px;
-  max-height: 21px;
-  aspect-ratio: 1 / 1;
-  padding: 0;
-  overflow: hidden;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  /* Solid brand pink with a white glyph — the same filled-circle treatment the
-     app uses for its primary round actions, rather than the tinted outline the
-     verse chip beside it wears. */
-  border: none;
-  background: #db2777;
-  color: #fff;
-  cursor: pointer;
-  transition: background 0.18s ease, transform 0.12s ease;
-}
-.light .nr-play { color: #fff; }
-.nr-play:hover {
-  background: #e63a8a;
-}
-.nr-play:active { transform: scale(0.9); }
-.nr-play .material-symbols-outlined {
-  font-size: 13px;
-  line-height: 1;
-  width: 13px;
-  height: 13px;
-  display: block;
-  /* Optical centring — the play glyph's bounding box carries more space on
-     its left than its right, so a perfectly centred box reads off-centre. */
-  margin-left: 1px;
-}
-.nr-play-on {
-  background: #9d174d;
-  color: #fff;
-}
-.nr-play-on:hover { background: #a81a56; }
-.nr-play-on .material-symbols-outlined { margin-left: 0; }
-.nr-play-busy { cursor: progress; }
-.nr-play-busy .nr-play-icon {
-  margin-left: 0;
-  animation: nrSpin 0.9s linear infinite;
-}
-@keyframes nrSpin { to { transform: rotate(360deg); } }
-
-/* The word currently being spoken. A wash, not a colour flip: swapping the
-   ink on every word strobes at reading speed. Same treatment canvas mode
-   settled on. The box-shadow pads the highlight out past the glyph edges
-   without adding padding, which would reflow the line mid-sentence. */
-.nr-word-on {
-  background: rgba(219, 39, 119, 0.28);
-  border-radius: 4px;
-  box-shadow: 0 0 0 2px rgba(219, 39, 119, 0.28);
-}
-.light .nr-word-on {
-  background: rgba(219, 39, 119, 0.2);
-  box-shadow: 0 0 0 2px rgba(219, 39, 119, 0.2);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .nr-play-busy .nr-play-icon { animation: none; }
-}
-
 .nr-end {
   margin: 40px 0 10px;
   text-align: center;
@@ -13040,95 +12945,9 @@ body.nr-locked { overflow: hidden; }
 }
 .light .nr-end { color: rgba(0, 0, 0, 0.35); }
 
-
-/* ── Storyboard panel ──────────────────────────────────────────────────────
-   The chapter drawn as stick figures, dropped into the beat stream at the
-   moments it turns. Built in js/09-narrate.js from a fixed pose vocabulary —
-   the model directs, the renderer draws.
-
-   Scenery inherits `color` rather than carrying its own hex, so the whole set
-   re-inks for light mode from the one rule below. Figures keep their speaker
-   colour in both themes: they're solid mid-tones chosen to hold up on either
-   ground, unlike the pale bubble inks. */
-.nr-scene {
-  /* The retelling column runs to 760px, and a panel at that full width is
-     ~350px tall on its own — taller than the space left on a page after the
-     logline and a heading. Pagination then pushes it to the next page and
-     leaves a nearly empty first screen, which reads as a broken render rather
-     than as a short page. Capping the width caps the height with it (the
-     viewBox is 320×150), so panels pack instead of dominating. Below this
-     width — every phone — nothing changes. */
-  max-width: 560px;
-  margin: 4px auto 24px;
-  padding: 0;
-  border-radius: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: linear-gradient(180deg, rgba(219, 39, 119, 0.05), rgba(255, 255, 255, 0.015));
-  overflow: hidden;
-  /* `both` + no base opacity — see .nr-line above. */
-  animation: nrBeatIn 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-.light .nr-scene {
-  border-color: rgba(0, 0, 0, 0.09);
-  background: linear-gradient(180deg, rgba(219, 39, 119, 0.045), rgba(0, 0, 0, 0.012));
-}
-
-.nr-scene-svg {
-  display: block;
-  width: 100%;
-  height: auto;
-  /* Scenery ink. Deliberately quiet — the ground line and the tents are
-     staging, and the eye should land on the people. */
-  color: rgba(230, 237, 247, 0.34);
-  /* Fills the head so an arm passing behind it doesn't read as passing
-     through. Follows the panel ground, not the page, so it stays right in
-     both themes. */
-  --nr-fig-fill: #12131c;
-}
-.light .nr-scene-svg {
-  color: rgba(0, 0, 0, 0.3);
-  --nr-fig-fill: #fbf7fa;
-}
-
-.nr-scene-cap {
-  margin: 0;
-  padding: 0 16px 13px;
-  font-size: 13.5px;
-  line-height: 1.55;
-  font-style: italic;
-  color: rgba(230, 237, 247, 0.62);
-}
-.light .nr-scene-cap { color: rgba(0, 0, 0, 0.55); }
-
-/* Nameplates are SVG <text>, which does NOT inherit the page font — without
-   this they fall back to the browser's default serif. */
-@font-face {
-  font-family: "Minecraft";
-  src: url("assets/Minecraft.ttf") format("truetype");
-  font-display: swap;
-}
-.nr-scene-svg text {
-  font-family: "Minecraft", Inter, -apple-system, BlinkMacSystemFont, sans-serif;
-  /* The face is a pixel font — no letter-spacing, and no synthetic bold,
-     which would smear the pixel grid. */
-  letter-spacing: 0;
-}
-
-@media (max-width: 480px) {
-  .nr-scene { margin-left: 0; margin-right: 0; }
-  .nr-scene-cap { font-size: 12.5px; padding: 0 13px 11px; }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .nr-overlay { transition: none; }
   .nr-line { animation: none; opacity: 1; }
-}
-
-/* SMIL timelines ignore CSS, so the figures are rendered still at the source
-   in _nrActor rather than being stopped here. This only covers the panel's
-   own entrance. */
-@media (prefers-reduced-motion: reduce) {
-  .nr-scene { animation: none; opacity: 1; }
 }
 
 /* `hidden` is a UA-stylesheet `display: none`, and the author-level
