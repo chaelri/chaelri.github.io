@@ -12941,6 +12941,95 @@ body.nr-locked { overflow: hidden; }
 }
 .nr-narr .nr-chip { margin-left: 0; margin-top: 8px; }
 
+/* ── Read aloud, per beat ─────────────────────────────────────────────────
+   The play button and the verse chip share one row so the chip's own spacing
+   rules don't need to know a button now sits next to it. */
+.nr-beat-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  vertical-align: middle;
+  margin-left: 8px;
+}
+.nr-narr .nr-beat-tools { display: flex; margin-left: 0; margin-top: 10px; }
+.nr-beat-tools .nr-chip { margin: 0 !important; }
+
+.nr-play {
+  /* Pinned square from every direction. As a flex item it was being stretched
+     on the cross axis into an oval — `align-self` stops the stretch, the
+     min/max pair stops any global button rule or the icon's own line box from
+     growing it, and border-box keeps the 1px border inside the 30px. */
+  flex: 0 0 21px;
+  box-sizing: border-box;
+  align-self: center;
+  width: 21px;
+  height: 21px;
+  min-width: 21px;
+  max-width: 21px;
+  min-height: 21px;
+  max-height: 21px;
+  aspect-ratio: 1 / 1;
+  padding: 0;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  /* Solid brand pink with a white glyph — the same filled-circle treatment the
+     app uses for its primary round actions, rather than the tinted outline the
+     verse chip beside it wears. */
+  border: none;
+  background: #db2777;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.18s ease, transform 0.12s ease;
+}
+.light .nr-play { color: #fff; }
+.nr-play:hover {
+  background: #e63a8a;
+}
+.nr-play:active { transform: scale(0.9); }
+.nr-play .material-symbols-outlined {
+  font-size: 13px;
+  line-height: 1;
+  width: 13px;
+  height: 13px;
+  display: block;
+  /* Optical centring — the play glyph's bounding box carries more space on
+     its left than its right, so a perfectly centred box reads off-centre. */
+  margin-left: 1px;
+}
+.nr-play-on {
+  background: #9d174d;
+  color: #fff;
+}
+.nr-play-on:hover { background: #a81a56; }
+.nr-play-on .material-symbols-outlined { margin-left: 0; }
+.nr-play-busy { cursor: progress; }
+.nr-play-busy .nr-play-icon {
+  margin-left: 0;
+  animation: nrSpin 0.9s linear infinite;
+}
+@keyframes nrSpin { to { transform: rotate(360deg); } }
+
+/* The word currently being spoken. A wash, not a colour flip: swapping the
+   ink on every word strobes at reading speed. Same treatment canvas mode
+   settled on. The box-shadow pads the highlight out past the glyph edges
+   without adding padding, which would reflow the line mid-sentence. */
+.nr-word-on {
+  background: rgba(219, 39, 119, 0.28);
+  border-radius: 4px;
+  box-shadow: 0 0 0 2px rgba(219, 39, 119, 0.28);
+}
+.light .nr-word-on {
+  background: rgba(219, 39, 119, 0.2);
+  box-shadow: 0 0 0 2px rgba(219, 39, 119, 0.2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nr-play-busy .nr-play-icon { animation: none; }
+}
+
 .nr-end {
   margin: 40px 0 10px;
   text-align: center;
@@ -13011,31 +13100,23 @@ body.nr-locked { overflow: hidden; }
 }
 .light .nr-scene-cap { color: rgba(0, 0, 0, 0.55); }
 
-/* Who is on stage, in each person's own colour — the same colour their speech
-   bubble uses, so a figure can be matched to a voice without a label on it. */
-.nr-scene-cast {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 14px;
-  padding: 0 16px 14px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.9px;
-  text-transform: uppercase;
+/* Nameplates are SVG <text>, which does NOT inherit the page font — without
+   this they fall back to the browser's default serif. */
+@font-face {
+  font-family: "Minecraft";
+  src: url("assets/Minecraft.ttf") format("truetype");
+  font-display: swap;
 }
-.nr-scene-name { display: inline-flex; align-items: center; gap: 5px; }
-.nr-scene-name::before {
-  content: "";
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: currentColor;
+.nr-scene-svg text {
+  font-family: "Minecraft", Inter, -apple-system, BlinkMacSystemFont, sans-serif;
+  /* The face is a pixel font — no letter-spacing, and no synthetic bold,
+     which would smear the pixel grid. */
+  letter-spacing: 0;
 }
 
 @media (max-width: 480px) {
   .nr-scene { margin-left: 0; margin-right: 0; }
   .nr-scene-cap { font-size: 12.5px; padding: 0 13px 11px; }
-  .nr-scene-cast { padding: 0 13px 12px; font-size: 10px; gap: 5px 11px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

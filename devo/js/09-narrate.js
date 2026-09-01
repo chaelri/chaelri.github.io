@@ -23,9 +23,11 @@
 
 // Bumped whenever output shape changes — "narrate_" held rewritten prose,
 // "narrate2_"/"narrate3_" held verses whose speech was never split out of the
-// narration. Cached entries would otherwise keep serving the old shape for a
+// narration, "narrate4_" held beats that merged whole runs of verses into one
+// block (which read as a wall of text in a formal translation like NASB,
+// while a simplified one happened to break per verse on its own). Cached entries would otherwise keep serving the old shape for a
 // week. Superseded keys expire on their own TTL and are never read again.
-const _NR_CACHE_PREFIX = "narrate4_";
+const _NR_CACHE_PREFIX = "narrate5_";
 const _NR_CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days, same as the story cache
 
 /* Bubble colours cycle per distinct speaker so two people in the same scene
@@ -244,7 +246,9 @@ function _nrVerseChip(ref) {
    already use, so Gideon's figure is the same blue as Gideon's speech.
 ══════════════════════════════════════════════════════════════════════════ */
 
-const _NR_SCENE_PREFIX = "nrscene1_";
+// Bumped when the pose/prop vocabulary changes — cached scenes were picked
+// from the old list and would keep standing where they should be praying.
+const _NR_SCENE_PREFIX = "nrscene3_";
 
 /* Stage geometry. Figures are authored in a 50×80 box with the feet at y=74
    and are anchored by their feet, so a pose that crouches sinks rather than
@@ -315,6 +319,11 @@ const _NR_POSE_TABLE = {
     a: [25,13, 25,21, 25,46, 14,34, 38,10, 18,60, 13,74, 33,60, 37,74],
     b: [26,14, 25,22, 25,46, 14,34, 42,20, 18,60, 13,74, 33,60, 37,74],
   },
+  pray: {
+    hideArms: true,
+    a: [27,33, 25,40, 25,58, 30,45, 31,44, 29,74, 12,72, 33,74, 16,72],
+    b: [27,34, 25,40, 25,58, 30,45, 31,44, 29,74, 12,72, 33,74, 16,72],
+  },
   kneel: {
     a: [25,28, 25,36, 25,62, 19,52, 31,52, 33,74, 13,72, 37,74, 17,72],
     b: [25,29, 25,37, 25,62, 19,53, 31,53, 33,74, 13,72, 37,74, 17,72],
@@ -369,6 +378,12 @@ const _NR_POSE_HELD = {
   work:  (j) => `<line x1="${j.rh[0] - 2}" y1="${j.rh[1] - 8}" x2="${j.lh[0] + 3}" y2="${j.lh[1] + 3}" stroke-width="1.4"/>`,
   carry: (j) => `<rect x="${(j.lh[0] + j.rh[0]) / 2 - 6}" y="${(j.lh[1] + j.rh[1]) / 2 - 5}" width="12" height="11" rx="1.5" stroke-width="1.4" fill="none"/>`,
   lift:  (j) => `<rect x="${(j.lh[0] + j.rh[0]) / 2 - 12}" y="${(j.lh[1] + j.rh[1]) / 2 - 7}" width="24" height="7" rx="1.5" stroke-width="1.4" fill="none"/>`,
+  pray:  (j) => `<polyline points="${j.s} ${j.s[0] - 5},${j.s[1] + 11} ${j.lh}" fill="none" stroke-width="1.8"/>`
+    + `<polyline points="${j.s} ${j.s[0] + 6},${j.s[1] + 11} ${j.rh}" fill="none" stroke-width="1.8"/>`,
+  sit:   () => `<line x1="12" y1="64" x2="38" y2="64" stroke-width="1.7"/>
+    <line x1="15" y1="64" x2="15" y2="74" stroke-width="1.4"/>
+    <line x1="35" y1="64" x2="35" y2="74" stroke-width="1.4"/>
+    <line x1="12" y1="63" x2="12" y2="45" stroke-width="1.5"/>`,
   write: () => `<line x1="33" y1="50" x2="64" y2="50" stroke-width="1.7"/>
     <line x1="36" y1="50" x2="36" y2="74" stroke-width="1.4"/>
     <line x1="61" y1="50" x2="61" y2="74" stroke-width="1.4"/>
@@ -394,8 +409,16 @@ function _nrAv(attr, from, to, dur, begin) {
 
 /* One figure. `b` is null for a still figure (reduced motion, or a face in a
    crowd) — then every joint is drawn at its `a` value with no timelines. */
-function _nrFigure(a, b, dur, begin) {
+function _nrFigure(a, b, dur, begin, hideArms) {
   const A = (attr, j, i) => (b ? _nrAv(attr, a[j][i], b[j][i], dur, begin) : "");
+  // Arms run a quarter-cycle ahead of the legs, as they do when you actually
+  // walk. Without the offset, poses whose two frames mirror left and right
+  // (walk, run, flee) interpolate through a midpoint where BOTH arms and BOTH
+  // legs coincide — for a moment every cycle the figure collapses to a bare
+  // head on a vertical line. Phase-shifted, the arms are at full swing exactly
+  // when the legs pass each other, so it never reads as limbless.
+  const armBegin = (Number(begin) - Number(dur) / 4).toFixed(2);
+  const AA = (attr, j, i) => (b ? _nrAv(attr, a[j][i], b[j][i], dur, armBegin) : "");
   const pts = (p) => `${p.p} ${p.lk} ${p.lf}`;
   const ptsR = (p) => `${p.p} ${p.rk} ${p.rf}`;
 
@@ -404,9 +427,11 @@ function _nrFigure(a, b, dur, begin) {
     `<circle cx="${a.h[0]}" cy="${a.h[1]}" r="4.6" fill="var(--nr-fig-fill)" stroke-width="1.9">${A("cx", "h", 0)}${A("cy", "h", 1)}</circle>` +
     // Spine.
     `<line x1="${a.s[0]}" y1="${a.s[1]}" x2="${a.p[0]}" y2="${a.p[1]}" stroke-width="2.1">${A("x1", "s", 0)}${A("y1", "s", 1)}${A("x2", "p", 0)}${A("y2", "p", 1)}</line>` +
-    // Arms, shoulder to hand.
-    `<line x1="${a.s[0]}" y1="${a.s[1]}" x2="${a.lh[0]}" y2="${a.lh[1]}" stroke-width="1.8">${A("x1", "s", 0)}${A("y1", "s", 1)}${A("x2", "lh", 0)}${A("y2", "lh", 1)}</line>` +
-    `<line x1="${a.s[0]}" y1="${a.s[1]}" x2="${a.rh[0]}" y2="${a.rh[1]}" stroke-width="1.8">${A("x1", "s", 0)}${A("y1", "s", 1)}${A("x2", "rh", 0)}${A("y2", "rh", 1)}</line>` +
+    // Arms, shoulder to hand — unless the pose draws its own bent ones.
+    (hideArms
+      ? ""
+      : `<line x1="${a.s[0]}" y1="${a.s[1]}" x2="${a.lh[0]}" y2="${a.lh[1]}" stroke-width="1.8">${A("x1", "s", 0)}${A("y1", "s", 1)}${AA("x2", "lh", 0)}${AA("y2", "lh", 1)}</line>` +
+        `<line x1="${a.s[0]}" y1="${a.s[1]}" x2="${a.rh[0]}" y2="${a.rh[1]}" stroke-width="1.8">${A("x1", "s", 0)}${A("y1", "s", 1)}${AA("x2", "rh", 0)}${AA("y2", "rh", 1)}</line>`) +
     // Legs as pelvis→knee→foot polylines so the knee actually bends.
     `<polyline points="${pts(a)}" fill="none" stroke-width="1.8">${b ? _nrAv("points", pts(a), pts(b), dur, begin) : ""}</polyline>` +
     `<polyline points="${ptsR(a)}" fill="none" stroke-width="1.8">${b ? _nrAv("points", ptsR(a), ptsR(b), dur, begin) : ""}</polyline>`
@@ -441,8 +466,47 @@ function _nrActor(act, tone, idx) {
   // anchor, so a figure turning round doesn't slide sideways.
   return `<g class="nr-fig" transform="translate(${act.px},${_NR_GROUND}) scale(${(face * s).toFixed(3)},${s.toFixed(3)}) translate(-25,-74)"
              stroke="${tone.line}" stroke-linecap="round" stroke-linejoin="round" opacity="${act.opacity}">
-    ${halo}${_nrFigure(a, b, dur, begin)}${held}
+    ${halo}${_nrFigure(a, b, dur, begin, spec.hideArms)}${held}
   </g>`;
+}
+
+/* A name tag sitting above the figure's head, the way a game labels a
+   character. Drawn in STAGE space, never inside the actor's own group — a
+   left-facing figure is rendered with a mirrored transform, and text inside
+   that group would come out backwards.
+
+   SVG has no auto-sizing box behind text, so the plate width is estimated
+   from the character count. The padding absorbs the error; being a couple of
+   units wide either way is invisible. */
+// Plate geometry, in viewBox units against a 74-unit-tall figure. Shared so
+// the collision pass in _nrSceneSVG measures the same box that gets drawn.
+const _NR_PLATE_FS = 6;
+const _NR_PLATE_H = 9.5;
+const _NR_PLATE_GAP = 6;
+
+function _nrPlateLabel(name) {
+  const label = String(name || "").trim();
+  return label.length > 16 ? label.slice(0, 15).trimEnd() + "…" : label;
+}
+
+// Minecraft's glyphs are near-uniform width, so a flat per-character estimate
+// tracks the real text width closely.
+function _nrPlateWidth(label) {
+  return Math.max(16, label.length * _NR_PLATE_FS * 0.66 + 8);
+}
+
+function _nrNameplate(name, cx, topY) {
+  const label = _nrPlateLabel(name);
+  if (!label) return "";
+
+  const h = _NR_PLATE_H;
+  const w = _nrPlateWidth(label);
+  const x = Math.max(2, Math.min(_NR_STAGE_W - w - 2, cx - w / 2));
+  const y = Math.max(1, topY - _NR_PLATE_GAP - h);
+
+  return `<g class="nr-plate"><rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h}" fill="#000"/>`
+    + `<text x="${(x + w / 2).toFixed(1)}" y="${(y + h / 2 + 0.3).toFixed(1)}" fill="#fff" font-size="${_NR_PLATE_FS}"`
+    + ` text-anchor="middle" dominant-baseline="middle">${_nrEsc(label)}</text></g>`;
 }
 
 /* Scenery. Each is drawn in stage coordinates, standing on the ground line,
@@ -574,12 +638,31 @@ function _nrSceneSVG(scene, tones) {
     })
     .join("");
 
+  // Plate rectangles already placed, so a second name can be lifted clear
+  // rather than printed on top of its neighbour.
+  const placed = [];
+  const plates = [];
+
   const drawn = actors
     .map((act, i) => {
       const tone = _nrToneFor(act.name, tones);
       const divine = _nrIsDivine(act.name);
       const facing = act.facing === "left" ? "left" : "right";
       const base = { ...act, facing, divine };
+
+      // Top of this pose's head, in stage coordinates. Taken from the pose
+      // rather than assumed, so the tag on someone lying down sits just above
+      // them instead of floating where a standing head would be.
+      const spec = _NR_POSE_TABLE[act.pose] || _NR_POSE_TABLE.stand;
+      const cx = _nrStageX(act.x);
+      let topY = _NR_GROUND - (74 - (_nrPose(spec.a).h[1] - 4.6));
+      const halfW = _nrPlateWidth(_nrPlateLabel(act.name)) / 2;
+      const lift = _NR_PLATE_H + _NR_PLATE_GAP;
+      while (placed.some((q) => Math.abs(q.cx - cx) < q.halfW + halfW && Math.abs(q.topY - topY) < lift)) {
+        topY -= lift;
+      }
+      placed.push({ cx, topY, halfW });
+      plates.push(_nrNameplate(act.name, cx, topY));
 
       if (!act.crowd) {
         return _nrActor({ ...base, px: _nrStageX(act.x), scale: 1, opacity: 1 }, tone, i);
@@ -588,19 +671,11 @@ function _nrSceneSVG(scene, tones) {
       // than a person. The two behind are smaller, dimmer and still, so the
       // group has depth without three sets of timelines fighting for
       // attention.
-      const cx = _nrStageX(act.x);
       return [
         _nrActor({ ...base, px: cx - 25, scale: 0.76, opacity: 0.4, still: true }, tone, i),
         _nrActor({ ...base, px: cx + 23, scale: 0.85, opacity: 0.55, still: true }, tone, i + 1),
         _nrActor({ ...base, px: cx, scale: 1, opacity: 1 }, tone, i + 2),
       ].join("");
-    })
-    .join("");
-
-  const cast = actors
-    .map((act) => {
-      const tone = _nrToneFor(act.name, tones);
-      return `<span class="nr-scene-name" style="color:${tone.line}">${_nrEsc(act.name)}</span>`;
     })
     .join("");
 
@@ -610,10 +685,201 @@ function _nrSceneSVG(scene, tones) {
       <g class="nr-scenery" fill="none" stroke="currentColor" stroke-width="1.5"
          stroke-linecap="round" stroke-linejoin="round">${_NR_SETTINGS[setting]()}${props}</g>
       ${drawn}
+      ${plates.join("")}
     </svg>
     ${scene.caption ? `<figcaption class="nr-scene-cap">${_nrEsc(scene.caption)}</figcaption>` : ""}
-    ${cast ? `<div class="nr-scene-cast">${cast}</div>` : ""}
   </figure>`;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   READ ALOUD — one beat at a time
+   ══════════════════════════════════════════════════════════════════════════
+   A play button beside each beat's verse chip speaks that beat and underlines
+   each word as it's said.
+
+   It goes through `ttsSynthesize` — the same path the chapter player and the
+   Audio Library use — so it shares the permanent IndexedDB cache, the in-
+   flight dedupe and the 10-slot semaphore. A beat you've played once replays
+   instantly and offline.
+
+   ⚠️ Deliberately passes NO `meta`. A beat is not a verse: narration beats
+   have the attribution clause stripped, dialogue beats are only the speech,
+   and one beat can span "vv. 1-7". Filing this audio under {book, chapter,
+   verseNum} would add it to that verse's metas[] and the Audio Library would
+   count the verse as downloaded when what's actually cached is a fragment of
+   it. Without meta the entry still caches by text, it just doesn't claim to
+   be a verse.
+══════════════════════════════════════════════════════════════════════════ */
+
+// { btn, textEl, token, audio, url, origHTML, words, points, raf }
+let _nrSpeak = null;
+
+function _nrSetPlayIcon(btn, name) {
+  const icon = btn?.querySelector(".nr-play-icon");
+  if (icon) icon.textContent = name;
+}
+
+function _nrSpeakStop() {
+  const s = _nrSpeak;
+  if (!s) return;
+  _nrSpeak = null;
+  if (s.raf) cancelAnimationFrame(s.raf);
+  if (s.audio) {
+    s.audio.onended = null;
+    s.audio.onerror = null;
+    try { s.audio.pause(); } catch {}
+  }
+  // Each ttsSynthesize call mints its own object URL; letting them accumulate
+  // pins the decoded audio for the life of the page.
+  if (s.url) { try { URL.revokeObjectURL(s.url); } catch {} }
+  if (s.textEl && s.origHTML != null) s.textEl.innerHTML = s.origHTML;
+  s.btn?.classList.remove("nr-play-on", "nr-play-busy");
+  _nrSetPlayIcon(s.btn, "play_arrow");
+}
+
+async function _nrSpeakBeat(btn) {
+  const textEl = btn.closest(".nr-line")?.querySelector(".nr-text");
+  if (!textEl) return;
+
+  // Tapping the beat that's already speaking stops it.
+  const wasThis = _nrSpeak?.btn === btn;
+  _nrSpeakStop();
+  if (wasThis) return;
+
+  // The chapter player and a single beat can't both own the speakers.
+  if (typeof ttsAudio !== "undefined" && ttsAudio && typeof stopTTS === "function") {
+    try { stopTTS(); } catch {}
+  }
+
+  // textContent, not a data attribute: the rendered text IS the beat text
+  // (escaping and the inner-quote spans don't change the characters), so the
+  // markup doesn't have to carry a second copy of every beat.
+  const text = textEl.textContent.trim();
+  if (!text) return;
+
+  // Identity for this run. Every await below re-checks it, so a second tap
+  // during synthesis cleanly abandons the first without racing it.
+  const token = {};
+  _nrSpeak = { btn, textEl, token };
+  btn.classList.add("nr-play-busy");
+  _nrSetPlayIcon(btn, "progress_activity");
+
+  let shape;
+  try {
+    shape = await ttsSynthesize(text, 4);
+  } catch (err) {
+    console.warn("[retell tts]", err);
+    if (_nrSpeak?.token === token) _nrSpeakStop();
+    return;
+  }
+  if (_nrSpeak?.token !== token) {
+    try { URL.revokeObjectURL(shape.url); } catch {}
+    return;
+  }
+
+  // Wrap each spoken word IN PLACE in the original text, rather than
+  // re-rendering the paragraph out of Edge's tokens. Edge's WordBoundary
+  // tokens are bare words — no commas, no full stops — so rendering from them
+  // (which is what the chapter player does to .verse-content) silently strips
+  // every mark of punctuation from the beat while it reads. In a view whose
+  // entire promise is the chapter's own words, that looks broken.
+  //
+  // Walking the source with a cursor and matching each token in order keeps
+  // the punctuation and spacing as plain text between the spans. A token that
+  // can't be found is skipped rather than forced, so the mapping degrades to
+  // "that one word doesn't light up" instead of desynchronising the rest —
+  // which is why the span carries its TIMING index (data-p) rather than its
+  // own position.
+  const words = shape.words || [];
+  const origHTML = textEl.innerHTML;
+  if (words.length) {
+    const src = textEl.textContent;
+    let cursor = 0;
+    let html = "";
+    words.forEach((w, i) => {
+      if (!w) return;
+      const at = src.indexOf(w, cursor);
+      if (at === -1) return;
+      html += _nrEsc(src.slice(cursor, at));
+      html += `<span class="nr-word" data-p="${i}">${_nrEsc(w)}</span>`;
+      cursor = at + w.length;
+    });
+    html += _nrEsc(src.slice(cursor));
+    textEl.innerHTML = html;
+  }
+
+  const audio = new Audio(shape.url);
+  Object.assign(_nrSpeak, {
+    audio, url: shape.url, origHTML, words, points: shape.timepoints || [],
+  });
+
+  btn.classList.remove("nr-play-busy");
+  btn.classList.add("nr-play-on");
+  _nrSetPlayIcon(btn, "stop");
+
+  audio.onended = () => { if (_nrSpeak?.token === token) _nrSpeakStop(); };
+  audio.onerror = () => { if (_nrSpeak?.token === token) _nrSpeakStop(); };
+
+  // Indexed BY TIMING index, so a skipped token leaves a hole rather than
+  // shifting every word after it.
+  const spanByPoint = [];
+  textEl.querySelectorAll(".nr-word").forEach((el) => {
+    spanByPoint[+el.dataset.p] = el;
+  });
+  const startTick = () => {
+    let pts = _nrSpeak?.points;
+    if (!pts?.length) {
+      // Cached entries written before Edge timings were stored have none.
+      const d = audio.duration;
+      if (!isFinite(d) || d <= 0) return false;
+      pts = _computeSyntheticTimepoints(words, d);
+      if (_nrSpeak?.token === token) _nrSpeak.points = pts;
+    }
+    if (!pts.length || !spanByPoint.length) return false;
+
+    let last = -1;
+    const tick = () => {
+      if (_nrSpeak?.token !== token) return;
+      const t = audio.currentTime;
+      let wi = -1;
+      for (let i = 0; i < pts.length; i++) {
+        if (pts[i].timeSeconds <= t) wi = i; else break;
+      }
+      // Only touch the DOM when the word actually changes — the chapter
+      // player re-toggles every span every frame, which is a lot of class
+      // writes for a 200-word beat.
+      if (wi !== last) {
+        spanByPoint[last]?.classList.remove("nr-word-on");
+        spanByPoint[wi]?.classList.add("nr-word-on");
+        last = wi;
+      }
+      if (!audio.paused && !audio.ended) _nrSpeak.raf = requestAnimationFrame(tick);
+    };
+    _nrSpeak.raf = requestAnimationFrame(tick);
+    return true;
+  };
+
+  try {
+    await audio.play();
+  } catch (err) {
+    console.warn("[retell tts] play blocked", err);
+    if (_nrSpeak?.token === token) _nrSpeakStop();
+    return;
+  }
+  if (!startTick()) {
+    // `loadedmetadata` alone isn't enough: play() usually resolves AFTER
+    // metadata has loaded, so the event has already fired and will never fire
+    // again — the highlight would simply never start. Poll briefly as well.
+    audio.addEventListener("loadedmetadata", () => {
+      if (_nrSpeak?.token === token) startTick();
+    }, { once: true });
+    let tries = 0;
+    const retry = () => {
+      if (_nrSpeak?.token !== token || tries++ > 25) return;
+      if (!startTick()) setTimeout(retry, 120);
+    };
+    setTimeout(retry, 120);
+  }
 }
 
 function _nrBuildScenePrompt(book, chapter, versesText) {
@@ -658,7 +924,8 @@ The "write" pose already comes with its own table and a page on it. Give that sc
 CHOOSING A POSE — the vocabulary is small on purpose, so pick the closest honest fit:
   stand, speak, point, raise (arms up — praise, surrender, victory), reach, carry, lift
   walk, run, flee, fight, fall
-  kneel, bow, prostrate (face down on the ground), weep, sit, lie (asleep or dead)
+  pray (kneeling, hands together), kneel, bow, prostrate (face down on the ground)
+  weep, sit (on a chair, drawn for you), lie (asleep or dead)
   work (bent to a task — building, digging, harvesting), write (at a table), drink
 
 IF THE CHAPTER IS A LETTER OR A TEACHING WITH LITTLE ACTION:
@@ -674,7 +941,16 @@ A letter still points at plenty you can draw. Look for:
 
 Vary the setting across the scenes. If every scene you have chosen says "indoors", you have taken the easy option and must go back and find the pictures the chapter is actually made of.
 
+THE CAPTION AND THE CAST MUST MATCH.
+
+Every person your caption names has to be one of the actors. "hannah brings samuel to the priest" needs THREE actors — Hannah, Samuel and Eli. Writing a caption about someone and then leaving them out of the picture is the single most obvious way to get this wrong: the reader sees the words and then sees they are not there.
+
+Check it before you answer: read your caption back, list the people in it, and make sure each one appears in "actors". If a person does not fit on stage, rewrite the caption so it only describes who IS on stage.
+
+A PERSON IS NEVER AN OBJECT. Do not give someone the "carry" pose to represent carrying a child or another person — "carry" draws a bundle in the hands, so a child comes out as a box. A person being brought, carried or led is their own actor standing next to whoever brought them.
+
 RULES:
+- Someone praying gets "pray" — or "kneel" if the chapter says they knelt, or "prostrate" if they fell on their face. Never "stand" for prayer.
 - Draw what the verse SAYS, not what it means. If the chapter does not say anyone knelt, nobody kneels.
 - God, the Lord and angels are actors like anyone else — name them "The Lord" or "an angel" and give them a pose. They are drawn with a mark that sets them apart.
 - Never put more than 4 actors on stage. Use "crowd" for a group instead of listing people.
@@ -725,6 +1001,13 @@ async function _nrFetchScenes(book, chapter, versesText) {
   }
 }
 
+/* The verse chip with a play button in front of it. Grouped so the chip's own
+   spacing rules don't have to know a button now sits beside it. */
+function _nrBeatTools(chip) {
+  return `<span class="nr-beat-tools"><button type="button" class="nr-play" aria-label="Read this aloud">`
+    + `<span class="material-symbols-outlined nr-play-icon">play_arrow</span></button>${chip}</span>`;
+}
+
 function _nrBuildPrompt(book, chapter, versesText) {
   return `You are laying out one chapter of the Bible as a screenplay: the chapter's own words, split into narration and speech bubbles. You do NOT rewrite the chapter. You re-format it.
 
@@ -755,6 +1038,14 @@ FORBIDDEN, no exceptions:
 - Changing tense. If the chapter says "left", you write "left" — never "leave".
 - Compressing two sentences into one, or dropping a clause because it seems repetitive.
 - Adding a connecting phrase, a scene-setting line, or any sentence of your own.
+
+ONE VERSE PER BEAT. DO NOT MERGE VERSES.
+
+A narration beat covers ONE verse. Never run verse after verse together into a single block. A 28-verse chapter produces roughly 28 or more beats — not five long ones. This matters more than it sounds: a merged block is a wall of text on screen, and the reader is following along a verse at a time.
+
+Merge two verses ONLY when one of them cannot stand alone as a sentence (a trailing fragment like "and he said:"), and never merge more than two. If a beat's text is longer than about 300 characters you have merged too much — split it back apart at the verse boundary.
+
+This applies to formal translations especially. Where a simplified translation gives you short sentences that obviously break per verse, a formal one gives long ones — and the temptation is to lump them together. Don't. Break at every verse either way.
 
 A VERSE IS NOT A BEAT. THIS IS THE PART MOST OFTEN GOT WRONG.
 
@@ -806,7 +1097,7 @@ A. COVER EVERYTHING. Work through the chapter start to finish. Every verse's tex
 
 B. NAME THE SPEAKER AS THE CHAPTER DOES ("The Lord", "Gideon", "The men of Ephraim"). If a group speaks, name the group. Never use "Narrator" — narration beats have no speaker.
 
-C. "verses" is the verse or range that beat came from, digits only ("7" or "12-14").
+C. "verses" is the verse the beat came from, digits only ("7"). A range ("12-14") is only ever correct for the rare two-verse merge described above — if you find yourself writing ranges often, you are merging verses and must stop.
 
 D. No verse numbers inside "text", no markdown, no headers, no bullets.
 
@@ -889,8 +1180,8 @@ function _nrRenderBeats(data, sections, scenes) {
           <div class="nr-bubble-wrap">
             ${isRun ? "" : `<div class="nr-who" style="color:${tone.ink}">${_nrEsc(speaker)}${to}</div>`}
             <div class="nr-bubble" style="background:${tone.bg};border-color:${tone.ring}">
-              ${_nrMarkInnerQuotes(_nrEsc(beat.text))}
-              ${chip}
+              <span class="nr-text">${_nrMarkInnerQuotes(_nrEsc(beat.text))}</span>
+              ${_nrBeatTools(chip)}
             </div>
           </div>
         </div>`;
@@ -904,8 +1195,8 @@ function _nrRenderBeats(data, sections, scenes) {
       if (!beat.text) return "";
       lastSpeaker = null;
       return headings + `<div class="nr-pageable nr-line nr-narr" ${delay}>
-        <p>${_nrMarkInnerQuotes(_nrEsc(beat.text))}</p>
-        ${chip}
+        <p class="nr-text">${_nrMarkInnerQuotes(_nrEsc(beat.text))}</p>
+        ${_nrBeatTools(chip)}
       </div>`;
     })
     .join("");
@@ -1001,6 +1292,10 @@ function _nrPaginate(keepIndex = 0) {
 function _nrGoToPage(idx) {
   const scroll = document.getElementById("nrScroll");
   if (!scroll || !_nrPages.length) return;
+
+  // The beat being read is about to be display:none'd; its audio would carry
+  // on from a page that is no longer on screen.
+  _nrSpeakStop();
 
   _nrPageIdx = Math.max(0, Math.min(idx, _nrPages.length - 1));
 
@@ -1155,6 +1450,8 @@ async function openNarrate() {
    and returned at the guard. Tapping Try again just shut the retelling. */
 async function _nrLoadRetell() {
   if (!_nrCurrent) return;
+  // A re-render replaces the element the player holds a reference to.
+  _nrSpeakStop();
   const { payload, bookName } = _nrCurrent;
 
   const scroll = document.getElementById("nrScroll");
@@ -1242,6 +1539,7 @@ async function _nrLoadRetell() {
 function closeNarrate() {
   const overlay = document.getElementById("narrateOverlay");
   if (!overlay) return;
+  _nrSpeakStop();
   overlay.classList.remove("nr-rising");
   overlay.classList.add("nr-falling");
   _nrOpen = false;
@@ -1267,6 +1565,15 @@ function closeNarrate() {
 document.addEventListener("click", (e) => {
   if (e.target.closest?.("#nrClose")) closeNarrate();
   if (e.target.closest?.("#nrRetry")) _nrLoadRetell();
+
+  // Handled before the chip below — the button sits in the same row.
+  const playBtn = e.target.closest?.("#narrateOverlay .nr-play");
+  if (playBtn) {
+    e.preventDefault();
+    e.stopPropagation();
+    _nrSpeakBeat(playBtn);
+    return;
+  }
   if (e.target.closest?.("#nrPrev")) _nrGoToPage(_nrPageIdx - 1);
   if (e.target.closest?.("#nrNext")) _nrGoToPage(_nrPageIdx + 1);
 
