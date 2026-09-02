@@ -13048,6 +13048,12 @@ body.nr-locked { overflow: hidden; }
    pager is its own footer, so that space is just a shorter page. */
 .nr-scroll { padding-bottom: 24px; }
 
+/* Desktop: the retelling reads as a phone-width column, not a 760px slab —
+   short lines keep the dialogue beats scannable on a wide monitor. */
+@media (min-width: 768px) {
+  .nr-scroll { max-width: 420px; }
+}
+
 /* Section headings through the passage, the way a printed study Bible carries
    them. They arrive after the verses are already on screen, so they open
    rather than appear: the row expands 0fr → 1fr while the text fades and
