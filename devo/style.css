@@ -13274,30 +13274,26 @@ body.nr-locked { overflow: hidden; }
 /* Bubbles already have their speaker's own fill, so they take a ring only. */
 #nrScroll .nr-bubble.nr-reacted { box-shadow: 0 0 0 1px rgba(var(--nr-rc), 0.4); }
 
-/* Held with the picker open. The highlight is painted by a pseudo-element, so
-   nothing in the flow moves. The beat already carries 12px of side padding, so
-   the box is inset -12px vertically and 0 horizontally — that puts the same
-   12px of air on all four sides instead of a spread shadow that clears the
-   sides but lands on the top and bottom lines. */
-#nrScroll [data-rk].nr-pressing { transform: scale(0.985); }
-#nrScroll .nr-narr.nr-pressing::before,
-#nrScroll .nr-turn.nr-pressing::before {
-  content: "";
+/* Held. No ring and no border on the beat — instead the rest of the page is
+   pushed back behind a dimmed, blurred scrim and the held beat is lifted above
+   it, so it's simply the only thing still in focus. The scrim lives inside
+   #nrScroll so the title bar and the pager stay sharp. */
+.nr-hold-scrim {
   position: absolute;
-  inset: -12px 0;
-  z-index: -1; /* behind the beat's own text, inside its stacking context */
-  border-radius: 14px;
-  background: rgba(219, 39, 119, 0.09);
-  box-shadow: 0 0 0 1.5px rgba(219, 39, 119, 0.5);
+  inset: 0;
+  z-index: 1;
+  background: rgba(13, 21, 40, 0.55);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  animation: nrScrimIn 0.18s ease;
 }
-/* Already reacted: the card is the shape, so the ring goes on the element
-   itself — a ::before behind it would be hidden by the card's own fill. */
-#nrScroll .nr-reacted.nr-pressing::before { content: none; }
-#nrScroll .nr-reacted.nr-pressing {
-  box-shadow: 0 0 0 1.5px rgba(219, 39, 119, 0.5);
+.light .nr-hold-scrim { background: rgba(250, 247, 240, 0.6); }
+@keyframes nrScrimIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
-/* Bubbles have their own fill and padding; they take the ring alone. */
-#nrScroll .nr-bubble.nr-pressing { box-shadow: 0 0 0 2px rgba(219, 39, 119, 0.5); }
+/* Above the scrim, so it never gets blurred with everything else. */
+#nrScroll [data-rk].nr-pressing { z-index: 2; }
 
 /* The picker itself — fixed, positioned in JS above the held beat (or below
    it when there's no room). Without `position: fixed` it falls back to being a
@@ -13312,12 +13308,18 @@ body.nr-locked { overflow: hidden; }
   flex-direction: column;
   align-items: flex-start;
   gap: 8px;
-  animation: nrPickerIn 0.16s cubic-bezier(0.16, 1, 0.3, 1);
 }
-/* Three separate blobs: the faces, Context, Ask. */
+/* Ask and Copy share a row; the faces and Context each get their own. */
+.nr-pill-row { display: flex; gap: 8px; }
+/* The notes toast is z-index 10100, below the retelling overlay's 10240. */
+.nr-toast { z-index: 10400; }
+
+/* Four blobs: the faces, Context, and the Ask / Copy pair. */
 .nr-pill {
   display: flex;
   align-items: center;
+  transform-origin: bottom left;
+  animation: nrBlobUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) backwards;
   border-radius: 999px;
   background: rgba(24, 32, 48, 0.97) !important;
   border: 1px solid rgba(255, 255, 255, 0.1) !important;
@@ -13343,7 +13345,6 @@ body.nr-locked { overflow: hidden; }
   font-weight: 600;
   color: #e6edf7;
   cursor: pointer !important;
-  animation: nrOptIn 0.24s cubic-bezier(0.16, 1, 0.3, 1) backwards;
   transition: transform 0.18s cubic-bezier(0.42, 0, 0.58, 1);
 }
 .light .nr-act { color: #1a1a2e; }
@@ -13351,8 +13352,10 @@ body.nr-locked { overflow: hidden; }
 .nr-act:hover,
 .nr-act.nr-react-opt-hot { transform: scale(1.06); }
 .nr-act:active { transform: scale(0.97) !important; }
-@keyframes nrPickerIn {
-  from { opacity: 0; transform: translateY(6px) scale(0.9); }
+/* Each blob rises out of the held beat — the delays in the markup fire the
+   bottom one (Ask, nearest the verse) first and walk upward. */
+@keyframes nrBlobUp {
+  from { opacity: 0; transform: translateY(20px) scale(0.9); }
   to { opacity: 1; transform: none; }
 }
 
@@ -13375,14 +13378,9 @@ body.nr-locked { overflow: hidden; }
   border-radius: 50%;
   cursor: pointer !important;
   backdrop-filter: none;
-  animation: nrOptIn 0.24s cubic-bezier(0.16, 1, 0.3, 1) backwards;
   /* Slow, symmetric ease so the face swells and settles instead of snapping.
      The same curve runs on the way back down. */
   transition: transform 0.18s cubic-bezier(0.42, 0, 0.58, 1);
-}
-@keyframes nrOptIn {
-  from { opacity: 0; transform: translateY(10px) scale(0.6); }
-  to { opacity: 1; transform: none; }
 }
 /* The one already on this beat — tapping it again clears the reaction. */
 .nr-react-opt-on {

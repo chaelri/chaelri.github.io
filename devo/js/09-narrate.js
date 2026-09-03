@@ -864,10 +864,11 @@ window.addEventListener("devo:retell-reactions", () => {
 function _nrClosePicker() {
   _nrPickDragging = false;
   document.getElementById("nrReactPicker")?.remove();
+  document.querySelector("#nrScroll .nr-hold-scrim")?.remove();
   document.querySelector("#nrScroll .nr-pressing")?.classList.remove("nr-pressing");
 }
 
-function _nrOpenPicker(el, pt) {
+function _nrOpenPicker(el) {
   const overlay = document.getElementById("narrateOverlay");
   if (!overlay || !el?.dataset.rk) return;
   _nrClosePicker();
@@ -880,46 +881,49 @@ function _nrOpenPicker(el, pt) {
   pick.dataset.rk = key;
   // Three blobs: the faces, then the two verse actions the reader already has
   // on every verse. Same handlers, so Context and Ask behave identically here.
+  // Delays run bottom-up — Ask is nearest the beat, so it leaves first and the
+  // stack reads as rising out of the verse you're holding.
   pick.innerHTML = `
-    <div class="nr-pill nr-pill-faces">
+    <div class="nr-pill nr-pill-faces" style="animation-delay:130ms">
       ${NR_REACTIONS.map(
-        (r, i) =>
+        (r) =>
           `<button type="button" class="nr-react-opt${current === r.id ? " nr-react-opt-on" : ""}"
-             data-react="${r.id}" aria-label="${r.label}" title="${r.label}"
-             style="animation-delay:${i * 30}ms">${r.emoji}</button>`,
+             data-react="${r.id}" aria-label="${r.label}" title="${r.label}">${r.emoji}</button>`,
       ).join("")}
     </div>
-    <button type="button" class="nr-pill nr-act" data-act="context" style="animation-delay:${
-      NR_REACTIONS.length * 30
-    }ms">
+    <button type="button" class="nr-pill nr-act" data-act="context" style="animation-delay:70ms">
       <span class="material-icons">auto_awesome</span><span>Context</span>
     </button>
-    <button type="button" class="nr-pill nr-act" data-act="ask" style="animation-delay:${
-      (NR_REACTIONS.length + 1) * 30
-    }ms">
-      <span class="material-icons">chat_bubble_outline</span><span>Ask</span>
-    </button>`;
+    <div class="nr-pill-row">
+      <button type="button" class="nr-pill nr-act" data-act="ask" style="animation-delay:0ms">
+        <span class="material-icons">chat_bubble_outline</span><span>Ask</span>
+      </button>
+      <button type="button" class="nr-pill nr-act" data-act="copy" style="animation-delay:0ms">
+        <span class="material-icons">content_copy</span><span>Copy</span>
+      </button>
+    </div>`;
   overlay.appendChild(pick);
+
+  // Focus the beat by pushing everything else back: a dimmed, blurred scrim
+  // over the page with the held beat lifted above it. No ring, no border —
+  // the beat is simply the only thing still in focus.
+  const scroll = document.getElementById("nrScroll");
+  if (scroll && !scroll.querySelector(".nr-hold-scrim")) {
+    const scrim = document.createElement("div");
+    scrim.className = "nr-hold-scrim";
+    scroll.appendChild(scrim);
+  }
   el.classList.add("nr-pressing");
 
-  // Opens where the finger is, not at a fixed corner of the beat: centred on
-  // the press point and sitting just above it, so a hold near the bottom of a
-  // long paragraph doesn't throw the menu up to the top of the screen. Falls
-  // below the point when there's no room above, and is clamped to the
-  // viewport either way. Without a point (the badge reopening it) the beat's
-  // top-right corner is the anchor.
+  // Upper-left of the held beat. Drops below it when the beat is too near the
+  // top of the screen, and is clamped to the viewport either way.
   const r = el.getBoundingClientRect();
   const pr = pick.getBoundingClientRect();
   const m = 10;
-  const gap = 14;
-  const anchorX = pt ? pt.x : r.right - pr.width / 2;
-  const anchorY = pt ? pt.y : r.top;
-  const left = Math.max(
-    m,
-    Math.min(anchorX - pr.width / 2, window.innerWidth - pr.width - m),
-  );
-  let top = anchorY - pr.height - gap;
-  if (top < m) top = Math.min(anchorY + gap, window.innerHeight - pr.height - m);
+  const gap = 18;
+  const left = Math.max(m, Math.min(r.left, window.innerWidth - pr.width - m));
+  let top = r.top - pr.height - gap;
+  if (top < m) top = Math.min(r.bottom + gap, window.innerHeight - pr.height - m);
   pick.style.left = `${Math.round(left)}px`;
   pick.style.top = `${Math.round(top)}px`;
 
@@ -956,6 +960,16 @@ function _nrCloseSheet() {
   document.getElementById("nrSheet")?.remove();
 }
 
+function _nrToast(msg) {
+  const t = document.createElement("div");
+  // Same toast the notes app uses; the extra class only lifts it above the
+  // retelling overlay, which sits at a higher z-index than the base rule.
+  t.className = "notes-toast nr-toast";
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2000);
+}
+
 function _nrRunVerseAction(rk, act) {
   const payload = window.__aiPayload;
   const shell = document.querySelector("#narrateOverlay .nr-shell");
@@ -966,6 +980,16 @@ function _nrRunVerseAction(rk, act) {
   const bookName = BIBLE_META[payload.book]?.name || payload.book;
   const text = _nrVerseTextFor(verse);
   const ref = `${bookName} ${payload.chapter}:${verse}`;
+
+  // Copy takes the scripture, not the retelling's paraphrase — the same text
+  // Context and Ask are given.
+  if (act === "copy") {
+    navigator.clipboard
+      ?.writeText(`${text}\n\n${ref}`)
+      .then(() => _nrToast("✅ Verse copied"))
+      .catch(() => _nrToast("Couldn't copy"));
+    return;
+  }
 
   _nrCloseSheet();
   const sheet = document.createElement("div");
@@ -1022,7 +1046,6 @@ document.addEventListener("pointerdown", (e) => {
   _nrCancelPress();
   _nrPressEl = el;
   _nrPressPt = { x: e.clientX, y: e.clientY };
-  const pt = _nrPressPt;
   el.classList.add("nr-press-hold");
   _nrPressTimer = setTimeout(() => {
     _nrPressTimer = null;
@@ -1030,7 +1053,7 @@ document.addEventListener("pointerdown", (e) => {
     // The click that follows the release would otherwise land on whatever is
     // under the finger — a verse chip, usually.
     _nrSuppressClick = true;
-    _nrOpenPicker(el, pt);
+    _nrOpenPicker(el);
     _nrPressEl = null;
     // Hold, slide onto a face, let go — the release picks it, the way it does
     // in Messenger. Tapping a face after releasing still works.
