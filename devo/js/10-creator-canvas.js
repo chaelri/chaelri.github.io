@@ -1245,7 +1245,7 @@ async function _imgcrShare() {
       strokeTouched = new Set();
       strokePointerId = pid;
       try { viewport.setPointerCapture(pid); } catch (_) {}
-      try { navigator.vibrate && navigator.vibrate(12); } catch (_) {}
+      haptic(12);
       spawnEngageRipple(sx, sy);
       applyStrokeAt(sx, sy);
     }, LONG_PRESS_MS);

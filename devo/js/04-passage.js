@@ -173,10 +173,10 @@ async function _loadPassageHeadings(book, chapter, versesText, gen) {
 // render its card. Feedback is now continuity rather than decoration: the
 // press scales the button (CSS :active), and the panel it opens grows out of
 // that button, so the card visibly comes from where the finger was.
-// `navigator.vibrate` is a no-op on iOS Safari; the visual cues carry it.
+// See haptic() in 01-core.js for why this isn't a plain navigator.vibrate.
 function _verseActionTap(btn) {
   if (!btn) return;
-  try { navigator.vibrate?.(8); } catch {}
+  haptic(8);
 }
 
 // Plays the open animation on `panel`, anchored to the tapped button's

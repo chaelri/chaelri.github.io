@@ -797,6 +797,7 @@ function _nrSetReaction(key, id) {
   if (!id || had === id) delete map[key];
   else map[key] = { r: id, ts: Date.now() };
   _nrSaveReactions(map);
+  haptic(8);
   _nrPaintReaction(key);
   // The card and the badge row change the beat's height, so the page it sits
   // on has to be re-packed or it overflows into a scroll.
@@ -927,7 +928,7 @@ function _nrOpenPicker(el) {
   pick.style.left = `${Math.round(left)}px`;
   pick.style.top = `${Math.round(top)}px`;
 
-  navigator.vibrate?.(12);
+  haptic(12);
 }
 
 function _nrOptAt(x, y) {

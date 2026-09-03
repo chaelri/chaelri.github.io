@@ -735,6 +735,44 @@ function _showGoBackPill(prevBook, prevCh, prevScroll, prevPayload, wasStoryOpen
 }
 
 /* ---------- SHARED: Sparkle Loader HTML ---------- */
+/* ── Haptics ───────────────────────────────────────────────────────────────
+   iOS has never shipped the Vibration API, so every `navigator.vibrate` call
+   in this app is a silent no-op on an iPhone — which is why a long-press on a
+   verse felt dead while a system text-selection buzzed.
+
+   Safari 17.4+ does play a real Taptic tick when an `<input type="checkbox"
+   switch>` changes state. A hidden one, toggled programmatically, is the only
+   route a web page has to that engine, and it works inside a standalone PWA.
+   Older iOS versions simply do nothing — there is no fallback to give them. */
+let _hapticSwitch = null;
+
+function haptic(ms = 10) {
+  // Android / Chrome: the real API. Returns false when the user has vibration
+  // muted, in which case there's nothing more to try.
+  try {
+    if (navigator.vibrate?.(ms)) return;
+  } catch {}
+  try {
+    if (!_hapticSwitch) {
+      const label = document.createElement("label");
+      label.setAttribute("aria-hidden", "true");
+      // Rendered but out of reach: display:none would stop Safari treating the
+      // toggle as a real control, and the haptic goes with it.
+      label.style.cssText =
+        "position:fixed;top:-64px;left:-64px;width:1px;height:1px;opacity:0;pointer-events:none;";
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      input.setAttribute("switch", "");
+      label.appendChild(input);
+      document.body.appendChild(label);
+      _hapticSwitch = input;
+    }
+    _hapticSwitch.checked = !_hapticSwitch.checked;
+    _hapticSwitch.dispatchEvent(new Event("change", { bubbles: true }));
+    _hapticSwitch.click();
+  } catch {}
+}
+
 function sparkleLoaderHTML(msg) {
   return `<div class="sparkle-loader">
     <div class="sparkle-row"><span class="sparkle">✦</span><span class="sparkle">✦</span><span class="sparkle">✦</span></div>
