@@ -47,7 +47,9 @@ body {
   overflow-x: hidden;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  max-width: 1200px;
+  /* Same cap as the dashboard, so the reader and the home screen read as one
+     app rather than two page widths. */
+  max-width: 840px;
   margin: auto;
 }
 
@@ -1085,6 +1087,64 @@ select:disabled {
   width: 60%;
 }
 
+/* Reflection panel wait — a skeleton of the three numbered questions and their
+   answer boxes, so the panel holds its real shape while Gemini writes. The
+   sweep is the same travelling highlight the retelling's skeleton uses. */
+.refl-skel { display: flex; flex-direction: column; gap: 22px; }
+.refl-skel-item {
+  display: grid;
+  grid-template-columns: 20px 1fr;
+  grid-template-areas: "num q" ". box";
+  gap: 8px 10px;
+  animation: reflSkelIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+@keyframes reflSkelIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+.refl-skel-num { grid-area: num; height: 13px; border-radius: 4px; }
+.refl-skel-q { grid-area: q; display: flex; flex-direction: column; gap: 8px; }
+.refl-skel-q span { height: 13px; border-radius: 4px; }
+.refl-skel-short { width: 55%; }
+.refl-skel-box { grid-area: box; height: 74px; border-radius: 12px; }
+
+.refl-skel-num,
+.refl-skel-q span,
+.refl-skel-box {
+  display: block;
+  background: linear-gradient(
+      100deg,
+      rgba(255, 255, 255, 0.05) 30%,
+      rgba(219, 39, 119, 0.16) 50%,
+      rgba(255, 255, 255, 0.05) 70%
+    )
+    0 0 / 300% 100%;
+  animation: nrSkelSweep 1.6s ease-in-out infinite;
+}
+.light .refl-skel-num,
+.light .refl-skel-q span,
+.light .refl-skel-box {
+  background-image: linear-gradient(
+    100deg,
+    rgba(0, 0, 0, 0.05) 30%,
+    rgba(219, 39, 119, 0.14) 50%,
+    rgba(0, 0, 0, 0.05) 70%
+  );
+}
+/* The box is the answer field, so it reads as an outline rather than a slab. */
+.refl-skel-box { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06); }
+.light .refl-skel-box { box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06); }
+
+.refl-skel-status { margin-top: 18px; }
+.refl-skel-status .sparkle-loader { padding: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .refl-skel-item,
+  .refl-skel-num,
+  .refl-skel-q span,
+  .refl-skel-box { animation: none; }
+}
+
 /* ---------- LANDING / DASHBOARD ---------- */
 .landing {
   min-height: 100%;
@@ -1117,7 +1177,13 @@ select:disabled {
 /* NEW: Dashboard specific styles */
 .dashboard {
   padding: 0; /* REMOVED PADDING */
-  max-width: 1200px; /* match bible container width for consistency */
+  /* Narrower than the reader's 1200px: at full width the two columns spread so
+     far apart that the greeting, the Continue card and Notes stopped reading
+     as one page. Auto margins keep it centred in .main now that it no longer
+     fills that box. Only bites above 840px, so phones are unaffected. */
+  max-width: 840px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .dashboard h2 {
@@ -2919,8 +2985,9 @@ body.light {
   gap: 8px;
   scrollbar-width: thin;
   scrollbar-color: rgba(219, 39, 119, 0.3) transparent;
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 15%);
-  mask-image: linear-gradient(to bottom, transparent 0%, black 15%);
+  /* No top fade mask. It was meant to soften the scroll edge, but it clipped
+     the top 15% of the first bubble to transparent — which read as a dark
+     gradient band across the question you just asked. */
 }
 .chat-history::-webkit-scrollbar {
   width: 4px;
@@ -10600,7 +10667,9 @@ body.tts-canvas-active .cm-listen-bar {
 .cm-paper {
   position: relative;
   width: 100%;
-  max-width: 720px;
+  /* Study mode is for marking up short lines, not for a wide measure — the
+     paper stays a narrow column and .cm-scroll centres it. */
+  max-width: 500px;
   padding: 20px 8px 0;
 }
 
@@ -11558,11 +11627,8 @@ body.tts-canvas-active .cm-listen-bar {
   overflow: visible;
 }
 .cm-ai-body .verse-chat-context { padding: 0 0 10px; border-bottom-color: rgba(0,0,0,0.08); }
-.cm-ai-body .chat-history {
-  padding: 10px 0;
-  mask-image: none;
-  -webkit-mask-image: none;
-}
+/* The mask this used to cancel is gone from .chat-history entirely. */
+.cm-ai-body .chat-history { padding: 10px 0; }
 .cm-ai-body .chat-input-area {
   padding: 10px 0 0;
   border-top: none;
@@ -12814,13 +12880,90 @@ body.nr-locked { overflow: hidden; }
   box-sizing: border-box;
 }
 
-.nr-loading { padding: 18vh 0; text-align: center; }
+/* The wait. A skeleton of the retelling's own layout fills the page while the
+   model works, with a status line under it naming the current stage — the
+   error state still uses the plain centred variant below. */
+.nr-loading { padding: 4px 0; text-align: center; }
+.nr-loading:has(.nr-skel) { padding: 0; }
 .nr-loading-sub {
   margin-top: 14px;
   font-size: 13px;
   color: rgba(230, 237, 247, 0.5);
 }
 .light .nr-loading-sub { color: rgba(0, 0, 0, 0.45); }
+
+.nr-skel { display: flex; flex-direction: column; gap: 26px; text-align: left; }
+.nr-skel span,
+.nr-skel-head,
+.nr-skel-av,
+.nr-skel-bub {
+  display: block;
+  border-radius: 8px;
+  /* One travelling highlight over a flat base — the gradient is 3× the width
+     so the sweep reads as a pass of light rather than a colour cycle. */
+  background: linear-gradient(
+      100deg,
+      rgba(255, 255, 255, 0.05) 30%,
+      rgba(219, 39, 119, 0.16) 50%,
+      rgba(255, 255, 255, 0.05) 70%
+    )
+    0 0 / 300% 100%;
+  animation: nrSkelSweep 1.6s ease-in-out infinite;
+}
+.light .nr-skel span,
+.light .nr-skel-head,
+.light .nr-skel-av,
+.light .nr-skel-bub {
+  background-image: linear-gradient(
+    100deg,
+    rgba(0, 0, 0, 0.05) 30%,
+    rgba(219, 39, 119, 0.14) 50%,
+    rgba(0, 0, 0, 0.05) 70%
+  );
+}
+@keyframes nrSkelSweep {
+  from { background-position: 100% 0; }
+  to { background-position: 0 0; }
+}
+
+.nr-skel span { height: 12px; margin-bottom: 10px; }
+.nr-skel span:last-child { margin-bottom: 0; }
+
+.nr-skel-logline { padding-left: 12px; border-left: 2px solid rgba(219, 39, 119, 0.25); }
+.nr-skel-logline span:last-child { width: 62%; }
+.nr-skel-head { height: 11px; width: 45%; border-radius: 999px; }
+.nr-skel-narr span:last-child { width: 74%; }
+
+/* Mirrors .nr-line-say: avatar, then the bubble it speaks from. */
+.nr-skel-say { display: flex; gap: 10px; align-items: flex-start; }
+.nr-skel-say-alt { flex-direction: row-reverse; }
+.nr-skel-av {
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+}
+.nr-skel-bub {
+  flex: 1 1 auto;
+  padding: 14px 16px;
+  border-radius: 16px;
+}
+.nr-skel-bub span { background: rgba(255, 255, 255, 0.07); animation: none; }
+.nr-skel-bub span:last-child { width: 55%; }
+.light .nr-skel-bub span { background: rgba(0, 0, 0, 0.07); }
+
+.nr-loading-status {
+  display: flex;
+  justify-content: center;
+  margin-top: 30px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nr-skel span,
+  .nr-skel-head,
+  .nr-skel-av,
+  .nr-skel-bub { animation: none; }
+}
 .nr-error { color: rgba(230, 237, 247, 0.75); font-size: 14px; }
 .nr-retry {
   margin-top: 14px;
@@ -12934,6 +13077,17 @@ body.nr-locked { overflow: hidden; }
   font-size: 11px;
 }
 .nr-narr .nr-chip { margin-left: 0; margin-top: 8px; }
+/* The chip opens the verse peek, so it has to read as a target: pointer plus
+   a small lift on hover. */
+.nr-chip {
+  cursor: pointer;
+  transition: transform 0.14s cubic-bezier(0.16, 1, 0.3, 1), filter 0.14s ease;
+}
+.nr-chip:hover {
+  transform: translateY(-1px) scale(1.06);
+  filter: brightness(1.15);
+}
+.nr-chip:active { transform: scale(0.96); }
 
 .nr-end {
   margin: 40px 0 10px;
@@ -13005,6 +13159,9 @@ body.nr-locked { overflow: hidden; }
 .light .nr-pager { border-top-color: rgba(0, 0, 0, 0.08); }
 .nr-pager[hidden] { display: none; }
 
+/* Solid pink FAB, same weight as the scroll-top button — the tinted outline
+   version read as secondary, and advancing the page is the primary action of
+   this screen. */
 .nr-page-btn {
   width: 46px;
   height: 46px;
@@ -13012,21 +13169,30 @@ body.nr-locked { overflow: hidden; }
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  border: 1px solid rgba(219, 39, 119, 0.4) !important;
-  background: rgba(219, 39, 119, 0.14) !important;
-  color: #ffb3d9;
+  border: none !important;
+  background: #db2777 !important;
+  color: #fff;
   cursor: pointer;
+  box-shadow: 0 10px 30px rgba(219, 39, 119, 0.35);
   transition: transform 0.12s, opacity 0.15s;
 }
 .nr-page-btn:active { transform: scale(0.92); }
+/* Last page: the arrow turns into a check that closes the retelling. */
+.nr-page-btn.nr-page-done {
+  background: #16a34a !important;
+  box-shadow: 0 10px 30px rgba(22, 163, 74, 0.35);
+}
 .nr-page-btn:disabled {
   opacity: 0.28;
   cursor: default;
-  border-color: rgba(255, 255, 255, 0.12) !important;
+  /* Without this, a click on the icon <span> inside the disabled button still
+     bubbles out and the pager re-runs on an end page. */
+  pointer-events: none;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
   background: rgba(255, 255, 255, 0.04) !important;
   color: rgba(230, 237, 247, 0.6);
+  box-shadow: none;
 }
-.light .nr-page-btn { color: #a8005f; }
 .light .nr-page-btn:disabled {
   border-color: rgba(0, 0, 0, 0.12) !important;
   background: rgba(0, 0, 0, 0.04) !important;
@@ -13048,10 +13214,383 @@ body.nr-locked { overflow: hidden; }
    pager is its own footer, so that space is just a shorter page. */
 .nr-scroll { padding-bottom: 24px; }
 
+/* ── Retell reactions ──────────────────────────────────────────────────────
+   Hold a beat for a picker, double-tap for the heart. Reactions live in
+   localStorage under `retellReactions` and ride the Firebase mirror. */
+#nrScroll [data-rk] {
+  position: relative;
+  /* Keeps the held-state ::before (z-index: -1) inside this beat. Without it
+     the layer sinks past .nr-shell's background — the overlay's
+     backdrop-filter is the nearest stacking context on desktop. */
+  isolation: isolate;
+  /* iOS pops its own selection callout on a long press, which fights the
+     picker for the same gesture. */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  /* Kills the double-tap-to-zoom gesture so the double-tap heart registers
+     immediately instead of waiting out the browser's 300ms zoom guess. */
+  touch-action: manipulation;
+  transition: transform 0.18s ease;
+}
+/* Held, but the picker hasn't opened yet — the press has to feel received. */
+#nrScroll [data-rk].nr-press-hold { transform: scale(0.985); }
+/* Each reaction carries its own colour, so a wall of reacted beats doesn't
+   read as one undifferentiated pink. --nr-rc is set from data-react. */
+#nrScroll [data-react] { --nr-rc: 219, 39, 119; }
+#nrScroll [data-react="love"] { --nr-rc: 244, 63, 94; }
+#nrScroll [data-react="happy"] { --nr-rc: 245, 158, 11; }
+#nrScroll [data-react="wow"] { --nr-rc: 167, 139, 250; }
+#nrScroll [data-react="sad"] { --nr-rc: 96, 165, 250; }
+#nrScroll [data-react="angry"] { --nr-rc: 249, 115, 22; }
+
+/* A reacted narration beat has no bubble of its own, so the badge had nothing
+   to sit against and floated in the gap between paragraphs. The tinted card
+   gives it one.
+   Every narration/turn beat carries the card's horizontal geometry, reacted or
+   not, so reacting can never shift the text sideways. The bleed is smaller
+   than the padding, which leaves the card a real margin off the modal edge
+   instead of running into it. */
+#nrScroll .nr-narr,
+#nrScroll .nr-turn {
+  padding-left: 12px;
+  padding-right: 12px;
+  margin-left: -8px;
+  margin-right: -8px;
+}
+#nrScroll .nr-narr.nr-reacted,
+#nrScroll .nr-turn.nr-reacted {
+  /* Vertical padding only — the horizontal half is already on every beat.
+     Setting the `margin` shorthand here wiped .nr-narr's own 22px bottom
+     margin, which is what made two reacted cards touch. */
+  padding-top: 12px;
+  padding-bottom: 12px;
+  border-radius: 14px;
+  background: rgba(var(--nr-rc), 0.09);
+  box-shadow: 0 0 0 1px rgba(var(--nr-rc), 0.28);
+}
+.light #nrScroll .nr-narr.nr-reacted,
+.light #nrScroll .nr-turn.nr-reacted { background: rgba(var(--nr-rc), 0.1); }
+/* Bubbles already have their speaker's own fill, so they take a ring only. */
+#nrScroll .nr-bubble.nr-reacted { box-shadow: 0 0 0 1px rgba(var(--nr-rc), 0.4); }
+
+/* Held with the picker open. The highlight is painted by a pseudo-element, so
+   nothing in the flow moves. The beat already carries 12px of side padding, so
+   the box is inset -12px vertically and 0 horizontally — that puts the same
+   12px of air on all four sides instead of a spread shadow that clears the
+   sides but lands on the top and bottom lines. */
+#nrScroll [data-rk].nr-pressing { transform: scale(0.985); }
+#nrScroll .nr-narr.nr-pressing::before,
+#nrScroll .nr-turn.nr-pressing::before {
+  content: "";
+  position: absolute;
+  inset: -12px 0;
+  z-index: -1; /* behind the beat's own text, inside its stacking context */
+  border-radius: 14px;
+  background: rgba(219, 39, 119, 0.09);
+  box-shadow: 0 0 0 1.5px rgba(219, 39, 119, 0.5);
+}
+/* Already reacted: the card is the shape, so the ring goes on the element
+   itself — a ::before behind it would be hidden by the card's own fill. */
+#nrScroll .nr-reacted.nr-pressing::before { content: none; }
+#nrScroll .nr-reacted.nr-pressing {
+  box-shadow: 0 0 0 1.5px rgba(219, 39, 119, 0.5);
+}
+/* Bubbles have their own fill and padding; they take the ring alone. */
+#nrScroll .nr-bubble.nr-pressing { box-shadow: 0 0 0 2px rgba(219, 39, 119, 0.5); }
+
+/* The picker itself — fixed, positioned in JS above the held beat (or below
+   it when there's no room). Without `position: fixed` it falls back to being a
+   static child of the flex-column overlay and lands at the bottom-left. */
+.nr-react-picker {
+  position: fixed;
+  z-index: 10;
+  display: flex;
+  /* Stacked, not strung out to the right — a row of three ran off the side of
+     a narrow card. Left-aligned to each other, and Context / Ask size to their
+     own label rather than stretching to the faces blob's width. */
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  animation: nrPickerIn 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+}
+/* Three separate blobs: the faces, Context, Ask. */
+.nr-pill {
+  display: flex;
+  align-items: center;
+  border-radius: 999px;
+  background: rgba(24, 32, 48, 0.97) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+  backdrop-filter: none;
+}
+.light .nr-pill {
+  background: rgba(255, 255, 255, 0.98) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.18);
+}
+.nr-pill-faces { gap: 2px; padding: 6px 8px; }
+
+/* Context / Ask — the reader's own verse actions, in blob form. */
+.nr-act {
+  flex: 0 0 auto !important;
+  /* Equal height to each other, width from the label. */
+  height: 46px;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 18px !important;
+  font-size: 13px !important;
+  font-weight: 600;
+  color: #e6edf7;
+  cursor: pointer !important;
+  animation: nrOptIn 0.24s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  transition: transform 0.18s cubic-bezier(0.42, 0, 0.58, 1);
+}
+.light .nr-act { color: #1a1a2e; }
+.nr-act .material-icons { font-size: 17px; color: #db2777; }
+.nr-act:hover,
+.nr-act.nr-react-opt-hot { transform: scale(1.06); }
+.nr-act:active { transform: scale(0.97) !important; }
+@keyframes nrPickerIn {
+  from { opacity: 0; transform: translateY(6px) scale(0.9); }
+  to { opacity: 1; transform: none; }
+}
+
+.nr-react-opt {
+  /* The shared `button` rule is `flex: 0 !important` — a 0% basis, which
+     collapses the width and leaves an oval instead of a circle. The explicit
+     basis is what keeps these square. Same reason padding is forced off. */
+  flex: 0 0 40px !important;
+  width: 40px;
+  height: 40px;
+  box-sizing: border-box;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  line-height: 1;
+  border: none !important;
+  background: transparent !important;
+  border-radius: 50%;
+  cursor: pointer !important;
+  backdrop-filter: none;
+  animation: nrOptIn 0.24s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  /* Slow, symmetric ease so the face swells and settles instead of snapping.
+     The same curve runs on the way back down. */
+  transition: transform 0.18s cubic-bezier(0.42, 0, 0.58, 1);
+}
+@keyframes nrOptIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.6); }
+  to { opacity: 1; transform: none; }
+}
+/* The one already on this beat — tapping it again clears the reaction. */
+.nr-react-opt-on {
+  background: rgba(219, 39, 119, 0.22) !important;
+  box-shadow: inset 0 0 0 1px rgba(219, 39, 119, 0.45);
+}
+/* After the selected rule so a hover still lifts the active face.
+   `-hot` is the same state driven by a finger dragged over the face during
+   the hold, where there is no :hover to rely on. */
+.nr-react-opt:hover,
+.nr-react-opt:focus-visible,
+.nr-react-opt-hot {
+  /* Scale only — a tinted disc behind the face just muddied it. */
+  transform: scale(1.28) translateY(-3px);
+  outline: none;
+}
+.nr-react-opt:active { transform: scale(1.08) !important; }
+
+/* Sits on the verse-chip row, right-aligned — the chip and the reaction are
+   the beat's footer, so they share a line instead of leaving a dead band
+   between them. Beats with no chip (turn lines) keep it on its own row.
+   Absolute positioning was the first attempt and it put the badge over the
+   last line of text whenever that line ran long. */
+#nrScroll [data-rk]:has(.nr-chip) { display: flow-root; }
+#nrScroll [data-rk]:has(.nr-chip) > .nr-react-badge {
+  float: right;
+  margin: -2px 0 0 10px;
+}
+.nr-react-badge {
+  display: block !important;
+  margin: 6px 0 0 auto;
+  box-sizing: border-box;
+  padding: 0 !important;
+  cursor: pointer !important;
+  backdrop-filter: none;
+  width: 28px;
+  height: 28px;
+  font-size: 15px;
+  line-height: 26px;
+  text-align: center;
+  border-radius: 999px;
+  border: 1px solid rgba(var(--nr-rc, 219, 39, 119), 0.55) !important;
+  background: #182030 !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+.light .nr-react-badge {
+  border-color: rgba(var(--nr-rc, 219, 39, 119), 0.45) !important;
+  background: #fff !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+.nr-react-badge.nr-react-pop { animation: nrBadgePop 0.32s cubic-bezier(0.16, 1, 0.3, 1); }
+@keyframes nrBadgePop {
+  0% { opacity: 0; transform: scale(0.2); }
+  60% { transform: scale(1.25); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* Context / Ask render into a mount, so the retelling gets a sheet inside the
+   card to hold one. Confined to .nr-shell rather than the overlay so it keeps
+   the modal's rounded corners on desktop. */
+.nr-sheet {
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+  display: flex;
+  align-items: flex-end;
+  background: rgba(4, 8, 16, 0.55);
+  animation: nrSheetFade 0.2s ease;
+}
+.light .nr-sheet { background: rgba(0, 0, 0, 0.25); }
+@keyframes nrSheetFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.nr-sheet-panel {
+  width: 100%;
+  max-height: 82%;
+  display: flex;
+  flex-direction: column;
+  background: #101828;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -20px 50px rgba(0, 0, 0, 0.45);
+  animation: nrSheetUp 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.light .nr-sheet-panel {
+  background: #fffdf8;
+  border-top-color: rgba(0, 0, 0, 0.08);
+}
+@keyframes nrSheetUp {
+  from { transform: translateY(100%); }
+  to { transform: none; }
+}
+.nr-sheet-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+.light .nr-sheet-head { border-bottom-color: rgba(0, 0, 0, 0.07); }
+.nr-sheet-title { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.nr-sheet-label {
+  font-size: 10.5px;
+  letter-spacing: 2.4px;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: #db2777;
+}
+.nr-sheet-title strong { font-size: 15px; font-weight: 700; color: #e6edf7; }
+.light .nr-sheet-title strong { color: #1a1a2e; }
+.nr-sheet-close {
+  flex: 0 0 auto !important;
+  width: 34px;
+  height: 34px;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: #e6edf7;
+  cursor: pointer !important;
+}
+.light .nr-sheet-close {
+  border-color: rgba(0, 0, 0, 0.12) !important;
+  background: rgba(0, 0, 0, 0.05) !important;
+  color: #1a1a2e;
+}
+/* The AI card brings its own header — label plus a close that just empties the
+   mount. Inside the sheet that's a second X next to the sheet's own, and the
+   label repeats the sheet's. Hide the row; the sheet header says both. */
+.nr-sheet .ai-card-header { display: none !important; }
+
+.nr-sheet-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 14px 16px calc(env(safe-area-inset-bottom, 0px) + 18px);
+}
+
+/* Double-tap heart — the reader's fav-pop, floating up off the beat. */
+.nr-react-burst {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 3;
+  font-size: 46px;
+  line-height: 1;
+  pointer-events: none;
+  animation: nrBurst 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@keyframes nrBurst {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.3); }
+  35% { opacity: 1; transform: translate(-50%, -50%) scale(1.15); }
+  100% { opacity: 0; transform: translate(-50%, -160%) scale(0.9); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nr-react-picker,
+  .nr-react-opt,
+  .nr-react-badge.nr-react-pop,
+  .nr-react-burst { animation: none; }
+}
+
 /* Desktop: the retelling reads as a phone-width column, not a 760px slab —
-   short lines keep the dialogue beats scannable on a wide monitor. */
+   short lines keep the dialogue beats scannable on a wide monitor. The whole
+   shell is capped, not just the text, so the title bar and the pager frame the
+   same column instead of stranding the close button 1500px away from it. */
 @media (min-width: 768px) {
-  .nr-scroll { max-width: 420px; }
+  /* The overlay becomes the backdrop; the shell becomes a floating card that
+     sits off every edge, so the retelling reads as a modal rather than a
+     column drawn straight onto the page. */
+  .nr-overlay {
+    padding: 32px 0;
+    /* Translucent + blurred so the reader stays visible behind the card. The
+       opaque fill is kept on phones, where the retelling is a full sheet and
+       there is nothing to see through to. */
+    background: rgba(7, 11, 20, 0.62);
+    -webkit-backdrop-filter: blur(18px) saturate(120%);
+    backdrop-filter: blur(18px) saturate(120%);
+  }
+  .light .nr-overlay { background: rgba(250, 247, 240, 0.6); }
+  .nr-shell {
+    width: 100%;
+    max-width: 420px;
+    height: auto;
+    flex: 1 1 auto;
+    margin: 0 auto;
+    border-radius: 22px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: #121b2c;
+    box-shadow: 0 28px 70px rgba(0, 0, 0, 0.55);
+    overflow: hidden; /* clips the bar/pager rules to the rounded corners */
+  }
+  .light .nr-shell {
+    border-color: rgba(0, 0, 0, 0.08);
+    background: #fffcf6;
+    box-shadow: 0 28px 70px rgba(0, 0, 0, 0.18);
+  }
+  /* The bar's safe-area inset is a phone notch allowance; inside a card it
+     just reads as a lopsided top. */
+  .nr-bar { padding-top: 16px; }
+  .nr-scroll { max-width: none; }
 }
 
 /* Section headings through the passage, the way a printed study Bible carries

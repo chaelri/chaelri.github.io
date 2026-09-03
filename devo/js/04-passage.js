@@ -2599,12 +2599,24 @@ async function renderAIReflectionQuestions({ book, chapter, versesText }) {
   mount.classList.add("ai-fade-in");
   _ensureReflectionRetryUI(mount);
 
+  // Skeleton of what's actually coming — three numbered questions, each with
+  // its answer box — instead of three anonymous grey bars. The wait is long
+  // enough (a full Gemini call) that the shape of the panel is worth showing.
   mount.innerHTML = `
-  <div class="ai-shimmer">
-    <div class="ai-shimmer-block"></div>
-    <div class="ai-shimmer-block"></div>
-    <div class="ai-shimmer-block short"></div>
+  <div class="refl-skel" aria-hidden="true">
+    ${[1, 2, 3]
+      .map(
+        (n, i) => `<div class="refl-skel-item" style="animation-delay:${i * 90}ms">
+          <span class="refl-skel-num"></span>
+          <div class="refl-skel-q">
+            <span></span><span></span><span class="refl-skel-short"></span>
+          </div>
+          <div class="refl-skel-box"></div>
+        </div>`,
+      )
+      .join("")}
   </div>
+  <div class="refl-skel-status">${sparkleLoaderHTML("Writing your questions…")}</div>
 `;
 
   try {

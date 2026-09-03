@@ -347,6 +347,9 @@ function _nrRenderBeats(data, sections) {
     .map((beat, i) => {
       const delay = `style="animation-delay:${Math.min(i * 55, 900)}ms"`;
       const chip = _nrVerseChip(beat.verses);
+      // The handle a reaction hangs off. Index is part of it because a beat's
+      // verse range is not unique — a long verse splits into several beats.
+      const rk = _nrEsc(_nrBeatKey(i, beat.verses));
 
       // Emit every heading this beat has reached. A beat covering "9-12"
       // consumes a section starting at 9 AND one starting at 11 — otherwise a
@@ -375,7 +378,7 @@ function _nrRenderBeats(data, sections) {
           </div>
           <div class="nr-bubble-wrap">
             ${isRun ? "" : `<div class="nr-who" style="color:${tone.ink}">${_nrEsc(speaker)}${to}</div>`}
-            <div class="nr-bubble" style="background:${tone.bg};border-color:${tone.ring}">
+            <div class="nr-bubble" data-rk="${rk}" data-rv="${beatVerse || ""}" style="background:${tone.bg};border-color:${tone.ring}">
               ${_nrMarkInnerQuotes(_nrEsc(beat.text))}
               ${chip}
             </div>
@@ -385,12 +388,12 @@ function _nrRenderBeats(data, sections) {
 
       if (beat.type === "beat" && beat.text) {
         lastSpeaker = null;
-        return headings + `<div class="nr-pageable nr-line nr-turn" ${delay}>${_nrEsc(beat.text)}</div>`;
+        return headings + `<div class="nr-pageable nr-line nr-turn" data-rk="${rk}" data-rv="${beatVerse || ""}" ${delay}>${_nrEsc(beat.text)}</div>`;
       }
 
       if (!beat.text) return "";
       lastSpeaker = null;
-      return headings + `<div class="nr-pageable nr-line nr-narr" ${delay}>
+      return headings + `<div class="nr-pageable nr-line nr-narr" data-rk="${rk}" data-rv="${beatVerse || ""}" ${delay}>
         <p>${_nrMarkInnerQuotes(_nrEsc(beat.text))}</p>
         ${chip}
       </div>`;
@@ -436,7 +439,7 @@ function _nrPutCached(key, data) {
 let _nrPages = [];
 let _nrPageIdx = 0;
 
-function _nrPaginate(keepIndex = 0) {
+function _nrPaginate(keepIndex = 0, animate = true) {
   const scroll = document.getElementById("nrScroll");
   const pager = document.getElementById("nrPager");
   if (!scroll) return;
@@ -450,6 +453,13 @@ function _nrPaginate(keepIndex = 0) {
 
   items.forEach((el) => el.style.removeProperty("display"));
 
+  // Measure with the pager laid out. It starts hidden and is only revealed
+  // once the page count is known, so measuring while it is hidden hands every
+  // page the ~70px the pager is about to take back — enough to push the last
+  // beat of each page under the fold, which is what made a "page" scroll.
+  const pagerWasHidden = pager ? pager.hidden : true;
+  if (pager) pager.hidden = false;
+
   const cs = getComputedStyle(scroll);
   const avail =
     scroll.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
@@ -458,7 +468,8 @@ function _nrPaginate(keepIndex = 0) {
   // the rise, or while still display:none). Paginating against it puts every
   // beat on its own page — 58 pages for one chapter — so retry instead.
   if (avail <= 0) {
-    setTimeout(() => _nrPaginate(keepIndex), 160);
+    if (pager) pager.hidden = pagerWasHidden;
+    setTimeout(() => _nrPaginate(keepIndex, animate), 160);
     return;
   }
 
@@ -482,12 +493,17 @@ function _nrPaginate(keepIndex = 0) {
   if (page.length) _nrPages.push(page);
 
   if (pager) pager.hidden = _nrPages.length < 2;
-  _nrGoToPage(Math.min(keepIndex, _nrPages.length - 1));
+  _nrGoToPage(Math.min(keepIndex, _nrPages.length - 1), animate);
 }
 
-function _nrGoToPage(idx) {
+/* `animate` is the entry stagger. It belongs to a page you just turned to, or
+   the first paint of a chapter — not to a re-pack triggered by something like
+   adding a reaction, where the page you're reading would replay itself. */
+function _nrGoToPage(idx, animate = true) {
   const scroll = document.getElementById("nrScroll");
   if (!scroll || !_nrPages.length) return;
+  // The picker is positioned against a beat that is about to be hidden.
+  _nrClosePicker();
 
   _nrPageIdx = Math.max(0, Math.min(idx, _nrPages.length - 1));
 
@@ -499,12 +515,14 @@ function _nrGoToPage(idx) {
 
   // Replay the stagger for the page you just landed on — otherwise only the
   // first page ever animates and later pages just appear.
-  _nrPages[_nrPageIdx].forEach((el, k) => {
-    el.style.animation = "none";
-    void el.offsetWidth;
-    el.style.removeProperty("animation");
-    el.style.animationDelay = `${Math.min(k * 55, 500)}ms`;
-  });
+  if (animate) {
+    _nrPages[_nrPageIdx].forEach((el, k) => {
+      el.style.animation = "none";
+      void el.offsetWidth;
+      el.style.removeProperty("animation");
+      el.style.animationDelay = `${Math.min(k * 55, 500)}ms`;
+    });
+  }
 
   scroll.scrollTop = 0;
   // Only a page holding one oversized beat needs to scroll; everything else
@@ -519,7 +537,30 @@ function _nrGoToPage(idx) {
   const prev = document.getElementById("nrPrev");
   const next = document.getElementById("nrNext");
   if (prev) prev.disabled = _nrPageIdx === 0;
-  if (next) next.disabled = _nrPageIdx >= _nrPages.length - 1;
+
+  // On the last page the arrow becomes a green check that closes the
+  // retelling — a dead, greyed-out arrow was the end of the chapter saying
+  // nothing about what to do next.
+  const atEnd = _nrPageIdx >= _nrPages.length - 1;
+  if (next) {
+    next.disabled = false;
+    next.classList.toggle("nr-page-done", atEnd);
+    const icon = next.querySelector(".material-symbols-outlined");
+    if (icon) icon.textContent = atEnd ? "check" : "arrow_forward";
+    next.setAttribute("aria-label", atEnd ? "Done" : "Next page");
+    next.title = atEnd ? "Done" : "";
+  }
+}
+
+// The pager buttons are `disabled` at the ends, but a click landing on the
+// icon <span> inside a disabled <button> still bubbles to the document in some
+// browsers — which re-entered _nrGoToPage on the last page and replayed the
+// stagger animation on a page that never changed. Step through here so an
+// out-of-range move is simply ignored.
+function _nrStepPage(delta) {
+  const next = _nrPageIdx + delta;
+  if (next < 0 || next >= _nrPages.length) return;
+  _nrGoToPage(next);
 }
 
 let _nrResizeTimer = null;
@@ -531,13 +572,38 @@ window.addEventListener("resize", () => {
   // place — the page number would be meaningless at a new width.
   _nrResizeTimer = setTimeout(() => {
     const anchor = _nrPages[_nrPageIdx]?.[0];
-    _nrPaginate(0);
+    _nrPaginate(0, false);
     if (anchor) {
       const found = _nrPages.findIndex((pg) => pg.includes(anchor));
-      if (found > -1) _nrGoToPage(found);
+      if (found > -1) _nrGoToPage(found, false);
     }
   }, 220);
 });
+
+/* ── Loading state ─────────────────────────────────────────────────────────
+   Generation takes long enough that a spinner reads as a stall. The skeleton
+   is the actual retelling layout — logline, heading, narration, two speech
+   bubbles — shimmering in place, so the shape of what's coming is on screen
+   for the whole wait. */
+function _nrLoadingHTML(ref) {
+  const bubble = (side) => `<div class="nr-skel-say ${side}">
+      <div class="nr-skel-av"></div>
+      <div class="nr-skel-bub"><span></span><span></span></div>
+    </div>`;
+  return `<div class="nr-loading">
+    <div class="nr-skel" aria-hidden="true">
+      <div class="nr-skel-logline"><span></span><span></span></div>
+      <div class="nr-skel-head"></div>
+      <div class="nr-skel-narr"><span></span><span></span><span></span></div>
+      ${bubble("")}
+      ${bubble("nr-skel-say-alt")}
+      <div class="nr-skel-narr"><span></span><span></span></div>
+    </div>
+    <div class="nr-loading-status" role="status" aria-live="polite">
+      ${sparkleLoaderHTML(`Reading all ${_nrEsc(ref)}, finding who speaks.`)}
+    </div>
+  </div>`;
+}
 
 let _nrOpen = false;
 
@@ -557,6 +623,9 @@ async function openNarrate() {
 
   const bookName = BIBLE_META[payload.book]?.name || payload.book;
   titleEl.textContent = `${bookName} ${payload.chapter}`;
+  // Reaction keys are book-ID based so they survive the payload's uppercased
+  // book NAME differing from the reader's ID ("JUDGES" vs "JDG").
+  _nrKeyBase = `${_bookNameToId(payload.book) || payload.book}-${payload.chapter}`;
 
   // Stage 1 — curtain wipes up over the reader, then the shell fades in
   // behind it. Both live on the same element so there's no flash between.
@@ -569,10 +638,10 @@ async function openNarrate() {
   overlay.classList.add("nr-rising");
 
   // Stage 2 — loading. Shown immediately so the wait is never a blank screen.
-  scroll.innerHTML = `<div class="nr-loading">
-    ${sparkleLoaderHTML("Retelling this chapter…")}
-    <p class="nr-loading-sub">Reading all ${bookName} ${payload.chapter}, finding who speaks.</p>
-  </div>`;
+  // A skeleton of the layout that's coming beats a spinner: the shape of the
+  // retelling is already on screen, and the status line says what the model is
+  // actually doing rather than "loading".
+  scroll.innerHTML = _nrLoadingHTML(`${bookName} ${payload.chapter}`);
 
   const cacheKey = `${_NR_CACHE_PREFIX}${payload.book}_${payload.chapter}`;
 
@@ -608,6 +677,7 @@ async function openNarrate() {
     ).catch(() => null);
 
     scroll.innerHTML = _nrRenderBeats(data, sections);
+    _nrPaintAllReactions();
     _nrPageIdx = 0;
     // Wait a frame so fonts and wrapping have settled — measuring mid-layout
     // gives heights that are wrong by a line or two and pages break oddly.
@@ -617,6 +687,11 @@ async function openNarrate() {
     // long scroll and the pager never appears. Re-paginating is idempotent.
     requestAnimationFrame(() => _nrPaginate(0));
     setTimeout(() => _nrPaginate(_nrPageIdx), 120);
+    // Webfonts swapping in after the first measure reflow every beat a line
+    // taller; without this the pages stay packed for the fallback metrics.
+    document.fonts?.ready?.then(() => {
+      if (_nrOpen) _nrPaginate(_nrPageIdx, false);
+    });
   } catch (err) {
     console.warn("[retell]", err);
     scroll.innerHTML = `<div class="nr-loading">
@@ -633,6 +708,9 @@ async function openNarrate() {
 function closeNarrate() {
   const overlay = document.getElementById("narrateOverlay");
   if (!overlay) return;
+  _nrClosePicker();
+  _nrCancelPress();
+  _nrCloseSheet();
   overlay.classList.remove("nr-rising");
   overlay.classList.add("nr-falling");
   const done = () => {
@@ -651,10 +729,421 @@ function closeNarrate() {
   setTimeout(done, 700);
 }
 
+/* ── Reactions ─────────────────────────────────────────────────────────────
+   Hold a beat the way you hold a message in Messenger: a row of five faces
+   pops over it and the one you pick pins to the corner. A double-tap is the
+   shortcut for the heart, mirroring the double-tap-to-favorite gesture the
+   reader already uses on verses.
+
+   One localStorage key holds every reaction, so it rides the existing
+   Firebase mirror for the sync users (charlie / karla) and stays local for
+   everyone else — see SYNC_STATIC_KEYS in firebase-sync.js. */
+const _NR_REACT_KEY = "retellReactions";
+const _NR_REACT_MAX = 1000;
+const NR_REACTIONS = [
+  { id: "love", emoji: "\u2764\ufe0f", label: "Love" },
+  { id: "happy", emoji: "\ud83d\ude04", label: "Happy" },
+  { id: "wow", emoji: "\ud83d\ude2e", label: "Wow" },
+  { id: "sad", emoji: "\ud83d\ude2d", label: "Sad" },
+  { id: "angry", emoji: "\ud83d\ude21", label: "Angry" },
+];
+
+let _nrKeyBase = ""; // "1SA-3" — set on open, prefixes every beat key
+let _nrPressTimer = null;
+let _nrPressEl = null;
+let _nrPressPt = null;
+let _nrSuppressClick = false;
+// True between the picker opening and the finger/button coming back up, i.e.
+// while the same gesture that opened it is still running.
+let _nrPickDragging = false;
+let _nrLastTap = { key: null, t: 0, x: 0, y: 0 };
+
+function _nrBeatKey(idx, verses) {
+  return `${_nrKeyBase}|${String(verses || "x").replace(/\s+/g, "")}|${idx}`;
+}
+
+function _nrGetReactions() {
+  try {
+    const o = JSON.parse(localStorage.getItem(_NR_REACT_KEY) || "{}");
+    return o && typeof o === "object" && !Array.isArray(o) ? o : {};
+  } catch {
+    return {};
+  }
+}
+
+function _nrSaveReactions(map) {
+  // Bounded oldest-first: every entry rides the RTDB mirror for the sync
+  // users, so this can't be allowed to grow without a ceiling.
+  const keys = Object.keys(map);
+  if (keys.length > _NR_REACT_MAX) {
+    keys
+      .sort((a, b) => (map[a]?.ts || 0) - (map[b]?.ts || 0))
+      .slice(0, keys.length - _NR_REACT_MAX)
+      .forEach((k) => delete map[k]);
+  }
+  localStorage.setItem(_NR_REACT_KEY, JSON.stringify(map));
+}
+
+function _nrReactionFor(key) {
+  return _nrGetReactions()[key]?.r || null;
+}
+
+/* Picking the reaction already on a beat clears it — same toggle as the
+   favorite heart. */
+function _nrSetReaction(key, id) {
+  if (!key) return;
+  const map = _nrGetReactions();
+  const had = map[key]?.r;
+  if (!id || had === id) delete map[key];
+  else map[key] = { r: id, ts: Date.now() };
+  _nrSaveReactions(map);
+  _nrPaintReaction(key);
+  // The card and the badge row change the beat's height, so the page it sits
+  // on has to be re-packed or it overflows into a scroll.
+  if (_nrPages.length) _nrPaginate(_nrPageIdx, false);
+  return had !== id;
+}
+
+function _nrBeatEl(key) {
+  const scroll = document.getElementById("nrScroll");
+  if (!scroll) return null;
+  return [...scroll.querySelectorAll("[data-rk]")].find((n) => n.dataset.rk === key) || null;
+}
+
+function _nrPaintReaction(key) {
+  const el = _nrBeatEl(key);
+  if (!el) return;
+  const id = _nrReactionFor(key);
+  let badge = el.querySelector(":scope > .nr-react-badge");
+  if (!id) {
+    badge?.remove();
+    el.classList.remove("nr-reacted");
+    delete el.dataset.react;
+    return;
+  }
+  // Drives --nr-rc, so the card and the badge ring take the reaction's own
+  // colour instead of every reaction reading as the same pink.
+  el.dataset.react = id;
+  if (!badge) {
+    badge = document.createElement("button");
+    badge.type = "button";
+    badge.className = "nr-react-badge";
+    el.appendChild(badge);
+  }
+  const spec = NR_REACTIONS.find((r) => r.id === id);
+  badge.textContent = spec?.emoji || NR_REACTIONS[0].emoji;
+  badge.title = `${spec?.label || "Reacted"} — tap to change`;
+  badge.setAttribute("aria-label", badge.title);
+  badge.classList.remove("nr-react-pop");
+  void badge.offsetWidth;
+  badge.classList.add("nr-react-pop");
+  el.classList.add("nr-reacted");
+}
+
+function _nrPaintAllReactions() {
+  document
+    .querySelectorAll("#nrScroll [data-rk]")
+    .forEach((el) => _nrPaintReaction(el.dataset.rk));
+}
+
+/* The floating heart on a double-tap — the reader's fav-pop, borrowed. */
+function _nrHeartBurst(el) {
+  const burst = document.createElement("span");
+  burst.className = "nr-react-burst";
+  burst.textContent = NR_REACTIONS[0].emoji;
+  el.appendChild(burst);
+  burst.addEventListener("animationend", () => burst.remove(), { once: true });
+  setTimeout(() => burst.remove(), 1200);
+}
+
+// A reaction added on the other device (charlie ↔ karla) lands here.
+window.addEventListener("devo:retell-reactions", () => {
+  if (_nrOpen) _nrPaintAllReactions();
+});
+
+function _nrClosePicker() {
+  _nrPickDragging = false;
+  document.getElementById("nrReactPicker")?.remove();
+  document.querySelector("#nrScroll .nr-pressing")?.classList.remove("nr-pressing");
+}
+
+function _nrOpenPicker(el) {
+  const overlay = document.getElementById("narrateOverlay");
+  if (!overlay || !el?.dataset.rk) return;
+  _nrClosePicker();
+
+  const key = el.dataset.rk;
+  const current = _nrReactionFor(key);
+  const pick = document.createElement("div");
+  pick.id = "nrReactPicker";
+  pick.className = "nr-react-picker";
+  pick.dataset.rk = key;
+  // Three blobs: the faces, then the two verse actions the reader already has
+  // on every verse. Same handlers, so Context and Ask behave identically here.
+  pick.innerHTML = `
+    <div class="nr-pill nr-pill-faces">
+      ${NR_REACTIONS.map(
+        (r, i) =>
+          `<button type="button" class="nr-react-opt${current === r.id ? " nr-react-opt-on" : ""}"
+             data-react="${r.id}" aria-label="${r.label}" title="${r.label}"
+             style="animation-delay:${i * 30}ms">${r.emoji}</button>`,
+      ).join("")}
+    </div>
+    <button type="button" class="nr-pill nr-act" data-act="context" style="animation-delay:${
+      NR_REACTIONS.length * 30
+    }ms">
+      <span class="material-icons">auto_awesome</span><span>Context</span>
+    </button>
+    <button type="button" class="nr-pill nr-act" data-act="ask" style="animation-delay:${
+      (NR_REACTIONS.length + 1) * 30
+    }ms">
+      <span class="material-icons">chat_bubble_outline</span><span>Ask</span>
+    </button>`;
+  overlay.appendChild(pick);
+  el.classList.add("nr-pressing");
+
+  // Above the beat, flush with its right edge — centring it over a wide beat
+  // left the row floating in the middle of nowhere. Falls below the beat when
+  // there's no room above, and is clamped so an edge beat can't push the row
+  // off-screen.
+  const r = el.getBoundingClientRect();
+  const pr = pick.getBoundingClientRect();
+  const m = 10;
+  const left = Math.max(m, Math.min(r.right - pr.width, window.innerWidth - pr.width - m));
+  let top = r.top - pr.height - 10;
+  if (top < m) top = Math.min(r.bottom + 10, window.innerHeight - pr.height - m);
+  pick.style.left = `${Math.round(left)}px`;
+  pick.style.top = `${Math.round(top)}px`;
+
+  navigator.vibrate?.(12);
+}
+
+function _nrOptAt(x, y) {
+  // The pointer is implicitly captured by the beat on touch, so the event
+  // target is useless here — hit-test the actual point instead.
+  return (
+    document.elementFromPoint(x, y)?.closest?.(".nr-react-opt, .nr-act") || null
+  );
+}
+
+function _nrHighlightOpt(opt) {
+  document
+    .querySelectorAll(".nr-react-opt-hot")
+    .forEach((el) => el !== opt && el.classList.remove("nr-react-opt-hot"));
+  opt?.classList.add("nr-react-opt-hot");
+}
+
+/* ── Verse actions (Context / Ask) ─────────────────────────────────────────
+   The same two calls the reader puts under every verse, reached from the hold
+   menu. They render into a mount, so the retelling gets a sheet over the card
+   to hold one — injecting the AI card into a beat would repaginate the page
+   under the reader's thumb. */
+function _nrVerseTextFor(verse) {
+  const lines = String(window.__aiPayload?.versesText || "").split("\n");
+  const hit = lines.find((l) => l.trim().startsWith(`${verse}. `));
+  return hit ? hit.trim().slice(String(verse).length + 2) : "";
+}
+
+function _nrCloseSheet() {
+  document.getElementById("nrSheet")?.remove();
+}
+
+function _nrRunVerseAction(rk, act) {
+  const payload = window.__aiPayload;
+  const shell = document.querySelector("#narrateOverlay .nr-shell");
+  const beat = _nrBeatEl(rk);
+  const verse = parseInt(beat?.dataset.rv || "", 10);
+  if (!payload || !shell || !verse) return;
+
+  const bookName = BIBLE_META[payload.book]?.name || payload.book;
+  const text = _nrVerseTextFor(verse);
+  const ref = `${bookName} ${payload.chapter}:${verse}`;
+
+  _nrCloseSheet();
+  const sheet = document.createElement("div");
+  sheet.id = "nrSheet";
+  sheet.className = "nr-sheet";
+  sheet.innerHTML = `
+    <div class="nr-sheet-panel">
+      <header class="nr-sheet-head">
+        <div class="nr-sheet-title">
+          <span class="nr-sheet-label">${act === "ask" ? "Ask" : "Context"}</span>
+          <strong>${_nrEsc(ref)}</strong>
+        </div>
+        <button type="button" class="nr-sheet-close" aria-label="Close">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </header>
+      <div class="nr-sheet-body"><div class="inline-ai-mount"></div></div>
+    </div>`;
+  shell.appendChild(sheet);
+
+  const mount = sheet.querySelector(".inline-ai-mount");
+  // Backdrop and X close it; a click inside the panel must not.
+  sheet.addEventListener("click", (e) => {
+    if (e.target === sheet || e.target.closest(".nr-sheet-close")) _nrCloseSheet();
+  });
+
+  if (act === "ask") {
+    // Same key shape as the reader's keyOf(book_id, chapter, verse), so a chat
+    // started here and one started in the reader share a history.
+    const key = keyOf(_bookNameToId(payload.book) || payload.book, payload.chapter, verse);
+    toggleVerseChat(key, bookName, String(payload.chapter), String(verse), text, mount);
+  } else {
+    fetchInlineQuickContext(
+      { book: bookName, chapter: String(payload.chapter), verse: String(verse), text },
+      mount,
+    );
+  }
+}
+
+function _nrCancelPress() {
+  clearTimeout(_nrPressTimer);
+  _nrPressTimer = null;
+  _nrPressEl?.classList.remove("nr-press-hold");
+  _nrPressEl = null;
+  _nrPressPt = null;
+}
+
+document.addEventListener("pointerdown", (e) => {
+  _nrSuppressClick = false;
+  if (!_nrOpen) return;
+  if (e.pointerType === "mouse" && e.button !== 0) return;
+  const el = e.target.closest?.("#nrScroll [data-rk]");
+  if (!el || e.target.closest?.(".nr-react-badge")) return;
+  _nrCancelPress();
+  _nrPressEl = el;
+  _nrPressPt = { x: e.clientX, y: e.clientY };
+  el.classList.add("nr-press-hold");
+  _nrPressTimer = setTimeout(() => {
+    _nrPressTimer = null;
+    _nrPressEl?.classList.remove("nr-press-hold");
+    // The click that follows the release would otherwise land on whatever is
+    // under the finger — a verse chip, usually.
+    _nrSuppressClick = true;
+    _nrOpenPicker(el);
+    _nrPressEl = null;
+    // Hold, slide onto a face, let go — the release picks it, the way it does
+    // in Messenger. Tapping a face after releasing still works.
+    _nrPickDragging = true;
+  }, 420);
+});
+
+document.addEventListener("pointermove", (e) => {
+  if (_nrPickDragging) {
+    _nrHighlightOpt(_nrOptAt(e.clientX, e.clientY));
+    return;
+  }
+  if (!_nrPressTimer || !_nrPressPt) return;
+  // A drag is a scroll, not a hold.
+  if (Math.hypot(e.clientX - _nrPressPt.x, e.clientY - _nrPressPt.y) > 10) _nrCancelPress();
+});
+
+document.addEventListener("pointerup", (e) => {
+  if (_nrPickDragging) {
+    _nrPickDragging = false;
+    const opt = _nrOptAt(e.clientX, e.clientY);
+    _nrHighlightOpt(null);
+    if (opt) {
+      // The click that follows this release must not reach the picker again.
+      _nrSuppressClick = true;
+      const rk = document.getElementById("nrReactPicker")?.dataset.rk;
+      if (opt.dataset.act) _nrRunVerseAction(rk, opt.dataset.act);
+      else _nrSetReaction(rk, opt.dataset.react);
+      _nrClosePicker();
+    }
+    // Released anywhere else: the picker stays up so it can still be tapped.
+  }
+  _nrCancelPress();
+});
+
+document.addEventListener("pointercancel", () => {
+  _nrPickDragging = false;
+  _nrHighlightOpt(null);
+  _nrCancelPress();
+});
+
+// iOS raises its own callout on a long press; without this the selection
+// handles fight the picker.
+document.addEventListener("contextmenu", (e) => {
+  if (_nrOpen && e.target.closest?.("#nrScroll [data-rk]")) e.preventDefault();
+});
+
+// Swallow exactly the click that ends a long press. Capture phase so it never
+// reaches the chip / pager delegates below.
+document.addEventListener(
+  "click",
+  (e) => {
+    if (!_nrSuppressClick) return;
+    _nrSuppressClick = false;
+    e.preventDefault();
+    e.stopPropagation();
+  },
+  true,
+);
+
+document.addEventListener("click", (e) => {
+  if (!_nrOpen) return;
+
+  const opt = e.target.closest?.(".nr-react-opt");
+  if (opt) {
+    e.preventDefault();
+    e.stopPropagation();
+    _nrSetReaction(document.getElementById("nrReactPicker")?.dataset.rk, opt.dataset.react);
+    _nrClosePicker();
+    return;
+  }
+
+  const act = e.target.closest?.(".nr-act");
+  if (act) {
+    e.preventDefault();
+    e.stopPropagation();
+    _nrRunVerseAction(document.getElementById("nrReactPicker")?.dataset.rk, act.dataset.act);
+    _nrClosePicker();
+    return;
+  }
+
+  // The pinned badge reopens the picker — that's how you change or clear it.
+  const badge = e.target.closest?.("#nrScroll .nr-react-badge");
+  if (badge) {
+    e.preventDefault();
+    e.stopPropagation();
+    _nrOpenPicker(badge.closest("[data-rk]"));
+    return;
+  }
+
+  if (document.getElementById("nrReactPicker") && !e.target.closest?.("#nrReactPicker")) {
+    _nrClosePicker();
+  }
+
+  // Double-tap to heart. Same gesture and same toggle as favoriting a verse in
+  // the reader; a second double-tap takes the heart back off.
+  const el = e.target.closest?.("#nrScroll [data-rk]");
+  if (!el || e.target.closest?.("a.nr-chip")) {
+    _nrLastTap = { key: null, t: 0, x: 0, y: 0 };
+    return;
+  }
+  const key = el.dataset.rk;
+  const now = Date.now();
+  const near =
+    _nrLastTap.key === key &&
+    now - _nrLastTap.t < 340 &&
+    Math.hypot(e.clientX - _nrLastTap.x, e.clientY - _nrLastTap.y) < 32;
+  if (near) {
+    _nrLastTap = { key: null, t: 0, x: 0, y: 0 };
+    if (_nrSetReaction(key, "love")) _nrHeartBurst(el);
+  } else {
+    _nrLastTap = { key, t: now, x: e.clientX, y: e.clientY };
+  }
+});
+
 document.addEventListener("click", (e) => {
   if (e.target.closest?.("#nrClose")) closeNarrate();
-  if (e.target.closest?.("#nrPrev")) _nrGoToPage(_nrPageIdx - 1);
-  if (e.target.closest?.("#nrNext")) _nrGoToPage(_nrPageIdx + 1);
+  if (e.target.closest?.("#nrPrev")) _nrStepPage(-1);
+  if (e.target.closest?.("#nrNext")) {
+    if (document.getElementById("nrNext")?.classList.contains("nr-page-done")) closeNarrate();
+    else _nrStepPage(1);
+  }
 
   // Verse chips open the peek sheet. Without this they'd fall through to the
   // global `a[href^="#"]` delegate in js/05-render-init.js, which would
@@ -672,7 +1161,12 @@ document.addEventListener("click", (e) => {
 });
 document.addEventListener("keydown", (e) => {
   if (!_nrOpen) return;
-  if (e.key === "Escape") closeNarrate();
-  if (e.key === "ArrowRight") _nrGoToPage(_nrPageIdx + 1);
-  if (e.key === "ArrowLeft") _nrGoToPage(_nrPageIdx - 1);
+  if (e.key === "Escape") {
+    if (document.getElementById("nrSheet")) _nrCloseSheet();
+    else if (document.getElementById("nrReactPicker")) _nrClosePicker();
+    else closeNarrate();
+    return;
+  }
+  if (e.key === "ArrowRight") _nrStepPage(1);
+  if (e.key === "ArrowLeft") _nrStepPage(-1);
 });

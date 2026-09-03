@@ -34,6 +34,7 @@ const SYNC_STATIC_KEYS = [
   "dashGreetingCacheV2",
   "gratitudeJournal",
   "prayersJournal",
+  "retellReactions",
 ];
 // NOTE: `obedienceJournal` was dropped 2026-08-10 with the obedience journal
 // itself (see DECISIONS #26). Existing entries stay in RTDB but are never read
@@ -308,9 +309,13 @@ function _listenForRemoteChanges() {
     let commentsChanged = false;
     let anyChanged = false;
     let nonJournalChanged = false;
+    let reactionsChanged = false;
 
     const noteJournalKey = (k) => {
       if (k === "gratitudeJournal" || k === "prayersJournal") changedJournalKeys.push(k);
+      // Retell reactions repaint themselves through their own event; a
+      // dashboard re-render would be a whole-page fade for a pinned emoji.
+      else if (k === "retellReactions") reactionsChanged = true;
       else nonJournalChanged = true;
     };
 
@@ -358,6 +363,9 @@ function _listenForRemoteChanges() {
     if (changedJournalKeys.length) {
       window.dispatchEvent(new CustomEvent("devo:journal-sync", { detail: { keys: changedJournalKeys } }));
     }
+    if (reactionsChanged) {
+      window.dispatchEvent(new CustomEvent("devo:retell-reactions"));
+    }
 
     // Re-render dashboard ONLY if a non-journal key changed; pure-journal
     // updates avoid the heavy whole-page fade.
@@ -367,6 +375,23 @@ function _listenForRemoteChanges() {
     }
   };
   _fbDb.ref(_syncPath).on("value", _remoteListenerCb);
+}
+
+// Retell reactions: one entry per beat, so merge per key and let the newer
+// timestamp win. Local-wins (the default branch) would drop a reaction the
+// other device added while this one was offline.
+function _mergeReactions(lRaw, rRaw) {
+  try {
+    const l = JSON.parse(lRaw || "{}");
+    const r = JSON.parse(rRaw || "{}");
+    const out = { ...r };
+    for (const [k, v] of Object.entries(l)) {
+      if (!out[k] || (v?.ts || 0) >= (out[k]?.ts || 0)) out[k] = v;
+    }
+    return JSON.stringify(out);
+  } catch {
+    return lRaw;
+  }
 }
 
 // ── Merge logic (preserved from previous version) ───────────────────────────
@@ -386,6 +411,8 @@ function _mergeAll(local, remote) {
       merged[key] = _mergeComments(lVal, rVal);
     } else if (decodedKey === "devotionStandaloneNotes") {
       merged[key] = _mergeStandaloneNotes(lVal, rVal);
+    } else if (decodedKey === "retellReactions") {
+      merged[key] = _mergeReactions(lVal, rVal);
     } else if (decodedKey.startsWith("devo.canvas.")) {
       merged[key] = _mergeCanvasState(lVal, rVal);
     } else {
