@@ -2,7 +2,7 @@
    drive-with-sherill — all site content lives here.
    Edit this file to update prices, variants, colors and promos.
    Prices are SRP, VAT-inclusive, taken from the Nissan Quezon Avenue
-   price list Sherill issued (August 2026). Always confirm before quoting.
+   price list Sherill issued (September 2026). Always confirm before quoting.
    ========================================================================== */
 
 const AGENT = {
@@ -30,7 +30,7 @@ const MODELS = [
     body: 'sedan',
     tagline: 'Smart. Stylish. Turbocharged.',
     sub: 'Built for everyday confidence.',
-    priceFrom: 845000,
+    priceFrom: 1099000,
     seats: 5,
     heroColor: '#9aa0a6',
     highlights: [
@@ -40,8 +40,6 @@ const MODELS = [
       { icon: 'wifi', title: 'NissanConnect', desc: 'Remote engine start, vehicle tracking, geo-fencing.' },
     ],
     variants: [
-      { name: 'Almera 1.0 EL Turbo MT', trans: 'Manual', price: 845000 },
-      { name: 'Almera 1.0 EL Turbo MT (Premium Color)', trans: 'Manual', price: 865000 },
       { name: 'Almera 1.0 VE Turbo CVT with NissanConnect', trans: 'CVT', price: 1099000 },
       { name: 'Almera 1.0 VE Turbo CVT with NissanConnect (Premium Color)', trans: 'CVT', price: 1119000 },
       { name: 'Almera 1.0 VL Turbo CVT with NissanConnect', trans: 'CVT', price: 1199000 },
@@ -60,14 +58,6 @@ const MODELS = [
         label: 'Available colors (VE)',
         colors: [
           { name: 'Cayenne Red', hex: '#a1131f' },
-          { name: 'Pearl White', hex: '#eef0f1', extra: 20000 },
-          { name: 'Gun Metallic', hex: '#5b5f63' },
-          { name: 'Galaxy Black', hex: '#111214' },
-        ],
-      },
-      {
-        label: 'Available colors (EL)',
-        colors: [
           { name: 'Pearl White', hex: '#eef0f1', extra: 20000 },
           { name: 'Gun Metallic', hex: '#5b5f63' },
           { name: 'Galaxy Black', hex: '#111214' },
@@ -92,7 +82,7 @@ const MODELS = [
     body: 'crossover',
     tagline: '100% electric drive. Zero charging.',
     sub: 'The EV feel, powered by petrol.',
-    priceFrom: 1179000,
+    priceFrom: 1549000,
     seats: 5,
     featured: true,
     heroColor: '#c3002f',
@@ -103,12 +93,12 @@ const MODELS = [
       { icon: 'eco', title: 'Excellent economy', desc: 'Engine runs at its most efficient point only.' },
     ],
     variants: [
-      { name: 'KICKS e-POWER EL', trans: 'e-POWER AT', price: 1179000 },
-      { name: 'KICKS e-POWER EL (Premium Color)', trans: 'e-POWER AT', price: 1199000 },
-      { name: 'KICKS e-POWER VE', trans: 'e-POWER AT', price: 1279000 },
-      { name: 'KICKS e-POWER VE (Premium Color)', trans: 'e-POWER AT', price: 1299000 },
-      { name: 'KICKS e-POWER VL', trans: 'e-POWER AT', price: 1479000 },
-      { name: 'KICKS e-POWER VL (Premium Color)', trans: 'e-POWER AT', price: 1499000 },
+      { name: 'KICKS e-POWER VE', trans: 'e-POWER AT', price: 1549000 },
+      { name: 'KICKS e-POWER VE (Premium Color)', trans: 'e-POWER AT', price: 1569000 },
+      { name: 'KICKS e-POWER VL', trans: 'e-POWER AT', price: 1699000 },
+      { name: 'KICKS e-POWER VL (Premium Color)', trans: 'e-POWER AT', price: 1719000 },
+      { name: 'KICKS e-POWER LE Plus', trans: 'e-POWER AT', price: 1799000 },
+      { name: 'KICKS e-POWER LE Plus (Premium Color)', trans: 'e-POWER AT', price: 1819000 },
     ],
     colorGroups: [
       {
@@ -248,7 +238,7 @@ const MODELS = [
     body: 'suv',
     tagline: 'Dominate every journey.',
     sub: 'Power. Presence. Purpose.',
-    priceFrom: 1729000,
+    priceFrom: 1969000,
     seats: 7,
     heroColor: '#8a9096',
     highlights: [
@@ -259,7 +249,6 @@ const MODELS = [
       { icon: 'wifi', title: 'NissanConnect Services', desc: 'Remote start, tracking, security alerts.' },
     ],
     variants: [
-      { name: 'Terra 2.5L EL MT 4x2', trans: '6-speed Manual', price: 1729000 },
       { name: 'Terra 2.5L VE AT 4x2', trans: '7-speed Automatic', price: 1969000 },
       { name: 'Terra 2.5L VE AT 4x2 (Premium Color)', trans: '7-speed Automatic', price: 1989000 },
       { name: 'Terra 2.5L VL AT 4x2', trans: '7-speed Automatic', price: 2119000 },
@@ -872,7 +861,8 @@ const RATE_PROMOS = [
        computation changes; at 30/40/50% the all-in figure is a different
        number she quotes by hand.
 
-   Variants she did not name (Terra EL, Navara EL / VE MT 4x4 / VL) simply have
+   Variants she did not name (Navara EL / VE MT 4x4 / VL, and the whole KICKS
+   line) simply have
    no `promoDp` and the UI stays quiet for them. Same expiry discipline as
    RATE_PROMOS — past `end` this whole layer switches itself off. */
 const DP_PROMO = {
@@ -926,8 +916,6 @@ const DP_PROMO_UNITS = {
   'Livina 1.5 VL AT (Premium Color) — New Display Audio': 58000,
 
   /* Almera — one figure across the line, as she sent it. */
-  'Almera 1.0 EL Turbo MT': 88000,
-  'Almera 1.0 EL Turbo MT (Premium Color)': 88000,
   'Almera 1.0 VE Turbo CVT with NissanConnect': 88000,
   'Almera 1.0 VE Turbo CVT with NissanConnect (Premium Color)': 88000,
   'Almera 1.0 VL Turbo CVT with NissanConnect': 88000,

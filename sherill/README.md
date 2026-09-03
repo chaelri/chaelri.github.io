@@ -47,13 +47,20 @@ No build step. Save the file, reload the page.
 
 ## Notes on the data
 
-- Prices are SRP, VAT-inclusive, taken from nissan.ph's price guide (August 2026) and
-  Sherill's own flyers for Terra / Patrol / Almera / Livina (which carry the premium-color
-  rows that the website's summary table omits).
-- **KICKS e-POWER prices need confirming with Sherill.** Public listings disagree
-  (₱1.179M/1.279M/1.479M vs ₱1.239M/1.339M/1.539M for EL/VE/VL) and the price guide
-  doesn't list the model at all. The `LE Plus` variant she mentioned isn't published
-  anywhere public, so it renders as "Ask for price" rather than carrying an invented number.
+- Prices are SRP, VAT-inclusive, transcribed from the dealership price list Sherill
+  issued, **"PRICELIST AS OF SEPTEMBER 2026"**. That sheet is the source of truth — it
+  carries the premium-color rows the nissan.ph summary table omits, and it disagrees with
+  the public price guide often enough that the guide is not used for prices at all.
+- **KICKS e-POWER is settled as of the September 2026 sheet** and it is the All-New
+  generation: VE ₱1,549,000 · VL ₱1,699,000 · LE Plus ₱1,799,000 (+₱20,000 for a premium
+  color). The earlier EL/VE/VL ₱1.179M/1.279M/1.479M rows were the outgoing car and are
+  gone; `LE Plus` is now a real published variant, no longer "Ask for price". The colors
+  and specs in `data.js` still describe the previous KICKS — **confirm those with Sherill
+  before treating them as current.**
+- **Almera EL Turbo MT and Terra 2.5L EL MT 4x2 are not on the September sheet** and have
+  been dropped. Navara EL is still listed, so this is not a blanket "no base trims" rule —
+  it reads as those two trims being discontinued. Confirm with Sherill; if they are only
+  temporarily out of stock, restore the rows from git history.
 - Model photography is Nissan Philippines' own imagery from nissan.ph, cropped to 16:9.
 - `models/cut/` holds transparent cut-outs, made with `tools-cutout.swift` (macOS Vision
   subject segmentation — the same engine as Preview's "Remove Background"). Rebuild one with:
