@@ -100,16 +100,28 @@ const MODELS = [
       { name: 'KICKS e-POWER LE Plus', trans: 'e-POWER AT', price: 1799000 },
       { name: 'KICKS e-POWER LE Plus (Premium Color)', trans: 'e-POWER AT', price: 1819000 },
     ],
+    /* Sherill's KICKS flyer splits the colors per variant, then she corrected
+       it in the next message: every color is available on every variant. Her
+       correction wins, so the first group carries no variant label.
+       The flyer lists LE Plus only in black-roof form, which matches the
+       September price list having no separate 2-tone row for KICKS — the
+       black roof is LE Plus styling, not a paid option. */
     colorGroups: [
       {
-        label: 'Available colors',
+        label: 'Available colors (all variants)',
         colors: [
-          { name: 'Monarch Orange with Black Roof', hex: '#d8630f', roof: '#151515' },
-          { name: 'Pearl White with Black Roof', hex: '#eef0f1', roof: '#151515' },
-          { name: 'Burgundy with Black Roof', hex: '#6d1524', roof: '#151515' },
-          { name: 'Pearl White', hex: '#eef0f1' },
+          { name: 'Aquamarine Metallic', hex: '#3f8c9b' },
           { name: 'Gun Metallic', hex: '#5b5f63' },
-          { name: 'Galaxy Black', hex: '#111214' },
+          { name: 'Moon Pearl Gray', hex: '#a3a9ad', extra: 20000 },
+          { name: 'Pearl White', hex: '#eef0f1', extra: 20000 },
+        ],
+      },
+      {
+        label: 'LE Plus — same colors with a black roof',
+        colors: [
+          { name: 'Aquamarine Metallic with Black Roof', hex: '#3f8c9b', roof: '#151515' },
+          { name: 'Moon Pearl Gray with Black Roof', hex: '#a3a9ad', roof: '#151515', extra: 20000 },
+          { name: 'Pearl White with Black Roof', hex: '#eef0f1', roof: '#151515', extra: 20000 },
         ],
       },
     ],

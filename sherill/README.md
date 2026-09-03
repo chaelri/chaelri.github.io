@@ -54,9 +54,17 @@ No build step. Save the file, reload the page.
 - **KICKS e-POWER is settled as of the September 2026 sheet** and it is the All-New
   generation: VE ₱1,549,000 · VL ₱1,699,000 · LE Plus ₱1,799,000 (+₱20,000 for a premium
   color). The earlier EL/VE/VL ₱1.179M/1.279M/1.479M rows were the outgoing car and are
-  gone; `LE Plus` is now a real published variant, no longer "Ask for price". The colors
-  and specs in `data.js` still describe the previous KICKS — **confirm those with Sherill
-  before treating them as current.**
+  gone; `LE Plus` is now a real published variant, no longer "Ask for price".
+  Colors came from Sherill's own KICKS flyer (Aquamarine Metallic · Gun Metallic · Moon
+  Pearl Gray · Pearl White, the last two +₱20,000). The flyer splits them per variant and
+  she corrected that in her next message — *"lahat pla ng colors available sa lahat ng
+  variants"* — so `data.js` follows the correction. Her flyer shows LE Plus only in
+  black-roof form and the price list has no separate 2-tone KICKS row, so the black roof
+  is treated as LE Plus styling rather than a paid option. **Still open: whether LE Plus
+  also comes in Gun Metallic, and whether VE/VL can be had with the black roof.**
+- **The KICKS photo and specs still describe the previous generation** (`assets/models/
+  kicks.webp`, and the 1.2L / 129–136 PS spec rows). Neither the price list nor the flyer
+  carries anything to replace them with — ask Sherill for a current photo and spec sheet.
 - **Almera EL Turbo MT and Terra 2.5L EL MT 4x2 are not on the September sheet** and have
   been dropped. Navara EL is still listed, so this is not a blanket "no base trims" rule —
   it reads as those two trims being discontinued. Confirm with Sherill; if they are only
