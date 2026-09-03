@@ -867,7 +867,7 @@ function _nrClosePicker() {
   document.querySelector("#nrScroll .nr-pressing")?.classList.remove("nr-pressing");
 }
 
-function _nrOpenPicker(el) {
+function _nrOpenPicker(el, pt) {
   const overlay = document.getElementById("narrateOverlay");
   if (!overlay || !el?.dataset.rk) return;
   _nrClosePicker();
@@ -902,16 +902,24 @@ function _nrOpenPicker(el) {
   overlay.appendChild(pick);
   el.classList.add("nr-pressing");
 
-  // Above the beat, flush with its right edge — centring it over a wide beat
-  // left the row floating in the middle of nowhere. Falls below the beat when
-  // there's no room above, and is clamped so an edge beat can't push the row
-  // off-screen.
+  // Opens where the finger is, not at a fixed corner of the beat: centred on
+  // the press point and sitting just above it, so a hold near the bottom of a
+  // long paragraph doesn't throw the menu up to the top of the screen. Falls
+  // below the point when there's no room above, and is clamped to the
+  // viewport either way. Without a point (the badge reopening it) the beat's
+  // top-right corner is the anchor.
   const r = el.getBoundingClientRect();
   const pr = pick.getBoundingClientRect();
   const m = 10;
-  const left = Math.max(m, Math.min(r.right - pr.width, window.innerWidth - pr.width - m));
-  let top = r.top - pr.height - 10;
-  if (top < m) top = Math.min(r.bottom + 10, window.innerHeight - pr.height - m);
+  const gap = 14;
+  const anchorX = pt ? pt.x : r.right - pr.width / 2;
+  const anchorY = pt ? pt.y : r.top;
+  const left = Math.max(
+    m,
+    Math.min(anchorX - pr.width / 2, window.innerWidth - pr.width - m),
+  );
+  let top = anchorY - pr.height - gap;
+  if (top < m) top = Math.min(anchorY + gap, window.innerHeight - pr.height - m);
   pick.style.left = `${Math.round(left)}px`;
   pick.style.top = `${Math.round(top)}px`;
 
@@ -1014,6 +1022,7 @@ document.addEventListener("pointerdown", (e) => {
   _nrCancelPress();
   _nrPressEl = el;
   _nrPressPt = { x: e.clientX, y: e.clientY };
+  const pt = _nrPressPt;
   el.classList.add("nr-press-hold");
   _nrPressTimer = setTimeout(() => {
     _nrPressTimer = null;
@@ -1021,7 +1030,7 @@ document.addEventListener("pointerdown", (e) => {
     // The click that follows the release would otherwise land on whatever is
     // under the finger — a verse chip, usually.
     _nrSuppressClick = true;
-    _nrOpenPicker(el);
+    _nrOpenPicker(el, pt);
     _nrPressEl = null;
     // Hold, slide onto a face, let go — the release picks it, the way it does
     // in Messenger. Tapping a face after releasing still works.
