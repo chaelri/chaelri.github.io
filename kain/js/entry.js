@@ -807,27 +807,36 @@ export function openPartnerSheet(date = dayKey()) {
             : `<p class="muted-note">${esc(other.name)} hasn't logged anything today.</p>`
         }`;
 
-      body.addEventListener("click", (e) => {
-        const btn = e.target.closest("[data-copy]");
-        if (btn) {
-          const src = list.find((x) => x.id === btn.dataset.copy);
-          if (src) {
-            haptic(10);
-            copyFromPartner(src, other);
-          }
-          return;
-        }
-        const look = e.target.closest("[data-view]");
-        if (look) {
-          const src = list.find((x) => x.id === look.dataset.view);
-          if (src) openPartnerEntrySheet(src, other);
-        }
-      });
+      wirePartnerRows(body, list, other);
       void sheet;
     },
   });
 }
 
+
+/**
+ * Click behaviour for a list of the partner's entries: the row opens their
+ * breakdown, the button starts a copy onto your own day. Shared by the partner
+ * sheet and the day sheet.
+ */
+export function wirePartnerRows(container, list, other) {
+  container.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-copy]");
+    if (btn) {
+      const src = list.find((x) => x.id === btn.dataset.copy);
+      if (src) {
+        haptic(10);
+        copyFromPartner(src, other);
+      }
+      return;
+    }
+    const look = e.target.closest("[data-view]");
+    if (look) {
+      const src = list.find((x) => x.id === look.dataset.view);
+      if (src) openPartnerEntrySheet(src, other);
+    }
+  });
+}
 
 /** Her meal, read only — the full breakdown before you decide to copy it. */
 function openPartnerEntrySheet(entry, other) {
@@ -938,7 +947,7 @@ function copyFromPartner(src, other) {
   });
 }
 
-function partnerRowHTML(e) {
+export function partnerRowHTML(e) {
   const isMove = e.kind === "exercise";
   const thumb = e.thumb
     ? `<img src="${e.thumb}" alt="" loading="lazy" />`

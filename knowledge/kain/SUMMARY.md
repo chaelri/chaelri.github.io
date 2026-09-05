@@ -367,6 +367,19 @@ deliberately plain — no bubbles, no masks, flat colours instead of the
 gradients, because **reusing the hero ring's gradient and mask IDs in the same
 document would collide with them**.
 
+## The day sheet is a split view (2026-09-05)
+
+Tapping a day in the shared history opens **both** of you: a section each with
+avatar, name, the three pills, an on-target tick, and that person's entries.
+Your side is editable and carries "Add to this day"; theirs is read-only with a
+**Same** button on every row — the same rendering and wiring as the partner
+sheet, now exported from `entry.js` as `partnerRowHTML` / `wirePartnerRows`
+rather than duplicated.
+
+Responsive on purpose: **stacked with a horizontal seam on a phone, two columns
+divided by a vertical rule from `md` up**, where `openSheet({ split: true })`
+also widens the panel from 620 to 880 px so entry rows aren't squeezed.
+
 ## Known trade-offs
 
 - **`/kain` has no backups and is in daily real use.** Never delete or write

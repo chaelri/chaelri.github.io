@@ -17,7 +17,7 @@ import {
 } from "./util.js";
 import { openSheet } from "./ui.js";
 import { entryCardHTML } from "./today.js";
-import { openAddSheet, openEntrySheet } from "./entry.js";
+import { openAddSheet, openEntrySheet, partnerRowHTML, wirePartnerRows } from "./entry.js";
 
 let root = null;
 let range = 7;
@@ -290,51 +290,70 @@ function renderDays(rows) {
 /* ---------------------------------------------------------- day sheet --- */
 
 export function openDaySheet(date) {
-  const summary = totalsFor(date);
+  const mine = totalsFor(date);
+  const theirs = totalsFor(date, state.partner.days, state.partner.profile);
+  const myList = entriesFor(date);
+  const theirList = entriesFor(date, state.partner.days);
+  const meP = me();
+  const otherP = partner();
+
   const bits = [];
-  if (summary.meals) bits.push(`${summary.meals} meal${summary.meals === 1 ? "" : "s"}`);
-  if (summary.workouts) bits.push(`${summary.workouts} workout${summary.workouts === 1 ? "" : "s"}`);
+  if (mine.meals || theirs.meals) bits.push(`${mine.meals + theirs.meals} meals`);
+  if (mine.workouts || theirs.workouts) {
+    const n = mine.workouts + theirs.workouts;
+    bits.push(`${n} workout${n === 1 ? "" : "s"}`);
+  }
   if (!bits.length) bits.push("nothing logged");
+
+  // Same pills as the day rows in the list behind this sheet, so the numbers
+  // look like the ones you just tapped.
+  const pills = (t) =>
+    METRICS.map((m) => {
+      const over = t.net[m.key] > t.budget[m.key];
+      return `<span class="day-pill tone-${m.tone} ${over ? "is-over" : ""}">${
+        m.key === "sugar_g" ? Math.round(t.net[m.key] * 10) / 10 : fmt(t.net[m.key])
+      }<i>${m.unit}</i></span>`;
+    }).join("");
+
+  const side = (person, t, listHTML, isMine) => `
+    <section class="day-side">
+      <div class="day-side-head">
+        ${avatar(person, "who-initial--sm")}
+        <span class="day-side-name">${isMine ? "You" : esc(person.name)}</span>
+        ${t.logged && onTarget(t) ? `<span class="day-tick">${icon("check_circle")}</span>` : ""}
+      </div>
+      <div class="day-pills day-side-pills">${pills(t)}</div>
+      ${
+        t.burn
+          ? `<p class="day-burn">${icon("bolt", "sm")}${fmt(t.kcal)} eaten, ${fmt(t.burn)} burned</p>`
+          : ""
+      }
+      <div class="timeline timeline--sheet" data-side="${isMine ? "me" : "them"}">
+        ${listHTML || `<p class="muted-note">Nothing logged.</p>`}
+      </div>
+      ${isMine ? `<button class="btn btn-soft btn-block tap" id="dsAdd">${icon("add")}Add to this day</button>` : ""}
+    </section>`;
 
   openSheet({
     title: friendlyDate(date),
-    // "Today"/"Yesterday" still want the real date spelled out; a titled
-    // "Thu, Sep 3" does not want it said twice.
     subtitle: /^(Today|Yesterday)$/.test(friendlyDate(date))
       ? `${weekdayLabel(date)}, ${shortDateLabel(date)} · ${bits.join(" · ")}`
       : bits.join(" · "),
     icon: "calendar_month",
     wide: true,
+    split: true,
     build(body) {
-      const t = totalsFor(date);
-      const list = entriesFor(date);
-
       body.innerHTML = `
-        <div class="totals">
-          ${METRICS.map((m) => {
-            const over = t.net[m.key] > t.budget[m.key];
-            return `
-              <div class="total tone-${m.tone} ${over ? "is-over" : ""}">
-                <span class="total-value">${m.key === "sugar_g" ? Math.round(t.net[m.key] * 10) / 10 : fmt(t.net[m.key])}</span>
-                <span class="total-unit">of ${fmt(t.budget[m.key])} ${m.unit}</span>
-                <span class="total-label">${m.label}</span>
-              </div>`;
-          }).join("")}
-        </div>
-        ${t.burn ? `<p class="day-burn">${icon("bolt", "sm")}${fmt(t.kcal)} eaten, ${fmt(t.burn)} burned</p>` : ""}
-        <div class="timeline timeline--sheet">
-          ${
-            list.length
-              ? list.map((e) => entryCardHTML(e, date)).join("")
-              : `<p class="muted-note">Nothing logged this day.</p>`
-          }
-        </div>
-        <button class="btn btn-soft btn-block tap" id="dsAdd">${icon("add")}Add to this day</button>`;
+        <div class="day-split">
+          ${side(meP, mine, myList.map((e) => entryCardHTML(e, date)).join(""), true)}
+          ${side(otherP, theirs, theirList.map(partnerRowHTML).join(""), false)}
+        </div>`;
 
-      body.querySelector(".timeline").addEventListener("click", (e) => {
+      body.querySelector('[data-side="me"]').addEventListener("click", (e) => {
         const card = e.target.closest(".entry");
         if (card) openEntrySheet(card.dataset.date, card.dataset.id);
       });
+      wirePartnerRows(body.querySelector('[data-side="them"]'), theirList, otherP);
       body.querySelector("#dsAdd").onclick = () => openAddSheet(date);
     },
   });

@@ -1207,6 +1207,35 @@ body.sheet-open {
   max-width: 620px;
 }
 
+/* Two people, one day. Stacked on a phone; side by side once there's room. */
+.day-split {
+  display: grid;
+  gap: 20px;
+}
+.day-side {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+.day-side-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.day-side-name {
+  font-size: 14.5px;
+  font-weight: 600;
+}
+.day-side-pills {
+  flex-wrap: wrap;
+}
+/* On a phone the two people need a visible seam between them. */
+.day-side + .day-side {
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
 .sheet-grab {
   padding: 10px 0 4px;
   display: grid;
@@ -2807,6 +2836,20 @@ body.sheet-open {
   }
   .sheet-head {
     padding-top: 18px;
+  }
+
+  .sheet-root--split .sheet-panel {
+    max-width: 880px;
+  }
+  .day-split {
+    grid-template-columns: 1fr 1fr;
+    gap: 26px;
+  }
+  .day-side + .day-side {
+    padding-top: 0;
+    padding-left: 26px;
+    border-top: 0;
+    border-left: 1px solid var(--line);
   }
 }
 

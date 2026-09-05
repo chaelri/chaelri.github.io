@@ -30,8 +30,11 @@ export function toast(message, { tone = "neutral", icon: ic = "" } = {}) {
 
 const sheetStack = [];
 
-export function openSheet({ title = "", subtitle = "", icon: ic = "", build, onClose, wide = false }) {
-  const root = el("div", `sheet-root${wide ? " sheet-root--wide" : ""}`);
+export function openSheet({ title = "", subtitle = "", icon: ic = "", build, onClose, wide = false, split = false }) {
+  const root = el(
+    "div",
+    `sheet-root${wide ? " sheet-root--wide" : ""}${split ? " sheet-root--split" : ""}`
+  );
   root.innerHTML = `
     <div class="sheet-backdrop"></div>
     <section class="sheet-panel" role="dialog" aria-modal="true" aria-label="${esc(title)}">
