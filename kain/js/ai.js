@@ -319,6 +319,56 @@ export async function analyzeExercise(text) {
   };
 }
 
+/* ------------------------------------------------------------- coach ---- */
+
+/* One short note per meal, on how to eat it better next time. It is cached on
+   the entry by the caller, so this fires once per meal ever — flash-lite, a few
+   hundred tokens, no photo. The numbers are never asked for: the model gets
+   them as context and is told not to restate them, because the maths is
+   already on screen and exact. */
+const COACH_PROMPT = `You are a Filipino nutritionist in Metro Manila. The couple has already eaten this meal and logged it. It cannot be undone, so do not scold. Your only job is the NEXT time they eat it.
+
+Rules:
+- Be specific to this actual food. "Eat less" and "watch your portions" are useless. "Half a cup of rice instead of one" and "ask for no extra patis" are useful.
+- Filipino salt hides in toyo, patis, bagoong, sinigang/sinampalukan mixes, bouillon cubes, canned corned beef and sardines, instant noodles, processed cheese, hotdogs, tocino, longganisa and fast food. Sweetness hides in softdrinks, 3-in-1 coffee, condensed milk, juice, and sweet-style spaghetti and marinades.
+- Good local swaps: half rice or brown rice, inihaw instead of pritong, tubig or unsweetened tea instead of softdrinks, kalamansi and sili for flavour instead of more sauce, more gulay in the same ulam.
+- NEVER repeat the calorie, sugar or sodium numbers. They are already shown next to your note.
+- If the meal is genuinely fine, say so and return an empty tips array. A normal ulam with rice is a normal meal. Do not invent a problem to look useful.
+
+Return ONLY this JSON:
+{
+  "note": "one plain sentence, max 110 characters, on how this meal sits",
+  "tips": ["up to 3 concrete swaps for next time, each max 75 characters"]
+}`;
+
+export async function coachMeal({ title, brand, items, kcal, sugar_g, sodium_mg, budget, fits, limiter }) {
+  const lines = (items || []).slice(0, 12).map((i) => `- ${i.name}${i.qty ? ` (${i.qty})` : ""}`).join("\n");
+  const prompt = `${COACH_PROMPT}
+
+The meal: ${title || "a meal"}${brand ? ` from ${brand}` : ""}
+${lines ? `What was in it:\n${lines}` : ""}
+
+Context, for your judgement only — do not quote these back:
+- It cost ${Math.round(num(kcal))} kcal, ${round(num(sugar_g), 0.1)} g free sugar and ${Math.round(num(sodium_mg))} mg sodium.
+- Their whole day is ${Math.round(num(budget?.kcal))} kcal, ${Math.round(num(budget?.sugar_g))} g free sugar and ${Math.round(num(budget?.sodium_mg))} mg sodium.
+- ${fits === 0 ? `One of these already uses up their day's ${limiter}.` : `They could eat it about ${fits} time(s) in a day before running out of ${limiter}.`}`;
+
+  const raw = await callGemini({
+    model: MODELS.text,
+    parts: [{ text: prompt }],
+    maxOutputTokens: 500,
+    temperature: 0.3,
+  });
+  const d = parseJSON(raw);
+  return {
+    note: String(d.note || "").slice(0, 160),
+    tips: (Array.isArray(d.tips) ? d.tips : [])
+      .slice(0, 3)
+      .map((t) => String(t || "").slice(0, 100))
+      .filter(Boolean),
+  };
+}
+
 /* -------------------------------------------------------- burn maths ---- */
 
 /** The textbook one: kcal/min = MET × 3.5 × kg / 200. */

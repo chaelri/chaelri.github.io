@@ -144,6 +144,39 @@ Three concentric arcs, calories outside. Two things about it are load-bearing:
   and then a drifting three-colour aura, which worked but was busy. The card is
   meant to be quiet. Don't add a third.
 
+## "Was that alright, and can I have it again?"
+
+Opening a meal or a workout shows a coach block. It is deliberately two halves,
+and only one of them is a model:
+
+- **The gauge is arithmetic** (`js/coach.js`). Each of the three numbers as a
+  share of your whole day, plus the answer to the question Charlie actually
+  asked — how many of these fit before something runs out. `fits` is
+  `min(floor(budget / value))` across the three, and the metric that runs out
+  first is the one named, because a plate can be fine on calories and still be
+  a day's salt. Four bands, and "eat this as often as you like" is a real
+  outcome: a tracker that finds a problem in every meal stops being read.
+- **The note is Gemini's** (`coachMeal` in `js/ai.js`) — one sentence on how the
+  meal sits and up to three concrete swaps. The prompt forbids restating the
+  numbers (they are already on screen and exact) and explicitly allows an empty
+  tips array, so an ordinary ulam comes back as "nothing to change" instead of
+  invented advice.
+
+Two things keep it cheap and correct:
+
+- **The note is cached on the entry** (`entry.coach`) and fetched once ever, on
+  flash-lite. The gauge is recomputed every open, against *whoever is looking* —
+  the same adobo reads differently against Charlie's 1,500 kcal and Karla's.
+- **Workouts get no model at all.** Everything worth saying about a walk is
+  exact — its share of a day's calories, the week's total against WHO's 150
+  active minutes, what another 15 minutes at the same pace would burn — and
+  asking a model to say it would only blur numbers we already know.
+
+On the partner's meal the gauge renders (against *your* budget — that's the
+useful question when you're deciding whether to copy it) but the note is
+read-only: `updateEntry` only ever addresses your own subtree, so caching there
+would invent an entry under your day.
+
 ## Files
 
 ```

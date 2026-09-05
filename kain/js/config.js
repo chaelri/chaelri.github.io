@@ -97,3 +97,12 @@ export const KCAL_PER_STEP_PER_KG = 0.0004;
 
 // Fallback MET values when the AI can't place an activity.
 export const DEFAULT_MET = 4.0;
+
+/* WHO's floor for adults: 150 minutes of moderate activity a week. Used only
+   to give a single logged workout some context — it is a weekly target, so one
+   good walk is meant to read as progress toward it, never as a shortfall. */
+export const WEEKLY_ACTIVE_MIN = 150;
+
+/* Not a WHO figure — 10,000 steps was a 1960s pedometer slogan. 8,000 is where
+   the mortality curve actually flattens in the cohort studies. */
+export const DAILY_STEP_TARGET = 8000;

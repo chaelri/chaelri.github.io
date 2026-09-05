@@ -23,9 +23,11 @@ import {
   sumItems,
   burnFromMet,
   burnFromSteps,
+  coachMeal,
 } from "./ai.js";
+import { mealGauge, moveGauge, weekMovement } from "./coach.js";
 import { openSheet, confirmSheet, toast, burst, fieldHTML } from "./ui.js";
-import { dayKey, clockLabel, esc, icon, fmt, num, round, uid, haptic, $ } from "./util.js";
+import { dayKey, shiftDay, clockLabel, esc, icon, fmt, num, round, uid, haptic, $ } from "./util.js";
 
 // Fallback intensity when an old entry predates the stored MET.
 const DEFAULT_MET_FALLBACK = 4;
@@ -629,6 +631,17 @@ function openMoveConfirm({ date, draft, weightKg, existing = null, typed = "" })
           <p class="burn-note" id="mcNote">${esc(paceLine())}</p>
         </div>
 
+        ${
+          existing
+            ? coachMoveHTML(
+                moveGauge(existing, {
+                  budget: totalsFor(date).budget,
+                  ...weekMovement(date, entriesFor, shiftDay),
+                })
+              )
+            : ""
+        }
+
         <div class="fixit">
           <p class="fixit-label">${icon("psychology_alt", "sm")}Not quite right? Tell me what to change.</p>
           <div class="fixit-row">
@@ -859,6 +872,9 @@ function openPartnerEntrySheet(entry, other) {
     subtitle: `${other.name} · ${clockLabel(entry.ts)}${entry.brand ? ` · ${entry.brand}` : ""}`,
     icon: isMove ? "bolt" : "restaurant",
     build(body, sheet) {
+      // Deciding whether to copy her meal is exactly when "does this fit MY
+      // day" is the useful question, so the gauge is measured against yours.
+      const gauge = isMove ? null : mealGauge(entry, totalsFor(dayKey()).budget);
       body.innerHTML = `
         ${entry.thumb ? `<img class="review-photo" src="${entry.thumb}" alt="" />` : ""}
         ${
@@ -903,7 +919,10 @@ function openPartnerEntrySheet(entry, other) {
         ${sugarNoteHTML(entry)}
         ${entry.described ? `<p class="said-line">${icon("format_quote", "sm")}<span>${esc(entry.described)}</span></p>` : ""}
         ${entry.assumptions ? `<p class="review-assume">${icon("info", "sm")}<span>${esc(entry.assumptions)}</span></p>` : ""}
+        ${gauge ? coachMealHTML(entry, gauge) : ""}
         <button class="btn btn-primary btn-block tap" id="peSame">${icon("add")}I had this too</button>`;
+
+      if (gauge) wireMealCoach(body, { date: dayKey(), entry, gauge, readOnly: true });
 
       body.querySelector("#peSame").onclick = () => {
         haptic(10);
@@ -1018,6 +1037,8 @@ export function openEntrySheet(date, id) {
     subtitle: `${clockLabel(entry.ts)}${entry.brand ? ` · ${entry.brand}` : ""}`,
     icon: "restaurant",
     build(body, sheet) {
+      // Measured against whoever is looking, not against whoever logged it.
+      const gauge = mealGauge(entry, totalsFor(date).budget);
       body.innerHTML = `
         ${entry.thumb ? `<img class="review-photo" src="${entry.thumb}" alt="" />` : ""}
         <div class="totals">
@@ -1049,11 +1070,14 @@ export function openEntrySheet(date, id) {
         }
         ${sugarNoteHTML(entry)}
         ${entry.assumptions ? `<p class="review-assume">${icon("info", "sm")}<span>${esc(entry.assumptions)}</span></p>` : ""}
+        ${coachMealHTML(entry, gauge)}
         <div class="sheet-actions">
           <button class="btn btn-ghost btn-grow tap" id="deDup">${icon("content_copy")}Log again</button>
           <button class="btn btn-soft btn-grow tap" id="deEdit">${icon("edit")}Edit</button>
         </div>
         <button class="btn-quiet tap" id="deDel">${icon("delete")}Delete this entry</button>`;
+
+      wireMealCoach(body, { date, entry, gauge });
 
       body.querySelector("#deEdit").onclick = () => {
         sheet.close();
@@ -1104,6 +1128,113 @@ export function openEntrySheet(date, id) {
       };
     },
   });
+}
+
+/* --------------------------------------------------------------- coach -- */
+
+/**
+ * "Was that alright, and can I have it again?"
+ *
+ * The gauge renders immediately from arithmetic and is the honest half — how
+ * much of the day this one plate costs, and how many would fit. The AI's note
+ * on what to change next time arrives underneath and is cached on the entry, so
+ * it costs one call per meal ever and nothing at all on a re-open.
+ */
+function coachMealHTML(entry, gauge) {
+  return `
+    <section class="coach" data-tone="${gauge.tone}">
+      <header class="coach-head">
+        <span class="coach-dot"></span>
+        <div>
+          <b>${esc(gauge.verdict)}</b>
+          <span>${esc(gauge.detail)}</span>
+        </div>
+      </header>
+
+      <ul class="coach-shares">
+        ${gauge.shares
+          .map(
+            (s) => `
+          <li class="tone-${s.tone}${s.share >= 1 ? " is-full" : ""}">
+            <span class="coach-share-label">${esc(s.short)}</span>
+            <span class="coach-share-bar"><i style="width:${Math.min(100, Math.round(s.share * 100))}%"></i></span>
+            <span class="coach-share-pct">${Math.round(s.share * 100)}%</span>
+          </li>`
+          )
+          .join("")}
+      </ul>
+      <p class="coach-foot">share of your whole day</p>
+
+      <div class="coach-note" id="coachNote"></div>
+    </section>`;
+}
+
+/**
+ * Fill in the AI half. Failure is silent by design — the gauge above it is the
+ * part that matters, and a dead model shouldn't put an error inside a sheet
+ * someone opened to look at their lunch.
+ */
+async function wireMealCoach(body, { date, entry, gauge, readOnly = false }) {
+  const host = body.querySelector("#coachNote");
+  if (!host) return;
+
+  const paint = (coach) => {
+    if (!coach?.note && !coach?.tips?.length) return host.remove();
+    host.innerHTML = `
+      ${coach.note ? `<p class="coach-line">${esc(coach.note)}</p>` : ""}
+      ${
+        coach.tips?.length
+          ? `<ul class="coach-tips">${coach.tips
+              .map((t) => `<li>${icon("arrow_forward", "sm")}<span>${esc(t)}</span></li>`)
+              .join("")}</ul>`
+          : `<p class="coach-line coach-line--ok">${icon("check_circle", "sm")}Nothing to change — have it again.</p>`
+      }`;
+  };
+
+  if (entry.coach) return paint(entry.coach);
+  // Looking at the other person's meal: show a note if theirs already has one,
+  // but never fetch and never write. updateEntry only ever addresses YOUR
+  // subtree, so caching here would invent an entry under your own day.
+  if (readOnly) return host.remove();
+
+  host.innerHTML = `<p class="coach-line coach-loading"><span class="spinner"></span>Looking at what you ate…</p>`;
+  try {
+    const coach = await coachMeal({
+      title: entry.title,
+      brand: entry.brand,
+      items: entry.items,
+      kcal: entry.kcal,
+      sugar_g: entry.sugar_g,
+      sodium_mg: entry.sodium_mg,
+      budget: gauge.shares.reduce((o, s) => ({ ...o, [s.key]: s.cap }), {}),
+      fits: gauge.fits === Infinity ? 9 : gauge.fits,
+      limiter: gauge.limiter.label.toLowerCase(),
+    });
+    paint(coach);
+    // Cached on the entry so re-opening it is free. Written to your own day
+    // only — updateEntry never touches the other person's tree.
+    if (document.body.contains(host)) await updateEntry(date, entry.id, { coach });
+  } catch {
+    host.remove();
+  }
+}
+
+/** The same question for a workout, answered entirely in arithmetic. */
+function coachMoveHTML(gauge) {
+  return `
+    <section class="coach" data-tone="${gauge.tone}">
+      <header class="coach-head">
+        <span class="coach-dot"></span>
+        <div>
+          <b>${esc(gauge.verdict)}</b>
+          <span>${esc(gauge.weekLabel)}</span>
+        </div>
+      </header>
+      <span class="coach-week"><i style="width:${Math.round(gauge.weekPct * 100)}%"></i></span>
+      <ul class="coach-tips">
+        ${gauge.lines.map((l) => `<li>${icon("arrow_forward", "sm")}<span>${esc(l)}</span></li>`).join("")}
+      </ul>
+    </section>`;
 }
 
 /**

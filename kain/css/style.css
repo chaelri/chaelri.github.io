@@ -3009,3 +3009,164 @@ body.sheet-open {
     transition-duration: 0.08s !important;
   }
 }
+
+/* ------------------------------------------------------------- coach --- */
+/* "Was that alright, and can I have it again?" — the block inside a meal or
+   workout detail. The tone dot is the only colour that encodes a judgement;
+   the three metric bars keep their own identity hues, because a sugar bar that
+   turned red would read as "sugar is bad" rather than "this is most of today". */
+.coach {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  padding: 13px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+.coach[data-tone="easy"] {
+  --coach: var(--burn);
+}
+.coach[data-tone="steady"] {
+  --coach: var(--kcal);
+}
+.coach[data-tone="watch"] {
+  --coach: #fb923c;
+}
+.coach[data-tone="heavy"] {
+  --coach: var(--over);
+}
+
+.coach-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+}
+.coach-dot {
+  width: 9px;
+  height: 9px;
+  margin-top: 4px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--coach);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--coach) 18%, transparent);
+}
+.coach-head div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.coach-head b {
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.25;
+}
+.coach-head span {
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.coach-shares {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.coach-shares li {
+  display: grid;
+  /* Fixed label and percentage columns so the three bars start and end on the
+     same pixel — ragged bars read as three unrelated facts. */
+  grid-template-columns: 52px 1fr 34px;
+  align-items: center;
+  gap: 9px;
+  font-size: 11.5px;
+}
+.coach-share-label {
+  color: var(--muted);
+}
+.coach-share-pct {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+.coach-share-bar {
+  height: 5px;
+  border-radius: 99px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.coach-share-bar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: currentColor;
+  transition: width 0.6s var(--ease);
+}
+.coach-shares .is-full .coach-share-pct {
+  color: var(--over);
+  font-weight: 600;
+}
+.coach-foot {
+  margin-top: -5px;
+  font-size: 11px;
+  color: var(--faint);
+}
+
+/* Movement gets one bar instead of three — the week's active minutes. */
+.coach-week {
+  display: block;
+  height: 5px;
+  border-radius: 99px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.coach-week i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--coach);
+  transition: width 0.6s var(--ease);
+}
+
+.coach-note:empty {
+  display: none;
+}
+.coach-line {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+.coach-line--ok,
+.coach-loading {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.coach-line + .coach-line--ok {
+  margin-top: 8px;
+}
+.coach-line--ok .material-symbols-rounded,
+.coach-line--ok .material-symbols-outlined {
+  color: var(--burn);
+}
+.coach-tips {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-top: 8px;
+}
+.coach-tips li {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--text);
+}
+.coach-tips .material-symbols-rounded,
+.coach-tips .material-symbols-outlined {
+  color: var(--coach);
+  margin-top: 1px;
+  flex: none;
+}

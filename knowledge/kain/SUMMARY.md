@@ -470,3 +470,31 @@ omission.
 The lesson is the card, not the technique — three animated rings with a big
 number in the middle is already the busiest thing on the screen. Anything added
 behind it competes with the number. Leave it alone.
+
+## Per-entry coaching (2026-09-05)
+
+Tapping a meal or a workout now answers "was that alright, and can I have it
+again?". `js/coach.js` is the new module; `.coach` in `style.css` is the block.
+
+- **Split by who can answer honestly.** The gauge is arithmetic and renders
+  instantly: each metric as a share of the day, and `fits` = the minimum of
+  `floor(budget / value)` across the three — literally "ilang beses ko pa 'to
+  kayang kainin". The limiting metric is named, since a plate can be reasonable
+  on calories and still be a whole day's sodium. Only the *advice* is a model
+  call.
+- **"Fine" had to be a reachable verdict.** Four bands, topping out at "eat this
+  as often as you like", and the prompt explicitly permits an empty tips array.
+  A tracker that manufactures a problem for every meal gets ignored, and most of
+  what these two eat is ordinary food.
+- **The note is cached, the gauge is not.** `entry.coach` is written once (one
+  flash-lite call per meal, ever); the gauge is recomputed per viewer, so the
+  same food reads against whoever's budget is on screen.
+- **Workouts get no AI.** Share of a day's calories, the week's active minutes
+  against WHO's 150, and what another 15 minutes at the same pace would burn are
+  all exact from data already on the entry. A model would only blur them.
+- **Read-only on the partner's meal.** The gauge shows (measured against *your*
+  day — that is the question when deciding whether to copy it) but nothing is
+  fetched or written: `updateEntry` addresses `state.who` only, so caching a
+  note for her entry would create a phantom row under your own day.
+- `WEEKLY_ACTIVE_MIN` (150) is WHO. `DAILY_STEP_TARGET` (8,000) is not — 10,000
+  was a 1960s pedometer slogan; 8,000 is where the mortality curve flattens.
