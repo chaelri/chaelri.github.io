@@ -330,6 +330,9 @@ export function openReviewSheet({ date, analysis, thumb = "", photo = null, sour
         if (!item) return;
         const field = input.dataset.field;
         item[field] = field === "name" || field === "qty" ? input.value : Math.max(0, num(input.value));
+        // Editing added sugar upward drags the total with it, or an item ends
+        // up claiming more added sugar than it contains.
+        if (field === "sugar_g") item.sugar_total_g = Math.max(num(item.sugar_total_g), item.sugar_g);
         renderTotals();
       });
 
@@ -415,7 +418,9 @@ export function openReviewSheet({ date, analysis, thumb = "", photo = null, sour
           brand: body.querySelector("#rvBrand").value.trim(),
           items: draft.items.map(({ _id, ...rest }) => rest),
           kcal: round(t.kcal, 1),
+          // sugar_g is the free-sugar total — the figure the goal judges.
           sugar_g: round(t.sugar_g, 0.1),
+          sugar_total_g: round(Math.max(t.sugar_total_g, t.sugar_g), 0.1),
           sodium_mg: round(t.sodium_mg, 1),
           assumptions: draft.assumptions,
           confidence: draft.confidence,
@@ -873,6 +878,7 @@ function openPartnerEntrySheet(entry, other) {
                 .join("")}</ul>`
             : ""
         }
+        ${sugarNoteHTML(entry)}
         ${entry.described ? `<p class="said-line">${icon("format_quote", "sm")}<span>${esc(entry.described)}</span></p>` : ""}
         ${entry.assumptions ? `<p class="review-assume">${icon("info", "sm")}<span>${esc(entry.assumptions)}</span></p>` : ""}
         <button class="btn btn-primary btn-block tap" id="peSame">${icon("add")}I had this too</button>`;
@@ -1019,6 +1025,7 @@ export function openEntrySheet(date, id) {
                 .join("")}</ul>`
             : ""
         }
+        ${sugarNoteHTML(entry)}
         ${entry.assumptions ? `<p class="review-assume">${icon("info", "sm")}<span>${esc(entry.assumptions)}</span></p>` : ""}
         <div class="sheet-actions">
           <button class="btn btn-ghost btn-grow tap" id="deDup">${icon("content_copy")}Log again</button>
@@ -1075,6 +1082,21 @@ export function openEntrySheet(date, id) {
       };
     },
   });
+}
+
+/**
+ * The whole sugar figure, shown once per meal and only when it differs from the
+ * part that counts. Nutrition panels print totals, so this is what you check a
+ * packet against — but it has no business crowding the main screen.
+ */
+function sugarNoteHTML(entry) {
+  const free = num(entry.sugar_g);
+  const total = num(entry.sugar_total_g);
+  if (!(total > free + 0.05)) return "";
+  const natural = Math.round((total - free) * 10) / 10;
+  return `<p class="sugar-note">${icon("water_drop", "sm")}<span><b>${
+    Math.round(total * 10) / 10
+  } g</b> sugar in total — ${natural} g of that is natural, from fruit or milk, which WHO doesn't count.</span></p>`;
 }
 
 /* ------------------------------------------------------------- helpers -- */

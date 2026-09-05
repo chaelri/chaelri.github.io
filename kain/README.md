@@ -12,8 +12,19 @@ app; there is **no service worker**, so every launch loads the current build.
 | Metric  | Default goal | Where it comes from        |
 |---------|--------------|----------------------------|
 | Calories| 1,500 kcal   | our shared target          |
-| Sugar   | 50 g         | WHO daily guidance         |
-| Sodium  | 2,000 mg     | WHO daily guidance         |
+| Sugar   | 38 g *added* | WHO: under 10% of energy   |
+| Sodium  | 2,000 mg     | WHO: flat adult limit      |
+
+Two different kinds of number. **Sugar scales with your calorie target** —
+WHO caps *free sugars* at 10% of energy, so 1,500 kcal means 38 g, not the 50 g
+everyone quotes (that's 10% of 2,000). **Sodium doesn't scale**: 2,000 mg is a
+flat adult figure, the same for both of you whatever you eat.
+
+"Free sugars" means added sugar, syrups and juice — **not** the lactose in plain
+milk or the sugar inside whole fruit. So the app judges you on added sugar and
+keeps the total as context: a banana and 500 ml of milk is ~39 g of sugar and
+**zero** that counts. Each meal's detail shows the full figure in one line; the
+main screen never does.
 
 Editable per person in **Me**. Charlie and Karla track separately — different
 RTDB paths, one small read-only card each so you can see how the other is doing.

@@ -1,8 +1,20 @@
 // History: the last week or month at a glance, plus a way back into any day.
 
 import { METRICS } from "./config.js";
-import { state, totalsFor, entriesFor } from "./store.js";
-import { dayKey, daysBack, friendlyDate, weekdayLabel, shortDateLabel, fmt, num, esc, icon, clamp } from "./util.js";
+import { state, totalsFor, entriesFor, me, partner } from "./store.js";
+import {
+  dayKey,
+  daysBack,
+  friendlyDate,
+  weekdayLabel,
+  shortDateLabel,
+  fmt,
+  num,
+  esc,
+  icon,
+  clamp,
+  avatar,
+} from "./util.js";
 import { openSheet } from "./ui.js";
 import { entryCardHTML } from "./today.js";
 import { openAddSheet, openEntrySheet } from "./entry.js";
@@ -62,12 +74,17 @@ export function mountHistory(container) {
 export function updateHistory() {
   if (!root) return;
   const keys = daysBack(range).reverse(); // oldest → newest
-  const rows = keys.map((k) => ({ key: k, t: totalsFor(k) }));
-  const logged = rows.filter((r) => r.t.logged);
+  // Shared history: every row carries both of you, so the whole screen answers
+  // "how are WE doing" rather than just you.
+  const rows = keys.map((k) => ({
+    key: k,
+    t: totalsFor(k),
+    p: totalsFor(k, state.partner.days, state.partner.profile),
+  }));
 
   renderStreak(rows);
   renderChart(rows);
-  renderAverages(logged);
+  renderAverages(rows);
   renderDays([...rows].reverse());
 }
 
@@ -128,23 +145,36 @@ function barLabel(key, i, total) {
 }
 
 function renderChart(rows) {
+  const meP = me();
+  const otherP = partner();
   const goal = num(state.profile?.goals?.kcal, 1500);
-  const peak = Math.max(goal * 1.15, ...rows.map((r) => r.t.net.kcal));
+  const peak = Math.max(
+    goal * 1.15,
+    ...rows.map((r) => Math.max(r.t.net.kcal, r.p.net.kcal))
+  );
   const host = root.querySelector("#chart");
 
   root.querySelector("#chartNote").textContent = `goal ${fmt(goal)} kcal`;
 
+  const bar = (t, who) => {
+    const h = clamp(t.net.kcal / peak, 0, 1) * 100;
+    const over = t.net.kcal > t.budget.kcal;
+    return `<span class="bar-half bar-half--${who} ${over ? "is-over" : ""} ${
+      t.logged ? "" : "is-empty"
+    }" style="height:${h.toFixed(1)}%"></span>`;
+  };
+
   const bars = rows
     .map((r, i) => {
-      const h = clamp(r.t.net.kcal / peak, 0, 1) * 100;
-      const over = r.t.net.kcal > r.t.budget.kcal;
       const isToday = r.key === dayKey();
       return `
         <button class="bar-col ${isToday ? "is-today" : ""}" data-day="${r.key}"
-                aria-label="${friendlyDate(r.key)}: ${fmt(r.t.net.kcal)} kcal">
-          <span class="bar-track">
-            <span class="bar-fill ${over ? "is-over" : ""} ${r.t.logged ? "" : "is-empty"}"
-                  style="height:${h.toFixed(1)}%; animation-delay:${Math.min(i, 30) * 18}ms"></span>
+                style="--i:${Math.min(i, 30)}"
+                aria-label="${friendlyDate(r.key)}: you ${fmt(r.t.net.kcal)} kcal, ${esc(
+        otherP.name
+      )} ${fmt(r.p.net.kcal)} kcal">
+          <span class="bar-track bar-track--pair">
+            ${bar(r.t, "me")}${bar(r.p, "them")}
           </span>
           <span class="bar-label">${barLabel(r.key, i, rows.length)}</span>
         </button>`;
@@ -152,6 +182,10 @@ function renderChart(rows) {
     .join("");
 
   host.innerHTML = `
+    <div class="chart-legend">
+      <span class="chart-key">${avatar(meP, "who-initial--xs")}You</span>
+      <span class="chart-key">${avatar(otherP, "who-initial--xs")}${esc(otherP.name)}</span>
+    </div>
     <div class="chart-inner ${range === 30 ? "chart-inner--dense" : ""}">
       <span class="chart-goal"><i></i></span>
       ${bars}
@@ -173,65 +207,83 @@ function renderChart(rows) {
 
 /* ----------------------------------------------------------- averages --- */
 
-function renderAverages(logged) {
+function renderAverages(rows) {
   const host = root.querySelector("#avgCard");
-  if (!logged.length) {
+  const meLogged = rows.filter((r) => r.t.logged);
+  const themLogged = rows.filter((r) => r.p.logged);
+  const otherP = partner();
+
+  if (!meLogged.length && !themLogged.length) {
     host.innerHTML = `<p class="muted-note">Nothing logged in this range yet.</p>`;
     return;
   }
-  const avg = METRICS.map((m) => {
-    const mean = logged.reduce((a, r) => a + num(r.t.net[m.key]), 0) / logged.length;
-    const goal = num(state.profile?.goals?.[m.key]);
-    const pct = goal ? clamp(mean / goal, 0, 1) : 0;
-    const over = goal && mean > goal;
-    return `
-      <div class="avg-row tone-${m.tone}">
-        <span class="avg-label">${m.label}</span>
-        <span class="legend-bar ${over ? "is-over" : ""}"><i style="transform:scaleX(${pct.toFixed(3)})"></i></span>
-        <span class="avg-value ${over ? "is-over" : ""}">${
-          m.key === "sugar_g" ? Math.round(mean * 10) / 10 : fmt(mean)
-        }<small>${m.unit}</small></span>
-      </div>`;
-  }).join("");
+
+  const mean = (list, key, side) =>
+    list.length ? list.reduce((a, r) => a + num(r[side].net[key]), 0) / list.length : 0;
+
+  const cell = (list, m, side, goal) => {
+    if (!list.length) return `<span class="avg-cell is-blank">—</span>`;
+    const v = mean(list, m.key, side);
+    const over = goal && v > goal;
+    return `<span class="avg-cell ${over ? "is-over" : ""}">${
+      m.key === "sugar_g" ? Math.round(v * 10) / 10 : fmt(v)
+    }<small>${m.unit}</small></span>`;
+  };
+
+  const goals = state.profile?.goals || {};
+  const theirGoals = state.partner.profile?.goals || {};
 
   host.innerHTML = `
-    <div class="section-head section-head--tight"><h2>Daily average</h2>
-      <span class="section-note">${logged.length} day${logged.length === 1 ? "" : "s"} with entries</span>
+    <div class="section-head section-head--tight"><h2>Daily average</h2></div>
+    <div class="avg-grid">
+      <span></span>
+      <span class="avg-head">${avatar(me(), "who-initial--xs")}You</span>
+      <span class="avg-head">${avatar(otherP, "who-initial--xs")}${esc(otherP.name)}</span>
+      ${METRICS.map(
+        (m) => `
+        <span class="avg-metric tone-${m.tone}"><i class="avg-dot"></i>${m.label}</span>
+        ${cell(meLogged, m, "t", num(goals[m.key]))}
+        ${cell(themLogged, m, "p", num(theirGoals[m.key]))}`
+      ).join("")}
     </div>
-    <div class="avgs">${avg}</div>`;
+    <p class="muted-note avg-foot">${meLogged.length} day${meLogged.length === 1 ? "" : "s"} logged · ${
+      themLogged.length
+    } for ${esc(otherP.name)}</p>`;
 }
 
 /* --------------------------------------------------------------- days --- */
 
 function renderDays(rows) {
   const host = root.querySelector("#daysList");
+  const otherP = partner();
+
+  const line = (t, person, isMe) => {
+    if (!t.logged) {
+      return `<span class="day-line is-blank">${avatar(person, "who-initial--xs")}<span class="day-row-none">nothing logged</span></span>`;
+    }
+    const pills = METRICS.map((m) => {
+      const over = t.net[m.key] > t.budget[m.key];
+      return `<span class="day-pill tone-${m.tone} ${over ? "is-over" : ""}">${
+        m.key === "sugar_g" ? Math.round(t.net[m.key] * 10) / 10 : fmt(t.net[m.key])
+      }<i>${m.unit}</i></span>`;
+    }).join("");
+    return `<span class="day-line">${avatar(person, "who-initial--xs")}<span class="day-pills">${pills}</span>${
+      onTarget(t) ? `<span class="day-tick">${icon("check_circle")}</span>` : ""
+    }</span>`;
+  };
+
   host.innerHTML = rows
-    .map((r) => {
-      const t = r.t;
-      if (!t.logged) {
-        return `
-          <button class="day-row day-row--empty" data-day="${r.key}">
-            <span class="day-row-date">${esc(friendlyDate(r.key))}</span>
-            <span class="day-row-none">nothing logged</span>
-            ${icon("chevron_right", "entry-chevron")}
-          </button>`;
-      }
-      const pills = METRICS.map((m) => {
-        const over = t.net[m.key] > t.budget[m.key];
-        return `<span class="day-pill tone-${m.tone} ${over ? "is-over" : ""}">${
-          m.key === "sugar_g" ? Math.round(t.net[m.key] * 10) / 10 : fmt(t.net[m.key])
-        }<i>${m.unit}</i></span>`;
-      }).join("");
-      return `
-        <button class="day-row" data-day="${r.key}">
-          <span class="day-row-head">
-            <span class="day-row-date">${esc(friendlyDate(r.key))}</span>
-            ${onTarget(t) ? `<span class="day-tick">${icon("check_circle")}</span>` : ""}
-          </span>
-          <span class="day-pills">${pills}</span>
+    .map(
+      (r) => `
+      <button class="day-row ${!r.t.logged && !r.p.logged ? "day-row--empty" : ""}" data-day="${r.key}">
+        <span class="day-row-head">
+          <span class="day-row-date">${esc(friendlyDate(r.key))}</span>
           ${icon("chevron_right", "entry-chevron")}
-        </button>`;
-    })
+        </span>
+        ${line(r.t, me(), true)}
+        ${line(r.p, otherP, false)}
+      </button>`
+    )
     .join("");
 }
 

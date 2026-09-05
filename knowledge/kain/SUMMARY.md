@@ -321,6 +321,52 @@ iframe was being throttled and the arcs stayed at zero.)
   it was logged rather than what it was), on an amber tile — mirroring the green
   tile movement already had.
 
+## Sugar is free sugars now (2026-09-05)
+
+WHO limits **free sugars** — added sugar, syrups, juice — to 10% of energy, and
+explicitly excludes the lactose in plain milk and the sugar inside whole fruit.
+The app was counting *total* sugars against a flat 50 g, which is wrong twice
+over: it punished a glass of milk, and 50 g is 10% of a 2,000 kcal diet neither
+of them eats.
+
+**The data model does the work.** An item's `sugar_g` now *is* the free-sugar
+figure — the one every existing consumer already measures against the goal — and
+`sugar_total_g` rides along as context. That means zero plumbing changes in
+`METRICS`, `totalsFor`, history, or the Discord embed. It also means **old
+entries need no migration**: their `sugar_g` was a total, which now reads as
+"all of it counts" — the strict fallback, and the same rule the prompt gives the
+model when it can't tell.
+
+Verified against real meals: cereal + milk + egg = 17 g total, **10 g counts**;
+banana + 500 ml milk = 39 g total, **0 g counts**; Coke + cake = 67 g total,
+**63 g counts**.
+
+**UI cost: one line, inside a meal's detail only.** `sugarNoteHTML` prints the
+whole figure and how much of it was natural, and only when the two differ.
+Nothing was added to Today, and the review sheet still has three number boxes —
+the sugar box edits the figure that counts, and editing it upward drags the
+total with it so an item can never claim more added sugar than it contains.
+
+The Me screen's sugar note is derived (`kcalGoal × 0.025`), so it reads "WHO:
+under 38 g added" at 1,500 kcal. Goals are not silently rewritten — the note
+informs, the number stays whatever it was set to.
+
+**Sodium deliberately did NOT get the same treatment.** It's a flat 2,000 mg for
+any adult, doesn't scale with intake, and has no free/intrinsic split.
+
+## Shared history (2026-09-05)
+
+History shows both of you: a bar each per day (person accents, not metric
+colours, with an avatar legend), a two-column daily average table, and day rows
+that carry a line per person with their own tick. The partner's RTDB listener
+was widened from `limitToLast(7)` to 180 to match — it previously only held
+enough for the Today card.
+
+The partner card on Today also gained a mini triple ring (`miniRingHTML`):
+deliberately plain — no bubbles, no masks, flat colours instead of the
+gradients, because **reusing the hero ring's gradient and mask IDs in the same
+document would collide with them**.
+
 ## Known trade-offs
 
 - **`/kain` has no backups and is in daily real use.** Never delete or write

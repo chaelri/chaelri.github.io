@@ -138,7 +138,7 @@ function attach(who) {
     })
   );
 
-  // The partner card only ever shows today, so a week is plenty.
+  // History is shared, so the partner needs the same depth you do.
   unsubs.push(
     onValue(ref(db, `${DB_ROOT}/users/${partner}/profile`), (snap) => {
       state.partner.profile = normalizeProfile(partner, snap.val());
@@ -146,7 +146,7 @@ function attach(who) {
     })
   );
   unsubs.push(
-    onValue(query(ref(db, `${DB_ROOT}/users/${partner}/days`), orderByKey(), limitToLast(7)), (snap) => {
+    onValue(query(ref(db, `${DB_ROOT}/users/${partner}/days`), orderByKey(), limitToLast(180)), (snap) => {
       state.partner.days = snap.val() || {};
       emit({ what: "partner" });
     })

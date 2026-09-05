@@ -48,7 +48,7 @@ export function updateProfile({ force = false } = {}) {
             <span class="goal-icon">${icon(m.icon)}</span>
             <span class="goal-text">
               <b>${m.label}</b>
-              <small>${goalNote(m.key)}</small>
+              <small>${goalNote(m.key, num(p.goals?.kcal, DEFAULT_GOALS.kcal))}</small>
             </span>
             <span class="goal-input">
               <input id="goal_${m.key}" type="number" inputmode="numeric" min="0" step="${m.step}"
@@ -119,10 +119,13 @@ export function updateProfile({ force = false } = {}) {
   root.querySelector("#profileWho").onclick = () => openWhoSheet();
 }
 
-function goalNote(key) {
+function goalNote(key, kcalGoal) {
   // Short on purpose — a longer line wraps under the input on a 390 px phone.
   if (key === "kcal") return "Our shared target";
-  if (key === "sugar_g") return "WHO: under 50 g";
+  // WHO caps free sugars at 10% of energy, so the limit follows your calorie
+  // target rather than the 50 g everyone quotes (which assumes 2,000 kcal).
+  if (key === "sugar_g") return `WHO: under ${Math.round(num(kcalGoal, 1500) * 0.025)} g added`;
+  // Sodium is a flat adult figure — it does not scale with intake.
   return "WHO: under 2,000 mg";
 }
 

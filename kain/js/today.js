@@ -17,7 +17,7 @@ import {
   haptic,
   avatar,
 } from "./util.js";
-import { ringStackHTML, setRings } from "./ui.js";
+import { ringStackHTML, setRings, miniRingHTML } from "./ui.js";
 
 const METRIC_BY_KEY = Object.fromEntries(METRICS.map((m) => [m.key, m]));
 
@@ -337,6 +337,13 @@ function renderPartner() {
         ${icon("chevron_right", "entry-chevron")}
       </span>
       ${names.length ? `<span class="partner-names">${esc(names.slice(0, 3).join(" · "))}${names.length > 3 ? ` +${names.length - 3}` : ""}</span>` : ""}
-      <span class="partner-metrics">${rows}</span>
+      <span class="partner-body">
+        ${miniRingHTML({
+          kcal: safePct(t.net.kcal, t.budget.kcal),
+          sugar_g: safePct(t.net.sugar_g, t.budget.sugar_g),
+          sodium_mg: safePct(t.net.sodium_mg, t.budget.sodium_mg),
+        })}
+        <span class="partner-metrics">${rows}</span>
+      </span>
     </button>`;
 }

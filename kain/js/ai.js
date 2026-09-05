@@ -139,7 +139,25 @@ HOW TO ESTIMATE
 3. Break the meal into the components a person actually ate: rice, ulam, sauce, sides, drink, condiments. One line each.
 4. Judge portions from what is in frame. Useful references: a dinner plate is ~26 cm, a rice cup mould is ~1 cup / 150 g cooked rice, a standard mug is ~240 ml, a tablespoon is ~15 ml, an adult palm is ~100 g of meat.
 5. Filipino food is SALTY — never round sodium down out of politeness. Toyo, patis, bagoong, instant noodles, canned corned beef/sardines, hotdogs, tocino, longganisa, processed cheese, fast-food chicken and pancit are all high-sodium. A single restaurant ulam commonly carries 700–1,400 mg.
-6. Sugar means total sugars, including what is in the sauce, the sweetened drink, the marinade (tocino, banana ketchup, teriyaki) and dessert. Sweetened iced tea, softdrinks, milk tea and juice usually dominate a meal's sugar.
+6. Two sugar numbers per item, because they answer different questions:
+   - "total_sugar_g" is ALL sugar in that item — what a Nutrition Facts panel
+     would print. Use the panel if you can read one.
+   - "added_sugar_g" is the part that counts against WHO's limit: free sugars.
+     That means sugar added by a manufacturer, a cook or the person eating, PLUS
+     honey, syrup, and fruit juice or juice concentrate.
+     It EXCLUDES sugar that is naturally inside whole fruit and vegetables, and
+     the lactose in plain milk and plain yoghurt.
+     Examples: a softdrink is 100% added. Koko Krunch is essentially all added.
+     Plain milk is 0 added even though it has ~5 g per 100 ml of lactose. A
+     banana is 0 added. Fruit juice IS added even with nothing put in it. Oat and
+     other plant milks count as added, because their sugars are released by
+     enzymes during manufacture. Sweetened yoghurt: only the sweetened part.
+   - When you genuinely cannot tell how a dish was sweetened, set added equal to
+     total. Erring strict is correct; flattering them is not.
+   - added_sugar_g can never exceed total_sugar_g.
+   Sweetened iced tea, softdrinks, milk tea, juice and dessert usually dominate
+   a meal's added sugar. Sauces and marinades (tocino, banana ketchup, teriyaki,
+   sweet-style spaghetti) carry more than people expect.
 7. If several people are clearly sharing, log only ONE person's portion and say so in "assumptions".
 8. Never invent precision you don't have. Round kcal to the nearest 5, sodium to the nearest 10.
 
@@ -151,7 +169,8 @@ OUTPUT — return JSON only, no markdown, exactly this shape:
   "confidence": "high" | "medium" | "low",
   "assumptions": "one sentence on the portions you assumed, or empty string",
   "items": [
-    { "name": "component", "qty": "portion in plain words", "kcal": 0, "sugar_g": 0, "sodium_mg": 0 }
+    { "name": "component", "qty": "portion in plain words", "kcal": 0,
+      "added_sugar_g": 0, "total_sugar_g": 0, "sodium_mg": 0 }
   ],
   "tip": "one short encouraging line, casual Taglish is fine, no emoji"
 }
@@ -196,13 +215,23 @@ Work only from that description. If a portion is not stated, assume one normal a
 
 function normalizeMeal(data) {
   const items = (Array.isArray(data.items) ? data.items : [])
-    .map((i) => ({
-      name: String(i.name || "Item").slice(0, 80),
-      qty: String(i.qty || "").slice(0, 60),
-      kcal: Math.max(0, round(num(i.kcal), 1)),
-      sugar_g: Math.max(0, round(num(i.sugar_g), 0.1)),
-      sodium_mg: Math.max(0, round(num(i.sodium_mg), 1)),
-    }))
+    .map((i) => {
+      // `sugar_g` on an item IS the free-sugar figure — the one measured against
+      // the goal — so every existing consumer keeps working untouched. The full
+      // figure rides along as context. Old entries, which only ever had a total,
+      // therefore read as "all of it counts", which is the strict reading and
+      // exactly the fallback we want.
+      const total = Math.max(0, round(num(i.total_sugar_g ?? i.sugar_g), 0.1));
+      const free = Math.max(0, round(num(i.added_sugar_g ?? i.sugar_g), 0.1));
+      return {
+        name: String(i.name || "Item").slice(0, 80),
+        qty: String(i.qty || "").slice(0, 60),
+        kcal: Math.max(0, round(num(i.kcal), 1)),
+        sugar_g: Math.min(free, total),
+        sugar_total_g: total,
+        sodium_mg: Math.max(0, round(num(i.sodium_mg), 1)),
+      };
+    })
     .filter((i) => i.name);
 
   return {
@@ -222,9 +251,12 @@ export function sumItems(items = []) {
     (acc, i) => ({
       kcal: acc.kcal + num(i.kcal),
       sugar_g: acc.sugar_g + num(i.sugar_g),
+      // Falls back to the free figure so a hand-added item never reports less
+      // total than added.
+      sugar_total_g: acc.sugar_total_g + num(i.sugar_total_g ?? i.sugar_g),
       sodium_mg: acc.sodium_mg + num(i.sodium_mg),
     }),
-    { kcal: 0, sugar_g: 0, sodium_mg: 0 }
+    { kcal: 0, sugar_g: 0, sugar_total_g: 0, sodium_mg: 0 }
   );
 }
 

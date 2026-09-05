@@ -286,6 +286,38 @@ export function setRings(root, pcts, ghosts = {}) {
   });
 }
 
+
+/* ---------------------------------------------------------- mini ring --- */
+/* A small read-only echo of the big ring, for the partner card. Deliberately
+   plain: no bubbles, no masks, and flat colours rather than the gradients —
+   at 64 px none of that reads, and reusing the gradient/mask IDs from the hero
+   ring would collide with them. */
+
+const MINI_GEOM = [
+  { key: "kcal", r: 26 },
+  { key: "sugar_g", r: 18 },
+  { key: "sodium_mg", r: 10 },
+];
+const MINI_STROKE = 5.5;
+
+export function miniRingHTML(pcts = {}) {
+  const arcs = MINI_GEOM.map(({ key, r }) => {
+    const c = 2 * Math.PI * r;
+    const raw = num(pcts[key]);
+    const p = clamp(raw, 0, 1);
+    return `
+      <circle class="mini-track" cx="30" cy="30" r="${r}" stroke-width="${MINI_STROKE}" />
+      <circle class="mini-arc mini-arc--${key}${raw > 1 ? " is-over" : ""}" cx="30" cy="30" r="${r}"
+              stroke-width="${MINI_STROKE}" stroke-linecap="round"
+              stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${(c * (1 - p)).toFixed(1)}" />`;
+  }).join("");
+
+  return `
+    <svg class="mini-ring" viewBox="0 0 60 60" aria-hidden="true">
+      <g transform="rotate(-90 30 30)">${arcs}</g>
+    </svg>`;
+}
+
 /* ------------------------------------------------------------- confetti -- */
 /* Fired when a meal lands. Deliberately small: eight dots, 900 ms, gone. */
 
