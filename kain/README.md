@@ -28,13 +28,19 @@ RTDB paths, one small read-only card each so you can see how the other is doing.
   rice is 2 cups") and the read is redone against the same photo. Works when
   editing an old meal too: the 400 px thumbnail we keep is enough to re-read.
 - **Type it** — no photo, same breakdown, cheaper model.
-- **Workout** — free text ("30 min brisk walk"); the AI returns the activity's
-  MET and we do the arithmetic: `kcal/min = MET × 3.5 × kg / 200`.
-- **Steps** — `kcal ≈ steps × kg × 0.0004` (≈0.5 kcal per kg per km, ~1,250
-  steps to a km). 10k steps ≈ 256 kcal at 64 kg.
-- **Same as your partner** — the partner card on Today opens their full day,
-  and every row has a one-tap **Same** that copies it onto your log. You eat the
-  same food most days; this is the shortcut that gets used.
+- **Movement** — one box for everything: "30 min brisk walk", "4 km/h
+  treadmill, 60 mins", or just "8,500 steps". Workout and Steps used to be
+  separate tabs, which asked the wrong question first — steps accumulate across
+  a whole day while everything else is a session. The AI reads the pace, the
+  seconds and any step count; a step count wins the maths when given
+  (`kcal ≈ steps × kg × 0.0004`), otherwise it's `MET × 3.5 × kg × min / 200`.
+  METs are pace-aware, so 4 km/h is 3.0 and not the generic walking 2.8.
+  Your own sentence is quoted back on the confirm sheet and stored with the
+  entry, and a "tell me what to change" box re-runs the estimate.
+- **Same as your partner** — the partner card on Today opens their full day.
+  Tap a row to read their breakdown; tap **Same** and the review sheet opens
+  with the whole distribution so you can adjust portions *before* anything is
+  written. You eat the same food most days, but rarely the same amount.
 - **Log again** — repeat any past meal onto today with no AI call at all. The
   same shortcut sits under "Had it again?" in the typed-meal sheet: your last 5
   distinct meals as chips with their calorie counts, and tapping one opens the

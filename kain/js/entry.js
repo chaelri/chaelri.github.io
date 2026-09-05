@@ -23,7 +23,7 @@ import {
   burnFromMet,
   burnFromSteps,
 } from "./ai.js";
-import { openSheet, confirmSheet, toast, burst, fieldHTML, segmentedHTML, wireSegmented } from "./ui.js";
+import { openSheet, confirmSheet, toast, burst, fieldHTML } from "./ui.js";
 import { dayKey, clockLabel, esc, icon, fmt, num, round, uid, haptic, $ } from "./util.js";
 
 // Fallback intensity when an old entry predates the stored MET.
@@ -48,8 +48,7 @@ export function openAddSheet(date = dayKey()) {
           ${choice("camera", "photo_camera", "Take a photo", "Point at the plate, I'll read it", "choice--hero")}
           ${choice("library", "image", "From gallery", "Pick a picture")}
           ${choice("describe", "edit_note", "Type it", '"2 pandesal, kape"')}
-          ${choice("exercise", "directions_run", "Workout", "Earn some back")}
-          ${choice("steps", "footprint", "Steps", "Log today's count")}
+          ${choice("exercise", "directions_run", "Movement", "Walk, gym, steps — anything")}
         </div>`;
 
       body.addEventListener("click", (e) => {
@@ -60,8 +59,7 @@ export function openAddSheet(date = dayKey()) {
         if (pick === "camera") pickImage({ camera: true, date });
         else if (pick === "library") pickImage({ camera: false, date });
         else if (pick === "describe") openDescribeSheet(date);
-        else if (pick === "exercise") openMoveSheet(date, "workout");
-        else if (pick === "steps") openMoveSheet(date, "steps");
+        else if (pick === "exercise") openMoveSheet(date);
       });
     },
   });
@@ -480,8 +478,13 @@ function itemRowHTML(item) {
 
 /* ----------------------------------------------------------- exercise --- */
 
-export function openMoveSheet(date = dayKey(), mode = "workout") {
+export function openMoveSheet(date = dayKey()) {
   const weightKg = num(state.profile?.weightKg, me().weightKg);
+  const recentMoves = recentWorkouts(4);
+  // One box, not a Workout/Steps toggle. Steps accumulate across a whole day
+  // while everything else here is a session, so making you pick a lane first
+  // was asking the wrong question — just say what you did.
+  const examples = ["30 min brisk walk", "4 km/h treadmill, 60 mins", "8,500 steps", "1 hour badminton"];
 
   openSheet({
     title: "Log movement",
@@ -489,22 +492,9 @@ export function openMoveSheet(date = dayKey(), mode = "workout") {
     icon: "directions_run",
     build(body, sheet) {
       body.innerHTML = `
-        ${segmentedHTML("moveMode", [
-          { value: "workout", label: "Workout", icon: "fitness_center" },
-          { value: "steps", label: "Steps", icon: "footprint" },
-        ], mode)}
-        <div id="movePane" class="pane"></div>`;
-
-      const pane = body.querySelector("#movePane");
-      const paint = (m) => (m === "steps" ? paintSteps() : paintWorkout());
-      wireSegmented(body, "moveMode", paint);
-
-      function paintWorkout() {
-        const recentMoves = recentWorkouts(4);
-        const moveExamples = ["30 min brisk walk", "1 hour badminton", "45 min gym, weights", "20 min jog"];
-
-        pane.innerHTML = `
-          <textarea class="ta" id="moveText" rows="2" placeholder="30 min brisk walk sa park"></textarea>
+        <div class="pane">
+          <textarea class="ta" id="moveText" rows="2"
+            placeholder="30 min brisk walk sa park — or 8,500 steps"></textarea>
           ${recentMoves.length ? `<p class="chips-label">${icon("history", "sm")}Did it again?</p>` : ""}
           <div class="hint-chips">
             ${
@@ -517,131 +507,130 @@ export function openMoveSheet(date = dayKey(), mode = "workout") {
                          </button>`
                     )
                     .join("")
-                : moveExamples.map((s) => `<button class="hint-chip tap" data-fill="${esc(s)}">${esc(s)}</button>`).join("")
+                : examples.map((x) => `<button class="hint-chip tap" data-fill="${esc(x)}">${esc(x)}</button>`).join("")
             }
           </div>
-          <button class="btn btn-primary btn-block" id="moveGo">${icon("auto_awesome")}Estimate the burn</button>`;
+          <button class="btn btn-primary btn-block" id="moveGo">${icon("auto_awesome")}Estimate the burn</button>
+        </div>`;
 
-        const ta = pane.querySelector("#moveText");
-        pane.querySelectorAll("[data-fill]").forEach((c) => (c.onclick = () => (ta.value = c.dataset.fill)));
-        pane.querySelectorAll("[data-move]").forEach((c) => {
-          c.onclick = () => {
-            const r = recentMoves[Number(c.dataset.move)];
-            if (!r) return;
-            haptic(10);
-            sheet.close();
-            // Recompute the burn — the weight on file may have changed since.
-            const burn = r.steps
-              ? burnFromSteps({ steps: r.steps, weightKg })
-              : burnFromMet({ met: r.met || DEFAULT_MET_FALLBACK, minutes: r.minutes, weightKg });
-            openMoveConfirm({
-              date,
-              draft: { activity: r.activity || r.title, minutes: r.minutes, steps: r.steps, met: r.met || DEFAULT_MET_FALLBACK, burn },
-              weightKg,
-            });
-          };
-        });
+      const ta = body.querySelector("#moveText");
+      body.querySelectorAll("[data-fill]").forEach((c) => (c.onclick = () => (ta.value = c.dataset.fill)));
 
-        pane.querySelector("#moveGo").onclick = async () => {
-          const text = ta.value.trim();
-          if (!text) return toast("Describe the workout first", { tone: "warn" });
-          const btn = pane.querySelector("#moveGo");
-          btn.disabled = true;
-          btn.innerHTML = `<span class="spinner"></span>Thinking…`;
-          try {
-            const parsed = await analyzeExercise(text);
-            const burn = parsed.steps
-              ? burnFromSteps({ steps: parsed.steps, weightKg })
-              : burnFromMet({ met: parsed.met, minutes: parsed.minutes, weightKg });
-            sheet.close();
-            openMoveConfirm({ date, draft: { ...parsed, burn }, weightKg });
-          } catch (err) {
-            btn.disabled = false;
-            btn.innerHTML = `${icon("auto_awesome")}Estimate the burn`;
-            toast(err.message || "Couldn't read that", { tone: "danger" });
-          }
-        };
-      }
-
-      function paintSteps() {
-        pane.innerHTML = `
-          <div class="steps-pane">
-            <div class="steps-value">
-              <input id="stepsInput" type="text" inputmode="numeric" value="5,000" aria-label="Steps" />
-              <span>steps</span>
-            </div>
-            <p class="steps-burn" id="stepsBurn"></p>
-            <div class="hint-chips hint-chips--center">
-              ${[3000, 5000, 8000, 10000, 12000]
-                .map((n) => `<button class="hint-chip tap" data-steps="${n}">${fmt(n)}</button>`)
-                .join("")}
-            </div>
-            <button class="btn btn-primary btn-block" id="stepsSave">${icon("check")}Log steps</button>
-          </div>`;
-
-        const input = pane.querySelector("#stepsInput");
-        const burnLine = pane.querySelector("#stepsBurn");
-        // A grouped number is the whole point of this screen, so the field is
-        // text and re-formats as you type.
-        const readSteps = () => num(input.value.replace(/[^\d]/g, ""));
-        const refresh = () => {
-          const steps = readSteps();
-          const burn = burnFromSteps({ steps, weightKg });
-          burnLine.innerHTML = `≈ <b>${fmt(burn)}</b> kcal burned at ${fmt(weightKg)} kg`;
-        };
-        input.addEventListener("input", () => {
-          const digits = input.value.replace(/[^\d]/g, "").slice(0, 6);
-          input.value = digits ? Number(digits).toLocaleString("en-US") : "";
-          refresh();
-        });
-        pane.querySelectorAll("[data-steps]").forEach((c) => {
-          c.onclick = () => {
-            input.value = Number(c.dataset.steps).toLocaleString("en-US");
-            refresh();
-            haptic(6);
-          };
-        });
-        refresh();
-
-        pane.querySelector("#stepsSave").onclick = async () => {
-          const steps = readSteps();
-          if (steps <= 0) return toast("How many steps?", { tone: "warn" });
-          await saveMove({
-            date,
-            title: `${fmt(steps)} steps`,
-            activity: "Walking",
-            steps,
-            minutes: Math.round(steps / 110), // ~110 steps a minute at a normal pace
-            burn: burnFromSteps({ steps, weightKg }),
-          });
+      body.querySelectorAll("[data-move]").forEach((c) => {
+        c.onclick = () => {
+          const r = recentMoves[Number(c.dataset.move)];
+          if (!r) return;
+          haptic(10);
           sheet.close();
+          // Recompute the burn — the weight on file may have changed since.
+          const burn = r.steps
+            ? burnFromSteps({ steps: r.steps, weightKg })
+            : burnFromMet({ met: r.met || DEFAULT_MET_FALLBACK, minutes: r.minutes, weightKg });
+          openMoveConfirm({
+            date,
+            draft: {
+              activity: r.activity || r.title,
+              minutes: r.minutes,
+              steps: r.steps,
+              met: r.met || DEFAULT_MET_FALLBACK,
+              paceKph: r.paceKph || 0,
+              distanceKm: r.distanceKm || 0,
+              burn,
+            },
+            weightKg,
+            typed: r.described || "",
+          });
         };
-      }
+      });
 
-      paint(mode);
+      body.querySelector("#moveGo").onclick = async () => {
+        const text = ta.value.trim();
+        if (!text) return toast("Say what you did first", { tone: "warn" });
+        const btn = body.querySelector("#moveGo");
+        btn.disabled = true;
+        btn.innerHTML = `<span class="spinner"></span>Thinking…`;
+        try {
+          const parsed = await analyzeExercise(text);
+          // A step count is the better basis when one was actually given;
+          // otherwise intensity × time.
+          const burn = parsed.steps
+            ? burnFromSteps({ steps: parsed.steps, weightKg })
+            : burnFromMet({ met: parsed.met, minutes: parsed.minutes, weightKg });
+          sheet.close();
+          openMoveConfirm({ date, draft: { ...parsed, burn }, weightKg, typed: text });
+        } catch (err) {
+          btn.disabled = false;
+          btn.innerHTML = `${icon("auto_awesome")}Estimate the burn`;
+          toast(err.message || "Couldn't read that", { tone: "danger" });
+        }
+      };
+
+      setTimeout(() => ta.focus(), 260);
     },
   });
 }
 
 /** Second step of the workout flow — everything the AI guessed, editable. */
-function openMoveConfirm({ date, draft, weightKg, existing = null }) {
+function openMoveConfirm({ date, draft, weightKg, existing = null, typed = "" }) {
+  // Steps only belong on screen if this log is actually about steps. Charlie
+  // never mentioned any and a zeroed Steps box just implied he'd got it wrong.
+  const stepBased = num(draft.steps) > 0;
+
   openSheet({
     title: existing ? "Edit movement" : "Sounds right?",
     icon: "bolt",
     build(body, sheet) {
+      const paceLine = () => {
+        const bits = [];
+        if (draft.paceKph) bits.push(`${draft.paceKph} km/h`);
+        if (draft.distanceKm) bits.push(`${draft.distanceKm} km`);
+        if (draft.minutes) bits.push(`${fmtMinutes(draft.minutes)}`);
+        bits.push(`${fmt(weightKg)} kg`);
+        if (draft.met) bits.push(`MET ${draft.met}`);
+        return bits.join(" · ");
+      };
+
       body.innerHTML = `
+        ${
+          typed
+            ? `<p class="said-line">${icon("format_quote", "sm")}<span>${esc(typed)}</span></p>`
+            : ""
+        }
+        ${
+          draft.understood
+            ? `<p class="review-assume">${icon("check_circle", "sm")}<span>${esc(draft.understood)}</span></p>`
+            : ""
+        }
         ${fieldHTML({ id: "mcAct", label: "Activity", value: draft.activity })}
-        <div class="two-col">
-          ${fieldHTML({ id: "mcMin", label: "Minutes", value: draft.minutes, type: "number", inputmode: "numeric" })}
-          ${fieldHTML({ id: "mcSteps", label: "Steps", value: draft.steps || 0, type: "number", inputmode: "numeric" })}
+        <div class="${stepBased ? "two-col" : ""}">
+          ${fieldHTML({
+            id: "mcMin",
+            label: "Minutes",
+            value: draft.minutes,
+            type: "text",
+            inputmode: "decimal",
+            suffix: "min",
+          })}
+          ${
+            stepBased
+              ? fieldHTML({ id: "mcSteps", label: "Steps", value: draft.steps, type: "text", inputmode: "numeric" })
+              : ""
+          }
         </div>
         <div class="burn-box">
           <span class="burn-label">Estimated burn</span>
           <div class="burn-value"><b id="mcBurn">${fmt(draft.burn)}</b><span>kcal</span></div>
-          <p class="burn-note">${esc(draft.activity)} at ${fmt(weightKg)} kg${
-            draft.met ? ` · MET ${draft.met}` : ""
-          }</p>
+          <p class="burn-note" id="mcNote">${esc(paceLine())}</p>
         </div>
+
+        <div class="fixit">
+          <p class="fixit-label">${icon("psychology_alt", "sm")}Not quite right? Tell me what to change.</p>
+          <div class="fixit-row">
+            <input id="mcHint" placeholder="e.g. it was uphill, 5 km/h" />
+            <button class="btn btn-soft tap" id="mcRerun">${icon("refresh")}</button>
+          </div>
+        </div>
+
         <div class="sheet-actions">
           ${existing ? `<button class="btn btn-ghost btn-danger-text tap" id="mcDelete">${icon("delete")}Delete</button>` : ""}
           <button class="btn btn-primary btn-grow tap" id="mcSave">${icon("check")}${existing ? "Save" : "Log it"}</button>
@@ -649,7 +638,7 @@ function openMoveConfirm({ date, draft, weightKg, existing = null }) {
 
       const recalc = () => {
         const minutes = num(body.querySelector("#mcMin").value);
-        const steps = num(body.querySelector("#mcSteps").value);
+        const steps = stepBased ? num(body.querySelector("#mcSteps").value) : 0;
         const burn = steps
           ? burnFromSteps({ steps, weightKg })
           : burnFromMet({ met: draft.met, minutes, weightKg });
@@ -657,7 +646,35 @@ function openMoveConfirm({ date, draft, weightKg, existing = null }) {
         return { minutes, steps, burn };
       };
       body.querySelector("#mcMin").addEventListener("input", recalc);
-      body.querySelector("#mcSteps").addEventListener("input", recalc);
+      body.querySelector("#mcSteps")?.addEventListener("input", recalc);
+
+      const rerun = body.querySelector("#mcRerun");
+      rerun.onclick = async () => {
+        const hint = body.querySelector("#mcHint").value.trim();
+        if (!hint) return toast("Tell me what to fix first", { tone: "warn" });
+        rerun.disabled = true;
+        rerun.innerHTML = `<span class="spinner"></span>`;
+        try {
+          const base = typed || `${draft.activity}, ${fmtMinutes(draft.minutes)}`;
+          const next = await analyzeExercise(`${base}. Correction from the person who did it: ${hint}`);
+          Object.assign(draft, next);
+          draft.burn = next.steps
+            ? burnFromSteps({ steps: next.steps, weightKg })
+            : burnFromMet({ met: next.met, minutes: next.minutes, weightKg });
+          body.querySelector("#mcAct").value = draft.activity;
+          body.querySelector("#mcMin").value = draft.minutes;
+          body.querySelector("#mcBurn").textContent = fmt(draft.burn);
+          body.querySelector("#mcNote").textContent = paceLine();
+          body.querySelector("#mcHint").value = "";
+          haptic(12);
+          toast("Updated", { tone: "good", icon: "auto_awesome" });
+        } catch (err) {
+          toast(err.message || "Couldn't redo that", { tone: "danger" });
+        } finally {
+          rerun.disabled = false;
+          rerun.innerHTML = icon("refresh");
+        }
+      };
 
       const delBtn = body.querySelector("#mcDelete");
       if (delBtn) {
@@ -685,6 +702,9 @@ function openMoveConfirm({ date, draft, weightKg, existing = null }) {
           steps,
           burn,
           met: draft.met,
+          described: typed || draft.understood || "",
+          paceKph: draft.paceKph,
+          distanceKm: draft.distanceKm,
           existingId: existing?.id,
         });
         sheet.close();
@@ -693,15 +713,40 @@ function openMoveConfirm({ date, draft, weightKg, existing = null }) {
   });
 }
 
-async function saveMove({ date, title, activity, minutes = 0, steps = 0, burn, met = null, existingId = null }) {
+/** 60.5 → "60 min 30 s"; whole numbers stay plain. */
+function fmtMinutes(mins) {
+  const m = num(mins);
+  const whole = Math.floor(m);
+  const secs = Math.round((m - whole) * 60);
+  return secs ? `${fmt(whole)} min ${secs} s` : `${fmt(whole)} min`;
+}
+
+async function saveMove({
+  date,
+  title,
+  activity,
+  minutes = 0,
+  steps = 0,
+  burn,
+  met = null,
+  described = "",
+  paceKph = 0,
+  distanceKm = 0,
+  existingId = null,
+}) {
   const payload = {
     kind: "exercise",
     title,
     activity,
-    minutes: Math.round(num(minutes)),
+    // Not rounded to whole minutes — a 60:30 walk should stay 60:30.
+    minutes: round(num(minutes), 0.1),
     steps: Math.round(num(steps)),
     burn: Math.round(num(burn)),
     met: met || null,
+    // What you actually typed, kept so the log can show it back to you.
+    described: String(described || "").slice(0, 200),
+    paceKph: round(num(paceKph), 0.1),
+    distanceKm: round(num(distanceKm), 0.01),
     source: "manual",
   };
   if (existingId) await updateEntry(date, existingId, payload);
@@ -748,32 +793,133 @@ export function openPartnerSheet(date = dayKey()) {
             : `<p class="muted-note">${esc(other.name)} hasn't logged anything today.</p>`
         }`;
 
-      body.addEventListener("click", async (e) => {
+      body.addEventListener("click", (e) => {
         const btn = e.target.closest("[data-copy]");
-        if (!btn) return;
-        const src = list.find((x) => x.id === btn.dataset.copy);
-        if (!src || btn.disabled) return;
-
-        btn.disabled = true;
-        btn.innerHTML = `<span class="spinner"></span>`;
-        try {
-          await addEntry({ ...src, id: undefined, date: dayKey(), ts: Date.now() });
-          haptic(14);
-          burst(btn);
-          btn.classList.add("is-done");
-          btn.innerHTML = `${icon("check")}Logged`;
-          toast(
-            src.kind === "exercise" ? "Same workout logged" : `Same as ${other.name} — logged`,
-            { tone: "good", icon: "favorite" }
-          );
-        } catch {
-          btn.disabled = false;
-          btn.innerHTML = `${icon("add")}Same`;
-          toast("Couldn't save — check your connection", { tone: "danger" });
+        if (btn) {
+          const src = list.find((x) => x.id === btn.dataset.copy);
+          if (src) {
+            haptic(10);
+            copyFromPartner(src, other);
+          }
+          return;
+        }
+        const look = e.target.closest("[data-view]");
+        if (look) {
+          const src = list.find((x) => x.id === look.dataset.view);
+          if (src) openPartnerEntrySheet(src, other);
         }
       });
       void sheet;
     },
+  });
+}
+
+
+/** Her meal, read only — the full breakdown before you decide to copy it. */
+function openPartnerEntrySheet(entry, other) {
+  const isMove = entry.kind === "exercise";
+  openSheet({
+    title: entry.title || (isMove ? "Movement" : "Meal"),
+    subtitle: `${other.name} · ${clockLabel(entry.ts)}${entry.brand ? ` · ${entry.brand}` : ""}`,
+    icon: isMove ? "bolt" : "restaurant",
+    build(body, sheet) {
+      body.innerHTML = `
+        ${entry.thumb ? `<img class="review-photo" src="${entry.thumb}" alt="" />` : ""}
+        ${
+          isMove
+            ? `<div class="burn-box">
+                 <span class="burn-label">Burned</span>
+                 <div class="burn-value"><b>${fmt(entry.burn)}</b><span>kcal</span></div>
+                 <p class="burn-note">${esc(entry.activity || entry.title || "")}${
+                   entry.minutes ? ` · ${fmtMinutes(entry.minutes)}` : ""
+                 }${entry.steps ? ` · ${fmt(entry.steps)} steps` : ""}</p>
+               </div>`
+            : `<div class="totals">
+                 ${METRICS.map(
+                   (m) => `
+                   <div class="total tone-${m.tone}">
+                     <span class="total-value">${
+                       m.key === "sugar_g" ? Math.round(num(entry[m.key]) * 10) / 10 : fmt(entry[m.key])
+                     }</span>
+                     <span class="total-unit">${m.unit}</span>
+                     <span class="total-label">${m.label}</span>
+                   </div>`
+                 ).join("")}
+               </div>`
+        }
+        ${
+          entry.items?.length
+            ? `<ul class="detail-items">${entry.items
+                .map(
+                  (i) => `
+              <li>
+                <div><b>${esc(i.name)}</b>${i.qty ? `<span>${esc(i.qty)}</span>` : ""}</div>
+                <div class="detail-nums">
+                  <span class="tone-kcal">${fmt(i.kcal)}<i>kcal</i></span>
+                  <span class="tone-sugar">${Math.round(num(i.sugar_g) * 10) / 10}<i>g</i></span>
+                  <span class="tone-sodium">${fmt(i.sodium_mg)}<i>mg</i></span>
+                </div>
+              </li>`
+                )
+                .join("")}</ul>`
+            : ""
+        }
+        ${entry.described ? `<p class="said-line">${icon("format_quote", "sm")}<span>${esc(entry.described)}</span></p>` : ""}
+        ${entry.assumptions ? `<p class="review-assume">${icon("info", "sm")}<span>${esc(entry.assumptions)}</span></p>` : ""}
+        <button class="btn btn-primary btn-block tap" id="peSame">${icon("add")}I had this too</button>`;
+
+      body.querySelector("#peSame").onclick = () => {
+        haptic(10);
+        sheet.close();
+        copyFromPartner(entry, other);
+      };
+    },
+  });
+}
+
+/**
+ * Copying never writes straight away — it opens the normal review sheet so the
+ * distribution is on screen and the portions can be adjusted first. She eats
+ * less than he does; the numbers rarely transfer one for one.
+ */
+function copyFromPartner(src, other) {
+  const date = dayKey();
+  if (src.kind === "exercise") {
+    const weightKg = num(state.profile?.weightKg, me().weightKg);
+    const burn = src.steps
+      ? burnFromSteps({ steps: src.steps, weightKg })
+      : burnFromMet({ met: src.met || DEFAULT_MET_FALLBACK, minutes: src.minutes, weightKg });
+    openMoveConfirm({
+      date,
+      draft: {
+        activity: src.activity || src.title,
+        minutes: src.minutes,
+        steps: src.steps,
+        met: src.met || DEFAULT_MET_FALLBACK,
+        paceKph: src.paceKph || 0,
+        distanceKm: src.distanceKm || 0,
+        burn,
+      },
+      weightKg,
+      typed: src.described || "",
+    });
+    return;
+  }
+
+  openReviewSheet({
+    date,
+    analysis: {
+      isFood: true,
+      title: src.title,
+      brand: src.brand || "",
+      items: src.items || [],
+      assumptions: src.assumptions || "",
+      confidence: src.confidence || "medium",
+      tip: `Same as ${other.name}`,
+    },
+    thumb: src.thumb || "",
+    photo: src.thumb ? { base64: src.thumb.split(",")[1], mimeType: "image/jpeg" } : null,
+    source: src.source || "manual",
   });
 }
 
@@ -791,8 +937,8 @@ function partnerRowHTML(e) {
 
   return `
     <article class="entry entry--partner">
-      <div class="entry-thumb${isMove ? " entry-thumb--move" : ""}">${thumb}</div>
-      <div class="entry-main">
+      <div class="entry-thumb${isMove ? " entry-thumb--move" : ""}" data-view="${esc(e.id)}">${thumb}</div>
+      <div class="entry-main" data-view="${esc(e.id)}" role="button" tabindex="0">
         <p class="entry-title"><span class="entry-name">${esc(e.title || "Meal")}</span></p>
         <p class="entry-sub">${esc(clockLabel(e.ts))}${e.brand ? ` · ${esc(e.brand)}` : ""}${
           !isMove && e.items?.length ? ` · ${e.items.length} item${e.items.length === 1 ? "" : "s"}` : ""
@@ -818,11 +964,14 @@ export function openEntrySheet(date, id) {
         activity: entry.activity || entry.title,
         minutes: entry.minutes,
         steps: entry.steps,
-        met: entry.met || 4,
+        met: entry.met || DEFAULT_MET_FALLBACK,
+        paceKph: entry.paceKph || 0,
+        distanceKm: entry.distanceKm || 0,
         burn: entry.burn,
       },
       weightKg: num(state.profile?.weightKg, me().weightKg),
       existing: entry,
+      typed: entry.described || "",
     });
     return;
   }

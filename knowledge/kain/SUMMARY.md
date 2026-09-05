@@ -235,6 +235,42 @@ or fresh typed meal, so a meal you came back to had no way to ask for a change.
 It is always present now; without a photo the re-read describes the current
 draft (title, brand, items) and appends the correction.
 
+## Movement is one box (2026-09-05)
+
+Workout and Steps were separate tabs. Merged, because the split asked the wrong
+question first: **steps accumulate across a whole day while everything else here
+is a session**, and sometimes a step count is all you have ("di na natrack kung
+saan nagpunta so steps na lang"). One textarea now takes any of them.
+
+The prompt got substantially stricter, after "4km per hour 60 mins 30sec" came
+back as plain *Walking, 60 min, MET 2.8* with the pace and the 30 seconds
+thrown away:
+
+- **Pace-aware METs** — a walking table by km/h (3.2→2.8, 4.0→3.0, 4.8→3.5,
+  5.6→4.3, 6.4→5.0) plus running, so intensity follows what was described.
+- **Fractional minutes** — "60 mins 30sec" is 60.5, not 60. `saveMove` no longer
+  rounds to whole minutes either.
+- **`pace_kph` / `distance_km`** when stated or derivable, shown in the burn note.
+- **`understood`** — a plain echo of what was read, displayed on the confirm
+  sheet so a misread is obvious before saving.
+- **Bare step counts** are a first-class log: name it Walking, keep the steps,
+  infer minutes at ~110 steps/min, never invent a pace or route.
+- Steps never invented from a distance.
+
+The confirm sheet keeps the raw sentence (`described` on the entry), shows the
+Steps field **only when steps were actually mentioned**, and carries the same
+"tell me what to change" box the meal sheet has. Result for that input:
+*Walking at 4 km/h · 60.5 min · MET 3.0 · 4.03 km · 201 kcal*.
+
+## Copying from your partner
+
+Tapping a row in the partner sheet opens their entry read-only (totals, full
+item breakdown, their assumptions). **Same** does not write immediately — it
+opens the normal review sheet prefilled, so the distribution is visible and
+portions can be adjusted first. Charlie's ask: "when I click same, makikita yung
+distribution bago i actually log it." She eats less than he does; the numbers
+rarely transfer one for one.
+
 ## Known trade-offs
 
 - **`/kain` has no backups and is in daily real use.** Never delete or write

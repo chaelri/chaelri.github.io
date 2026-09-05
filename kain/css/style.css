@@ -699,6 +699,12 @@ button:disabled {
 .entry--partner {
   cursor: default;
 }
+.entry--partner [data-view] {
+  cursor: pointer;
+}
+.entry--partner .entry-main:active {
+  opacity: 0.75;
+}
 .entry--partner .entry-sub {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1624,6 +1630,24 @@ body.sheet-open {
   font-weight: 300;
   color: var(--muted);
 }
+/* Your own words, quoted back, so the log shows what you actually described. */
+.said-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  font-size: 13.5px;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.04);
+  border-left: 2px solid var(--line-strong);
+  border-radius: 0 10px 10px 0;
+  padding: 9px 12px;
+}
+.said-line .material-symbols-rounded,
+.said-line .material-symbols-outlined {
+  color: var(--faint);
+  margin-top: 1px;
+}
+
 .review-assume {
   display: flex;
   align-items: flex-start;

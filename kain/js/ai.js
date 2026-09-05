@@ -234,17 +234,36 @@ const EXERCISE_PROMPT = `Read one line of exercise a Filipino adult typed and tu
 
 Return JSON only:
 {
-  "activity": "short name, e.g. Brisk walking",
-  "minutes": 30,
-  "met": 4.3,
+  "activity": "short name that keeps the detail they gave, e.g. Treadmill walk at 4 km/h",
+  "minutes": 60.5,
+  "met": 3.0,
   "steps": 0,
-  "note": ""
+  "distance_km": 0,
+  "pace_kph": 0,
+  "understood": "one short line restating exactly what you read"
 }
 
 Rules:
-- "met" is the standard MET value for that activity's intensity (slow walk 2.8, brisk walk 4.3, jog 7.0, run 9.8, cycling casual 6.0, badminton 5.5, basketball 6.5, swimming 6.0, weights 5.0, HIIT 8.0, household chores 3.3, walking the dog 3.0, dancing 5.0).
-- "minutes" is the duration they said. If they didn't say one, infer a sensible default for that activity and keep it modest (30).
-- "steps" only if they actually mention a step count ("10k steps" → 10000), otherwise 0.
+- "met" must match the INTENSITY they described, not just the activity name.
+  Walking by pace: 3.2 km/h = 2.8, 4.0 km/h = 3.0, 4.8 km/h = 3.5, 5.6 km/h = 4.3,
+  6.4 km/h = 5.0. Running: 8 km/h = 8.3, 9.7 km/h = 9.8, 11.3 km/h = 11.0.
+  Uphill or an incline adds roughly 1-2. Other activities: cycling casual 6.0,
+  badminton 5.5, basketball 6.5, swimming 6.0, weights 5.0, HIIT 8.0, household
+  chores 3.3, walking the dog 3.0, dancing 5.0, stairs 8.0.
+- "minutes" is the duration they said and MAY BE FRACTIONAL — "60 mins 30sec" is
+  60.5, "1 hour 15" is 75. If they gave no duration, infer a modest 30.
+- "pace_kph" only when they state a speed ("4km per hour" → 4). "distance_km"
+  only when they state a distance, or when speed and duration together give one
+  (4 km/h for 60.5 min → 4.03). Otherwise leave both 0.
+- "steps" ONLY if they actually mention a step count ("10k steps" → 10000).
+  Otherwise 0 — never invent a step count from a distance.
+- A bare step count is a perfectly normal log — sometimes all they know is that
+  their phone counted 8,500 steps. Name it "Walking", set steps, and estimate
+  minutes from the count at roughly 110 steps a minute so the entry still has a
+  duration. Do not guess a pace or a route they never mentioned.
+- "activity" should carry the detail back to them: if they said a speed, an
+  incline or a machine, keep it in the name.
+- "understood" is a plain-language echo so they can see you read it correctly.
 - Never return calories. Someone else does that maths.`;
 
 export async function analyzeExercise(text) {
@@ -257,10 +276,14 @@ export async function analyzeExercise(text) {
   const d = parseJSON(raw);
   return {
     activity: String(d.activity || text).slice(0, 60),
-    minutes: Math.max(0, Math.round(num(d.minutes, 30))),
+    // Fractional on purpose: "60 mins 30sec" is 60.5, and rounding it away is
+    // exactly the kind of detail that makes a log feel ignored.
+    minutes: Math.max(0, round(num(d.minutes, 30), 0.1)),
     met: Math.max(1, num(d.met, DEFAULT_MET)),
     steps: Math.max(0, Math.round(num(d.steps, 0))),
-    note: String(d.note || "").slice(0, 140),
+    distanceKm: Math.max(0, round(num(d.distance_km, 0), 0.01)),
+    paceKph: Math.max(0, round(num(d.pace_kph, 0), 0.1)),
+    understood: String(d.understood || "").slice(0, 160),
   };
 }
 
