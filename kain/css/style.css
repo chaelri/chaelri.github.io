@@ -309,113 +309,6 @@ button:disabled {
   justify-content: center;
   width: 100%;
 }
-/* The day, as weather.
-   Three soft clouds sit behind the ring — amber for calories, rose for sugar,
-   sky for sodium — and each one brightens as its ring fills, so an empty
-   morning is nearly dark and a full day glows. Words were tried here first and
-   don't work: the ring leaves ~40px either side on a phone, so every title
-   arrived clipped and read as damage. A blur has no edges to clip, and where it
-   passes behind the ring's translucent track it reads as light rather than
-   something showing through. */
-.hero-aura {
-  position: absolute;
-  inset: -34px -8px;
-  pointer-events: none;
-  overflow: hidden;
-  /* Kept off the very centre so the readout never sits on a coloured wash.
-     Sized from the ring's own radius, not fixed px — on a narrow phone the ring
-     shrinks and a fixed hole would swallow the whole glow. */
-  --rr: min(124px, 34vw);
-  -webkit-mask-image: radial-gradient(
-    circle at 50% 50%,
-    transparent 0 calc(var(--rr) * 0.48),
-    #000 calc(var(--rr) * 1.05)
-  );
-  mask-image: radial-gradient(
-    circle at 50% 50%,
-    transparent 0 calc(var(--rr) * 0.48),
-    #000 calc(var(--rr) * 1.05)
-  );
-}
-.hero-aura i {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 60%;
-  aspect-ratio: 1;
-  margin: -30% 0 0 -30%;
-  border-radius: 50%;
-  /* --lit is written per metric from the day's fill; 0 on a blank day. */
-  opacity: calc(0.16 + var(--lit, 0) * 0.62);
-  background: radial-gradient(circle at 50% 50%, var(--hue) 0%, transparent 66%);
-  transition: opacity 1.4s var(--ease);
-  /* One shared orbit duration with thirds-of-a-turn delays keeps the three
-     permanently 120 deg apart — three clouds on three durations drifted into
-     each other and left one side of the card blank. Breathing is a separate
-     animation on its own clock so the layer still never quite repeats. */
-  animation:
-    auraOrbit 72s linear infinite var(--delay),
-    auraBreathe var(--bdur) ease-in-out infinite;
-  will-change: transform, filter;
-}
-.hero-aura i[data-k="kcal"] {
-  --hue: var(--kcal);
-  --r: 30%;
-  --delay: 0s;
-  --bdur: 13s;
-}
-.hero-aura i[data-k="sugar_g"] {
-  --hue: var(--sugar);
-  --r: 24%;
-  --delay: -24s;
-  --bdur: 17s;
-}
-.hero-aura i[data-k="sodium_mg"] {
-  --hue: var(--sodium);
-  --r: 34%;
-  --delay: -48s;
-  --bdur: 21s;
-}
-@keyframes auraOrbit {
-  from {
-    transform: rotate(0turn) translateX(var(--r)) rotate(0turn);
-  }
-  to {
-    transform: rotate(1turn) translateX(var(--r)) rotate(-1turn);
-  }
-}
-/* Blur rather than opacity, so it doesn't fight the fill level set from JS. */
-@keyframes auraBreathe {
-  0%,
-  100% {
-    filter: blur(24px);
-  }
-  50% {
-    filter: blur(38px);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .hero-aura i {
-    animation: none;
-    filter: blur(30px);
-    transform: rotate(var(--rest, 0turn)) translateX(var(--r));
-  }
-  .hero-aura i[data-k="sugar_g"] {
-    --rest: 0.333turn;
-  }
-  .hero-aura i[data-k="sodium_mg"] {
-    --rest: 0.666turn;
-  }
-}
-
-/* Everything real sits above the aura. */
-.hero .ring-wrap,
-.hero .legend,
-.hero .hero-chips {
-  position: relative;
-  z-index: 1;
-}
-
 .ring-wrap {
   position: relative;
   width: min(248px, 68vw);
@@ -2969,9 +2862,6 @@ body.sheet-open {
     grid-area: ring;
     width: 216px;
   }
-  .hero-aura {
-    --rr: 108px;
-  }
   .hero .legend {
     grid-area: legend;
   }
@@ -3099,9 +2989,6 @@ body.sheet-open {
   .ring-wrap,
   .hero .ring-wrap {
     width: 248px;
-  }
-  .hero-aura {
-    --rr: 124px;
   }
   .choice-grid {
     grid-template-columns: repeat(3, 1fr);

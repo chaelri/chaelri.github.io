@@ -449,27 +449,24 @@ bar. They exist **only** for identity — state is never encoded in them.
   patis, bagoong, instant noodles, fast food) because that's the number most
   likely to be badly under-guessed.
 
-## The hero aura (2026-09-05)
+## The space behind the ring stays empty (2026-09-05)
 
-The space behind the ring shows the day as weather: three blurred colour clouds
-(kcal amber, sugar rose, sodium sky) whose opacity is the fill fraction of their
-own ring, so the card is nearly dark before breakfast and glows by evening.
-`renderAura(pcts)` in `today.js` writes `--lit` on each; the motion is pure CSS.
+Charlie asked for the day's meals to appear behind the hero ring. Two builds
+went in and both came out; the hero card is now plain by decision, not by
+omission.
 
-- **One orbit duration, three delays.** All three run `auraOrbit` at 72 s with
-  delays 0 / −24 s / −48 s, which pins them 120° apart permanently. Three
-  different durations were tried first and they drift into each other, leaving
-  one side of the card empty for minutes at a time. Breathing is a *separate*
-  animation (`auraBreathe`, blur only — not opacity, which JS owns) on its own
-  clock, so the layer still never quite repeats.
-- **The mask hole is `--rr`-relative**, not fixed px: `min(124px, 34vw)` matched
-  to `.ring-wrap`, overridden per breakpoint. A fixed 128 px hole swallows the
-  whole glow on a narrow phone.
-- **Words were tried here and removed.** Charlie asked for the day's meals to
-  appear behind the ring; there is only ~40 px of clear space either side at
-  phone width, so titles arrived clipped into fragments ("h br", "g") that read
-  as rendering damage. Shortening to 1-2 recognisable words (stripping leading
-  quantities and units) helped but still left overlaps and one word past the
-  card edge. A gradient can't clip, and behind the translucent tube it reads as
-  light rather than bleed-through — the same "tumatagos" complaint that killed
-  the text version. Don't reintroduce text in this layer.
+- **Scattered words don't fit.** There is only ~40 px of clear space either side
+  of the ring at phone width, so titles arrived clipped into fragments ("h br",
+  "g") that read as rendering damage. Shortening them to 1-2 recognisable words
+  (stripping leading quantities and units) helped but still left overlaps and
+  one word past the card edge. They also showed straight through the ring's
+  translucent empty track — his "tumatagos" note.
+- **A three-colour aura worked but was busy.** Blurred amber/rose/sky clouds
+  orbiting the ring, each as bright as its own ring was full. No clipping, and
+  behind the tube it read as light rather than bleed-through. Slow (72 s a lap)
+  it looked static; sped up to 28 s it read as movement and he called it
+  *pumanget*. Reverted, then removed entirely: "plain lang talaga."
+
+The lesson is the card, not the technique — three animated rings with a big
+number in the middle is already the busiest thing on the screen. Anything added
+behind it competes with the number. Leave it alone.
