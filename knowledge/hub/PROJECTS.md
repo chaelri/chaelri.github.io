@@ -1,6 +1,6 @@
 # Hub Project Index for chaelri.github.io
 
-**Last updated:** 2026-08-28
+**Last updated:** 2026-09-05
 **Scope:** Complete mapping of top-level directories + root files, with tech stack, deployment, status, and key entry points.
 
 ## Status Legend
@@ -47,6 +47,25 @@ Personal site for **Tita Sherill Obillo**, Nissan Marketing Professional at Niss
   - **`register/` is the branded page alternative, and the one form that leaves the browser (2026-08-19).** Modelled on the Microsoft Forms QR page Nissan PH ran at the Phil Medical Expo. Posts to a **Google Apps Script web app** that appends a row to a Google Sheet and emails the lead to `sherillf20@gmail.com` + `charliecayno@gmail.com` (replyTo = the customer), then acknowledges the customer. `/register/?event=<tag>` adds company/role/units and tags the lead. `Content-Type: text/plain` on the POST is load-bearing — Apps Script can't answer a CORS preflight. **Live since 2026-08-19** — sheet *drive-with-sherill — leads*, script *drive-with-sherill — register* deployed Execute-as-me / Anyone, `/exec` URL sits in `ENDPOINT` in `register.js`. Apps Script rather than `gemini-proxy` because **every OAuth refresh token in this repo is dead** — the consent screen is in Testing mode, where refresh tokens expire after 7 days, which also means `/sheets-*` on Cloud Run currently returns `invalid_grant`. If the endpoint ever fails the page falls back to the same copy-only contract as every other form. `/register/?test=1` mails Charlie only, tagged `[TEST]`. `register/qr.html` prints the booth QR card.
   - Footer states it is not an official Nissan Philippines website.
 - **Full docs:** See `knowledge/sherill/SUMMARY.md` and `sherill/README.md`.
+
+### kain/  🟢
+
+Photo-first food log for Charlie & Karla — snap the plate, Gemini reads it, and the day's **calories / sugar / sodium** count down from goals (1,500 kcal shared target; 50 g sugar and 2,000 mg sodium per the DOH). Workouts and step counts add calories back. Built 2026-09-05 to replace the deleted `bududiet/`.
+
+- **Tech:** vanilla ES modules (no build), Tailwind v4 browser CDN + a hand-written component layer in `css/style.css`, Material Symbols Rounded, Outfit + Fraunces, Firebase v10 (RTDB + anonymous auth). PWA with a manifest and **deliberately no `sw.js`** — Charlie's ask: never serve a stale build.
+- **Entry:** `index.html`, `js/app.js` (boot/tabs), `js/today.js` (triple ring + timeline), `js/history.js`, `js/profile.js`, `js/entry.js` (the add/review flow), `js/ai.js`, `js/store.js`, `js/config.js`.
+- **Deploy:** GitHub Pages at `/kain/`. **Not linked from the root hub page** — the RTDB path is unauthenticated, same posture as `mac-toggle/`.
+- **Data:** `kain/users/<charlie|karla>/{profile, days/<YYYY-MM-DD>/<id>}` on `test-database-55379`. No auth — identity is a localStorage pick (`kain.who`). Separate subtrees per person so nothing pools.
+- **Quirks:**
+  - **Totals are summed in JS from the items array, never taken from the model** — LLMs recognise adobo well and add columns badly.
+  - **Two renders from one decode:** 768 px q0.72 goes to Gemini (≈ one image tile) and is discarded; a 400 px q0.62 thumbnail (~28 KB base64) is stored on the entry as the "memory" photo — ~60 MB/year for both against a 1 GB free tier.
+  - **The proxy passes Gemini's body through verbatim, so a model outage arrives as HTTP 200 with an `error` object inside.** `gemini-3.5-flash` returns 503 "high demand" regularly on the free key, so `ai.js` checks for that, retries once, then falls back to `gemini-3.5-flash-lite`. Text jobs use `gemini-3.1-flash-lite`.
+  - **`maxOutputTokens: 3000` on the vision call is load-bearing** — thinking tokens count against it (one dish burned 953).
+  - **"Not quite right? Tell me what it really is"** re-runs the read against the same photo with the previous reading in the prompt — and still works on old entries, because the stored thumbnail is enough to re-read.
+  - **Exercise adds to the calorie budget only** — you can't out-walk salt, so sugar and sodium never move. Toggleable.
+  - Days are **Manila days** via `Intl`, never the device clock.
+  - iOS haptics use the hidden `<input type="checkbox" switch>` trick from `devo/js/01-core.js`.
+- **Full docs:** See `knowledge/kain/SUMMARY.md` and `kain/README.md`.
 
 ### autoclicker/  🟢
 
@@ -471,7 +490,7 @@ Simple side-scrolling platformer (Bubu & Dudu) — canvas-based game.
 
 | Project | Hosting | Auto-deploy on push? |
 |---|---|---|
-| sherill (also on Vercel as `drive-with-sherill`), driving, devo, monthsary, tayo, sns-dq, weddingtest, towa-no-yuugure, autoclicker, aircon, pocket-remote, mac-toggle, collaterals, flux, pray, echoes, wedding100, weddingtimeline, horizon, money, anohana, bubududu | GitHub Pages subpath | ✅ |
+| kain, sherill (also on Vercel as `drive-with-sherill`), driving, devo, monthsary, tayo, sns-dq, weddingtest, towa-no-yuugure, autoclicker, aircon, pocket-remote, mac-toggle, collaterals, flux, pray, echoes, wedding100, weddingtimeline, horizon, money, anohana, bubududu | GitHub Pages subpath | ✅ |
 | mac-toggle (Mac agent) | root LaunchDaemon `com.chaelri.mactoggle` via `agent/install.sh` | Manual |
 | mac-toggle (menu bar) | per-user LaunchAgent `com.chaelri.mactoggle.menubar` via `menubar/install-menubar.sh` | Manual |
 | claude-usage | per-user LaunchAgent `com.chaelri.claudeusage` via `install.sh` | Manual |

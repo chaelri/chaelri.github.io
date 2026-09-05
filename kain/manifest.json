@@ -1,0 +1,32 @@
+{
+  "name": "Kain — food & goals",
+  "short_name": "Kain",
+  "description": "Charlie & Karla's food log — snap a meal, get calories, sugar and sodium.",
+  "start_url": "/kain/",
+  "scope": "/kain/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b0a09",
+  "theme_color": "#0b0a09",
+  "categories": ["health", "lifestyle"],
+  "icons": [
+    {
+      "src": "assets/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

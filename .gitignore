@@ -96,3 +96,8 @@ gemini-proxy/.credentials.md
 
 # Local RTDB snapshots — private devotional data, never publish
 .backups/
+
+# Local OAuth token stores — never commit (GitHub push protection blocks these)
+gemini-proxy/.gmail-creds-*.json
+gemini-proxy/.drive-creds.json
+gemini-proxy/.drive-client.json

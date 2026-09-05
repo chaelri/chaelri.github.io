@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Kain — food &amp; goals</title>
+    <meta
+      name="description"
+      content="Charlie & Karla's food log. Snap a meal, get calories, sugar and sodium."
+    />
+
+    <!-- PWA: manifest only. No service worker on purpose — this app should
+         never serve a stale build; every reload gets the real files. -->
+    <link rel="manifest" href="manifest.json" />
+    <meta name="theme-color" content="#0b0a09" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Kain" />
+    <link rel="apple-touch-icon" href="assets/icons/icon-180.png" />
+    <link rel="icon" type="image/png" href="assets/icons/icon-192.png" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://gemini-proxy-668755364170.asia-southeast1.run.app" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0"
+    />
+
+    <!-- Tailwind v4 browser build (no build step, same as the rest of the repo) -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style type="text/tailwindcss">
+      @theme {
+        --font-sans: "Outfit", ui-sans-serif, system-ui, -apple-system, sans-serif;
+        --font-display: "Fraunces", ui-serif, Georgia, serif;
+        --color-kcal: #fbbf24;
+        --color-sugar: #fb7185;
+        --color-sodium: #38bdf8;
+      }
+    </style>
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+
+  <body>
+    <!-- First run: pick who's logging. Stored in localStorage, no auth. -->
+    <div id="welcome" class="welcome" hidden></div>
+
+    <div id="app" class="shell" hidden>
+      <nav id="tabbar" class="tabbar" aria-label="Sections">
+        <button class="tab tap" data-tab="today" aria-current="page">
+          <span class="material-symbols-rounded">restaurant</span>
+          <span class="tab-label">Today</span>
+        </button>
+        <button class="tab tap" data-tab="history">
+          <span class="material-symbols-rounded">bar_chart</span>
+          <span class="tab-label">History</span>
+        </button>
+
+        <button id="fab" class="fab tap" aria-label="Log something new">
+          <span class="material-symbols-rounded">add</span>
+        </button>
+
+        <button class="tab tap" data-tab="me">
+          <span class="material-symbols-rounded">person</span>
+          <span class="tab-label">Me</span>
+        </button>
+      </nav>
+
+      <main id="scroller" class="scroller">
+        <div class="page">
+          <section id="view-today" class="view" hidden></section>
+          <section id="view-history" class="view" hidden></section>
+          <section id="view-me" class="view" hidden></section>
+        </div>
+      </main>
+    </div>
+
+    <div id="toastHost" class="toast-host" aria-live="polite"></div>
+
+    <script type="module" src="js/app.js"></script>
+  </body>
+</html>

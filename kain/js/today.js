@@ -1,0 +1,297 @@
+// The Today screen: three rings, what's left, and the day's timeline.
+
+import { METRICS } from "./config.js";
+import { state, totalsFor, entriesFor, me, partner } from "./store.js";
+import {
+  dayKey,
+  longDateLabel,
+  greeting,
+  clockLabel,
+  mealSlot,
+  fmt,
+  num,
+  esc,
+  icon,
+  countUp,
+  clamp,
+} from "./util.js";
+import { ringStackHTML, setRings } from "./ui.js";
+
+const METRIC_BY_KEY = Object.fromEntries(METRICS.map((m) => [m.key, m]));
+
+let root = null;
+let focusKey = "kcal"; // which metric the middle of the rings reports
+let seenIds = new Set(); // so only genuinely new cards animate in
+
+export function mountToday(container) {
+  root = container;
+  root.innerHTML = `
+    <header class="day-head">
+      <div>
+        <p class="day-greeting" id="dayGreeting"></p>
+        <h1 class="day-title" id="dayTitle"></h1>
+      </div>
+      <button class="who-chip tap" id="whoChip" aria-label="Switch person"></button>
+    </header>
+
+    <section class="hero card" id="hero">
+      ${ringStackHTML()}
+      <div class="legend" id="legend"></div>
+      <div class="hero-chips" id="heroChips"></div>
+    </section>
+
+    <section class="quick" id="quickRow">
+      <button class="quick-btn quick-btn--photo tap" data-add="camera">
+        ${icon("photo_camera")}<span>Snap a meal</span>
+      </button>
+      <button class="quick-btn tap" data-add="describe">
+        ${icon("edit_note")}<span>Type it</span>
+      </button>
+      <button class="quick-btn tap" data-add="exercise">
+        ${icon("directions_run")}<span>Move</span>
+      </button>
+    </section>
+
+    <section class="timeline-wrap">
+      <div class="section-head">
+        <h2>Today's log</h2>
+        <span class="section-note" id="timelineNote"></span>
+      </div>
+      <div class="timeline" id="timeline"></div>
+    </section>
+
+    <section id="partnerCard"></section>`;
+
+  root.querySelector("#legend").addEventListener("click", (e) => {
+    const row = e.target.closest("[data-metric]");
+    if (!row) return;
+    focusKey = row.dataset.metric;
+    renderCenter();
+    root.querySelectorAll("[data-metric]").forEach((r) => r.classList.toggle("is-focus", r === row));
+  });
+
+  updateToday();
+}
+
+export function updateToday() {
+  if (!root) return;
+  const today = dayKey();
+  const person = me();
+  const t = totalsFor(today);
+
+  root.querySelector("#dayGreeting").textContent = `${greeting()}, ${person.name.toLowerCase()}`;
+  root.querySelector("#dayTitle").textContent = longDateLabel(today);
+
+  const chip = root.querySelector("#whoChip");
+  chip.dataset.accent = person.accent;
+  chip.innerHTML = `<span class="who-initial">${person.initial}</span>${icon("unfold_more", "who-caret")}`;
+
+  renderLegend(t);
+  renderCenter(t);
+  renderChips(t);
+  renderTimeline(today);
+  renderPartner();
+
+  // A frame's delay so the browser has the "from" offsets before we animate.
+  requestAnimationFrame(() =>
+    setRings(root, {
+      kcal: safePct(t.kcal, t.budget.kcal),
+      sugar_g: safePct(t.sugar_g, t.budget.sugar_g),
+      sodium_mg: safePct(t.sodium_mg, t.budget.sodium_mg),
+    })
+  );
+}
+
+function safePct(used, goal) {
+  return num(goal) > 0 ? num(used) / num(goal) : 0;
+}
+
+/* ------------------------------------------------------------- pieces --- */
+
+function renderCenter(t = totalsFor(dayKey())) {
+  const m = METRIC_BY_KEY[focusKey];
+  const left = t.left[focusKey];
+  const over = left < 0;
+  const center = root.querySelector("#ringCenter");
+
+  center.className = `ring-center tone-${m.tone}${over ? " is-over" : ""}`;
+  if (!center.querySelector(".ring-value")) {
+    center.innerHTML = `
+      <span class="ring-eyebrow"></span>
+      <span class="ring-value" data-value="0">0</span>
+      <span class="ring-unit"></span>`;
+  }
+  center.querySelector(".ring-eyebrow").textContent = over ? "over by" : "left";
+  center.querySelector(".ring-unit").textContent = m.centre;
+  countUp(center.querySelector(".ring-value"), Math.abs(left), {
+    format: (v) => (m.key === "sugar_g" ? (Math.round(v * 10) / 10).toLocaleString("en-US") : fmt(v)),
+  });
+}
+
+function renderLegend(t) {
+  const legend = root.querySelector("#legend");
+  const rows = METRICS.map((m) => {
+    const used = t[m.key];
+    const goal = t.budget[m.key];
+    const pct = clamp(safePct(used, goal), 0, 1);
+    const over = used > goal;
+    const decimals = m.key === "sugar_g";
+    return `
+      <button type="button" class="legend-row tone-${m.tone} ${m.key === focusKey ? "is-focus" : ""}" data-metric="${m.key}">
+        <span class="legend-dot"></span>
+        <span class="legend-label">${m.label}</span>
+        <span class="legend-numbers ${over ? "is-over" : ""}">
+          <b>${decimals ? (Math.round(used * 10) / 10).toLocaleString("en-US") : fmt(used)}</b>
+          <span>/ ${fmt(goal)} ${m.unit}</span>
+        </span>
+        <span class="legend-bar ${over ? "is-over" : ""}"><i style="transform:scaleX(${pct.toFixed(3)})"></i></span>
+      </button>`;
+  }).join("");
+  legend.innerHTML = rows;
+}
+
+function renderChips(t) {
+  const host = root.querySelector("#heroChips");
+  const bits = [
+    `<span class="chip">${icon("restaurant")}${t.meals} meal${t.meals === 1 ? "" : "s"}</span>`,
+    `<span class="chip">${icon("local_fire_department")}${fmt(t.kcal)} eaten</span>`,
+  ];
+  if (t.burn > 0) {
+    bits.push(
+      `<span class="chip chip--burn">${icon("bolt")}${fmt(t.burn)} burned${
+        state.profile?.exerciseAddsBudget !== false ? " · added back" : ""
+      }</span>`
+    );
+  }
+  host.innerHTML = bits.join("");
+}
+
+function renderTimeline(date) {
+  const list = entriesFor(date);
+  const host = root.querySelector("#timeline");
+  const note = root.querySelector("#timelineNote");
+  note.textContent = list.length ? `${list.length} entr${list.length === 1 ? "y" : "ies"}` : "";
+
+  if (!list.length) {
+    host.innerHTML = `
+      <button type="button" class="empty tap" data-add="choose">
+        <span class="empty-art">${icon("ramen_dining")}</span>
+        <span class="empty-title">Wala pa today</span>
+        <span class="empty-sub">Snap your first meal and I'll do the counting.</span>
+        <span class="empty-cta">${icon("add")}Log something</span>
+      </button>`;
+    seenIds = new Set();
+    return;
+  }
+
+  let lastSlot = "";
+  const cards = list
+    .map((e) => {
+      const slot = e.kind === "exercise" ? "Movement" : mealSlot(e.ts);
+      const header = slot !== lastSlot ? `<p class="slot-label">${esc(slot)}</p>` : "";
+      lastSlot = slot;
+      return header + entryCardHTML(e, date);
+    })
+    .join("");
+
+  host.innerHTML = cards;
+
+  // Stagger only the cards that weren't on screen a moment ago.
+  const nextSeen = new Set();
+  host.querySelectorAll(".entry").forEach((card, i) => {
+    const id = card.dataset.id;
+    nextSeen.add(id);
+    if (!seenIds.has(id)) {
+      card.classList.add("is-fresh");
+      card.style.animationDelay = `${Math.min(i, 6) * 45}ms`;
+    }
+  });
+  seenIds = nextSeen;
+}
+
+export function entryCardHTML(e, date) {
+  if (e.kind === "exercise") {
+    return `
+      <article class="entry entry--move" data-id="${esc(e.id)}" data-date="${esc(date)}" tabindex="0">
+        <div class="entry-thumb entry-thumb--move">${icon(e.steps ? "footprint" : "directions_run")}</div>
+        <div class="entry-main">
+          <p class="entry-title"><span class="entry-name">${esc(e.title || e.activity || "Movement")}</span></p>
+          <p class="entry-sub">${esc(clockLabel(e.ts))}${
+            e.minutes ? ` · ${fmt(e.minutes)} min` : ""
+          }${e.steps ? ` · ${fmt(e.steps)} steps` : ""}</p>
+        </div>
+        <div class="entry-burn">−${fmt(e.burn)}<span>kcal</span></div>
+      </article>`;
+  }
+
+  const thumb = e.thumb
+    ? `<img src="${e.thumb}" alt="" loading="lazy" />`
+    : icon(e.source === "text" ? "edit_note" : "restaurant");
+
+  return `
+    <article class="entry" data-id="${esc(e.id)}" data-date="${esc(date)}" tabindex="0">
+      <div class="entry-thumb">${thumb}</div>
+      <div class="entry-main">
+        <p class="entry-title">
+          <span class="entry-name">${esc(e.title || "Meal")}</span>${
+          e.brand ? `<span class="entry-brand">${esc(e.brand)}</span>` : ""
+        }</p>
+        <p class="entry-sub">${esc(clockLabel(e.ts))}${
+          e.items?.length ? ` · ${e.items.length} item${e.items.length === 1 ? "" : "s"}` : ""
+        }</p>
+        <div class="entry-stats">
+          <span class="stat tone-kcal">${fmt(e.kcal)}<i>kcal</i></span>
+          <span class="stat tone-sugar">${Math.round(num(e.sugar_g) * 10) / 10}<i>g</i></span>
+          <span class="stat tone-sodium">${fmt(e.sodium_mg)}<i>mg</i></span>
+        </div>
+      </div>
+      ${icon("chevron_right", "entry-chevron")}
+    </article>`;
+}
+
+function renderPartner() {
+  const host = root.querySelector("#partnerCard");
+  if (state.profile?.showPartner === false) {
+    host.innerHTML = "";
+    return;
+  }
+  const other = partner();
+  const today = dayKey();
+  const t = totalsFor(today, state.partner.days, state.partner.profile);
+
+  if (!t.logged) {
+    host.innerHTML = `
+      <div class="partner card partner--quiet">
+        <span class="who-initial who-initial--sm" data-accent="${other.accent}">${other.initial}</span>
+        <p>${esc(other.name)} hasn't logged anything today.</p>
+      </div>`;
+    return;
+  }
+
+  const rows = METRICS.map((m) => {
+    const pct = clamp(safePct(t[m.key], t.budget[m.key]), 0, 1);
+    const over = t[m.key] > t.budget[m.key];
+    return `
+      <div class="partner-metric tone-${m.tone}">
+        <span class="partner-metric-label">${m.short}</span>
+        <span class="legend-bar ${over ? "is-over" : ""}"><i style="transform:scaleX(${pct.toFixed(3)})"></i></span>
+        <span class="partner-metric-value ${over ? "is-over" : ""}">${
+          m.key === "sugar_g" ? Math.round(t[m.key] * 10) / 10 : fmt(t[m.key])
+        }<i>${m.unit}</i></span>
+      </div>`;
+  }).join("");
+
+  host.innerHTML = `
+    <div class="partner card">
+      <div class="partner-head">
+        <span class="who-initial who-initial--sm" data-accent="${other.accent}">${other.initial}</span>
+        <div>
+          <p class="partner-name">${esc(other.name)}'s day</p>
+          <p class="partner-sub">${t.meals} meal${t.meals === 1 ? "" : "s"}${
+            t.burn ? ` · ${fmt(t.burn)} kcal burned` : ""
+          }</p>
+        </div>
+      </div>
+      <div class="partner-metrics">${rows}</div>
+    </div>`;
+}
