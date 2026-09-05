@@ -138,6 +138,19 @@ Three concentric arcs, calories outside. Two things about it are load-bearing:
   at different sizes and speeds keep it from reading as a dotted border. The
   offsets in the `ringFlow*` keyframes must stay in step with the dasharrays in
   `ui.js`.
+- **Behind the ring is an aura, not words.** Three blurred clouds — amber,
+  rose, sky — orbit the ring on one shared 72 s clock with thirds-of-a-turn
+  delays, so they stay 120° apart forever and no side of the card goes blank.
+  Each cloud's opacity is the same fraction its ring is drawing, so a blank
+  morning is nearly dark and a full day glows. `renderAura()` in `today.js`
+  writes `--lit`; everything else is CSS.
+
+  The first attempt scattered the day's meal titles here and it does not work:
+  the ring leaves ~40 px either side on a phone, so every title arrived clipped
+  into fragments that read as damage rather than atmosphere, and shortening them
+  to one or two words didn't buy enough room. A blur has no edges to clip, and
+  where it passes behind the ring's translucent track it reads as light instead
+  of something showing through. Don't put text back here.
 
 ## Files
 

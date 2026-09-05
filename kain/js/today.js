@@ -38,7 +38,12 @@ export function mountToday(container) {
     </header>
 
     <section class="hero card" id="hero">
-      ${ringStackHTML()}
+      <div class="hero-stage">
+        <div class="hero-aura" id="heroAura" aria-hidden="true">
+          ${METRICS.map((m) => `<i data-k="${m.key}"></i>`).join("")}
+        </div>
+        ${ringStackHTML()}
+      </div>
       <div class="legend" id="legend"></div>
       <div class="hero-chips" id="heroChips"></div>
     </section>
@@ -109,13 +114,16 @@ export function updateToday() {
   renderTimeline(today);
   renderPartner();
 
+  const pcts = {
+    kcal: safePct(t.net.kcal, t.budget.kcal),
+    sugar_g: safePct(t.net.sugar_g, t.budget.sugar_g),
+    sodium_mg: safePct(t.net.sodium_mg, t.budget.sodium_mg),
+  };
+  renderAura(pcts);
+
   setRings(
     root,
-    {
-      kcal: safePct(t.net.kcal, t.budget.kcal),
-      sugar_g: safePct(t.net.sugar_g, t.budget.sugar_g),
-      sodium_mg: safePct(t.net.sodium_mg, t.budget.sodium_mg),
-    },
+    pcts,
     // Where the ring would have reached without today's movement.
     { kcal: safePct(t.kcal, t.budget.kcal) }
   );
@@ -126,6 +134,23 @@ function safePct(used, goal) {
 }
 
 /* ------------------------------------------------------------- pieces --- */
+/* --------------------------------------------------------------- words --- */
+/* Everything you ate and did today, drifting behind the ring. Low enough in
+   opacity to be atmosphere rather than text you have to read past. */
+
+
+/**
+ * How lit each cloud behind the ring is — the same fractions the rings are
+ * drawing, so the glow and the arcs always tell the same story.
+ */
+function renderAura(pcts) {
+  const host = root.querySelector("#heroAura");
+  if (!host) return;
+  for (const m of METRICS) {
+    const node = host.querySelector(`i[data-k="${m.key}"]`);
+    if (node) node.style.setProperty("--lit", clamp(pcts[m.key] || 0, 0, 1).toFixed(3));
+  }
+}
 
 function renderCenter(t = totalsFor(dayKey())) {
   const m = METRIC_BY_KEY[focusKey];

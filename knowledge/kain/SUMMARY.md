@@ -448,3 +448,28 @@ bar. They exist **only** for identity — state is never encoded in them.
 - Estimates are estimates. The prompt pushes hard on Filipino sodium (toyo,
   patis, bagoong, instant noodles, fast food) because that's the number most
   likely to be badly under-guessed.
+
+## The hero aura (2026-09-05)
+
+The space behind the ring shows the day as weather: three blurred colour clouds
+(kcal amber, sugar rose, sodium sky) whose opacity is the fill fraction of their
+own ring, so the card is nearly dark before breakfast and glows by evening.
+`renderAura(pcts)` in `today.js` writes `--lit` on each; the motion is pure CSS.
+
+- **One orbit duration, three delays.** All three run `auraOrbit` at 72 s with
+  delays 0 / −24 s / −48 s, which pins them 120° apart permanently. Three
+  different durations were tried first and they drift into each other, leaving
+  one side of the card empty for minutes at a time. Breathing is a *separate*
+  animation (`auraBreathe`, blur only — not opacity, which JS owns) on its own
+  clock, so the layer still never quite repeats.
+- **The mask hole is `--rr`-relative**, not fixed px: `min(124px, 34vw)` matched
+  to `.ring-wrap`, overridden per breakpoint. A fixed 128 px hole swallows the
+  whole glow on a narrow phone.
+- **Words were tried here and removed.** Charlie asked for the day's meals to
+  appear behind the ring; there is only ~40 px of clear space either side at
+  phone width, so titles arrived clipped into fragments ("h br", "g") that read
+  as rendering damage. Shortening to 1-2 recognisable words (stripping leading
+  quantities and units) helped but still left overlaps and one word past the
+  card edge. A gradient can't clip, and behind the translucent tube it reads as
+  light rather than bleed-through — the same "tumatagos" complaint that killed
+  the text version. Don't reintroduce text in this layer.
