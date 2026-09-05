@@ -397,6 +397,26 @@ Any future sheet that displays entries or totals needs the same treatment. The
 review and confirm sheets deliberately do not: they're forms holding a draft,
 and re-rendering them would throw away what you were typing.
 
+## Two chart bugs, same afternoon (2026-09-05)
+
+**The weekday labels fell out of the card.** `.chart` is a fixed height and
+`.chart-inner` claimed `height: 100%` of it — fine until the avatar legend moved
+inside the same box and pushed the plot down by its own height. `.chart` is now
+a flex column and the plot takes `flex: 1`, so the labels stay inside whatever
+else the card holds.
+
+**A normal day looked like a blown one.** Bars used a red gradient for
+over-budget, and that red is within a shade of Karla's rose person accent — at
+800 of 1,500 her bar read as "over". This is the same collision as `--danger` vs
+`--sugar` earlier, reintroduced. **Colour now only ever encodes whose bar it
+is**; over-budget is a hard `inset 0 3px 0 var(--over)` cap on top of the bar,
+which also reads against the dashed goal line it has just crossed.
+
+Worth remembering as a rule for this app: the person accents (amber, rose) and
+the metric colours (amber, rose, sky) already overlap, so **red can't be a
+fourth meaning in the same chart.** Signal state with shape, not hue, wherever a
+person's colour is present.
+
 ## Known trade-offs
 
 - **`/kain` has no backups and is in daily real use.** Never delete or write
