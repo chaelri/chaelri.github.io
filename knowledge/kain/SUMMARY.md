@@ -417,6 +417,23 @@ the metric colours (amber, rose, sky) already overlap, so **red can't be a
 fourth meaning in the same chart.** Signal state with shape, not hue, wherever a
 person's colour is present.
 
+## Chart metric toggle + colour identity (2026-09-05)
+
+The chart title is a button: tap to cycle **Calories → Sugar → Sodium**, with
+the goal line, the note and the labels all following. Saved per person as
+`chartMetric`, like `ringMode` / `ringMetric`.
+
+**Order matters in these toggle handlers.** `saveProfile` updates
+`state.profile` synchronously *and then emits*, and the re-render reads the
+saved value back. The first version rendered before saving, so the second tap
+read the stale preference and bounced straight back — the toggle appeared to
+stick on Sugar. Save first and let the emit drive the render; never
+`update()` then `saveProfile()`.
+
+Identity colours are now explicit: `--person-me` (amber) and `--person-them`
+(rose), used in the legend to ring each face and tint each name to match their
+bar. They exist **only** for identity — state is never encoded in them.
+
 ## Known trade-offs
 
 - **`/kain` has no backups and is in daily real use.** Never delete or write

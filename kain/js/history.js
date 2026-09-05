@@ -1,7 +1,7 @@
 // History: the last week or month at a glance, plus a way back into any day.
 
 import { METRICS } from "./config.js";
-import { state, totalsFor, entriesFor, me, partner, onChange } from "./store.js";
+import { state, totalsFor, entriesFor, me, partner, onChange, saveProfile } from "./store.js";
 import {
   dayKey,
   daysBack,
@@ -14,6 +14,7 @@ import {
   icon,
   clamp,
   avatar,
+  haptic,
 } from "./util.js";
 import { openSheet } from "./ui.js";
 import { entryCardHTML } from "./today.js";
@@ -21,6 +22,7 @@ import { openAddSheet, openEntrySheet, partnerRowHTML, wirePartnerRows } from ".
 
 let root = null;
 let range = 7;
+let chartKey = "kcal"; // which metric the chart plots — tap the title to cycle
 
 export function mountHistory(container) {
   root = container;
@@ -39,7 +41,7 @@ export function mountHistory(container) {
     <section class="card streak-card" id="streakCard"></section>
     <section class="card chart-card">
       <div class="section-head section-head--tight">
-        <h2>Calories</h2>
+        <button class="chart-title tap" id="chartMetric" aria-label="Change metric"></button>
         <span class="section-note" id="chartNote"></span>
       </div>
       <div class="chart" id="chart"></div>
@@ -68,11 +70,22 @@ export function mountHistory(container) {
     if (bar) openDaySheet(bar.dataset.day);
   });
 
+  root.querySelector("#chartMetric").addEventListener("click", () => {
+    const i = METRICS.findIndex((m) => m.key === chartKey);
+    chartKey = METRICS[(i + 1) % METRICS.length].key;
+    haptic(8);
+    // Save first: saveProfile updates state.profile synchronously and then
+    // emits, and the re-render reads the saved value back. Rendering before the
+    // save meant the second tap read the stale one and bounced straight back.
+    saveProfile({ chartMetric: chartKey });
+  });
+
   updateHistory();
 }
 
 export function updateHistory() {
   if (!root) return;
+  if (METRICS.some((m) => m.key === state.profile?.chartMetric)) chartKey = state.profile.chartMetric;
   const keys = daysBack(range).reverse(); // oldest → newest
   // Shared history: every row carries both of you, so the whole screen answers
   // "how are WE doing" rather than just you.
@@ -147,22 +160,27 @@ function barLabel(key, i, total) {
 function renderChart(rows) {
   const meP = me();
   const otherP = partner();
-  const goal = num(state.profile?.goals?.kcal, 1500);
+  const metric = METRICS.find((m) => m.key === chartKey) || METRICS[0];
+  const goal = num(state.profile?.goals?.[metric.key], 1500);
   const peak = Math.max(
     goal * 1.15,
-    ...rows.map((r) => Math.max(r.t.net.kcal, r.p.net.kcal))
+    ...rows.map((r) => Math.max(r.t.net[metric.key], r.p.net[metric.key]))
   );
   const host = root.querySelector("#chart");
 
-  root.querySelector("#chartNote").textContent = `goal ${fmt(goal)} kcal`;
+  root.querySelector("#chartMetric").innerHTML = `${esc(metric.label)}${icon("swap_vert", "chart-swap")}`;
+  root.querySelector("#chartNote").textContent = `goal ${fmt(goal)} ${metric.unit}`;
 
   const bar = (t, who) => {
-    const h = clamp(t.net.kcal / peak, 0, 1) * 100;
-    const over = t.net.kcal > t.budget.kcal;
+    const h = clamp(t.net[metric.key] / peak, 0, 1) * 100;
+    const over = t.net[metric.key] > t.budget[metric.key];
     return `<span class="bar-half bar-half--${who} ${over ? "is-over" : ""} ${
       t.logged ? "" : "is-empty"
     }" style="height:${h.toFixed(1)}%"></span>`;
   };
+
+  const val = (t) =>
+    metric.key === "sugar_g" ? Math.round(t.net[metric.key] * 10) / 10 : fmt(t.net[metric.key]);
 
   const bars = rows
     .map((r, i) => {
@@ -170,9 +188,9 @@ function renderChart(rows) {
       return `
         <button class="bar-col ${isToday ? "is-today" : ""}" data-day="${r.key}"
                 style="--i:${Math.min(i, 30)}"
-                aria-label="${friendlyDate(r.key)}: you ${fmt(r.t.net.kcal)} kcal, ${esc(
+                aria-label="${friendlyDate(r.key)}: you ${val(r.t)} ${metric.unit}, ${esc(
         otherP.name
-      )} ${fmt(r.p.net.kcal)} kcal">
+      )} ${val(r.p)} ${metric.unit}">
           <span class="bar-track bar-track--pair">
             ${bar(r.t, "me")}${bar(r.p, "them")}
           </span>
@@ -183,8 +201,8 @@ function renderChart(rows) {
 
   host.innerHTML = `
     <div class="chart-legend">
-      <span class="chart-key">${avatar(meP, "who-initial--xs")}You</span>
-      <span class="chart-key">${avatar(otherP, "who-initial--xs")}${esc(otherP.name)}</span>
+      <span class="chart-key chart-key--me">${avatar(meP, "who-initial--xs")}You</span>
+      <span class="chart-key chart-key--them">${avatar(otherP, "who-initial--xs")}${esc(otherP.name)}</span>
     </div>
     <div class="chart-inner ${range === 30 ? "chart-inner--dense" : ""}">
       <span class="chart-goal"><i></i></span>

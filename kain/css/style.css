@@ -5,6 +5,11 @@
 :root {
   color-scheme: dark;
 
+  /* Whose bar is whose. Charlie yellow, Karla pink — used only for identity,
+     never for state. */
+  --person-me: #f59e0b;
+  --person-them: #f43f5e;
+
   --bg: #0b0a09;
   --bg-2: #121010;
   --surface: rgba(255, 255, 255, 0.045);
@@ -2308,12 +2313,42 @@ body.sheet-open {
   gap: 14px;
   margin-bottom: 10px;
 }
+/* The face is ringed in the same colour as the bar and the name matches it, so
+   "yellow is Charlie, pink is Karla" needs no explaining. */
 .chart-key {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   font-size: 11.5px;
-  color: var(--muted);
+  font-weight: 500;
+}
+.chart-key--me {
+  color: var(--person-me);
+}
+.chart-key--them {
+  color: var(--person-them);
+}
+.chart-key--me .who-initial {
+  box-shadow: 0 0 0 2px var(--person-me);
+}
+.chart-key--them .who-initial {
+  box-shadow: 0 0 0 2px var(--person-them);
+}
+
+/* The card title is a control: tap to cycle calories -> sugar -> sodium. */
+.chart-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  padding: 0;
+}
+.chart-swap {
+  font-size: 17px;
+  opacity: 0.5;
 }
 .who-initial--xs {
   width: 18px;
