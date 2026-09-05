@@ -279,6 +279,21 @@ portions can be adjusted first. Charlie's ask: "when I click same, makikita yung
 distribution bago i actually log it." She eats less than he does; the numbers
 rarely transfer one for one.
 
+## The offset is visible on the ring too (2026-09-05)
+
+`setRings(root, pcts, ghosts)` takes an optional third map. For calories it gets
+the *pre-offset* share, drawn as `.ring-give` on the same radius **underneath**
+the solid arc — so the only green that shows is the stretch between net and
+eaten. No arc-segment maths: it's the same dashoffset trick as a progress arc,
+just at a further percentage, hidden behind the one on top.
+
+**`setRings` no longer runs inside `requestAnimationFrame`.** The rAF was there
+to give the browser a "from" offset before transitioning, but rAF never fires in
+a throttled or background tab — the rings then sat empty until something else
+forced an update. It now forces a reflow (`void root.offsetWidth`) at the top of
+`setRings`, which does the same job and always runs. (Found because the test
+iframe was being throttled and the arcs stayed at zero.)
+
 ## Known trade-offs
 
 - **`/kain` has no backups and is in daily real use.** Never delete or write

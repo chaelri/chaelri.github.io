@@ -115,6 +115,10 @@ Three concentric arcs, calories outside. Two things about it are load-bearing:
   innermost arc (r=48, 14 stroke) leaves a hole 41% of the ring's width, and the
   `cqi` font sizes in `style.css` are tuned to it. Shrink the radius or fatten
   the stroke and "1,130" starts running over the sodium arc.
+- **The give-back shows on the ring.** When exercise offsets calories, a second
+  arc is drawn to where the ring *would* have reached before the offset, then
+  covered by the solid arc. Whatever green tail peeks past the solid end is
+  exactly what the workout clawed back — no extra maths, same dashoffset trick.
 - **The bubbles are inside the tubes**, like the coolant line on a watercooled
   PC. Each arc has a second dashed circle whose near-zero dashes render as dots,
   clipped by a mask that is the *filled* part of that arc — so bubbles exist

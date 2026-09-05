@@ -92,13 +92,15 @@ export function updateToday() {
   renderTimeline(today);
   renderPartner();
 
-  // A frame's delay so the browser has the "from" offsets before we animate.
-  requestAnimationFrame(() =>
-    setRings(root, {
+  setRings(
+    root,
+    {
       kcal: safePct(t.net.kcal, t.budget.kcal),
       sugar_g: safePct(t.net.sugar_g, t.budget.sugar_g),
       sodium_mg: safePct(t.net.sodium_mg, t.budget.sodium_mg),
-    })
+    },
+    // Where the ring would have reached without today's movement.
+    { kcal: safePct(t.kcal, t.budget.kcal) }
   );
 }
 

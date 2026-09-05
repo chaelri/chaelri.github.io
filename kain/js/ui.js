@@ -178,8 +178,20 @@ const RING_GEOM = [
 export function ringStackHTML() {
   const arcs = RING_GEOM.map(({ key, r }) => {
     const c = 2 * Math.PI * r;
+    // The "given back" arc is drawn to how much you ATE and then covered by the
+    // solid arc, which only reaches the net. Whatever green peeks out past the
+    // end of the solid arc is exactly what the workout clawed back — no extra
+    // maths, same dashoffset trick as a normal progress arc.
+    const give =
+      key === "kcal"
+        ? `
+      <circle class="ring-give" data-give="${key}" cx="100" cy="100" r="${r}"
+              stroke-width="${RING_STROKE}" stroke-linecap="round"
+              stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${c.toFixed(1)}"
+              data-circ="${c.toFixed(1)}" />`
+        : "";
     return `
-      <circle class="ring-track" cx="100" cy="100" r="${r}" stroke-width="${RING_STROKE}" />
+      <circle class="ring-track" cx="100" cy="100" r="${r}" stroke-width="${RING_STROKE}" />${give}
       <circle class="ring-arc ring-arc--${key}" data-ring="${key}" cx="100" cy="100" r="${r}"
               stroke-width="${RING_STROKE}" stroke-linecap="round"
               stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${c.toFixed(1)}"
@@ -238,8 +250,19 @@ export function ringStackHTML() {
     </div>`;
 }
 
-/** pcts: { kcal: 0.62, sugar_g: 1.2, ... } — over 1 is allowed and shows hot. */
-export function setRings(root, pcts) {
+/**
+ * pcts: { kcal: 0.62, ... } — the share of the goal that actually counts. Over
+ * 1 is allowed and shows hot.
+ * ghosts: { kcal: 0.78 } — optional, the share BEFORE exercise offset it. The
+ * stretch between the two renders as the give-back segment.
+ */
+export function setRings(root, pcts, ghosts = {}) {
+  // Flush layout so the arcs have a computed "from" offset to transition out
+  // of. This used to be a requestAnimationFrame, which never fires in a
+  // throttled or background tab — the rings would then sit empty until the next
+  // update. A forced reflow does the same job and always runs.
+  void root.offsetWidth;
+
   RING_GEOM.forEach(({ key }) => {
     const arc = root.querySelector(`[data-ring="${key}"]`);
     if (!arc) return;
@@ -250,6 +273,15 @@ export function setRings(root, pcts) {
     if (mask) mask.style.strokeDashoffset = String(circ * (1 - p));
     arc.classList.toggle("is-over", num(pcts[key]) > 1);
     arc.classList.toggle("is-near", num(pcts[key]) > 0.85 && num(pcts[key]) <= 1);
+
+    const give = root.querySelector(`[data-give="${key}"]`);
+    if (give) {
+      const g = clamp(num(ghosts[key]), 0, 1);
+      // Nothing to show unless the pre-offset figure is genuinely further along.
+      const visible = g > p + 0.004;
+      give.style.strokeDashoffset = String(circ * (1 - (visible ? g : p)));
+      give.classList.toggle("is-on", visible);
+    }
   });
 }
 
