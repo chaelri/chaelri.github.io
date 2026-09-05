@@ -456,8 +456,10 @@ The space behind the ring shows the day as weather: three blurred colour clouds
 own ring, so the card is nearly dark before breakfast and glows by evening.
 `renderAura(pcts)` in `today.js` writes `--lit` on each; the motion is pure CSS.
 
-- **One orbit duration, three delays.** All three run `auraOrbit` at 72 s with
-  delays 0 / −24 s / −48 s, which pins them 120° apart permanently. Three
+- **One orbit duration, three delays.** All three run `auraOrbit` at 28 s with
+  delays 0 / −9.33 s / −18.66 s, which pins them 120° apart permanently. 28 s is
+  the slowest lap where the travel actually reads as movement — the first pass
+  at 72 s looked like a static wash, which was Charlie's one note on it. Three
   different durations were tried first and they drift into each other, leaving
   one side of the card empty for minutes at a time. Breathing is a *separate*
   animation (`auraBreathe`, blur only — not opacity, which JS owns) on its own

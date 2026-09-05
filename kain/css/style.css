@@ -352,29 +352,31 @@ button:disabled {
   /* One shared orbit duration with thirds-of-a-turn delays keeps the three
      permanently 120 deg apart — three clouds on three durations drifted into
      each other and left one side of the card blank. Breathing is a separate
-     animation on its own clock so the layer still never quite repeats. */
+     animation on its own clock so the layer still never quite repeats.
+     28s is the slowest lap where the travel actually reads as movement rather
+     than as a static wash; much faster and it pulls the eye off the number. */
   animation:
-    auraOrbit 72s linear infinite var(--delay),
+    auraOrbit 28s linear infinite var(--delay),
     auraBreathe var(--bdur) ease-in-out infinite;
   will-change: transform, filter;
 }
 .hero-aura i[data-k="kcal"] {
   --hue: var(--kcal);
-  --r: 30%;
+  --r: 34%;
   --delay: 0s;
-  --bdur: 13s;
+  --bdur: 9s;
 }
 .hero-aura i[data-k="sugar_g"] {
   --hue: var(--sugar);
-  --r: 24%;
-  --delay: -24s;
-  --bdur: 17s;
+  --r: 27%;
+  --delay: -9.33s;
+  --bdur: 11s;
 }
 .hero-aura i[data-k="sodium_mg"] {
   --hue: var(--sodium);
-  --r: 34%;
-  --delay: -48s;
-  --bdur: 21s;
+  --r: 40%;
+  --delay: -18.66s;
+  --bdur: 14s;
 }
 @keyframes auraOrbit {
   from {
@@ -388,10 +390,10 @@ button:disabled {
 @keyframes auraBreathe {
   0%,
   100% {
-    filter: blur(24px);
+    filter: blur(20px);
   }
   50% {
-    filter: blur(38px);
+    filter: blur(40px);
   }
 }
 @media (prefers-reduced-motion: reduce) {
