@@ -13,6 +13,7 @@ import {
   totalsFor,
   recentMeals,
   recentWorkouts,
+  onChange,
 } from "./store.js";
 import {
   prepImage,
@@ -778,18 +779,26 @@ async function saveMove({
 
 export function openPartnerSheet(date = dayKey()) {
   const other = partner();
-  const list = entriesFor(date, state.partner.days);
-  const t = totalsFor(date, state.partner.days, state.partner.profile);
+  let unsub = null;
 
   openSheet({
     title: `${other.name}'s day`,
-    subtitle: list.length
-      ? `${t.meals} meal${t.meals === 1 ? "" : "s"}${t.burn ? ` · ${fmt(t.burn)} kcal burned` : ""}`
-      : "nothing logged yet",
     icon: "favorite",
     wide: true,
+    onClose: () => unsub?.(),
     build(body, sheet) {
-      body.innerHTML = `
+      // She may log while this is open, so it re-renders on store changes
+      // rather than freezing at whatever was true when it opened.
+      const render = () => {
+        const list = entriesFor(date, state.partner.days);
+        const t = totalsFor(date, state.partner.days, state.partner.profile);
+        sheet.setSubtitle(
+          list.length
+            ? `${t.meals} meal${t.meals === 1 ? "" : "s"}${t.burn ? ` · ${fmt(t.burn)} kcal burned` : ""}`
+            : "nothing logged yet"
+        );
+        const scroll = body.scrollTop;
+        body.innerHTML = `
         <div class="totals">
           ${METRICS.map((m) => {
             const over = t.net[m.key] > t.budget[m.key];
@@ -807,8 +816,12 @@ export function openPartnerSheet(date = dayKey()) {
             : `<p class="muted-note">${esc(other.name)} hasn't logged anything today.</p>`
         }`;
 
-      wirePartnerRows(body, list, other);
-      void sheet;
+        body.scrollTop = scroll;
+        wirePartnerRows(body, list, other);
+      };
+
+      render();
+      unsub = onChange(render);
     },
   });
 }

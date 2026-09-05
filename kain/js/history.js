@@ -1,7 +1,7 @@
 // History: the last week or month at a glance, plus a way back into any day.
 
 import { METRICS } from "./config.js";
-import { state, totalsFor, entriesFor, me, partner } from "./store.js";
+import { state, totalsFor, entriesFor, me, partner, onChange } from "./store.js";
 import {
   dayKey,
   daysBack,
@@ -290,20 +290,9 @@ function renderDays(rows) {
 /* ---------------------------------------------------------- day sheet --- */
 
 export function openDaySheet(date) {
-  const mine = totalsFor(date);
-  const theirs = totalsFor(date, state.partner.days, state.partner.profile);
-  const myList = entriesFor(date);
-  const theirList = entriesFor(date, state.partner.days);
   const meP = me();
   const otherP = partner();
-
-  const bits = [];
-  if (mine.meals || theirs.meals) bits.push(`${mine.meals + theirs.meals} meals`);
-  if (mine.workouts || theirs.workouts) {
-    const n = mine.workouts + theirs.workouts;
-    bits.push(`${n} workout${n === 1 ? "" : "s"}`);
-  }
-  if (!bits.length) bits.push("nothing logged");
+  let unsub = null;
 
   // Same pills as the day rows in the list behind this sheet, so the numbers
   // look like the ones you just tapped.
@@ -336,25 +325,51 @@ export function openDaySheet(date) {
 
   openSheet({
     title: friendlyDate(date),
-    subtitle: /^(Today|Yesterday)$/.test(friendlyDate(date))
-      ? `${weekdayLabel(date)}, ${shortDateLabel(date)} · ${bits.join(" · ")}`
-      : bits.join(" · "),
     icon: "calendar_month",
     wide: true,
     split: true,
-    build(body) {
-      body.innerHTML = `
-        <div class="day-split">
-          ${side(meP, mine, myList.map((e) => entryCardHTML(e, date)).join(""), true)}
-          ${side(otherP, theirs, theirList.map(partnerRowHTML).join(""), false)}
-        </div>`;
+    onClose: () => unsub?.(),
+    build(body, sheet) {
+      // Logging from inside this sheet has to show up in it. The sheet is built
+      // once, so without re-rendering on store changes the new entry lands in
+      // Firebase and the list you are looking at stays stale.
+      const render = () => {
+        const mine = totalsFor(date);
+        const theirs = totalsFor(date, state.partner.days, state.partner.profile);
+        const myList = entriesFor(date);
+        const theirList = entriesFor(date, state.partner.days);
 
-      body.querySelector('[data-side="me"]').addEventListener("click", (e) => {
-        const card = e.target.closest(".entry");
-        if (card) openEntrySheet(card.dataset.date, card.dataset.id);
-      });
-      wirePartnerRows(body.querySelector('[data-side="them"]'), theirList, otherP);
-      body.querySelector("#dsAdd").onclick = () => openAddSheet(date);
+        const bits = [];
+        const meals = mine.meals + theirs.meals;
+        const workouts = mine.workouts + theirs.workouts;
+        if (meals) bits.push(`${meals} meal${meals === 1 ? "" : "s"}`);
+        if (workouts) bits.push(`${workouts} workout${workouts === 1 ? "" : "s"}`);
+        if (!bits.length) bits.push("nothing logged");
+        sheet.setSubtitle(
+          /^(Today|Yesterday)$/.test(friendlyDate(date))
+            ? `${weekdayLabel(date)}, ${shortDateLabel(date)} · ${bits.join(" · ")}`
+            : bits.join(" · ")
+        );
+
+        // Re-rendering under someone's finger shouldn't move the page.
+        const scroll = body.scrollTop;
+        body.innerHTML = `
+          <div class="day-split">
+            ${side(meP, mine, myList.map((e) => entryCardHTML(e, date)).join(""), true)}
+            ${side(otherP, theirs, theirList.map(partnerRowHTML).join(""), false)}
+          </div>`;
+        body.scrollTop = scroll;
+
+        body.querySelector('[data-side="me"]').addEventListener("click", (e) => {
+          const card = e.target.closest(".entry");
+          if (card) openEntrySheet(card.dataset.date, card.dataset.id);
+        });
+        wirePartnerRows(body.querySelector('[data-side="them"]'), theirList, otherP);
+        body.querySelector("#dsAdd").onclick = () => openAddSheet(date);
+      };
+
+      render();
+      unsub = onChange(render);
     },
   });
 }

@@ -380,6 +380,23 @@ Responsive on purpose: **stacked with a horizontal seam on a phone, two columns
 divided by a vertical rule from `md` up**, where `openSheet({ split: true })`
 also widens the panel from 620 to 880 px so entry rows aren't squeezed.
 
+## Sheets have to listen (2026-09-05)
+
+`openSheet` builds its body **once**, which is fine for a form and wrong for
+anything showing live data. Logging from inside the day sheet wrote to Firebase
+and left the list you were staring at unchanged — Charlie had to close and
+reopen it.
+
+`openDaySheet` and `openPartnerSheet` now wrap their markup in a `render()`,
+call it once, and subscribe with `onChange(render)`, unsubscribing in
+`onClose`. Both preserve `body.scrollTop` across the re-render so the page
+doesn't jump under your finger, and update the subtitle through
+`sheet.setSubtitle` rather than freezing the counts from build time.
+
+Any future sheet that displays entries or totals needs the same treatment. The
+review and confirm sheets deliberately do not: they're forms holding a draft,
+and re-rendering them would throw away what you were typing.
+
 ## Known trade-offs
 
 - **`/kain` has no backups and is in daily real use.** Never delete or write
