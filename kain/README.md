@@ -32,6 +32,9 @@ RTDB paths, one small read-only card each so you can see how the other is doing.
   MET and we do the arithmetic: `kcal/min = MET × 3.5 × kg / 200`.
 - **Steps** — `kcal ≈ steps × kg × 0.0004` (≈0.5 kcal per kg per km, ~1,250
   steps to a km). 10k steps ≈ 256 kcal at 64 kg.
+- **Same as your partner** — the partner card on Today opens their full day,
+  and every row has a one-tap **Same** that copies it onto your log. You eat the
+  same food most days; this is the shortcut that gets used.
 - **Log again** — repeat any past meal onto today with no AI call at all. The
   same shortcut sits under "Had it again?" in the typed-meal sheet: your last 5
   distinct meals as chips with their calorie counts, and tapping one opens the
@@ -41,6 +44,30 @@ RTDB paths, one small read-only card each so you can see how the other is doing.
 
 Burned calories are added back to the **calorie** budget only (toggle in Me).
 You can't out-walk salt, so sugar and sodium never move.
+
+## Discord
+
+Every **new** log posts an embed to our channel — who ate what, the item
+breakdown, the three numbers, and a text meter for the whole day. Edits and
+deletes stay quiet so the channel keeps being worth reading.
+
+**The webhook URL is not in this repo and must never be.** This is a static
+site on GitHub Pages: anything the client holds is public, and bots scrape
+public repos for Discord webhook URLs specifically. The URL lives on the Cloud
+Run proxy as `KAIN_DISCORD_WEBHOOK`; the browser posts a plain summary to
+`POST /kain-notify` and only the proxy knows where it goes.
+
+```bash
+gcloud run services update gemini-proxy --region asia-southeast1 \
+  --update-env-vars KAIN_DISCORD_WEBHOOK=<url>
+```
+
+That endpoint is public, so it is deliberately boring: strict payload shape,
+hard caps on every number and string, `@everyone` / `@here` neutralised plus
+`allowed_mentions: []`, and a rolling limit of 30/hour per IP and 120/hour
+overall. Worst case someone wastes our quota — they still never learn the URL.
+If it does leak, delete the webhook in Discord and make a new one; the URL is
+the entire credential.
 
 ## Data
 

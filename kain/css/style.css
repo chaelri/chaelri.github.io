@@ -491,6 +491,9 @@ button:disabled {
 .tone-sodium {
   color: var(--sodium);
 }
+.tone-burn {
+  color: var(--burn);
+}
 
 .hero-chips {
   display: flex;
@@ -691,6 +694,43 @@ button:disabled {
   opacity: 0.75;
 }
 
+/* One tap to say "we ate the same thing" — the whole point of two people
+   logging side by side. */
+.entry--partner {
+  cursor: default;
+}
+.entry--partner .entry-sub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.entry--partner:active {
+  transform: none;
+}
+.same-btn {
+  flex: 0 0 auto;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 8px 12px 8px 9px;
+  border-radius: 999px;
+  background: rgba(251, 191, 36, 0.13);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  color: var(--kcal);
+  font-size: 12.5px;
+  font-weight: 500;
+}
+.same-btn .material-symbols-rounded,
+.same-btn .material-symbols-outlined {
+  font-size: 17px;
+}
+.same-btn.is-done {
+  background: rgba(52, 211, 153, 0.14);
+  border-color: rgba(52, 211, 153, 0.35);
+  color: var(--burn);
+}
+
 .empty {
   display: flex;
   flex-direction: column;
@@ -750,7 +790,21 @@ button:disabled {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  width: 100%;
   padding: 14px 16px;
+  text-align: left;
+}
+.partner-head-text {
+  flex: 1;
+  min-width: 0;
+}
+/* What she actually ate — the names are the part worth reading at a glance. */
+.partner-names {
+  font-size: 12.5px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .partner--quiet {
   flex-direction: row;
@@ -765,10 +819,12 @@ button:disabled {
   gap: 10px;
 }
 .partner-name {
+  display: block;
   font-size: 14px;
   font-weight: 500;
 }
 .partner-sub {
+  display: block;
   font-size: 12px;
   color: var(--faint);
 }

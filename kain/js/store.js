@@ -34,6 +34,7 @@ import {
   partnerOf,
 } from "./config.js";
 import { dayKey, num, uid } from "./util.js";
+import { notifyEntry } from "./notify.js";
 
 const WHO_KEY = "kain.who";
 const CACHE_KEY = (who) => `kain.cache.${who}`;
@@ -297,6 +298,10 @@ export async function addEntry(entry) {
   const value = { ...entry, id, date, ts: entry.ts || Date.now() };
   delete value.date; // the day key already carries the date
   localWrite(date, id, value);
+  // Every *new* log pings Discord. Hooking it here rather than at each call
+  // site means edits and deletes stay quiet, which is what keeps the channel
+  // worth reading.
+  notifyEntry({ who: state.who, entry: value, totals: totalsFor(date) });
   if (db) await set(ref(db, `${DB_ROOT}/users/${state.who}/days/${date}/${id}`), value);
   return { id, date, entry: value };
 }

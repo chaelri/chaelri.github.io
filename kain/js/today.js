@@ -268,30 +268,39 @@ function renderPartner() {
     return;
   }
 
+  // A peek at what she actually ate — the names are the interesting part, and
+  // tapping opens her full day with a one-tap "Same" on every row.
+  const names = entriesFor(today, state.partner.days)
+    .filter((e) => e.kind !== "exercise")
+    .map((e) => e.title)
+    .filter(Boolean);
+
   const rows = METRICS.map((m) => {
     const pct = clamp(safePct(t[m.key], t.budget[m.key]), 0, 1);
     const over = t[m.key] > t.budget[m.key];
     return `
-      <div class="partner-metric tone-${m.tone}">
+      <span class="partner-metric tone-${m.tone}">
         <span class="partner-metric-label">${m.short}</span>
         <span class="legend-bar ${over ? "is-over" : ""}"><i style="transform:scaleX(${pct.toFixed(3)})"></i></span>
         <span class="partner-metric-value ${over ? "is-over" : ""}">${
           m.key === "sugar_g" ? Math.round(t[m.key] * 10) / 10 : fmt(t[m.key])
         }<i>${m.unit}</i></span>
-      </div>`;
+      </span>`;
   }).join("");
 
   host.innerHTML = `
-    <div class="partner card">
-      <div class="partner-head">
+    <button type="button" class="partner card tap" data-partner="1">
+      <span class="partner-head">
         <span class="who-initial who-initial--sm" data-accent="${other.accent}">${other.initial}</span>
-        <div>
-          <p class="partner-name">${esc(other.name)}'s day</p>
-          <p class="partner-sub">${t.meals} meal${t.meals === 1 ? "" : "s"}${
+        <span class="partner-head-text">
+          <span class="partner-name">${esc(other.name)}'s day</span>
+          <span class="partner-sub">${t.meals} meal${t.meals === 1 ? "" : "s"}${
             t.burn ? ` · ${fmt(t.burn)} kcal burned` : ""
-          }</p>
-        </div>
-      </div>
-      <div class="partner-metrics">${rows}</div>
-    </div>`;
+          }</span>
+        </span>
+        ${icon("chevron_right", "entry-chevron")}
+      </span>
+      ${names.length ? `<span class="partner-names">${esc(names.slice(0, 3).join(" · "))}${names.length > 3 ? ` +${names.length - 3}` : ""}</span>` : ""}
+      <span class="partner-metrics">${rows}</span>
+    </button>`;
 }

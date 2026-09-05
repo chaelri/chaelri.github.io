@@ -198,6 +198,43 @@ prefilled and costs nothing. Workouts recompute the burn against the current
 weight rather than reusing the stored number. The invented examples remain as
 the empty-history fallback.
 
+## Discord notifications (2026-09-05)
+
+Every new log posts an embed to the couple's Discord channel: author line
+("Charlie ate something"), the dish, the item breakdown, three inline fields,
+and `▰▱` meters for the day. Amber for Charlie, rose for Karla, green for
+movement, red when the day is over any goal. A meal's stored thumbnail rides
+along as a multipart attachment so the post shows the actual plate.
+
+**The webhook URL is server-side only.** kain is static GitHub Pages, so a URL
+in the bundle is public, and scrapers hunt Discord webhooks specifically —
+GitHub's own push protection blocks them for that reason. It lives on Cloud Run
+as `KAIN_DISCORD_WEBHOOK`; the client posts a summary to `POST /kain-notify` on
+`gemini-proxy` and only that service knows the destination.
+
+The endpoint is public, so it is hardened rather than trusted: whitelisted
+`who`, whitelisted `kind`, every number clamped, every string capped,
+`@everyone`/`@here` defanged plus `allowed_mentions: { parse: [] }`, image capped
+at 400 KB, and a rolling 30/hour per IP + 120/hour global limit. A missing env
+var returns `{ok:true, skipped}` — a notification must never surface as an error
+while someone is mid-log.
+
+Wired at **`addEntry` in store.js**, not at each call site, so edits and deletes
+stay silent by construction.
+
+## Seeing each other's day (2026-09-05)
+
+The partner card on Today now lists the other person's actual meal names and
+opens `openPartnerSheet()` — their totals plus every entry, each with a one-tap
+**Same** button that copies the row onto *your* day (new id, current timestamp).
+Read-only on their side: copying only ever writes to the tapper's own subtree.
+Charlie's framing: "parang ganon magasawa namin kami e."
+
+Also: the AI tweak box in the review sheet used to render only for a fresh photo
+or fresh typed meal, so a meal you came back to had no way to ask for a change.
+It is always present now; without a photo the re-read describes the current
+draft (title, brand, items) and appends the correction.
+
 ## Known trade-offs
 
 - **`/kain` has no backups and is in daily real use.** Never delete or write

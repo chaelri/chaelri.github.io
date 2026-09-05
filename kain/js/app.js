@@ -7,7 +7,14 @@ import { tactile, toast } from "./ui.js";
 import { mountToday, updateToday } from "./today.js";
 import { mountHistory, updateHistory } from "./history.js";
 import { mountProfile, updateProfile, openWhoSheet } from "./profile.js";
-import { openAddSheet, openEntrySheet, openDescribeSheet, openMoveSheet, pickImage } from "./entry.js";
+import {
+  openAddSheet,
+  openEntrySheet,
+  openDescribeSheet,
+  openMoveSheet,
+  openPartnerSheet,
+  pickImage,
+} from "./entry.js";
 
 const VIEWS = {
   today: { mount: mountToday, update: updateToday, mounted: false },
@@ -187,6 +194,10 @@ $("#app").addEventListener("click", (e) => {
   const who = e.target.closest("#whoChip");
   if (who) {
     openWhoSheet();
+    return;
+  }
+  if (e.target.closest("[data-partner]")) {
+    openPartnerSheet();
     return;
   }
   const add = e.target.closest("[data-add]");

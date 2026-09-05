@@ -2,7 +2,18 @@
 // and the review sheet where the AI's guess can be argued with.
 
 import { METRICS } from "./config.js";
-import { state, addEntry, updateEntry, deleteEntry, me, recentMeals, recentWorkouts } from "./store.js";
+import {
+  state,
+  addEntry,
+  updateEntry,
+  deleteEntry,
+  me,
+  partner,
+  entriesFor,
+  totalsFor,
+  recentMeals,
+  recentWorkouts,
+} from "./store.js";
 import {
   prepImage,
   analyzeMealPhoto,
@@ -273,17 +284,13 @@ export function openReviewSheet({ date, analysis, thumb = "", photo = null, sour
           </div>
           <div class="items" id="rvItems"></div>
 
-          ${
-            photo || typed
-              ? `<div class="fixit">
-                   <p class="fixit-label">${icon("psychology_alt", "sm")}Not quite right? Tell me what it really is.</p>
-                   <div class="fixit-row">
-                     <input id="rvHint" placeholder="e.g. tapsilog, 2 cups rice" />
-                     <button class="btn btn-soft tap" id="rvRerun">${icon("refresh")}</button>
-                   </div>
-                 </div>`
-              : ""
-          }
+          <div class="fixit">
+            <p class="fixit-label">${icon("psychology_alt", "sm")}Not quite right? Tell me what to change.</p>
+            <div class="fixit-row">
+              <input id="rvHint" placeholder="e.g. 2 cups rice, no egg" />
+              <button class="btn btn-soft tap" id="rvRerun">${icon("refresh")}</button>
+            </div>
+          </div>
 
           <label class="field field--inline" for="rvTime">
             <span class="field-label">${icon("schedule", "sm")}When</span>
@@ -351,9 +358,19 @@ export function openReviewSheet({ date, analysis, thumb = "", photo = null, sour
           rerun.disabled = true;
           rerun.innerHTML = `<span class="spinner"></span>`;
           try {
+            const describeDraft = () =>
+              [
+                draft.title,
+                draft.brand ? `(${draft.brand})` : "",
+                draft.items.map((i) => `${i.name}${i.qty ? ` ${i.qty}` : ""}`).join(", "),
+              ]
+                .filter(Boolean)
+                .join(" — ");
             const next = photo
               ? await analyzeMealPhoto({ ...photo, hint, previous: draft })
-              : await analyzeMealText(`${typed}. Correction: ${hint}`);
+              : await analyzeMealText(
+                  `${typed || describeDraft()}. Correction from the person who ate it: ${hint}`
+                );
             draft.title = next.title || draft.title;
             draft.brand = next.brand || draft.brand;
             draft.items = next.items.map((i) => ({ ...i, _id: uid() }));
@@ -692,6 +709,100 @@ async function saveMove({ date, title, activity, minutes = 0, steps = 0, burn, m
   haptic(14);
   burst($("#fab"));
   toast(`+${fmt(payload.burn)} kcal back in the budget`, { tone: "good", icon: "bolt" });
+}
+
+
+/* ------------------------------------------------------- partner's day --- */
+/* You two eat the same food most days, so seeing the other's log and copying a
+   row onto your own is the shortcut that actually gets used. Read-only on their
+   side — copying writes to YOUR day, never to theirs. */
+
+export function openPartnerSheet(date = dayKey()) {
+  const other = partner();
+  const list = entriesFor(date, state.partner.days);
+  const t = totalsFor(date, state.partner.days, state.partner.profile);
+
+  openSheet({
+    title: `${other.name}'s day`,
+    subtitle: list.length
+      ? `${t.meals} meal${t.meals === 1 ? "" : "s"}${t.burn ? ` · ${fmt(t.burn)} kcal burned` : ""}`
+      : "nothing logged yet",
+    icon: "favorite",
+    wide: true,
+    build(body, sheet) {
+      body.innerHTML = `
+        <div class="totals">
+          ${METRICS.map((m) => {
+            const over = t[m.key] > t.budget[m.key];
+            return `
+              <div class="total tone-${m.tone} ${over ? "is-over" : ""}">
+                <span class="total-value">${m.key === "sugar_g" ? Math.round(t[m.key] * 10) / 10 : fmt(t[m.key])}</span>
+                <span class="total-unit">of ${fmt(t.budget[m.key])} ${m.unit}</span>
+                <span class="total-label">${m.label}</span>
+              </div>`;
+          }).join("")}
+        </div>
+        ${
+          list.length
+            ? `<div class="timeline timeline--sheet">${list.map(partnerRowHTML).join("")}</div>`
+            : `<p class="muted-note">${esc(other.name)} hasn't logged anything today.</p>`
+        }`;
+
+      body.addEventListener("click", async (e) => {
+        const btn = e.target.closest("[data-copy]");
+        if (!btn) return;
+        const src = list.find((x) => x.id === btn.dataset.copy);
+        if (!src || btn.disabled) return;
+
+        btn.disabled = true;
+        btn.innerHTML = `<span class="spinner"></span>`;
+        try {
+          await addEntry({ ...src, id: undefined, date: dayKey(), ts: Date.now() });
+          haptic(14);
+          burst(btn);
+          btn.classList.add("is-done");
+          btn.innerHTML = `${icon("check")}Logged`;
+          toast(
+            src.kind === "exercise" ? "Same workout logged" : `Same as ${other.name} — logged`,
+            { tone: "good", icon: "favorite" }
+          );
+        } catch {
+          btn.disabled = false;
+          btn.innerHTML = `${icon("add")}Same`;
+          toast("Couldn't save — check your connection", { tone: "danger" });
+        }
+      });
+      void sheet;
+    },
+  });
+}
+
+function partnerRowHTML(e) {
+  const isMove = e.kind === "exercise";
+  const thumb = e.thumb
+    ? `<img src="${e.thumb}" alt="" loading="lazy" />`
+    : icon(isMove ? "directions_run" : "restaurant");
+
+  const stats = isMove
+    ? `<span class="stat tone-burn">−${fmt(e.burn)}<i>kcal</i></span>`
+    : `<span class="stat tone-kcal">${fmt(e.kcal)}<i>kcal</i></span>
+       <span class="stat tone-sugar">${Math.round(num(e.sugar_g) * 10) / 10}<i>g</i></span>
+       <span class="stat tone-sodium">${fmt(e.sodium_mg)}<i>mg</i></span>`;
+
+  return `
+    <article class="entry entry--partner">
+      <div class="entry-thumb${isMove ? " entry-thumb--move" : ""}">${thumb}</div>
+      <div class="entry-main">
+        <p class="entry-title"><span class="entry-name">${esc(e.title || "Meal")}</span></p>
+        <p class="entry-sub">${esc(clockLabel(e.ts))}${e.brand ? ` · ${esc(e.brand)}` : ""}${
+          !isMove && e.items?.length ? ` · ${e.items.length} item${e.items.length === 1 ? "" : "s"}` : ""
+        }${isMove && e.minutes ? ` · ${fmt(e.minutes)} min` : ""}</p>
+        <div class="entry-stats">${stats}</div>
+      </div>
+      <button class="same-btn tap" data-copy="${esc(e.id)}" aria-label="Log the same">
+        ${icon("add")}Same
+      </button>
+    </article>`;
 }
 
 /* ------------------------------------------------------ entry details --- */

@@ -676,6 +676,212 @@ app.get("/bible/:book/:chapter", async (req, res) => {
   }
 });
 
+
+// ---------------------------------------------------------------------------
+// Kain → Discord
+// ---------------------------------------------------------------------------
+// The webhook URL lives here as an env var and NEVER reaches the browser. kain
+// is a static GitHub Pages app, so anything the client holds is public, and
+// scrapers hunt for Discord webhook URLs specifically — one in the bundle would
+// be spamming the channel within days. The browser posts a plain summary here
+// and this service is the only thing that knows where it goes.
+//
+// Set it with:
+//   gcloud run services update gemini-proxy --region asia-southeast1 \
+//     --update-env-vars KAIN_DISCORD_WEBHOOK=<url>
+// If it ever leaks, delete the webhook in Discord and make a new one — the URL
+// is the entire credential.
+
+const KAIN_PEOPLE = {
+  charlie: { name: "Charlie", color: 0xfbbf24 },
+  karla: { name: "Karla", color: 0xfb7185 },
+};
+const KAIN_ICON = "https://chaelri.github.io/kain/assets/icons/icon-192.png";
+const KAIN_OVER_COLOR = 0xff3b30;
+const KAIN_MOVE_COLOR = 0x34d399;
+
+// Anyone can find this endpoint, so it is deliberately boring: a strict payload
+// shape, hard caps, and a rolling limit per IP and overall. Worst case someone
+// wastes our quota; they still never learn the webhook.
+const _kainHits = [];
+const _kainByIp = new Map();
+function kainRateLimited(ip) {
+  const now = Date.now();
+  const hour = 60 * 60 * 1000;
+  while (_kainHits.length && now - _kainHits[0] > hour) _kainHits.shift();
+  if (_kainHits.length >= 120) return true;
+
+  const mine = (_kainByIp.get(ip) || []).filter((t) => now - t < hour);
+  if (mine.length >= 30) {
+    _kainByIp.set(ip, mine);
+    return true;
+  }
+  mine.push(now);
+  _kainByIp.set(ip, mine);
+  _kainHits.push(now);
+  if (_kainByIp.size > 500) _kainByIp.clear();
+  return false;
+}
+
+const kainNum = (v, max) => {
+  const n = Number(v);
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return Math.min(Math.round(n * 10) / 10, max);
+};
+// Zero-width space after @ neutralises @everyone / @here even before
+// allowed_mentions does; the text is user-typed and lands in a shared channel.
+const kainText = (v, max) =>
+  String(v ?? "").replace(/@(everyone|here)/gi, "@\u200b$1").slice(0, max).trim();
+
+const kainFmt = (n) => Math.round(n).toLocaleString("en-US");
+
+function kainBuildEmbed(body) {
+  const person = KAIN_PEOPLE[body.who];
+  const isMove = body.kind === "exercise";
+  const title = kainText(body.title, 80) || (isMove ? "Movement" : "Meal");
+  const brand = kainText(body.brand, 60);
+  const day = body.day || {};
+  const goals = day.budget || {};
+
+  const over =
+    kainNum(day.kcal, 99999) > kainNum(goals.kcal, 99999) ||
+    kainNum(day.sugar_g, 9999) > kainNum(goals.sugar_g, 9999) ||
+    kainNum(day.sodium_mg, 99999) > kainNum(goals.sodium_mg, 99999);
+
+  const fields = isMove
+    ? [
+        { name: "Burned", value: `**${kainFmt(kainNum(body.burn, 5000))}** kcal`, inline: true },
+        ...(body.minutes ? [{ name: "Duration", value: `${kainFmt(kainNum(body.minutes, 1440))} min`, inline: true }] : []),
+        ...(body.steps ? [{ name: "Steps", value: kainFmt(kainNum(body.steps, 200000)), inline: true }] : []),
+      ]
+    : [
+        { name: "Calories", value: `**${kainFmt(kainNum(body.kcal, 20000))}** kcal`, inline: true },
+        { name: "Sugar", value: `**${kainNum(body.sugar_g, 2000)}** g`, inline: true },
+        { name: "Sodium", value: `**${kainFmt(kainNum(body.sodium_mg, 50000))}** mg`, inline: true },
+      ];
+
+  // A little text meter so the day reads at a glance without opening the app.
+  const bar = (used, goal) => {
+    const g = kainNum(goal, 99999) || 1;
+    const filled = Math.max(0, Math.min(10, Math.round((kainNum(used, 99999) / g) * 10)));
+    return "▰".repeat(filled) + "▱".repeat(10 - filled);
+  };
+
+  const lines = [];
+  if (Array.isArray(body.items) && body.items.length) {
+    lines.push(
+      body.items
+        .slice(0, 8)
+        .map((i) => {
+          const qty = kainText(i.qty, 40);
+          return `· ${kainText(i.name, 60)}${qty ? ` — ${qty}` : ""}`;
+        })
+        .join("\n")
+    );
+  }
+  if (goals.kcal) {
+    lines.push(
+      "",
+      `\`${bar(day.kcal, goals.kcal)}\` ${kainFmt(kainNum(day.kcal, 99999))} / ${kainFmt(kainNum(goals.kcal, 99999))} kcal`,
+      `\`${bar(day.sugar_g, goals.sugar_g)}\` ${kainNum(day.sugar_g, 9999)} / ${kainNum(goals.sugar_g, 9999)} g sugar`,
+      `\`${bar(day.sodium_mg, goals.sodium_mg)}\` ${kainFmt(kainNum(day.sodium_mg, 99999))} / ${kainFmt(kainNum(goals.sodium_mg, 99999))} mg sodium`
+    );
+  }
+
+  const embed = {
+    author: {
+      name: `${person.name} ${isMove ? "moved" : "ate something"}`,
+      icon_url: KAIN_ICON,
+      url: "https://chaelri.github.io/kain/",
+    },
+    title: brand ? `${title} · ${brand}` : title,
+    color: isMove ? KAIN_MOVE_COLOR : over ? KAIN_OVER_COLOR : person.color,
+    fields,
+    timestamp: new Date().toISOString(),
+    footer: {
+      text: over ? "over a goal today" : isMove ? "earned back into today's budget" : "kain",
+    },
+  };
+  const description = lines.join("\n").slice(0, 1800);
+  if (description) embed.description = description;
+  return embed;
+}
+
+// Discord takes a file only as multipart; hand-rolled so the service keeps its
+// dependency list short.
+function kainMultipart(payload, jpeg) {
+  const boundary = `kain${Math.random().toString(36).slice(2)}`;
+  const head = Buffer.from(
+    `--${boundary}\r\n` +
+      `Content-Disposition: form-data; name="payload_json"\r\n` +
+      `Content-Type: application/json\r\n\r\n` +
+      `${JSON.stringify(payload)}\r\n` +
+      `--${boundary}\r\n` +
+      `Content-Disposition: form-data; name="files[0]"; filename="meal.jpg"\r\n` +
+      `Content-Type: image/jpeg\r\n\r\n`
+  );
+  const tail = Buffer.from(`\r\n--${boundary}--\r\n`);
+  return { boundary, body: Buffer.concat([head, jpeg, tail]) };
+}
+
+app.post("/kain-notify", async (req, res) => {
+  const url = process.env.KAIN_DISCORD_WEBHOOK;
+  // Silent success when unconfigured — a missing webhook must never surface as
+  // an error in the app while someone is logging a meal.
+  if (!url) return res.json({ ok: true, skipped: "not configured" });
+
+  const ip = (req.headers["x-forwarded-for"] || "").split(",")[0].trim() || req.ip || "unknown";
+  if (kainRateLimited(ip)) return res.status(429).json({ error: "slow down" });
+
+  try {
+    const body = req.body || {};
+    if (!KAIN_PEOPLE[body.who]) return res.status(400).json({ error: "unknown who" });
+    if (body.kind !== "meal" && body.kind !== "exercise") {
+      return res.status(400).json({ error: "unknown kind" });
+    }
+
+    const payload = {
+      username: "Kain",
+      avatar_url: KAIN_ICON,
+      embeds: [kainBuildEmbed(body)],
+      // Nothing this endpoint posts may ever ping the channel.
+      allowed_mentions: { parse: [] },
+    };
+
+    let jpeg = null;
+    if (typeof body.thumb === "string" && body.thumb.startsWith("data:image/jpeg;base64,")) {
+      const buf = Buffer.from(body.thumb.slice(23), "base64");
+      if (buf.length > 0 && buf.length <= 400 * 1024) jpeg = buf;
+    }
+    if (jpeg) payload.embeds[0].thumbnail = { url: "attachment://meal.jpg" };
+
+    const r = jpeg
+      ? await (async () => {
+          const { boundary, body: mp } = kainMultipart(payload, jpeg);
+          return fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": `multipart/form-data; boundary=${boundary}` },
+            body: mp,
+          });
+        })()
+      : await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+    if (!r.ok) {
+      const text = await r.text();
+      console.error("Discord webhook failed", r.status, text.slice(0, 200));
+      return res.status(502).json({ error: "webhook rejected" });
+    }
+    res.json({ ok: true });
+  } catch (e) {
+    console.error("kain-notify error:", e);
+    res.status(500).json({ error: "notify failed" });
+  }
+});
+
 // Health check — also acts as the warm-up target hit from the devo app on
 // page load to keep the Cloud Run container alive and skip cold starts.
 app.get("/", (_req, res) => res.json({ status: "ok" }));
