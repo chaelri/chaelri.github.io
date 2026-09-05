@@ -1,7 +1,7 @@
 // The Today screen: three rings, what's left, and the day's timeline.
 
 import { METRICS } from "./config.js";
-import { state, totalsFor, entriesFor, me, partner } from "./store.js";
+import { state, totalsFor, entriesFor, me, partner, saveProfile } from "./store.js";
 import {
   dayKey,
   longDateLabel,
@@ -14,6 +14,8 @@ import {
   icon,
   countUp,
   clamp,
+  haptic,
+  avatar,
 } from "./util.js";
 import { ringStackHTML, setRings } from "./ui.js";
 
@@ -21,6 +23,7 @@ const METRIC_BY_KEY = Object.fromEntries(METRICS.map((m) => [m.key, m]));
 
 let root = null;
 let focusKey = "kcal"; // which metric the middle of the rings reports
+let centerMode = "left"; // "left" = what's still available, "total" = what's used
 let seenIds = new Set(); // so only genuinely new cards animate in
 
 export function mountToday(container) {
@@ -68,6 +71,16 @@ export function mountToday(container) {
     focusKey = row.dataset.metric;
     renderCenter();
     root.querySelectorAll("[data-metric]").forEach((r) => r.classList.toggle("is-focus", r === row));
+    // Remembered per person, so the ring opens the way you left it on either
+    // phone rather than resetting to calories every time.
+    saveProfile({ ringMetric: focusKey });
+  });
+
+  root.querySelector("#ringCenter").addEventListener("click", () => {
+    centerMode = centerMode === "left" ? "total" : "left";
+    haptic(8);
+    renderCenter();
+    saveProfile({ ringMode: centerMode });
   });
 
   updateToday();
@@ -79,12 +92,16 @@ export function updateToday() {
   const person = me();
   const t = totalsFor(today);
 
+  // The saved display wins — including when it arrives from the other device.
+  if (METRIC_BY_KEY[state.profile?.ringMetric]) focusKey = state.profile.ringMetric;
+  centerMode = state.profile?.ringMode === "total" ? "total" : "left";
+
   root.querySelector("#dayGreeting").textContent = `${greeting()}, ${person.name.toLowerCase()}`;
   root.querySelector("#dayTitle").textContent = longDateLabel(today);
 
   const chip = root.querySelector("#whoChip");
   chip.dataset.accent = person.accent;
-  chip.innerHTML = `<span class="who-initial">${person.initial}</span>${icon("unfold_more", "who-caret")}`;
+  chip.innerHTML = `${avatar(person)}${icon("unfold_more", "who-caret")}`;
 
   renderLegend(t);
   renderCenter(t);
@@ -114,18 +131,24 @@ function renderCenter(t = totalsFor(dayKey())) {
   const m = METRIC_BY_KEY[focusKey];
   const left = t.left[focusKey];
   const over = left < 0;
+  const isTotal = centerMode === "total";
+  // In total mode it shows what counts against the goal, so the number always
+  // agrees with how far the ring has actually filled.
+  const value = isTotal ? t.net[focusKey] : Math.abs(left);
   const center = root.querySelector("#ringCenter");
 
-  center.className = `ring-center tone-${m.tone}${over ? " is-over" : ""}`;
+  center.className = `ring-center tone-${m.tone}${!isTotal && over ? " is-over" : ""}`;
   if (!center.querySelector(".ring-value")) {
     center.innerHTML = `
       <span class="ring-eyebrow"></span>
       <span class="ring-value" data-value="0">0</span>
       <span class="ring-unit"></span>`;
   }
-  center.querySelector(".ring-eyebrow").textContent = over ? "over by" : "left";
-  center.querySelector(".ring-unit").textContent = m.centre;
-  countUp(center.querySelector(".ring-value"), Math.abs(left), {
+  center.querySelector(".ring-eyebrow").innerHTML = `${
+    isTotal ? "total" : over ? "over by" : "left"
+  }${icon("swap_vert", "ring-swap")}`;
+  center.querySelector(".ring-unit").textContent = isTotal ? `of ${fmt(t.budget[focusKey])} ${m.unit}` : m.centre;
+  countUp(center.querySelector(".ring-value"), value, {
     format: (v) => (m.key === "sugar_g" ? (Math.round(v * 10) / 10).toLocaleString("en-US") : fmt(v)),
   });
 }
@@ -273,7 +296,7 @@ function renderPartner() {
   if (!t.logged) {
     host.innerHTML = `
       <div class="partner card partner--quiet">
-        <span class="who-initial who-initial--sm" data-accent="${other.accent}">${other.initial}</span>
+        ${avatar(other, "who-initial--sm")}
         <p>${esc(other.name)} hasn't logged anything today.</p>
       </div>`;
     return;
@@ -302,7 +325,7 @@ function renderPartner() {
   host.innerHTML = `
     <button type="button" class="partner card tap" data-partner="1">
       <span class="partner-head">
-        <span class="who-initial who-initial--sm" data-accent="${other.accent}">${other.initial}</span>
+        ${avatar(other, "who-initial--sm")}
         <span class="partner-head-text">
           <span class="partner-name">${esc(other.name)}'s day</span>
           <span class="partner-sub">${t.meals} meal${t.meals === 1 ? "" : "s"}${

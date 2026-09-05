@@ -631,6 +631,11 @@ function openMoveConfirm({ date, draft, weightKg, existing = null, typed = "" })
           </div>
         </div>
 
+        <label class="field field--inline" for="mcTime">
+          <span class="field-label">${icon("schedule", "sm")}When</span>
+          <input id="mcTime" type="time" value="${toTimeValue(existing ? new Date(existing.ts) : new Date())}" />
+        </label>
+
         <div class="sheet-actions">
           ${existing ? `<button class="btn btn-ghost btn-danger-text tap" id="mcDelete">${icon("delete")}Delete</button>` : ""}
           <button class="btn btn-primary btn-grow tap" id="mcSave">${icon("check")}${existing ? "Save" : "Log it"}</button>
@@ -705,6 +710,7 @@ function openMoveConfirm({ date, draft, weightKg, existing = null, typed = "" })
           described: typed || draft.understood || "",
           paceKph: draft.paceKph,
           distanceKm: draft.distanceKm,
+          ts: fromTimeValue(body.querySelector("#mcTime").value, date, existing?.ts),
           existingId: existing?.id,
         });
         sheet.close();
@@ -732,6 +738,7 @@ async function saveMove({
   described = "",
   paceKph = 0,
   distanceKm = 0,
+  ts = null,
   existingId = null,
 }) {
   const payload = {
@@ -749,8 +756,10 @@ async function saveMove({
     distanceKm: round(num(distanceKm), 0.01),
     source: "manual",
   };
-  if (existingId) await updateEntry(date, existingId, payload);
-  else await addEntry({ ...payload, date, ts: Date.now() });
+  // The time is editable on both paths — you rarely log a workout the moment
+  // you finish it.
+  if (existingId) await updateEntry(date, existingId, { ...payload, ts: ts || Date.now() });
+  else await addEntry({ ...payload, date, ts: ts || Date.now() });
   haptic(14);
   burst($("#fab"));
   toast(`+${fmt(payload.burn)} kcal back in the budget`, { tone: "good", icon: "bolt" });

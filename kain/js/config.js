@@ -37,6 +37,7 @@ export const PEOPLE = [
     heightCm: 161.3, // 5'3.5"
     weightKg: 64,
     accent: "amber",
+    photo: "assets/people/charlie.jpg",
   },
   {
     id: "karla",
@@ -47,6 +48,7 @@ export const PEOPLE = [
     heightCm: 152.4, // 5'0"
     weightKg: 47,
     accent: "rose",
+    photo: "assets/people/karla.jpg",
   },
 ];
 

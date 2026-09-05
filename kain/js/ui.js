@@ -246,7 +246,8 @@ export function ringStackHTML() {
         <defs>${grads}${masks}</defs>
         <g transform="rotate(-90 100 100)">${arcs}${flows}</g>
       </svg>
-      <div class="ring-center" id="ringCenter"></div>
+      <button type="button" class="ring-center" id="ringCenter"
+              aria-label="Switch between what's left and the running total"></button>
     </div>`;
 }
 

@@ -3,7 +3,7 @@
 
 import { PEOPLE, DEFAULT_GOALS, METRICS } from "./config.js";
 import { state, saveProfile, setWho, me } from "./store.js";
-import { esc, icon, fmt, num, ageFrom, haptic } from "./util.js";
+import { esc, icon, fmt, num, ageFrom, haptic, avatar } from "./util.js";
 import { openSheet, toast, fieldHTML } from "./ui.js";
 
 let root = null;
@@ -32,7 +32,7 @@ export function updateProfile({ force = false } = {}) {
         <h1 class="day-title">${esc(person.name)}</h1>
       </div>
       <button class="who-chip tap" id="profileWho" data-accent="${person.accent}" aria-label="Switch person">
-        <span class="who-initial">${person.initial}</span>${icon("unfold_more", "who-caret")}
+        ${avatar(person)}${icon("unfold_more", "who-caret")}
       </button>
     </header>
 
@@ -156,7 +156,6 @@ function deficitNote(tdee, goal) {
 export function openWhoSheet() {
   openSheet({
     title: "Who's logging?",
-    subtitle: "Saved on this device — no password, no fuss",
     icon: "switch_account",
     build(body, sheet) {
       body.innerHTML = `
@@ -164,9 +163,8 @@ export function openWhoSheet() {
           ${PEOPLE.map(
             (p) => `
             <button class="who-card tap ${p.id === state.who ? "is-active" : ""}" data-who="${p.id}" data-accent="${p.accent}">
-              <span class="who-initial who-initial--lg">${p.initial}</span>
+              ${avatar(p, "who-initial--lg")}
               <b>${esc(p.name)}</b>
-              <small>${p.sex === "male" ? "Male" : "Female"} · ${ageFrom(p.birth)}</small>
               ${p.id === state.who ? `<span class="who-active">${icon("check_circle")}</span>` : ""}
             </button>`
           ).join("")}

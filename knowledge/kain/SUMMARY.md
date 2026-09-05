@@ -294,6 +294,29 @@ forced an update. It now forces a reflow (`void root.offsetWidth`) at the top of
 `setRings`, which does the same job and always runs. (Found because the test
 iframe was being throttled and the arcs stayed at zero.)
 
+## Ring centre, faces, and small removals (2026-09-05)
+
+- **The middle of the ring is a button.** It swaps between `left` (what's still
+  available) and `total` (what counts so far, with "of 1,500 kcal" under it —
+  the total mode shows `net`, so the number always agrees with how far the ring
+  has filled). Both that choice and the focused metric are saved to the profile
+  (`ringMode`, `ringMetric`), so the ring opens the way you left it on either
+  phone. A small `swap_vert` in the eyebrow is the only affordance.
+- **Real photos** replace the C/K initials everywhere — chip, welcome gate,
+  switcher, partner card — copied from `money/assets/` into
+  `kain/assets/people/` so kain stays self-contained. `avatar()` in `util.js`
+  keeps the initial *behind* the image as the fallback. **No `loading="lazy"`**:
+  the avatar is rendered while `#app` is still hidden and Chrome then never
+  loads it. The Discord embed's author icon uses the same files off GitHub Pages.
+- **Movement logs have an editable time**, same as meals — you rarely log a
+  workout the moment you finish it. `saveMove` takes `ts` on both the create and
+  the update path.
+- **Scrollbars are hidden app-wide** (`scrollbar-width: none` +
+  `::-webkit-scrollbar { width: 0 }`). Scrolling is untouched; the bar was just
+  noise down the side of what is meant to feel like an app.
+- Removed: the "Saved on this device" subtitle and the "Male · 26" line from the
+  person cards.
+
 ## Known trade-offs
 
 - **`/kain` has no backups and is in daily real use.** Never delete or write

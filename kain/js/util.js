@@ -160,6 +160,16 @@ export function icon(name, cls = "") {
   return `<span class="material-symbols-outlined ${cls}">${name}</span>`;
 }
 
+/**
+ * Someone's face, with their initial underneath as the fallback — if the photo
+ * ever fails to load the circle still reads as them rather than going blank.
+ */
+export function avatar(person, extraClass = "") {
+  return `<span class="who-initial ${extraClass}" data-accent="${person.accent}">${person.initial}${
+    person.photo ? `<img src="${person.photo}" alt="" />` : ""
+  }</span>`;
+}
+
 /** Count a number element up to its new value — the app's signature motion. */
 export function countUp(node, to, { duration = 620, format = fmt } = {}) {
   if (!node) return;

@@ -2,7 +2,7 @@
 
 import { PEOPLE } from "./config.js";
 import { initStore, onChange, setWho, state } from "./store.js";
-import { $, $$, dayKey, icon, esc, haptic, ageFrom } from "./util.js";
+import { $, $$, dayKey, icon, esc, haptic, avatar } from "./util.js";
 import { tactile, toast } from "./ui.js";
 import { mountToday, updateToday } from "./today.js";
 import { mountHistory, updateHistory } from "./history.js";
@@ -69,9 +69,8 @@ function showWelcome() {
         ${PEOPLE.map(
           (p) => `
           <button class="who-card tap" data-who="${p.id}" data-accent="${p.accent}">
-            <span class="who-initial who-initial--lg">${p.initial}</span>
+            ${avatar(p, "who-initial--lg")}
             <b>${esc(p.name)}</b>
-            <small>${p.sex === "male" ? "Male" : "Female"} · ${ageFrom(p.birth)}</small>
           </button>`
         ).join("")}
       </div>

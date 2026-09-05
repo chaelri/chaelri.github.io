@@ -36,6 +36,17 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+/* No scrollbars anywhere. This is a phone app that happens to open in a
+   browser, and a long bar tracking down the side of it is just noise —
+   everything still scrolls exactly as before. */
+html {
+  scrollbar-width: none;
+}
+::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
 html,
 body {
   margin: 0;
@@ -235,6 +246,8 @@ button:disabled {
 }
 
 .who-initial {
+  position: relative;
+  overflow: hidden;
   display: grid;
   place-items: center;
   width: 32px;
@@ -250,6 +263,16 @@ button:disabled {
   background: linear-gradient(140deg, #fda4af, #f472b6);
   color: #2a0d16;
 }
+/* The photo sits over the initial, so a failed load still reads as them. */
+.who-initial img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
 .who-initial--sm {
   width: 26px;
   height: 26px;
@@ -392,9 +415,26 @@ button:disabled {
   justify-content: center;
   gap: 1px;
   text-align: center;
-  pointer-events: none;
+  /* Tapping it swaps between what's left and the running total. */
+  background: none;
+  border: 0;
+  padding: 0;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.ring-center:active {
+  transform: scale(0.94);
+}
+/* Just enough of a hint that the middle does something. */
+.ring-swap {
+  font-size: 1em;
+  opacity: 0.55;
+  margin-left: 2px;
+  vertical-align: -0.15em;
 }
 .ring-eyebrow {
+  display: inline-flex;
+  align-items: center;
   font-size: clamp(8.5px, 4.3cqi, 11px);
   letter-spacing: 0.14em;
   text-transform: uppercase;

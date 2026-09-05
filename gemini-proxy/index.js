@@ -693,8 +693,16 @@ app.get("/bible/:book/:chapter", async (req, res) => {
 // is the entire credential.
 
 const KAIN_PEOPLE = {
-  charlie: { name: "Charlie", color: 0xfbbf24 },
-  karla: { name: "Karla", color: 0xfb7185 },
+  charlie: {
+    name: "Charlie",
+    color: 0xfbbf24,
+    avatar: "https://chaelri.github.io/kain/assets/people/charlie.jpg",
+  },
+  karla: {
+    name: "Karla",
+    color: 0xfb7185,
+    avatar: "https://chaelri.github.io/kain/assets/people/karla.jpg",
+  },
 };
 const KAIN_ICON = "https://chaelri.github.io/kain/assets/icons/icon-192.png";
 const KAIN_OVER_COLOR = 0xff3b30;
@@ -791,7 +799,7 @@ function kainBuildEmbed(body) {
   const embed = {
     author: {
       name: `${person.name} ${isMove ? "moved" : "ate something"}`,
-      icon_url: KAIN_ICON,
+      icon_url: person.avatar || KAIN_ICON,
       url: "https://chaelri.github.io/kain/",
     },
     title: brand ? `${title} · ${brand}` : title,
