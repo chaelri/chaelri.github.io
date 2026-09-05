@@ -678,8 +678,10 @@ button:disabled {
   overflow: hidden;
   display: grid;
   place-items: center;
-  background: var(--surface-2);
-  color: var(--faint);
+  /* Food is amber the way movement is green — the tile says which kind of
+     entry it is before you read a word. A photo covers it entirely. */
+  background: rgba(251, 191, 36, 0.13);
+  color: var(--kcal);
 }
 .entry-thumb img {
   width: 100%;

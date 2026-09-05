@@ -260,7 +260,9 @@ export function entryCardHTML(e, date) {
 
   const thumb = e.thumb
     ? `<img src="${e.thumb}" alt="" loading="lazy" />`
-    : icon(e.source === "text" ? "edit_note" : "restaurant");
+    // Food is food: how it got logged — snapped or typed — is not what the
+    // timeline is telling you.
+    : icon("restaurant");
 
   return `
     <article class="entry" data-id="${esc(e.id)}" data-date="${esc(date)}" tabindex="0">

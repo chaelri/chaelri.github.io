@@ -316,6 +316,10 @@ iframe was being throttled and the arcs stayed at zero.)
   noise down the side of what is meant to feel like an app.
 - Removed: the "Saved on this device" subtitle and the "Male · 26" line from the
   person cards.
+- **Timeline tiles say what kind of entry it is.** A meal without a photo always
+  gets `restaurant` (it used to show `edit_note` when typed, which described how
+  it was logged rather than what it was), on an amber tile — mirroring the green
+  tile movement already had.
 
 ## Known trade-offs
 
