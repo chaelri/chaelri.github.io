@@ -253,6 +253,35 @@ export function totalsFor(date, days = state.days, profile = state.profile) {
   };
 }
 
+/**
+ * The last few distinct things you logged, newest first. Feeds the one-tap
+ * repeat chips — we already know the exact breakdown of a past meal, so
+ * repeating one costs no AI call at all.
+ */
+function recentByKind(wantExercise, limit) {
+  const out = [];
+  const seen = new Set();
+  for (const date of Object.keys(state.days || {}).sort().reverse()) {
+    for (const e of entriesFor(date).reverse()) {
+      if ((e.kind === "exercise") !== wantExercise) continue;
+      const key = (e.title || "").trim().toLowerCase();
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      out.push({ ...e, date });
+      if (out.length >= limit) return out;
+    }
+  }
+  return out;
+}
+
+export function recentMeals(limit = 5) {
+  return recentByKind(false, limit);
+}
+
+export function recentWorkouts(limit = 4) {
+  return recentByKind(true, limit);
+}
+
 /** Local-first write: paint immediately, let Firebase confirm behind it. */
 function localWrite(date, id, value) {
   if (!state.days[date]) state.days[date] = {};

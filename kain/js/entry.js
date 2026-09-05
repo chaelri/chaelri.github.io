@@ -2,7 +2,7 @@
 // and the review sheet where the AI's guess can be argued with.
 
 import { METRICS } from "./config.js";
-import { state, addEntry, updateEntry, deleteEntry, me } from "./store.js";
+import { state, addEntry, updateEntry, deleteEntry, me, recentMeals, recentWorkouts } from "./store.js";
 import {
   prepImage,
   analyzeMealPhoto,
@@ -14,6 +14,9 @@ import {
 } from "./ai.js";
 import { openSheet, confirmSheet, toast, burst, fieldHTML, segmentedHTML, wireSegmented } from "./ui.js";
 import { dayKey, clockLabel, esc, icon, fmt, num, round, uid, haptic, $ } from "./util.js";
+
+// Fallback intensity when an old entry predates the stored MET.
+const DEFAULT_MET_FALLBACK = 4;
 
 /* ------------------------------------------------------------ chooser --- */
 
@@ -148,12 +151,28 @@ export function openDescribeSheet(date = dayKey()) {
     subtitle: "Plain words are fine — Taglish too",
     icon: "edit_note",
     build(body, sheet) {
+      // Your own recent meals beat invented examples, and tapping one skips the
+      // AI entirely: the breakdown is already stored, so it just opens the
+      // review sheet ready to save.
+      const recents = recentMeals(5);
+      const examples = ["1 cup rice + adobo", "Jollibee Chickenjoy 1pc", "2 pandesal + kape", "Milk tea, medium"];
+
       body.innerHTML = `
         <textarea class="ta" id="mealText" rows="3" placeholder="1 cup rice, 2 pcs chicken adobo, 1 can coke"></textarea>
+        ${recents.length ? `<p class="chips-label">${icon("history", "sm")}Had it again?</p>` : ""}
         <div class="hint-chips">
-          ${["1 cup rice + adobo", "Jollibee Chickenjoy 1pc", "2 pandesal + kape", "Milk tea, medium"]
-            .map((s) => `<button class="hint-chip tap" data-fill="${esc(s)}">${esc(s)}</button>`)
-            .join("")}
+          ${
+            recents.length
+              ? recents
+                  .map(
+                    (r, i) =>
+                      `<button class="hint-chip hint-chip--recent tap" data-recent="${i}">
+                         <span>${esc(r.title)}</span><i>${fmt(r.kcal)}</i>
+                       </button>`
+                  )
+                  .join("")
+              : examples.map((s) => `<button class="hint-chip tap" data-fill="${esc(s)}">${esc(s)}</button>`).join("")
+          }
         </div>
         <button class="btn btn-primary btn-block" id="goText">${icon("auto_awesome")}Estimate it</button>`;
 
@@ -162,6 +181,29 @@ export function openDescribeSheet(date = dayKey()) {
         chip.onclick = () => {
           ta.value = chip.dataset.fill;
           ta.focus();
+        };
+      });
+      body.querySelectorAll("[data-recent]").forEach((chip) => {
+        chip.onclick = () => {
+          const r = recents[Number(chip.dataset.recent)];
+          if (!r) return;
+          haptic(10);
+          sheet.close();
+          openReviewSheet({
+            date,
+            analysis: {
+              isFood: true,
+              title: r.title,
+              brand: r.brand || "",
+              items: r.items || [],
+              assumptions: r.assumptions || "",
+              confidence: r.confidence || "medium",
+              tip: "",
+            },
+            thumb: r.thumb || "",
+            photo: r.thumb ? { base64: r.thumb.split(",")[1], mimeType: "image/jpeg" } : null,
+            source: r.source || "manual",
+          });
         };
       });
 
@@ -441,17 +483,47 @@ export function openMoveSheet(date = dayKey(), mode = "workout") {
       wireSegmented(body, "moveMode", paint);
 
       function paintWorkout() {
+        const recentMoves = recentWorkouts(4);
+        const moveExamples = ["30 min brisk walk", "1 hour badminton", "45 min gym, weights", "20 min jog"];
+
         pane.innerHTML = `
           <textarea class="ta" id="moveText" rows="2" placeholder="30 min brisk walk sa park"></textarea>
+          ${recentMoves.length ? `<p class="chips-label">${icon("history", "sm")}Did it again?</p>` : ""}
           <div class="hint-chips">
-            ${["30 min brisk walk", "1 hour badminton", "45 min gym, weights", "20 min jog"]
-              .map((s) => `<button class="hint-chip tap" data-fill="${esc(s)}">${esc(s)}</button>`)
-              .join("")}
+            ${
+              recentMoves.length
+                ? recentMoves
+                    .map(
+                      (r, i) =>
+                        `<button class="hint-chip hint-chip--recent tap" data-move="${i}">
+                           <span>${esc(r.title)}</span><i>${fmt(r.burn)}</i>
+                         </button>`
+                    )
+                    .join("")
+                : moveExamples.map((s) => `<button class="hint-chip tap" data-fill="${esc(s)}">${esc(s)}</button>`).join("")
+            }
           </div>
           <button class="btn btn-primary btn-block" id="moveGo">${icon("auto_awesome")}Estimate the burn</button>`;
 
         const ta = pane.querySelector("#moveText");
         pane.querySelectorAll("[data-fill]").forEach((c) => (c.onclick = () => (ta.value = c.dataset.fill)));
+        pane.querySelectorAll("[data-move]").forEach((c) => {
+          c.onclick = () => {
+            const r = recentMoves[Number(c.dataset.move)];
+            if (!r) return;
+            haptic(10);
+            sheet.close();
+            // Recompute the burn — the weight on file may have changed since.
+            const burn = r.steps
+              ? burnFromSteps({ steps: r.steps, weightKg })
+              : burnFromMet({ met: r.met || DEFAULT_MET_FALLBACK, minutes: r.minutes, weightKg });
+            openMoveConfirm({
+              date,
+              draft: { activity: r.activity || r.title, minutes: r.minutes, steps: r.steps, met: r.met || DEFAULT_MET_FALLBACK, burn },
+              weightKg,
+            });
+          };
+        });
 
         pane.querySelector("#moveGo").onclick = async () => {
           const text = ta.value.trim();

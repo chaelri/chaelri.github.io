@@ -32,7 +32,12 @@ RTDB paths, one small read-only card each so you can see how the other is doing.
   MET and we do the arithmetic: `kcal/min = MET × 3.5 × kg / 200`.
 - **Steps** — `kcal ≈ steps × kg × 0.0004` (≈0.5 kcal per kg per km, ~1,250
   steps to a km). 10k steps ≈ 256 kcal at 64 kg.
-- **Log again** — repeat any past meal onto today with no AI call at all.
+- **Log again** — repeat any past meal onto today with no AI call at all. The
+  same shortcut sits under "Had it again?" in the typed-meal sheet: your last 5
+  distinct meals as chips with their calorie counts, and tapping one opens the
+  review sheet with the stored breakdown already filled in. The workout sheet
+  does the same with your recent workouts, re-running the burn against your
+  current weight.
 
 Burned calories are added back to the **calorie** budget only (toggle in Me).
 You can't out-walk salt, so sugar and sodium never move.

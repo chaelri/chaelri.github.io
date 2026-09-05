@@ -188,8 +188,22 @@ single one is enough on iOS:
    sheet. Visual hierarchy in those fields comes from colour and weight instead
    of size — that's why `.item-qty` and `.review-brand` are 16px at weight 300.
 
+## Suggestion chips are your own history (2026-09-05)
+
+The typed-meal and workout sheets used to offer invented examples. They now show
+your **last 5 distinct meals / 4 workouts** (`recentMeals` / `recentWorkouts` in
+`store.js`, newest first, deduped by title). Tapping one **skips Gemini
+entirely** — the breakdown is already stored, so it opens the review sheet
+prefilled and costs nothing. Workouts recompute the burn against the current
+weight rather than reusing the stored number. The invented examples remain as
+the empty-history fallback.
+
 ## Known trade-offs
 
+- **`/kain` has no backups and is in daily real use.** Never delete or write
+  that RTDB node for testing — a single REST `DELETE` on it wiped a real log on
+  2026-09-05, and because the localStorage cache follows the server, the device
+  copy went too. Test read-only, or seed under a separate root.
 - **RTDB path is unauthenticated**, like every other app on this database.
   Anyone who knows the URL could read `/kain`. That's why it isn't linked from
   the root hub page — same posture as `mac-toggle/`.
