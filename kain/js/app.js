@@ -20,7 +20,25 @@ let lastDay = dayKey();
 
 /* --------------------------------------------------------------- boot --- */
 
+/* iOS Safari has ignored user-scalable=no since iOS 10, and touch-action isn't
+   honoured for pinch there either. Swallowing the gesture events is the only
+   handle a web page gets — without it a two-finger pinch zooms the whole app. */
+function lockZoom() {
+  ["gesturestart", "gesturechange", "gestureend"].forEach((evt) =>
+    document.addEventListener(evt, (e) => e.preventDefault(), { passive: false })
+  );
+  // Browsers that route a pinch through touch events rather than gesture ones.
+  document.addEventListener(
+    "touchmove",
+    (e) => {
+      if (e.touches.length > 1) e.preventDefault();
+    },
+    { passive: false }
+  );
+}
+
 async function boot() {
+  lockZoom();
   tactile(document.body);
   await initStore();
 

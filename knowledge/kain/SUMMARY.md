@@ -168,6 +168,26 @@ that pass changed, and why:
   That's what `.pane` is for now.
 - The Me tab's "about" card was removed.
 
+## Zoom is locked (2026-09-05)
+
+It should feel like an app, so nothing about it zooms. Four locks, because no
+single one is enough on iOS:
+
+1. `maximum-scale=1, user-scalable=no` in the viewport meta — respected by
+   Android and by iOS in standalone (Add to Home Screen) mode.
+2. `touch-action: pan-x pan-y` on html/body — panning yes, pinching no.
+   `touch-action: manipulation` on every button also kills double-tap zoom and
+   the 300 ms tap delay.
+3. **`lockZoom()` in `app.js` swallows `gesturestart` / `gesturechange` /
+   `gestureend`.** Safari has ignored `user-scalable=no` since iOS 10 and does
+   not honour `touch-action` for pinch, so these events are the only handle a
+   web page actually gets. It also drops any `touchmove` carrying more than one
+   touch, for browsers that route a pinch through touch events.
+4. **Every text field is at least 16px.** iOS zooms the page whenever you focus
+   an input under 16px, which is the zoom you'd hit constantly on the review
+   sheet. Visual hierarchy in those fields comes from colour and weight instead
+   of size — that's why `.item-qty` and `.review-brand` are 16px at weight 300.
+
 ## Known trade-offs
 
 - **RTDB path is unauthenticated**, like every other app on this database.

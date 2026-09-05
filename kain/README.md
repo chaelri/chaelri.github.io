@@ -100,6 +100,15 @@ js/profile.js       Me screen + person switcher
 js/app.js           boot, tabs, wiring
 ```
 
+## Nothing zooms
+
+Four locks, because no single one holds on iOS: `maximum-scale=1,
+user-scalable=no` in the viewport meta; `touch-action: pan-x pan-y` on the page
+(plus `manipulation` on buttons, which also kills the 300 ms tap delay);
+`lockZoom()` in `app.js` swallowing the `gesture*` events, since Safari ignores
+the meta and doesn't honour `touch-action` for pinch; and **every text field at
+16px or larger**, because iOS zooms the page when you focus anything smaller.
+
 ## Notes
 
 - **iOS haptics**: Safari has never shipped the Vibration API. `haptic()` in

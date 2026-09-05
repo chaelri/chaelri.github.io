@@ -236,7 +236,7 @@ export function openReviewSheet({ date, analysis, thumb = "", photo = null, sour
               ? `<div class="fixit">
                    <p class="fixit-label">${icon("psychology_alt", "sm")}Not quite right? Tell me what it really is.</p>
                    <div class="fixit-row">
-                     <input id="rvHint" placeholder="e.g. that's tapsilog, and the rice is 2 cups" />
+                     <input id="rvHint" placeholder="e.g. tapsilog, 2 cups rice" />
                      <button class="btn btn-soft tap" id="rvRerun">${icon("refresh")}</button>
                    </div>
                  </div>`
