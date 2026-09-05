@@ -778,10 +778,10 @@ export function openPartnerSheet(date = dayKey()) {
       body.innerHTML = `
         <div class="totals">
           ${METRICS.map((m) => {
-            const over = t[m.key] > t.budget[m.key];
+            const over = t.net[m.key] > t.budget[m.key];
             return `
               <div class="total tone-${m.tone} ${over ? "is-over" : ""}">
-                <span class="total-value">${m.key === "sugar_g" ? Math.round(t[m.key] * 10) / 10 : fmt(t[m.key])}</span>
+                <span class="total-value">${m.key === "sugar_g" ? Math.round(t.net[m.key] * 10) / 10 : fmt(t.net[m.key])}</span>
                 <span class="total-unit">of ${fmt(t.budget[m.key])} ${m.unit}</span>
                 <span class="total-label">${m.label}</span>
               </div>`;

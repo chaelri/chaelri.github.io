@@ -50,8 +50,16 @@ pools — same privacy shape as devo's per-user sync paths.
 - **Totals are summed in JS from the items array, never taken from the model.**
   LLMs recognise adobo well and add columns badly. `sumItems()` is the only
   source of an entry's kcal/sugar/sodium.
-- **Exercise adds to the calorie budget only.** Sugar and sodium goals never
-  move — you can't out-walk salt. Toggleable in Me (`exerciseAddsBudget`).
+- **Exercise offsets intake; the goal never moves.** `totalsFor` returns
+  `budget` (always the raw goals) and `net` (`kcal - burn` when
+  `exerciseAddsBudget`, sugar/sodium untouched), and `left = budget - net`.
+  Every goal comparison and meter in the app, history, partner sheet and the
+  Discord embed uses `t.net[key]`; `t.kcal` is only the "eaten" chip. The
+  earlier version inflated `budget.kcal` by the burn, which showed the target
+  as 1,700 after a workout — the remaining number was the same but the goal
+  appeared to drift, which Charlie flagged: "1500 kcal pa rin kahit nag-add ako
+  ng workout, pero may indicator na parang nabawasan." The calorie legend row
+  carries that indicator: `710 eaten − 200 moved`.
 - **Photos are compressed twice from one decode.** 768 px q0.72 goes to Gemini
   (≈ one image tile, ~1,700 prompt tokens) and is discarded; 400 px q0.62
   (~28 KB base64) is stored on the entry as the "memory" thumbnail. ~60 MB/year

@@ -76,7 +76,7 @@ export function updateProfile({ force = false } = {}) {
 
     <section class="card">
       <div class="section-head section-head--tight"><h2>Preferences</h2></div>
-      ${toggleHTML("exerciseAddsBudget", "Exercise adds to the budget", "Calories you burn go back into today's calorie allowance. Sugar and sodium never move.", p.exerciseAddsBudget !== false)}
+      ${toggleHTML("exerciseAddsBudget", "Exercise offsets what you ate", "Calories you burn come off today's total. The goal itself never moves, and sugar and sodium never budge either.", p.exerciseAddsBudget !== false)}
       ${toggleHTML("showPartner", `Show ${esc(otherName())}'s day`, "A small read-only card at the bottom of Today.", p.showPartner !== false)}
     </section>
 `;

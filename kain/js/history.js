@@ -76,9 +76,9 @@ export function updateHistory() {
 function onTarget(t) {
   return (
     t.logged &&
-    t.kcal <= t.budget.kcal &&
-    t.sugar_g <= t.budget.sugar_g &&
-    t.sodium_mg <= t.budget.sodium_mg
+    t.net.kcal <= t.budget.kcal &&
+    t.net.sugar_g <= t.budget.sugar_g &&
+    t.net.sodium_mg <= t.budget.sodium_mg
   );
 }
 
@@ -129,19 +129,19 @@ function barLabel(key, i, total) {
 
 function renderChart(rows) {
   const goal = num(state.profile?.goals?.kcal, 1500);
-  const peak = Math.max(goal * 1.15, ...rows.map((r) => r.t.kcal));
+  const peak = Math.max(goal * 1.15, ...rows.map((r) => r.t.net.kcal));
   const host = root.querySelector("#chart");
 
   root.querySelector("#chartNote").textContent = `goal ${fmt(goal)} kcal`;
 
   const bars = rows
     .map((r, i) => {
-      const h = clamp(r.t.kcal / peak, 0, 1) * 100;
-      const over = r.t.kcal > r.t.budget.kcal;
+      const h = clamp(r.t.net.kcal / peak, 0, 1) * 100;
+      const over = r.t.net.kcal > r.t.budget.kcal;
       const isToday = r.key === dayKey();
       return `
         <button class="bar-col ${isToday ? "is-today" : ""}" data-day="${r.key}"
-                aria-label="${friendlyDate(r.key)}: ${fmt(r.t.kcal)} kcal">
+                aria-label="${friendlyDate(r.key)}: ${fmt(r.t.net.kcal)} kcal">
           <span class="bar-track">
             <span class="bar-fill ${over ? "is-over" : ""} ${r.t.logged ? "" : "is-empty"}"
                   style="height:${h.toFixed(1)}%; animation-delay:${Math.min(i, 30) * 18}ms"></span>
@@ -180,7 +180,7 @@ function renderAverages(logged) {
     return;
   }
   const avg = METRICS.map((m) => {
-    const mean = logged.reduce((a, r) => a + num(r.t[m.key]), 0) / logged.length;
+    const mean = logged.reduce((a, r) => a + num(r.t.net[m.key]), 0) / logged.length;
     const goal = num(state.profile?.goals?.[m.key]);
     const pct = goal ? clamp(mean / goal, 0, 1) : 0;
     const over = goal && mean > goal;
@@ -217,9 +217,9 @@ function renderDays(rows) {
           </button>`;
       }
       const pills = METRICS.map((m) => {
-        const over = t[m.key] > t.budget[m.key];
+        const over = t.net[m.key] > t.budget[m.key];
         return `<span class="day-pill tone-${m.tone} ${over ? "is-over" : ""}">${
-          m.key === "sugar_g" ? Math.round(t[m.key] * 10) / 10 : fmt(t[m.key])
+          m.key === "sugar_g" ? Math.round(t.net[m.key] * 10) / 10 : fmt(t.net[m.key])
         }<i>${m.unit}</i></span>`;
       }).join("");
       return `
@@ -260,16 +260,16 @@ export function openDaySheet(date) {
       body.innerHTML = `
         <div class="totals">
           ${METRICS.map((m) => {
-            const over = t[m.key] > t.budget[m.key];
+            const over = t.net[m.key] > t.budget[m.key];
             return `
               <div class="total tone-${m.tone} ${over ? "is-over" : ""}">
-                <span class="total-value">${m.key === "sugar_g" ? Math.round(t[m.key] * 10) / 10 : fmt(t[m.key])}</span>
+                <span class="total-value">${m.key === "sugar_g" ? Math.round(t.net[m.key] * 10) / 10 : fmt(t.net[m.key])}</span>
                 <span class="total-unit">of ${fmt(t.budget[m.key])} ${m.unit}</span>
                 <span class="total-label">${m.label}</span>
               </div>`;
           }).join("")}
         </div>
-        ${t.burn ? `<p class="day-burn">${icon("bolt", "sm")}${fmt(t.burn)} kcal burned</p>` : ""}
+        ${t.burn ? `<p class="day-burn">${icon("bolt", "sm")}${fmt(t.kcal)} eaten, ${fmt(t.burn)} burned</p>` : ""}
         <div class="timeline timeline--sheet">
           ${
             list.length

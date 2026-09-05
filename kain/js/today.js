@@ -95,9 +95,9 @@ export function updateToday() {
   // A frame's delay so the browser has the "from" offsets before we animate.
   requestAnimationFrame(() =>
     setRings(root, {
-      kcal: safePct(t.kcal, t.budget.kcal),
-      sugar_g: safePct(t.sugar_g, t.budget.sugar_g),
-      sodium_mg: safePct(t.sodium_mg, t.budget.sodium_mg),
+      kcal: safePct(t.net.kcal, t.budget.kcal),
+      sugar_g: safePct(t.net.sugar_g, t.budget.sugar_g),
+      sodium_mg: safePct(t.net.sodium_mg, t.budget.sodium_mg),
     })
   );
 }
@@ -131,11 +131,15 @@ function renderCenter(t = totalsFor(dayKey())) {
 function renderLegend(t) {
   const legend = root.querySelector("#legend");
   const rows = METRICS.map((m) => {
-    const used = t[m.key];
+    // Net counts against the goal; only calories can be offset by moving.
+    const used = t.net[m.key];
     const goal = t.budget[m.key];
     const pct = clamp(safePct(used, goal), 0, 1);
     const over = used > goal;
     const decimals = m.key === "sugar_g";
+    // The indicator Charlie asked for: the goal stays put and the workout is
+    // shown as the subtraction it actually is.
+    const showsOffset = m.key === "kcal" && t.offset > 0;
     return `
       <button type="button" class="legend-row tone-${m.tone} ${m.key === focusKey ? "is-focus" : ""}" data-metric="${m.key}">
         <span class="legend-dot"></span>
@@ -145,6 +149,11 @@ function renderLegend(t) {
           <span>/ ${fmt(goal)} ${m.unit}</span>
         </span>
         <span class="legend-bar ${over ? "is-over" : ""}"><i style="transform:scaleX(${pct.toFixed(3)})"></i></span>
+        ${
+          showsOffset
+            ? `<span class="legend-offset">${fmt(t.kcal)} eaten <b>− ${fmt(t.offset)}</b> moved</span>`
+            : ""
+        }
       </button>`;
   }).join("");
   legend.innerHTML = rows;
@@ -159,7 +168,7 @@ function renderChips(t) {
   if (t.burn > 0) {
     bits.push(
       `<span class="chip chip--burn">${icon("bolt")}${fmt(t.burn)} burned${
-        state.profile?.exerciseAddsBudget !== false ? " · added back" : ""
+        t.offset > 0 ? " · off today's total" : ""
       }</span>`
     );
   }
@@ -276,14 +285,14 @@ function renderPartner() {
     .filter(Boolean);
 
   const rows = METRICS.map((m) => {
-    const pct = clamp(safePct(t[m.key], t.budget[m.key]), 0, 1);
-    const over = t[m.key] > t.budget[m.key];
+    const pct = clamp(safePct(t.net[m.key], t.budget[m.key]), 0, 1);
+    const over = t.net[m.key] > t.budget[m.key];
     return `
       <span class="partner-metric tone-${m.tone}">
         <span class="partner-metric-label">${m.short}</span>
         <span class="legend-bar ${over ? "is-over" : ""}"><i style="transform:scaleX(${pct.toFixed(3)})"></i></span>
         <span class="partner-metric-value ${over ? "is-over" : ""}">${
-          m.key === "sugar_g" ? Math.round(t[m.key] * 10) / 10 : fmt(t[m.key])
+          m.key === "sugar_g" ? Math.round(t.net[m.key] * 10) / 10 : fmt(t.net[m.key])
         }<i>${m.unit}</i></span>
       </span>`;
   }).join("");

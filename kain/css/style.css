@@ -438,6 +438,18 @@ button:disabled {
 .legend-row .legend-bar {
   grid-column: 2 / -1;
 }
+/* "710 eaten − 200 moved" — says where the headroom came from without letting
+   the goal itself drift. */
+.legend-offset {
+  grid-column: 2 / -1;
+  font-size: 11.5px;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+.legend-offset b {
+  color: var(--burn);
+  font-weight: 600;
+}
 .legend-row.is-focus {
   background: var(--surface-2);
   border-color: var(--line);

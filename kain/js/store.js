@@ -234,21 +234,35 @@ export function totalsFor(date, days = state.days, profile = state.profile) {
     }
   }
 
+  // The goal never moves. A workout comes off what you ate rather than raising
+  // the target — "1,500 pa rin kahit nag-add ako ng workout, pero may indicator
+  // na nabawasan". The number left over is identical either way; this just
+  // stops 1,500 silently becoming 1,700.
   const addsBudget = profile?.exerciseAddsBudget !== false;
   const budget = {
-    kcal: num(goals.kcal) + (addsBudget ? t.burn : 0),
+    kcal: num(goals.kcal),
     sugar_g: num(goals.sugar_g),
     sodium_mg: num(goals.sodium_mg),
+  };
+
+  // What counts against the goal. Exercise only ever offsets calories — you
+  // can't out-walk salt.
+  const net = {
+    kcal: t.kcal - (addsBudget ? t.burn : 0),
+    sugar_g: t.sugar_g,
+    sodium_mg: t.sodium_mg,
   };
 
   return {
     ...t,
     goals,
     budget,
+    net,
+    offset: addsBudget ? t.burn : 0,
     left: {
-      kcal: budget.kcal - t.kcal,
-      sugar_g: budget.sugar_g - t.sugar_g,
-      sodium_mg: budget.sodium_mg - t.sodium_mg,
+      kcal: budget.kcal - net.kcal,
+      sugar_g: budget.sugar_g - net.sugar_g,
+      sodium_mg: budget.sodium_mg - net.sodium_mg,
     },
     logged: list.length > 0,
   };

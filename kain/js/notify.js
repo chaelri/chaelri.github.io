@@ -22,10 +22,11 @@ export function notifyEntry({ who, entry, totals }) {
     kind: isMove ? "exercise" : "meal",
     title: entry.title || "",
     brand: entry.brand || "",
+    // Net, so the meters in Discord read the same as the rings in the app.
     day: {
-      kcal: totals?.kcal ?? 0,
-      sugar_g: totals?.sugar_g ?? 0,
-      sodium_mg: totals?.sodium_mg ?? 0,
+      kcal: totals?.net?.kcal ?? totals?.kcal ?? 0,
+      sugar_g: totals?.net?.sugar_g ?? totals?.sugar_g ?? 0,
+      sodium_mg: totals?.net?.sodium_mg ?? totals?.sodium_mg ?? 0,
       budget: totals?.budget || {},
     },
   };

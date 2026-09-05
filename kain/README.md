@@ -48,8 +48,11 @@ RTDB paths, one small read-only card each so you can see how the other is doing.
   does the same with your recent workouts, re-running the burn against your
   current weight.
 
-Burned calories are added back to the **calorie** budget only (toggle in Me).
-You can't out-walk salt, so sugar and sodium never move.
+**The goal never moves.** A workout doesn't turn 1,500 into 1,700 — it comes
+off what you ate instead, so the calorie row reads `510 / 1,500` with
+`710 eaten − 200 moved` underneath. The number left over is identical either
+way; this just stops the target drifting. Only calories can be offset: you
+can't out-walk salt, so sugar and sodium never budge. Toggle in Me.
 
 ## Discord
 
