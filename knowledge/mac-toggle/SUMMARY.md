@@ -94,11 +94,23 @@ agent and duplicated as `<option>` values in `index.html` — keep them in sync.
   Mac — it may be asleep". If the two power sources ever disagree (changed in
   System Settings directly), the page shows "Mixed" with both values instead of
   picking one to display.
-- **Menu bar indicator (`menubar/`, added 2026-07-30):** ~180-line Swift
+- **Menu bar indicator (`menubar/`, added 2026-07-30):** ~300-line Swift
   `NSStatusItem`. ✓/✗ SF Symbol for the mode, `…` while sending, ⚠️ on transport
   failure. Left click toggles, right click opens a menu. Reads `pmset` **locally**
   (real truth, instant, offline-proof) and writes only via Firebase so the root
-  daemon stays the sole writer of system settings. Per-user LaunchAgent —
+  daemon stays the sole writer of system settings.
+  **Nudge status line (2026-09-14):** second menu line reports whether the F15 tap
+  is landing — `F15 landed 3 min ago` / `BLOCKED` (clickable, opens the
+  Accessibility pane) / `overdue` / `off, follows Always On` / `daemon offline`.
+  This line **is** read from `/mac-toggle/state` over the network, deliberately
+  breaking the local-only rule: only the daemon knows whether its own synthetic
+  keystroke was accepted, and there's no local way to ask without sending a real
+  keypress. Polled every 20 s + on menu open. The icon becomes
+  `sun.max.trianglebadge.exclamationmark.fill` when Always On is set but the nudge
+  isn't landing, so the silent failure is visible without opening the menu.
+  `install-menubar.sh` now polls `launchctl print` between bootout and bootstrap —
+  it was hitting the same async-bootout "Input/output error 5" the root installer
+  already guarded against. Per-user LaunchAgent —
   `install-menubar.sh` needs **no sudo** and no Accessibility. Build requires
   `swiftc -parse-as-library` because the source uses `@main`; Xcode CLT suffices,
   no Homebrew/SwiftBar dependency.
@@ -117,6 +129,13 @@ agent and duplicated as `<option>` values in `index.html` — keep them in sync.
   sleep is sliced into 1 s steps so flipping to 5 minutes stops it immediately.
   Rationale: `pmset` keeps the display lit but never resets `HIDIdleTime` — only a
   real HID event does, which is what anything idle-aware reads.
+  **The grant can lapse, and the failure is silent** — blocked on **2026-09-10**
+  and not noticed until **2026-09-14**: the menu read "Always On — activated",
+  `displaysleep` was correctly `0`, and every tap was refused with 1002 the whole
+  time. `state.jiggleAt` (added 2026-09-14) records when the last tap actually
+  landed so status can be evidence rather than a restatement of the setting, and
+  the menu bar item now carries a nudge line + a badged sun icon when Always On is
+  on but the nudge isn't landing. Check `jiggleOk`/`jiggleAt`, never the toggle label.
   **Requires a manual Accessibility grant on `/usr/bin/osascript`** — TCC blocks
   synthetic key events and a LaunchDaemon can't answer a prompt (observed:
   `osascript is not allowed to send keystrokes. (1002)`; after granting, verified

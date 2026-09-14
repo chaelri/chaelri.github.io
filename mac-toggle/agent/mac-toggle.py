@@ -384,6 +384,10 @@ def read_state():
     # Never on both sources = keep the machine looking active.
     st["jiggling"] = JIGGLER.enabled()
     st["jiggleOk"] = JIGGLER.ok
+    # When the last tap actually went out, so a reader can say "nudged 2 min ago"
+    # instead of only "it's switched on" — the failure mode here is silent, so the
+    # status has to be evidence, not a restatement of the setting.
+    st["jiggleAt"] = int(JIGGLER.last * 1000) if JIGGLER.last else None
     return st
 
 
@@ -577,6 +581,7 @@ def publish_state(state=None):
     JIGGLER.set(st.get("displaySleepAC") == 0 and st.get("displaySleepBatt") == 0)
     st["jiggling"] = JIGGLER.enabled()
     st["jiggleOk"] = JIGGLER.ok
+    st["jiggleAt"] = int(JIGGLER.last * 1000) if JIGGLER.last else None
     st["host"] = host_name()
     st["user"] = console_user() or ""
     st["updatedAt"] = int(time.time() * 1000)

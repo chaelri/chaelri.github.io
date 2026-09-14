@@ -96,8 +96,18 @@ Terminal-hosted loop relies on (Terminal itself is typically already granted,
 which is why a hand-run `while true` loop works with no extra setup).
 
 `state.jiggling` says whether the loop is running; `state.jiggleOk` records
-whether the last tap actually landed (`null` until the first attempt), and the
-page shows the blocked message instead of pretending it works.
+whether the last tap actually landed (`null` until the first attempt), and
+`state.jiggleAt` is when it landed. The page shows the blocked message instead of
+pretending it works, and the menu bar item carries the same status — see below.
+
+**This failure is silent, so check the status, not the switch.** The toggle can
+read "activated", `pmset` can be correctly set to Never, and every keystroke can
+still be refused: the grant sits on `/usr/bin/osascript`, not on the daemon, and
+macOS can drop it. It happened on **2026-09-10** and went unnoticed for four days
+— the display stayed lit the whole time while `HIDIdleTime` climbed, which is
+exactly what the nudge exists to prevent. `jiggleAt` was added afterwards so the
+status can be evidence ("F15 landed 3 min ago") rather than a restatement of the
+setting.
 
 ## Menu bar indicator
 
@@ -113,7 +123,10 @@ cd mac-toggle/menubar
 - **☀️ sun** = Always On, **🌙 moon** = sleeps when idle, **spinning arrows** = applying,
   **⚠️** = couldn't reach Firebase. (Check/cross was the first cut and was wrong: an
   ✗ reads as "something failed" when it only means sleep is permitted.)
-- **Left click** toggles · **right click** opens a menu (status, flip, open remote, quit)
+- **☀️ with a warning badge** = Always On is set, but the nudge isn't landing —
+  blocked, overdue, or the daemon is gone. The plain sun means it's actually working.
+- **Left click** toggles · **right click** opens a menu (status, nudge status, flip,
+  open remote, quit)
 - While a toggle is in flight it polls `pmset` every 0.25 s and spins, stopping the
   moment the value actually flips — the daemon applies the setting *before* it
   speaks, so the icon now changes with the voice instead of trailing it by a
@@ -121,8 +134,25 @@ cd mac-toggle/menubar
 - Built with `swiftc -parse-as-library` (needed because the source uses `@main`);
   Xcode Command Line Tools are enough, no Homebrew, no SwiftBar
 
-It reads `pmset` **locally** rather than Firebase — that's the real source of
-truth, it's instant, and the icon stays correct with no network. Writes go
+### The nudge status line
+
+The second line of the menu reports whether the F15 nudge is actually landing:
+
+| Line | Meaning |
+|---|---|
+| `Nudge — F15 landed 3 min ago` | working; the nudge fires every 5 min |
+| `Nudge BLOCKED — grant Accessibility to osascript` | **click it** — opens the right Settings pane |
+| `Nudge — overdue, last landed 22 min ago` | thread is stuck or the machine was asleep |
+| `Nudge — off, follows Always On` | expected while the toggle is off |
+| `Nudge — daemon offline (last seen 14 min ago)` | no `/state` heartbeat for 3 min |
+| `Nudge — can't reach the daemon` | couldn't read `/state` at all |
+
+This one line **is** read from Firebase, unlike the icon: only the daemon knows
+whether its own synthetic keystroke was accepted, and there's no local way to ask
+without sending a real keypress. Polled every 20 s and again whenever the menu opens.
+
+Everything else reads `pmset` **locally** rather than Firebase — that's the real
+source of truth, it's instant, and the icon stays correct with no network. Writes go
 through Firebase so the root daemon remains the only thing touching system
 settings; the menu bar app runs as you and needs no root and no Accessibility.
 

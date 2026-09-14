@@ -61,8 +61,14 @@ host, so the remote itself lives at `index.html`.
   the display lit but leaves the idle counter climbing. Enable/disable is derived
   in `publish_state()` so `/state` can never disagree with the thread. Needs a
   manual Accessibility grant on `/usr/bin/osascript` (TCC; a daemon can't answer a
-  prompt); `state.jiggleOk` carries whether the last tap landed, and the page says
-  "blocked" rather than faking success.
+  prompt); `state.jiggleOk` carries whether the last tap landed and `state.jiggleAt`
+  when, and the page says "blocked" rather than faking success.
+- **The nudge fails silently — surface it, never infer it.** `pmset` being Never
+  says nothing about whether the keystroke landed; the grant is on
+  `/usr/bin/osascript` and macOS can drop it (it did on 2026-09-10, unnoticed for
+  four days). The menu bar's nudge line reads `/mac-toggle/state` over the network
+  for exactly this — it's the one thing the menu bar can't determine locally
+  without actually sending a keypress. Don't "optimise" it back to a local check.
 - **`keepAwake` is deliberately not a saved setting** — it's a held `caffeinate -dimsu`
   child process, so a crashed agent can't leave the Mac awake forever. Don't
   "simplify" it into `pmset displaysleep 0`.

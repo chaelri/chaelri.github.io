@@ -55,7 +55,14 @@ case "${1:-install}" in
 </plist>
 PLISTEOF
 
+    # bootout returns before the job is actually gone, and bootstrapping into a
+    # still-occupied label fails with "Input/output error 5". Wait it out — the
+    # root agent's install.sh has the same poll for the same reason.
     launchctl bootout "gui/$(id -u)/${LABEL}" 2>/dev/null || true
+    for _ in $(seq 1 50); do
+      launchctl print "gui/$(id -u)/${LABEL}" >/dev/null 2>&1 || break
+      sleep 0.2
+    done
     launchctl bootstrap "gui/$(id -u)" "$PLIST"
     echo "→ running. Look for a ✓ or ✗ circle in your menu bar."
     echo "   left click = toggle · right click = menu"
