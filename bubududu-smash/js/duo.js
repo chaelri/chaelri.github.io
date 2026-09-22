@@ -160,7 +160,7 @@ async function guestSide() {
       console.warn("[bubu-dudu-smash] unreadable correction, skipped", err);
       return;
     }
-    screen.applyCorrection(view, m.rs2);
+    screen.applyCorrection(view, m.rs2, m.ph);
   }
   let hostSeq = 0;
 

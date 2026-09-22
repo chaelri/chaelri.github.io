@@ -2514,8 +2514,26 @@ export function beginRoundAs(seedValue, roundNumber, scoreline) {
   startRound(seedValue);
 }
 
-/** Feed the other player's thumbs in. Same door a controller uses. */
-export const feedRemoteInput = (role, packet) => applyPacket(role, packet);
+/**
+ * Feed a player's thumbs in. Same door a controller uses.
+ *
+ * Both pads are claimed the first time this is called on the guest. Without
+ * that, `pads.p2.connected` is false — nothing here ever opens a room or
+ * paints a lobby slot — so localInput() decided p2 must be on the keyboard
+ * and overwrote left/right from the arrow keys on EVERY frame. Her thumbs
+ * reached the pad and were wiped a millisecond later, which looks exactly
+ * like the game ignoring her. The host had the same bug once, for the same
+ * reason, and it is what `local` was invented for.
+ */
+export const feedRemoteInput = (role, packet) => {
+  if (GUEST && !pads.p2.local) {
+    pads.p2.local = true;      // hers, from the glass
+    pads.p2.connected = true;
+    pads.p1.local = true;      // his, off the wire — the keyboard owns neither
+    pads.p1.connected = true;
+  }
+  applyPacket(role, packet);
+};
 
 /** What the guest sends up, so the host can drive its copy of this player. */
 export const localInputPacket = () => ({ ...pads.p2 });
@@ -2531,21 +2549,50 @@ export const localInputPacket = () => ({ ...pads.p2 });
  */
 const CORRECT_EASE = 0.25;
 const CORRECT_SNAP = 2.2;      // tiles of disagreement before we stop easing
+const CORRECT_MINE = 3.5;      // ...and a much longer leash on your own body
 
-export function applyCorrection(view, rngAt) {
+export function applyCorrection(view, rngAt, hostPhase) {
   if (!G || !view) return;
+
+  /* Catch up if the host has already started playing.
+   *
+   * The round start is announced, so both countdowns normally run together —
+   * but if that one message is late or lost, this side is left counting down
+   * against a round that is already happening, being dragged about by
+   * corrections it cannot act on. Which is precisely "it shakes and the intro
+   * never starts". Skip to the end of the count and join in.
+   */
+  if (hostPhase === "play" && phase === "countdown") countdown = 0;
+
   for (const a of G.actors) {
     const t = view.actors.find((o) => o.id === a.id);
     if (!t) continue;
-    // Anything the rules decide is taken as given; only POSITION is eased.
+
+    // Anything the RULES decide is taken as given, always: the host is the
+    // authority on who got hit and who is holding what.
     a.hp = t.hp;
     a.dead = t.dead;
     a.respawn = t.respawn;
     a.coins = t.coins;
-    const far = Math.hypot(t.x - a.x, t.y - a.y) > CORRECT_SNAP;
-    if (far || t.dead) {
+
+    /* Position is different, and YOUR OWN body is different again.
+     *
+     * The host's copy of you is a round trip old — it has not seen the last
+     * few frames of your thumbs yet. Easing onto it every correction drags
+     * you backwards thirty times a second against your own input, which is
+     * exactly the shake: you press right, you move right, and something keeps
+     * tugging you left. So your own body is left alone unless the gap is big
+     * enough to mean something real happened that you have not simulated —
+     * a stomp, a throw, a respawn — and those arrive as `dead` anyway.
+     *
+     * The other player is the opposite case: he is simulated here from his
+     * inputs, nothing local owns him, and the host's copy is simply better.
+     */
+    const mine = a.id === "p2";
+    const gap = Math.hypot(t.x - a.x, t.y - a.y);
+    if (t.dead || gap > (mine ? CORRECT_MINE : CORRECT_SNAP)) {
       a.x = t.x; a.y = t.y; a.vx = t.vx; a.vy = t.vy;
-    } else {
+    } else if (!mine) {
       a.x += (t.x - a.x) * CORRECT_EASE;
       a.y += (t.y - a.y) * CORRECT_EASE;
       a.vx += (t.vx - a.vx) * CORRECT_EASE;
