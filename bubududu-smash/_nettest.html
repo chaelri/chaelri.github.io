@@ -1,0 +1,181 @@
+<!DOCTYPE html><html><head><meta charset="utf-8">
+<title>net test</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin:0; background:#0d1520; color:#dfe9f3;
+         font:13px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace; }
+  header { display:flex; align-items:center; gap:16px; padding:8px 14px;
+           background:#121e2c; border-bottom:1px solid #223247; }
+  #verdict { font-weight:700; font-size:15px; padding:3px 12px; border-radius:999px; }
+  .ok   { background:#123a22; color:#57e08a; }
+  .bad  { background:#3d1620; color:#ff7a91; }
+  .wait { background:#33290f; color:#ffc65c; }
+  .frames { display:flex; gap:2px; }
+  .frames i { width:180px; height:46vh; border:1px solid #223247; border-radius:6px; overflow:hidden; }
+  iframe { width:100%; height:100%; border:0; display:block; }
+  .wrap { display:grid; grid-template-columns:1fr 1fr; gap:6px; padding:6px; }
+  .cell { border:1px solid #223247; border-radius:8px; overflow:hidden; background:#0a1119; }
+  .cell h2 { margin:0; padding:5px 10px; font-size:12px; background:#162434; color:#8fb6de;
+             display:flex; justify-content:space-between; }
+  .cell iframe { height:44vh; }
+  table { width:100%; border-collapse:collapse; margin:0; }
+  td, th { padding:3px 10px; text-align:left; border-top:1px solid #1a2836; font-size:12px; }
+  th { color:#7f9cba; font-weight:600; width:30%; }
+  .d0 { color:#57e08a; } .d1 { color:#ffc65c; } .d2 { color:#ff7a91; font-weight:700; }
+  #log { max-height:16vh; overflow:auto; padding:4px 14px; border-top:1px solid #223247;
+         background:#0a1119; font-size:11px; color:#8aa4bd; }
+  button { font:inherit; background:#1d314a; color:#dfe9f3;
+           border:1px solid #2c4763; border-radius:6px; padding:4px 10px; cursor:pointer; }
+</style></head><body>
+
+<header>
+  <strong>BUBU DUDU SMASH — net test</strong>
+  <span id="verdict" class="wait">waiting…</span>
+  <span id="sub"></span>
+  <button id="reload">restart both</button>
+</header>
+
+<!--
+  BOTH clients, in one page.
+
+  Two browser tabs cannot both be in the foreground, and a background tab gets
+  no animation frames at all — so a client in one renders nothing, steps
+  nothing, and answers every question as though the game were frozen. Days of
+  measurements were taken off pages that were not running. Two iframes in a
+  single foreground document both get frames, which is the only honest way to
+  watch the two ends at once.
+
+  The verdict below is the thing that actually matters, and it is deliberately
+  NOT "do both clients agree". Two broken clients agree perfectly: they start
+  the same seeded round and drift together. It asks whether each client is
+  being TOLD anything — updates arriving, no faults — and whether what they
+  hold matches while they are both moving.
+-->
+<div class="wrap">
+  <div class="cell">
+    <h2><span>p1 — Charlie</span><span id="h1"></span></h2>
+    <iframe id="f1" src="duo/?role=p1&net=server"></iframe>
+    <table id="t1"></table>
+  </div>
+  <div class="cell">
+    <h2><span>p2 — Karla</span><span id="h2"></span></h2>
+    <iframe id="f2" src="duo/?role=p2&net=server"></iframe>
+    <table id="t2"></table>
+  </div>
+</div>
+<div id="log"></div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const peek = (f) => { try { return f.contentWindow.__peek?.() ?? null; } catch { return null; } };
+
+const rows = [
+  ["phase", (s) => s.phase],
+  ["seed", (s) => s.seed],
+  ["clock", (s) => s.t.toFixed(2)],
+  ["p1", (s) => s.p1 ? `${s.p1.x.toFixed(2)}, ${s.p1.y.toFixed(2)}  hp${s.p1.hp}${s.p1.dead ? " DEAD" : ""}` : "—"],
+  ["p2", (s) => s.p2 ? `${s.p2.x.toFixed(2)}, ${s.p2.y.toFixed(2)}  hp${s.p2.hp}${s.p2.dead ? " DEAD" : ""}` : "—"],
+  ["world", (s) => `pw${s.powers} cn${s.coins} he${s.helpers} mi${s.minis}`],
+  ["updates/sec", (s) => s.ups.toFixed(0) + "  (" + s.updates + " total)"],
+  ["frames/sec", (s) => s.fps.toFixed(0)],
+  ["faults", (s) => s.bad],
+  ["last msg", (s) => s.since + "ms"],
+];
+
+/* Rates, not totals.
+ *
+ * "354 updates" and "3 frames" mean nothing without knowing over how long.
+ * Rates say immediately whether a client is being fed and whether it is
+ * drawing, which are the two separate things that can go wrong and which I
+ * spent far too long confusing for each other.
+ */
+const rate = { a: { f: 0, u: 0, at: 0, fps: 0, ups: 0 }, b: { f: 0, u: 0, at: 0, fps: 0, ups: 0 } };
+function measure(key, s) {
+  if (!s) return s;
+  const r = rate[key];
+  const now = performance.now();
+  if (r.at && now > r.at) {
+    const dt = (now - r.at) / 1000;
+    r.fps = r.fps * 0.7 + ((s.frames - r.f) / dt) * 0.3;
+    r.ups = r.ups * 0.7 + ((s.updates - r.u) / dt) * 0.3;
+  }
+  r.at = now; r.f = s.frames; r.u = s.updates;
+  return { ...s, fps: r.fps, ups: r.ups };
+}
+
+let prev = { a: null, b: null };
+let stalls = 0;
+const logs = [];
+function log(m) {
+  logs.unshift(new Date().toLocaleTimeString() + "  " + m);
+  $("#log").textContent = logs.slice(0, 40).join("\n");
+}
+
+function render(id, s, other) {
+  const el = $(id);
+  if (!s) { el.innerHTML = "<tr><td>connecting…</td></tr>"; return; }
+  el.innerHTML = rows.map(([k, get]) => {
+    let cls = "";
+    if (other) {
+      const mine = String(get(s)), theirs = String(get(other));
+      if (["p1", "p2", "phase", "seed", "world"].includes(k)) cls = mine === theirs ? "d0" : "d2";
+    }
+    return `<tr><th>${k}</th><td class="${cls}">${get(s)}</td></tr>`;
+  }).join("");
+}
+
+function verdict(a, b) {
+  const v = $("#verdict"), sub = $("#sub");
+  if (!a || !b) { v.className = "wait"; v.textContent = "waiting for both clients"; return; }
+
+  const problems = [];
+  if (a.bad || b.bad) problems.push(`${a.bad + b.bad} correction faults`);
+  if (a.since > 900 || b.since > 900) problems.push("no updates arriving");
+  // Fed and drawing are two different failures and both look like "laggy".
+  if (a.ups < 8 || b.ups < 8) problems.push(`starved: ${a.ups.toFixed(0)}/${b.ups.toFixed(0)} updates a second`);
+  if (!document.hidden && (a.fps < 20 || b.fps < 20))
+    problems.push(`stalled: ${a.fps.toFixed(0)}/${b.fps.toFixed(0)} fps`);
+  if (a.seed !== b.seed) problems.push("different rounds");
+  if (a.phase !== b.phase) problems.push(`phase ${a.phase} vs ${b.phase}`);
+
+  // Are they being TOLD anything, or just running their own guesses?
+  const moving = prev.a && (a.updates > prev.a.updates) && prev.b && (b.updates > prev.b.updates);
+  if (!moving) { stalls++; if (stalls > 6) problems.push("updates have stopped"); }
+  else stalls = 0;
+
+  // ...and do the two hold the same world while it runs?
+  const gap = (x, y) => (x && y ? Math.hypot(x.x - y.x, x.y - y.y) : 0);
+  const g1 = gap(a.p1, b.p1), g2 = gap(a.p2, b.p2);
+  if (g1 > 1.5 || g2 > 1.5) problems.push(`drift p1 ${g1.toFixed(2)} p2 ${g2.toFixed(2)}`);
+
+  if (problems.length) {
+    v.className = "bad"; v.textContent = "NOT IN SYNC";
+    sub.textContent = problems.join(" · ");
+  } else {
+    v.className = "ok"; v.textContent = "IN SYNC";
+    sub.textContent =
+      `drift p1 ${g1.toFixed(2)} p2 ${g2.toFixed(2)} · ` +
+      `${a.fps.toFixed(0)}/${b.fps.toFixed(0)} fps · ` +
+      `${a.ups.toFixed(0)}/${b.ups.toFixed(0)} updates a second`;
+  }
+}
+
+setInterval(() => {
+  const a = measure("a", peek($("#f1"))), b = measure("b", peek($("#f2")));
+  render("#t1", a, b);
+  render("#t2", b, a);
+  $("#h1").textContent = a ? `${a.fps.toFixed(0)} fps · ${a.ups.toFixed(0)}/s` : "";
+  $("#h2").textContent = b ? `${b.fps.toFixed(0)} fps · ${b.ups.toFixed(0)}/s` : "";
+  verdict(a, b);
+  if (a && b && prev.a && a.updates === prev.a.updates && b.updates === prev.b.updates) {
+    // nothing new from either side
+  }
+  prev = { a, b };
+}, 200);
+
+$("#reload").onclick = () => {
+  for (const id of ["#f1", "#f2"]) $(id).contentWindow.location.reload();
+  log("reloaded both clients");
+};
+</script>
+</body></html>

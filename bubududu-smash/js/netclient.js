@@ -55,6 +55,30 @@ export async function connect({ role, say = () => {} }) {
     phase: sim.state.phase,
   });
 
+  /* Everything a harness needs to compare two clients.
+   *
+   * _nettest.html runs both of them in iframes on ONE page and diffs this,
+   * which is the only way to watch them side by side — two browser tabs
+   * cannot both be in the foreground, and a background tab gets no animation
+   * frames, so half of what I measured for days was a frozen page. */
+  window.__peek = () => {
+    const G = sim.state.G;
+    if (!G) return null;
+    const a = (id) => {
+      const x = G.actors.find((q) => q.id === id);
+      return x && { x: +x.x.toFixed(2), y: +x.y.toFixed(2), hp: x.hp, dead: !!x.dead };
+    };
+    return {
+      role, phase: sim.state.phase, seed: sim.state.seed, t: +G.time.toFixed(2),
+      p1: a("p1"), p2: a("p2"),
+      powers: G.powers.length, coins: G.coins.length,
+      helpers: G.helpers.length, minis: G.minis.length,
+      updates: stats.updates, bad: stats.bad,
+      since: stats.lastAt ? Math.round(performance.now() - stats.lastAt) : -1,
+      frames: frames,
+    };
+  };
+
   /* Predict, but decide nothing. The server is the authority; this copy of
    * the rules exists so the characters move the instant a thumb does. */
   sim.configure({
@@ -205,9 +229,11 @@ export async function connect({ role, say = () => {} }) {
 
   /* --------------------------------------------------------------- draw --- */
 
+  let frames = 0;
   let last = performance.now();
   (function frame(now) {
     requestAnimationFrame(frame);
+    frames++;
     const dt = Math.min(0.08, (now - last) / 1000);
     last = now;
     const G = sim.state.G;
