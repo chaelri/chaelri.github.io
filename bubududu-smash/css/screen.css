@@ -78,6 +78,42 @@ html, body {
 /* The slot above the headline. Nothing but the score uses it. */
 #banner .bp { display: flex; justify-content: center; }
 
+/* ----------------------------------------------------------- the scrim --- */
+/* A result used to be white text laid straight over the arena: platforms and
+   characters ran through the letters, the sky behind it is almost the same
+   value as the type, and the winner's name was genuinely hard to read. The
+   game is knocked back behind it instead — dimmed, desaturated and blurred —
+   so the only thing with contrast on screen is the thing you are meant to
+   read. It is still the arena back there, just clearly not the subject. */
+#scrim {
+  position: fixed; inset: 0; z-index: 38;
+  pointer-events: none;
+  opacity: 0;
+  /* Darkest in the MIDDLE, where the text is — a vignette does the opposite
+     and leaves the least contrast exactly where it is needed most. */
+  background: radial-gradient(ellipse 70% 55% at center,
+    rgba(8, 20, 34, 0.74) 0%, rgba(8, 20, 34, 0.6) 55%, rgba(10, 24, 40, 0.42) 100%);
+  backdrop-filter: blur(3px) saturate(0.7);
+  -webkit-backdrop-filter: blur(3px) saturate(0.7);
+  transition: opacity 420ms ease;
+}
+/* A round is over in under three seconds and the arena still matters, so it
+   gets a lighter one than the end of a match does. */
+body.result #scrim { opacity: 0.8; }
+body.result.final #scrim { opacity: 1; }
+
+/* On a dark scrim the subtitle's near-black grey disappears. */
+body.result #banner .bs {
+  color: #fff;
+  font-weight: 800;
+  font-size: clamp(14px, 2.9vh, 24px);
+  letter-spacing: 0.16em;
+  text-shadow: 0 2px 0 rgba(8, 20, 34, 0.6), 0 0 22px rgba(0, 0, 0, 0.75);
+}
+body.result #banner .bt {
+  text-shadow: 0 5px 0 rgba(10, 24, 38, 0.45), 0 0 60px rgba(0, 0, 0, 0.5);
+}
+
 /* ------------------------------------------------------------- banner --- */
 #banner {
   position: fixed; inset: 0; display: flex; flex-direction: column;

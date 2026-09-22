@@ -213,6 +213,9 @@ function startRound() {
     lostHearts: [],
     freeze: 0,
     slow: 0,
+    slowRate: HIT.slowMoRate,
+    finishAt: 0,        // set by the match-winning blow; see handleDeath
+    finishWith: null,
     helpers: [],  // every Dudu on the field — wild, claimed or turned
     helperAt: HELPER.firstMs / 1000,
     minis: [],    // the Tatlo squad, waiting or hunting
@@ -246,6 +249,7 @@ function startRound() {
   };
 
   phase = "countdown";
+  setResult(null);
   // Four seconds, one per card. At 3.2 the first card — BUBU — got the 0.2
   // left over after the other three took a second each, so it flashed for two
   // frames and the count read as DUDU, SMASH, title.
@@ -258,6 +262,7 @@ function startRound() {
 function startMatch() {
   startAudio();
   showRematch(false);
+  setResult(null);
   score.p1 = 0;
   score.p2 = 0;
   roundNo = 1;
@@ -293,6 +298,7 @@ function endRound(winnerId, why) {
   if (winnerId) sfx.roundWin(); else sfx.roundLose();
   const name = winnerId ? PLAYERS.find((p) => p.id === winnerId).name : "Nobody";
   setBanner(winnerId ? `${name} wins` : name, why);
+  setResult("round");
 
   setTimeout(() => {
     if (done) {
@@ -311,6 +317,7 @@ function endRound(winnerId, why) {
         "",
         `<div class="score final"><b class="p1">${score.p1}</b><i></i><b class="p2">${score.p2}</b></div>`
       );
+      setResult("match");
       showRematch(true);
     } else {
       roundNo++;
@@ -374,6 +381,18 @@ function setBanner(title, sub, pre) {
 }
 const hideBanner = () => banner.classList.remove("in");
 
+/**
+ * Whether a result is on screen, and how final it is.
+ *
+ * Drives the scrim behind the banner. `null` clears it, "round" dims the
+ * arena, "match" dims it further — the round is over in under three seconds
+ * and the arena still matters, the match is not.
+ */
+function setResult(kind) {
+  document.body.classList.toggle("result", !!kind);
+  document.body.classList.toggle("final", kind === "match");
+}
+
 /* ----------------------------------------------------------- the rules --- */
 
 /**
@@ -401,6 +420,7 @@ function catchLostActors() {
     reviveAt(a, at.x, at.y);
     a.cause = null;
     a.thrownAt = null;
+    a.defeat = null;
     a.face = charById(a.char).spawnFace || 1;
     a.invulnUntil = G.time + FEEL.hurtInvulnMs / 1000;
   }
@@ -408,6 +428,16 @@ function catchLostActors() {
 
 function tickRules(dt) {
   catchLostActors();
+
+  // The match-winning blow deferred the call so its slow motion could play.
+  // Wall clock, not game time: game time is what has been slowed down.
+  if (G.finishAt && performance.now() >= G.finishAt) {
+    const f = G.finishWith;
+    G.finishAt = 0;
+    G.finishWith = null;
+    if (f) endRound(f.winnerId, f.why);
+    return;
+  }
 
   // respawns
   for (const a of G.actors) {
@@ -418,6 +448,7 @@ function tickRules(dt) {
     reviveAt(a, at.x, at.y);
     a.cause = null;
     a.thrownAt = null;
+    a.defeat = null;
     // reviveAt keeps whatever direction you were last walking, so dying on
     // the way left brought Bubu back mirrored — paw on the wrong side for the
     // whole next life. Every spawn starts from the character's own facing.
@@ -621,7 +652,10 @@ function showPickup(a, type) {
   // button", a keyboard has to name the key.
   let body = def.desc || "";
   if (type === "baril") body = `Six shots. ${shootPrompt(a.id)}`;
-  if (type === "suntok") body = `Three punches. ${shootPrompt(a.id, "punch")}`;
+  if (type === "suntok") {
+    const n = a.power ? a.power.ammo : 1;
+    body = `${n === 1 ? "One punch" : `${n} punches`}. ${shootPrompt(a.id, "punch")}`;
+  }
   showNote(a, def.colour, def.name, body, GLYPH[type] || "");
 }
 
@@ -818,7 +852,7 @@ function giveFairy(a) {
   // same one twice should not be the worst of the four.
   if (a.fairy && !a.fairy.leaving) {
     a.fairy.left = Math.min(STACK.maxFairyHeals, a.fairy.left + DIWATA.heals);
-    showStack(a, DIWATA.colour, "Diwata", `${a.fairy.left} hearts waiting`, "\u271a");
+    showStack(a, DIWATA.colour, DIWATA.name, `${a.fairy.left} hearts waiting`, "\u271a");
     sfx.diwata();
     return;
   }
@@ -830,7 +864,7 @@ function giveFairy(a) {
     wave: 0,
     phase: Math.random() * Math.PI * 2,
   };
-  showNote(a, DIWATA.colour, "Diwata", "Fairy Yhon Yhon. Two hearts, one at a time.");
+  showNote(a, DIWATA.colour, DIWATA.name, "Two hearts, one at a time.");
   sfx.diwata();
 }
 
@@ -1306,6 +1340,9 @@ function deathLine(a) {
 }
 
 function handleDeath(a) {
+  // The match is already being won; nothing that happens during the slow
+  // motion gets to change who won it or end the round a second time.
+  if (G.finishAt) return;
   clearPower(a, true);
   // A fist in mid-air when you die does not get to land afterwards.
   a.punch = null;
@@ -1316,9 +1353,11 @@ function handleDeath(a) {
   a.lethal = false;
   a.hp = lethal ? 0 : Math.max(0, a.hp - 1);
 
-  // Everything stops for a beat, then resumes in slow motion.
+  // Everything stops for a beat, then resumes in slow motion — except the
+  // blow that takes the match, which is set up below and never stops at all.
   G.freeze = HIT.freezeMs / 1000;
   G.slow = HIT.slowMoMs / 1000;
+  G.slowRate = HIT.slowMoRate;
 
   renderer.shake = HIT.shake;
   renderer.punch = HIT.punch;
@@ -1342,6 +1381,27 @@ function handleDeath(a) {
 
   sfx.die();
 
+  /* They do not vanish.
+   *
+   * A death used to be a character ceasing to exist and a puff of white where
+   * they had been — which costs a heart and shows you nothing, and left the
+   * kill cam driving in on an empty patch of ground. The body is kept and
+   * thrown: away from whoever did it, up, spinning, and it settles and fades.
+   * Render integrates this from `at`; it is animation, not physics, so it
+   * cannot collide with anything or be stomped again.
+   */
+  const killer = a.cause && a.cause.by ? G.actors.find((o) => o.id === a.cause.by) : null;
+  const away = killer ? Math.sign(a.x - killer.x) || 1 : (a.face || 1) * -1;
+  a.defeat = {
+    at: G.time,
+    x: a.x,
+    y: a.y,
+    vx: away * (3.2 + Math.random() * 1.6),
+    vy: -9.5,
+    spin: away * (5 + Math.random() * 4),
+    lethal,
+  };
+
   if (a.hp > 0) return;
 
   // The kill that takes the match is the last thing that happens in a game,
@@ -1356,6 +1416,14 @@ function handleDeath(a) {
       zoom: HIT.winCamZoom,
       hold: true,
     };
+    // No freeze, a long slow crawl instead, and the round is not called until
+    // it has run — so the camera drives into something that is still moving.
+    G.freeze = 0;
+    G.slow = HIT.winSlowMoMs / 1000;
+    G.slowRate = HIT.winSlowRate;
+    G.finishAt = performance.now() + HIT.winSlowMoMs;
+    G.finishWith = { winnerId, why: deathLine(a) };
+    return;
   }
   endRound(winnerId, deathLine(a));
 }
@@ -2247,7 +2315,8 @@ function advance(dt) {
       acc = 0;
     } else if (G.slow > 0) {
       G.slow -= dt;
-      sim = dt * HIT.slowMoRate;
+      sim = dt * (G.slowRate || HIT.slowMoRate);
+      if (G.slow <= 0) G.slowRate = HIT.slowMoRate;
     }
 
     acc += sim;

@@ -150,7 +150,7 @@ export const HIT = {
   flashMs: 440,       // red bloom around the edges
   // How long the camera abandons its framing rule to sit on the body. Must
   // outlast the slow motion, or normal speed returns to a close-up.
-  killCamMs: 900,
+  killCamMs: 1300,
   // The one that wins the match doesn't get handed back. The camera rides in
   // and STAYS in on the body while the result comes up, rather than pulling
   // out to a wide shot of nothing and freezing on a banner.
@@ -162,6 +162,22 @@ export const HIT = {
   // an empty patch of ground with both characters apparently gone.
   winCamHoldMs: 2200,
   winCamReleaseMs: 1400,
+
+  /* The blow that takes the MATCH does not stop dead.
+   *
+   * Hit-stop is right for an ordinary hit: a tenth of a second of nothing is
+   * what makes a blow land. On the last one it is wrong — the camera drives
+   * in on a world that has already stopped, so there is nothing to watch it
+   * arrive at. This one skips the freeze entirely and runs long and slow
+   * instead, and the round is not called until it has played out, so the
+   * burst, the debris and the falling heart all drift through the close-up.
+   */
+  winFreezeMs: 0,
+  // Slower than any other moment in the game, and for longer. At 0.10 the
+  // two seconds of wall clock are a fifth of a second of world time, so the
+  // body barely drifts while the camera pushes into it — which is the point.
+  winSlowMoMs: 2200,
+  winSlowRate: 0.10,
 };
 
 export const ROUNDS_TO_WIN = 3;
@@ -171,34 +187,38 @@ export const ROUNDS_TO_WIN = 3;
 // Versus only. Co-op has nothing to win off each other, so a power-up there
 // would just be a thing one of you picks up and the other watches.
 
+/* The `id` of each one stays as it is — it is a key in the wire format, in
+ * localStorage and in the tilemap, and renaming those would break a room that
+ * is mid-match for no gain. Only the NAME, which is the part anybody sees,
+ * is English. */
 export const POWERUPS = {
   laki: {
-    id: "laki", name: "Laki", desc: "Twice the size. Stomps bounce off you.", en: "big",
+    id: "laki", name: "Big", desc: "Twice the size. Stomps bounce off you.", en: "big",
     ms: 9000, colour: "#ffc23f",
     // Big enough to matter, not so big you cannot fit through the level.
     scale: 1.55, jump: 1.1, speed: 0.92,
   },
   baril: {
-    id: "baril", name: "Baril", desc: "Six shots. Tap the gun to fire.", en: "gun",
+    id: "baril", name: "Gun", desc: "Six shots. Tap the gun to fire.", en: "gun",
     ammo: 6, colour: "#63d98a",
   },
   bituin: {
-    id: "bituin", name: "Bituin", desc: "Touch them and they are out.", en: "star",
+    id: "bituin", name: "Star", desc: "Touch them and they are out.", en: "star",
     ms: 7000, colour: "#ff7be8",
   },
 };
 
 export const POWERUPS_EXTRA = {
   lunas: {
-    id: "lunas", name: "Lunas", desc: "One heart back — or a spare, past three.", en: "heal",
+    id: "lunas", name: "Heal", desc: "One heart back — or a spare, past three.", en: "heal",
     ms: 0, colour: "#7ee081", heal: 1,
   },
   bilis: {
-    id: "bilis", name: "Bilis", desc: "Much quicker on your feet.", en: "speed",
+    id: "bilis", name: "Speed", desc: "Much quicker on your feet.", en: "speed",
     ms: 8000, colour: "#4cc2ff", speed: 1.38, jump: 1.04,
   },
   yelo: {
-    id: "yelo", name: "Yelo", desc: "You froze them solid.", en: "freeze",
+    id: "yelo", name: "Freeze", desc: "You froze them solid.", en: "freeze",
     // Acts on the OTHER player, so it ends the moment it is picked up.
     // 1.7s was long enough to notice and too short to use — by the time you
     // had crossed to them it had thawed. Three and a bit is a real window.
@@ -213,9 +233,13 @@ export const POWERUPS_EXTRA = {
   // and no new key — what changes is the range and the fact that you have to
   // be brave enough to walk up to them.
   suntok: {
-    id: "suntok", name: "Suntok", desc: "Three punches. One of them ends it.", en: "punch",
+    id: "suntok", name: "One Punch", desc: "One punch. It ends it.", en: "punch",
     ms: 0, colour: "#ff6b57",
-    punches: 3,
+    // ONE. It was three when the fist was the hitbox and each swing had to be
+    // thrown from exactly arm's length — three chances at a coin toss. Now
+    // that it throws a blast you can miss with, one is a real decision, and
+    // picking up a second still stacks to two.
+    punches: 1,
     windupMs: 90,     // fist pulls back before it goes out
     activeMs: 200,    // and is dangerous for this long
     reach: 2.3,       // tiles in front of the body
@@ -249,7 +273,7 @@ export const POWERUPS_EXTRA = {
 // than hoarding her. She will not spend a heal on someone already full — she
 // waits, so she is never wasted.
 export const DIWATA = {
-  name: "Diwata",
+  name: "Fairy Yhon",
   colour: "#ffc2dd",
   heals: 2,
   everyMs: 3000,

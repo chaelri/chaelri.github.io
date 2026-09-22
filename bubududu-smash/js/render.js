@@ -8,9 +8,6 @@ import { charById } from "./characters.js";
 import { poseOf } from "./physics.js";
 import { BAD_HELPER, COINS, DIWATA, FEEL, GLYPH, HIT, PLAYERS, POWERUPS, SHOT_RADIUS } from "./config.js";
 
-// How long the winning shot dwells before the camera comes back.
-const BAD_HOLD = HIT.winCamHoldMs / 1000;
-const BAD_RELEASE = HIT.winCamReleaseMs / 1000;
 
 const SKY_TOP = "#8fd4ff";
 const SKY_BOT = "#dff3ff";
@@ -83,9 +80,17 @@ function updateCamera(r, level, actors, dt) {
     minY = Math.min(minY, a.y - a.h);
     maxY = Math.max(maxY, a.y);
   }
-  const pad = 7;
-  const spanX = Math.max(14, maxX - minX + pad * 2);
-  const spanY = Math.max(9, maxY - minY + pad * 1.4);
+  /* How much world sits around the two of them.
+   *
+   * Widened: at 7 the pair filled the frame and the platforms above them were
+   * cut off at the top edge, so you could not see the thing you were about to
+   * jump to. The vertical minimum matters as much as the horizontal — both
+   * players standing on the same floor gives a span of nearly nothing, and
+   * the zoom would then be decided entirely by the width.
+   */
+  const pad = 9.5;
+  const spanX = Math.max(18, maxX - minX + pad * 2);
+  const spanY = Math.max(13, maxY - minY + pad * 1.4);
   const zoom = Math.min(r.w / spanX, r.h / spanY);
 
   // The ceiling has to come from the canvas, not from a number that happened
@@ -93,9 +98,9 @@ function updateCamera(r, level, actors, dt) {
   // fifteen on a phone held upright — so on a phone you could not see the
   // person you are trying to land on, which reads as the camera being stuck
   // zoomed in. Tie it to always showing at least MIN_TILES across.
-  const MIN_TILES = 22;
-  const ceiling = Math.min(78, r.w / MIN_TILES);
-  r.cam.tzoom = Math.max(22, Math.min(ceiling, zoom));
+  const MIN_TILES = 26;
+  const ceiling = Math.min(64, r.w / MIN_TILES);
+  r.cam.tzoom = Math.max(20, Math.min(ceiling, zoom));
   r.cam.tx = (minX + maxX) / 2;
   r.cam.ty = (minY + maxY) / 2;
 
@@ -117,20 +122,34 @@ function updateCamera(r, level, actors, dt) {
     // A `hold` kill is the one that won the match — it rides in and stays,
     // and only startRound() gives the camera back.
     if (r.kill.hold) {
-      // In, hold on the body while the result lands, then ease back out to
-      // the whole arena — the camera always comes back.
-      const held = r.kill.t - r.kill.ms / 1000;
-      const out = held <= 0
-        ? 0
-        : Math.min(1, Math.max(0, (held - BAD_HOLD) / BAD_RELEASE));
-      killPull = Math.min(1, p / 0.35) * (1 - out);
-      if (out >= 1) r.kill = null;
+      /* The one that won the match rides in and NEVER comes back out.
+       *
+       * It used to ease back to the whole arena, because holding parked the
+       * camera on an empty patch of ground — the loser was deleted on the
+       * frame they died. The body stays now (see DEFEAT_SEC in drawActor), so
+       * there is something to hold on, and pulling out to a wide shot of
+       * nothing was the wrong half of that pair to fix. It keeps creeping in
+       * the whole time, so the last thing you see is how it ended.
+       *
+       * Only startRound() gives the camera back.
+       */
+      killPull = Math.min(1, p / 0.35);
+      r.kill.creep = Math.min(1, (r.kill.creep || 0) + dt * 0.22);
     } else {
-      killPull = p < 0.2 ? p / 0.2 : Math.pow(1 - (p - 0.2) / 0.8, 1.7);
+      // An ordinary death: snap in, then STAY there for most of the window
+      // before letting go. It used to start releasing a fifth of the way in,
+      // so the camera was already retreating while the body was still being
+      // thrown — you never got a clear look at what had just happened to you.
+      killPull = p < 0.12 ? p / 0.12
+               : p < 0.78 ? 1
+               : Math.pow(1 - (p - 0.78) / 0.22, 1.7);
     }
     r.cam.tx += (r.kill.x - r.cam.tx) * killPull * 0.92;
     r.cam.ty += (r.kill.y - r.cam.ty) * killPull * 0.92;
-    if (r.kill) r.killZoom = 1 + killPull * (r.kill.zoom ?? 0.9);
+    if (r.kill) {
+      const creep = r.kill.hold ? (r.kill.creep || 0) * 0.55 : 0;
+      r.killZoom = 1 + killPull * ((r.kill.zoom ?? 0.9) + creep);
+    }
     if (r.kill && p >= 1 && !r.kill.hold) r.kill = null;
   }
 
@@ -824,6 +843,93 @@ function drawCap(ctx, x, y, w, h, face) {
   ctx.restore();
 }
 
+/* A power-up's whole look — bloom and mark — baked once per type.
+ *
+ * Every power-up is its own symbol rather than a shaded ball: a ball with a
+ * small mark on the front reads, from three tiles away mid-jump, as "a ball".
+ * The mark IS the pickup, so it gets the whole space: full size, filled in
+ * its own colour, outlined in white so it holds against sky, dirt or a
+ * platform, and lit from behind by the bloom.
+ *
+ * Baked, because drawing it live was three thick strokeText passes and a
+ * clipped fourth per orb per frame, and thick stroking of text outlines is
+ * expensive: eight on screen took the frame from 2ms to 19ms. The self-test's
+ * median gate is what caught it. Rasterising each mark once and blitting it
+ * costs one drawImage.
+ */
+const MARK_REF = 44;          // the rad the sprite is drawn at
+const MARK_SPAN = 3.2;        // how far the bloom reaches, in rad
+const markCache = new Map();
+
+function markSprite(type, glowC) {
+  const key = `${type}:${glowC}`;
+  let c = markCache.get(key);
+  if (c) return c;
+
+  const rad = MARK_REF;
+  const half = Math.ceil(rad * MARK_SPAN);
+  c = document.createElement("canvas");
+  c.width = c.height = half * 2;
+  const x = c.getContext("2d");
+  const cx = half;
+  const cy = half;
+
+  const bloom = x.createRadialGradient(cx, cy, rad * 0.4, cx, cy, rad * 2.85);
+  bloom.addColorStop(0, mix(glowC, [255, 255, 255], 0.3, 0.5));
+  bloom.addColorStop(0.5, mix(glowC, [255, 255, 255], 0.12, 0.2));
+  bloom.addColorStop(1, mix(glowC, [255, 255, 255], 0, 0));
+  x.fillStyle = bloom;
+  x.fillRect(0, 0, c.width, c.height);
+
+  const size = rad;
+  x.textAlign = "center";
+  x.textBaseline = "middle";
+  x.lineJoin = "round";
+
+  if (type === "lunas") {
+    // Health wears the same heart the health bar does, as a path rather than
+    // a glyph — nothing else on the field is that shape.
+    heartPath(x, cx, cy - rad * 0.1, size);
+    x.lineWidth = Math.max(2, rad * 0.5);
+    x.strokeStyle = mix(glowC, [255, 255, 255], 0.4, 0.3);
+    x.stroke();
+    x.lineWidth = Math.max(1.5, rad * 0.22);
+    x.strokeStyle = "rgba(255,255,255,0.96)";
+    x.stroke();
+    x.fillStyle = glowC;
+    x.fill();
+    heartPath(x, cx - size * 0.3, cy - rad * 0.1 - size * 0.38, size * 0.34);
+    x.fillStyle = "rgba(255,255,255,0.75)";
+    x.fill();
+  } else {
+    const mark = GLYPH[type] || "?";
+    x.font = `900 ${size * 2.1}px "Nunito", system-ui, sans-serif`;
+    // Widest first, then the white outline, then the fill. Stroking on top
+    // eats the glyph from the edges in, and at this weight there is not much
+    // glyph left to eat.
+    x.lineWidth = Math.max(2, rad * 0.5);
+    x.strokeStyle = mix(glowC, [255, 255, 255], 0.4, 0.3);
+    x.strokeText(mark, cx, cy);
+    x.lineWidth = Math.max(1.5, rad * 0.22);
+    x.strokeStyle = "rgba(255,255,255,0.96)";
+    x.strokeText(mark, cx, cy);
+    x.fillStyle = glowC;
+    x.fillText(mark, cx, cy);
+    // One highlight along the top, so it reads as an object with a lit side
+    // rather than as flat type.
+    x.save();
+    x.beginPath();
+    x.rect(cx - size * 1.4, cy - size * 1.4, size * 2.8, size * 1.1);
+    x.clip();
+    x.fillStyle = lighten(glowC, 0.55);
+    x.fillText(mark, cx, cy);
+    x.restore();
+  }
+
+  markCache.set(key, c);
+  return c;
+}
+
 function drawPowers(r, ctx, g) {
   if (!g.powers) return;
   const z = r.cam.zoom;
@@ -851,21 +957,11 @@ function drawPowers(r, ctx, g) {
     ctx.fill();
     ctx.restore();
 
-    // Lunas is the exception: no sphere at all, just the heart, glowing. It
-    // is health, and a heart sealed inside a green ball is one more thing to
-    // decode when the shape already says everything.
-    const bare = q.type === "lunas";
-    const glowC = bare ? "#ff4d6d" : def.colour;
+    // Bloom and mark come from one baked sprite; see markSprite().
+    const glowC = q.type === "lunas" ? "#ff4d6d" : def.colour;
+    const sprite = markSprite(q.type, glowC);
 
-    // outer bloom, breathing
-    const bloom = ctx.createRadialGradient(px, py, rad * 0.5, px, py, rad * (2.5 + pulse * 0.5));
-    bloom.addColorStop(0, mix(glowC, [255, 255, 255], 0.25, bare ? 0.42 : 0.55));
-    bloom.addColorStop(0.5, mix(glowC, [255, 255, 255], 0.1, 0.18));
-    bloom.addColorStop(1, mix(glowC, [255, 255, 255], 0, 0));
-    ctx.fillStyle = bloom;
-    ctx.fillRect(px - rad * 3, py - rad * 3, rad * 6, rad * 6);
-
-    // sparkles on the FAR half of the orbit, drawn under the sphere
+    // sparkles on the FAR half of the orbit, drawn under the mark
     const orbit = (i) => {
       const a = age * 1.9 + (i * Math.PI * 2) / 3;
       return { x: px + Math.cos(a) * rad * 1.5, y: py + Math.sin(a) * rad * 0.52, depth: Math.sin(a) };
@@ -885,78 +981,8 @@ function drawPowers(r, ctx, g) {
       if (o.depth < 0) sparkle(o);
     }
 
-    // the sphere: lit from up and to the left
-    const lx = px - rad * 0.36;
-    const ly = py - rad * 0.42;
-    if (!bare) {
-    const body = ctx.createRadialGradient(lx, ly, rad * 0.06, px, py, rad);
-    body.addColorStop(0, lighten(def.colour, 0.72));
-    body.addColorStop(0.42, def.colour);
-    body.addColorStop(1, darken(def.colour, 0.42));
-    ctx.fillStyle = body;
-    ctx.beginPath();
-    ctx.arc(px, py, rad, 0, Math.PI * 2);
-    ctx.fill();
-
-    // bounce light along the bottom-right edge
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(px, py, rad, 0, Math.PI * 2);
-    ctx.clip();
-    const rim = ctx.createRadialGradient(
-      px + rad * 0.55, py + rad * 0.6, rad * 0.1,
-      px + rad * 0.55, py + rad * 0.6, rad * 1.1
-    );
-    rim.addColorStop(0, lighten(def.colour, 0.5, 0.5));
-    rim.addColorStop(1, lighten(def.colour, 0.5, 0));
-    ctx.fillStyle = rim;
-    ctx.fillRect(px - rad, py - rad, rad * 2, rad * 2);
-    ctx.restore();
-
-    // specular
-    ctx.save();
-    ctx.globalAlpha = 0.85;
-    ctx.fillStyle = "#fff";
-    ctx.beginPath();
-    ctx.ellipse(lx, ly - rad * 0.06, rad * 0.26, rad * 0.17, -0.5, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-    }
-
-    // glyph, with a little depth under it
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    // Lunas is health, so it wears the same heart the health bar does rather
-    // than a symbol you have to learn. Nothing else on the field is that
-    // shape, so it needs no reading at all.
-    if (bare) {
-      // Full size now that nothing is around it, and it breathes with the
-      // same pulse the bloom does so it still reads as a live pickup.
-      const hs = rad * (0.95 + pulse * 0.06);
-      ctx.save();
-      ctx.shadowColor = "rgba(255,77,109,0.95)";
-      ctx.shadowBlur = rad * 1.1;
-      heartPath(ctx, px, py - rad * 0.1, hs);
-      ctx.fillStyle = "#ff4d6d";
-      ctx.fill();
-      ctx.shadowBlur = 0;
-      ctx.lineWidth = Math.max(1.5, rad * 0.11);
-      ctx.strokeStyle = "rgba(255,255,255,0.95)";
-      ctx.stroke();
-      // a shine, so it reads as the same object as the hearts overhead
-      heartPath(ctx, px - hs * 0.3, py - rad * 0.1 - hs * 0.38, hs * 0.34);
-      ctx.fillStyle = "rgba(255,255,255,0.75)";
-      ctx.fill();
-      ctx.restore();
-    } else {
-      const mark = GLYPH[q.type] || "?";
-      ctx.font = `800 ${rad * 0.92}px "Nunito", system-ui, sans-serif`;
-      ctx.fillStyle = darken(def.colour, 0.55, 0.5);
-      ctx.fillText(mark, px, py + rad * 0.1);
-      ctx.fillStyle = "#fff";
-      ctx.fillText(mark, px, py + rad * 0.04);
-    }
-    ctx.textBaseline = "alphabetic";
+    const S = rad * MARK_SPAN * (1 + pulse * 0.05);
+    ctx.drawImage(sprite, px - S, py - S, S * 2, S * 2);
 
     // near-side sparkles, over the top
     for (let i = 0; i < 3; i++) {
@@ -1985,18 +2011,80 @@ function drawHearts(r, ctx, g, a, cx, cy) {
   }
 }
 
+/* How long the knocked-out body stays on screen, in game seconds.
+ *
+ * Game seconds, so the match-winning blow — which runs at a sixth speed —
+ * plays this out over several real ones while the camera drives in. That is
+ * the whole point of keeping the body: the kill cam used to arrive at an
+ * empty patch of ground, because the character it was diving onto had been
+ * deleted on the frame it started. */
+const DEFEAT_SEC = 1.15;
+// Light gravity on purpose: at the real 26 the body arced straight back down
+// and sank through the floor, which reads as falling over rather than as
+// being knocked out of the round. This one goes UP and away and fades near
+// the top of its arc.
+const DEFEAT_GRAVITY = 10;
+
 function drawActor(r, ctx, g, a) {
   if (a.dead) {
-    // a puff where they went
-    const px = toX(r, a.x);
-    const py = toY(r, a.y);
-    const k = 1 - a.respawn / 0.9;
-    ctx.globalAlpha = Math.max(0, 1 - k);
-    ctx.fillStyle = "rgba(255,255,255,0.8)";
-    ctx.beginPath();
-    ctx.arc(px, py - r.cam.zoom * 0.5, r.cam.zoom * (0.3 + k * 0.8), 0, Math.PI * 2);
-    ctx.fill();
-    ctx.globalAlpha = 1;
+    const d = a.defeat;
+    const age = d ? g.time - d.at : 99;
+    if (!d || age > DEFEAT_SEC || age < 0) return;
+
+    const z = r.cam.zoom;
+    const t = age / DEFEAT_SEC;
+    // Thrown away from whoever did it, arcing, and tumbling as it goes.
+    const wx = d.x + d.vx * age;
+    const wy = d.y + d.vy * age + 0.5 * DEFEAT_GRAVITY * age * age;
+    const px = toX(r, wx);
+    const py = toY(r, wy);
+    const cw = a.w * z * 1.25;
+    const chh = a.h * z * 1.32;
+
+    ctx.save();
+    // Solid almost all the way, then goes. Fading from the first frame reads
+    // as "never really there" rather than as being knocked out of the round.
+    ctx.globalAlpha = Math.max(0, 1 - Math.pow(t, 3));
+    ctx.translate(px, py - chh * 0.5);
+    ctx.rotate(d.spin * age * 0.5);
+    // Squashed flat on the first beat — the hit landing — then springing back
+    // out as it flies. A lethal one (the Suntok) is flattened harder.
+    const hit = Math.max(0, 1 - age * 6);
+    const squash = hit * (d.lethal ? 0.55 : 0.34);
+    ctx.scale(1 + squash, 1 - squash);
+
+    const pose = {
+      face: a.face || 1,
+      run: 0,
+      air: 1,
+      rise: -1,
+      squash: 0,
+      t: g.time,
+      walk: 0,
+      stride: 1,
+    };
+    // Still wearing their own colour on the way out, so a glance at the
+    // replay still says whose body that is.
+    const mine = ownerColour(a.id);
+    if (mine) {
+      stampOutline(r, ctx, mine, 0, chh * 0.5, cw, chh, z * 0.045,
+        (b, bx, by) => charById(a.char).draw(b, bx, by, cw, chh, pose));
+    }
+    charById(a.char).draw(ctx, 0, chh * 0.5, cw, chh, pose);
+    ctx.restore();
+
+    // A ring of dust punched out at the point of impact.
+    if (age < 0.45) {
+      const k = age / 0.45;
+      ctx.save();
+      ctx.globalAlpha = (1 - k) * 0.55;
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = Math.max(1.5, z * 0.07 * (1 - k));
+      ctx.beginPath();
+      ctx.ellipse(toX(r, d.x), toY(r, d.y), z * (0.3 + k * 1.5), z * (0.1 + k * 0.5), 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
     return;
   }
   const px = toX(r, a.x);
@@ -2118,7 +2206,20 @@ function drawActor(r, ctx, g, a) {
   const mine = ownerColour(a.id);
   if (mine && !starred && !a.dead) {
     const pose = poseOf(a);
-    stampOutline(r, ctx, mine, px, py, cw, chh, z * 0.045,
+    // Reversed turns the rim itself orange and makes it thicker, pulsing.
+    // That marks the character without putting anything ON them — the wash
+    // this replaced covered the face of a 40px animal, so the one thing you
+    // still had to read, which way they were facing, went with it.
+    const rev = a.reversedUntil && g.time < a.reversedUntil;
+    let colour = mine;
+    let thick = z * 0.045;
+    if (rev) {
+      const urgent = a.reversedUntil - g.time < 1.2;
+      const beat = 0.5 + 0.5 * Math.sin(g.time * (urgent ? 14 : 6.4));
+      colour = mix(POWERUPS.baliktad.colour, [255, 255, 255], beat * 0.55, 1);
+      thick = z * (0.075 + beat * 0.03);
+    }
+    stampOutline(r, ctx, colour, px, py, cw, chh, thick,
       (b, bx, by) => charById(a.char).draw(b, bx, by, cw, chh, pose));
   }
 
@@ -2190,83 +2291,73 @@ function drawActor(r, ctx, g, a) {
 
   /* Reversed.
    *
-   * This was one small orange glyph over the head, tucked under the hearts
-   * and the ammo pips, on a character you are already staring at. The player
-   * it happens to needs to know instantly — it is the only effect that makes
-   * your own controls lie to you, and not knowing reads as the game being
-   * broken rather than as something being done to you. So it gets three
-   * things at once, and one of them ILLUSTRATES what has happened rather than
-   * just labelling it.
+   * It is the only effect that makes your own controls lie to you, so the
+   * player it lands on has to know instantly — but everything that said so
+   * used to sit ON TOP of them: a wash across the body and a pair of arrows
+   * through the middle, on a character about forty pixels tall. You could
+   * see that SOMETHING was happening and no longer see who was facing where.
+   *
+   * So the character carries it in their own outline (above), and the
+   * explaining happens up here in a badge that nothing else competes with.
+   * The two arrows inside it slide past each other and swap ends, which is
+   * the effect acted out rather than labelled.
    */
   if (a.reversedUntil && g.time < a.reversedUntil) {
     const left = a.reversedUntil - g.time;
     const RC = POWERUPS.baliktad.colour;
-    // Fast beat while it runs, and the last second flashes twice as fast so
-    // you know it is nearly over and can stop over-correcting.
     const urgent = left < 1.2;
-    const beat = (g.time * (urgent ? 7 : 3.4)) % 1;
-    const pulse = 0.5 + 0.5 * Math.sin(beat * Math.PI * 2);
+
+    // Above the hearts (1.80), never under them.
+    const by = py - a.h * z * 2.2;
+    const bw = z * 1.5;
+    const bh = z * 0.52;
 
     ctx.save();
+    ctx.translate(px, by);
 
-    // 1. A wash over the body, so the character themselves is marked.
-    ctx.globalAlpha = 0.2 + pulse * 0.22;
-    ctx.fillStyle = RC;
-    ctx.beginPath();
-    ctx.ellipse(px, py - a.h * z * 0.52, a.w * z * 0.62, a.h * z * 0.6, 0, 0, Math.PI * 2);
+    // The pill. No white border — the arrows inside are already white and the
+    // outline only thickened the shape without adding anything to read. The
+    // last second flashes the FILL instead.
+    ctx.fillStyle = urgent && Math.sin(g.time * 18) > 0 ? lighten(RC, 0.45) : RC;
+    roundRect(ctx, -bw / 2, -bh / 2, bw, bh, bh / 2);
     ctx.fill();
 
-    // 2. Two chevrons that SWAP SIDES on the beat. This is the part that
-    //    explains itself: you can see your left and right trading places.
-    const swing = Math.sin(g.time * 4.2);
-    const reach = a.w * z * (0.95 + Math.abs(swing) * 0.25);
-    const cy = py - a.h * z * 0.62;
-    ctx.globalAlpha = 0.9;
-    ctx.lineWidth = Math.max(2, z * 0.075);
+    // The swap, playing out inside it. One arrow runs left-to-right along the
+    // top, the other right-to-left along the bottom, and they change ends
+    // together — two lanes, so they read as passing rather than colliding.
+    const cycle = (g.time * 0.9) % 1;
+    const travel = bw * 0.3;
+    const aw = z * 0.17;
+    ctx.save();
+    roundRect(ctx, -bw / 2, -bh / 2, bw, bh, bh / 2);
+    ctx.clip();
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = Math.max(1.6, z * 0.055);
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
-    ctx.strokeStyle = RC;
-    for (const side of [-1, 1]) {
-      // The arrow on each side points the way that side WOULD have taken you,
-      // and the pair slide across each other as the beat turns over.
-      const ax = px + side * reach * (swing * side > 0 ? 1 : 0.72);
-      const dir = -side;                      // pointing back across the body
+    for (const dir of [1, -1]) {
+      // eased so they pause at each end rather than sliding at a constant rate
+      const t = dir > 0 ? cycle : 1 - cycle;
+      const e = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+      const ax = -travel + e * travel * 2;
+      const ay = dir * bh * 0.2;
       ctx.beginPath();
-      ctx.moveTo(ax - dir * z * 0.16, cy - z * 0.2);
-      ctx.lineTo(ax + dir * z * 0.16, cy);
-      ctx.lineTo(ax - dir * z * 0.16, cy + z * 0.2);
+      ctx.moveTo(ax - dir * aw, ay);
+      ctx.lineTo(ax + dir * aw, ay);
+      ctx.moveTo(ax + dir * aw * 0.35, ay - aw * 0.55);
+      ctx.lineTo(ax + dir * aw, ay);
+      ctx.lineTo(ax + dir * aw * 0.35, ay + aw * 0.55);
       ctx.stroke();
     }
+    ctx.restore();
 
-    // 3. The badge, on a filled pill so it reads against any background, with
-    //    the time left draining out of it.
-    // Above the hearts (1.80), not under them — at 1.62 the pill sat straight
-    // through the heart row and both became unreadable.
-    const by = py - a.h * z * 2.2;
-    const bw = z * 0.92;
-    const bh = z * 0.46;
-    ctx.globalAlpha = 1;
-    ctx.fillStyle = RC;
-    roundRect(ctx, px - bw / 2, by - bh / 2, bw, bh, bh / 2);
-    ctx.fill();
-    ctx.strokeStyle = "rgba(255,255,255,0.9)";
-    ctx.lineWidth = Math.max(1.5, z * 0.045);
-    ctx.stroke();
-    // the drain
+    // How long is left, draining along the bottom of the pill.
     const frac = Math.max(0, Math.min(1, left / (POWERUPS.baliktad.reverseMs / 1000)));
-    ctx.fillStyle = "rgba(255,255,255,0.85)";
-    ctx.fillRect(px - bw / 2 + z * 0.06, by + bh / 2 - z * 0.1,
-                 (bw - z * 0.12) * frac, Math.max(1.5, z * 0.05));
-    ctx.fillStyle = "#fff";
-    ctx.font = `900 ${z * 0.34}px "Nunito", system-ui, sans-serif`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText("\u21c4", px, by - z * 0.02);
-    ctx.textBaseline = "alphabetic";
-
+    ctx.fillStyle = "rgba(255,255,255,0.9)";
+    ctx.fillRect(-bw / 2 + z * 0.07, bh / 2 - z * 0.11,
+                 (bw - z * 0.14) * frac, Math.max(1.5, z * 0.055));
     ctx.restore();
   }
-
 
   // Three things stack over a character's head, and the order is the whole
   // point: body, then bullets, then hearts. The pips used to sit at 1.12 —
