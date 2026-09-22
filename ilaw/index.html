@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ilaw at Anino</title>
+<meta name="description" content="A two-phone co-op game for one screen. One of you holds the light. The other walks.">
+<meta name="theme-color" content="#04060c">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,500;0,600;1,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/screen.css">
+</head>
+<body>
+
+<canvas id="stage"></canvas>
+
+<!-- Lobby: the only screen anyone reads before the lights go out. -->
+<div id="lobby">
+  <div class="mark">
+    <h1>Ilaw<span>at</span>Anino</h1>
+    <p class="tag">light and shadow · for two</p>
+  </div>
+
+  <div class="join">
+    <div class="qr"></div>
+    <div class="joinText">
+      <div class="label">Open on both phones</div>
+      <div class="url">—</div>
+      <div class="label">Room</div>
+      <div class="code">— — — —</div>
+    </div>
+  </div>
+
+  <div class="slots">
+    <div class="slot" data-slot="ilaw">
+      <div class="role">Ilaw</div>
+      <div class="en">the light</div>
+      <p>Hold the phone flat and turn it. The beam turns with you. Hold the screen to focus it down to a spotlight.</p>
+      <div class="state">waiting…</div>
+    </div>
+    <div class="slot" data-slot="anino">
+      <div class="role">Anino</div>
+      <div class="en">the shadow</div>
+      <p>Your thumb walks her. You can only see what the other one is pointing at. Set the lantern down to cross a shadow.</p>
+      <div class="state">waiting…</div>
+    </div>
+  </div>
+
+  <div class="go">Press Enter to start anyway (keyboard + mouse fill the gap)</div>
+</div>
+
+<div id="card" class="hidden"></div>
+
+<!-- Contextual one-liners; see tip() in screen.js. -->
+<div id="tip"></div>
+
+<!-- Only visible while the browser is still refusing to play audio. -->
+<div id="sound">click anywhere for sound</div>
+
+<script type="module" src="js/screen.js"></script>
+</body>
+</html>

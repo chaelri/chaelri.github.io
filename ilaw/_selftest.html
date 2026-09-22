@@ -1,0 +1,68 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>booting</title>
+<style>html,body{margin:0;background:#04060c}canvas{display:block}</style></head>
+<body><canvas id="stage"></canvas><pre id="out" style="color:#8f8;font:12px monospace;position:fixed;bottom:0;left:0"></pre>
+<script type="module">
+const log = [];
+const fail = (where, e) => log.push(`FAIL ${where}: ${e && e.stack ? e.stack.split('\n')[0] : e}`);
+window.onerror = (m,s,l,c,e) => fail('window', e || m);
+try {
+  const [{createGame, step, inCastShadow, overVoid}, {createRenderer, draw, resize}, {LEVELS}] =
+    await Promise.all([import('./js/world.js'), import('./js/render.js'), import('./js/levels.js')]);
+
+  const stage = document.getElementById('stage');
+  const r = createRenderer(stage);
+  r.perf = { world:0, mask:0, composite:0, post:0 };
+  const which = Number(new URLSearchParams(location.search).get('lv') || 0);
+
+  let worst = 0, total = 0, frames = 0;
+  for (const li of (new URLSearchParams(location.search).has('lv') ? [which] : [0,1,2])) {
+    const g = createGame(li);
+    resize(r, 1600, 1000, g.level);
+    // Drive it: sweep the beam, walk right, place the lantern at frame 90.
+    for (let i = 0; i < 420; i++) {
+      const input = {
+        ilaw: { angle: Math.sin(i / 70) * 1.2, focus: i > 200 ? 1 : 0, flare: i === 250 },
+        anino: { mx: Math.cos(i / 90) * 0.9, my: Math.sin(i / 55) * 0.7, act: i === 90 },
+      };
+      step(g, 1/60, input);
+      const t0 = performance.now();
+      draw(r, g, { peers: [{label:'Ilaw',on:true},{label:'Anino',on:true}] });
+      const ms = performance.now() - t0;
+      total += ms; frames++; if (ms > worst) worst = ms;
+    }
+    log.push(`level ${li} "${g.level.name}" ok — hearts ${g.hearts}, status ${g.status}, shards left ${g.shards.filter(s=>!s.taken).length}`);
+  }
+  log.push(`draw: avg ${(total/frames).toFixed(2)}ms, worst ${worst.toFixed(2)}ms over ${frames} frames`);
+  log.push('  breakdown/frame: ' + Object.entries(r.perf).map(([k,v])=>`${k} ${(v/frames).toFixed(2)}ms`).join('  '));
+
+  // Leave a representative frame on screen for the screenshot.
+  const shot = new URLSearchParams(location.search).get('shot') || 'bridge';
+  if (shot === 'bridge') {
+    const g = createGame(1);
+    resize(r, 1600, 1000, g.level);
+    g.carried = false; g.lanterns[0].x = 12; g.lanterns[0].y = 13;
+    g.walker.x = 21; g.walker.y = 13;
+    for (let i = 0; i < 60; i++) step(g, 1/60, { ilaw: { angle: 0, focus: 0 }, anino: {} });
+    draw(r, g, { peers: [{label:'Ilaw',on:true},{label:'Anino',on:true}] });
+    log.push(`bridge frame: walker over void=${overVoid(g,21,13)} on shadow=${inCastShadow(g,21,13)}`);
+  } else {
+    // Level 0, a little way in: some map remembered, beam out to the right.
+    const g = createGame(0);
+    resize(r, 1600, 1000, g.level);
+    for (let i = 0; i < 210; i++) {
+      const a = Math.sin(i / 45) * 1.1;
+      step(g, 1/60, { ilaw: { angle: a, focus: 0 }, anino: { mx: 0.8, my: 0 } });
+      draw(r, g, {});
+    }
+    for (let i = 0; i < 40; i++) {
+      step(g, 1/60, { ilaw: { angle: -0.25, focus: 0 }, anino: { mx: 0, my: 0 } });
+      draw(r, g, { peers: [{label:'Ilaw',on:true},{label:'Anino',on:true}] });
+    }
+    log.push(`play frame: walker at ${g.walker.x.toFixed(1)},${g.walker.y.toFixed(1)} hearts ${g.hearts}`);
+  }
+} catch (e) { fail('boot', e); }
+
+const bad = log.some(l => l.startsWith('FAIL'));
+document.title = bad ? 'SELFTEST FAIL' : 'SELFTEST OK';
+document.getElementById('out').textContent = log.join('\n');
+</script></body></html>

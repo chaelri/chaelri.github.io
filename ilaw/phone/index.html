@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Ilaw at Anino — controller</title>
+<meta name="theme-color" content="#04060c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/phone.css">
+</head>
+<body>
+
+<!-- iOS fires a system haptic when a switch control flips. It is the only
+     way to get a tap out of Safari, so it lives here, invisible. -->
+<input type="checkbox" switch id="haptic" aria-hidden="true" tabindex="-1">
+
+<section id="join">
+  <h1>Ilaw<span>at</span>Anino</h1>
+
+  <label class="field">
+    <span>Room code</span>
+    <input id="code" inputmode="text" autocapitalize="characters" autocomplete="off"
+           spellcheck="false" maxlength="4" placeholder="····">
+  </label>
+
+  <div class="roles">
+    <button data-role="ilaw">
+      <b>Ilaw</b>
+      <i>the light</i>
+      <small>Hold the phone flat and turn it — the beam turns with you.</small>
+    </button>
+    <button data-role="anino">
+      <b>Anino</b>
+      <i>the shadow</i>
+      <small>Your thumb walks her through the dark.</small>
+    </button>
+  </div>
+
+  <button id="joinBtn" disabled>Pick a side</button>
+  <p id="err"></p>
+  <p class="foot">Both phones and the screen need the same WiFi.</p>
+</section>
+
+<section id="pad" class="hidden">
+  <div id="state" class="pill">connecting…</div>
+
+  <!-- Ilaw -->
+  <div class="ilawOnly dialWrap">
+    <canvas id="dial"></canvas>
+    <p class="hint">Turn the phone to sweep.<br>Hold anywhere to focus the beam.</p>
+  </div>
+  <button id="recentre" class="ilawOnly edge left">Re-centre</button>
+  <button id="flare" class="ilawOnly edge right big">Flare<small>burst · shoves them back</small></button>
+
+  <!-- Anino -->
+  <div id="stick" class="aninoOnly"><div id="nub"></div></div>
+  <p class="hint aninoOnly aninoHint">Touch anywhere and drag to walk.</p>
+  <button id="lantern" class="aninoOnly big">Lantern<small>set down / take</small></button>
+</section>
+
+<script type="module" src="../js/phone.js"></script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 # Hub Project Index for chaelri.github.io
 
-**Last updated:** 2026-09-05
+**Last updated:** 2026-09-22
 **Scope:** Complete mapping of top-level directories + root files, with tech stack, deployment, status, and key entry points.
 
 ## Status Legend
@@ -66,6 +66,47 @@ Photo-first food log for Charlie & Karla — snap the plate, Gemini reads it, an
   - Days are **Manila days** via `Intl`, never the device clock.
   - iOS haptics use the hidden `<input type="checkbox" switch>` trick from `devo/js/01-core.js`.
 - **Full docs:** See `knowledge/kain/SUMMARY.md` and `kain/README.md`.
+
+### ilaw/  🟢
+
+**Ilaw at Anino** — asymmetric co-op game for Charlie + Karla. The MacBook is the shared screen and owns the entire simulation; the two iPhones are controllers that stream input and render nothing. One player aims a lantern by turning their phone (gyro); the other walks a character who can only see what the beam is on. Built 2026-09-22.
+
+- **Tech:** vanilla ES modules (no build), Canvas 2D with five offscreen layers, hand-written CSS (no Tailwind), Inter + Playfair Display, WebAudio synthesis. **No binary assets at all** — every pixel is drawn at runtime, same posture as `driving/`.
+- **Entry:** `index.html` (screen: lobby then game), `phone/index.html` (controller, both roles), `js/world.js` (the sim), `js/geom.js` (visibility polygon), `js/net.js` (pairing), `js/screen.js`, `js/phone.js`, `js/levels.js`, `js/config.js` (all tuning).
+- **Deploy:** GitHub Pages at `/ilaw/`, controller at `/ilaw/phone/`. **Not linked from the root hub page** — same posture as `mac-toggle/` and `kain/`; the room code is the only gate.
+- **Transport:** Firebase RTDB (`test-database-55379`) is used **only** to swap WebRTC offers under `ilaw/rooms/<CODE>/`. Gameplay runs over a WebRTC data channel direct between the phones and the Mac on the LAN, so input never leaves the house. Falls back to RTDB relay at 15 Hz if p2p fails (router client isolation); each phone's pill reads `direct` or `relay`. The room deletes itself on tab close. Root RTDB rules are already `.read/.write: true`, so no rules change was needed.
+- **Quirks:**
+  - **The lantern is a separate object from the walker, and that is the whole game.** The original design had the light originate from her — but then she sits at the apex of every shadow she casts and can never stand in one, which kills the shadow-bridge mechanic outright. She now *carries* it (light follows her, she can see) or *sets it down* (light anchored, she can walk into the dark and onto the umbra a pillar throws, which is solid ground over a chasm).
+  - **Level constraint that follows from it:** she can cross a chasm on a shadow but can never carry the lantern over one. So a level has **one chasm, or a second lantern waiting past the first**. Breaking this strands her with no light. Crossings are bidirectional while the beam is held, so there is no soft-lock.
+  - **A cone-shaped visibility polygon must close through the light's own position.** A full 360° fan wraps onto itself and needs no apex vertex; a partial cone does. Without it the filled shape is the region *between the ends of the arc* — rendering every shadow as the only lit thing on screen, perfectly inverted. First real bug, and invisible from reading the code.
+  - **Rendering nudges each ray hit 0.22 units past the surface** (`SKIN` in `geom.js`) so the pillar you are aiming at is actually visible. `isOccluded()` — which decides solid ground and creature burn — stays exact.
+  - **Static geometry is baked once per level** (`bakeStatic`): 29 ms → 0.08 ms per draw on GPU. The floor grid was most of the cost.
+  - **The mask canvas is amber, not white** — `destination-in` uses only alpha, so the same canvas doubles as the warm-glow layer and a re-tint pass drops out.
+  - **Button presses travel as counters, not booleans** — the data channel is `{ordered:false, maxRetransmits:0}`, so a boolean edge can vanish but an incremented counter is unambiguous. `screen.js` also handles the counter going backwards (a phone reload).
+  - **`webkitCompassHeading` is deliberately unused** — absolute and drift-free, but magnetometer-based, and they play next to a laptop full of magnets. Beam angle is relative to the last Re-centre tap, derived from the W3C alpha/beta/gamma rotation matrix; the heading axis is picked once at calibration so tipping the phone past vertical cannot snap the beam 90°.
+  - **`#lantern`'s ID specificity beat the role-gating class rule**, leaking the Anino button onto the Ilaw controller. The gate carries `!important` on purpose.
+  - **The flare reveals and repels but does not touch shadows** — a real light meant popping one mid-crossing dropped her into the chasm.
+  - **Keyboard + mouse fill any role with no phone attached** (`?solo=1` skips the lobby), which is also the only way to test it alone.
+  - **`_selftest.html`** steps all three levels 420 frames each and prints errors + per-phase timings; title reads `SELFTEST OK`/`FAIL` so it greps from headless Chrome. The real game cannot be screenshotted headlessly — its rAF loop never lets `--virtual-time-budget` expire, which is why the harness exists.
+- **Full docs:** See `knowledge/ilaw/SUMMARY.md` and `ilaw/README.md`.
+
+### talon/  🟢
+
+**Tapakan** — local-WiFi versus platformer for Charlie + Karla. The MacBook is the shared screen and owns the whole simulation; the two iPhones are controllers. One shrinking arena, land on their head before they land on yours, first to 3 rounds. Built 2026-09-22, after `ilaw/` was set aside.
+
+- **Tech:** vanilla ES modules (no build), Canvas 2D, hand-written CSS, Nunito. WebRTC data channel for input, Firebase RTDB for signalling only. CC0 sample audio in `audio/` (see `audio/CREDITS.md`).
+- **Entry:** `index.html` (screen), `phone/index.html` (controller), `js/screen.js` (rules, AI, HUD — the big one), `js/render.js`, `js/physics.js`, `js/levels.js`, `js/characters.js`, `js/config.js` (all tuning), `js/net.js`, `js/audio.js`.
+- **Deploy:** GitHub Pages at `/talon/`, controller at `/talon/phone/`. **Not linked from the root hub page** — same posture as `ilaw/`, `kain/` and `mac-toggle/`; the QR is the only gate.
+- **Joining:** each player's QR carries room + role + character, so scanning IS the join — no typing, no picking. Both in = the match starts itself. `?solo=1` skips the lobby and exposes `__talon()` for inspection; PC mode is Charlie WASD+F, Karla arrows+Shift.
+- **Quirks:**
+  - **The arena is generated per round**, authored as a LEFT HALF and mirrored — taking a run's midpoint after mirroring gives an off-by-one on even lengths, which puts a power-up one tile nearer one player. Every arena goes through the same `validate()` as the authored map, so an unreachable tier or a spawn over a hole is redrawn, not played. 500/500 generate clean.
+  - **Two-tile steps are the whole level grammar.** The first arena stacked platforms at 3/5/7/9 tiles against a 3.43-tile jump: five of seven were unreachable.
+  - **`TouchEvent.touches` is the controller's only source of truth.** Tracking pointerdown/up pairs desyncs on iOS and leaves a direction jammed on, which reads as "left does nothing" because left and right cancel.
+  - **Ten power-ups**, two of which act on the OTHER player (`yelo`, `baliktad`) and are spent on pickup. `suntok` is three punches and each one is an instant kill; `tatlo` spawns three capped mini-Bubus.
+  - **Dudu's hunt clock stops while his target is untouchable** (i-frames, star, shield) — otherwise he spent his window bouncing off someone he could not hurt. 45s hard ceiling so chained immunity can't keep him forever.
+  - **Deaths run a kill cam** that abandons the two-player framing rule. A falling death clamps its focus back inside the level, or the camera chases into empty sky and the level clamp silently cancels the move. The match-winning kill never hands the camera back.
+  - **Glyphs live in two tables** — `GLYPHS` in `screen.js` (toasts, chips) and `GLYPH` in `render.js` (the orbs). Adding a power-up to one and not the other renders a `?` on the pickup.
+  - Health starts at 3 and `lunas` can take it to 5; the spare hearts are gold and only drawn once earned.
 
 ### autoclicker/  🟢
 
@@ -490,7 +531,7 @@ Simple side-scrolling platformer (Bubu & Dudu) — canvas-based game.
 
 | Project | Hosting | Auto-deploy on push? |
 |---|---|---|
-| kain, sherill (also on Vercel as `drive-with-sherill`), driving, devo, monthsary, tayo, sns-dq, weddingtest, towa-no-yuugure, autoclicker, aircon, pocket-remote, mac-toggle, collaterals, flux, pray, echoes, wedding100, weddingtimeline, horizon, money, anohana, bubududu | GitHub Pages subpath | ✅ |
+| talon, ilaw, kain, sherill (also on Vercel as `drive-with-sherill`), driving, devo, monthsary, tayo, sns-dq, weddingtest, towa-no-yuugure, autoclicker, aircon, pocket-remote, mac-toggle, collaterals, flux, pray, echoes, wedding100, weddingtimeline, horizon, money, anohana, bubududu | GitHub Pages subpath | ✅ |
 | mac-toggle (Mac agent) | root LaunchDaemon `com.chaelri.mactoggle` via `agent/install.sh` | Manual |
 | mac-toggle (menu bar) | per-user LaunchAgent `com.chaelri.mactoggle.menubar` via `menubar/install-menubar.sh` | Manual |
 | claude-usage | per-user LaunchAgent `com.chaelri.claudeusage` via `install.sh` | Manual |

@@ -1,0 +1,285 @@
+/* Controller. Held, not looked at — so everything here is either huge or out
+   of the way, and nothing needs reading twice. */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: #04060c;
+  color: #dbe3f5;
+  font-family: "Inter", -apple-system, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#haptic {
+  position: fixed;
+  opacity: 0;
+  pointer-events: none;
+  width: 1px;
+  height: 1px;
+}
+
+/* --------------------------------------------------------------- join --- */
+
+#join {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  padding: max(28px, env(safe-area-inset-top)) 22px max(28px, env(safe-area-inset-bottom));
+  text-align: center;
+  background: radial-gradient(ellipse at 50% 30%, rgba(255, 195, 107, 0.1), transparent 60%);
+  transition: opacity 500ms ease;
+}
+#join.gone { display: none; }
+
+#join h1 {
+  font-family: "Playfair Display", Georgia, serif;
+  font-weight: 500;
+  font-size: 34px;
+  margin: 0;
+  color: #fff3dd;
+}
+#join h1 span {
+  font-size: 0.55em;
+  opacity: 0.55;
+  margin: 0 0.3em;
+  font-style: italic;
+}
+
+.field { display: grid; gap: 7px; }
+.field span {
+  font-size: 10px;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: rgba(219, 227, 245, 0.4);
+}
+#code {
+  width: 6.2ch;
+  padding: 10px 0;
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: 40px;
+  letter-spacing: 0.22em;
+  text-align: center;
+  text-indent: 0.22em;
+  color: #ffc36b;
+  background: rgba(255, 195, 107, 0.06);
+  border: 1px solid rgba(255, 195, 107, 0.25);
+  border-radius: 12px;
+  outline: none;
+}
+
+.roles { display: grid; gap: 10px; width: 100%; max-width: 420px; }
+.roles button {
+  display: grid;
+  gap: 3px;
+  padding: 15px 17px;
+  text-align: left;
+  color: inherit;
+  background: rgba(219, 227, 245, 0.035);
+  border: 1px solid rgba(219, 227, 245, 0.12);
+  border-radius: 14px;
+  font: inherit;
+  transition: border-color 250ms, background 250ms;
+}
+.roles button b { font-family: "Playfair Display", Georgia, serif; font-size: 21px; font-weight: 500; }
+.roles button i {
+  font-style: normal;
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(219, 227, 245, 0.35);
+}
+.roles button small { font-size: 12.5px; line-height: 1.5; color: rgba(219, 227, 245, 0.6); margin-top: 4px; }
+.roles button[data-role="ilaw"] b { color: #ffc36b; }
+.roles button[data-role="anino"] b { color: #8fb4ff; }
+.roles button[data-role="ilaw"].sel { border-color: rgba(255, 195, 107, 0.6); background: rgba(255, 195, 107, 0.09); }
+.roles button[data-role="anino"].sel { border-color: rgba(143, 180, 255, 0.6); background: rgba(143, 180, 255, 0.09); }
+
+#joinBtn {
+  width: 100%;
+  max-width: 420px;
+  padding: 17px;
+  font: 600 16px/1 "Inter", system-ui, sans-serif;
+  letter-spacing: 0.04em;
+  color: #120c02;
+  background: #ffc36b;
+  border: 0;
+  border-radius: 14px;
+}
+#joinBtn:disabled { background: rgba(219, 227, 245, 0.1); color: rgba(219, 227, 245, 0.35); }
+
+#err { margin: 0; font-size: 13px; line-height: 1.5; color: #ff8e9e; max-width: 34ch; }
+.foot { margin: 0; font-size: 11px; color: rgba(219, 227, 245, 0.28); }
+
+/* ---------------------------------------------------------------- pad --- */
+
+#pad {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+}
+#pad.hidden { display: none; }
+
+.pill {
+  position: absolute;
+  top: max(12px, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 5px 13px;
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  color: rgba(219, 227, 245, 0.45);
+  background: rgba(219, 227, 245, 0.06);
+}
+.pill[data-mode="p2p"] { color: rgba(160, 230, 175, 0.9); background: rgba(160, 230, 175, 0.09); }
+.pill[data-mode="relay"] { color: #ffc36b; background: rgba(255, 195, 107, 0.1); }
+
+.hint {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: max(96px, calc(env(safe-area-inset-bottom) + 96px));
+  margin: 0;
+  text-align: center;
+  font-size: 12px;
+  line-height: 1.6;
+  color: rgba(219, 227, 245, 0.3);
+  pointer-events: none;
+}
+
+/* Role gating. !important is load-bearing, not laziness: #lantern is an ID
+   selector that sets `display: grid`, which outranks any class-based rule, so
+   without this the Anino button leaks onto the Ilaw controller. */
+body:not([data-role="ilaw"]) .ilawOnly { display: none !important; }
+body:not([data-role="anino"]) .aninoOnly { display: none !important; }
+
+/* Ilaw */
+.dialWrap {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  pointer-events: none;
+}
+#dial { width: min(46vh, 46vw); height: min(46vh, 46vw); display: block; }
+.dialWrap .hint { position: static; margin-top: 18px; }
+
+.edge {
+  position: absolute;
+  bottom: 24px;
+  bottom: max(24px, calc(env(safe-area-inset-bottom) + 14px));
+  padding: 18px 22px;
+  font: 600 14px/1 "Inter", system-ui, sans-serif;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 195, 107, 0.3);
+  background: rgba(255, 195, 107, 0.08);
+  color: #ffc36b;
+}
+.edge.left { left: 20px; left: max(20px, env(safe-area-inset-left)); }
+.edge.right { right: 20px; right: max(20px, env(safe-area-inset-right)); }
+.edge:active { background: rgba(255, 195, 107, 0.22); }
+
+.big {
+  padding: 24px 30px;
+  font-size: 17px;
+  border-radius: 20px;
+}
+#flare {
+  display: grid;
+  gap: 3px;
+  justify-items: center;
+  max-width: 42vw;
+  text-align: center;
+  border-color: rgba(255, 195, 107, 0.55);
+  background: rgba(255, 195, 107, 0.16);
+}
+#flare small {
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  white-space: nowrap;
+  color: rgba(255, 195, 107, 0.6);
+}
+/* Cooling is tracked on the phone from its own press rather than sent back
+   from the screen — 9 s after you pressed is 9 s either way, and it means the
+   button can answer for itself without a return channel. */
+#flare.cooling {
+  opacity: 0.4;
+  border-color: rgba(255, 195, 107, 0.2);
+  background: rgba(255, 195, 107, 0.05);
+}
+
+/* Anino */
+#stick {
+  position: absolute;
+  width: 124px;
+  height: 124px;
+  margin: -62px 0 0 -62px;
+  border-radius: 50%;
+  border: 1px solid rgba(143, 180, 255, 0.28);
+  background: rgba(143, 180, 255, 0.05);
+  opacity: 0;
+  transition: opacity 180ms ease;
+  pointer-events: none;
+}
+#stick.on { opacity: 1; }
+#nub {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 54px;
+  height: 54px;
+  margin: -27px 0 0 -27px;
+  border-radius: 50%;
+  background: rgba(143, 180, 255, 0.55);
+  transform: translate(-50%, -50%);
+}
+#nub { left: 62px; top: 62px; margin: 0; }
+
+#lantern {
+  position: absolute;
+  /* Plain values first: if a browser chokes on the max()/env() pair the whole
+     declaration is dropped, and an absolutely positioned button with no
+     offsets falls back to its static position — which is nowhere near a
+     thumb. */
+  right: 20px;
+  bottom: 24px;
+  right: max(20px, env(safe-area-inset-right));
+  bottom: max(24px, calc(env(safe-area-inset-bottom) + 14px));
+  display: grid;
+  gap: 3px;
+  justify-items: center;
+  max-width: 45vw;
+  font: 600 16px/1 "Inter", system-ui, sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: center;
+  color: #ffc36b;
+  border: 1px solid rgba(255, 195, 107, 0.45);
+  background: rgba(255, 195, 107, 0.13);
+  border-radius: 20px;
+  padding: 20px 22px;
+}
+#lantern small {
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  text-transform: none;
+  white-space: nowrap;
+  color: rgba(255, 195, 107, 0.55);
+}
+#lantern:active { background: rgba(255, 195, 107, 0.28); }
+
+.aninoHint { bottom: max(120px, calc(env(safe-area-inset-bottom) + 120px)); }
