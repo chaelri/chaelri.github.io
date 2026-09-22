@@ -49,7 +49,11 @@ const SOLO = params.has("solo");
  */
 const DUO = params.has("duo") || document.body.classList.contains("duo");
 const DUO_ROOM = (params.get("r") || "BUBUDUDU").toUpperCase();
-const DUO_SNAPSHOT_HZ = 20;
+// Higher on a direct link than the relay lane can carry; net.js rate-limits
+// its own side, so this is simply how often a fresh picture is offered.
+const DUO_SNAPSHOT_HZ = 30;
+// A full frame at least this often, so a guest is never waiting on a change.
+const DUO_KEYFRAME_MS = 1000;
 // ?mode=tapakan lets a mode be opened directly, which is the only way to test
 // the versus rules without two phones in the room.
 const FORCED = params.get("mode");
@@ -1887,6 +1891,8 @@ function simulate(dt) {
 
 let lastSnapAt = 0;
 let lastRows = null;
+let lastKeyAt = 0;
+let guestWas = false;
 
 /**
  * Push the round down to the guest phone.
@@ -1903,10 +1909,36 @@ function broadcast() {
   lastSnapAt = now;
 
   const snap = snapshot(G, { ph: phase, sc: score, rn: roundNo, wn: G.winner || 0 });
-  if (rowsEqual(snap.rows, lastRows)) delete snap.rows;
-  else lastRows = snap.rows;
+
+  // The tilemap is sent only when it differs from the last tick, because it is
+  // most of the payload and it usually has not changed. That alone leaves a
+  // guest who joins mid-round with NOTHING to draw against until the arena
+  // next crumbles — several seconds of blank screen, which is exactly what it
+  // looked like. So: a full frame the moment someone arrives, and one every
+  // second regardless, in case a snapshot carrying rows was the one dropped.
+  const guestNow = !!pads.p2.connected;
+  const joined = guestNow && !guestWas;
+  guestWas = guestNow;
+  const stale = now - lastKeyAt > DUO_KEYFRAME_MS;
+
+  if (joined || stale || !rowsEqual(snap.rows, lastRows)) {
+    lastRows = snap.rows;
+    lastKeyAt = now;
+  } else {
+    delete snap.rows;
+  }
   host.tell("p2", snap);
+  duoStats.sent++;
+  duoStats.bytes = JSON.stringify(snap).length;
+  duoStats.rows = !!snap.rows;
 }
+
+/**
+ * What the duo link is actually doing, readable from the console on either
+ * phone. "It connects but nothing arrives" is the failure this mode will keep
+ * having, and guessing at it from the outside is miserable.
+ */
+export const duoStats = { sent: 0, bytes: 0, rows: false, get guest() { return !!pads.p2.connected; } };
 
 /**
  * The host's own thumbs, through the same door a remote controller uses.
@@ -2158,7 +2190,10 @@ let starting = false;
 
 // Under ?solo the live round is hung on window for inspection. Versus rules
 // are hard to exercise any other way without two phones in the room.
-if (SOLO) {
+// Also exposed in duo, where the host is a phone: a backgrounded tab gets no
+// rAF, so being able to step the simulation by hand is the only way to tell a
+// broken link apart from a throttled one.
+if (SOLO || DUO) {
   window.__smash = () => ({ phase, mode, G, score, roundNo, kill: renderer.kill });
   window.__smashStep = (dt, n = 1) => {
     for (let i = 0; i < n; i++) advance(dt);

@@ -12,7 +12,38 @@ export const FIREBASE_CONFIG = {
 };
 
 export const DB_ROOT = "bubududu-smash";
-export const ICE_SERVERS = [{ urls: "stun:stun.l.google.com:19302" }];
+/*
+ * STUN tells a peer its own public address; that is enough on one WiFi and
+ * often enough across two home connections. It is NOT enough between two
+ * mobile carriers, where both sides sit behind carrier-grade NAT and no
+ * direct path exists — then a TURN server has to relay the traffic.
+ *
+ * There is no longer a usable free TURN server without an account. The old
+ * public openrelay credentials were tested and return no relay candidates at
+ * all any more. So this is left as a slot: drop a free key in (Metered and
+ * ExpressTURN both have free tiers big enough for two people) and the game
+ * will use it. Until then, net.js falls back to relaying through Firebase,
+ * which always works and is slower.
+ *
+ * Whatever is in localStorage under "bubududu-smash.turn" is merged in, so a
+ * key can be added on the phone without touching the code:
+ *
+ *   localStorage["bubududu-smash.turn"] = JSON.stringify([
+ *     { urls: "turn:...:80", username: "...", credential: "..." }
+ *   ])
+ */
+function extraIce() {
+  try {
+    const v = JSON.parse(localStorage.getItem("bubududu-smash.turn") || "[]");
+    return Array.isArray(v) ? v : [];
+  } catch { return []; }
+}
+
+export const ICE_SERVERS = [
+  { urls: "stun:stun.l.google.com:19302" },
+  { urls: "stun:stun.cloudflare.com:3478" },
+  ...extraIce(),
+];
 export const P2P_TIMEOUT_MS = 6000;
 export const INPUT_HZ = 50;
 export const INPUT_HZ_RELAY = 30;
