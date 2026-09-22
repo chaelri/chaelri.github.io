@@ -34,6 +34,16 @@ import { charById } from "./characters.js";
  */
 let authority = true;
 
+/* Which of the two players is sitting in front of THIS copy.
+ *
+ * Only a client needs it, and only for one decision: your own body is never
+ * eased toward a correction, because the server's copy of you is a round trip
+ * old and easing onto it drags you backwards against your own thumbs. The
+ * other player is the opposite — nothing local owns him, so the correction is
+ * simply better than the guess.
+ */
+let localRole = null;
+
 /** Nothing happens until someone supplies one; see configure(). */
 let fx = {
   sfx() {}, music() {}, note() {}, banner() {}, count() {}, result() {},
@@ -45,6 +55,7 @@ let fx = {
 export function configure(opts = {}) {
   if (opts.fx) fx = { ...fx, ...opts.fx };
   if (opts.authority !== undefined) authority = !!opts.authority;
+  if (opts.role !== undefined) localRole = opts.role;
 }
 
 /* ---------------------------------------------------------------- state --- */
@@ -149,6 +160,9 @@ function applyPacket(role, p) {
 }
 
 function dropStaleInput() {
+  // Only where the pads arrive over a wire. On a client both are handed in
+  // every update, so "we have not heard from them" never means anything.
+  if (!authority) return;
   const now = performance.now();
   for (const id of ["p1", "p2"]) {
     if (!pads[id].connected) continue;
@@ -1977,7 +1991,7 @@ export function applyCorrection(view, rngAt, hostPhase) {
      * The other player is the opposite case: he is simulated here from his
      * inputs, nothing local owns him, and the host's copy is simply better.
      */
-    const mine = a.id === "p2";
+    const mine = a.id === localRole;
     const gap = Math.hypot(t.x - a.x, t.y - a.y);
     if (t.dead || gap > (mine ? CORRECT_MINE : CORRECT_SNAP)) {
       a.x = t.x; a.y = t.y; a.vx = t.vx; a.vy = t.vy;

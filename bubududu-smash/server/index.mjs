@@ -24,6 +24,9 @@ import { Room } from "@colyseus/core";
 import * as sim from "../js/sim.js";
 import { snapshot } from "../js/netstate.js";
 
+const packPad = (p) =>
+  [p.left ? 1 : 0, p.right ? 1 : 0, p.jumpHeld ? 1 : 0, p.drop ? 1 : 0];
+
 const TICK_HZ = 60;        // how often the rules advance
 const SEND_HZ = 30;        // how often both players are told
 const KEYFRAME_MS = 1000;  // ...and told everything
@@ -138,6 +141,17 @@ class SmashRoom extends Room {
       sd: sim.state.seed,
       wn: G.winner || 0,
       hd: this.shown,
+      /* Both players' thumbs.
+       *
+       * Twelve bytes, and it is what lets each phone carry the OTHER player
+       * forward between updates instead of stepping him thirty times a
+       * second. Without it he is smooth on his own screen and stuttery on
+       * yours, which is half of what "laggy" ever meant.
+       */
+      in: {
+        p1: packPad(sim.state.pads.p1),
+        p2: packPad(sim.state.pads.p2),
+      },
       who: Object.fromEntries([...this.roles].map(([id, r]) => [r, id])),
     });
     // The tilemap is most of the payload and it only changes when the arena

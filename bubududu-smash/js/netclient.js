@@ -59,6 +59,7 @@ export async function connect({ role, say = () => {} }) {
    * the rules exists so the characters move the instant a thumb does. */
   sim.configure({
     authority: false,
+    role,
     fx: {
       // Everything the server tells us instead — see apply() below. Locally
       // predicted effects would double up with the real ones.
@@ -102,6 +103,16 @@ export async function connect({ role, say = () => {} }) {
       sim.startRound(m.sd);
     }
     if (m.sd !== undefined && m.sd !== sim.state.seed) sim.startRound(m.sd);
+
+    // Both players' thumbs, so the OTHER one carries forward between
+    // updates instead of stepping thirty times a second. Ours is already in
+    // — it went straight into the prediction the moment it was pressed.
+    if (m.in) for (const id of ["p1", "p2"]) {
+      if (id === role || !m.in[id]) continue;
+      const [l, r, h, d] = m.in[id];
+      const pad = sim.state.pads[id];
+      pad.left = !!l; pad.right = !!r; pad.jumpHeld = !!h; pad.drop = !!d;
+    }
 
     view.score = m.sc;
     view.roundNo = m.rn;
