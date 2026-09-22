@@ -58,15 +58,6 @@ export function createRenderer(canvas) {
   };
 }
 
-/**
- * Full resolution, always.
- *
- * Rendering the world into a small buffer and upscaling it pixelates
- * everything in one move — and makes the whole view soft and low-detail,
- * which is not the same thing as pixel art. The art style belongs in the
- * ASSETS: each one is authored on its own small grid and blitted up crisply
- * (see pixelSprite below), while the canvas itself stays sharp.
- */
 export function resize(r, cssW, cssH) {
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   r.w = Math.round(cssW * dpr);
@@ -75,24 +66,6 @@ export function resize(r, cssW, cssH) {
   r.canvas.height = r.h;
   r.canvas.style.width = cssW + "px";
   r.canvas.style.height = cssH + "px";
-  r.tiles = null;
-}
-
-export function resizeScene(s, cssW, cssH) {
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  s.w = Math.round(cssW * dpr);
-  s.h = Math.round(cssH * dpr);
-  s.canvas.width = s.w;
-  s.canvas.height = s.h;
-  s.canvas.style.width = cssW + "px";
-  s.canvas.style.height = cssH + "px";
-  s.tiles = null;
-  // Keep the whole ridge in view however wide the window is.
-  s.cam.zoom = Math.max(38, Math.min(110, s.w / 18));
-  // gy works out to (height - K * zoom), so a smaller K drops the ridge
-  // further down the screen. Low enough that the cast walks clear of the
-  // cards and the button rather than behind them.
-  s.cam.y = SCENE_GROUND - s.h / 2 / s.cam.zoom + 1.7;
 }
 
 /**
@@ -231,247 +204,264 @@ function noiseAt(i) {
 }
 
 /**
- * Author on a small grid, blit big with nearest neighbour.
+ * One canvas holding every tile type, baked ONCE and scaled on the way out.
  *
- * This is the whole retro trick, and it is deliberately NOT done by shrinking
- * the canvas: the page stays HD, the UI stays sharp, and only the things that
- * should look like sprites get the chunky treatment. `cache` keys the baked
- * canvas so a sprite is drawn on its grid once and blitted forever after.
- *
- * `paint(ctx, w, h)` draws into a w×h ART-pixel canvas.
+ * The first version baked at the current zoom and re-baked whenever that
+ * moved. The camera eases every single frame, so in practice it re-baked
+ * several hundred paths constantly and took the frame from 4ms to 12ms —
+ * a cache that is a pessimisation. Bake at a size no tile will ever exceed
+ * (the camera's own ceiling is 78 CSS px a tile, doubled for retina) and let
+ * drawImage do the scaling, which is free.
  */
-const pixelCache = new Map();
+const TILE_ART_PX = 160;
 
-function pixelSprite(key, artW, artH, paint) {
-  let c = pixelCache.get(key);
-  if (c) return c;
-  c = document.createElement("canvas");
-  c.width = artW;
-  c.height = artH;
-  const x = c.getContext("2d");
-  paint(x, artW, artH);
-  pixelCache.set(key, c);
-  return c;
-}
+function tileArt(r) {
+  if (r.tiles) return r.tiles;
+  const key = TILE_ART_PX;
 
-/**
- * A filled circle rasterised onto an art grid.
- *
- * Canvas `arc()` antialiases, which is exactly the smooth edge these assets
- * are not supposed to have. Walking the grid and testing each cell's centre
- * gives the stepped rim a sprite would be drawn with.
- */
-function pixelDisc(x, art, cx, cy, rad, fill) {
-  x.fillStyle = fill;
-  const r2 = rad * rad;
-  for (let py = Math.floor(cy - rad); py <= Math.ceil(cy + rad); py++) {
-    for (let px = Math.floor(cx - rad); px <= Math.ceil(cx + rad); px++) {
-      const dx = px + 0.5 - cx;
-      const dy = py + 0.5 - cy;
-      if (dx * dx + dy * dy <= r2) x.fillRect(px, py, 1, 1);
-    }
-  }
-}
-
-/** The coin, and every power-up orb, on one 16x16 grid. */
-const ORB_ART = 16;
-
-function orbSprite(key, body, rim, shine) {
-  return pixelSprite(`orb:${key}`, ORB_ART, ORB_ART, (x) => {
-    const c = ORB_ART / 2;
-    pixelDisc(x, ORB_ART, c, c, c - 0.5, rim);
-    pixelDisc(x, ORB_ART, c, c, c * 0.76, body);
-    // One fixed highlight, top-left, the way a sprite would place it.
-    x.fillStyle = shine;
-    x.fillRect(Math.round(c * 0.55), Math.round(c * 0.5), 2, 1);
-    x.fillRect(Math.round(c * 0.45), Math.round(c * 0.65), 1, 2);
-  });
-}
-
-/** Blit a baked sprite with hard edges, centred on (cx, cy), `h` tall. */
-function blitPixels(ctx, sprite, cx, cy, h, face = 1) {
-  const w = (h * sprite.width) / sprite.height;
-  const smooth = ctx.imageSmoothingEnabled;
-  ctx.imageSmoothingEnabled = false;
-  ctx.save();
-  ctx.translate(cx, cy);
-  if (face < 0) ctx.scale(-1, 1);
-  ctx.drawImage(sprite, -w / 2, -h, w, h);
-  ctx.restore();
-  ctx.imageSmoothingEnabled = smooth;
-}
-
-/**
- * Every tile type, drawn as real pixel art at the size it will be blitted.
- *
- * The first version baked fine detail at 160px and scaled it down. That reads
- * as a photograph beside Bubu and Dudu, and with nearest-neighbour upscaling
- * now doing the final step it would resample into a shimmering mess as the
- * camera eases. So the art is authored ON the grid: every shape here is an
- * integer rectangle, and `key` is the on-screen tile size in virtual pixels.
- *
- * The camera only spans about ten integer zooms, so this bakes at most a
- * handful of times in a session.
- */
-const TILE_ART = 16;          // art pixels across one tile
-
-function tileArt(r, z) {
-  const key = TILE_ART;
-  if (r.tiles && r.tiles.key === key) return r.tiles;
-
+  const pad = 2;
+  const cell = key + pad * 2;
   const kinds = ["soil", "grass", "plat", "spike"];
   const c = document.createElement("canvas");
-  c.width = key * kinds.length;
-  c.height = key;
+  c.width = cell * kinds.length;
+  c.height = cell;
   const x = c.getContext("2d");
-  x.imageSmoothingEnabled = false;
 
-  const at = (i) => i * key;
-  // Everything lands on whole pixels; a half-pixel rect is a blurred rect,
-  // which is the one thing this whole approach exists to avoid.
-  const R = (px, py, pw, ph, fill) => {
-    x.fillStyle = fill;
-    x.fillRect(Math.round(px), Math.round(py), Math.max(1, Math.round(pw)), Math.max(1, Math.round(ph)));
-  };
-  const u = Math.max(1, Math.round(key / 16));   // one "art pixel"
+  const at = (i) => i * cell + pad;
 
-  const SOIL_MID = "#7a5341";
-  const SOIL_LO = "#5d3d30";
-  const SOIL_HI = "#8e6249";
-  const LINE = "#2e1d18";
-
-  /* ---- soil ---------------------------------------------------------- */
+  /* ---- soil: the body of the ground, under the grass ---------------- */
   const soil = (ox) => {
-    R(ox, 0, key, key, SOIL_MID);
-    R(ox, key - u * 2, key, u * 2, SOIL_LO);
-    // Speckle, on the grid, from the seeded generator so it never crawls.
-    for (let i = 0; i < 14; i++) {
+    const g = x.createLinearGradient(0, pad, 0, pad + key);
+    g.addColorStop(0, "#7d5744");
+    g.addColorStop(0.45, GROUND);
+    g.addColorStop(1, "#593c2f");
+    x.fillStyle = g;
+    x.fillRect(ox, pad, key, key);
+    // Strata: a few very faint horizontal bands. Earth is layered, and this
+    // is what stops the fill reading as one flat brown.
+    for (let i = 0; i < 4; i++) {
+      const n = noiseAt(i * 13 + 5);
+      x.fillStyle = n > 0.5 ? "rgba(255,225,190,0.045)" : "rgba(40,22,16,0.06)";
+      x.fillRect(ox, pad + key * (0.18 + i * 0.2 + n * 0.04), key, key * (0.05 + n * 0.06));
+    }
+
+    // Grit. The first pass used blobs 8% of a tile wide at 20% contrast,
+    // which at playing distance read as gravel rather than as soil. Small
+    // and faint is the whole point: you should notice it is not flat, not
+    // notice the specks.
+    for (let i = 0; i < Math.round(key * 2.2); i++) {
       const n1 = noiseAt(i * 3 + 1), n2 = noiseAt(i * 3 + 2), n3 = noiseAt(i * 3 + 3);
-      const bw = n3 > 0.7 ? u * 2 : u;
-      R(ox + Math.floor(n1 * (key / u - 2)) * u, Math.floor(n2 * (key / u - 1)) * u,
-        bw, u, n3 > 0.5 ? SOIL_HI : SOIL_LO);
+      const s = key * (0.008 + n3 * 0.016);
+      x.fillStyle = n3 > 0.55 ? "rgba(255,228,196,0.10)" : "rgba(40,22,16,0.11)";
+      x.beginPath();
+      x.ellipse(ox + n1 * key, pad + n2 * key, s, s * 0.8, 0, 0, Math.PI * 2);
+      x.fill();
+    }
+    // A handful of small stones, for something the grit can scale against.
+    for (let i = 0; i < 4; i++) {
+      const n1 = noiseAt(i * 7 + 21), n2 = noiseAt(i * 7 + 22);
+      x.fillStyle = "rgba(255,232,206,0.09)";
+      x.beginPath();
+      x.ellipse(ox + n1 * key, pad + 0.25 * key + n2 * key * 0.7,
+                key * 0.032, key * 0.021, 0.4, 0, Math.PI * 2);
+      x.fill();
     }
   };
 
   soil(at(0));
 
-  /* ---- grass --------------------------------------------------------- */
+  /* ---- grass: the same soil with a turf cap and blades -------------- */
   soil(at(1));
   {
     const ox = at(1);
-    const cap = Math.max(u * 3, Math.round(key * 0.3));
-    R(ox, 0, key, cap, "#6fbf46");
-    R(ox, 0, key, u, "#a2e572");            // sunlit top row
-    R(ox, cap - u, key, u, "#4f9b34");      // shaded underside of the turf
-    // A ragged row of blades biting down into the soil — this is what stops
-    // the join reading as a ruled line.
-    for (let i = 0; i * u * 2 < key; i++) {
+    const capH = key * 0.3;
+    const g = x.createLinearGradient(0, pad, 0, pad + capH);
+    g.addColorStop(0, "#96e063");
+    g.addColorStop(1, GROUND_TOP);
+    x.fillStyle = g;
+    x.fillRect(ox, pad, key, capH);
+    x.fillStyle = GROUND_EDGE;
+    x.fillRect(ox, pad + capH, key, key * 0.07);
+
+    // Blades hanging INTO the soil, so the join is ragged rather than a
+    // ruled line — that straight edge is most of what made it read as paper.
+    x.fillStyle = GROUND_EDGE;
+    const blades = Math.max(4, Math.round(key / 7));
+    for (let i = 0; i < blades; i++) {
       const n = noiseAt(i * 5 + 40);
-      if (n < 0.42) continue;
-      R(ox + i * u * 2, cap, u, n > 0.75 ? u * 2 : u, "#4f9b34");
+      const bx = ox + ((i + 0.5) / blades) * key + (n - 0.5) * key * 0.1;
+      const bw = key * (0.05 + n * 0.04);
+      const bh = key * (0.05 + noiseAt(i * 5 + 41) * 0.09);
+      x.beginPath();
+      x.moveTo(bx - bw, pad + capH);
+      x.lineTo(bx + bw, pad + capH);
+      x.lineTo(bx, pad + capH + bh + key * 0.07);
+      x.closePath();
+      x.fill();
     }
-    // ...and a few standing out of the top.
-    for (let i = 0; i * u * 3 < key; i++) {
-      const n = noiseAt(i * 9 + 60);
-      if (n < 0.5) continue;
-      R(ox + i * u * 3 + u, 0, u, u, "#a2e572");
+    // ...and a few standing up out of the top, which is what sells turf.
+    x.strokeStyle = "rgba(168,235,120,0.95)";
+    x.lineCap = "round";
+    for (let i = 0; i < blades; i++) {
+      const n = noiseAt(i * 9 + 60), n2 = noiseAt(i * 9 + 61);
+      const bx = ox + ((i + 0.35) / blades) * key + (n - 0.5) * key * 0.12;
+      x.lineWidth = Math.max(1, key * 0.022);
+      x.beginPath();
+      x.moveTo(bx, pad + key * 0.02);
+      x.quadraticCurveTo(bx + (n2 - 0.5) * key * 0.12, pad - key * 0.03,
+                         bx + (n2 - 0.5) * key * 0.2, pad - key * 0.075);
+      x.stroke();
     }
+    // Highlight along the very top lip.
+    x.fillStyle = "rgba(255,255,255,0.22)";
+    x.fillRect(ox, pad, key, Math.max(1, key * 0.035));
   }
 
-  /* ---- platform ------------------------------------------------------ */
+  /* ---- platform: a plank, with grain and end caps ------------------- */
   {
     const ox = at(2);
-    const top = Math.round(key * 0.12);
-    const h = Math.max(u * 4, Math.round(key * 0.34));
-    R(ox, top, key, h, "#c98b52");
-    R(ox, top, key, u, "#f0c08c");                    // lit top row
-    R(ox, top + u, key, u, "#e0a870");
-    R(ox, top + h - u * 2, key, u * 2, "#9a6436");    // shaded underside
-    R(ox, top + h - u, key, u, LINE);                 // keyline, like the sprites
-    R(ox, top, key, 0, LINE);
-    // grain: single dark pixels in a broken line
-    for (let i = 0; i * u * 3 < key; i++) {
-      const n = noiseAt(i * 11 + 80);
-      if (n < 0.45) continue;
-      R(ox + i * u * 3, top + u * 2 + (n > 0.75 ? u : 0), u * 2, u, "#a97144");
+    const top = pad + key * 0.1;
+    const h = key * 0.34;
+    const g = x.createLinearGradient(0, top, 0, top + h);
+    g.addColorStop(0, "#efbc8a");
+    g.addColorStop(0.28, PLATFORM_TOP);
+    g.addColorStop(0.62, PLATFORM);
+    g.addColorStop(1, "#a76f3f");
+    x.save();
+    roundRect(x, ox, top, key, h, key * 0.1);
+    x.clip();
+    x.fillStyle = g;
+    x.fillRect(ox, top, key, h);
+
+    // Grain: long, nearly-horizontal strokes at a shallow angle, plus two
+    // knots. Wood is the one texture everybody can spot as missing.
+    x.strokeStyle = "rgba(120,70,34,0.3)";
+    for (let i = 0; i < 4; i++) {
+      const n = noiseAt(i * 11 + 80), n2 = noiseAt(i * 11 + 81);
+      x.lineWidth = Math.max(0.7, key * (0.012 + n * 0.012));
+      x.beginPath();
+      const gy = top + h * (0.24 + i * 0.19 + (n2 - 0.5) * 0.06);
+      x.moveTo(ox - 1, gy);
+      x.bezierCurveTo(ox + key * 0.3, gy + h * 0.06 * (n - 0.5),
+                      ox + key * 0.7, gy - h * 0.06 * (n2 - 0.5), ox + key + 1, gy);
+      x.stroke();
     }
+    x.fillStyle = "rgba(120,70,34,0.26)";
+    x.beginPath();
+    x.ellipse(ox + key * 0.28, top + h * 0.55, key * 0.035, key * 0.022, 0.3, 0, Math.PI * 2);
+    x.fill();
+
+    // The lit top lip and the shaded underside, which is what gives a flat
+    // strip its thickness.
+    x.fillStyle = "rgba(255,255,255,0.4)";
+    x.fillRect(ox, top, key, Math.max(1, h * 0.14));
+    x.fillStyle = "rgba(90,50,24,0.28)";
+    x.fillRect(ox, top + h * 0.84, key, h * 0.16);
+    x.restore();
+
+    // A soft drop shadow under the plank, so it sits in front of the hills
+    // rather than being pasted onto them.
+    const sh = x.createLinearGradient(0, top + h, 0, top + h + key * 0.12);
+    sh.addColorStop(0, "rgba(40,30,20,0.2)");
+    sh.addColorStop(1, "rgba(40,30,20,0)");
+    x.fillStyle = sh;
+    x.fillRect(ox, top + h, key, key * 0.12);
   }
 
-  /* ---- spikes -------------------------------------------------------- */
+  /* ---- spikes ------------------------------------------------------- */
   {
     const ox = at(3);
     const n = 3;
-    const step = key / n;
     for (let i = 0; i < n; i++) {
-      const x0 = ox + i * step;
-      // A stair-stepped triangle: pixel art has no diagonals.
-      const rows = Math.max(3, Math.round(key * 0.7 / u));
-      for (let rIdx = 0; rIdx < rows; rIdx++) {
-        const t = rIdx / rows;
-        const wdt = step * (0.15 + t * 0.85);
-        R(x0 + (step - wdt) / 2, key - (rIdx + 1) * u, wdt, u, rIdx < 2 ? "#aeb8c8" : "#6f7a8c");
-      }
-      R(x0, key - u, step, u, "#414958");
+      const x0 = ox + (i * key) / n;
+      const g = x.createLinearGradient(x0, 0, x0 + key / n, 0);
+      g.addColorStop(0, "#414958");
+      g.addColorStop(0.45, "#7b8597");
+      g.addColorStop(1, "#414958");
+      x.fillStyle = g;
+      x.beginPath();
+      x.moveTo(x0, pad + key);
+      x.lineTo(x0 + key / n / 2, pad + key * 0.24);
+      x.lineTo(x0 + key / n, pad + key);
+      x.closePath();
+      x.fill();
+      x.strokeStyle = "rgba(255,255,255,0.5)";
+      x.lineWidth = Math.max(0.8, key * 0.02);
+      x.beginPath();
+      x.moveTo(x0 + key / n / 2, pad + key * 0.24);
+      x.lineTo(x0 + key / n * 0.3, pad + key);
+      x.stroke();
     }
   }
 
-  r.tiles = { key, cell: key, pad: 0, canvas: c, index: { soil: 0, grass: 1, plat: 2, spike: 3 } };
+  r.tiles = { key, cell, pad, canvas: c, index: { soil: 0, grass: 1, plat: 2, spike: 3 } };
   return r.tiles;
 }
 
-/* The sky, as flat bands.
+/**
+ * A 128px tile of very faint noise, laid over the sky.
  *
- * A four-stop gradient is the single most anti-retro thing that was on
- * screen: thousands of colours smeared down the frame, which then had to be
- * dithered with noise to stop it banding on an OLED. Solid bands need no
- * dither, cost one fillRect each, and are what a sprite game's sky is made
- * of. Listed light-to-dark top to bottom; the last one meets the hills. */
-const SKY_BANDS = [
-  [0.00, "#4aaeee"],
-  [0.20, "#63bbf2"],
-  [0.38, "#7fc9f5"],
-  [0.54, "#9dd7f8"],
-  [0.68, "#b9e2fa"],
-  [0.80, "#d2ecfc"],
-  [0.90, "#e6f3fb"],
-  [1.00, "#f4f0e2"],
-];
-
-// Radii as a fraction of canvas height. The disc it replaced was 0.045, so
-// the outermost ring is only a little wider than that — the first pass used
-// the old HALO's radius and put a sun a third of the sky across the screen.
-const SUN_RINGS = [
-  [0.068, "#f6eec6"],
-  [0.058, "#fbf4d6"],
-  [0.050, "#fef9e6"],
-  [0.042, "#fffef6"],
-];
+ * A four-stop gradient down a 1200px-tall screen steps in visible bands on
+ * any decent display. A couple of percent of noise on top dithers it away —
+ * it is the cheapest possible fix and it is what makes the sky read as air.
+ */
+function skyGrain(r) {
+  if (r.grain) return r.grain;
+  const c = document.createElement("canvas");
+  c.width = c.height = 128;
+  const x = c.getContext("2d");
+  const img = x.createImageData(128, 128);
+  for (let i = 0; i < img.data.length; i += 4) {
+    const v = noiseAt(i) * 255;
+    img.data[i] = img.data[i + 1] = img.data[i + 2] = v;
+    img.data[i + 3] = 12;
+  }
+  x.putImageData(img, 0, 0);
+  r.grain = x.canvas;
+  return r.grain;
+}
 
 function drawBackdrop(r, ctx, g, dt) {
-  for (let i = 0; i < SKY_BANDS.length; i++) {
-    const y0 = SKY_BANDS[i][0] * r.h;
-    const y1 = i + 1 < SKY_BANDS.length ? SKY_BANDS[i + 1][0] * r.h : r.h;
-    ctx.fillStyle = SKY_BANDS[i][1];
-    ctx.fillRect(0, Math.floor(y0), r.w, Math.ceil(y1 - y0) + 1);
+  const sky = ctx.createLinearGradient(0, 0, 0, r.h);
+  sky.addColorStop(0, "#4fb2ee");
+  sky.addColorStop(0.36, "#8ed2f7");
+  sky.addColorStop(0.68, "#cfeafb");
+  sky.addColorStop(1, "#f6eed9");
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, r.w, r.h);
+
+  // Dither the gradient. Four stops down a tall screen band visibly; a couple
+  // of percent of noise on top removes them for one fill.
+  // Cached: createPattern every frame is a needless allocation, and the tile
+  // never changes.
+  const grain = r.grainPattern || (r.grainPattern = ctx.createPattern(skyGrain(r), "repeat"));
+  if (grain) {
+    ctx.save();
+    ctx.globalAlpha = 0.5;
+    ctx.fillStyle = grain;
+    ctx.fillRect(0, 0, r.w, r.h);
+    ctx.restore();
   }
 
-  // The sun: solid concentric discs rather than a soft bloom. Each ring is
-  // one opaque colour, so it stays crisp however far it is blown up.
+  // sun, fixed high and to the right, with a wide soft halo
   const sx0 = r.w * 0.78 - r.cam.x * r.cam.zoom * 0.02;
   const sy0 = r.h * 0.16;
-  for (const [rad, colour] of SUN_RINGS) {
-    ctx.fillStyle = colour;
-    ctx.beginPath();
-    ctx.arc(sx0, sy0, r.h * rad, 0, Math.PI * 2);
-    ctx.fill();
-  }
+  const halo = ctx.createRadialGradient(sx0, sy0, 0, sx0, sy0, r.h * 0.42);
+  halo.addColorStop(0, "rgba(255,246,214,0.85)");
+  halo.addColorStop(0.18, "rgba(255,240,190,0.35)");
+  halo.addColorStop(1, "rgba(255,240,190,0)");
+  ctx.fillStyle = halo;
+  ctx.fillRect(sx0 - r.h * 0.42, sy0 - r.h * 0.42, r.h * 0.84, r.h * 0.84);
+  ctx.fillStyle = "rgba(255,252,236,0.95)";
+  ctx.beginPath();
+  ctx.arc(sx0, sy0, r.h * 0.045, 0, Math.PI * 2);
+  ctx.fill();
 
   // Pushed well down so the arena floats clear of them, and each range is
   // paler than the one in front to fake distance.
-  // Two flat tones each — body and sunlit ridge — never a blend between them.
-  hills(r, ctx, { depth: 0.05, base: 0.74, amp: 0.075, colour: "#a6cfe8", lit: "#bcddf0", seed: 1.0 });
-  hills(r, ctx, { depth: 0.12, base: 0.86, amp: 0.085, colour: "#8cc2d1", lit: "#a4d2dd", seed: 2.6 });
-  hills(r, ctx, { depth: 0.22, base: 0.97, amp: 0.09, colour: "#7ebd77", lit: "#95cc8b", seed: 4.2 });
+  hills(r, ctx, { depth: 0.05, base: 0.74, amp: 0.075, colour: "#aed4ec", seed: 1.0 });
+  hills(r, ctx, { depth: 0.12, base: 0.86, amp: 0.085, colour: "#93c6d4", seed: 2.6 });
+  hills(r, ctx, { depth: 0.22, base: 0.97, amp: 0.09, colour: "#86c483", seed: 4.2 });
 
   clouds(r, ctx, g, dt);
 }
@@ -507,7 +497,8 @@ function hills(r, ctx, o) {
   // ranges until they stopped separating from each other.
   ctx.save();
   ctx.clip();
-  ctx.fillStyle = o.lit;
+  ctx.globalAlpha = 0.14;
+  ctx.fillStyle = "#ffffff";
   ctx.beginPath();
   ctx.moveTo(0, 0);
   for (let x = 0; x <= r.w + 20; x += 18) {
@@ -535,11 +526,9 @@ function clouds(r, ctx, g, dt) {
     const s = c.s * r.cam.zoom;
     if (px < -s * 3 || px > r.w + s * 3) continue;
 
-    // Opaque, in one of two flat tones. Translucent white over a banded sky
-    // produced a different colour on every band it crossed — which is a
-    // gradient by another route.
     ctx.save();
-    ctx.fillStyle = c.far ? "#cfe8f8" : "#ffffff";
+    ctx.globalAlpha = c.far ? 0.42 : 0.72;
+    ctx.fillStyle = "#ffffff";
     ctx.beginPath();
     // a handful of overlapping lobes reads as a cloud; one ellipse reads as a
     // pill
@@ -618,7 +607,6 @@ export function draw(r, g, dt) {
   ctx.filter = "none";
   ctx.shadowBlur = 0;
   ctx.shadowColor = "rgba(0,0,0,0)";
-  ctx.imageSmoothingEnabled = true;
 
   layer("camera", ctx, () => updateCamera(r, g.level, g.actors, dt));
   layer("backdrop", ctx, () => drawBackdrop(r, ctx, g, dt));
@@ -766,11 +754,7 @@ function drawLostHearts(r, ctx, g) {
 
 function drawTiles(r, ctx, g) {
   const z = r.cam.zoom;
-  const art = tileArt(r, z);
-  // Hard edges: a 16px tile blown up to 30-odd screen pixels has to show its
-  // blocks, not a smooth gradient between them.
-  const smooth = ctx.imageSmoothingEnabled;
-  ctx.imageSmoothingEnabled = false;
+  const art = tileArt(r);
   const x0 = Math.max(0, Math.floor(r.cam.x - r.w / 2 / z) - 1);
   const x1 = Math.min(g.level.w - 1, Math.ceil(r.cam.x + r.w / 2 / z) + 1);
   const y0 = Math.max(0, Math.floor(r.cam.y - r.h / 2 / z) - 1);
@@ -786,18 +770,16 @@ function drawTiles(r, ctx, g) {
         c === "=" ? "plat" :
         c === "^" ? "spike" :
         (ty === 0 || g.grid.rows[ty - 1][tx] !== "#") ? "grass" : "soil";
-      // Snapped to whole pixels and drawn at the size it was baked, so the
-      // art lands on the grid rather than being resampled onto it. The +1 on
-      // the size closes the seam a fractional camera position would leave.
+      // +1 on the destination so neighbouring tiles overlap by a hair;
+      // without it a fractional zoom leaves a seam of sky between them.
       ctx.drawImage(
         art.canvas,
         art.index[kind] * art.cell, 0, art.cell, art.cell,
-        px, py, z + 1, z + 1
+        px - (art.pad / art.key) * z, py - (art.pad / art.key) * z,
+        z * (art.cell / art.key) + 1, z * (art.cell / art.key) + 1
       );
     }
   }
-
-  ctx.imageSmoothingEnabled = smooth;
 
   // doors, drawn from the live list so they can animate open
 }
@@ -863,23 +845,19 @@ function drawPowers(r, ctx, g) {
     const drop = z * 0.85 - bob;
     ctx.save();
     ctx.globalAlpha = 0.16 - bob / (z * 4);
-    ctx.fillStyle = "#3b5a52";
+    ctx.fillStyle = "#1a2a36";
     ctx.beginPath();
     ctx.ellipse(px, py + drop, rad * 0.7, rad * 0.22, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
 
-    // Two solid rings that breathe in and out, in place of the soft bloom.
-    // Same job — it reads as a thing worth running to — with two flat colours
-    // rather than a few thousand.
-    ctx.fillStyle = mix(def.colour, [255, 255, 255], 0.72, 1);
-    ctx.beginPath();
-    ctx.arc(px, py, rad * (1.5 + pulse * 0.16), 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = mix(def.colour, [255, 255, 255], 0.5, 1);
-    ctx.beginPath();
-    ctx.arc(px, py, rad * (1.24 + pulse * 0.1), 0, Math.PI * 2);
-    ctx.fill();
+    // outer bloom, breathing
+    const bloom = ctx.createRadialGradient(px, py, rad * 0.5, px, py, rad * (2.5 + pulse * 0.5));
+    bloom.addColorStop(0, mix(def.colour, [255, 255, 255], 0.25, 0.55));
+    bloom.addColorStop(0.5, mix(def.colour, [255, 255, 255], 0.1, 0.18));
+    bloom.addColorStop(1, mix(def.colour, [255, 255, 255], 0, 0));
+    ctx.fillStyle = bloom;
+    ctx.fillRect(px - rad * 3, py - rad * 3, rad * 6, rad * 6);
 
     // sparkles on the FAR half of the orbit, drawn under the sphere
     const orbit = (i) => {
@@ -901,23 +879,41 @@ function drawPowers(r, ctx, g) {
       if (o.depth < 0) sparkle(o);
     }
 
-    // The sphere. Three shaded bands and a fixed highlight on a 16px grid —
-    // the smooth-shaded ball it replaced was the last thing on screen that
-    // still looked like it came from a different game to Bubu and Dudu.
-    // Baked once per power-up type and blitted after that.
-    const orb = pixelSprite(`power:${q.type}`, ORB_ART, ORB_ART, (x) => {
-      const c = ORB_ART / 2;
-      pixelDisc(x, ORB_ART, c, c, c - 0.5, darken(def.colour, 0.42));
-      pixelDisc(x, ORB_ART, c, c, c - 1.5, def.colour);
-      pixelDisc(x, ORB_ART, c - 1.2, c - 1.4, c * 0.52, lighten(def.colour, 0.45));
-      x.fillStyle = "#fff";
-      x.fillRect(Math.round(c * 0.5), Math.round(c * 0.42), 2, 1);
-      x.fillRect(Math.round(c * 0.38), Math.round(c * 0.6), 1, 2);
-    });
-    const smoothOrb = ctx.imageSmoothingEnabled;
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(orb, px - rad, py - rad, rad * 2, rad * 2);
-    ctx.imageSmoothingEnabled = smoothOrb;
+    // the sphere: lit from up and to the left
+    const lx = px - rad * 0.36;
+    const ly = py - rad * 0.42;
+    const body = ctx.createRadialGradient(lx, ly, rad * 0.06, px, py, rad);
+    body.addColorStop(0, lighten(def.colour, 0.72));
+    body.addColorStop(0.42, def.colour);
+    body.addColorStop(1, darken(def.colour, 0.42));
+    ctx.fillStyle = body;
+    ctx.beginPath();
+    ctx.arc(px, py, rad, 0, Math.PI * 2);
+    ctx.fill();
+
+    // bounce light along the bottom-right edge
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(px, py, rad, 0, Math.PI * 2);
+    ctx.clip();
+    const rim = ctx.createRadialGradient(
+      px + rad * 0.55, py + rad * 0.6, rad * 0.1,
+      px + rad * 0.55, py + rad * 0.6, rad * 1.1
+    );
+    rim.addColorStop(0, lighten(def.colour, 0.5, 0.5));
+    rim.addColorStop(1, lighten(def.colour, 0.5, 0));
+    ctx.fillStyle = rim;
+    ctx.fillRect(px - rad, py - rad, rad * 2, rad * 2);
+    ctx.restore();
+
+    // specular
+    ctx.save();
+    ctx.globalAlpha = 0.85;
+    ctx.fillStyle = "#fff";
+    ctx.beginPath();
+    ctx.ellipse(lx, ly - rad * 0.06, rad * 0.26, rad * 0.17, -0.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
 
     // glyph, with a little depth under it
     ctx.textAlign = "center";
@@ -1097,20 +1093,25 @@ function drawCoins(r, ctx, g) {
 
     if (taken) drawCoinPop(ctx, r, c, taken);
 
-    // One solid ring of light instead of a soft bloom. It still says "this is
-    // a pickup" from across the arena and it has exactly two colours in it.
-    ctx.fillStyle = "#ffe9a8";
-    ctx.beginPath();
-    ctx.arc(px, py, rad * 1.34, 0, Math.PI * 2);
-    ctx.fill();
+    const glow = ctx.createRadialGradient(px, py, 0, px, py, rad * 2.6);
+    glow.addColorStop(0, "rgba(255,200,61,0.45)");
+    glow.addColorStop(1, "rgba(255,200,61,0)");
+    ctx.fillStyle = glow;
+    ctx.fillRect(px - rad * 2.6, py - rad * 2.6, rad * 5.2, rad * 5.2);
 
-    // A darker rim, the face inside it, and one fixed highlight — baked on a
-    // 16px grid so the rim steps like a sprite instead of feathering.
-    const sprite = orbSprite("coin", COINS.colour, "#c98a12", "rgba(255,255,255,0.85)");
-    const smooth = ctx.imageSmoothingEnabled;
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(sprite, px - rad, py - rad, rad * 2, rad * 2);
-    ctx.imageSmoothingEnabled = smooth;
+    // A darker rim, the face inside it, and one fixed highlight.
+    ctx.fillStyle = "#c98a12";
+    ctx.beginPath();
+    ctx.arc(px, py, rad, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = COINS.colour;
+    ctx.beginPath();
+    ctx.arc(px, py, rad * 0.78, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,0.8)";
+    ctx.beginPath();
+    ctx.ellipse(px - rad * 0.26, py - rad * 0.3, rad * 0.24, rad * 0.16, -0.5, 0, Math.PI * 2);
+    ctx.fill();
     ctx.restore();
   }
 }
@@ -2124,15 +2125,82 @@ function drawActor(r, ctx, g, a) {
     ctx.restore();
   }
 
-  // Reversed: two arrows chasing each other over their head.
+  /* Reversed.
+   *
+   * This was one small orange glyph over the head, tucked under the hearts
+   * and the ammo pips, on a character you are already staring at. The player
+   * it happens to needs to know instantly — it is the only effect that makes
+   * your own controls lie to you, and not knowing reads as the game being
+   * broken rather than as something being done to you. So it gets three
+   * things at once, and one of them ILLUSTRATES what has happened rather than
+   * just labelling it.
+   */
   if (a.reversedUntil && g.time < a.reversedUntil) {
+    const left = a.reversedUntil - g.time;
+    const RC = POWERUPS.baliktad.colour;
+    // Fast beat while it runs, and the last second flashes twice as fast so
+    // you know it is nearly over and can stop over-correcting.
+    const urgent = left < 1.2;
+    const beat = (g.time * (urgent ? 7 : 3.4)) % 1;
+    const pulse = 0.5 + 0.5 * Math.sin(beat * Math.PI * 2);
+
     ctx.save();
-    ctx.translate(px, py - a.h * z * 1.65);
-    ctx.rotate(Math.sin(g.time * 7) * 0.25);
-    ctx.fillStyle = "#ff9c3f";
-    ctx.font = `800 ${z * 0.52}px "Nunito", system-ui, sans-serif`;
+
+    // 1. A wash over the body, so the character themselves is marked.
+    ctx.globalAlpha = 0.2 + pulse * 0.22;
+    ctx.fillStyle = RC;
+    ctx.beginPath();
+    ctx.ellipse(px, py - a.h * z * 0.52, a.w * z * 0.62, a.h * z * 0.6, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 2. Two chevrons that SWAP SIDES on the beat. This is the part that
+    //    explains itself: you can see your left and right trading places.
+    const swing = Math.sin(g.time * 4.2);
+    const reach = a.w * z * (0.95 + Math.abs(swing) * 0.25);
+    const cy = py - a.h * z * 0.62;
+    ctx.globalAlpha = 0.9;
+    ctx.lineWidth = Math.max(2, z * 0.075);
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = RC;
+    for (const side of [-1, 1]) {
+      // The arrow on each side points the way that side WOULD have taken you,
+      // and the pair slide across each other as the beat turns over.
+      const ax = px + side * reach * (swing * side > 0 ? 1 : 0.72);
+      const dir = -side;                      // pointing back across the body
+      ctx.beginPath();
+      ctx.moveTo(ax - dir * z * 0.16, cy - z * 0.2);
+      ctx.lineTo(ax + dir * z * 0.16, cy);
+      ctx.lineTo(ax - dir * z * 0.16, cy + z * 0.2);
+      ctx.stroke();
+    }
+
+    // 3. The badge, on a filled pill so it reads against any background, with
+    //    the time left draining out of it.
+    // Above the hearts (1.80), not under them — at 1.62 the pill sat straight
+    // through the heart row and both became unreadable.
+    const by = py - a.h * z * 2.2;
+    const bw = z * 0.92;
+    const bh = z * 0.46;
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = RC;
+    roundRect(ctx, px - bw / 2, by - bh / 2, bw, bh, bh / 2);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,0.9)";
+    ctx.lineWidth = Math.max(1.5, z * 0.045);
+    ctx.stroke();
+    // the drain
+    const frac = Math.max(0, Math.min(1, left / (POWERUPS.baliktad.reverseMs / 1000)));
+    ctx.fillStyle = "rgba(255,255,255,0.85)";
+    ctx.fillRect(px - bw / 2 + z * 0.06, by + bh / 2 - z * 0.1,
+                 (bw - z * 0.12) * frac, Math.max(1.5, z * 0.05));
+    ctx.fillStyle = "#fff";
+    ctx.font = `900 ${z * 0.34}px "Nunito", system-ui, sans-serif`;
     ctx.textAlign = "center";
-    ctx.fillText("⇄", 0, 0);
+    ctx.textBaseline = "middle";
+    ctx.fillText("\u21c4", px, by - z * 0.02);
+    ctx.textBaseline = "alphabetic";
+
     ctx.restore();
   }
 
@@ -2212,6 +2280,22 @@ export function createScene(canvas) {
       { x: 30, y: 9.6, type: "laki", born: -1.4 },
     ],
   };
+}
+
+export function resizeScene(s, cssW, cssH) {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  s.w = Math.round(cssW * dpr);
+  s.h = Math.round(cssH * dpr);
+  s.canvas.width = s.w;
+  s.canvas.height = s.h;
+  s.canvas.style.width = cssW + "px";
+  s.canvas.style.height = cssH + "px";
+  // Keep the whole ridge in view however wide the window is.
+  s.cam.zoom = Math.max(38, Math.min(110, s.w / 18));
+  // gy works out to (height - K * zoom), so a smaller K drops the ridge
+  // further down the screen. Low enough that the cast walks clear of the
+  // cards and the button rather than behind them.
+  s.cam.y = SCENE_GROUND - s.h / 2 / s.cam.zoom + 1.7;
 }
 
 export function drawScene(s, dt) {
