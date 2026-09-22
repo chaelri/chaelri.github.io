@@ -41,7 +41,8 @@ function packActor(a, now) {
     a.fairy ? [a.fairy.left, r2(Math.max(0, a.fairy.next - now)),
                a.fairy.healAt >= 0 ? r2(now - a.fairy.healAt) : -1,
                bit(a.fairy.leaving), r2(a.fairy.wave), r2(a.fairy.phase)] : 0,
-    a.punch ? [r2(now - a.punch.at), a.punch.face, bit(a.punch.hit)] : 0,
+    a.punch ? [r2(now - a.punch.at), a.punch.face, bit(a.punch.hit),
+               a.punch.blastAt != null ? r2(now - a.punch.blastAt) : -1] : 0,
     r2(Math.max(0, (a.glowUntil || 0) - now)),
     a.glowFor || 0,
     a.glowColour || 0,
@@ -68,7 +69,10 @@ function unpackActor(v, now) {
       ? { left: fairy[0], next: now + fairy[1], healAt: fairy[2] < 0 ? -1 : now - fairy[2],
           leaving: !!fairy[3], wave: fairy[4], phase: fairy[5] }
       : null,
-    punch: punch ? { at: now - punch[0], face: punch[1], hit: !!punch[2] } : null,
+    punch: punch
+      ? { at: now - punch[0], face: punch[1], hit: !!punch[2],
+          blastAt: punch[3] != null && punch[3] >= 0 ? now - punch[3] : null }
+      : null,
     glowUntil: glowLeft > 0 ? now + glowLeft : 0,
     glowFor: glowFor || 0,
     glowColour: glowColour || null,
@@ -118,13 +122,18 @@ export function snapshot(G, extra = {}) {
     lh2: G.lostHearts.map((h) => [r2(h.x), r2(h.y), r2(h.rot), r2(now - h.at), h.index]),
     mi: G.minis.map((m) => [packBody(m.actor), m.owner || 0, bit(m.leaving),
                             r2(m.wave), r2(Math.max(0, m.until - now))]),
-    he: G.helper
-      ? [packBody(G.helper.actor), G.helper.ally || 0, bit(G.helper.bad),
-         bit(G.helper.leaving), r2(G.helper.wave), bit(G.helper.locked),
-         bit(G.helper.waiting), r2(Math.max(0, G.helper.until - now)),
-         G.helper.betrayAt != null ? r2(now - G.helper.betrayAt) : -1,
-         bit(G.helper.thrown), G.helper.victim || 0]
+    wf: G.wildFairy
+      ? [r2(G.wildFairy.x), r2(G.wildFairy.y), r2(G.wildFairy.phase),
+         G.wildFairy.face, bit(G.wildFairy.leaving), r2(G.wildFairy.wave)]
       : 0,
+    // A LIST now: a bought Dudu no longer deletes the wild one, so there can
+    // be several on the field at once.
+    he: G.helpers.map((h) =>
+      [packBody(h.actor), h.ally || 0, bit(h.bad),
+       bit(h.leaving), r2(h.wave), bit(h.locked),
+       bit(h.waiting), r2(Math.max(0, h.until - now)),
+       h.betrayAt != null ? r2(now - h.betrayAt) : -1,
+       bit(h.thrown), h.victim || 0]),
     ...extra,
   };
 }
@@ -132,21 +141,22 @@ export function snapshot(G, extra = {}) {
 /** Rebuild something render.js is happy to draw. */
 export function hydrate(s) {
   const now = s.t;
-  const helper = s.he
-    ? {
-        actor: unpackBody(s.he[0]),
-        ally: s.he[1] || null,
-        bad: !!s.he[2],
-        leaving: !!s.he[3],
-        wave: s.he[4],
-        locked: !!s.he[5],
-        waiting: !!s.he[6],
-        until: now + s.he[7],
-        betrayAt: s.he[8] < 0 ? null : now - s.he[8],
-        thrown: !!s.he[9],
-        victim: s.he[10] || null,
-      }
-    : null;
+  // Tolerates the old single-object shape as well as the list, so a phone
+  // running a cached build does not black-screen on the first snapshot.
+  const rows = Array.isArray(s.he) && Array.isArray(s.he[0]) ? s.he : s.he ? [s.he] : [];
+  const helpers = rows.map((v) => ({
+    actor: unpackBody(v[0]),
+    ally: v[1] || null,
+    bad: !!v[2],
+    leaving: !!v[3],
+    wave: v[4],
+    locked: !!v[5],
+    waiting: !!v[6],
+    until: now + v[7],
+    betrayAt: v[8] < 0 ? null : now - v[8],
+    thrown: !!v[9],
+    victim: v[10] || null,
+  }));
 
   return {
     time: now,
@@ -163,11 +173,15 @@ export function hydrate(s) {
     lostHearts: s.lh2.map(([x, y, rot, age, index]) => ({
       x, y, rot, at: now - age, index, vx: 0, vy: 0, spin: 0,
     })),
+    wildFairy: s.wf
+      ? { x: s.wf[0], y: s.wf[1], phase: s.wf[2], face: s.wf[3],
+          leaving: !!s.wf[4], wave: s.wf[5] }
+      : null,
     minis: s.mi.map(([body, owner, leaving, wave, until]) => ({
       actor: unpackBody(body), owner: owner || null,
       leaving: !!leaving, wave, until: now + until,
     })),
-    helper,
+    helpers,
   };
 }
 

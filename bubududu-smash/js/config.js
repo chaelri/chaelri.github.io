@@ -217,9 +217,22 @@ export const POWERUPS_EXTRA = {
     ms: 0, colour: "#ff6b57",
     punches: 3,
     windupMs: 90,     // fist pulls back before it goes out
-    activeMs: 130,    // and is dangerous for this long
-    reach: 1.15,      // tiles in front of the body
-    knockback: 13,    // what it does to them if they survive it (they do not)
+    activeMs: 200,    // and is dangerous for this long
+    reach: 2.3,       // tiles in front of the body
+
+    /* The shockwave.
+     *
+     * Three swings that each had to be thrown from exactly arm's length were
+     * a coin toss to land, and missing with one of three is most of the
+     * power-up gone. So the fist is no longer the hitbox: it is the CENTRE of
+     * a blast that carries past it, in front and a little to the sides. The
+     * punch is still directional and still has to be aimed — you cannot hit
+     * someone behind you — but being half a tile out no longer whiffs it.
+     */
+    blastRadius: 2.6,   // tiles from the fist, in every forward direction
+    blastBehind: 0.7,   // ...and this far back past your own shoulder
+    blastMs: 420,       // how long the ring is drawn expanding
+    knockback: 17,      // what it does to them if they survive it (they do not)
     cooldownMs: 420,
   },
 };
@@ -248,6 +261,20 @@ export const DIWATA = {
   leaveMs: 1100,      // flutter up and fade after the last heal
   scale: 0.46,        // of a normal character
   orbit: 1.15,        // tiles out from the player she rides at
+
+  /* --- the wild one ------------------------------------------------------
+   * Ten coins is a long way to go for her, and she was the only one of the
+   * four rewards you could never simply MEET. So she also turns up on her
+   * own, drifting around the arena, and whoever touches her gets her.
+   * She does not sit on a platform like a power-up — she flies, which is
+   * what makes her worth chasing.
+   */
+  wildFirstMs: 12000,
+  wildEveryMs: 26000,
+  wildLifeMs: 15000,     // then she wanders off
+  wildSpeed: 3.4,        // tiles a second, drifting between perches
+  wildHoverMs: [700, 1800],
+  wildReach: [0.9, 2.4], // tiles above the ground she hovers — jumpable, always
 };
 
 /* ----------------------------------------------------------- the squad --- */
@@ -415,3 +442,22 @@ export const SHOT_SPEED = 24;
 export const SHOT_LIFE = 1.5;
 export const SHOT_COOLDOWN_MS = 240;
 export const SHOT_RADIUS = 0.22;
+
+/* --------------------------------------------------------------- stacks --- */
+/**
+ * Getting something you already have does not throw the first one away.
+ *
+ * Two shapes, because the skills are two shapes: anything with a clock adds
+ * its full length to whatever is left, and anything you own a number of adds
+ * more of them. The caps are the whole reason this is a table and not four
+ * numbers buried in the rules — without them a player sitting on a coin
+ * platform ends the round with a permanent Dudu and nine Bubus, and the other
+ * one simply cannot play.
+ */
+export const STACK = {
+  maxDurationMul: 3,    // of that skill's own base duration, total
+  maxMinis: 9,          // three squads' worth on the field at once
+  maxFairyHeals: 6,     // three Diwatas' worth of heals queued
+  maxAmmoMul: 3,        // of the base magazine
+  maxHelpers: 4,        // Dudus on the field at once, wild and owned together
+};

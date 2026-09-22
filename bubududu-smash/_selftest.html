@@ -2,6 +2,12 @@
 <link href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,300..900;1,300..900&display=swap" rel="stylesheet">
 <style>html,body{margin:0;background:#8fd4ff}canvas{display:block}</style></head>
 <body><canvas id="stage"></canvas><canvas id="scene" hidden></canvas>
+<div id="players">
+  <div class="pcard" data-p="p1"><canvas class="face" width="132" height="132"></canvas>
+    <div class="pinfo"><div class="pname"></div><div class="phearts"></div><div class="pchips"></div></div></div>
+  <div class="pcard right" data-p="p2"><canvas class="face" width="132" height="132"></canvas>
+    <div class="pinfo"><div class="pname"></div><div class="phearts"></div><div class="pchips"></div></div></div>
+</div>
 <pre id="out" style="color:#063;font:12px monospace;position:fixed;bottom:0;left:0;background:rgba(255,255,255,.75)"></pre>
 <script type="module">
 /*
@@ -58,7 +64,7 @@ try {
     const level = makeArena(); const meta = readLevel(level);
     const g = { mode:'tapakan', level, meta, grid: solidGrid(level),
       time: 0, shrink: 0, powers: [], shots: [], bursts: [], pops: [], lostHearts: [],
-      coins: [], minis: [], helper: null, freeze: 0, slow: 0,
+      coins: [], minis: [], helper: null, wildFairy: null, freeze: 0, slow: 0,
       actors: PLAYERS.map((p,i)=>{
         const a = makeActor(meta.spawns[i].x, meta.spawns[i].y, p.id);
         a.char = ['yhon','bubu'][(i+ci)%2]; a.tint = p.colour; a.label = p.name;
@@ -66,7 +72,13 @@ try {
     return g;
   }
 
-  let worst=0,total=0,frames=0;
+  // Every frame's time, kept, so the summary can report a MEDIAN.
+  //
+  // The average alone is useless here: one 500ms stall — the tile atlas
+  // baking on the first frame, a GC, or this tab being backgrounded by the
+  // browser — moves a 0.7ms frame time to 10ms and looks exactly like a
+  // rendering regression. The median ignores all three.
+  const times=[];
   const g = build();
   const opts = { versus: true, onStomp:(a,v)=>kill(v,{}) };
 
@@ -83,8 +95,15 @@ try {
 
   // helpers: Dudu hunting, and the same one mid-betrayal
   const mk = (id) => { const a = makeActor(14, 12, id); a.hp = 99; return a; };
-  g.helper = { actor: mk('dudu'), ally:'p1', until: 9, hardUntil: 40, wanderDir:1,
+  g.helpers = [];
+  const hero = { actor: mk('dudu'), ally:'p1', until: 9, hardUntil: 40, wanderDir:1,
     jumpAt:0, pause:0, locked:true, pouncing:false, leaving:false, waiting:false, wave:0 };
+  // A SECOND Dudu, unclaimed, on the field at the same time — which is only
+  // possible since a bought one stopped deleting the wild one.
+  const stray = { actor: mk('dudu'), ally:null, until: 20, hardUntil: 40, wanderDir:-1,
+    jumpAt:0, pause:0, locked:false, pouncing:false, leaving:false, waiting:false, wave:0 };
+  stray.actor.x = 34;
+  g.helpers.push(hero, stray);
 
   // the squad, one waiting and one leaving
   for (let i=0;i<SQUAD.count;i++){
@@ -93,8 +112,11 @@ try {
       leaving: i===2, wave: i===2?0.2:0 });
   }
 
-  // a fairy on p1 and a punch in the air on p2
+  // a fairy on p1 and a punch in the air on p2 — plus the WILD one, drifting,
+  // which is a different draw path with its own ring and spark trail
   g.actors[0].fairy = { left:2, next:2, healAt:0, leaving:false, wave:0, phase:1 };
+  g.wildFairy = { x: 20, y: 6, tx: 30, ty: 5, hold: 0, born: 0, until: 40,
+                  phase: 0.7, face: 1, leaving: false, wave: 0 };
   g.actors[0].glowUntil = 99; g.actors[0].glowColour = COINS.colour;
   g.actors[1].power = { type:'suntok', until: Infinity, ammo: 3 };
   g.actors[1].punch = { at: 0, face: 1, hit: false };
@@ -107,16 +129,24 @@ try {
     }
     g.time += 1/120;
     const t0=performance.now(); draw(r,g,1/120); const ms=performance.now()-t0;
-    total+=ms; frames++; if(ms>worst)worst=ms;
+    times.push(ms);
 
     // halfway, flip the helper into a betrayal so that path draws too
-    if (i===300) { g.helper.bad = true; g.helper.victim = 'p1';
-      g.helper.betrayAt = g.time; g.helper.thrown = false; }
-    if (i===480) { g.helper.leaving = true; g.helper.wave = 0; }
+    if (i===300) { hero.bad = true; hero.victim = 'p1';
+      hero.betrayAt = g.time; hero.thrown = false; }
+    if (i===480) { hero.leaving = true; hero.wave = 0; }
   }
   const [a,b] = g.actors;
   log.push(`round     ok — p1 (${a.x.toFixed(1)},${a.y.toFixed(1)}) dead:${a.dead}  p2 (${b.x.toFixed(1)},${b.y.toFixed(1)}) dead:${b.dead}`);
-  log.push(`draw      avg ${(total/frames).toFixed(2)}ms worst ${worst.toFixed(2)}ms over ${frames} frames`);
+  {
+    // Drop the first 20 — the atlas, the gradients and the sprite decode all
+    // happen once, and none of them is a per-frame cost.
+    const warm = times.slice(20).sort((x,y)=>x-y);
+    const med = warm[Math.floor(warm.length/2)];
+    const p95 = warm[Math.floor(warm.length*0.95)];
+    log.push(`draw      median ${med.toFixed(2)}ms  p95 ${p95.toFixed(2)}ms  worst ${warm[warm.length-1].toFixed(2)}ms over ${times.length} frames`);
+    if (med > 6) fail('draw', `median frame ${med.toFixed(2)}ms — too slow for a phone`);
+  }
 
   /* -------------------------------------------------------- the lobby too --- */
   const sc = createScene(document.getElementById('scene'));
@@ -151,6 +181,40 @@ try {
   const missingArt = (await Promise.all(wanted)).filter(Boolean);
   if (missingArt.length) fail('sprites', 'did not load: ' + missingArt.join(', '));
   else log.push(`sprites   ok — ${wanted.length} frames loaded from assets/`);
+
+  /* --------------------------------------------------------- the panels --- */
+  // The status chips are the ONLY place several effects are visible at all —
+  // frozen, reversed, whose Dudu that is — and on the two-phone build they
+  // survive a round trip through packChips/unpackChips before anything is
+  // drawn. A chip lost on the wire is an effect the player cannot see.
+  const panel = await import('./js/panel.js');
+  const rich = {
+    id: 'p1', char: 'bubu', hp: 5, coins: 7,
+    power: { type: 'baril', ammo: 4, until: Infinity },
+    fairy: { left: 2, next: 1, healAt: -1, leaving: false, wave: 0, phase: 0 },
+    frozenUntil: 9e9, reversedUntil: 9e9, invulnUntil: 9e9,
+  };
+  const made = [
+    { label: '\u25c9 7/10', colour: '#ffc83d', pct: 70, bad: false, bump: true },
+    { label: '\u2744 frozen', colour: '#7fd4ff', pct: 40, bad: true, bump: false },
+    { label: '\u2727 safe', colour: '#9fd8ff', pct: 10, bad: false, bump: false },
+  ];
+  const back = panel.unpackChips(panel.packChips(made));
+  const same = back.length === made.length &&
+    back.every((c, i) => c.label === made[i].label && c.colour === made[i].colour &&
+                         c.pct === made[i].pct && c.bad === made[i].bad && c.bump === made[i].bump);
+  if (!same) fail('chips', 'packChips/unpackChips did not round-trip: ' + JSON.stringify(back));
+
+  panel.paintPanels(
+    [{ ...rich, id: 'p1' }, { ...rich, id: 'p2', char: 'yhon', hp: 2 }],
+    { p1: back, p2: [] }, 1/60);
+  const drawn = document.querySelectorAll('#players [data-p="p1"] .chip').length;
+  const hearts = document.querySelectorAll('#players [data-p="p1"] .phearts svg').length;
+  const pulsing = document.querySelectorAll('#players [data-p="p1"] .chip.bad').length;
+  if (drawn !== made.length) fail('panel', `painted ${drawn} chips, expected ${made.length}`);
+  else if (hearts !== 5) fail('panel', `painted ${hearts} heart slots for hp 5, expected 5`);
+  else if (pulsing !== 1) fail('panel', `${pulsing} chips marked bad, expected 1`);
+  else log.push(`panel     ok — ${drawn} chips + ${hearts} hearts, round-tripped through the wire`);
 
   /* ---- the whole point: layers that failed quietly are failures anyway ---- */
   const bad = faults();

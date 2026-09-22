@@ -32,6 +32,41 @@ html, body {
   background: rgba(33,49,63,0.2);
 }
 
+/* The same pill, blown up, for the end of a match. It sits in the banner's
+   subtitle slot — which is why `.bs` has to stop being a text line and just
+   get out of its way. */
+.score.final {
+  padding: clamp(10px, 1.6vh, 18px) clamp(22px, 3vw, 40px);
+  gap: clamp(18px, 2.6vw, 34px);
+  background: rgba(255,255,255,0.88);
+  box-shadow: 0 16px 34px -16px rgba(33,49,63,0.65);
+  animation: scorePop 620ms cubic-bezier(0.18, 1.5, 0.4, 1) both;
+}
+.score.final b {
+  font-size: clamp(44px, 9vh, 96px);
+  animation: scoreDigit 700ms cubic-bezier(0.18, 1.6, 0.4, 1) both;
+}
+.score.final b.p1 { animation-delay: 120ms; }
+.score.final b.p2 { animation-delay: 240ms; }
+.score.final i {
+  width: clamp(20px, 3vh, 34px); height: clamp(5px, 0.7vh, 8px);
+}
+@keyframes scorePop {
+  0%   { transform: scale(0.3) translateY(18px); opacity: 0; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+@keyframes scoreDigit {
+  0%   { transform: scale(2.4) rotate(-8deg); opacity: 0; }
+  55%  { transform: scale(0.9) rotate(2deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+/* The subtitle is a paragraph of small grey text everywhere else; when it is
+   holding the score pill it must not impose any of that. */
+#banner .bs:has(.score) {
+  display: flex; justify-content: center;
+  margin-top: clamp(6px, 1.4vh, 16px);
+}
+
 /* ------------------------------------------------------------- banner --- */
 #banner {
   position: fixed; inset: 0; display: flex; flex-direction: column;
@@ -456,3 +491,27 @@ body.counting #banner {
   70%  { opacity: 0.25; }
   100% { transform: scale(2.3); opacity: 0; }
 }
+
+/* ------------------------------------------------------------- rematch --- */
+/* Under the winner's banner. Hidden until a match actually ends, because a
+   button that restarts everything has no business being reachable mid-round. */
+#rematch {
+  position: fixed; left: 50%; z-index: 42;
+  top: calc(50% + clamp(100px, 16vh, 168px));
+  transform: translate(-50%, 6px);
+  font-family: "Nunito", system-ui, sans-serif; font-weight: 900;
+  font-size: clamp(15px, 2.4vh, 20px); letter-spacing: 0.04em;
+  padding: clamp(11px, 1.6vh, 16px) clamp(26px, 4vw, 44px);
+  border-radius: 999px; border: 3px solid rgba(255,255,255,0.9);
+  color: #fff; background: linear-gradient(180deg, #ffb84d, #ff8a3d);
+  box-shadow: 0 12px 26px -10px rgba(214,110,20,0.9);
+  opacity: 0; visibility: hidden; pointer-events: none;
+  transition: opacity 260ms ease, transform 260ms cubic-bezier(0.2,1.5,0.4,1), visibility 260ms;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none; user-select: none; touch-action: manipulation;
+}
+#rematch.show {
+  opacity: 1; visibility: visible; pointer-events: auto;
+  transform: translate(-50%, 0);
+}
+#rematch:active { transform: translate(-50%, 3px) scale(0.97); }

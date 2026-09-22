@@ -7,7 +7,7 @@
 import {
   MODES, PLAYERS, ROUNDS_TO_WIN, FEEL, HELPER, BAD_HELPER, SQUAD, DIWATA, COINS, HIT, GLYPH,
   POWERUPS, POWER_ORDER, POWER_SPAWN_MS, POWER_FIRST_MS,
-  SHOT_SPEED, SHOT_LIFE, SHOT_COOLDOWN_MS, SHOT_RADIUS, INPUT_HZ,
+  SHOT_SPEED, SHOT_LIFE, SHOT_COOLDOWN_MS, SHOT_RADIUS, INPUT_HZ, STACK
 } from "./config.js";
 import { makeArena, readLevel, solidGrid } from "./levels.js";
 import { CHARACTERS, charById, preloadCharacters } from "./characters.js";
@@ -16,6 +16,7 @@ import { createRenderer, createScene, draw, drawScene, resize, resizeScene } fro
 import { createHost } from "./net.js";
 import { armAudio, audioState, duckMusic, onAudioState, sfx, startAudio, startMusic, stopMusic } from "./audio.js";
 import { snapshot, rowsEqual } from "./netstate.js";
+import { paintPanels, packChips } from "./panel.js";
 import { tileAt } from "./physics.js";
 
 const $ = (s) => document.querySelector(s);
@@ -24,13 +25,9 @@ const lobby = $("#lobby");
 const banner = $("#banner");
 const countEl = $("#count");
 const hud = $("#hud");
+const rematchBtn = $("#rematch");
 const toasts = { p1: $("#toastL"), p2: $("#toastR") };
 const scene = createScene($("#scene"));
-const playersBar = $("#players");
-const cards = {
-  p1: playersBar?.querySelector('[data-p="p1"]'),
-  p2: playersBar?.querySelector('[data-p="p2"]'),
-};
 
 const params = new URLSearchParams(location.search);
 const SOLO = params.has("solo");
@@ -80,6 +77,7 @@ const seenShots = { p1: 0, p2: 0 };
 const pendingJump = { p1: false, p2: false };
 const pendingShot = { p1: false, p2: false };
 
+const seenRematch = { p1: 0, p2: 0 };
 const lastSeq = { p1: 0, p2: 0 };
 const lastKey = { p1: null, p2: null };
 const lastHeard = { p1: 0, p2: 0 };
@@ -124,6 +122,16 @@ function applyPacket(role, p) {
       pendingShot[role] = true;
     }
   }
+  // Rematch, asked for from the other phone. A counter like the rest, so a
+  // dropped packet on the unreliable channel does not eat the request — and
+  // so the level of the flag can never leave a match restarting forever.
+  if (Number.isFinite(p.rm)) {
+    if (p.rm < seenRematch[role]) seenRematch[role] = p.rm;
+    else if (p.rm > seenRematch[role]) {
+      seenRematch[role] = p.rm;
+      rematch();
+    }
+  }
 }
 
 const keys = new Set();
@@ -138,7 +146,7 @@ addEventListener("keydown", (e) => {
     if (!pads.p1.connected && ["KeyF", "KeyQ", "KeyE"].includes(e.code)) pendingShot.p1 = true;
     if (!pads.p2.connected && ["Slash", "Period", "Comma", "ShiftRight", "Enter", "NumpadEnter"].includes(e.code))
       pendingShot.p2 = true;
-    if (e.code === "Enter" && (phase === "lobby" || phase === "matchover")) startMatch();
+    if (e.code === "Enter") rematch();
     if (e.code === "KeyR" && phase === "play") startRound();
   }
   if (["Space", "ArrowUp", "ArrowDown"].includes(e.code)) e.preventDefault();
@@ -205,17 +213,20 @@ function startRound() {
     lostHearts: [],
     freeze: 0,
     slow: 0,
-    helper: null,
+    helpers: [],  // every Dudu on the field — wild, claimed or turned
     helperAt: HELPER.firstMs / 1000,
     minis: [],    // the Tatlo squad, waiting or hunting
     squadAt: SQUAD.firstMs / 1000,
     coins: [],    // loose change on the platforms
     coinAt: 0,
+    wildFairy: null,                    // the loose Diwata, if one is out
+    wildFairyAt: DIWATA.wildFirstMs / 1000,
     pops: [],     // pickup shockwaves
     actors: PLAYERS.map((p, i) => {
       const a = makeActor(meta.spawns[i].x, meta.spawns[i].y, p.id);
       a.char = pads[p.id].char;
       a.stats = { ...(charById(a.char).stats || {}) };
+      a.face = charById(a.char).spawnFace || 1;
       a.tint = p.colour;
       a.label = p.name;
       a.coins = 0;
@@ -243,6 +254,7 @@ function startRound() {
 
 function startMatch() {
   startAudio();
+  showRematch(false);
   score.p1 = 0;
   score.p2 = 0;
   roundNo = 1;
@@ -251,6 +263,21 @@ function startMatch() {
   preloadCharacters();
   startRound();
 }
+
+/**
+ * The one way back into a match, whatever you are holding.
+ *
+ * Enter, the on-screen button, and the guest phone's button all come through
+ * here, so there is a single place that decides when a rematch is allowed.
+ */
+export function rematch() {
+  if (phase === "lobby" || phase === "matchover") startMatch();
+}
+
+function showRematch(on) {
+  rematchBtn?.classList.toggle("show", !!on);
+}
+rematchBtn?.addEventListener("click", rematch);
 
 function endRound(winnerId, why) {
   if (phase !== "play") return;
@@ -270,7 +297,17 @@ function endRound(winnerId, why) {
       stopMusic();
       sfx.matchWin();
       const champ = score.p1 > score.p2 ? PLAYERS[0].name : PLAYERS[1].name;
-      setBanner(`${champ} wins the match`, `${score.p1} — ${score.p2} · press Enter`);
+      // "press Enter" is a lie on a phone, where there is no keyboard at all —
+      // the match simply ended and nothing could restart it. The button below
+      // is the real answer; the key is now just the shortcut for it.
+      // The final score as the same pill the HUD wears all match, only big
+      // and in the middle. As plain grey text under the headline it was the
+      // one number nobody could read, on the one screen it matters most.
+      setBanner(
+        `${champ} wins the match`,
+        `<div class="score final"><b class="p1">${score.p1}</b><i></i><b class="p2">${score.p2}</b></div>`
+      );
+      showRematch(true);
     } else {
       roundNo++;
       startRound();
@@ -342,6 +379,7 @@ function catchLostActors() {
     a.vy = 0;
     a.launchFor = 0;
     reviveAt(a, at.x, at.y);
+    a.face = charById(a.char).spawnFace || 1;
     a.invulnUntil = G.time + FEEL.hurtInvulnMs / 1000;
   }
 }
@@ -356,6 +394,10 @@ function tickRules(dt) {
     const i = G.actors.indexOf(a);
     const at = safeSpawn(i);
     reviveAt(a, at.x, at.y);
+    // reviveAt keeps whatever direction you were last walking, so dying on
+    // the way left brought Bubu back mirrored — paw on the wrong side for the
+    // whole next life. Every spawn starts from the character's own facing.
+    a.face = charById(a.char).spawnFace || 1;
     // A moment of grace, or you can be knocked straight back out by whatever
     // was standing where you reappeared.
     a.invulnUntil = G.time + FEEL.hurtInvulnMs / 1000;
@@ -490,6 +532,17 @@ function shootPrompt(id, verb = "fire") {
     : `Press ${SHOOT_KEY[id]} to ${verb}.`;
 }
 
+/**
+ * The smaller toast for "you already had this, now you have more of it".
+ *
+ * Deliberately not the same as the first-time note: the first one explains
+ * what the thing DOES, which you do not need to be told twice, and which was
+ * long enough that a second pickup pushed the panel out of the way again.
+ */
+function showStack(a, colour, title, gain, glyph = "") {
+  showNote(a, colour, title, `Stacked \u2014 ${gain}.`, glyph);
+}
+
 function showPickup(a, type) {
   const def = POWERUPS[type];
   if (!def) return;
@@ -536,11 +589,28 @@ function givePower(a, type) {
     return;
   }
 
+  // Already holding this one? Add to it rather than start it again. Going
+  // through clearPower here would undo laki's size and bilis's speed on the
+  // way past and then set them a second time, which is a visible stutter for
+  // no reason.
+  const mag = def.ammo || def.punches || 0;
+  if (a.power && a.power.type === type) {
+    if (mag) a.power.ammo = Math.min(mag * STACK.maxAmmoMul, a.power.ammo + mag);
+    if (def.ms) {
+      const base = def.ms / 1000;
+      a.power.until = Math.min(G.time + base * STACK.maxDurationMul, a.power.until + base);
+    }
+    sfx[type]?.();
+    showStack(a, def.colour, def.name, mag ? `${a.power.ammo} now` : "longer", GLYPH[type] || "");
+    tellPad(a);
+    return;
+  }
+
   clearPower(a, true);
   a.power = {
     type,
     until: def.ms ? G.time + def.ms / 1000 : Infinity,
-    ammo: def.ammo || def.punches || 0,
+    ammo: mag,
   };
   if (type === "laki") {
     a.w = a.baseW * def.scale;
@@ -673,6 +743,15 @@ function grantReward(a) {
 /* --------------------------------------------------------------- fairy --- */
 
 function giveFairy(a) {
+  // A second Diwata queues more heals behind the first rather than restarting
+  // her at two — she is one of four things ten coins can buy, and buying the
+  // same one twice should not be the worst of the four.
+  if (a.fairy && !a.fairy.leaving) {
+    a.fairy.left = Math.min(STACK.maxFairyHeals, a.fairy.left + DIWATA.heals);
+    showStack(a, DIWATA.colour, "Diwata", `${a.fairy.left} hearts waiting`, "\u271a");
+    sfx.diwata();
+    return;
+  }
   a.fairy = {
     left: DIWATA.heals,
     next: G.time + DIWATA.firstMs / 1000,
@@ -685,7 +764,109 @@ function giveFairy(a) {
   sfx.diwata();
 }
 
+/**
+ * Somewhere she can hover that a player could actually jump to.
+ *
+ * Same rule the power-ups follow: a reward you can see and cannot reach is
+ * worse than no reward, because you go for it and you fall. Every perch is
+ * measured UP from a solid tile, so there is always something under her.
+ */
+function fairyPerch() {
+  const lv = G.level;
+  const spots = [];
+  for (let x = 1; x < lv.w - 1; x++) {
+    for (let y = 1; y < lv.h; y++) {
+      const c = G.grid.rows[y][x];
+      if (c !== "#" && c !== "=") continue;
+      if (G.grid.rows[y - 1][x] !== ".") break;
+      const [lo, hi] = DIWATA.wildReach;
+      spots.push({ x: x + 0.5, y: y - (lo + Math.random() * (hi - lo)) });
+      break;            // only the topmost surface of each column
+    }
+  }
+  if (!spots.length) return null;
+  return spots[Math.floor(Math.random() * spots.length)];
+}
+
+/** Put a loose Diwata on the field, drifting. */
+function spawnWildFairy() {
+  const at = fairyPerch();
+  if (!at) return;
+  G.wildFairy = {
+    x: at.x, y: at.y,
+    tx: at.x, ty: at.y,
+    hold: 0,
+    born: G.time,
+    until: G.time + DIWATA.wildLifeMs / 1000,
+    phase: Math.random() * Math.PI * 2,
+    face: Math.random() < 0.5 ? 1 : -1,
+    leaving: false,
+    wave: 0,
+  };
+  sfx.spawn();
+}
+
+function tickWildFairy(dt) {
+  if (!G.wildFairy) {
+    G.wildFairyAt -= dt;
+    if (G.wildFairyAt <= 0) {
+      G.wildFairyAt = DIWATA.wildEveryMs / 1000;
+      spawnWildFairy();
+    }
+    return;
+  }
+
+  const w = G.wildFairy;
+
+  if (w.leaving) {
+    w.wave += dt;
+    w.y -= dt * 3.2;
+    if (w.wave > DIWATA.leaveMs / 1000) G.wildFairy = null;
+    return;
+  }
+  if (G.time > w.until) { w.leaving = true; return; }
+
+  // Drift toward the current perch, pause when she gets there, then pick
+  // another. Easing rather than a constant speed is what makes her read as
+  // fluttering instead of sliding along a line.
+  const dx = w.tx - w.x;
+  const dy = w.ty - w.y;
+  const d = Math.hypot(dx, dy);
+  if (d < 0.35) {
+    w.hold -= dt;
+    if (w.hold <= 0) {
+      const next = fairyPerch();
+      if (next) { w.tx = next.x; w.ty = next.y; }
+      const [lo, hi] = DIWATA.wildHoverMs;
+      w.hold = (lo + Math.random() * (hi - lo)) / 1000;
+    }
+  } else {
+    const step = Math.min(d, DIWATA.wildSpeed * dt * Math.min(1, 0.35 + d / 3));
+    w.x += (dx / d) * step;
+    w.y += (dy / d) * step;
+    if (Math.abs(dx) > 0.2) w.face = Math.sign(dx);
+  }
+
+  // Caught.
+  for (const a of G.actors) {
+    if (a.dead) continue;
+    if (Math.abs(a.x - w.x) > 0.85 + a.w / 2) continue;
+    if (Math.abs(a.y - a.h / 2 - w.y) > 0.95 + a.h / 2) continue;
+    G.wildFairy = null;
+    G.pops.push({ x: w.x, y: w.y, at: G.time, colour: DIWATA.colour, glyph: "\u271a" });
+    G.bursts.push({ x: w.x, y: w.y, at: G.time, colour: DIWATA.colour, big: true });
+    a.glowUntil = G.time + 0.45;
+    a.glowFor = 0.45;
+    a.glowColour = DIWATA.colour;
+    renderer.punch = Math.max(renderer.punch || 0, 0.04);
+    giveFairy(a);
+    break;
+  }
+}
+
 function tickFairies(dt) {
+  tickWildFairy(dt);
+
   for (const a of G.actors) {
     const f = a.fairy;
     if (!f) continue;
@@ -737,9 +918,11 @@ function tickFairies(dt) {
  * splitting them would make this a race to pick up items, and they are meant
  * to read as three characters choosing a side.
  */
+/** Puts SQUAD.count little Bubus on the floor and RETURNS them. */
 function spawnSquad(at = null) {
+  const made = [];
   const floor = widestFloor();
-  if (!floor || floor.x1 - floor.x0 < 6) return;
+  if (!floor || floor.x1 - floor.x0 < 6) return made;
   // Somewhere along the floor, but not right on top of either player —
   // unless they were bought, in which case they land where you are.
   let home = at;
@@ -764,7 +947,7 @@ function spawnSquad(at = null) {
     m.hp = 99;
     m.face = off < 0 ? 1 : -1;   // facing inward, so the huddle reads as one
     m.vy = -4;
-    G.minis.push({
+    const mini = {
       actor: m,
       owner: null,                // nobody's yet
       home: home + off,
@@ -772,32 +955,54 @@ function spawnSquad(at = null) {
       jumpAt: 0,
       leaving: false,
       wave: 0,
-    });
+    };
+    G.minis.push(mini);
+    made.push(mini);
   }
   sfx.tatlo();
+  return made;
 }
 
 /** The coin reward version: they arrive already on your side. */
 function summonSquad(owner) {
-  // Only this player's own squad is replaced. Clearing the whole array took
-  // the OTHER player's Bubus off the field as well, which is a bought reward
-  // deleting something the opponent had earned.
-  G.minis = G.minis.filter((m) => m.owner !== owner.id);
-  spawnSquad(owner.x);
-  claimSquad(owner);
+  // They ADD to whatever you already have rather than replacing it — that is
+  // the whole point of buying a second squad. Your existing ones also get
+  // their clock refreshed, so a stack expires together instead of dribbling
+  // away one Bubu at a time.
+  const mine = G.minis.filter((m) => m.owner === owner.id && !m.leaving);
+  const room = STACK.maxMinis - mine.length;
+  const life = G.time + SQUAD.lifeMs / 1000;
+  for (const m of mine) m.until = Math.max(m.until, life);
+
+  if (room <= 0) {
+    showStack(owner, SQUAD.colour, "Tatlo", `${mine.length} Bubus, longer`, "\u2022\u2022\u2022");
+    sfx.helperSave();
+    return;
+  }
+
+  // Claim only the ones this call just made. Claiming every unowned mini
+  // would also pocket a WILD squad standing on the field waiting to be
+  // collected — buying one reward should not quietly take another.
+  const fresh = spawnSquad(owner.x);
+  claimSquad(owner, fresh.slice(0, room));
+  // Anything over the cap simply never joined; send it away rather than
+  // leaving it standing there unowned in the middle of your squad.
+  for (const m of fresh.slice(room)) m.leaving = true;
 }
 
-/** Hand the whole squad to whoever walked into it. */
-function claimSquad(owner) {
+/** Hand a squad to whoever walked into it — by default, every loose one. */
+function claimSquad(owner, list = null) {
   const target = G.actors.find((o) => o !== owner);
-  for (const m of G.minis) {
+  for (const m of list || G.minis) {
     if (m.owner || m.leaving) continue;
     m.owner = owner.id;
     m.until = G.time + SQUAD.lifeMs / 1000;
     m.actor.speedMul = 1;
     m.actor.face = target ? Math.sign(target.x - m.actor.x) || 1 : 1;
   }
-  showNote(owner, SQUAD.colour, "Tatlo", "Three little Bubus, on your side.");
+  const total = G.minis.filter((m) => m.owner === owner.id && !m.leaving).length;
+  showNote(owner, SQUAD.colour, "Tatlo",
+    total > SQUAD.count ? `${total} little Bubus, all yours.` : "Three little Bubus, on your side.");
   sfx.helperSave();
 }
 
@@ -1250,9 +1455,23 @@ function tickPunches() {
     const fy = a.y - a.h * 0.55;
     for (const o of G.actors) {
       if (o === a || o.dead) continue;
-      if (Math.abs(fx - o.x) > (o.w + def.reach) / 2) continue;
-      if (Math.abs(fy - (o.y - o.h / 2)) > o.h / 2 + 0.35) continue;
+      // A radial blast centred on the fist rather than a box the size of the
+      // fist. Behind you it stops almost at once, so the punch still has to
+      // be aimed — but a near miss in front now connects, which is the whole
+      // difference between "one of my three landed" and "none did".
+      const ox = o.x - fx;
+      const oy = (o.y - o.h / 2) - fy;
+      // "Is he in front of me" is measured from the PLAYER, not from the
+      // fist. Measuring it from the fist — which is nearly two tiles out —
+      // classified anyone standing right against you as being BEHIND the
+      // punch, so the one range you cannot miss from was the one range that
+      // never connected.
+      const forward = (o.x - a.x) * a.punch.face;
+      if (forward < -def.blastBehind) continue;
+      const d = Math.hypot(ox, oy * 0.85) - (o.w + o.h) / 4;
+      if (d > def.blastRadius) continue;
       a.punch.hit = true;
+      a.punch.blastAt = G.time;
       // One punch. Not one heart — everything, spare hearts included. That is
       // the trade the Suntok makes: three swings, each one has to be thrown
       // from arm's length and each one can miss, so the one that lands ends
@@ -1261,9 +1480,27 @@ function tickPunches() {
       // Sent flying whether or not it kills — a star turns the damage aside
       // but not the shove, so surviving a punch still costs you your footing.
       o.vx = a.punch.face * def.knockback;
-      o.vy = -5.5;
+      o.vy = -6.4;
+      // The landing gets its own weight: a hit-stop, a hard shake, a flash,
+      // a big burst at the fist and a ring of sparks thrown outward. A one-
+      // punch kill that looked like a bullet hit was the complaint.
       G.bursts.push({ x: fx, y: fy, at: G.time, colour: def.colour, big: true });
-      renderer.shake = 22;
+      for (let i = 0; i < 8; i++) {
+        const ang = (i / 8) * Math.PI * 2;
+        G.bursts.push({
+          x: fx + Math.cos(ang) * def.blastRadius * 0.55,
+          y: fy + Math.sin(ang) * def.blastRadius * 0.4,
+          at: G.time + i * 0.005,
+          colour: i % 2 ? "#ffd7a0" : def.colour,
+        });
+      }
+      G.pops.push({ x: fx, y: fy, at: G.time, colour: def.colour, glyph: GLYPH.suntok || "" });
+      G.freeze = Math.max(G.freeze, 0.13);
+      G.slow = Math.max(G.slow, 0.22);
+      renderer.shake = 46;
+      renderer.punch = Math.max(renderer.punch || 0, 0.085);
+      renderer.flash = Math.max(renderer.flash || 0, 0.42);
+      sfx.badHit();
       sfx.shotHit();
       killPlayer(o, a);
       // Cleared straight after, because killPlayer may refuse the kill (a
@@ -1297,9 +1534,10 @@ function spawnHelper() {
   actor.baseH = actor.h;
   actor.hp = 99;
 
-  G.helper = {
+  const h = {
     actor,
     ally: null,
+    done: false,
     until: G.time + HELPER.stayMs / 1000,
     // A ceiling that never moves, so a player who chains immunity cannot keep
     // him on the field indefinitely by freezing his hunt clock.
@@ -1313,7 +1551,9 @@ function spawnHelper() {
     leaving: false,
     wave: 0,
   };
+  G.helpers.push(h);
   sfx.helper();
+  return h;
 }
 
 /**
@@ -1324,9 +1564,27 @@ function spawnHelper() {
  * something you spent ten coins on.
  */
 function summonDudu(owner) {
-  G.helper = null;
-  spawnHelper();
-  const h = G.helper;
+  // Already have one of your own out? He stays and works longer. Replacing
+  // him would be the reward quietly cancelling itself: a fresh Dudu with a
+  // fresh fifteen seconds is worth LESS than one with twelve left plus this.
+  const had = G.helpers.find((h) => h.ally === owner.id && !h.bad && !h.leaving);
+  if (had) {
+    const base = HELPER.huntMs / 1000;
+    had.until = Math.min(G.time + base * STACK.maxDurationMul, had.until + base);
+    // The hard ceiling exists to stop chained immunity parking him on the
+    // field forever; a stack is a legitimate way past it, so it moves with him.
+    had.hardUntil = Math.max(had.hardUntil || 0, had.until + 1);
+    had.waiting = false;
+    showStack(owner, "#ffb84d", "Dudu", `${Math.round(had.until - G.time)}s of hunting`, "\ud83d\udc3b");
+    sfx.helper();
+    return;
+  }
+
+  // Emphatically NOT `G.helpers = []` first. A Dudu already wandering the
+  // arena belongs to nobody yet and either player can still go and meet him;
+  // deleting him because someone else spent ten coins takes a live chance off
+  // the field. The bought one simply joins him.
+  const h = spawnHelper();
   if (!h) return;
   // Put him beside his new ally rather than out at the edge.
   h.actor.x = owner.x + (owner.face || 1) * -1.4;
@@ -1374,7 +1632,60 @@ function edgeFooting(fromLeft) {
 // victim has no input for any of it. See BAD_HELPER in config.js for why it
 // is deliberately not dodgeable.
 
+/**
+ * Bad Dudu grabs someone — unless they are untouchable, in which case it goes
+ * very badly for him.
+ *
+ * The star already means "nothing can hurt me", and it beats a stomp, a
+ * bullet and a Suntok. Being grabbed and thrown off the map straight through
+ * it was the one hole left in that promise, and it is the worst possible one
+ * to find out about: you took the power-up that says you are safe and then
+ * died anyway, with no counterplay to learn from it. So the grab reverses —
+ * he bounces off, and he is the one who goes flying.
+ */
+function repelBadDudu(h, victim) {
+  const face = Math.sign(victim.x - h.actor.x) || victim.face || 1;
+  h.bad = false;
+  h.ally = null;
+  h.victim = null;
+  h.betrayAt = null;
+  h.leaving = true;
+  h.wave = 0;
+  h.actor.vx = -face * BAD_HELPER.launchVx * 0.55;
+  h.actor.vy = BAD_HELPER.launchVy * 0.8;
+  h.actor.grounded = false;
+  h.actor.speedMul = 0;
+
+  G.bursts.push({ x: h.actor.x, y: h.actor.y - h.actor.h * 0.5, at: G.time,
+                  colour: "#ffe66b", big: true });
+  G.pops.push({ x: victim.x, y: victim.y - victim.h * 0.6, at: G.time,
+                colour: "#ffe66b", glyph: GLYPH.bituin || "\u2605" });
+  G.freeze = Math.max(G.freeze, 0.1);
+  renderer.shake = 30;
+  renderer.punch = Math.max(renderer.punch || 0, 0.06);
+  showNote(victim, "#ffe66b", "Nice try", "He bounced. The star does not care.");
+  sfx.badHit();
+}
+
+/**
+ * Can anything actually land on this player right now?
+ *
+ * The star, and the grace period after a hit. Dudu uses it to decide whether
+ * hunting them is worth his clock; Bad Dudu uses it to decide whether the
+ * grab connects at all.
+ */
+function untouchableNow(a) {
+  if (!a) return false;
+  if (a.power && a.power.type === "bituin") return true;
+  return !!(a.invulnUntil && G.time < a.invulnUntil);
+}
+
 function beginBetrayal(h, victim) {
+  // Untouchable beats the grab. Same test the hunt already uses to decide
+  // that chasing this player is pointless, so there is one definition of
+  // "cannot be touched" rather than two that can drift apart.
+  if (untouchableNow(victim)) return repelBadDudu(h, victim);
+
   h.bad = true;
   h.ally = null;
   h.victim = victim.id;
@@ -1396,13 +1707,12 @@ function beginBetrayal(h, victim) {
 }
 
 /** The betrayal, from the grab to the throw. Runs instead of the hunt. */
-function tickBetrayal(dt) {
-  const h = G.helper;
+function tickBetrayal(h, dt) {
   const me = h.actor;
 
   if (h.leaving) {
     h.wave += dt;
-    if (h.wave > 1.2) G.helper = null;
+    if (h.wave > 1.2) h.done = true;
     return;
   }
 
@@ -1491,23 +1801,30 @@ function throwPlayer(a, face) {
  * him beatable: outrun him, or get somewhere he cannot follow.
  */
 function tickHelper(dt) {
-  if (!G.helper) {
+  // The timer only runs while there is no UNCLAIMED Dudu out — same rule the
+  // squad follows. Someone owning one must not stop the next stranger
+  // arriving, or buying a Dudu would quietly turn the spawner off.
+  const loose = G.helpers.some((h) => !h.ally && !h.bad && !h.leaving);
+  if (!loose && G.helpers.length < STACK.maxHelpers) {
     G.helperAt -= dt;
     if (G.helperAt <= 0) {
       G.helperAt = HELPER.everyMs / 1000;
       spawnHelper();
     }
-    return;
   }
 
-  const h = G.helper;
-  if (h.bad) return tickBetrayal(dt);
+  for (const h of G.helpers.slice()) tickOneHelper(h, dt);
+  if (G.helpers.some((h) => h.done)) G.helpers = G.helpers.filter((h) => !h.done);
+}
+
+function tickOneHelper(h, dt) {
+  if (h.bad) return tickBetrayal(h, dt);
 
   const me = h.actor;
 
   if (h.leaving) {
     h.wave += dt;
-    if (h.wave > 1.2) G.helper = null;
+    if (h.wave > 1.2) h.done = true;
     return;
   }
 
@@ -1568,8 +1885,7 @@ function tickHelper(dt) {
     // spending his fifteen seconds bouncing off someone he could not hurt.
     // Anything that makes them unhittable makes chasing them pointless: the
     // grace after a hit, or a star.
-    const guarded = !!(target.power && target.power.type === "bituin");
-    const untouchable = !!(target.invulnUntil && G.time < target.invulnUntil) || guarded;
+    const untouchable = untouchableNow(target);
     const dist = Math.hypot(target.x - me.x, target.y - me.y);
     h.waiting = untouchable;
     if (untouchable) {
@@ -1799,7 +2115,11 @@ function advance(dt) {
     }
   }
 
-  if (G && (phase === "play" || phase === "countdown" || phase === "roundover")) {
+  // "matchover" belongs in this list. Leaving it out stopped drawing, the
+  // panels AND the broadcast the moment a match ended — so the other phone
+  // was never told it was over and never got the Rematch button, and the
+  // winner's arena froze solid behind the banner.
+  if (G && phase !== "lobby") {
     // Hit-stop, then a brief slow motion. The clock the simulation runs on is
     // the one that stops; drawing carries on at full rate so the freeze reads
     // as impact rather than as a dropped frame.
@@ -1903,6 +2223,8 @@ let guestWas = false;
  * changes when the arena crumbles, so it is dropped from the payload whenever
  * it matches the last one the guest was sent — which is most ticks.
  */
+let lastChipKey = "";
+
 function broadcast() {
   if (!host || !G) return;
   const now = performance.now();
@@ -1910,6 +2232,17 @@ function broadcast() {
   lastSnapAt = now;
 
   const snap = snapshot(G, { ph: phase, sc: score, rn: roundNo, wn: G.winner || 0 });
+
+  // Status chips, so the other phone can show the same panel. They are sent
+  // only when they actually read differently — a chip is only redrawn at
+  // sixths of its bar, so shipping the drain of every timer at 30 Hz would be
+  // paying relay bandwidth for pixels nobody can tell apart.
+  const chips = chipsWire();
+  const chipKey = JSON.stringify(chips);
+  if (chipKey !== lastChipKey) {
+    lastChipKey = chipKey;
+    snap.st = chips;
+  }
 
   // The tilemap is sent only when it differs from the last tick, because it is
   // most of the payload and it usually has not changed. That alone leaves a
@@ -1925,6 +2258,7 @@ function broadcast() {
   if (joined || stale || !rowsEqual(snap.rows, lastRows)) {
     lastRows = snap.rows;
     lastKeyAt = now;
+    snap.st = chips;          // a keyframe is complete, chips included
   } else {
     delete snap.rows;
   }
@@ -1971,9 +2305,6 @@ const powerListeners = [];
 
 /* --------------------------------------------------------- player cards --- */
 
-const HEART_SVG =
-  '<svg viewBox="0 0 24 22"><path d="M12 21.3C2.6 14.6 1 11.2 1 7.9 1 4.1 3.9 1.4 7.2 1.4c2.1 0 3.8 1 4.8 2.6 1-1.6 2.7-2.6 4.8-2.6C20.1 1.4 23 4.1 23 7.9c0 3.3-1.6 6.7-11 13.4z"/></svg>';
-
 /**
  * The chips down the bottom: everything currently affecting you, with the time
  * left draining out of each one.
@@ -1984,6 +2315,7 @@ const HEART_SVG =
  */
 function chipsFor(a) {
   const out = [];
+  if (!a) return out;
 
   // Progress toward the next reward, always first so it sits in one place.
   // `bump` makes the chip jump on the frame the count changes — the number
@@ -2053,13 +2385,16 @@ function chipsFor(a) {
     });
   }
 
-  const h = G.helper;
-  if (h && h.ally === a.id && !h.bad && !h.leaving) {
-    const left = Math.max(0, h.until - G.time);
+  const mine = G.helpers.filter((h) => h.ally === a.id && !h.bad && !h.leaving);
+  if (mine.length) {
+    // The longest-lived one drives the bar; the count says how many are out,
+    // because two Dudus hunting is very different from one and the panel is
+    // the only place that can say so.
+    const left = Math.max(...mine.map((h) => Math.max(0, h.until - G.time)));
     out.push({
-      label: "\ud83d\udc3b Dudu",
+      label: mine.length > 1 ? `\ud83d\udc3b Dudu \u00d7${mine.length}` : "\ud83d\udc3b Dudu",
       colour: "#ffb84d",
-      pct: (left / (HELPER.huntMs / 1000)) * 100,
+      pct: Math.min(100, (left / (HELPER.huntMs / 1000)) * 100),
       bad: false,
     });
   }
@@ -2071,7 +2406,7 @@ function chipsFor(a) {
     out.push({
       label: "\u2727 safe",
       colour: "#9fd8ff",
-      pct: (left / (FEEL.hurtInvulnMs / 1000)) * 100,
+      pct: Math.min(100, (left / (FEEL.hurtInvulnMs / 1000)) * 100),
       bad: false,
     });
   }
@@ -2079,60 +2414,27 @@ function chipsFor(a) {
   return out;
 }
 
-let facePose = 0;
 
 function paintPlayers(dt) {
-  if (!playersBar) return;
-  playersBar.classList.add("on");
-  facePose += dt;
+  paintPanels(G.actors, { p1: chipsFor(G.actors.find((a) => a.id === "p1")),
+                          p2: chipsFor(G.actors.find((a) => a.id === "p2")) }, dt);
+}
 
+/**
+ * The same chips, packed for the guest phone.
+ *
+ * She could not see a single status effect: the panels are painted from the
+ * live round and she has no round. Recomputing them on her side would mean a
+ * second copy of chipsFor() that quietly disagrees the first time one changes,
+ * so the host does the thinking and sends the answer.
+ */
+function chipsWire() {
+  const out = {};
   for (const p of PLAYERS) {
-    const card = cards[p.id];
     const a = G.actors.find((x) => x.id === p.id);
-    if (!card || !a) continue;
-    card.style.setProperty("--pc", p.colour);
-    card.classList.toggle("out", a.hp <= 0);
-
-    // portrait, drawn with the same routine the game uses
-    const cv = card.querySelector(".face");
-    const ctx = cv.getContext("2d");
-    ctx.clearRect(0, 0, cv.width, cv.height);
-    charById(a.char).draw(ctx, cv.width / 2, cv.height * 0.96, cv.width * 0.72, cv.height * 0.8, {
-      face: 1,
-      run: 0,
-      air: 0,
-      squash: Math.sin(facePose * 2.2) * 0.05,
-      t: facePose,
-      walk: 0,
-      stride: 1,
-    });
-
-    const hearts = card.querySelector(".phearts");
-    // Only ever as many slots as you start with, plus however many spares you
-    // are actually carrying — five empty slots would read as five lost hearts.
-    const slots = Math.max(FEEL.hp, a.hp);
-    const want = Array.from({ length: slots }, (_, i) => i < a.hp).join(",");
-    if (hearts.dataset.state !== want) {
-      hearts.dataset.state = want;
-      hearts.innerHTML = Array.from({ length: slots }, (_, i) => {
-        const cls = i >= FEEL.hp ? "bonus" : i < a.hp ? "" : "off";
-        return HEART_SVG.replace("<svg", `<svg class="${cls}"`);
-      }).join("");
-    }
-
-    const chips = chipsFor(a);
-    const key = chips.map((c) => c.label + Math.round(c.pct / 6) + (c.bump ? "!" : "")).join("|");
-    const el = card.querySelector(".pchips");
-    if (el.dataset.key !== key) {
-      el.dataset.key = key;
-      el.innerHTML = chips
-        .map(
-          (c) =>
-            `<span class="chip${c.bad ? " bad" : ""}${c.bump ? " bump" : ""}" style="--cc:${c.colour};--left:${c.pct}%">${c.label}</span>`
-        )
-        .join("");
-    }
+    if (a) out[p.id] = packChips(chipsFor(a));
   }
+  return out;
 }
 
 /**

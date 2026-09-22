@@ -23,6 +23,7 @@ import { stepActor } from "./physics.js";
 import { createClient } from "./net.js";
 import { createPad, paintShootButton } from "./pad.js";
 import { hydrate } from "./netstate.js";
+import { paintPanels, unpackChips } from "./panel.js";
 import { armAudio, onAudioState, startAudio } from "./audio.js";
 
 const $ = (s) => document.querySelector(s);
@@ -122,10 +123,17 @@ function tween(a, b, t) {
     if (!pa) return nb;
     return { ...nb, actor: { ...nb.actor, x: lerp(pa.actor.x, nb.actor.x, t), y: lerp(pa.actor.y, nb.actor.y, t) } };
   });
-  if (b.helper && a.helper) {
-    out.helper = { ...b.helper, actor: { ...b.helper.actor,
-      x: lerp(a.helper.actor.x, b.helper.actor.x, t),
-      y: lerp(a.helper.actor.y, b.helper.actor.y, t) } };
+  out.helpers = (b.helpers || []).map((nb, i) => {
+    const pa = (a.helpers || [])[i];
+    if (!pa) return nb;
+    return { ...nb, actor: { ...nb.actor,
+      x: lerp(pa.actor.x, nb.actor.x, t),
+      y: lerp(pa.actor.y, nb.actor.y, t) } };
+  });
+  if (b.wildFairy && a.wildFairy) {
+    out.wildFairy = { ...b.wildFairy,
+      x: lerp(a.wildFairy.x, b.wildFairy.x, t),
+      y: lerp(a.wildFairy.y, b.wildFairy.y, t) };
   }
   return out;
 }
@@ -142,7 +150,19 @@ function guestSide() {
   let seq = 0;
   let lastJump = 0;
   const got = { snapshots: 0, bytes: 0, lastAt: 0 };
-  window.__duo = () => ({ ...got, since: got.lastAt ? Math.round(performance.now() - got.lastAt) : -1 });
+  // Status chips for both players, and what the host says the match is doing.
+  // Chips ride the wire only when they change, so like the tilemap they have
+  // to persist between the snapshots that carry them — otherwise every effect
+  // would flicker off the instant it settled.
+  let chips = { p1: [], p2: [] };
+  let phase = "";
+  let rematchSeq = 0;
+  window.__duo = () => ({
+    ...got,
+    since: got.lastAt ? Math.round(performance.now() - got.lastAt) : -1,
+    chips: { p1: chips.p1.length, p2: chips.p2.length },
+    phase,
+  });
   const sessionKey = Math.random().toString(36).slice(2, 8);
 
   // The two most recent pictures, what time each landed, and the tilemap they
@@ -195,6 +215,10 @@ function guestSide() {
       }
     }
 
+    if (m.st) chips = { p1: unpackChips(m.st.p1), p2: unpackChips(m.st.p2) };
+    if (m.ph) phase = m.ph;
+    $("#rematch")?.classList.toggle("show", phase === "matchover");
+
     paintHud(m);
     wait.classList.add("gone");
     padEl.classList.remove("hidden");
@@ -227,12 +251,20 @@ function guestSide() {
     paintState(client.mode);
   }
 
+  // Karla cannot restart the match herself — only the host simulates — so the
+  // tap travels up the same input channel as her thumbs and screen.js decides.
+  $("#rematch")?.addEventListener("click", () => {
+    rematchSeq++;
+    $("#rematch").classList.remove("show");
+    haptic();
+  });
+
   connect().catch(() => say("could not reach the room — is Charlie's phone open?"));
 
   setInterval(() => {
     if (!client) return;
     const p = pad.state;
-    client.send({ k: sessionKey, n: ++seq, l: p.l, r: p.r, h: p.h, d: p.d, j: p.j, s: p.s });
+    client.send({ k: sessionKey, n: ++seq, l: p.l, r: p.r, h: p.h, d: p.d, j: p.j, s: p.s, rm: rematchSeq });
   }, 1000 / 40);
 
   // Rejoin on its own, the same way the controller page does.
@@ -241,11 +273,11 @@ function guestSide() {
   }, 1800);
 
   let last = performance.now();
-  (function frame(now) {
-    requestAnimationFrame(frame);
+
+  function tick(now) {
     const dt = Math.min(0.08, (now - last) / 1000);
     last = now;
-    if (!next) return;
+    if (!next) return false;
 
     // Everyone else: blended between the last two snapshots, drawn slightly
     // behind live so there is always a pair to blend between.
@@ -270,14 +302,27 @@ function guestSide() {
     }
 
     draw(renderer, view, dt);
+    paintPanels(view.actors, chips, dt);
+    return true;
+  }
+
+  (function frame(now) {
+    requestAnimationFrame(frame);
+    tick(now);
   })(performance.now());
+
+  // A backgrounded tab gets almost no rAF, so "nothing is drawn" and "nothing
+  // is arriving" look identical from the outside. The host has __smashStep for
+  // the same reason; this is the guest's half of it.
+  window.__duoFrame = () => tick(performance.now() + 16);
 }
 
 /* ----------------------------------------------------------------- hud --- */
 
-// The guest has no simulation, so the score comes off the wire. Health does
-// not need to: render.js already draws each character's hearts over its head
-// straight out of the snapshot, which is where you are looking anyway.
+// The guest has no simulation, so the score comes off the wire — and so do the
+// status chips, which the host computes and packs (see chipsWire in screen.js).
+// Hearts are the one thing she could work out herself, and the panel draws
+// them from the snapshot's actors, same as the host's copy does.
 function paintHud(m) {
   const hud = $("#hud");
   if (m.sc) {

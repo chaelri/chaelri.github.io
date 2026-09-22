@@ -254,6 +254,7 @@ export const CHARACTERS = [
     name: "Yhon Yhon",
     from: "tayo",
     tint: "#ffbec2",
+    spawnFace: 1,
     blurb: "heavy, short steps",
     stats: { jump: 0.98, speed: 0.93, accel: 0.86, stride: 0.78 },
     draw: drawYhon,
@@ -263,6 +264,11 @@ export const CHARACTERS = [
     name: "Bubu",
     from: "bubududu",
     tint: "#c9e7ff",
+    // The sprite is drawn with one paw raised on the LEFT of the frame, so
+    // face 1 is "paw on the left" and -1 mirrors it. It has to be pinned at
+    // spawn: reviveAt keeps whatever direction you last walked, so dying on
+    // the way left brought him back mirrored.
+    spawnFace: 1,
     blurb: "even all round",
     stats: { jump: 1.0, speed: 1.02, accel: 1.0, stride: 1.15 },
     draw: (ctx, x, y, w, h, pose) => {

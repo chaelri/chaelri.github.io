@@ -180,6 +180,247 @@ function roundRect(ctx, x, y, w, h, rad) {
  * further a layer is meant to be, the less it moves and the more it washes out
  * toward the sky colour.
  */
+/* ============================================================== textures ===
+ *
+ * The ground, the platforms and the sky used to be flat fills: one brown
+ * rectangle, one green strip, one gradient. At the size a phone draws them
+ * that reads as coloured paper rather than as a place, and a gradient across
+ * a whole screen also bands visibly on an OLED.
+ *
+ * Everything here is BAKED ONCE into an offscreen canvas and then blitted.
+ * Drawing the grain per tile per frame would be a few hundred extra paths a
+ * frame on a device that is already the whole simulation — this way the cost
+ * is one drawImage per tile, the same as the flat version, and the detail is
+ * free after the first frame.
+ *
+ * The noise is from a seeded generator, never Math.random, or the speckle
+ * would crawl every time the atlas was rebuilt at a new zoom.
+ */
+
+/** Tiny deterministic PRNG — same tile, same freckles, every time. */
+function noiseAt(i) {
+  let x = Math.sin(i * 127.1 + 311.7) * 43758.5453;
+  return x - Math.floor(x);
+}
+
+/**
+ * One canvas holding every tile type, baked ONCE and scaled on the way out.
+ *
+ * The first version baked at the current zoom and re-baked whenever that
+ * moved. The camera eases every single frame, so in practice it re-baked
+ * several hundred paths constantly and took the frame from 4ms to 12ms —
+ * a cache that is a pessimisation. Bake at a size no tile will ever exceed
+ * (the camera's own ceiling is 78 CSS px a tile, doubled for retina) and let
+ * drawImage do the scaling, which is free.
+ */
+const TILE_ART_PX = 160;
+
+function tileArt(r) {
+  if (r.tiles) return r.tiles;
+  const key = TILE_ART_PX;
+
+  const pad = 2;
+  const cell = key + pad * 2;
+  const kinds = ["soil", "grass", "plat", "spike"];
+  const c = document.createElement("canvas");
+  c.width = cell * kinds.length;
+  c.height = cell;
+  const x = c.getContext("2d");
+
+  const at = (i) => i * cell + pad;
+
+  /* ---- soil: the body of the ground, under the grass ---------------- */
+  const soil = (ox) => {
+    const g = x.createLinearGradient(0, pad, 0, pad + key);
+    g.addColorStop(0, "#7d5744");
+    g.addColorStop(0.45, GROUND);
+    g.addColorStop(1, "#593c2f");
+    x.fillStyle = g;
+    x.fillRect(ox, pad, key, key);
+    // Strata: a few very faint horizontal bands. Earth is layered, and this
+    // is what stops the fill reading as one flat brown.
+    for (let i = 0; i < 4; i++) {
+      const n = noiseAt(i * 13 + 5);
+      x.fillStyle = n > 0.5 ? "rgba(255,225,190,0.045)" : "rgba(40,22,16,0.06)";
+      x.fillRect(ox, pad + key * (0.18 + i * 0.2 + n * 0.04), key, key * (0.05 + n * 0.06));
+    }
+
+    // Grit. The first pass used blobs 8% of a tile wide at 20% contrast,
+    // which at playing distance read as gravel rather than as soil. Small
+    // and faint is the whole point: you should notice it is not flat, not
+    // notice the specks.
+    for (let i = 0; i < Math.round(key * 2.2); i++) {
+      const n1 = noiseAt(i * 3 + 1), n2 = noiseAt(i * 3 + 2), n3 = noiseAt(i * 3 + 3);
+      const s = key * (0.008 + n3 * 0.016);
+      x.fillStyle = n3 > 0.55 ? "rgba(255,228,196,0.10)" : "rgba(40,22,16,0.11)";
+      x.beginPath();
+      x.ellipse(ox + n1 * key, pad + n2 * key, s, s * 0.8, 0, 0, Math.PI * 2);
+      x.fill();
+    }
+    // A handful of small stones, for something the grit can scale against.
+    for (let i = 0; i < 4; i++) {
+      const n1 = noiseAt(i * 7 + 21), n2 = noiseAt(i * 7 + 22);
+      x.fillStyle = "rgba(255,232,206,0.09)";
+      x.beginPath();
+      x.ellipse(ox + n1 * key, pad + 0.25 * key + n2 * key * 0.7,
+                key * 0.032, key * 0.021, 0.4, 0, Math.PI * 2);
+      x.fill();
+    }
+  };
+
+  soil(at(0));
+
+  /* ---- grass: the same soil with a turf cap and blades -------------- */
+  soil(at(1));
+  {
+    const ox = at(1);
+    const capH = key * 0.3;
+    const g = x.createLinearGradient(0, pad, 0, pad + capH);
+    g.addColorStop(0, "#96e063");
+    g.addColorStop(1, GROUND_TOP);
+    x.fillStyle = g;
+    x.fillRect(ox, pad, key, capH);
+    x.fillStyle = GROUND_EDGE;
+    x.fillRect(ox, pad + capH, key, key * 0.07);
+
+    // Blades hanging INTO the soil, so the join is ragged rather than a
+    // ruled line — that straight edge is most of what made it read as paper.
+    x.fillStyle = GROUND_EDGE;
+    const blades = Math.max(4, Math.round(key / 7));
+    for (let i = 0; i < blades; i++) {
+      const n = noiseAt(i * 5 + 40);
+      const bx = ox + ((i + 0.5) / blades) * key + (n - 0.5) * key * 0.1;
+      const bw = key * (0.05 + n * 0.04);
+      const bh = key * (0.05 + noiseAt(i * 5 + 41) * 0.09);
+      x.beginPath();
+      x.moveTo(bx - bw, pad + capH);
+      x.lineTo(bx + bw, pad + capH);
+      x.lineTo(bx, pad + capH + bh + key * 0.07);
+      x.closePath();
+      x.fill();
+    }
+    // ...and a few standing up out of the top, which is what sells turf.
+    x.strokeStyle = "rgba(168,235,120,0.95)";
+    x.lineCap = "round";
+    for (let i = 0; i < blades; i++) {
+      const n = noiseAt(i * 9 + 60), n2 = noiseAt(i * 9 + 61);
+      const bx = ox + ((i + 0.35) / blades) * key + (n - 0.5) * key * 0.12;
+      x.lineWidth = Math.max(1, key * 0.022);
+      x.beginPath();
+      x.moveTo(bx, pad + key * 0.02);
+      x.quadraticCurveTo(bx + (n2 - 0.5) * key * 0.12, pad - key * 0.03,
+                         bx + (n2 - 0.5) * key * 0.2, pad - key * 0.075);
+      x.stroke();
+    }
+    // Highlight along the very top lip.
+    x.fillStyle = "rgba(255,255,255,0.22)";
+    x.fillRect(ox, pad, key, Math.max(1, key * 0.035));
+  }
+
+  /* ---- platform: a plank, with grain and end caps ------------------- */
+  {
+    const ox = at(2);
+    const top = pad + key * 0.1;
+    const h = key * 0.34;
+    const g = x.createLinearGradient(0, top, 0, top + h);
+    g.addColorStop(0, "#efbc8a");
+    g.addColorStop(0.28, PLATFORM_TOP);
+    g.addColorStop(0.62, PLATFORM);
+    g.addColorStop(1, "#a76f3f");
+    x.save();
+    roundRect(x, ox, top, key, h, key * 0.1);
+    x.clip();
+    x.fillStyle = g;
+    x.fillRect(ox, top, key, h);
+
+    // Grain: long, nearly-horizontal strokes at a shallow angle, plus two
+    // knots. Wood is the one texture everybody can spot as missing.
+    x.strokeStyle = "rgba(120,70,34,0.3)";
+    for (let i = 0; i < 4; i++) {
+      const n = noiseAt(i * 11 + 80), n2 = noiseAt(i * 11 + 81);
+      x.lineWidth = Math.max(0.7, key * (0.012 + n * 0.012));
+      x.beginPath();
+      const gy = top + h * (0.24 + i * 0.19 + (n2 - 0.5) * 0.06);
+      x.moveTo(ox - 1, gy);
+      x.bezierCurveTo(ox + key * 0.3, gy + h * 0.06 * (n - 0.5),
+                      ox + key * 0.7, gy - h * 0.06 * (n2 - 0.5), ox + key + 1, gy);
+      x.stroke();
+    }
+    x.fillStyle = "rgba(120,70,34,0.26)";
+    x.beginPath();
+    x.ellipse(ox + key * 0.28, top + h * 0.55, key * 0.035, key * 0.022, 0.3, 0, Math.PI * 2);
+    x.fill();
+
+    // The lit top lip and the shaded underside, which is what gives a flat
+    // strip its thickness.
+    x.fillStyle = "rgba(255,255,255,0.4)";
+    x.fillRect(ox, top, key, Math.max(1, h * 0.14));
+    x.fillStyle = "rgba(90,50,24,0.28)";
+    x.fillRect(ox, top + h * 0.84, key, h * 0.16);
+    x.restore();
+
+    // A soft drop shadow under the plank, so it sits in front of the hills
+    // rather than being pasted onto them.
+    const sh = x.createLinearGradient(0, top + h, 0, top + h + key * 0.12);
+    sh.addColorStop(0, "rgba(40,30,20,0.2)");
+    sh.addColorStop(1, "rgba(40,30,20,0)");
+    x.fillStyle = sh;
+    x.fillRect(ox, top + h, key, key * 0.12);
+  }
+
+  /* ---- spikes ------------------------------------------------------- */
+  {
+    const ox = at(3);
+    const n = 3;
+    for (let i = 0; i < n; i++) {
+      const x0 = ox + (i * key) / n;
+      const g = x.createLinearGradient(x0, 0, x0 + key / n, 0);
+      g.addColorStop(0, "#414958");
+      g.addColorStop(0.45, "#7b8597");
+      g.addColorStop(1, "#414958");
+      x.fillStyle = g;
+      x.beginPath();
+      x.moveTo(x0, pad + key);
+      x.lineTo(x0 + key / n / 2, pad + key * 0.24);
+      x.lineTo(x0 + key / n, pad + key);
+      x.closePath();
+      x.fill();
+      x.strokeStyle = "rgba(255,255,255,0.5)";
+      x.lineWidth = Math.max(0.8, key * 0.02);
+      x.beginPath();
+      x.moveTo(x0 + key / n / 2, pad + key * 0.24);
+      x.lineTo(x0 + key / n * 0.3, pad + key);
+      x.stroke();
+    }
+  }
+
+  r.tiles = { key, cell, pad, canvas: c, index: { soil: 0, grass: 1, plat: 2, spike: 3 } };
+  return r.tiles;
+}
+
+/**
+ * A 128px tile of very faint noise, laid over the sky.
+ *
+ * A four-stop gradient down a 1200px-tall screen steps in visible bands on
+ * any decent display. A couple of percent of noise on top dithers it away —
+ * it is the cheapest possible fix and it is what makes the sky read as air.
+ */
+function skyGrain(r) {
+  if (r.grain) return r.grain;
+  const c = document.createElement("canvas");
+  c.width = c.height = 128;
+  const x = c.getContext("2d");
+  const img = x.createImageData(128, 128);
+  for (let i = 0; i < img.data.length; i += 4) {
+    const v = noiseAt(i) * 255;
+    img.data[i] = img.data[i + 1] = img.data[i + 2] = v;
+    img.data[i + 3] = 12;
+  }
+  x.putImageData(img, 0, 0);
+  r.grain = x.canvas;
+  return r.grain;
+}
+
 function drawBackdrop(r, ctx, g, dt) {
   const sky = ctx.createLinearGradient(0, 0, 0, r.h);
   sky.addColorStop(0, "#4fb2ee");
@@ -188,6 +429,19 @@ function drawBackdrop(r, ctx, g, dt) {
   sky.addColorStop(1, "#f6eed9");
   ctx.fillStyle = sky;
   ctx.fillRect(0, 0, r.w, r.h);
+
+  // Dither the gradient. Four stops down a tall screen band visibly; a couple
+  // of percent of noise on top removes them for one fill.
+  // Cached: createPattern every frame is a needless allocation, and the tile
+  // never changes.
+  const grain = r.grainPattern || (r.grainPattern = ctx.createPattern(skyGrain(r), "repeat"));
+  if (grain) {
+    ctx.save();
+    ctx.globalAlpha = 0.5;
+    ctx.fillStyle = grain;
+    ctx.fillRect(0, 0, r.w, r.h);
+    ctx.restore();
+  }
 
   // sun, fixed high and to the right, with a wide soft halo
   const sx0 = r.w * 0.78 - r.cam.x * r.cam.zoom * 0.02;
@@ -235,6 +489,31 @@ function hills(r, ctx, o) {
   ctx.lineTo(r.w + 20, r.h);
   ctx.closePath();
   ctx.fill();
+
+  // A lighter lip along the ridge, clipped to the range itself. Flat silhouettes
+  // read as cut paper; one band of sunlit slope is enough to give them a form.
+  // A LIP along the ridge, not a wash over the whole range. The first version
+  // covered most of the shape at 22% white and simply bleached all three
+  // ranges until they stopped separating from each other.
+  ctx.save();
+  ctx.clip();
+  ctx.globalAlpha = 0.14;
+  ctx.fillStyle = "#ffffff";
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  for (let x = 0; x <= r.w + 20; x += 18) {
+    const u = (x + off) / (r.h * 0.33);
+    const y =
+      yBase +
+      Math.sin(u * 0.8 + o.seed) * amp +
+      Math.sin(u * 1.9 + o.seed * 2.1) * amp * 0.4 +
+      Math.sin(u * 0.33 + o.seed * 3.7) * amp * 0.75;
+    ctx.lineTo(x, y + amp * 0.1 + Math.sin(u * 3.1 + o.seed) * amp * 0.04);
+  }
+  ctx.lineTo(r.w + 20, 0);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
 }
 
 function clouds(r, ctx, g, dt) {
@@ -343,6 +622,7 @@ export function draw(r, g, dt) {
 
   layer("coins", ctx, () => drawCoins(r, ctx, g));
   layer("powers", ctx, () => drawPowers(r, ctx, g));
+  layer("wildfairy", ctx, () => drawWildFairy(r, ctx, g));
   layer("helper", ctx, () => drawHelper(r, ctx, g));
   layer("minis", ctx, () => drawMinis(r, ctx, g));
   // Per actor, so one character failing can never take the other one with it.
@@ -474,6 +754,7 @@ function drawLostHearts(r, ctx, g) {
 
 function drawTiles(r, ctx, g) {
   const z = r.cam.zoom;
+  const art = tileArt(r);
   const x0 = Math.max(0, Math.floor(r.cam.x - r.w / 2 / z) - 1);
   const x1 = Math.min(g.level.w - 1, Math.ceil(r.cam.x + r.w / 2 / z) + 1);
   const y0 = Math.max(0, Math.floor(r.cam.y - r.h / 2 / z) - 1);
@@ -482,37 +763,21 @@ function drawTiles(r, ctx, g) {
   for (let ty = y0; ty <= y1; ty++) {
     for (let tx = x0; tx <= x1; tx++) {
       const c = g.grid.rows[ty][tx];
+      if (c !== "#" && c !== "=" && c !== "^") continue;
       const px = toX(r, tx);
       const py = toY(r, ty);
-      if (c === "#") {
-        const openAbove = ty === 0 || g.grid.rows[ty - 1][tx] !== "#";
-        ctx.fillStyle = GROUND;
-        ctx.fillRect(px, py, z + 1, z + 1);
-        if (openAbove) {
-          ctx.fillStyle = GROUND_TOP;
-          ctx.fillRect(px, py, z + 1, z * 0.28);
-          ctx.fillStyle = GROUND_EDGE;
-          ctx.fillRect(px, py + z * 0.28, z + 1, z * 0.06);
-        }
-      } else if (c === "=") {
-        ctx.fillStyle = PLATFORM;
-        roundRect(ctx, px, py + z * 0.1, z, z * 0.34, z * 0.1);
-        ctx.fill();
-        ctx.fillStyle = PLATFORM_TOP;
-        roundRect(ctx, px, py + z * 0.1, z, z * 0.14, z * 0.07);
-        ctx.fill();
-      } else if (c === "^") {
-        ctx.fillStyle = SPIKE;
-        const n = 3;
-        for (let i = 0; i < n; i++) {
-          ctx.beginPath();
-          ctx.moveTo(px + (i * z) / n, py + z);
-          ctx.lineTo(px + ((i + 0.5) * z) / n, py + z * 0.24);
-          ctx.lineTo(px + ((i + 1) * z) / n, py + z);
-          ctx.closePath();
-          ctx.fill();
-        }
-      }
+      const kind =
+        c === "=" ? "plat" :
+        c === "^" ? "spike" :
+        (ty === 0 || g.grid.rows[ty - 1][tx] !== "#") ? "grass" : "soil";
+      // +1 on the destination so neighbouring tiles overlap by a hair;
+      // without it a fractional zoom leaves a seam of sky between them.
+      ctx.drawImage(
+        art.canvas,
+        art.index[kind] * art.cell, 0, art.cell, art.cell,
+        px - (art.pad / art.key) * z, py - (art.pad / art.key) * z,
+        z * (art.cell / art.key) + 1, z * (art.cell / art.key) + 1
+      );
     }
   }
 
@@ -918,6 +1183,85 @@ function drawCoinPop(ctx, r, c, t) {
  * a heal, so the thing you actually care about (a heart went back) has a
  * visible cause.
  */
+/**
+ * The loose Diwata, drifting the arena waiting to be caught.
+ *
+ * Same character, same wings, but she is not riding anybody — so she gets a
+ * pull-ring on top of the glow. She is the one pickup that MOVES, and without
+ * something saying "come and get this" she just looks like scenery.
+ */
+function drawWildFairy(r, ctx, g) {
+  const w = g.wildFairy;
+  if (!w) return;
+  const z = r.cam.zoom;
+  const leave = w.leaving ? Math.min(1, w.wave / (DIWATA.leaveMs / 1000)) : 0;
+  const bob = Math.sin(g.time * 3 + w.phase) * z * 0.16;
+  const px = toX(r, w.x) + Math.cos(g.time * 1.4 + w.phase) * z * 0.08;
+  const py = toY(r, w.y) + bob;
+
+  ctx.save();
+  ctx.globalAlpha = 1 - leave;
+
+  // The ring, breathing outward — the same language the power-up pickups use.
+  for (const off of [0, 0.5]) {
+    const pulse = (g.time * 1.1 + w.phase + off) % 1;
+    ctx.strokeStyle = `rgba(255,120,175,${(1 - pulse) * 0.85 * (1 - leave)})`;
+    ctx.lineWidth = Math.max(2, z * 0.07 * (1 - pulse * 0.5));
+    ctx.beginPath();
+    ctx.arc(px, py, z * (0.45 + pulse * 0.95), 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  const glow = ctx.createRadialGradient(px, py, 0, px, py, z * 1.1);
+  glow.addColorStop(0, "rgba(255,194,221,0.55)");
+  glow.addColorStop(1, "rgba(255,194,221,0)");
+  ctx.fillStyle = glow;
+  ctx.fillRect(px - z * 2, py - z * 2, z * 4, z * 4);
+
+  const beat = Math.sin(g.time * 22 + w.phase) * 0.4 + 0.75;
+  ctx.save();
+  ctx.translate(px, py - z * 0.28);
+  ctx.globalAlpha = (1 - leave) * 0.72;
+  ctx.fillStyle = "#ffffff";
+  for (const side of [-1, 1]) {
+    ctx.save();
+    ctx.scale(side, 1);
+    ctx.rotate(-0.5);
+    ctx.beginPath();
+    ctx.ellipse(z * 0.26, 0, z * 0.3 * beat, z * 0.15, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+  ctx.restore();
+
+  // A short trail of sparks behind her, so a fast drift reads as flight.
+  for (let i = 1; i <= 4; i++) {
+    const t = i * 0.055;
+    ctx.globalAlpha = (1 - leave) * (0.3 - i * 0.06);
+    ctx.fillStyle = DIWATA.colour;
+    ctx.beginPath();
+    ctx.arc(px - (w.face || 1) * z * t * 3.2, py + Math.sin(g.time * 3 + w.phase - t * 4) * z * 0.14,
+            z * (0.09 - i * 0.015), 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1 - leave;
+
+  // Bigger than the one riding a player: this one has to be spotted from
+  // across the arena and chased, not just noticed once it is beside you.
+  const size = z * DIWATA.scale * 1.35 * (1 - leave * 0.5);
+  charById("yhon").draw(ctx, px, py + size * 0.5, size, size, {
+    face: w.face || 1,
+    run: 0,
+    air: -1,
+    rise: 0.4,
+    squash: -0.1,
+    t: g.time,
+    walk: 0,
+    stride: 1,
+  });
+  ctx.restore();
+}
+
 function drawFairy(r, ctx, g, a) {
   const f = a.fairy;
   if (!f || a.dead) return;
@@ -1007,11 +1351,6 @@ function drawMinis(r, ctx, g) {
     // ambiguous about which side they are running for — and so two squads on
     // the field at once stay told apart.
     const own = ownerColour(m.owner) || "#8fd8ff";
-    const glow = ctx.createRadialGradient(px, py - z * 0.3, 0, px, py - z * 0.3, z * 1.0);
-    glow.addColorStop(0, mix(own, [255, 255, 255], 0.2, 0.55));
-    glow.addColorStop(1, mix(own, [255, 255, 255], 0, 0));
-    ctx.fillStyle = glow;
-    ctx.fillRect(px - z, py - z * 1.3, z * 2, z * 2);
 
     if (m.owner && !m.leaving) {
       ctx.save();
@@ -1027,6 +1366,16 @@ function drawMinis(r, ctx, g) {
     const s = Math.max(0, 1 - t * t);
     const mw = me.w * z * 1.2;
     const mh = me.h * z * 1.25;
+
+    // The owner's colour, traced right around them, at full strength.
+    if (m.owner && !m.leaving && s > 0.05) {
+      const pose = poseOf(me);
+      stampOutline(r, ctx, own, px, py, mw * s, mh * s, z * 0.055, (b, bx, by) => {
+        charById("bubu").draw(b, bx, by, mw * s, mh * s, pose);
+        drawCap(b, bx, by, mw * s, mh * s, me.face);
+      });
+    }
+
     ctx.translate(px, py);
     ctx.scale(s, s);
     charById("bubu").draw(ctx, 0, 0, mw, mh, poseOf(me));
@@ -1061,7 +1410,9 @@ function drawPunch(r, ctx, g, a) {
   const def = POWERUPS.suntok;
   const ms = (g.time - a.punch.at) * 1000;
   const total = def.windupMs + def.activeMs;
-  if (ms > total + 90) return;
+  // The connection ring outlives the swing, so the whole draw has to stay
+  // alive for it — cutting at the swing's end clipped it a third of the way.
+  if (ms > total + Math.max(90, def.blastMs)) return;
   const z = r.cam.zoom;
 
   // -0.35 tiles at full wind-up, out to `reach` and then back.
@@ -1077,6 +1428,66 @@ function drawPunch(r, ctx, g, a) {
   const py = toY(r, a.y - a.h * 0.55);
 
   ctx.save();
+
+  // The blast the fist actually carries. Drawn while the punch is live so you
+  // can SEE the reach you are aiming with — the hitbox used to be invisible
+  // and the size of a fist, so a miss never explained itself.
+  if (live) {
+    const t = Math.min(1, (ms - def.windupMs) / def.activeMs);
+    const rad = z * def.blastRadius * (0.45 + t * 0.55);
+    ctx.save();
+    ctx.globalAlpha = (1 - t) * 0.3;
+    const wave = ctx.createRadialGradient(px, py, rad * 0.35, px, py, rad);
+    wave.addColorStop(0, "rgba(255,255,255,0)");
+    wave.addColorStop(0.72, `${def.colour}`);
+    wave.addColorStop(1, "rgba(255,120,80,0)");
+    ctx.fillStyle = wave;
+    ctx.beginPath();
+    ctx.arc(px, py, rad, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = (1 - t) * 0.85;
+    ctx.strokeStyle = "rgba(255,240,220,0.9)";
+    ctx.lineWidth = Math.max(1.5, z * 0.045 * (1 - t));
+    ctx.beginPath();
+    ctx.arc(px, py, rad, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // The bigger ring that fires on a CONNECTION, outliving the swing itself.
+  if (a.punch.blastAt != null) {
+    const bt = (g.time - a.punch.blastAt) / (def.blastMs / 1000);
+    if (bt >= 0 && bt < 1) {
+      const rad = z * def.blastRadius * (0.3 + backOut(bt) * 1.15);
+      ctx.save();
+      ctx.globalAlpha = (1 - bt) * 0.9;
+      ctx.strokeStyle = "#fff3e0";
+      ctx.lineWidth = Math.max(2, z * 0.11 * (1 - bt));
+      ctx.beginPath();
+      ctx.arc(px, py, rad, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.globalAlpha = (1 - bt) * 0.55;
+      ctx.strokeStyle = def.colour;
+      ctx.lineWidth = Math.max(1.5, z * 0.2 * (1 - bt));
+      ctx.beginPath();
+      ctx.arc(px, py, rad * 0.82, 0, Math.PI * 2);
+      ctx.stroke();
+      // Spokes, so the ring reads as force rather than as a bubble.
+      ctx.globalAlpha = (1 - bt) * 0.7;
+      ctx.lineWidth = Math.max(1.5, z * 0.05);
+      ctx.lineCap = "round";
+      for (let i = 0; i < 10; i++) {
+        const ang = (i / 10) * Math.PI * 2 + bt * 0.6;
+        ctx.beginPath();
+        ctx.moveTo(px + Math.cos(ang) * rad * 0.95, py + Math.sin(ang) * rad * 0.95);
+        ctx.lineTo(px + Math.cos(ang) * rad * (1.18 + bt * 0.25),
+                   py + Math.sin(ang) * rad * (1.18 + bt * 0.25));
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+  }
+
   if (live) {
     // A short speed streak back toward the shoulder.
     ctx.globalAlpha = 0.5;
@@ -1128,6 +1539,53 @@ function drawBursts(r, ctx, g) {
       ctx.fill();
     }
     ctx.restore();
+  }
+}
+
+/**
+ * A hard outline traced around a character's actual silhouette.
+ *
+ * This replaced a soft radial halo behind each owned helper and mini Bubu.
+ * A gradient at 40% alpha over a bright sky is almost invisible, and over a
+ * dark platform it reads as a smudge — so the one thing it existed to say,
+ * "these three are HERS", was the thing it said worst.
+ *
+ * Done by stamping the figure into a scratch canvas, flattening it to a solid
+ * colour with `source-in`, and blitting that ring of copies around the real
+ * one. Stroking a path would not work: these are sprites and hand-drawn
+ * composites, and neither has a path to stroke.
+ */
+function stampOutline(r, ctx, colour, cx, cy, w, h, thick, drawInto) {
+  const px = Math.max(1.5, thick);
+  const pad = Math.ceil(px) + 2;
+  const cw = Math.ceil(w) + pad * 2;
+  const ch = Math.ceil(h) + pad * 2;
+  if (cw <= 0 || ch <= 0 || cw > 2048 || ch > 2048) return;
+
+  const buf = r.outline || (r.outline = document.createElement("canvas"));
+  if (buf.width < cw || buf.height < ch) {
+    buf.width = Math.max(buf.width, cw);
+    buf.height = Math.max(buf.height, ch);
+  }
+  const b = buf.getContext("2d");
+  b.setTransform(1, 0, 0, 1, 0, 0);
+  b.clearRect(0, 0, cw, ch);
+  b.save();
+  drawInto(b, pad + w / 2, pad + h);
+  b.restore();
+
+  // Flatten whatever was drawn to one solid colour, keeping only its alpha.
+  b.globalCompositeOperation = "source-in";
+  b.fillStyle = colour;
+  b.fillRect(0, 0, cw, ch);
+  b.globalCompositeOperation = "source-over";
+
+  const ox = cx - (pad + w / 2);
+  const oy = cy - (pad + h);
+  for (let i = 0; i < 10; i++) {
+    const a = (i / 10) * Math.PI * 2;
+    ctx.drawImage(buf, 0, 0, cw, ch,
+      ox + Math.cos(a) * px, oy + Math.sin(a) * px, cw, ch);
   }
 }
 
@@ -1225,7 +1683,11 @@ function drawBetrayal(r, ctx, g, h) {
 }
 
 function drawHelper(r, ctx, g) {
-  const h = g.helper;
+  // A list, because a bought Dudu no longer deletes the wild one.
+  for (const h of g.helpers || []) drawOneHelper(r, ctx, g, h);
+}
+
+function drawOneHelper(r, ctx, g, h) {
   if (!h || !h.actor) return;
   if (h.bad) return drawBetrayal(r, ctx, g, h);
   const me = h.actor;
@@ -1256,16 +1718,9 @@ function drawHelper(r, ctx, g) {
   // Unclaimed he is warm and neutral; once he belongs to someone he wears
   // their colour, and goes red only in the moment he commits to a kill.
   const own = ownerColour(h.ally);
-  const base = own || "#ffd08c";
-  const warm = hunting ? "rgba(255,120,110,0.55)" : mix(base, [255, 255, 255], 0.15, 0.5);
-  const glow = ctx.createRadialGradient(px, py - z * 0.5, 0, px, py - z * 0.5, z * 1.6);
-  glow.addColorStop(0, warm);
-  glow.addColorStop(1, mix(base, [255, 255, 255], 0, 0));
-  ctx.fillStyle = glow;
-  ctx.fillRect(px - z * 1.6, py - z * 2.1, z * 3.2, z * 3.2);
 
-  // A ring on the floor in the owner's colour — the unambiguous part, since a
-  // halo behind a sprite can be hard to read against a bright sky.
+  // A ring on the floor in the owner's colour. The outline around him is the
+  // headline; this is what still reads when he is behind a platform.
   if (own && !h.leaving) {
     ctx.save();
     ctx.globalAlpha = 0.5 + 0.2 * Math.sin(g.time * 4);
@@ -1338,7 +1793,18 @@ function drawHelper(r, ctx, g) {
       ctx.restore();
     }
   } else {
-    charById("dudu").draw(ctx, px, py, me.w * z * 1.25, me.h * z * 1.32, poseOf(me));
+    const dw = me.w * z * 1.25;
+    const dh = me.h * z * 1.32;
+    // Whose he is, traced right around him. Red while he is committed to a
+    // kill, because at that moment the useful information is not "he is hers"
+    // but "he is coming for you".
+    const ring = hunting ? "#ff5d73" : own;
+    if (ring && !h.leaving) {
+      const pose = poseOf(me);
+      stampOutline(r, ctx, ring, px, py, dw, dh, z * 0.06,
+        (b, bx, by) => charById("dudu").draw(b, bx, by, dw, dh, pose));
+    }
+    charById("dudu").draw(ctx, px, py, dw, dh, poseOf(me));
   }
 
   // How long he has left, as a ring over his head — a countdown you can read

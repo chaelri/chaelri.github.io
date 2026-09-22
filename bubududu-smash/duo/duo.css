@@ -27,17 +27,50 @@ body.duo #stage,
   touch-action: none;
 }
 
-/* The player panels are a laptop luxury. On a phone the hearts are already
-   over each character's head, and the panels would sit under your thumbs. */
-body.duo #players { display: none; }
-
 body.duo #hud { top: max(6px, env(safe-area-inset-top)); }
 body.duo #hud .score { transform: scale(0.8); transform-origin: top center; }
+
+/* The player panels were hidden here, on the grounds that the hearts are
+   already over each character's head. They are — but the hearts are the ONLY
+   thing that is. Frozen, reversed, the gun's ammo, how close you are to the
+   next reward, whether Dudu is yours: all of that lives in the chips, and on
+   a phone it was simply gone.
+   So they come back, at the TOP, small. The bottom belongs to your thumbs. */
+body.duo #players {
+  top: calc(max(6px, env(safe-area-inset-top)) + 4px);
+  bottom: auto;
+  align-items: flex-start;
+  padding: 0 max(6px, env(safe-area-inset-left));
+  gap: 6px;
+}
+/* 36vw, not half the screen each: the round score sits centred between them,
+   and two 42vw cards plus their padding left it barely 50px to live in on a
+   430px phone. This keeps a real gutter down the middle at every width. */
+body.duo .pcard {
+  gap: 5px; padding: 4px 7px; border-radius: 13px; border-width: 2px;
+  max-width: min(36vw, 210px);
+}
+body.duo .pcard .face { width: 26px; height: 26px; }
+body.duo .pname { font-size: 10px; }
+body.duo .phearts { gap: 2px; }
+body.duo .phearts svg { width: 9px; }
+body.duo .pchips { gap: 3px; min-height: 0; max-width: min(30vw, 170px); }
+body.duo .chip { font-size: 9px; padding: 1px 5px; gap: 2px; }
+body.duo .chip em { display: none; }   /* no keyboard here to name a key on */
+
+/* Clear of the action buttons, which own the bottom of this page. */
+body.duo #rematch {
+  z-index: 55;            /* the pad spans the page; sit above it */
+  top: auto; bottom: calc(max(14px, env(safe-area-inset-bottom)) + clamp(96px, 24vw, 124px));
+  font-size: clamp(14px, 4vw, 18px);
+}
 
 /* Banner and countdown both shrink — "BUBU DUDU SMASH" at desktop size is
    wider than a phone in portrait. */
 body.duo #banner .bt { font-size: clamp(22px, 7vw, 44px); }
 body.duo #banner .bs { font-size: clamp(10px, 2.6vw, 14px); }
+body.duo .score.final b { font-size: clamp(40px, 15vw, 78px); }
+body.duo .score.final { padding: 10px clamp(18px, 6vw, 34px); gap: clamp(14px, 6vw, 30px); }
 body.duo .count { width: clamp(110px, 40vw, 220px); height: clamp(110px, 40vw, 220px); }
 body.duo .count .num { font-size: clamp(38px, 13vw, 92px); }
 body.duo .count.title { min-width: min(94vw, 520px); }
