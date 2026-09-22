@@ -12,7 +12,7 @@ diskscope in this repo.
 
     python3 serve.py                 # newest session for the current project
     python3 serve.py --all           # every project, every session
-    python3 serve.py --port 8770
+    python3 serve.py --port 8781
 
 Security follows diskscope: bound to 127.0.0.1, a per-run random token on every /api call,
 and Host/Origin must be localhost so a web page cannot reach it by DNS rebinding.
@@ -382,7 +382,11 @@ def free_port(preferred: int) -> int:
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--port", type=int, default=8770)
+    # 8781, not 8770: 8770 is diskscope's front door, and this server walks up
+    # when a port is taken while diskscope does not, so defaulting to the same
+    # number meant whoever started first won and diskscope's Dock icon opened
+    # a stranger's page.
+    ap.add_argument("--port", type=int, default=8781)
     ap.add_argument("--all", action="store_true", help="every project, not just this one")
     ap.add_argument("--cwd", default=os.getcwd(), help="project dir to match (default: cwd)")
     ap.add_argument("--no-open", action="store_true")

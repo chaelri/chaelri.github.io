@@ -46,7 +46,7 @@ It prints a tokenised localhost URL and opens it.
 |---|---|
 | `--cwd <dir>` | project whose sessions to watch (default: current directory) |
 | `--all` | every project and session, not just the one |
-| `--port N` | starting port, default 8770 (walks up if taken) |
+| `--port N` | starting port, default 8781 (walks up if taken; 8770 is diskscope's) |
 | `--no-open` | don't launch a browser |
 
 **Use `python3 -u`.** Without it stdout is buffered and the URL line never appears, so the
