@@ -98,6 +98,7 @@ body.duo .toast { gap: 6px; }
 
 #duowait .who { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
 #duowait .who.gone { display: none; }
+#duowait .logo { font-family: var(--display); }
 #duowait .who button {
   font-family: "Nunito", system-ui, sans-serif; font-weight: 800;
   font-size: clamp(15px, 4.4vw, 20px);

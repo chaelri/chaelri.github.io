@@ -1,3 +1,26 @@
+/* Satoshi, for the game's own name and every other piece of display type.
+ *
+ * One variable file covers 300-900, so the whole weight range costs 42 KB and
+ * one request. Self-hosted rather than fetched: the title card is on screen
+ * within a second of the page opening, and a webfont that arrives late shows
+ * the countdown in a fallback and then reflows it mid-animation.
+ *
+ * Fontshare Free License; the text is in assets/fonts/Satoshi-LICENSE.txt.
+ */
+@font-face {
+  font-family: "Satoshi";
+  src: url("../assets/fonts/Satoshi-Variable.woff2") format("woff2-variations"),
+       url("../assets/fonts/Satoshi-Variable.woff2") format("woff2");
+  font-weight: 300 900;
+  font-style: normal;
+  font-display: block;   /* never paint the title in a fallback first */
+}
+
+/* Display type: the name of the game, the countdown cards, the result and
+   the score. Nunito stays on everything else — it is the reading face and
+   Satoshi is the voice. */
+:root { --display: "Satoshi", "Nunito", system-ui, sans-serif; }
+
 *, *::before, *::after { box-sizing: border-box; }
 html, body {
   margin: 0; height: 100%; overflow: hidden;
@@ -19,7 +42,7 @@ html, body {
   display: flex; align-items: center; gap: clamp(10px, 1.4vw, 18px);
 }
 .score b {
-  font-family: "Nunito", system-ui, sans-serif; font-weight: 900;
+  font-family: var(--display); font-weight: 900;
   font-size: clamp(24px, 4vh, 40px); line-height: 1;
   min-width: 1ch; text-align: center;
   /* stroke behind the fill, so it thickens the digit instead of eating it */
@@ -137,6 +160,7 @@ body.counting #banner .bt {
 }
 
 /* ------------------------------------------------------------- banner --- */
+#banner { font-family: var(--display); }
 #banner {
   /* Above everything that is not the Rematch button. Without a z-index it sat
      in normal flow, so the result screen's overlay painted straight over the
@@ -198,6 +222,7 @@ body.counting #banner {
  * The warm face is deliberate: everything behind it is sky, and white on pale
  * blue is what made the old one disappear into the background.
  */
+#lobby h1.logo { font-family: var(--display); }
 #lobby h1.logo {
   position: relative;
   margin: 0;
@@ -541,7 +566,7 @@ body.counting #banner {
 }
 .count .num {
   position: relative; z-index: 1;
-  font-family: "Nunito", system-ui, sans-serif; font-weight: 900;
+  font-family: var(--display); font-weight: 900;
   font-size: clamp(90px, 22vh, 230px); line-height: 1; color: #fff;
   white-space: nowrap;
   /* A hard offset shadow and nothing else. The blue and white blooms that
