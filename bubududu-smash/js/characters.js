@@ -102,7 +102,7 @@ const Y = {
   innerEar: "#e79cab",
   snout: "#f0a6b4",
   nostril: "#d3838f",
-  blush: "#eb9aa8",
+  blush: "#f0aab8",
   foot: "#f2b0bc",
   eye: "#17111a",
   // Bubu and Dudu are pixel art with a hard black keyline; Yhon Yhon was the
@@ -188,15 +188,11 @@ function drawYhonVector(ctx, x, y, w, h, pose) {
   ctx.scale(pose.face, 1);
   if (lean) ctx.rotate(lean);
 
-  // One width for every edge on him, scaled off his own height so it holds up
-  // from the player panel's 26px portrait to a kill-cam close-up.
-  const LW = Math.max(1, bh * Y.lineW);
-
   // feet, behind. Airborne they also splay outward as he reaches down.
   const splay = pose.air !== 0 ? Math.max(0, -rise) * 0.055 : 0;
   for (const side of [-1, 1]) {
     ellipse(ctx, side * S(Y.footAt + splay), V(Y.footY - tuck) + side * gait * V(0.05),
-      S(Y.footSize[0]) / 2, V(Y.footSize[1]) / 2, 0, Y.foot, 1, LW);
+      S(Y.footSize[0]) / 2, V(Y.footSize[1]) / 2, 0, Y.foot);
   }
 
   // ears, behind, with the darker inner ear. They trail the jump: flicked up
@@ -206,7 +202,7 @@ function drawYhonVector(ctx, x, y, w, h, pose) {
     ctx.save();
     ctx.translate(side * S(Y.earAt), V(Y.earTop));
     ctx.rotate(side * (0.34 - rise * 0.42));
-    ellipse(ctx, 0, 0, S(Y.earSize[0]) / 2, V(Y.earSize[1]) / 2, 0, Y.body, 1, LW);
+    ellipse(ctx, 0, 0, S(Y.earSize[0]) / 2, V(Y.earSize[1]) / 2, 0, Y.body);
     ellipse(ctx, 0, V(0.012), S(Y.innerEarSize[0]) / 2, V(Y.innerEarSize[1]) / 2, 0, Y.innerEar);
     ctx.restore();
   }
@@ -221,17 +217,18 @@ function drawYhonVector(ctx, x, y, w, h, pose) {
     ctx.save();
     ctx.translate(side * S(Y.armAt), V(Y.armY));
     ctx.rotate(swing);
-    ellipse(ctx, 0, 0, S(Y.armSize[0]) / 2, V(Y.armSize[1]) / 2, 0, Y.body, 1, LW);
+    ellipse(ctx, 0, 0, S(Y.armSize[0]) / 2, V(Y.armSize[1]) / 2, 0, Y.body);
     ctx.restore();
   }
 
-  // body
-  ellipse(ctx, 0, 0, bw / 2, bh / 2, 0, Y.body, 1, LW);
-  ellipse(ctx, 0, V(0.14), bw * 0.46, bh * 0.33, 0, Y.bodyLo, 0.45);
+  // body. One flat pink, no shaded underside: the reference art is a single
+  // solid fill and a darker belly under it read as grime once every pixel was
+  // snapped to opaque.
+  ellipse(ctx, 0, 0, bw / 2, bh / 2, 0, Y.body);
 
   for (const side of [-1, 1]) {
     ellipse(ctx, side * S(Y.blushAt), V(Y.blushY),
-      S(Y.blushSize[0]) / 2, V(Y.blushSize[1]) / 2, 0, Y.blush, 0.5);
+      S(Y.blushSize[0]) / 2, V(Y.blushSize[1]) / 2, 0, Y.blush);
   }
   // A blink every few seconds, on his own clock so he and Bubu never blink
   // together. Squashing the eye rather than hiding it keeps him from looking
@@ -242,7 +239,7 @@ function drawYhonVector(ctx, x, y, w, h, pose) {
     ellipse(ctx, side * S(Y.eyeAt), V(Y.eyeY), S(Y.eyeR), S(Y.eyeR) * (1 - blink * 0.88), 0, Y.eye);
   }
 
-  ellipse(ctx, 0, V(Y.snoutY), S(Y.snoutSize[0]) / 2, V(Y.snoutSize[1]) / 2, 0, Y.snout, 1, LW * 0.8);
+  ellipse(ctx, 0, V(Y.snoutY), S(Y.snoutSize[0]) / 2, V(Y.snoutSize[1]) / 2, 0, Y.snout);
   // Nostrils are vertical ovals, not dots — it is most of what makes him a pig.
   for (const side of [-1, 1]) {
     ellipse(ctx, side * S(Y.nostrilAt), V(Y.snoutY),
@@ -317,17 +314,15 @@ function drawYhon(ctx, x, y, w, h, pose) {
   // Feet on the padding line, not the canvas edge.
   drawYhonVector(b, cw / 2, ch - YHON_PAD, bw, YHON_ART_H, pose);
 
-  // Snap to hard edges. Cheap — this is 48x48-ish, about 2k pixels.
+  // Snap the EDGES, and only the edges. Every fill in him is already one
+  // flat colour, so there is nothing to quantise — rounding the channels as
+  // well just moved each of those flat colours off its own value. All this
+  // does is decide whether a half-covered edge pixel is in or out.
   const img = b.getImageData(0, 0, cw, ch);
   const d = img.data;
   for (let i = 3; i < d.length; i += 4) {
     if (d[i] < 110) { d[i] = 0; continue; }
     d[i] = 255;
-    // A coarse palette as well, so the shading steps the way a sprite's does
-    // instead of running a smooth gradient across two art pixels.
-    d[i - 3] = Math.min(255, Math.round(d[i - 3] / 17) * 17);
-    d[i - 2] = Math.min(255, Math.round(d[i - 2] / 17) * 17);
-    d[i - 1] = Math.min(255, Math.round(d[i - 1] / 17) * 17);
   }
   b.putImageData(img, 0, 0);
 

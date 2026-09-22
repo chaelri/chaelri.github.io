@@ -419,70 +419,59 @@ function tileArt(r, z) {
   return r.tiles;
 }
 
-/**
- * A 128px tile of very faint noise, laid over the sky.
+/* The sky, as flat bands.
  *
- * A four-stop gradient down a 1200px-tall screen steps in visible bands on
- * any decent display. A couple of percent of noise on top dithers it away —
- * it is the cheapest possible fix and it is what makes the sky read as air.
- */
-function skyGrain(r) {
-  if (r.grain) return r.grain;
-  const c = document.createElement("canvas");
-  c.width = c.height = 128;
-  const x = c.getContext("2d");
-  const img = x.createImageData(128, 128);
-  for (let i = 0; i < img.data.length; i += 4) {
-    const v = noiseAt(i) * 255;
-    img.data[i] = img.data[i + 1] = img.data[i + 2] = v;
-    img.data[i + 3] = 12;
-  }
-  x.putImageData(img, 0, 0);
-  r.grain = x.canvas;
-  return r.grain;
-}
+ * A four-stop gradient is the single most anti-retro thing that was on
+ * screen: thousands of colours smeared down the frame, which then had to be
+ * dithered with noise to stop it banding on an OLED. Solid bands need no
+ * dither, cost one fillRect each, and are what a sprite game's sky is made
+ * of. Listed light-to-dark top to bottom; the last one meets the hills. */
+const SKY_BANDS = [
+  [0.00, "#4aaeee"],
+  [0.20, "#63bbf2"],
+  [0.38, "#7fc9f5"],
+  [0.54, "#9dd7f8"],
+  [0.68, "#b9e2fa"],
+  [0.80, "#d2ecfc"],
+  [0.90, "#e6f3fb"],
+  [1.00, "#f4f0e2"],
+];
+
+// Radii as a fraction of canvas height. The disc it replaced was 0.045, so
+// the outermost ring is only a little wider than that — the first pass used
+// the old HALO's radius and put a sun a third of the sky across the screen.
+const SUN_RINGS = [
+  [0.068, "#f6eec6"],
+  [0.058, "#fbf4d6"],
+  [0.050, "#fef9e6"],
+  [0.042, "#fffef6"],
+];
 
 function drawBackdrop(r, ctx, g, dt) {
-  const sky = ctx.createLinearGradient(0, 0, 0, r.h);
-  sky.addColorStop(0, "#4fb2ee");
-  sky.addColorStop(0.36, "#8ed2f7");
-  sky.addColorStop(0.68, "#cfeafb");
-  sky.addColorStop(1, "#f6eed9");
-  ctx.fillStyle = sky;
-  ctx.fillRect(0, 0, r.w, r.h);
-
-  // Dither the gradient. Four stops down a tall screen band visibly; a couple
-  // of percent of noise on top removes them for one fill.
-  // Cached: createPattern every frame is a needless allocation, and the tile
-  // never changes.
-  const grain = r.grainPattern || (r.grainPattern = ctx.createPattern(skyGrain(r), "repeat"));
-  if (grain) {
-    ctx.save();
-    ctx.globalAlpha = 0.5;
-    ctx.fillStyle = grain;
-    ctx.fillRect(0, 0, r.w, r.h);
-    ctx.restore();
+  for (let i = 0; i < SKY_BANDS.length; i++) {
+    const y0 = SKY_BANDS[i][0] * r.h;
+    const y1 = i + 1 < SKY_BANDS.length ? SKY_BANDS[i + 1][0] * r.h : r.h;
+    ctx.fillStyle = SKY_BANDS[i][1];
+    ctx.fillRect(0, Math.floor(y0), r.w, Math.ceil(y1 - y0) + 1);
   }
 
-  // sun, fixed high and to the right, with a wide soft halo
+  // The sun: solid concentric discs rather than a soft bloom. Each ring is
+  // one opaque colour, so it stays crisp however far it is blown up.
   const sx0 = r.w * 0.78 - r.cam.x * r.cam.zoom * 0.02;
   const sy0 = r.h * 0.16;
-  const halo = ctx.createRadialGradient(sx0, sy0, 0, sx0, sy0, r.h * 0.42);
-  halo.addColorStop(0, "rgba(255,246,214,0.85)");
-  halo.addColorStop(0.18, "rgba(255,240,190,0.35)");
-  halo.addColorStop(1, "rgba(255,240,190,0)");
-  ctx.fillStyle = halo;
-  ctx.fillRect(sx0 - r.h * 0.42, sy0 - r.h * 0.42, r.h * 0.84, r.h * 0.84);
-  ctx.fillStyle = "rgba(255,252,236,0.95)";
-  ctx.beginPath();
-  ctx.arc(sx0, sy0, r.h * 0.045, 0, Math.PI * 2);
-  ctx.fill();
+  for (const [rad, colour] of SUN_RINGS) {
+    ctx.fillStyle = colour;
+    ctx.beginPath();
+    ctx.arc(sx0, sy0, r.h * rad, 0, Math.PI * 2);
+    ctx.fill();
+  }
 
   // Pushed well down so the arena floats clear of them, and each range is
   // paler than the one in front to fake distance.
-  hills(r, ctx, { depth: 0.05, base: 0.74, amp: 0.075, colour: "#aed4ec", seed: 1.0 });
-  hills(r, ctx, { depth: 0.12, base: 0.86, amp: 0.085, colour: "#93c6d4", seed: 2.6 });
-  hills(r, ctx, { depth: 0.22, base: 0.97, amp: 0.09, colour: "#86c483", seed: 4.2 });
+  // Two flat tones each — body and sunlit ridge — never a blend between them.
+  hills(r, ctx, { depth: 0.05, base: 0.74, amp: 0.075, colour: "#a6cfe8", lit: "#bcddf0", seed: 1.0 });
+  hills(r, ctx, { depth: 0.12, base: 0.86, amp: 0.085, colour: "#8cc2d1", lit: "#a4d2dd", seed: 2.6 });
+  hills(r, ctx, { depth: 0.22, base: 0.97, amp: 0.09, colour: "#7ebd77", lit: "#95cc8b", seed: 4.2 });
 
   clouds(r, ctx, g, dt);
 }
@@ -518,8 +507,7 @@ function hills(r, ctx, o) {
   // ranges until they stopped separating from each other.
   ctx.save();
   ctx.clip();
-  ctx.globalAlpha = 0.14;
-  ctx.fillStyle = "#ffffff";
+  ctx.fillStyle = o.lit;
   ctx.beginPath();
   ctx.moveTo(0, 0);
   for (let x = 0; x <= r.w + 20; x += 18) {
@@ -547,9 +535,11 @@ function clouds(r, ctx, g, dt) {
     const s = c.s * r.cam.zoom;
     if (px < -s * 3 || px > r.w + s * 3) continue;
 
+    // Opaque, in one of two flat tones. Translucent white over a banded sky
+    // produced a different colour on every band it crossed — which is a
+    // gradient by another route.
     ctx.save();
-    ctx.globalAlpha = c.far ? 0.42 : 0.72;
-    ctx.fillStyle = "#ffffff";
+    ctx.fillStyle = c.far ? "#cfe8f8" : "#ffffff";
     ctx.beginPath();
     // a handful of overlapping lobes reads as a cloud; one ellipse reads as a
     // pill
@@ -873,19 +863,23 @@ function drawPowers(r, ctx, g) {
     const drop = z * 0.85 - bob;
     ctx.save();
     ctx.globalAlpha = 0.16 - bob / (z * 4);
-    ctx.fillStyle = "#1a2a36";
+    ctx.fillStyle = "#3b5a52";
     ctx.beginPath();
     ctx.ellipse(px, py + drop, rad * 0.7, rad * 0.22, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
 
-    // outer bloom, breathing
-    const bloom = ctx.createRadialGradient(px, py, rad * 0.5, px, py, rad * (2.5 + pulse * 0.5));
-    bloom.addColorStop(0, mix(def.colour, [255, 255, 255], 0.25, 0.55));
-    bloom.addColorStop(0.5, mix(def.colour, [255, 255, 255], 0.1, 0.18));
-    bloom.addColorStop(1, mix(def.colour, [255, 255, 255], 0, 0));
-    ctx.fillStyle = bloom;
-    ctx.fillRect(px - rad * 3, py - rad * 3, rad * 6, rad * 6);
+    // Two solid rings that breathe in and out, in place of the soft bloom.
+    // Same job — it reads as a thing worth running to — with two flat colours
+    // rather than a few thousand.
+    ctx.fillStyle = mix(def.colour, [255, 255, 255], 0.72, 1);
+    ctx.beginPath();
+    ctx.arc(px, py, rad * (1.5 + pulse * 0.16), 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = mix(def.colour, [255, 255, 255], 0.5, 1);
+    ctx.beginPath();
+    ctx.arc(px, py, rad * (1.24 + pulse * 0.1), 0, Math.PI * 2);
+    ctx.fill();
 
     // sparkles on the FAR half of the orbit, drawn under the sphere
     const orbit = (i) => {
@@ -1103,11 +1097,12 @@ function drawCoins(r, ctx, g) {
 
     if (taken) drawCoinPop(ctx, r, c, taken);
 
-    const glow = ctx.createRadialGradient(px, py, 0, px, py, rad * 2.6);
-    glow.addColorStop(0, "rgba(255,200,61,0.45)");
-    glow.addColorStop(1, "rgba(255,200,61,0)");
-    ctx.fillStyle = glow;
-    ctx.fillRect(px - rad * 2.6, py - rad * 2.6, rad * 5.2, rad * 5.2);
+    // One solid ring of light instead of a soft bloom. It still says "this is
+    // a pickup" from across the arena and it has exactly two colours in it.
+    ctx.fillStyle = "#ffe9a8";
+    ctx.beginPath();
+    ctx.arc(px, py, rad * 1.34, 0, Math.PI * 2);
+    ctx.fill();
 
     // A darker rim, the face inside it, and one fixed highlight — baked on a
     // 16px grid so the rim steps like a sprite instead of feathering.
