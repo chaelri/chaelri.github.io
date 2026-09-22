@@ -173,10 +173,7 @@ export const POWERUPS_EXTRA = {
     // had crossed to them it had thawed. Three and a bit is a real window.
     ms: 0, colour: "#a9e8ff", freezeMs: 3200,
   },
-  kalasag: {
-    id: "kalasag", name: "Kalasag", desc: "Blocks the next hit that lands.", en: "shield",
-    ms: 12000, colour: "#c9a3ff", // or until it eats a hit
-  },
+
   baliktad: {
     id: "baliktad", name: "Baliktad", desc: "Their left and right are swapped.", en: "reversed",
     ms: 0, colour: "#ff9c3f", reverseMs: 5000,
@@ -265,14 +262,13 @@ export const GLYPH = {
   bituin: "\u2605",    // ★
   bilis: "\u00bb",     // »
   yelo: "\u2744",      // ❄
-  kalasag: "\u25c7",   // ◇
   baliktad: "\u21c4",  // ⇄
-  lunas: "\u271a",     // ✚
+  lunas: "\u2665",     // ♥
   suntok: "\u270a",    // ✊
 };
 
 export const POWER_ORDER = [
-  "laki", "baril", "bituin", "bilis", "yelo", "kalasag", "baliktad", "lunas",
+  "laki", "baril", "bituin", "bilis", "yelo", "baliktad", "lunas",
   "suntok",
 ];
 

@@ -6,7 +6,7 @@
 
 import { charById } from "./characters.js";
 import { poseOf } from "./physics.js";
-import { BAD_HELPER, COINS, DIWATA, FEEL, GLYPH, HIT, POWERUPS, SHOT_RADIUS } from "./config.js";
+import { BAD_HELPER, COINS, DIWATA, FEEL, GLYPH, HIT, PLAYERS, POWERUPS, SHOT_RADIUS } from "./config.js";
 
 // How long the winning shot dwells before the camera comes back.
 const BAD_HOLD = HIT.winCamHoldMs / 1000;
@@ -646,12 +646,33 @@ function drawPowers(r, ctx, g) {
     // glyph, with a little depth under it
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    const mark = GLYPH[q.type] || "?";
-    ctx.font = `800 ${rad * 0.92}px "Nunito", system-ui, sans-serif`;
-    ctx.fillStyle = darken(def.colour, 0.55, 0.5);
-    ctx.fillText(mark, px, py + rad * 0.1);
-    ctx.fillStyle = "#fff";
-    ctx.fillText(mark, px, py + rad * 0.04);
+    // Lunas is health, so it wears the same heart the health bar does rather
+    // than a symbol you have to learn. Nothing else on the field is that
+    // shape, so it needs no reading at all.
+    if (q.type === "lunas") {
+      ctx.save();
+      ctx.shadowColor = "rgba(255,77,109,0.9)";
+      ctx.shadowBlur = rad * 0.7;
+      heartPath(ctx, px, py - rad * 0.06, rad * 0.46);
+      ctx.fillStyle = "#ff4d6d";
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.lineWidth = Math.max(1.5, rad * 0.1);
+      ctx.strokeStyle = "rgba(255,255,255,0.95)";
+      ctx.stroke();
+      // a shine, so it reads as the same object as the hearts overhead
+      heartPath(ctx, px - rad * 0.14, py - rad * 0.24, rad * 0.16);
+      ctx.fillStyle = "rgba(255,255,255,0.75)";
+      ctx.fill();
+      ctx.restore();
+    } else {
+      const mark = GLYPH[q.type] || "?";
+      ctx.font = `800 ${rad * 0.92}px "Nunito", system-ui, sans-serif`;
+      ctx.fillStyle = darken(def.colour, 0.55, 0.5);
+      ctx.fillText(mark, px, py + rad * 0.1);
+      ctx.fillStyle = "#fff";
+      ctx.fillText(mark, px, py + rad * 0.04);
+    }
     ctx.textBaseline = "alphabetic";
 
     // near-side sparkles, over the top
@@ -975,12 +996,26 @@ function drawMinis(r, ctx, g) {
     ctx.ellipse(px, py, z * 0.2, z * 0.06, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // A cool halo, so three small white characters do not read as scenery.
-    const glow = ctx.createRadialGradient(px, py - z * 0.3, 0, px, py - z * 0.3, z * 0.9);
-    glow.addColorStop(0, "rgba(143,216,255,0.45)");
-    glow.addColorStop(1, "rgba(143,216,255,0)");
+    // Their owner's colour, so three small white characters are never
+    // ambiguous about which side they are running for — and so two squads on
+    // the field at once stay told apart.
+    const own = ownerColour(m.owner) || "#8fd8ff";
+    const glow = ctx.createRadialGradient(px, py - z * 0.3, 0, px, py - z * 0.3, z * 1.0);
+    glow.addColorStop(0, mix(own, [255, 255, 255], 0.2, 0.55));
+    glow.addColorStop(1, mix(own, [255, 255, 255], 0, 0));
     ctx.fillStyle = glow;
     ctx.fillRect(px - z, py - z * 1.3, z * 2, z * 2);
+
+    if (m.owner && !m.leaving) {
+      ctx.save();
+      ctx.globalAlpha = 0.55 + 0.2 * Math.sin(g.time * 5 + px);
+      ctx.strokeStyle = own;
+      ctx.lineWidth = Math.max(1.5, z * 0.05);
+      ctx.beginPath();
+      ctx.ellipse(px, py, z * 0.26, z * 0.09, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
 
     const s = Math.max(0, 1 - t * t);
     const mw = me.w * z * 1.2;
@@ -994,7 +1029,7 @@ function drawMinis(r, ctx, g) {
     if (m.leaving && t < 1) {
       ctx.save();
       ctx.globalAlpha = (1 - t) * 0.8;
-      ctx.fillStyle = "#cdeeff";
+      ctx.fillStyle = ownerColour(m.owner) || "#cdeeff";
       for (let i = 0; i < 6; i++) {
         const a = (i / 6) * Math.PI * 2;
         const rr = z * (0.15 + t * 0.8);
@@ -1090,6 +1125,19 @@ function drawBursts(r, ctx, g) {
 }
 
 /** Dudu: wandering while unclaimed, hunting once someone has reached him. */
+/**
+ * The colour of whoever owns a helper, for the glow under it.
+ *
+ * With both players able to have a Dudu and a squad of Bubus at once, an
+ * identical warm halo on all of them means you cannot tell at a glance whose
+ * three white Bubus are running at you. The owner's own colour answers it
+ * without a label.
+ */
+function ownerColour(id) {
+  const p = PLAYERS.find((x) => x.id === id);
+  return p ? p.colour : null;
+}
+
 // How long Dudu's exit takes, matched to the `h.wave > 1.2` in screen.js.
 const LEAVE_SEC = 1.2;
 
@@ -1198,12 +1246,29 @@ function drawHelper(r, ctx, g) {
     ctx.restore();
   }
 
-  const warm = hunting ? "rgba(255,120,110,0.5)" : "rgba(255,208,140,0.5)";
-  const glow = ctx.createRadialGradient(px, py - z * 0.5, 0, px, py - z * 0.5, z * 1.5);
+  // Unclaimed he is warm and neutral; once he belongs to someone he wears
+  // their colour, and goes red only in the moment he commits to a kill.
+  const own = ownerColour(h.ally);
+  const base = own || "#ffd08c";
+  const warm = hunting ? "rgba(255,120,110,0.55)" : mix(base, [255, 255, 255], 0.15, 0.5);
+  const glow = ctx.createRadialGradient(px, py - z * 0.5, 0, px, py - z * 0.5, z * 1.6);
   glow.addColorStop(0, warm);
-  glow.addColorStop(1, "rgba(255,208,140,0)");
+  glow.addColorStop(1, mix(base, [255, 255, 255], 0, 0));
   ctx.fillStyle = glow;
-  ctx.fillRect(px - z * 1.5, py - z * 2, z * 3, z * 3);
+  ctx.fillRect(px - z * 1.6, py - z * 2.1, z * 3.2, z * 3.2);
+
+  // A ring on the floor in the owner's colour — the unambiguous part, since a
+  // halo behind a sprite can be hard to read against a bright sky.
+  if (own && !h.leaving) {
+    ctx.save();
+    ctx.globalAlpha = 0.5 + 0.2 * Math.sin(g.time * 4);
+    ctx.strokeStyle = own;
+    ctx.lineWidth = Math.max(2, z * 0.07);
+    ctx.beginPath();
+    ctx.ellipse(px, py, z * 0.5, z * 0.16, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
 
   // Leaving is an exit, not a cut. He crouches, springs, spins up out of
   // frame and pops — so the moment his fifteen seconds are up reads as
@@ -1298,7 +1363,7 @@ function drawHelper(r, ctx, g) {
   ctx.strokeStyle = "rgba(255,255,255,0.7)";
   ctx.lineWidth = Math.max(2, z * 0.05);
   const tag = h.leaving ? "bye!" : hunting ? "!" : "Dudu";
-  ctx.fillStyle = hunting ? "#e0483f" : onSide ? "#c97d22" : "#c97d22";
+  ctx.fillStyle = hunting ? "#e0483f" : own || "#c97d22";
   const tagY = py - me.h * z * (onSide ? 2.15 : 1.55) - leaveLift;
   ctx.save();
   if (h.leaving) ctx.globalAlpha = Math.max(0, 1 - leaveT * 1.5);
@@ -1467,7 +1532,7 @@ function drawActor(r, ctx, g, a) {
         ctx.stroke();
       }
       ctx.restore();
-    } else if (a.power.type !== "kalasag") {
+    } else {
       ctx.save();
       ctx.globalAlpha = 0.34;
       ctx.strokeStyle = def.colour;
@@ -1599,18 +1664,6 @@ function drawActor(r, ctx, g, a) {
     ctx.restore();
   }
 
-  // Shield: a bubble that brightens as it is about to lapse.
-  if (a.power && a.power.type === "kalasag") {
-    const left = a.power.until - g.time;
-    ctx.save();
-    ctx.globalAlpha = left < 2.5 ? 0.3 + 0.35 * Math.abs(Math.sin(g.time * 9)) : 0.42;
-    ctx.strokeStyle = "#c9a3ff";
-    ctx.lineWidth = Math.max(2.5, z * 0.08);
-    ctx.beginPath();
-    ctx.ellipse(px, py - a.h * z * 0.62, a.w * z * 1.02, a.h * z * 0.86, 0, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.restore();
-  }
 
   // Three things stack over a character's head, and the order is the whole
   // point: body, then bullets, then hearts. The pips used to sit at 1.12 —

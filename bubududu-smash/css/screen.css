@@ -356,10 +356,18 @@ body.counting #banner {
 .phearts svg.bonus path { fill: #ffc43c; }
 .phearts svg.bonus { filter: drop-shadow(0 0 3px rgba(255,196,60,0.85)); }
 
-.pchips { display: flex; gap: 4px; min-height: clamp(16px, 2.2vh, 22px); }
+/* Wraps, because a player can legitimately have four things running at once
+   and a single non-wrapping row squeezed them until `overflow: hidden` ate
+   the labels — so the effects you most needed to see were the ones missing. */
+.pchips {
+  display: flex; flex-wrap: wrap; gap: 4px;
+  min-height: clamp(16px, 2.2vh, 22px);
+  max-width: clamp(180px, 22vw, 300px);
+}
 .pcard.right .pchips { flex-direction: row-reverse; }
 .chip {
   position: relative; overflow: hidden;
+  flex: none;                       /* never shrink a chip into an ellipsis */
   display: flex; align-items: center; gap: 3px;
   padding: 2px 7px; border-radius: 999px;
   font-family: "Nunito", system-ui, sans-serif; font-weight: 700;

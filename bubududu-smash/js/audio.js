@@ -264,17 +264,13 @@ const synth = {
     arp([1568, 1319, 1047, 784], 0.05, { type: "sine", peak: 0.07, decay: 0.3 });
     noise({ peak: 0.05, decay: 0.4, band: 3200, q: 2 });
   },
-  kalasag: () => arp([330, 415, 494, 659], 0.06, { type: "triangle", peak: 0.08 }),
   lunas: () => arp([523, 659, 784], 0.07, { type: "sine", peak: 0.09, decay: 0.34 }),
   helper: () => arp([659, 784, 988, 1319], 0.07, { type: "triangle", peak: 0.07, decay: 0.3 }),
   helperSave: () => {
     arp([392, 523, 659, 880, 1047], 0.055, { type: "triangle", peak: 0.09, decay: 0.34 });
     noise({ peak: 0.05, decay: 0.3, band: 2200 });
   },
-  shieldBreak: () => {
-    noise({ peak: 0.12, decay: 0.22, band: 1500, q: 0.7 });
-    tone(700, { type: "triangle", peak: 0.08, decay: 0.25, to: 200 });
-  },
+
   baliktad: () => {
     tone(392, { type: "square", peak: 0.08, decay: 0.3, to: 196 });
     tone(196, { type: "square", peak: 0.06, decay: 0.3, to: 392, delay: 0.14 });
@@ -353,7 +349,6 @@ const BANK = {
   bituin:      { one: ["bituin"], gain: 0.55 },
   bilis:       { one: ["bilis"], gain: 0.5 },
   yelo:        { one: ["yelo"], gain: 0.55 },
-  kalasag:     { one: ["kalasag"], gain: 0.5 },
   lunas:       { one: ["lunas"], gain: 0.5 },
   baliktad:    { one: ["baliktad"], gain: 0.5 },
   powerEnd:    { one: ["lowdown"], gain: 0.34 },
@@ -368,7 +363,6 @@ const BANK = {
   shoot:       { one: ["shoot"], gain: 0.32, vary: 0.1 },
   shotHit:     { one: ["shothit"], gain: 0.45, vary: 0.08 },
   shotWall:    { one: ["shotwall"], gain: 0.26, vary: 0.1 },
-  shieldBreak: { one: ["shieldbreak"], gain: 0.6 },
 
   sparkle:     { one: ["sparkle"], gain: 0.16, vary: 0.2 },
 

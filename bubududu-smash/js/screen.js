@@ -477,7 +477,6 @@ function givePower(a, type) {
   if (type === "yelo" || type === "baliktad") {
     for (const o of G.actors) {
       if (o === a || o.dead) continue;
-      if (o.power && o.power.type === "kalasag") { breakShield(o); continue; }
       if (type === "yelo") o.frozenUntil = G.time + def.freezeMs / 1000;
       else o.reversedUntil = G.time + def.reverseMs / 1000;
     }
@@ -730,7 +729,10 @@ function spawnSquad(at = null) {
 
 /** The coin reward version: they arrive already on your side. */
 function summonSquad(owner) {
-  if (G.minis.length) G.minis.length = 0;
+  // Only this player's own squad is replaced. Clearing the whole array took
+  // the OTHER player's Bubus off the field as well, which is a bought reward
+  // deleting something the opponent had earned.
+  G.minis = G.minis.filter((m) => m.owner !== owner.id);
   spawnSquad(owner.x);
   claimSquad(owner);
 }
@@ -750,16 +752,19 @@ function claimSquad(owner) {
 }
 
 function tickMinis(dt) {
-  // They let themselves in, on their own clock, but never while a squad is
-  // already on the field.
-  if (!G.minis.length) {
+  // A new squad walks in on its own clock, but only while there is not
+  // already one waiting to be collected. Squads someone has ALREADY claimed
+  // do not block it — otherwise taking them would stop any more arriving,
+  // and both players are allowed to have their own at once.
+  const unclaimed = G.minis.some((m) => !m.owner && !m.leaving);
+  if (!unclaimed) {
     G.squadAt -= dt;
     if (G.squadAt <= 0) {
       G.squadAt = SQUAD.everyMs / 1000;
       spawnSquad();
     }
-    return;
   }
+  if (!G.minis.length) return;
 
   // Unclaimed: the first player to touch any of them takes all three.
   if (G.minis.some((m) => !m.owner && !m.leaving)) {
@@ -819,7 +824,7 @@ function tickMinis(dt) {
     const target = G.actors.find((o) => o.id !== m.owner);
 
     if (target && !target.dead) {
-      const guarded = !!(target.power && ["bituin", "kalasag"].includes(target.power.type));
+      const guarded = !!(target.power && target.power.type === "bituin");
       const safe = !!(target.invulnUntil && G.time < target.invulnUntil) || guarded;
 
       const floor = widestFloor();
@@ -888,12 +893,6 @@ function tickMinis(dt) {
   }
 }
 
-function breakShield(a) {
-  clearPower(a, true);
-  a.invulnUntil = G.time + 1;
-  G.flash = { type: "kalasag", at: G.time };
-  sfx.shieldBreak();
-}
 
 function clearPower(a, quiet = false) {
   if (!a.power) return;
@@ -1000,7 +999,7 @@ function handleDeath(a) {
 
 /**
  * A death caused by the OTHER player — a stomp, a bullet, a star. These are
- * the ones a shield or a moment of grace can turn aside; a pit is not.
+ * the ones a star or a moment of grace can turn aside; a pit is not.
  */
 function killPlayer(victim, by) {
   if (victim.dead) return;
@@ -1010,10 +1009,6 @@ function killPlayer(victim, by) {
   // around on the attacker, but Dudu came through this function and could
   // kill someone who was supposed to be invincible.
   if (victim.power && victim.power.type === "bituin") return;
-  if (victim.power && victim.power.type === "kalasag") {
-    breakShield(victim);
-    return;
-  }
   kill(victim, { onDeath: handleDeath });
 }
 
@@ -1202,10 +1197,10 @@ function tickPunches() {
       // One punch. Not one heart — everything, spare hearts included. That is
       // the trade the Suntok makes: three swings, each one has to be thrown
       // from arm's length and each one can miss, so the one that lands ends
-      // the round. A shield or a star still stops it outright.
+      // the round. A star still stops it outright.
       o.lethal = true;
-      // Sent flying whether or not it kills — a shield eats the damage, not
-      // the shove, so blocking a punch still costs you your footing.
+      // Sent flying whether or not it kills — a star turns the damage aside
+      // but not the shove, so surviving a punch still costs you your footing.
       o.vx = a.punch.face * def.knockback;
       o.vy = -5.5;
       G.bursts.push({ x: fx, y: fy, at: G.time, colour: def.colour, big: true });
@@ -1513,8 +1508,8 @@ function tickHelper(dt) {
     // hit is untouchable, so attacking them does literally nothing — he was
     // spending his fifteen seconds bouncing off someone he could not hurt.
     // Anything that makes them unhittable makes chasing them pointless: the
-    // grace after a hit, a star, or a shield he would only pop.
-    const guarded = !!(target.power && ["bituin", "kalasag"].includes(target.power.type));
+    // grace after a hit, or a star.
+    const guarded = !!(target.power && target.power.type === "bituin");
     const untouchable = !!(target.invulnUntil && G.time < target.invulnUntil) || guarded;
     const dist = Math.hypot(target.x - me.x, target.y - me.y);
     h.waiting = untouchable;
@@ -1889,7 +1884,7 @@ function chipsFor(a) {
   if (a.frozenUntil && G.time < a.frozenUntil) {
     const left = a.frozenUntil - G.time;
     out.push({
-      label: `${GLYPHS.yelo} frozen`,
+      label: `${GLYPH.yelo} frozen`,
       colour: POWERUPS.yelo.colour,
       pct: (left / (POWERUPS.yelo.freezeMs / 1000)) * 100,
       bad: true,
@@ -1898,12 +1893,48 @@ function chipsFor(a) {
   if (a.reversedUntil && G.time < a.reversedUntil) {
     const left = a.reversedUntil - G.time;
     out.push({
-      label: `${GLYPHS.baliktad} reversed`,
+      label: `${GLYPH.baliktad} reversed`,
       colour: POWERUPS.baliktad.colour,
       pct: (left / (POWERUPS.baliktad.reverseMs / 1000)) * 100,
       bad: true,
     });
   }
+
+  // Things that are yours but are not held IN your hands. They were doing
+  // real work on the field with nothing in the panel to say so.
+  const squad = G.minis.filter((m) => m.owner === a.id && !m.leaving).length;
+  if (squad) {
+    out.push({
+      label: `\u2022\u2022\u2022 ${squad}`,
+      colour: SQUAD.colour,
+      pct: 100,
+      bad: false,
+    });
+  }
+
+  const h = G.helper;
+  if (h && h.ally === a.id && !h.bad && !h.leaving) {
+    const left = Math.max(0, h.until - G.time);
+    out.push({
+      label: "\ud83d\udc3b Dudu",
+      colour: "#ffb84d",
+      pct: (left / (HELPER.huntMs / 1000)) * 100,
+      bad: false,
+    });
+  }
+
+  // The grace after a hit. Knowing you cannot be touched for another second
+  // is the difference between backing off and going straight back in.
+  if (a.invulnUntil && G.time < a.invulnUntil) {
+    const left = a.invulnUntil - G.time;
+    out.push({
+      label: "\u2727 safe",
+      colour: "#9fd8ff",
+      pct: (left / (FEEL.hurtInvulnMs / 1000)) * 100,
+      bad: false,
+    });
+  }
+
   return out;
 }
 

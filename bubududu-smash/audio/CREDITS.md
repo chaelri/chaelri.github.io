@@ -14,10 +14,10 @@ it costs nothing and the next person will want to know where these came from.
 | `land.ogg`, `step1-3.ogg` | Impact Sounds | `footstep_grass_00*.ogg` |
 | `stomp.ogg`, `stomp2.ogg` | Impact Sounds | `impactPunch_heavy_001`, `impactPlate_light_000` |
 | `die.ogg` | Impact Sounds | `impactSoft_heavy_001.ogg` |
-| `laki/baril/bituin/bilis/kalasag/lunas/helpersave/matchwin` | Digital Audio | `powerUp*.ogg` |
+| `laki/baril/bituin/bilis/lunas/helpersave/matchwin` | Digital Audio | `powerUp*.ogg` |
 | `yelo.ogg`, `baliktad.ogg` | Interface Sounds | `glass_002.ogg`, `glitch_002.ogg` |
 | `shoot.ogg` | Digital Audio | `laser5.ogg` |
-| `shothit.ogg`, `shotwall.ogg`, `shieldbreak.ogg` | Impact Sounds | `impactMetal_light_001`, `impactPlank_medium_000`, `impactGlass_heavy_001` |
+| `shothit.ogg`, `shotwall.ogg` | Impact Sounds | `impactMetal_light_001`, `impactPlank_medium_000` |
 | `count.ogg`, `join.ogg`, `spawn.ogg`, `poof.ogg` | Interface Sounds | `bong_001`, `confirmation_001`, `open_004`, `minimize_006` |
 | `suntok.ogg` | Impact Sounds | `impactPunch_medium_000.ogg` |
 | `tatlo.ogg` | Digital Audio | `powerUp6.ogg` |
