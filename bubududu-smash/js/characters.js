@@ -98,7 +98,6 @@ function drawSprite(frames, ctx, x, y, w, h, pose) {
 // an egg, and the first version came out narrow and tall and looked wrong.
 const Y = {
   body: "#f7bcc6",
-  bodyLo: "#f0aab7", // underside, so he is not flat
   innerEar: "#e79cab",
   snout: "#f0a6b4",
   nostril: "#d3838f",
@@ -200,9 +199,14 @@ function drawYhon(ctx, x, y, w, h, pose) {
     ctx.restore();
   }
 
-  // body
+  // Body: ONE flat pink, and nothing shaded across the belly.
+  //
+  // There used to be a darker ellipse over the lower half "so he is not
+  // flat". The reference art is a single solid fill — the only darker pinks
+  // on him are the inner ears, the snout and the blush, which are features
+  // rather than shading — and a darker belly under a blue rim read as a
+  // smudge on him rather than as volume.
   ellipse(ctx, 0, 0, bw / 2, bh / 2, 0, Y.body);
-  ellipse(ctx, 0, V(0.14), bw * 0.46, bh * 0.33, 0, Y.bodyLo, 0.45);
 
   for (const side of [-1, 1]) {
     ellipse(ctx, side * S(Y.blushAt), V(Y.blushY),

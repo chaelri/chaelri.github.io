@@ -851,11 +851,17 @@ function drawPowers(r, ctx, g) {
     ctx.fill();
     ctx.restore();
 
+    // Lunas is the exception: no sphere at all, just the heart, glowing. It
+    // is health, and a heart sealed inside a green ball is one more thing to
+    // decode when the shape already says everything.
+    const bare = q.type === "lunas";
+    const glowC = bare ? "#ff4d6d" : def.colour;
+
     // outer bloom, breathing
     const bloom = ctx.createRadialGradient(px, py, rad * 0.5, px, py, rad * (2.5 + pulse * 0.5));
-    bloom.addColorStop(0, mix(def.colour, [255, 255, 255], 0.25, 0.55));
-    bloom.addColorStop(0.5, mix(def.colour, [255, 255, 255], 0.1, 0.18));
-    bloom.addColorStop(1, mix(def.colour, [255, 255, 255], 0, 0));
+    bloom.addColorStop(0, mix(glowC, [255, 255, 255], 0.25, bare ? 0.42 : 0.55));
+    bloom.addColorStop(0.5, mix(glowC, [255, 255, 255], 0.1, 0.18));
+    bloom.addColorStop(1, mix(glowC, [255, 255, 255], 0, 0));
     ctx.fillStyle = bloom;
     ctx.fillRect(px - rad * 3, py - rad * 3, rad * 6, rad * 6);
 
@@ -868,7 +874,7 @@ function drawPowers(r, ctx, g) {
       const near = (o.depth + 1) / 2;
       const sr = rad * (0.08 + near * 0.1);
       ctx.globalAlpha = 0.35 + near * 0.5;
-      ctx.fillStyle = lighten(def.colour, 0.55);
+      ctx.fillStyle = lighten(glowC, 0.55);
       ctx.beginPath();
       ctx.arc(o.x, o.y, sr, 0, Math.PI * 2);
       ctx.fill();
@@ -882,6 +888,7 @@ function drawPowers(r, ctx, g) {
     // the sphere: lit from up and to the left
     const lx = px - rad * 0.36;
     const ly = py - rad * 0.42;
+    if (!bare) {
     const body = ctx.createRadialGradient(lx, ly, rad * 0.06, px, py, rad);
     body.addColorStop(0, lighten(def.colour, 0.72));
     body.addColorStop(0.42, def.colour);
@@ -914,6 +921,7 @@ function drawPowers(r, ctx, g) {
     ctx.ellipse(lx, ly - rad * 0.06, rad * 0.26, rad * 0.17, -0.5, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
+    }
 
     // glyph, with a little depth under it
     ctx.textAlign = "center";
@@ -921,19 +929,22 @@ function drawPowers(r, ctx, g) {
     // Lunas is health, so it wears the same heart the health bar does rather
     // than a symbol you have to learn. Nothing else on the field is that
     // shape, so it needs no reading at all.
-    if (q.type === "lunas") {
+    if (bare) {
+      // Full size now that nothing is around it, and it breathes with the
+      // same pulse the bloom does so it still reads as a live pickup.
+      const hs = rad * (0.95 + pulse * 0.06);
       ctx.save();
-      ctx.shadowColor = "rgba(255,77,109,0.9)";
-      ctx.shadowBlur = rad * 0.7;
-      heartPath(ctx, px, py - rad * 0.06, rad * 0.46);
+      ctx.shadowColor = "rgba(255,77,109,0.95)";
+      ctx.shadowBlur = rad * 1.1;
+      heartPath(ctx, px, py - rad * 0.1, hs);
       ctx.fillStyle = "#ff4d6d";
       ctx.fill();
       ctx.shadowBlur = 0;
-      ctx.lineWidth = Math.max(1.5, rad * 0.1);
+      ctx.lineWidth = Math.max(1.5, rad * 0.11);
       ctx.strokeStyle = "rgba(255,255,255,0.95)";
       ctx.stroke();
       // a shine, so it reads as the same object as the hearts overhead
-      heartPath(ctx, px - rad * 0.14, py - rad * 0.24, rad * 0.16);
+      heartPath(ctx, px - hs * 0.3, py - rad * 0.1 - hs * 0.38, hs * 0.34);
       ctx.fillStyle = "rgba(255,255,255,0.75)";
       ctx.fill();
       ctx.restore();
@@ -1557,9 +1568,20 @@ function drawBursts(r, ctx, g) {
  */
 function stampOutline(r, ctx, colour, cx, cy, w, h, thick, drawInto) {
   const px = Math.max(1.5, thick);
-  const pad = Math.ceil(px) + 2;
-  const cw = Math.ceil(w) + pad * 2;
-  const ch = Math.ceil(h) + pad * 2;
+  /* The buffer is sized well past the box it is given, in both directions.
+   *
+   * `w` and `h` are the actor's nominal size, and a character is routinely
+   * bigger than that: Yhon Yhon's body width is derived from his HEIGHT and
+   * his squash, so at full stretch he is nearly twice `w` across and was
+   * being clipped at both sides — which showed up as an outline that simply
+   * stopped on his left and right. Ears, arms and an airborne lean reach past
+   * the top too. Cheaper to hand it room than to work out the exact extent of
+   * an arbitrary draw callback.
+   */
+  const padX = Math.ceil(px) + Math.ceil(w * 0.6) + 2;
+  const padY = Math.ceil(px) + Math.ceil(h * 0.25) + 2;
+  const cw = Math.ceil(w) + padX * 2;
+  const ch = Math.ceil(h) + padY * 2;
   if (cw <= 0 || ch <= 0 || cw > 2048 || ch > 2048) return;
 
   const buf = r.outline || (r.outline = document.createElement("canvas"));
@@ -1567,11 +1589,11 @@ function stampOutline(r, ctx, colour, cx, cy, w, h, thick, drawInto) {
     buf.width = Math.max(buf.width, cw);
     buf.height = Math.max(buf.height, ch);
   }
-  const b = buf.getContext("2d");
+  const b = buf.getContext("2d", { willReadFrequently: true });
   b.setTransform(1, 0, 0, 1, 0, 0);
   b.clearRect(0, 0, cw, ch);
   b.save();
-  drawInto(b, pad + w / 2, pad + h);
+  drawInto(b, padX + w / 2, padY + h);
   b.restore();
 
   // Flatten whatever was drawn to one solid colour, keeping only its alpha.
@@ -1580,10 +1602,31 @@ function stampOutline(r, ctx, colour, cx, cy, w, h, thick, drawInto) {
   b.fillRect(0, 0, cw, ch);
   b.globalCompositeOperation = "source-over";
 
-  const ox = cx - (pad + w / 2);
-  const oy = cy - (pad + h);
-  for (let i = 0; i < 10; i++) {
-    const a = (i / 10) * Math.PI * 2;
+  /* And then HARDEN that alpha.
+   *
+   * `source-in` keeps the source's alpha, which is the right thing for a
+   * sprite — Bubu and Dudu have hard edges and traced cleanly. Yhon Yhon is
+   * vector curves, so his edge is a band of half-transparent pixels, and
+   * stamping that ten times around a circle accumulates into a soft swollen
+   * halo rather than a rim. Worse where his ears, arms and feet sit just off
+   * the body: the overlapping soft copies filled the gaps between them in and
+   * the whole pig came out as a blue blob.
+   *
+   * Snapping every pixel to in-or-out first means the stamps overlay exactly
+   * instead of summing, whatever was drawn into the buffer.
+   */
+  const img = b.getImageData(0, 0, cw, ch);
+  const d = img.data;
+  for (let i = 3; i < d.length; i += 4) d[i] = d[i] > 96 ? 255 : 0;
+  b.putImageData(img, 0, 0);
+
+  const ox = cx - (padX + w / 2);
+  const oy = cy - (padY + h);
+  // Sixteen, not ten: at ten the ring is a decagon, and on a shape with fine
+  // detail the flat sides of it show as lumps.
+  const N = 16;
+  for (let i = 0; i < N; i++) {
+    const a = (i / N) * Math.PI * 2;
     ctx.drawImage(buf, 0, 0, cw, ch,
       ox + Math.cos(a) * px, oy + Math.sin(a) * px, cw, ch);
   }
@@ -2075,7 +2118,7 @@ function drawActor(r, ctx, g, a) {
   const mine = ownerColour(a.id);
   if (mine && !starred && !a.dead) {
     const pose = poseOf(a);
-    stampOutline(r, ctx, mine, px, py, cw, chh, z * 0.055,
+    stampOutline(r, ctx, mine, px, py, cw, chh, z * 0.045,
       (b, bx, by) => charById(a.char).draw(b, bx, by, cw, chh, pose));
   }
 
