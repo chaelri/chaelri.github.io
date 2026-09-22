@@ -27,7 +27,8 @@
 import { createClient } from "./net.js";
 import { createPad, paintShootButton } from "./pad.js";
 import { hydrate } from "./netstate.js";
-import { armAudio, onAudioState, startAudio } from "./audio.js";
+import { armAudio, onAudioState, startAudio, sfx } from "./audio.js";
+import * as HUD from "./hud.js";
 
 const $ = (s) => document.querySelector(s);
 const params = new URLSearchParams(location.search);
@@ -160,7 +161,23 @@ async function guestSide() {
       console.warn("[bubu-dudu-smash] unreadable correction, skipped", err);
       return;
     }
+    view.score = m.sc;
+    view.roundNo = m.rn;
     screen.applyCorrection(view, m.rs2, m.ph);
+
+    /* Everything the rules would have said, said for us.
+     *
+     * We run none of them, so none of this happens here by itself — the
+     * banner, the countdown card, the scrim behind them, the toast when a
+     * power-up is taken, and every sound in the game. hud.js does the drawing
+     * on both sides, so there is one copy of the markup.
+     */
+    if (m.hd) applyHud(m.hd);
+    if (m.nt) for (const [id, label, colour, title, body, glyph] of m.nt)
+      HUD.showNote({ id, label }, colour, title, body, glyph);
+    // Anything unknown is ignored rather than throwing: the two phones can be
+    // a version apart in the middle of a match.
+    if (m.sx) for (const key of m.sx) { try { sfx[key]?.(); } catch {} }
   }
   let hostSeq = 0;
 
@@ -215,6 +232,25 @@ async function guestSide() {
     $("#rematch").classList.remove("show");
     haptic();
   });
+}
+
+/**
+ * The overlay, applied only when it actually changes.
+ *
+ * setBanner and setCount both REPLACE their element, which is what restarts
+ * the CSS animation — calling them every correction would retrigger the pop
+ * thirty times a second and the text would sit there vibrating.
+ */
+let hudWas = "";
+function applyHud(hd) {
+  const key = JSON.stringify(hd);
+  if (key === hudWas) return;
+  hudWas = key;
+  if (hd.banner) HUD.setBanner(hd.banner[0], hd.banner[1], hd.banner[2]);
+  else HUD.hideBanner();
+  if (hd.count != null) HUD.setCount(hd.count);
+  else HUD.clearCount();
+  HUD.setResult(hd.result);
 }
 
 /* ----------------------------------------------------------------- hud --- */

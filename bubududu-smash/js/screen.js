@@ -383,6 +383,10 @@ function showRematch(on) {
 rematchBtn?.addEventListener("click", rematch);
 
 function endRound(winnerId, why) {
+  // The guest does not run the rules, so it does not get to call the round
+  // either — it would be deciding from its own predicted copy of a stomp and
+  // could name a different winner. The host says, and it follows.
+  if (GUEST) return;
   if (phase !== "play") return;
   phase = "roundover";
   G.winner = winnerId;
@@ -2320,7 +2324,23 @@ function advance(dt) {
       acc -= STEP;
       if (phase === "play") simulate(STEP);
     }
-    if (phase === "play" && sim > 0) {
+    /* The WORLD is the host's, and only the host's.
+     *
+     * Running these on both phones was the mistake. Two simulations on the
+     * same seed still tick at different frame rates and get their input at
+     * different moments, so they consume the random stream at different
+     * points — and from there one phone spawns a power-up the other does not,
+     * Dudu arrives somewhere else, a coin is taken on one and not the other.
+     * They were playing different games, which is exactly what it looked
+     * like. No amount of correcting ACTORS fixes that, because the actors
+     * were never the part that had diverged.
+     *
+     * So the guest does not run them at all. It gets the whole world off the
+     * wire thirty times a second and predicts only the two players between
+     * corrections — which is what a client in any of these games actually
+     * does. The server owns the world; you predict yourself.
+     */
+    if (phase === "play" && sim > 0 && !GUEST) {
       tickPowers(sim);
       tickCoins(sim);
       tickFairies(sim);
@@ -2437,12 +2457,21 @@ function broadcast() {
   }
 
 
-  /* Notes, sounds and the banner are NOT sent any more.
+  /* The overlay and the one-shot events.
    *
-   * They were, briefly, because the guest drew pictures and had no rules to
-   * generate them from. It runs the same round now, so it makes its own — and
-   * sending them as well would mean every toast twice and every sound twice.
+   * The guest runs none of the rules, so it generates none of this: no
+   * banner, no countdown card, no toast when a power-up is taken, no sound.
+   * State (banner, card, scrim) goes when it changes and in full on a
+   * keyframe; notes and sounds are events and go as a queue that is drained
+   * when it is sent.
    */
+  const hudKey = JSON.stringify(shown);
+  if (hudKey !== lastHudKey) {
+    lastHudKey = hudKey;
+    snap.hd = shown;
+  }
+  if (pending.notes.length) { snap.nt = pending.notes; pending.notes = []; }
+  if (pending.sfx.length) { snap.sx = pending.sfx; pending.sfx = []; }
 
   // The tilemap is sent only when it differs from the last tick, because it is
   // most of the payload and it usually has not changed. That alone leaves a
@@ -2458,7 +2487,8 @@ function broadcast() {
   if (joined || stale || !rowsEqual(snap.rows, lastRows)) {
     lastRows = snap.rows;
     lastKeyAt = now;
-    snap.st = chips;          // a keyframe is complete, chips included
+    snap.st = chips;          // a keyframe is complete...
+    snap.hd = shown;          // ...overlay included
   } else {
     delete snap.rows;
   }
@@ -2564,6 +2594,16 @@ export function applyCorrection(view, rngAt, hostPhase) {
    */
   if (hostPhase === "play" && phase === "countdown") countdown = 0;
 
+  /* The scoreline and the phase are the host's too.
+   *
+   * Only "the round is still going" is acted on locally — a guest that
+   * carried on simulating through a result would have the loser's body
+   * walking about under the winner's name. Everything else it is told.
+   */
+  if (view.score) { score.p1 = view.score.p1; score.p2 = view.score.p2; }
+  if (view.roundNo) roundNo = view.roundNo;
+  if (hostPhase && hostPhase !== phase && phase !== "countdown") phase = hostPhase;
+
   for (const a of G.actors) {
     const t = view.actors.find((o) => o.id === a.id);
     if (!t) continue;
@@ -2599,6 +2639,26 @@ export function applyCorrection(view, rngAt, hostPhase) {
       a.vy += (t.vy - a.vy) * CORRECT_EASE;
     }
   }
+  /* Everything that is NOT a player is taken outright.
+   *
+   * Power-ups, coins, Dudu, the squad, the fairy, bullets, debris: the guest
+   * no longer simulates any of it, so there is nothing local to preserve and
+   * nothing to blend. Thirty times a second it is simply told, and it is
+   * cheap — this is the list that was already being sent.
+   */
+  G.powers = view.powers;
+  G.coins = view.coins;
+  G.shots = view.shots;
+  G.bursts = view.bursts;
+  G.pops = view.pops;
+  G.lostHearts = view.lostHearts;
+  G.minis = view.minis;
+  G.helpers = view.helpers;
+  G.wildFairy = view.wildFairy;
+  // The clock too, so anything timed off it — a power-up running out, the
+  // grace after a hit, Dudu's fifteen seconds — counts down in step.
+  G.time = view.time;
+
   /* The floor, when the host sends it.
    *
    * The arena eats itself inward all round, off each side's own accumulated
