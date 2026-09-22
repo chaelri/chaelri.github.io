@@ -2255,11 +2255,29 @@ let last = performance.now();
 let acc = 0;
 const STEP = 1 / 120;
 
+let frameFaults = 0;
+let lastFrameFault = null;
+
 function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.min(0.08, (now - last) / 1000);
   last = now;
-  advance(dt);
+  /* One bad frame is one bad frame.
+   *
+   * rAF is re-armed above, so a throw here never stopped the loop — but it
+   * did stop it ever getting PAST the throw, which is the same thing from the
+   * outside: the countdown never ends, the banner never clears, and the
+   * network carries on updating a game that has quietly stopped advancing.
+   * Caught, counted and reported, so it shows up in __smash() instead of
+   * looking like a hang.
+   */
+  try {
+    advance(dt);
+  } catch (err) {
+    frameFaults++;
+    if (!lastFrameFault) console.error("[bubu-dudu-smash] frame threw", err);
+    lastFrameFault = String((err && err.stack) || err);
+  }
 }
 
 /**
@@ -2592,17 +2610,29 @@ export function applyCorrection(view, rngAt, hostPhase) {
    * corrections it cannot act on. Which is precisely "it shakes and the intro
    * never starts". Skip to the end of the count and join in.
    */
-  if (hostPhase === "play" && phase === "countdown") countdown = 0;
-
-  /* The scoreline and the phase are the host's too.
+  /* The phase is the host's, FULL STOP — including out of the countdown.
    *
-   * Only "the round is still going" is acted on locally — a guest that
-   * carried on simulating through a result would have the loser's body
-   * walking about under the winner's name. Everything else it is told.
+   * This used to set `countdown = 0` and leave the frame loop to notice.
+   * That works only while the frame loop is running, and if it is not — a
+   * thrown frame, a tab the browser has throttled, a hitch during startup —
+   * the round is stuck in a countdown that can never tick, wearing a card
+   * whose entry animation is frozen at nought per cent, which is an empty
+   * ring and a banner that never goes away. Nothing recovers from that,
+   * because the one thing that could is the thing that has stopped.
+   *
+   * Taking the phase directly means the network can always drag this side
+   * back into the round on its own.
    */
   if (view.score) { score.p1 = view.score.p1; score.p2 = view.score.p2; }
   if (view.roundNo) roundNo = view.roundNo;
-  if (hostPhase && hostPhase !== phase && phase !== "countdown") phase = hostPhase;
+  if (hostPhase && hostPhase !== phase) {
+    phase = hostPhase;
+    if (phase !== "countdown") {
+      countdown = 0;
+      clearCount();
+      if (phase === "play") hideBanner();
+    }
+  }
 
   for (const a of G.actors) {
     const t = view.actors.find((o) => o.id === a.id);
@@ -2883,7 +2913,10 @@ let starting = false;
 // rAF, so being able to step the simulation by hand is the only way to tell a
 // broken link apart from a throttled one.
 if (SOLO || DUO) {
-  window.__smash = () => ({ phase, mode, G, score, roundNo, kill: renderer.kill });
+  window.__smash = () => ({
+    phase, mode, G, score, roundNo, kill: renderer.kill,
+    frameFaults, lastFrameFault,
+  });
   window.__smashStep = (dt, n = 1) => {
     for (let i = 0; i < n; i++) advance(dt);
     return { phase, time: G && G.time };
