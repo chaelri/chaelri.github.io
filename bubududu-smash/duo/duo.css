@@ -105,18 +105,24 @@ body.duo .toast.right { transform-origin: top right; }
 #pad.duo #shoot.armed { background: rgba(99,217,138,0.45); border-color: rgba(99,217,138,0.85); }
 #pad.duo #shoot.armed.melee { background: rgba(255,107,87,0.45); border-color: rgba(255,107,87,0.85); }
 
+/* The status pill is only worth screen space when something is WRONG.
+   Sitting there saying DIRECT for a whole match is just something in front of
+   the game — but going silent entirely would mean a degraded link never
+   announces itself. So: invisible while it is healthy, and it appears the
+   moment it is not. */
 #pad.duo #state {
   position: fixed; top: max(6px, env(safe-area-inset-top));
   left: 50%; transform: translateX(-50%);
   pointer-events: none;
-  font-family: "Nunito", system-ui, sans-serif; font-weight: 700;
+  font-family: "Nunito", system-ui, sans-serif; font-weight: 800;
   font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase;
   padding: 3px 10px; border-radius: 999px;
-  background: rgba(255,255,255,0.7); color: rgba(33,49,63,0.5);
+  opacity: 0; transition: opacity 260ms ease;
+  background: rgba(255,255,255,0.85);
 }
-#pad.duo #state[data-mode="relay"] { color: #c47b16; }
+#pad.duo #state[data-mode="relay"] { opacity: 1; color: #c47b16; }
 #pad.duo #state[data-mode="lost"],
-#pad.duo #state[data-mode="offline"] { color: #d0455a; }
+#pad.duo #state[data-mode="offline"] { opacity: 1; color: #d0455a; }
 
 /* Landscape is the better way to hold this, so the buttons move out of the
    way of a wider, shorter picture. */

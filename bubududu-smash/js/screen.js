@@ -161,13 +161,14 @@ function dropStaleInput() {
 }
 
 function localInput() {
-  if (!pads.p1.connected) {
+  // A locally-driven pad already has its input; the keyboard must not fight it.
+  if (!pads.p1.connected && !pads.p1.local) {
     pads.p1.left = keys.has("KeyA");
     pads.p1.right = keys.has("KeyD");
     pads.p1.jumpHeld = keys.has("KeyW") || keys.has("Space");
     pads.p1.drop = keys.has("KeyS");
   }
-  if (!pads.p2.connected) {
+  if (!pads.p2.connected && !pads.p2.local) {
     pads.p2.left = keys.has("ArrowLeft");
     pads.p2.right = keys.has("ArrowRight");
     pads.p2.jumpHeld = keys.has("ArrowUp");
@@ -1949,6 +1950,7 @@ export const duoStats = { sent: 0, bytes: 0, rows: false, get guest() { return !
  * shows up mid-game.
  */
 export function feedLocalPad(pad) {
+  pads.p1.local = true;
   pads.p1.connected = true;
   let seq = 0;
   setInterval(() => {
@@ -2155,7 +2157,12 @@ function paintHud() {
 function paintSlots(list) {
   for (const p of PLAYERS) {
     const on = list.find((x) => x.role === p.id);
-    pads[p.id].connected = !!on;
+    // `local` means this pad is driven by THIS device's own screen, so it has
+    // no peer record and never will. Without the check, the moment the guest
+    // joined this line declared the host's own player disconnected — and
+    // localInput() below then overwrote his buttons with keyboard state (all
+    // false on a phone) every single frame. He simply could not move.
+    pads[p.id].connected = !!on || !!pads[p.id].local;
     // The duo page has no lobby cards — it is one phone, not a shared screen.
     // Reading them unconditionally threw here, BEFORE p2's `connected` was
     // set and before the start check below, so the host sat on "waiting for

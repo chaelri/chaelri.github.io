@@ -88,7 +88,14 @@ function updateCamera(r, level, actors, dt) {
   const spanY = Math.max(9, maxY - minY + pad * 1.4);
   const zoom = Math.min(r.w / spanX, r.h / spanY);
 
-  r.cam.tzoom = Math.max(22, Math.min(78, zoom));
+  // The ceiling has to come from the canvas, not from a number that happened
+  // to suit a laptop. A flat 78 shows 38 tiles on a 3024px-wide screen and
+  // fifteen on a phone held upright — so on a phone you could not see the
+  // person you are trying to land on, which reads as the camera being stuck
+  // zoomed in. Tie it to always showing at least MIN_TILES across.
+  const MIN_TILES = 22;
+  const ceiling = Math.min(78, r.w / MIN_TILES);
+  r.cam.tzoom = Math.max(22, Math.min(ceiling, zoom));
   r.cam.tx = (minX + maxX) / 2;
   r.cam.ty = (minY + maxY) / 2;
 

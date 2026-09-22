@@ -74,14 +74,14 @@ async function hostSide() {
   window.__duo = () => screen.duoStats;
 
   padEl.classList.remove("hidden");
-  wait.classList.add("gone");
-  $("#state").textContent = "waiting for Karla";
-  $("#state").dataset.mode = "host";
 
-  // The pill doubles as the connection light once she is in.
-  setInterval(() => {
-    $("#state").textContent = screen.guestIn() ? "hosting" : "waiting for Karla";
-  }, 1200);
+  // Held on the waiting screen until she is actually in. Dropping straight
+  // into an empty arena gives no clue whether anything is happening.
+  const watch = setInterval(() => {
+    if (!screen.guestIn()) return say("waiting for Karla…");
+    clearInterval(watch);
+    wait.classList.add("gone");
+  }, 600);
 }
 
 /* ---------------------------------------------------------- smoothing --- */
@@ -202,6 +202,7 @@ function guestSide() {
 
   function paintState(mode) {
     const el = $("#state");
+    if (!el) return;
     el.textContent =
       mode === "p2p" ? "direct" : mode === "relay" ? "relay" :
       mode === "lost" ? "reconnecting…" : mode === "offline" ? "offline" : "connecting…";
