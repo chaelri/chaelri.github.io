@@ -1,0 +1,176 @@
+*, *::before, *::after { box-sizing: border-box; }
+html, body {
+  margin: 0; height: 100%; background: #1a2433; color: #e8f0fb;
+  font-family: "Nunito", -apple-system, system-ui, sans-serif;
+  overscroll-behavior: none; touch-action: none;
+  user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent;
+}
+#haptic { position: fixed; opacity: 0; pointer-events: none; width: 1px; height: 1px; }
+
+/* --------------------------------------------------------------- join --- */
+#join {
+  min-height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 16px; padding: max(24px, env(safe-area-inset-top)) 20px max(24px, env(safe-area-inset-bottom));
+  text-align: center;
+  /* The body blocks touch scrolling so the game pad cannot be dragged around;
+     the join screen has to opt back in, or on a short screen the Join button
+     sits below the fold with no way to reach it. */
+  overflow-y: auto;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+}
+#join.gone { display: none; }
+#join h1 {
+  font-family: "Nunito", system-ui, sans-serif; font-weight: 800; font-size: 40px; margin: 0;
+  color: #fff; text-shadow: 0 4px 0 #35506f;
+}
+.field { display: grid; gap: 6px; }
+.field span, .label { font-size: 9.5px; letter-spacing: 0.26em; text-transform: uppercase; color: rgba(232,240,251,0.4); }
+#code {
+  width: 6.2ch; padding: 9px 0; font-family: "Nunito", system-ui, sans-serif; font-size: 38px; font-weight: 800;
+  letter-spacing: 0.2em; text-align: center; text-indent: 0.2em; color: #ffb84d;
+  background: rgba(255,184,77,0.08); border: 2px solid rgba(255,184,77,0.3); border-radius: 12px; outline: none;
+}
+.whos, .chars { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; width: 100%; max-width: 420px; }
+.whos button, .chars button {
+  flex: 1 1 0; min-width: 96px; padding: 13px 10px; border-radius: 13px; font: inherit; color: inherit;
+  background: rgba(232,240,251,0.05); border: 2px solid rgba(232,240,251,0.12);
+  display: grid; gap: 2px;
+}
+.whos button { font-family: "Nunito", system-ui, sans-serif; font-size: 19px; font-weight: 700; }
+.whos button[data-who="p1"].sel { border-color: #4cc2ff; background: rgba(76,194,255,0.14); color: #9adcff; }
+.whos button[data-who="p2"].sel { border-color: #ff7ba8; background: rgba(255,123,168,0.14); color: #ffb3cd; }
+.chars button b { font-family: "Nunito", system-ui, sans-serif; font-size: 16px; font-weight: 700; }
+.chars button i { font-style: normal; font-size: 9.5px; line-height: 1.3; letter-spacing: 0.02em; text-transform: none; opacity: 0.5; }
+.chars button.sel { border-color: #ffb84d; background: rgba(255,184,77,0.14); }
+#joinBtn {
+  width: 100%; max-width: 420px; padding: 17px; font: 700 17px/1 "Nunito", system-ui, sans-serif;
+  color: #16202e; background: #ffb84d; border: 0; border-radius: 14px;
+}
+#joinBtn:disabled { background: rgba(232,240,251,0.1); color: rgba(232,240,251,0.35); }
+#err { margin: 0; font-size: 13px; color: #ff8e9e; }
+
+/* ---------------------------------------------------------------- pad --- */
+#pad { position: fixed; inset: 0; }
+#pad.hidden { display: none; }
+.pill {
+  position: absolute; top: max(10px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%);
+  padding: 5px 14px; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
+  border-radius: 999px; color: rgba(232,240,251,0.45); background: rgba(232,240,251,0.07);
+}
+.pill[data-mode="p2p"] { color: #8ee6a4; background: rgba(142,230,164,0.12); }
+.pill[data-mode="relay"] { color: #ffb84d; background: rgba(255,184,77,0.12); }
+.pill[data-mode="lost"], .pill[data-mode="offline"] { color: #ff8e9e; background: rgba(255,142,158,0.14); }
+
+/* Changing character mid-game, now that the join form is skipped entirely. */
+.swap {
+  position: absolute; top: max(8px, env(safe-area-inset-top)); right: max(14px, env(safe-area-inset-right));
+  padding: 7px 14px; font: 600 12px/1 "Nunito", system-ui, sans-serif;
+  color: #ffd699; background: rgba(255,184,77,0.14);
+  border: 1px solid rgba(255,184,77,0.35); border-radius: 999px;
+}
+
+/* While the scanned link is connecting there is nothing to interact with. */
+#join.connecting .whos, #join.connecting .chars,
+#join.connecting #joinBtn, #join.connecting .field { display: none; }
+#join.connecting h1::after {
+  content: "connecting…"; display: block; margin-top: 14px;
+  font: 500 12px/1 "Nunito", system-ui, sans-serif; letter-spacing: 0.2em;
+  text-transform: uppercase; color: rgba(232,240,251,0.45); text-shadow: none;
+}
+
+.dpad, .actions {
+  position: absolute;
+  bottom: 18px;
+  bottom: max(18px, calc(env(safe-area-inset-bottom) + 10px));
+  display: flex;
+  gap: clamp(8px, 2.4vw, 12px);
+  align-items: flex-end;
+}
+.dpad {
+  left: 16px;
+  left: max(16px, env(safe-area-inset-left));
+  /* one surface, so a thumb can slide between the two halves */
+  touch-action: none;
+}
+
+/* The three right-hand buttons stack instead of sitting in a row. As one row
+   the whole control strip came to ~470px, which does not fit a phone held
+   upright — the shoot button landed on top of the right arrow. */
+.actions {
+  right: 16px;
+  right: max(16px, env(safe-area-inset-right));
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: end;
+}
+#shoot { grid-column: 1; grid-row: 1; }
+#down  { grid-column: 1; grid-row: 2; }
+#jump  { grid-column: 2; grid-row: 1 / 3; align-self: end; }
+
+/* `#pad button` is (1,0,1) and outranks a bare `#jump` at (1,0,0), so every
+   per-button style below is scoped through #pad to win. Without it the jump
+   button lost its circle and the gun lost its colour. */
+#pad button {
+  border-radius: 22px; border: 2px solid rgba(232,240,251,0.16); background: rgba(232,240,251,0.08);
+  color: #e8f0fb; font: 700 clamp(18px, 5vw, 26px)/1 "Nunito", system-ui, sans-serif;
+  display: grid; place-items: center; transition: transform 70ms, background 70ms;
+}
+
+/* Sized against the viewport with a hard cap, so a narrow phone shrinks the
+   controls rather than pushing them off the edge. */
+#pad #left, #pad #right { width: min(92px, 20vw); height: min(112px, 25vw); }
+#pad #down, #pad #shoot { width: min(74px, 16vw); height: min(74px, 16vw); font-size: clamp(15px, 4vw, 22px); }
+#pad #jump {
+  width: min(128px, 28vw); height: min(128px, 28vw);
+  border-radius: 50%; font-size: clamp(13px, 3.4vw, 21px); letter-spacing: 0.06em;
+  border-color: rgba(255,184,77,0.5); background: rgba(255,184,77,0.18); color: #ffd699;
+}
+#pad #down { opacity: 0.8; }
+
+/* The gun button keeps its slot in the layout at all times so nothing shifts
+   under your thumb mid-round; it just lights up when you are holding one, and
+   shows the shots you have left. */
+#pad #shoot {
+  border-color: rgba(99,217,138,0.22);
+  background: rgba(99,217,138,0.05);
+  color: rgba(234,255,240,0.22);
+  transition: background 200ms, border-color 200ms, color 200ms, transform 70ms;
+}
+#pad #shoot.armed {
+  border-color: rgba(99,217,138,0.75);
+  background: rgba(99,217,138,0.24);
+  color: #eafff0;
+}
+#pad #shoot.armed.down { background: rgba(99,217,138,0.45) !important; }
+/* The fist is the same button in a different mood — red, because it only
+   works at arm's length and that is worth signalling before you commit. */
+#pad #shoot.armed.melee {
+  border-color: rgba(255,107,87,0.8);
+  background: rgba(255,107,87,0.24);
+  color: #fff1ee;
+}
+#pad #shoot.armed.melee.down { background: rgba(255,107,87,0.45) !important; }
+#pad button.down { transform: scale(0.94); background: rgba(232,240,251,0.2) !important; }
+#pad #jump.down { background: rgba(255,184,77,0.4) !important; }
+
+/* Held on its side there is plenty of width but very little height, so the
+   tall arrow keys have to come down. */
+@media (orientation: landscape) and (max-height: 500px) {
+  #pad #left, #pad #right { height: min(96px, 26vh); }
+  #pad #jump { width: min(118px, 34vh); height: min(118px, 34vh); }
+  #pad #down, #pad #shoot { width: min(68px, 19vh); height: min(68px, 19vh); }
+}
+
+/* Phone held sideways on the join screen: very little height, so everything
+   tightens up and the column starts at the top rather than centred. */
+@media (orientation: landscape) and (max-height: 540px) {
+  #join { gap: 9px; justify-content: flex-start; padding-top: 14px; padding-bottom: 14px; }
+  #join h1 { font-size: 27px; }
+  #code { font-size: 27px; padding: 5px 0; }
+  .whos button { padding: 9px 10px; font-size: 16px; }
+  .chars button { padding: 8px 8px; }
+  .chars button b { font-size: 14px; }
+  #joinBtn { padding: 12px; font-size: 15px; }
+  .whos, .chars { max-width: 620px; }
+}

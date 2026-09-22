@@ -1,0 +1,63 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>booting</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,300..900;1,300..900&display=swap" rel="stylesheet">
+<style>html,body{margin:0;background:#8fd4ff}canvas{display:block}</style></head>
+<body><canvas id="stage"></canvas><pre id="out" style="color:#063;font:12px monospace;position:fixed;bottom:0;left:0;background:rgba(255,255,255,.75)"></pre>
+<script type="module">
+const log=[]; const fail=(w,e)=>log.push(`FAIL ${w}: ${e&&e.stack?e.stack.split('\n')[0]:e}`);
+window.onerror=(m,s,l,c,e)=>fail('window', e||m);
+try {
+  const [{ALL,readLevel,solidGrid},{makeActor,stepActor,kill,reviveAt},{createRenderer,draw,resize},
+         {PLAYERS,MODES,FEEL},{preloadCharacters,CHARACTERS}] = await Promise.all([
+    import('./js/levels.js'), import('./js/physics.js'), import('./js/render.js'),
+    import('./js/config.js'), import('./js/characters.js')]);
+
+  preloadCharacters();
+  await new Promise(r=>setTimeout(r,900)); // let sprites load
+
+  const r = createRenderer(document.getElementById('stage'));
+  resize(r, 1600, 900);
+
+  const chars = ['yhon','bubu','dudu'];
+  function build(mode, ci=0) {
+    const level = ALL[mode][0]; const meta = readLevel(level);
+    const doors = meta.doors.map(d=>({...d}));
+    return { mode, level, meta, doors, plates: meta.plates.map(p=>({...p})),
+      stars: meta.stars.map(s=>({...s})), flag: meta.flag, grid: solidGrid(level, doors),
+      time: 0, shrink: 0,
+      actors: PLAYERS.map((p,i)=>{ const a=makeActor(meta.spawns[i].x, meta.spawns[i].y, p.id);
+        a.char=chars[(i+ci)%3]; a.tint=p.colour; a.label=p.name; a.stars=0; a.lives=3; return a; }) };
+  }
+
+  let worst=0,total=0,frames=0;
+  for (const mode of ['tapakan']) {
+    const g = build(mode);
+    const opts = { versus: MODES[mode].versus, onStomp:(a,v)=>kill(v,{}) };
+    for (let i=0;i<600;i++) {
+      for (const a of g.actors) {
+        const dir = Math.sin(i/40 + (a.id==='p2'?2:0));
+        stepActor(a, { left: dir<-0.25, right: dir>0.25,
+          jumpDown: i%47===(a.id==='p2'?20:0), jumpHeld: (i%47)<14 }, g.grid, 1/120, g.actors, opts);
+      }
+      g.time += 1/120;
+      const t0=performance.now(); draw(r,g,1/120); const ms=performance.now()-t0;
+      total+=ms; frames++; if(ms>worst)worst=ms;
+    }
+    const [a,b] = g.actors;
+    log.push(`${mode.padEnd(9)} ok — p1 (${a.x.toFixed(1)},${a.y.toFixed(1)}) dead:${a.dead}  p2 (${b.x.toFixed(1)},${b.y.toFixed(1)}) dead:${b.dead}  stars:${g.stars.filter(s=>s.taken).length}/${g.stars.length}`);
+  }
+  log.push(`draw: avg ${(total/frames).toFixed(2)}ms worst ${worst.toFixed(2)}ms over ${frames} frames`);
+  log.push(`characters loaded: ${CHARACTERS.map(c=>c.id).join(', ')}`);
+
+  // Leave a representative frame: co-op, mid level, both on screen.
+  const shot = 'tapakan';
+  const g = build('tapakan');
+  g.actors[0].x = 11; g.actors[0].y = 13; g.actors[0].char='yhon';
+  g.actors[1].x = 13.5; g.actors[1].y = 13; g.actors[1].char='bubu';
+  for (let i=0;i<40;i++){ for(const a of g.actors) stepActor(a,{},g.grid,1/120,g.actors,{}); g.time+=1/120; }
+  for (let i=0;i<90;i++) draw(r,g,1/60);
+  log.push(`shot: ${shot}`);
+} catch(e) { fail('boot', e); }
+const bad = log.some(l=>l.startsWith('FAIL'));
+document.title = bad ? 'SELFTEST FAIL' : 'SELFTEST OK';
+document.getElementById('out').textContent = log.join('\n');
+</script></body></html>

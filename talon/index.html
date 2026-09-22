@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Talon</title>
+<meta name="description" content="A 2D platformer for two phones and one screen. Co-op, or against each other.">
+<meta name="theme-color" content="#8fd4ff">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,300..900;1,300..900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/screen.css">
+</head>
+<body>
+
+<canvas id="stage"></canvas>
+<div id="hud"></div>
+
+<!-- Smash-style panels: who you are, how you are doing, and what is currently
+     being done to you. See paintPlayers() in screen.js. -->
+<div id="players">
+  <div class="pcard" data-p="p1">
+    <canvas class="face" width="132" height="132"></canvas>
+    <div class="pinfo">
+      <div class="pname">Charlie</div>
+      <div class="phearts"></div>
+      <div class="pchips"></div>
+    </div>
+  </div>
+  <div class="pcard right" data-p="p2">
+    <canvas class="face" width="132" height="132"></canvas>
+    <div class="pinfo">
+      <div class="pname">Karla</div>
+      <div class="phearts"></div>
+      <div class="pchips"></div>
+    </div>
+  </div>
+</div>
+<div id="banner"></div>
+
+<!-- The 3-2-1. Its own layer so nothing else has to move to make room. -->
+<div id="count"></div>
+<div id="sound">click anywhere for sound</div>
+
+<!-- Pickup notices, one edge per player. See showPickup() in screen.js. -->
+<div id="toastL" class="toast"></div>
+<div id="toastR" class="toast right"></div>
+
+<canvas id="scene"></canvas>
+
+<div id="lobby">
+  <h1 class="logo" data-text="Talon"><span>Talon</span></h1>
+
+
+  <div class="slots">
+    <div class="slot" data-slot="p1">
+      <div class="who">Charlie</div>
+      <div class="qr"></div>
+      <div class="pick">—</div>
+      <div class="state"></div>
+    </div>
+    <div class="slot" data-slot="p2">
+      <div class="who">Karla</div>
+      <div class="qr"></div>
+      <div class="pick">—</div>
+      <div class="state"></div>
+    </div>
+  </div>
+
+  <div class="orline"><span>or</span></div>
+
+  <button id="localBtn" class="local">
+    Play on this computer
+    <small>Charlie <b>W A S D</b> + <b>F</b> &nbsp;&middot;&nbsp; Karla <b>arrow keys</b> + <b>Shift</b></small>
+  </button>
+
+</div>
+
+<script type="module" src="js/screen.js"></script>
+</body>
+</html>

@@ -1,0 +1,428 @@
+*, *::before, *::after { box-sizing: border-box; }
+html, body {
+  margin: 0; height: 100%; overflow: hidden;
+  background: #8fd4ff; color: #21313f;
+  font-family: "Nunito", -apple-system, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+#stage { position: fixed; inset: 0; display: block; width: 100%; height: 100%; }
+
+/* ---------------------------------------------------------------- hud --- */
+#hud {
+  position: fixed; top: max(10px, env(safe-area-inset-top)); left: 0; right: 0;
+  display: flex; justify-content: center; pointer-events: none;
+}
+.score {
+  display: flex; align-items: center; gap: clamp(10px, 1.4vw, 18px);
+  padding: 6px clamp(12px, 1.4vw, 18px); border-radius: 999px;
+  background: rgba(255,255,255,0.72);
+  box-shadow: 0 6px 18px -10px rgba(33,49,63,0.5);
+  backdrop-filter: blur(4px);
+}
+.score b {
+  font-family: "Nunito", system-ui, sans-serif; font-weight: 900;
+  font-size: clamp(20px, 3.4vh, 34px); line-height: 1;
+  min-width: 1ch; text-align: center;
+}
+.score b.p1 { color: #2a9fd8; }
+.score b.p2 { color: #e0608c; }
+/* the divider between them */
+.score i {
+  width: clamp(12px, 1.6vh, 18px); height: 3px; border-radius: 3px;
+  background: rgba(33,49,63,0.2);
+}
+
+/* ------------------------------------------------------------- banner --- */
+#banner {
+  position: fixed; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 4px;
+  font-family: "Nunito", system-ui, sans-serif; text-align: center;
+  pointer-events: none; opacity: 0; transition: opacity 320ms ease;
+}
+#banner.in { opacity: 1; }
+/* While the 3-2-1 is up, the round title moves above it instead of sharing
+   the middle of the screen with a 200px number. */
+body.counting #banner {
+  transform: translateY(-26vh) scale(0.62);
+  transition: transform 260ms cubic-bezier(0.2, 1.1, 0.4, 1), opacity 320ms ease;
+}
+#banner { transition: opacity 320ms ease, transform 300ms ease; }
+#banner .bt {
+  font-size: clamp(38px, 10vh, 104px); font-weight: 900; line-height: 1; color: #fff;
+  text-shadow: 0 5px 0 rgba(33,49,63,0.25), 0 0 40px rgba(255,255,255,0.6);
+}
+#banner .bs {
+  font-size: clamp(13px, 2.4vh, 20px); font-weight: 600; color: #21313f;
+  letter-spacing: 0.18em; text-transform: uppercase; opacity: 0.7;
+}
+
+/* -------------------------------------------------------------- lobby --- */
+/* The live scene behind the lobby: same sky, hills and cast as the game. */
+#scene {
+  position: fixed; inset: 0; display: block; width: 100%; height: 100%;
+  transition: opacity 600ms ease, visibility 600ms;
+}
+#scene.gone { opacity: 0; visibility: hidden; }
+
+#lobby {
+  position: fixed; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: clamp(12px, 2.2vh, 24px);
+  padding: 4vh 5vw; text-align: center;
+  transition: opacity 600ms ease, visibility 600ms;
+}
+#lobby.gone { opacity: 0; visibility: hidden; pointer-events: none; }
+/* ------------------------------------------------------------- wordmark ---
+ *
+ * Three copies of the same word stacked on top of each other, which is the
+ * usual way to build a sticker logo in CSS:
+ *
+ *   ::before  a thick white stroke and the blue extrude under it — the
+ *             "cut out and stuck on" edge. text-stroke centres on the glyph
+ *             edge so its inner half is hidden by the face drawn over it.
+ *   span      the face, a warm gradient clipped to the text.
+ *   ::after   a highlight that crosses the letters every few seconds.
+ *
+ * The warm face is deliberate: everything behind it is sky, and white on pale
+ * blue is what made the old one disappear into the background.
+ */
+#lobby h1.logo {
+  position: relative;
+  margin: 0;
+  font-family: "Nunito", system-ui, sans-serif;
+  font-weight: 900;
+  font-size: clamp(52px, 12vh, 124px);
+  line-height: 1.04;
+  letter-spacing: -0.012em;
+  animation: logoFloat 5.2s ease-in-out infinite;
+}
+
+#lobby h1.logo::before,
+#lobby h1.logo::after {
+  content: attr(data-text);
+  position: absolute;
+  left: 0; right: 0; top: 0;
+  pointer-events: none;
+}
+
+#lobby h1.logo::before {
+  -webkit-text-stroke: 0.15em #fff;
+  color: #fff;
+  /* Stacked zero-blur shadows make the extrude; the last one is the real
+     shadow that lifts the whole thing off the hills. */
+  filter:
+    drop-shadow(0 5px 0 #6fbbe8)
+    drop-shadow(0 9px 0 #4f9fd4)
+    drop-shadow(0 20px 24px rgba(24,52,76,0.34));
+}
+
+#lobby h1.logo span {
+  position: relative;
+  background: linear-gradient(177deg, #fffdf8 6%, #ffeec3 33%, #ffc077 63%, #ff90ad 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+#lobby h1.logo::after {
+  background: linear-gradient(104deg,
+    transparent 40%, rgba(255,255,255,0.95) 49%, transparent 58%);
+  background-size: 280% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: logoShine 6.5s ease-in-out infinite;
+}
+
+@keyframes logoFloat {
+  0%, 100% { transform: translateY(0) rotate(-0.4deg); }
+  50%      { transform: translateY(-7px) rotate(0.4deg); }
+}
+/* Most of the cycle is spent off the right-hand edge, so the shine reads as
+   an occasional glint rather than a constant sweep. */
+@keyframes logoShine {
+  0%, 62%   { background-position: 190% 0; }
+  86%, 100% { background-position: -70% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #lobby h1.logo { animation: none; }
+  #lobby h1.logo::after { animation: none; opacity: 0; }
+}
+.tag { margin: 0; font-size: 11px; letter-spacing: 0.34em; text-transform: uppercase; color: rgba(33,49,63,0.55); text-shadow: 0 1px 6px rgba(255,255,255,0.9); }
+
+.modes { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.modes button {
+  display: grid; gap: 1px; padding: 12px 22px; border-radius: 16px; font: inherit;
+  border: 2px solid rgba(33,49,63,0.12); background: rgba(255,255,255,0.6); color: inherit;
+  transition: transform 180ms, border-color 180ms, background 180ms;
+}
+.modes button b { font-family: "Nunito", system-ui, sans-serif; font-size: 19px; font-weight: 700; }
+.modes button i { font-style: normal; font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; opacity: 0.45; }
+.modes button.sel { border-color: #ff9c3f; background: #fff; transform: translateY(-2px); }
+.blurb {
+  margin: 0; font-size: clamp(12px, 1.8vh, 15px); max-width: 44ch;
+  padding: 7px 16px; border-radius: 999px;
+  color: rgba(33,49,63,0.72); background: rgba(255,255,255,0.72);
+}
+
+.join {
+  display: flex; align-items: center; gap: clamp(16px, 2.6vw, 32px);
+  padding: 14px 20px; border-radius: 18px;
+  background: rgba(255,255,255,0.68); border: 2px solid rgba(33,49,63,0.1);
+}
+.qr { width: clamp(84px, 12vh, 124px); height: clamp(84px, 12vh, 124px); display: grid; place-items: center; border-radius: 10px; }
+.qr:not(:empty) { background: #fff; padding: 5px; }
+.qr svg { width: 100%; height: 100%; display: block; }
+.qr svg rect:first-child { fill: transparent; }
+.joinText { text-align: left; display: grid; gap: 2px; }
+.label { font-size: 9.5px; letter-spacing: 0.24em; text-transform: uppercase; color: rgba(33,49,63,0.4); }
+.url { font-size: clamp(12px, 1.7vh, 15px); color: rgba(33,49,63,0.8); margin-bottom: 0.6em; }
+.code { font-family: "Nunito", system-ui, sans-serif; font-size: clamp(26px, 4.4vh, 44px); font-weight: 900; color: #ff8a2b; line-height: 1; }
+
+.slots { display: flex; gap: clamp(12px, 2.4vw, 28px); }
+.slot {
+  display: grid; justify-items: center; gap: 7px;
+  min-width: clamp(160px, 20vw, 220px); padding: clamp(12px, 1.8vh, 20px) clamp(14px, 1.6vw, 22px);
+  border-radius: 20px;
+  background: rgba(255,255,255,0.93); border: 3px solid rgba(33,49,63,0.08);
+  box-shadow: 0 10px 30px -8px rgba(33,49,63,0.35);
+  backdrop-filter: blur(3px);
+  transition: border-color 300ms, background 300ms, transform 300ms;
+}
+.slot.on { transform: translateY(-3px); }
+.slot .qr {
+  width: clamp(112px, 15vh, 168px); height: clamp(112px, 15vh, 168px);
+  display: grid; place-items: center; border-radius: 12px;
+}
+.slot .qr:not(:empty) { background: #fff; padding: 6px; }
+.slot .qr svg { width: 100%; height: 100%; display: block; }
+.slot .qr svg rect:first-child { fill: transparent; }
+.slot.on .qr { opacity: 0.25; }
+.slot[data-slot="p1"].on { border-color: #4cc2ff; background: #eaf7ff; }
+.slot[data-slot="p2"].on { border-color: #ff7ba8; background: #fff0f5; }
+.who { font-family: "Nunito", system-ui, sans-serif; font-size: clamp(19px, 2.6vh, 26px); font-weight: 700; }
+.slot[data-slot="p1"] .who { color: #1b6f9e; }
+.slot[data-slot="p2"] .who { color: #a63f65; }
+.pick { font-size: 12px; color: rgba(33,49,63,0.65); }
+.state { font-size: 10.5px; letter-spacing: 0.1em; color: rgba(33,49,63,0.4); margin-top: 3px; }
+.slot.on .state { color: #2a9d5c; font-weight: 700; letter-spacing: 0.22em; }
+
+@media (max-width: 720px) { .slots, .join { flex-direction: column; } }
+
+/* Browsers will not start audio outside a user gesture, and this game now
+   starts on its own the moment both phones are in — so if it is still muted
+   there has to be something on screen saying why. */
+#sound {
+  position: fixed; left: 50%; bottom: 3vh; transform: translateX(-50%);
+  padding: 7px 16px; font-size: 10.5px; letter-spacing: 0.2em; text-transform: uppercase;
+  color: #a35b00; background: rgba(255,255,255,0.8); border: 2px solid rgba(255,156,63,0.5);
+  border-radius: 999px; opacity: 0; visibility: hidden; pointer-events: none;
+  transition: opacity 350ms ease, visibility 350ms;
+}
+#sound.show { opacity: 1; visibility: visible; }
+
+/* ------------------------------------------------------- pickup notice --- */
+/* Down the side, never the middle: it has to be readable without taking your
+   eyes off your own character, and a banner across the centre would cover the
+   thing you are trying to jump onto. */
+.toast {
+  position: fixed;
+  top: 46%;
+  left: clamp(12px, 2.4vw, 34px);
+  width: clamp(148px, 17vw, 218px);
+  padding: 12px 14px;
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 2px solid var(--tc, #ffb84d);
+  box-shadow: 0 8px 22px rgba(33, 49, 63, 0.18), 0 0 26px -6px var(--tc, #ffb84d);
+  font-family: "Nunito", system-ui, sans-serif;
+  opacity: 0;
+  transform: translate(-14px, 0) scale(0.94);
+  transition: opacity 260ms ease, transform 380ms cubic-bezier(0.22, 1.3, 0.5, 1);
+  pointer-events: none;
+}
+.toast.right {
+  left: auto;
+  right: clamp(12px, 2.4vw, 34px);
+  transform: translate(14px, 0) scale(0.94);
+  text-align: right;
+}
+.toast.in { opacity: 1; transform: translate(0, 0) scale(1); }
+
+.toast .who {
+  font-size: 9.5px; letter-spacing: 0.22em; text-transform: uppercase;
+  color: rgba(33, 49, 63, 0.42);
+}
+.toast .nm {
+  display: flex; align-items: baseline; gap: 7px; margin: 2px 0 3px;
+  font-family: "Nunito", system-ui, sans-serif;
+  font-size: clamp(19px, 2.9vh, 27px); font-weight: 800; line-height: 1;
+  color: var(--tc, #ffb84d);
+}
+.toast.right .nm { flex-direction: row-reverse; }
+.toast .nm em { font-style: normal; font-size: 0.8em; }
+.toast .ds {
+  font-size: clamp(11px, 1.55vh, 13.5px); line-height: 1.45;
+  color: rgba(33, 49, 63, 0.72);
+}
+
+/* ----------------------------------------------------------- play here --- */
+/* Phones are the good way to play, but they are not the only way — two people
+   on one keyboard should not have to scan anything. */
+.orline {
+  display: flex; align-items: center; gap: 12px;
+  width: min(360px, 60vw); color: rgba(33,49,63,0.4); font-size: 11px;
+  letter-spacing: 0.22em; text-transform: uppercase;
+}
+.orline::before, .orline::after {
+  content: ""; flex: 1; height: 2px; border-radius: 2px;
+  background: rgba(33,49,63,0.14);
+}
+.local {
+  display: grid; gap: 4px; justify-items: center;
+  padding: 13px 26px; border-radius: 16px; font: inherit; color: #21313f;
+  font-family: "Nunito", system-ui, sans-serif;
+  font-size: clamp(15px, 2.1vh, 19px); font-weight: 700;
+  background: rgba(255,255,255,0.93); border: 3px solid rgba(33,49,63,0.08);
+  box-shadow: 0 10px 26px -10px rgba(33,49,63,0.4);
+  transition: transform 160ms, border-color 200ms;
+}
+.local:hover { transform: translateY(-2px); border-color: #ff9c3f; }
+.local small {
+  font-family: "Nunito", system-ui, sans-serif; font-weight: 600;
+  font-size: 11px; color: rgba(33,49,63,0.5); letter-spacing: 0.02em;
+}
+.local small b { color: rgba(33,49,63,0.78); font-weight: 700; letter-spacing: 0.08em; }
+
+/* ------------------------------------------------------- player panels --- */
+/* Along the bottom, the way a fighting game does it: your face, your health,
+   and every effect currently on you, in one place you already glance at. */
+#players {
+  position: fixed; left: 0; right: 0;
+  bottom: max(10px, env(safe-area-inset-bottom));
+  display: flex; justify-content: space-between;
+  padding: 0 clamp(10px, 2.2vw, 30px);
+  pointer-events: none; opacity: 0;
+  transition: opacity 400ms ease;
+}
+#players.on { opacity: 1; }
+
+.pcard {
+  display: flex; align-items: center; gap: clamp(6px, 0.9vw, 12px);
+  padding: clamp(6px, 0.9vh, 10px) clamp(10px, 1.2vw, 16px);
+  border-radius: 20px;
+  background: rgba(255,255,255,0.82);
+  border: 3px solid var(--pc, #4cc2ff);
+  box-shadow: 0 8px 22px -10px rgba(33,49,63,0.5);
+  backdrop-filter: blur(4px);
+  transition: border-color 250ms, background 250ms;
+}
+.pcard.right { flex-direction: row-reverse; }
+.pcard.out { opacity: 0.45; filter: grayscale(0.7); }
+
+/* No plate behind the portrait — the character sits straight on the card. */
+.pcard .face {
+  width: clamp(40px, 6.4vh, 62px); height: clamp(40px, 6.4vh, 62px);
+  flex: none;
+}
+.pinfo { display: grid; gap: 3px; }
+.pcard.right .pinfo { justify-items: end; }
+
+.pname {
+  font-family: "Nunito", system-ui, sans-serif; font-weight: 700;
+  font-size: clamp(13px, 1.9vh, 18px); line-height: 1; color: var(--pc, #1b6f9e);
+}
+.phearts { display: flex; gap: 3px; }
+.phearts svg { width: clamp(12px, 1.6vh, 16px); height: auto; display: block; }
+.phearts svg path { fill: #ff4d6d; }
+.phearts svg.off path { fill: rgba(33,49,63,0.16); stroke: rgba(33,49,63,0.3); stroke-width: 1.4; }
+/* A spare heart, earned past the three you start with. Gold, so it reads as
+   something extra rather than as one of the originals. */
+.phearts svg.bonus path { fill: #ffc43c; }
+.phearts svg.bonus { filter: drop-shadow(0 0 3px rgba(255,196,60,0.85)); }
+
+.pchips { display: flex; gap: 4px; min-height: clamp(16px, 2.2vh, 22px); }
+.pcard.right .pchips { flex-direction: row-reverse; }
+.chip {
+  position: relative; overflow: hidden;
+  display: flex; align-items: center; gap: 3px;
+  padding: 2px 7px; border-radius: 999px;
+  font-family: "Nunito", system-ui, sans-serif; font-weight: 700;
+  font-size: clamp(10px, 1.35vh, 13px); line-height: 1.35;
+  color: #fff; background: var(--cc, #888);
+  box-shadow: 0 2px 6px -2px var(--cc, #888);
+}
+/* The remaining time drains out of the chip itself. */
+.chip::after {
+  content: ""; position: absolute; inset: auto 0 0 0; height: 3px;
+  background: rgba(255,255,255,0.75);
+  width: var(--left, 100%);
+  transition: width 120ms linear;
+}
+/* the key to press, inside the chip */
+.chip em {
+  font-style: normal; display: inline-grid; place-items: center;
+  min-width: 15px; height: 15px; padding: 0 3px; margin-left: 2px;
+  border-radius: 4px; font-size: 10px; font-weight: 800;
+  color: rgba(0,0,0,0.6); background: rgba(255,255,255,0.92);
+}
+.chip.bad { animation: chipPulse 0.6s ease-in-out infinite; }
+@keyframes chipPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.08)} }
+
+/* Lobby only — see keysHtml() in screen.js. */
+#keysLobby {
+  padding: 12px 20px; border-radius: 16px;
+  background: rgba(255,255,255,0.86);
+  border: 3px solid rgba(33,49,63,0.08);
+  box-shadow: 0 10px 26px -12px rgba(33,49,63,0.4);
+}
+
+/* ----------------------------------------------------------- countdown --- */
+#count {
+  position: fixed; inset: 0;
+  display: grid; place-items: center;
+  pointer-events: none;
+  z-index: 40;
+}
+.count {
+  position: relative; display: grid; place-items: center;
+  width: clamp(150px, 26vh, 300px); height: clamp(150px, 26vh, 300px);
+}
+.count .num {
+  position: relative; z-index: 1;
+  font-family: "Nunito", system-ui, sans-serif; font-weight: 900;
+  font-size: clamp(90px, 22vh, 230px); line-height: 1; color: #fff;
+  text-shadow:
+    0 6px 0 rgba(33,49,63,0.22),
+    0 0 40px rgba(255,255,255,0.9),
+    0 0 90px rgba(76,194,255,0.7);
+  animation: countPop 640ms cubic-bezier(0.2, 1.5, 0.4, 1) both;
+}
+.count.go .num {
+  font-size: clamp(66px, 16vh, 168px); letter-spacing: 0.04em; color: #fff9d8;
+  text-shadow:
+    0 6px 0 rgba(180,110,0,0.28),
+    0 0 46px rgba(255,214,106,0.95),
+    0 0 110px rgba(255,156,63,0.8);
+  animation: countPop 520ms cubic-bezier(0.15, 1.7, 0.4, 1) both;
+}
+/* a shock ring thrown off each tick */
+.count .ring {
+  position: absolute; inset: 0; border-radius: 50%;
+  border: clamp(4px, 0.7vh, 8px) solid rgba(255,255,255,0.85);
+  animation: countRing 700ms ease-out both;
+}
+.count.go .ring { border-color: rgba(255,214,106,0.95); animation-duration: 560ms; }
+
+@keyframes countPop {
+  0%   { transform: scale(2.5) rotate(-6deg); opacity: 0; }
+  22%  { transform: scale(0.9) rotate(1deg);  opacity: 1; }
+  38%  { transform: scale(1.08) rotate(0deg); }
+  55%  { transform: scale(1); }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes countRing {
+  0%   { transform: scale(0.35); opacity: 0.9; }
+  70%  { opacity: 0.25; }
+  100% { transform: scale(2.3); opacity: 0; }
+}
