@@ -6,7 +6,7 @@
 // guest is handed the same list over the wire and draws it with this exact
 // code. Two implementations would have drifted the first time a chip changed.
 
-import { PLAYERS, FEEL } from "./config.js";
+import { PLAYERS, FEEL, COINS, DIWATA, POWERUPS, GLYPH, SQUAD, HELPER } from "./config.js";
 import { charById } from "./characters.js";
 
 const HEART_SVG =
@@ -101,3 +101,111 @@ export const unpackChips = (list) =>
   (list || []).map(([label, colour, pct, bad, bump]) => ({
     label, colour, pct, bad: !!bad, bump: !!bump,
   }));
+
+
+/* ------------------------------------------------------------- the chips --- */
+
+/** Only shown to a player on a keyboard; a phone has a button for it. */
+const SHOOT_KEY = { p1: "F", p2: "Shift" };
+
+export function chipsFor(a, G, pads) {
+  const out = [];
+  if (!a) return out;
+
+  // Progress toward the next reward, always first so it sits in one place.
+  // `bump` makes the chip jump on the frame the count changes — the number
+  // alone is too quiet to notice while you are looking at your character.
+  out.push({
+    // A gem, matching what is actually lying on the platforms.
+    label: `\u25c6 ${a.coins || 0}/${COINS.perReward}`,
+    colour: COINS.colour,
+    pct: ((a.coins || 0) / COINS.perReward) * 100,
+    bad: false,
+    bump: a.glowUntil && G.time < a.glowUntil && a.glowColour === COINS.colour,
+  });
+
+  if (a.fairy && !a.fairy.leaving) {
+    const wait = Math.max(0, a.fairy.next - G.time);
+    out.push({
+      label: `\u271a ${a.fairy.left}`,
+      colour: DIWATA.colour,
+      pct: 100 - (wait / (DIWATA.everyMs / 1000)) * 100,
+      bad: false,
+    });
+  }
+
+  if (a.power) {
+    const def = POWERUPS[a.power.type];
+    const dur = def.ms ? def.ms / 1000 : 0;
+    const left = a.power.until === Infinity ? 1 : Math.max(0, a.power.until - G.time);
+    const pct = dur ? Math.max(0, Math.min(100, (left / dur) * 100)) : 100;
+    let label;
+    if (a.power.type === "baril" || a.power.type === "suntok") {
+      // Show the key only to a player who is actually on the keyboard; on a
+      // phone there is a button for it.
+      const key = pads[a.id] && !pads[a.id].connected ? ` <em>${SHOOT_KEY[a.id]}</em>` : "";
+      label = `${GLYPH[a.power.type]} ${a.power.ammo}${key}`;
+    } else {
+      label = `${GLYPH[a.power.type]} ${def.name}`;
+    }
+    out.push({ label, colour: def.colour, pct, bad: false });
+  }
+  if (a.frozenUntil && G.time < a.frozenUntil) {
+    const left = a.frozenUntil - G.time;
+    out.push({
+      label: `${GLYPH.yelo} frozen`,
+      colour: POWERUPS.yelo.colour,
+      pct: (left / (POWERUPS.yelo.freezeMs / 1000)) * 100,
+      bad: true,
+    });
+  }
+  if (a.reversedUntil && G.time < a.reversedUntil) {
+    const left = a.reversedUntil - G.time;
+    out.push({
+      label: `${GLYPH.baliktad} reversed`,
+      colour: POWERUPS.baliktad.colour,
+      pct: (left / (POWERUPS.baliktad.reverseMs / 1000)) * 100,
+      bad: true,
+    });
+  }
+
+  // Things that are yours but are not held IN your hands. They were doing
+  // real work on the field with nothing in the panel to say so.
+  const squad = G.minis.filter((m) => m.owner === a.id && !m.leaving).length;
+  if (squad) {
+    out.push({
+      label: `\u2022\u2022\u2022 ${squad}`,
+      colour: SQUAD.colour,
+      pct: 100,
+      bad: false,
+    });
+  }
+
+  const mine = G.helpers.filter((h) => h.ally === a.id && !h.bad && !h.leaving);
+  if (mine.length) {
+    // The longest-lived one drives the bar; the count says how many are out,
+    // because two Dudus hunting is very different from one and the panel is
+    // the only place that can say so.
+    const left = Math.max(...mine.map((h) => Math.max(0, h.until - G.time)));
+    out.push({
+      label: mine.length > 1 ? `\ud83d\udc3b Dudu \u00d7${mine.length}` : "\ud83d\udc3b Dudu",
+      colour: "#ffb84d",
+      pct: Math.min(100, (left / (HELPER.huntMs / 1000)) * 100),
+      bad: false,
+    });
+  }
+
+  // The grace after a hit. Knowing you cannot be touched for another second
+  // is the difference between backing off and going straight back in.
+  if (a.invulnUntil && G.time < a.invulnUntil) {
+    const left = a.invulnUntil - G.time;
+    out.push({
+      label: "\u2727 safe",
+      colour: "#9fd8ff",
+      pct: Math.min(100, (left / (FEEL.hurtInvulnMs / 1000)) * 100),
+      bad: false,
+    });
+  }
+
+  return out;
+}

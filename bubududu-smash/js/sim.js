@@ -1918,6 +1918,112 @@ function simulate(dt) {
   pendingShot.p2 = false;
 }
 
+export function applyCorrection(view, rngAt, hostPhase) {
+  if (!G || !view) return;
+
+  /* Catch up if the host has already started playing.
+   *
+   * The round start is announced, so both countdowns normally run together —
+   * but if that one message is late or lost, this side is left counting down
+   * against a round that is already happening, being dragged about by
+   * corrections it cannot act on. Which is precisely "it shakes and the intro
+   * never starts". Skip to the end of the count and join in.
+   */
+  /* The phase is the host's, FULL STOP — including out of the countdown.
+   *
+   * This used to set `countdown = 0` and leave the frame loop to notice.
+   * That works only while the frame loop is running, and if it is not — a
+   * thrown frame, a tab the browser has throttled, a hitch during startup —
+   * the round is stuck in a countdown that can never tick, wearing a card
+   * whose entry animation is frozen at nought per cent, which is an empty
+   * ring and a banner that never goes away. Nothing recovers from that,
+   * because the one thing that could is the thing that has stopped.
+   *
+   * Taking the phase directly means the network can always drag this side
+   * back into the round on its own.
+   */
+  if (view.score) { score.p1 = view.score.p1; score.p2 = view.score.p2; }
+  if (view.roundNo) roundNo = view.roundNo;
+  if (hostPhase && hostPhase !== phase) {
+    phase = hostPhase;
+    if (phase !== "countdown") {
+      countdown = 0;
+      fx.count(null);
+      if (phase === "play") fx.banner(null);
+    }
+  }
+
+  for (const a of G.actors) {
+    const t = view.actors.find((o) => o.id === a.id);
+    if (!t) continue;
+
+    // Anything the RULES decide is taken as given, always: the host is the
+    // authority on who got hit and who is holding what.
+    a.hp = t.hp;
+    a.dead = t.dead;
+    a.respawn = t.respawn;
+    a.coins = t.coins;
+
+    /* Position is different, and YOUR OWN body is different again.
+     *
+     * The host's copy of you is a round trip old — it has not seen the last
+     * few frames of your thumbs yet. Easing onto it every correction drags
+     * you backwards thirty times a second against your own input, which is
+     * exactly the shake: you press right, you move right, and something keeps
+     * tugging you left. So your own body is left alone unless the gap is big
+     * enough to mean something real happened that you have not simulated —
+     * a stomp, a throw, a respawn — and those arrive as `dead` anyway.
+     *
+     * The other player is the opposite case: he is simulated here from his
+     * inputs, nothing local owns him, and the host's copy is simply better.
+     */
+    const mine = a.id === "p2";
+    const gap = Math.hypot(t.x - a.x, t.y - a.y);
+    if (t.dead || gap > (mine ? CORRECT_MINE : CORRECT_SNAP)) {
+      a.x = t.x; a.y = t.y; a.vx = t.vx; a.vy = t.vy;
+    } else if (!mine) {
+      a.x += (t.x - a.x) * CORRECT_EASE;
+      a.y += (t.y - a.y) * CORRECT_EASE;
+      a.vx += (t.vx - a.vx) * CORRECT_EASE;
+      a.vy += (t.vy - a.vy) * CORRECT_EASE;
+    }
+  }
+  /* Everything that is NOT a player is taken outright.
+   *
+   * Power-ups, coins, Dudu, the squad, the fairy, bullets, debris: the guest
+   * no longer simulates any of it, so there is nothing local to preserve and
+   * nothing to blend. Thirty times a second it is simply told, and it is
+   * cheap — this is the list that was already being sent.
+   */
+  G.powers = view.powers;
+  G.coins = view.coins;
+  G.shots = view.shots;
+  G.bursts = view.bursts;
+  G.pops = view.pops;
+  G.lostHearts = view.lostHearts;
+  G.minis = view.minis;
+  G.helpers = view.helpers;
+  G.wildFairy = view.wildFairy;
+  // The clock too, so anything timed off it — a power-up running out, the
+  // grace after a hit, Dudu's fifteen seconds — counts down in step.
+  G.time = view.time;
+
+  /* The floor, when the host sends it.
+   *
+   * The arena eats itself inward all round, off each side's own accumulated
+   * dt, so the two can end up one tile apart — and one tile of floor is the
+   * difference between standing and falling. Rows only ride the keyframes,
+   * which is often enough.
+   */
+  if (view.grid && view.grid.rows && G.grid.rows.length === view.grid.rows.length) {
+    G.grid.rows = view.grid.rows;
+  }
+
+  // And rejoin the host's place in the random stream, so the next thing that
+  // is decided is decided the same way on both phones.
+  if (rngAt) setRngState(rngAt);
+}
+
 /* ----------------------------------------------------------------- tick --- */
 
 /**

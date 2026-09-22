@@ -60,6 +60,21 @@ function say(msg) {
 
 function begin() {
   document.body.dataset.role = role;
+
+  /* The server build.
+   *
+   * `?net=server` puts both phones on a real authoritative server, as equal
+   * clients — nobody hosts. The peer-to-peer path below stays as it is while
+   * this is proved out, so there is always something that works to fall back
+   * to; it is a query parameter rather than a rewrite for exactly that
+   * reason.
+   */
+  if (params.get("net") === "server") {
+    wait.querySelector(".who").classList.add("gone");
+    import("./netclient.js").then((net) => net.connect({ role, say }));
+    return;
+  }
+
   wait.querySelector(".who").classList.add("gone");
   say(role === "p1" ? "opening the room…" : "looking for Charlie…");
   armAudio();
