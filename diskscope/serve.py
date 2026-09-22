@@ -819,6 +819,15 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if path.startswith("/thumb/"):
             return self._thumb(path)
 
+        # A nameplate, deliberately outside the token gate. The Dock launcher
+        # needs to tell "port 8770 is busy" from "diskscope is already there",
+        # and a bare port probe cannot: a stranger on the port used to mean the
+        # app opened someone else's server with diskscope's token and showed a
+        # flat "bad token". It says nothing a caller on this machine, past the
+        # host guard, does not already know.
+        if path == "/whoami":
+            return self._send(200, {"app": "diskscope", "root": self.root})
+
         if path.startswith("/api/"):
             if not self._authed(query):
                 return self._send(401, {"error": "bad token"})
@@ -1446,6 +1455,7 @@ class Server(socketserver.ThreadingMixIn, http.server.HTTPServer):
 # --------------------------------------------------------------------------- #
 
 TOKEN_FILE = os.path.join(CACHE_DIR, "token")
+PORT_FILE = os.path.join(CACHE_DIR, "port")
 
 
 def _token(fresh=False):
@@ -1474,6 +1484,34 @@ def _token(fresh=False):
     except OSError:
         pass        # a token that only lives in memory still works for this run
     return token
+
+
+def _listen(preferred, span=12):
+    """Bind the preferred port, or the next free one after it.
+
+    8770 is not diskscope's alone in practice, and losing it used to be a
+    silent failure rather than a loud one: the launcher saw the port answering,
+    assumed it was diskscope, and opened a stranger's page. Taking the next
+    free port keeps a launch working, and the port file is how the launcher
+    learns which one it got.
+    """
+    last = None
+    for port in range(preferred, preferred + span):
+        try:
+            httpd = Server(("127.0.0.1", port), Handler)
+        except OSError as exc:
+            last = exc
+            continue
+        if port != preferred:
+            print("  note   %d was taken, using %d" % (preferred, port))
+        try:
+            os.makedirs(CACHE_DIR, exist_ok=True)
+            with open(PORT_FILE, "w", encoding="utf-8") as fh:
+                fh.write(str(port))
+        except OSError:
+            pass    # the URL is printed above either way
+        return httpd
+    sys.exit("no free port in %d-%d (%s)" % (preferred, preferred + span - 1, last))
 
 
 def _host_app():
@@ -1530,8 +1568,9 @@ def main():
     Handler.root = root
     Handler.verbose = args.verbose
 
-    httpd = Server(("127.0.0.1", args.port), Handler)
-    url = "http://127.0.0.1:%d/?token=%s" % (args.port, token)
+    httpd = _listen(args.port)
+    port = httpd.server_address[1]
+    url = "http://127.0.0.1:%d/?token=%s" % (port, token)
 
     print("\n  diskscope")
     print("  root   %s" % root)
@@ -1551,6 +1590,11 @@ def main():
     except KeyboardInterrupt:
         print("\n  bye\n")
         httpd.shutdown()
+    finally:
+        try:
+            os.remove(PORT_FILE)
+        except OSError:
+            pass
 
 
 if __name__ == "__main__":

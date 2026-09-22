@@ -40,6 +40,16 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleExecutable</key>        <string>diskscope</string>
   <key>CFBundleIconFile</key>          <string>diskscope</string>
   <key>NSHighResolutionCapable</key>   <true/>
+  <!-- A script-based bundle has no Mach-O header to read an architecture from,
+       and LaunchServices will happily start one under Rosetta. /usr/bin/python3
+       is an xcrun shim with only a native half, so a translated launch died on
+       "missing compatible architecture" before the server ever bound. -->
+  <key>LSArchitecturePriority</key>
+  <array>
+    <string>arm64</string>
+    <string>x86_64</string>
+  </array>
+  <key>LSRequiresNativeExecution</key>  <true/>
 </dict>
 </plist>
 PLIST
@@ -53,29 +63,57 @@ ROOT="$HERE"
 PORT="$PORT"
 LAUNCH
 cat >> "$APP/Contents/MacOS/diskscope" <<'LAUNCH'
+# Even with the plist keys, a bundle can be handed to us translated — an
+# inherited Rosetta environment, an older LaunchServices record. python3 here
+# is native-only, so a translated run has nothing to exec. Come back as
+# ourselves rather than failing into an empty Dock icon.
+if [ "$(/usr/sbin/sysctl -n sysctl.proc_translated 2>/dev/null)" = "1" ]; then
+  exec /usr/bin/arch -arm64 "$0" "$@"
+fi
+
 cd "$ROOT" || exit 1
 
-TOKEN_FILE="$HOME/Library/Caches/diskscope/token"
+CACHE="$HOME/Library/Caches/diskscope"
+TOKEN_FILE="$CACHE/token"
+PORT_FILE="$CACHE/port"
 log="$HOME/Library/Logs/diskscope.log"
 mkdir -p "$(dirname "$log")"
 
-open_ui() {
-  # Wait for the token file and the port, then open. The token survives
-  # restarts, so a window opened now stays valid across relaunches.
-  for _ in $(seq 1 60); do
-    if [ -s "$TOKEN_FILE" ] && /usr/bin/nc -z 127.0.0.1 "$PORT" 2>/dev/null; then
-      url="http://127.0.0.1:$PORT/?token=$(cat "$TOKEN_FILE")"
-      # An app window: no tabs, no address bar, no swipe-to-go-back.
-      for chrome in \
-        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
-        "/Applications/Chromium.app/Contents/MacOS/Chromium"; do
-        if [ -x "$chrome" ]; then
-          "$chrome" --app="$url" >/dev/null 2>&1 &
-          return
-        fi
-      done
-      /usr/bin/open "$url"
+# Is it diskscope on that port, or merely something? A bare `nc -z` cannot
+# tell, and the difference is the whole bug this replaced: another local
+# server on 8770 meant the Dock icon opened its page carrying diskscope's
+# token, and the window read "bad token" with nothing to click.
+is_diskscope() {
+  [ -n "$1" ] || return 1
+  /usr/bin/curl -fsS --max-time 1 "http://127.0.0.1:$1/whoami" 2>/dev/null \
+    | /usr/bin/grep -q '"diskscope"'
+}
+
+open_at() {
+  url="http://127.0.0.1:$1/?token=$(cat "$TOKEN_FILE")"
+  # An app window: no tabs, no address bar, no swipe-to-go-back.
+  for chrome in \
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+    "/Applications/Chromium.app/Contents/MacOS/Chromium"; do
+    if [ -x "$chrome" ]; then
+      "$chrome" --app="$url" >/dev/null 2>&1 &
       return
+    fi
+  done
+  /usr/bin/open "$url"
+}
+
+open_ui() {
+  # Wait for the server to say which port it actually got — it walks up when
+  # the preferred one is taken — then open that. The token survives restarts,
+  # so a window opened now stays valid across relaunches.
+  for _ in $(seq 1 120); do
+    if [ -s "$TOKEN_FILE" ] && [ -s "$PORT_FILE" ]; then
+      port="$(cat "$PORT_FILE")"
+      if is_diskscope "$port"; then
+        open_at "$port"
+        return
+      fi
     fi
     sleep 0.25
   done
@@ -83,8 +121,10 @@ open_ui() {
 
 # Already running? Just bring up a window and get out of the way, rather than
 # fighting the live server for the port.
-if /usr/bin/nc -z 127.0.0.1 "$PORT" 2>/dev/null; then
-  open_ui
+running="$PORT"
+[ -s "$PORT_FILE" ] && running="$(cat "$PORT_FILE")"
+if is_diskscope "$running"; then
+  open_at "$running"
   exit 0
 fi
 
