@@ -2059,6 +2059,26 @@ function drawActor(r, ctx, g, a) {
   ctx.save();
   if (safe) ctx.globalAlpha = 0.55 + 0.35 * Math.abs(Math.sin(g.time * 13));
 
+  /* Whose character this is, traced right around them.
+   *
+   * Dudu and the mini Bubus already wear their owner's colour, and on a
+   * shared screen the players needed it more than the helpers do: two small
+   * animals of similar size, and half the time you are looking at the one
+   * that is about to land on you rather than the one you are driving. The
+   * blue one is Charlie and the pink one is Karla, every round, whichever
+   * character they picked.
+   *
+   * Under the character, not over it, so it is a rim and not a coat of paint.
+   * The star skips it — it is already cycling through the whole spectrum and
+   * an outline just muddies that.
+   */
+  const mine = ownerColour(a.id);
+  if (mine && !starred && !a.dead) {
+    const pose = poseOf(a);
+    stampOutline(r, ctx, mine, px, py, cw, chh, z * 0.055,
+      (b, bx, by) => charById(a.char).draw(b, bx, by, cw, chh, pose));
+  }
+
   if (starred) {
     // Cycle the whole character through the spectrum, faster as it runs out.
     const left = a.power.until - g.time;
