@@ -13,6 +13,7 @@
 // internet on every single tick.
 
 import { PLAYERS } from "./config.js";
+import { charById } from "./characters.js";
 import { poseOf } from "./physics.js";
 
 const r2 = (n) => Math.round(n * 100) / 100;
@@ -57,7 +58,11 @@ function unpackActor(v, now) {
   return {
     id, char, x, y, vx, vy, face, walk, squash, t,
     grounded: !!grounded, hp, dead: !!dead, respawn, w, h,
-    stats: {},                       // pose only needs stride, which sprites default
+    // The REAL stats for this character, looked up rather than sent: they are
+    // per-character constants both sides already have, and the guest predicts
+    // its own movement with them. An empty object here is what made that
+    // prediction produce NaN.
+    stats: { ...(charById(char).stats || {}) },
     tint: p ? p.colour : "#fff",
     label: p ? p.name : id,
     power: ptype ? { type: ptype, ammo, until: puntil < 0 ? Infinity : now + puntil } : null,
@@ -141,9 +146,22 @@ export function snapshot(G, extra = {}) {
 /** Rebuild something render.js is happy to draw. */
 export function hydrate(s) {
   const now = s.t;
-  // Tolerates the old single-object shape as well as the list, so a phone
-  // running a cached build does not black-screen on the first snapshot.
-  const rows = Array.isArray(s.he) && Array.isArray(s.he[0]) ? s.he : s.he ? [s.he] : [];
+  /* Helpers: a list now, but tolerate the old single packed helper so a phone
+   * running a cached build does not black-screen on its first snapshot.
+   *
+   * The discriminator has to look TWO deep. Both shapes have an array at [0]
+   * — the old one's is the packed body, the new one's is a whole packed
+   * helper — so `Array.isArray(he[0])` says nothing. And the empty case is
+   * the one that actually bit: `[] ? [[]] : []` takes the truthy branch,
+   * because an empty array is truthy, so NO helpers on the field became ONE
+   * helper made of nothing and hydrate threw on it. That is every snapshot in
+   * which no Dudu happens to be out, which is most of them — and a throw here
+   * means the guest never applies the frame at all. */
+  const he = s.he;
+  const rows =
+    !he || !he.length ? []
+    : Array.isArray(he[0]) && Array.isArray(he[0][0]) ? he
+    : [he];
   const helpers = rows.map((v) => ({
     actor: unpackBody(v[0]),
     ally: v[1] || null,

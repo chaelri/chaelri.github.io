@@ -107,9 +107,20 @@ export function stepActor(a, input, level, dt, others = [], opts = {}) {
   if (launched) a.launchFor -= dt;
 
   // Horizontal: accelerate toward the target, or brake toward zero.
-  const st = a.stats || { jump: 1, speed: 1, accel: 1 };
-  const topSpeed = FEEL.runSpeed * st.speed * (a.speedMul || 1);
-  const accel = (a.grounded ? FEEL.groundAccel : FEEL.airAccel) * st.accel;
+  /* Per-KEY defaults, not "only if stats is missing entirely".
+   *
+   * `a.stats || {...}` looks like it covers the gap and does not: an empty
+   * object is truthy, so `st.speed` came back undefined and `topSpeed` became
+   * NaN — which spread to vx, then to x, then to the camera that frames the
+   * actors, and blanked everything on screen that is positioned through it.
+   * The sky kept painting, because it is the only thing that does not go
+   * through the camera. That is exactly what the guest phone was doing the
+   * first time its player pressed left or right. */
+  const st = a.stats || {};
+  const speed = st.speed ?? 1;
+  const accelMul = st.accel ?? 1;
+  const topSpeed = FEEL.runSpeed * speed * (a.speedMul || 1);
+  const accel = (a.grounded ? FEEL.groundAccel : FEEL.airAccel) * accelMul;
   const friction = a.grounded ? FEEL.groundFriction : FEEL.airFriction;
   if (launched) {
     // carried by whatever put them here
@@ -132,7 +143,7 @@ export function stepActor(a, input, level, dt, others = [], opts = {}) {
   a.buffer = launched ? 0 : input.jumpDown ? FEEL.bufferMs / 1000 : Math.max(0, a.buffer - dt);
 
   if (a.buffer > 0 && a.coyote > 0) {
-    a.vy = JUMP_VELOCITY * st.jump * (a.jumpMul || 1);
+    a.vy = JUMP_VELOCITY * (st.jump ?? 1) * (a.jumpMul || 1);
     a.buffer = 0;
     a.coyote = 0;
     a.grounded = false;

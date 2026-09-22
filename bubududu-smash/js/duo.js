@@ -185,7 +185,21 @@ function guestSide() {
     got.bytes = JSON.stringify(m).length;
     got.actors = m.a.length;
 
-    const view = hydrate(m);
+    /* A snapshot that cannot be read is skipped, not fatal.
+     *
+     * hydrate() throwing here used to take the whole frame with it: prev and
+     * next were never updated, so the guest sat on its last good picture — or
+     * on nothing at all — with no error anywhere the player could see. One
+     * malformed field should cost one frame. */
+    let view;
+    try {
+      view = hydrate(m);
+    } catch (err) {
+      got.bad = (got.bad || 0) + 1;
+      got.lastError = String(err && err.message ? err.message : err);
+      console.warn("[bubu-dudu-smash] unreadable snapshot, skipped", err);
+      return;
+    }
     grid = view.grid;
     prev = next || view; prevAt = nextAt || performance.now();
     next = view;         nextAt = performance.now();
@@ -291,6 +305,22 @@ function guestSide() {
     const span = Math.max(1, nextAt - prevAt);
     const t = Math.min(1, Math.max(0, (now - LERP_BACK_MS - prevAt) / span));
     const view = prev && prev !== next ? tween(prev, next, t) : next;
+
+    /* Belt and braces: never let a bad number out of prediction.
+     *
+     * The host has catchLostActors() for exactly this and the guest had
+     * nothing. One NaN in the predicted position reaches updateCamera, which
+     * frames on the actors — and from there every single thing drawn through
+     * the camera disappears, permanently, with the sky still painting behind
+     * it because the sky is the one thing that does not use it. Dropping back
+     * to the host's copy costs a frame of prediction and cannot strand you
+     * looking at an empty screen. */
+    if (me && !(Number.isFinite(me.x) && Number.isFinite(me.y) &&
+                Number.isFinite(me.vx) && Number.isFinite(me.vy))) {
+      const server = next.actors.find((a) => a.id === "p2");
+      console.warn("[bubu-dudu-smash] prediction left the numbers behind, recovering");
+      me = server ? { ...server } : null;
+    }
 
     // You: simulated here and now, from your own thumbs.
     if (me && grid && !me.dead) {

@@ -216,6 +216,62 @@ try {
   else if (pulsing !== 1) fail('panel', `${pulsing} chips marked bad, expected 1`);
   else log.push(`panel     ok — ${drawn} chips + ${hearts} hearts, round-tripped through the wire`);
 
+  /* ------------------------------------------------------------ the wire --- */
+  // The guest phone sees ONLY what survives snapshot() -> hydrate(). Nothing
+  // above this line touches that path, which is how a crash in it shipped:
+  // an empty helpers list is truthy, so "no Dudu on the field" was rebuilt as
+  // one helper made of nothing and hydrate threw — on most frames of most
+  // rounds. A throw there means the guest applies no frame at all.
+  const net = await import('./js/netstate.js');
+  {
+    const bad = [];
+    const mkBody = (id, x) => { const a = makeActor(x, 10, id); a.char = id === 'dudu' ? 'dudu' : 'bubu'; a.hp = 3; return a; };
+    const scene = (helpers, minis) => ({
+      time: 3, level: g.level, grid: g.grid, actors: [mkBody('p1', 10), mkBody('p2', 20)],
+      powers: [], coins: [], shots: [], bursts: [], pops: [], lostHearts: [],
+      minis, helpers, wildFairy: null,
+    });
+    const H = (a) => ({ actor: a, ally: 'p1', bad: false, leaving: false, wave: 0,
+                        locked: false, waiting: false, until: 9, betrayAt: null,
+                        thrown: false, victim: null });
+    const M = (a) => ({ actor: a, owner: 'p1', home: a.x, until: 9, jumpAt: 0, leaving: false, wave: 0 });
+
+    for (const [name, helpers, minis] of [
+      ['no helpers, no minis', [], []],
+      ['one helper',           [H(mkBody('dudu', 14))], []],
+      ['two helpers',          [H(mkBody('dudu', 14)), H(mkBody('dudu', 30))], []],
+      ['minis only',           [], [M(mkBody('bubu', 26))]],
+    ]) {
+      try {
+        const out = net.hydrate(net.snapshot(scene(helpers, minis)));
+        if (out.helpers.length !== helpers.length)
+          bad.push(`${name}: ${out.helpers.length} helpers back, sent ${helpers.length}`);
+        if (out.minis.length !== minis.length)
+          bad.push(`${name}: ${out.minis.length} minis back, sent ${minis.length}`);
+        // Stats have to survive: the guest predicts its own movement with
+        // them, and an EMPTY stats object is truthy, so physics' own fallback
+        // never fires and the first step produces NaN.
+        for (const a of out.actors) {
+          if (!a.stats || typeof a.stats.speed !== 'number')
+            bad.push(`${name}: ${a.id} came back with no usable stats`);
+        }
+      } catch (e) {
+        bad.push(`${name}: threw — ${e && e.message}`);
+      }
+    }
+
+    // ...and the prediction the guest actually runs on what it was handed.
+    const me = net.hydrate(net.snapshot(scene([], []))).actors[1];
+    for (let i = 0; i < 12; i++)
+      stepActor(me, { left: false, right: true, jumpDown: false, jumpHeld: false, dropDown: false },
+                g.grid, 1/60, [], {});
+    if (!Number.isFinite(me.x) || !Number.isFinite(me.vx))
+      bad.push(`prediction went non-finite on the first press: x=${me.x} vx=${me.vx}`);
+
+    if (bad.length) for (const b of bad) fail('wire', b);
+    else log.push(`wire      ok — snapshot round-trips, and prediction stays finite`);
+  }
+
   /* ---- the whole point: layers that failed quietly are failures anyway ---- */
   const bad = faults();
   if (bad.length) for (const f of bad) fail('draw layer', f);
