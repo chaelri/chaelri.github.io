@@ -11,7 +11,7 @@ export const FIREBASE_CONFIG = {
   projectId: "test-database-55379",
 };
 
-export const DB_ROOT = "talon";
+export const DB_ROOT = "bubududu-smash";
 export const ICE_SERVERS = [{ urls: "stun:stun.l.google.com:19302" }];
 export const P2P_TIMEOUT_MS = 6000;
 export const INPUT_HZ = 50;

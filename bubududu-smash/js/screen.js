@@ -312,7 +312,7 @@ function catchLostActors() {
     const a = G.actors[i];
     if (Number.isFinite(a.x) && Number.isFinite(a.y) &&
         Number.isFinite(a.vx) && Number.isFinite(a.vy)) continue;
-    console.warn("[talon] actor left the numbers behind, recovering", a.id, {
+    console.warn("[bubu-dudu-smash] actor left the numbers behind, recovering", a.id, {
       x: a.x, y: a.y, vx: a.vx, vy: a.vy, launchFor: a.launchFor,
     });
     const at = safeSpawn(i);
@@ -2012,15 +2012,15 @@ let starting = false;
 // Under ?solo the live round is hung on window for inspection. Versus rules
 // are hard to exercise any other way without two phones in the room.
 if (SOLO) {
-  window.__talon = () => ({ phase, mode, G, score, roundNo, kill: renderer.kill });
-  window.__talonStep = (dt, n = 1) => {
+  window.__smash = () => ({ phase, mode, G, score, roundNo, kill: renderer.kill });
+  window.__smashStep = (dt, n = 1) => {
     for (let i = 0; i < n; i++) advance(dt);
     return { phase, time: G && G.time };
   };
-  window.__talonInput = (id, patch) => Object.assign(pads[id], patch);
-  window.__talonPacket = (role, pkt) => { applyPacket(role, pkt); return { ...pads[role] }; };
-  window.__talonJump = (id) => (pendingJump[id] = true);
-  window.__talonShoot = (id) => (pendingShot[id] = true);
+  window.__smashInput = (id, patch) => Object.assign(pads[id], patch);
+  window.__smashPacket = (role, pkt) => { applyPacket(role, pkt); return { ...pads[role] }; };
+  window.__smashJump = (id) => (pendingJump[id] = true);
+  window.__smashShoot = (id) => (pendingShot[id] = true);
 }
 
 $("#localBtn")?.addEventListener("click", () => {
@@ -2044,7 +2044,7 @@ $("#localBtn")?.addEventListener("click", () => {
  * game here for a day, so a stale one cannot be inherited forever.
  */
 function keepCode() {
-  const KEY = "bubudududsmash.room";
+  const KEY = "bubududu-smash.room";
   const DAY = 24 * 60 * 60 * 1000;
   try {
     const saved = JSON.parse(localStorage.getItem(KEY) || "null");

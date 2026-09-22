@@ -90,23 +90,26 @@ Photo-first food log for Charlie & Karla — snap the plate, Gemini reads it, an
   - **`_selftest.html`** steps all three levels 420 frames each and prints errors + per-phase timings; title reads `SELFTEST OK`/`FAIL` so it greps from headless Chrome. The real game cannot be screenshotted headlessly — its rAF loop never lets `--virtual-time-budget` expire, which is why the harness exists.
 - **Full docs:** See `knowledge/ilaw/SUMMARY.md` and `ilaw/README.md`.
 
-### talon/  🟢
+### bubududu-smash/  🟢
 
-**Tapakan** — local-WiFi versus platformer for Charlie + Karla. The MacBook is the shared screen and owns the whole simulation; the two iPhones are controllers. One shrinking arena, land on their head before they land on yours, first to 3 rounds. Built 2026-09-22, after `ilaw/` was set aside.
+**BUBU DUDU SMASH** — local-WiFi versus platformer for Charlie + Karla. The MacBook is the shared screen and owns the whole simulation; the two iPhones are controllers. One shrinking arena, land on their head before they land on yours, first to 3 rounds. Built 2026-09-22.
 
 - **Tech:** vanilla ES modules (no build), Canvas 2D, hand-written CSS, Nunito. WebRTC data channel for input, Firebase RTDB for signalling only. CC0 sample audio in `audio/` (see `audio/CREDITS.md`).
-- **Entry:** `index.html` (screen), `phone/index.html` (controller), `js/screen.js` (rules, AI, HUD — the big one), `js/render.js`, `js/physics.js`, `js/levels.js`, `js/characters.js`, `js/config.js` (all tuning), `js/net.js`, `js/audio.js`.
-- **Deploy:** GitHub Pages at `/talon/`, controller at `/talon/phone/`. **Not linked from the root hub page** — same posture as `ilaw/`, `kain/` and `mac-toggle/`; the QR is the only gate.
-- **Joining:** each player's QR carries room + role + character, so scanning IS the join — no typing, no picking. Both in = the match starts itself. `?solo=1` skips the lobby and exposes `__talon()` for inspection; PC mode is Charlie WASD+F, Karla arrows+Shift.
+- **Entry:** `index.html` (screen), `phone/index.html` (controller), `js/screen.js` (rules, AI, HUD — the big one), `js/render.js`, `js/physics.js`, `js/levels.js`, `js/characters.js`, `js/config.js` (all tuning), `js/net.js`, `js/audio.js`, `_selftest.html`.
+- **Deploy:** GitHub Pages at `/bubududu-smash/`, controller at `/bubududu-smash/phone/`. **Not linked from the root hub page** — same posture as `ilaw/`, `kain/` and `mac-toggle/`; the QR is the only gate.
+- **Joining:** each player's QR carries room + role + character, so scanning IS the join — no typing, no picking. Both in = the match starts itself. The room code is kept in `localStorage`, so reloading the screen does NOT invalidate a QR already scanned. `?solo=1` skips the lobby and exposes `__smash()`; PC mode is Charlie WASD+F, Karla arrows+Shift.
+- **The round:** three hearts (`lunas` takes you to 5, the fairy to 6), nine spawnable power-ups, coins on the platforms, and up to three NPCs.
 - **Quirks:**
-  - **The arena is generated per round**, authored as a LEFT HALF and mirrored — taking a run's midpoint after mirroring gives an off-by-one on even lengths, which puts a power-up one tile nearer one player. Every arena goes through the same `validate()` as the authored map, so an unreachable tier or a spawn over a hole is redrawn, not played. 500/500 generate clean.
-  - **Two-tile steps are the whole level grammar.** The first arena stacked platforms at 3/5/7/9 tiles against a 3.43-tile jump: five of seven were unreachable.
-  - **`TouchEvent.touches` is the controller's only source of truth.** Tracking pointerdown/up pairs desyncs on iOS and leaves a direction jammed on, which reads as "left does nothing" because left and right cancel.
-  - **Ten power-ups**, two of which act on the OTHER player (`yelo`, `baliktad`) and are spent on pickup. `suntok` is three punches and each one is an instant kill; `tatlo` spawns three capped mini-Bubus.
-  - **Dudu's hunt clock stops while his target is untouchable** (i-frames, star, shield) — otherwise he spent his window bouncing off someone he could not hurt. 45s hard ceiling so chained immunity can't keep him forever.
-  - **Deaths run a kill cam** that abandons the two-player framing rule. A falling death clamps its focus back inside the level, or the camera chases into empty sky and the level clamp silently cancels the move. The match-winning kill never hands the camera back.
-  - **Glyphs live in two tables** — `GLYPHS` in `screen.js` (toasts, chips) and `GLYPH` in `render.js` (the orbs). Adding a power-up to one and not the other renders a `?` on the pickup.
-  - Health starts at 3 and `lunas` can take it to 5; the spare hearts are gold and only drawn once earned.
+  - **`_selftest.html` must be able to see SWALLOWED errors.** `draw()` isolates every layer so one bad number cannot take the frame — which also means a broken layer never reaches `window.onerror`. `render.js` exports `faults()` and the test asserts it is empty; without that the test passes on a renderer throwing 60×/second. That is exactly how five deleted colour helpers (`rgb/mix/lighten/darken/backOut`) went unnoticed while both characters silently stopped drawing.
+  - **The dev server must send `Cache-Control: no-store`.** `python -m http.server` sends none, Chrome applies heuristic caching, and a fresh entry point links against a *cached* dependency — reporting "does not provide an export named X" for an export plainly in the file.
+  - **The arena is generated per round**, authored as a LEFT HALF and mirrored: taking a run's midpoint after mirroring gives an off-by-one on even lengths, which puts a power-up a tile nearer one player. Every arena runs through the same `validate()` as the authored one. 300/300 generate clean and distinct.
+  - **Two-tile steps are the whole level grammar** — the first arena stacked platforms at 3/5/7/9 tiles against a 3.43-tile jump; five of seven were unreachable.
+  - **`TouchEvent.touches` is the controller's only source of truth.** Tracking pointerdown/up pairs desyncs on iOS and jams a direction on, which reads as "left does nothing" because left and right cancel.
+  - **One glyph table, in `config.js`.** It is needed by the orb (`render.js`) and the toast/chip (`screen.js`); a copy in each meant adding a power-up to one and not the other, which renders a `?`.
+  - **Dudu is a coin flip.** Half the time the one that walks in turns purple ON CONTACT (never at spawn — there is nothing to read beforehand), holds you with `frozenUntil`, and throws you at the NEARER edge; the map does the killing. A good Dudu's hunt clock stops while his target is untouchable, with a 45s ceiling.
+  - **Ten coins buy one of four at random** — the fairy, a bought Dudu who cannot betray, the three capped mini Bubus, or three punches (each an instant kill). Each coin in a run rings a semitone above the last.
+  - **Deaths run a kill cam** that drops the two-player framing rule; a falling death clamps its focus back inside the level or the camera chases empty sky and the level clamp cancels the move. The match-winning shot dwells, then always hands the camera back — holding it forever parked on a dead body looked like both characters had vanished.
+  - RTDB namespace is `bubududu-smash/rooms/<CODE>`, signalling only; gameplay is peer-to-peer.
 
 ### autoclicker/  🟢
 
@@ -531,7 +534,7 @@ Simple side-scrolling platformer (Bubu & Dudu) — canvas-based game.
 
 | Project | Hosting | Auto-deploy on push? |
 |---|---|---|
-| talon, ilaw, kain, sherill (also on Vercel as `drive-with-sherill`), driving, devo, monthsary, tayo, sns-dq, weddingtest, towa-no-yuugure, autoclicker, aircon, pocket-remote, mac-toggle, collaterals, flux, pray, echoes, wedding100, weddingtimeline, horizon, money, anohana, bubududu | GitHub Pages subpath | ✅ |
+| bubududu-smash, ilaw, kain, sherill (also on Vercel as `drive-with-sherill`), driving, devo, monthsary, tayo, sns-dq, weddingtest, towa-no-yuugure, autoclicker, aircon, pocket-remote, mac-toggle, collaterals, flux, pray, echoes, wedding100, weddingtimeline, horizon, money, anohana, bubududu | GitHub Pages subpath | ✅ |
 | mac-toggle (Mac agent) | root LaunchDaemon `com.chaelri.mactoggle` via `agent/install.sh` | Manual |
 | mac-toggle (menu bar) | per-user LaunchAgent `com.chaelri.mactoggle.menubar` via `menubar/install-menubar.sh` | Manual |
 | claude-usage | per-user LaunchAgent `com.chaelri.claudeusage` via `install.sh` | Manual |
