@@ -79,44 +79,60 @@ html, body {
 #banner .bp { display: flex; justify-content: center; }
 
 /* ----------------------------------------------------------- the scrim --- */
-/* A result used to be white text laid straight over the arena: platforms and
-   characters ran through the letters, the sky behind it is almost the same
-   value as the type, and the winner's name was genuinely hard to read. The
-   game is knocked back behind it instead — dimmed, desaturated and blurred —
-   so the only thing with contrast on screen is the thing you are meant to
-   read. It is still the arena back there, just clearly not the subject. */
+/* The arena knocked back behind whatever is being read over it — dimmed,
+   slightly desaturated and blurred, darkest in the middle where the text is.
+   A vignette does the opposite and leaves the least contrast exactly where it
+   is needed most.
+
+   This was briefly blamed for the result being unreadable. It was not: the
+   banner had no z-index, so the scrim painted straight over the top of it and
+   blurred the very thing it was there to make legible. */
 #scrim {
   position: fixed; inset: 0; z-index: 38;
   pointer-events: none;
   opacity: 0;
-  /* Darkest in the MIDDLE, where the text is — a vignette does the opposite
-     and leaves the least contrast exactly where it is needed most. */
   background: radial-gradient(ellipse 70% 55% at center,
     rgba(8, 20, 34, 0.74) 0%, rgba(8, 20, 34, 0.6) 55%, rgba(10, 24, 40, 0.42) 100%);
-  backdrop-filter: blur(3px) saturate(0.7);
-  -webkit-backdrop-filter: blur(3px) saturate(0.7);
-  transition: opacity 420ms ease;
+  backdrop-filter: blur(3px) saturate(0.72);
+  -webkit-backdrop-filter: blur(3px) saturate(0.72);
+  transition: opacity 380ms ease;
 }
-/* A round is over in under three seconds and the arena still matters, so it
-   gets a lighter one than the end of a match does. */
-body.result #scrim { opacity: 0.8; }
-body.result.final #scrim { opacity: 1; }
+/* One strength for all three moments — the intro, the end of a round and the
+   end of a match. They are the same job: something is being read over the
+   arena, so the arena steps back by the same amount every time. Three
+   different weights just read as the screen flickering between them. */
+body.counting #scrim,
+body.result #scrim { opacity: 0.92; }
 
-/* On a dark scrim the subtitle's near-black grey disappears. */
-body.result #banner .bs {
-  color: #fff;
-  font-weight: 800;
-  font-size: clamp(14px, 2.9vh, 24px);
-  letter-spacing: 0.16em;
-  text-shadow: 0 2px 0 rgba(8, 20, 34, 0.6), 0 0 22px rgba(0, 0, 0, 0.75);
+#banner .bwrap {
+  display: flex; flex-direction: column; align-items: center;
 }
-body.result #banner .bt {
-  text-shadow: 0 5px 0 rgba(10, 24, 38, 0.45), 0 0 60px rgba(0, 0, 0, 0.5);
+
+/* White on a dark scrim, so the near-black grey the subtitle uses elsewhere
+   does not disappear. */
+body.result #banner .bs,
+body.counting #banner .bs {
+  color: #fff;
+  text-shadow: 0 2px 0 rgba(8, 20, 34, 0.55), 0 0 22px rgba(0, 0, 0, 0.6);
+}
+body.result #banner .bs {
+  font-weight: 800;
+  font-size: clamp(13px, 2.5vh, 21px);
+  letter-spacing: 0.16em;
+}
+body.result #banner .bt,
+body.counting #banner .bt {
+  text-shadow: 0 5px 0 rgba(8, 20, 34, 0.45), 0 0 55px rgba(0, 0, 0, 0.45);
 }
 
 /* ------------------------------------------------------------- banner --- */
 #banner {
-  position: fixed; inset: 0; display: flex; flex-direction: column;
+  /* Above everything that is not the Rematch button. Without a z-index it sat
+     in normal flow, so the result screen's overlay painted straight over the
+     top of it — the winner's name came out behind, and blurred by the very
+     effect that was supposed to make it readable. */
+  position: fixed; inset: 0; z-index: 41;
+  display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 4px;
   font-family: "Nunito", system-ui, sans-serif; text-align: center;
   pointer-events: none; opacity: 0; transition: opacity 320ms ease;
@@ -517,10 +533,11 @@ body.counting #banner {
   font-family: "Nunito", system-ui, sans-serif; font-weight: 900;
   font-size: clamp(90px, 22vh, 230px); line-height: 1; color: #fff;
   white-space: nowrap;
-  text-shadow:
-    0 6px 0 rgba(33,49,63,0.22),
-    0 0 40px rgba(255,255,255,0.9),
-    0 0 90px rgba(76,194,255,0.7);
+  /* A hard offset shadow and nothing else. The blue and white blooms that
+     used to sit under this were invented to lift white type off a bright
+     sky; over the scrim there is nothing to lift it off, and they only made
+     the letters soft. */
+  text-shadow: 0 6px 0 rgba(8, 20, 34, 0.45);
   animation: countPop 640ms cubic-bezier(0.2, 1.5, 0.4, 1) both;
 }
 /* Words, not digits — they need room the numbers never did. */
@@ -529,12 +546,12 @@ body.counting #banner {
 /* The last beat is the whole title, so it needs a lot more room than one word. */
 .count.title { min-width: min(92vw, 1100px); }
 .count.title .num { font-size: clamp(30px, 8.4vh, 96px); }
+/* SMASH! is the last beat, so it is simply the biggest and the hardest —
+   not a different colour. The yellow-into-orange bloom it used to wear was
+   the one thing on the intro that did not look like the rest of the game. */
 .count.go .num {
-  font-size: clamp(52px, 13vh, 140px); letter-spacing: 0.02em; color: #fff9d8;
-  text-shadow:
-    0 6px 0 rgba(180,110,0,0.28),
-    0 0 46px rgba(255,214,106,0.95),
-    0 0 110px rgba(255,156,63,0.8);
+  font-size: clamp(58px, 15vh, 156px); letter-spacing: 0.02em; color: #fff;
+  text-shadow: 0 8px 0 rgba(8, 20, 34, 0.5);
   animation: countPop 520ms cubic-bezier(0.15, 1.7, 0.4, 1) both;
 }
 /* a shock ring thrown off each tick */
@@ -543,7 +560,7 @@ body.counting #banner {
   border: clamp(4px, 0.7vh, 8px) solid rgba(255,255,255,0.85);
   animation: countRing 700ms ease-out both;
 }
-.count.go .ring { border-color: rgba(255,214,106,0.95); animation-duration: 560ms; }
+.count.go .ring { border-color: rgba(255,255,255,0.95); animation-duration: 560ms; }
 
 @keyframes countPop {
   0%   { transform: scale(2.5) rotate(-6deg); opacity: 0; }

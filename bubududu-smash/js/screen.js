@@ -373,10 +373,15 @@ function clearCount() {
  * the name it read as a footnote to the sentence rather than as the result.
  */
 function setBanner(title, sub, pre) {
+  // Wrapped, because a result needs a plate behind it to be readable over a
+  // bright arena and the plate has to be the size of the TEXT, not of the
+  // screen. See #banner .bwrap.
   banner.innerHTML =
+    `<div class="bwrap">` +
     (pre ? `<div class="bp">${pre}</div>` : "") +
     `<div class="bt">${title}</div>` +
-    `<div class="bs">${sub || ""}</div>`;
+    `<div class="bs">${sub || ""}</div>` +
+    `</div>`;
   banner.classList.add("in");
 }
 const hideBanner = () => banner.classList.remove("in");
