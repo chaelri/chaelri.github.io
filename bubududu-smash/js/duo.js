@@ -24,7 +24,8 @@ import { createClient } from "./net.js";
 import { createPad, paintShootButton } from "./pad.js";
 import { hydrate } from "./netstate.js";
 import { paintPanels, unpackChips } from "./panel.js";
-import { armAudio, onAudioState, startAudio } from "./audio.js";
+import { armAudio, onAudioState, startAudio, sfx, startMusic, stopMusic } from "./audio.js";
+import * as HUD from "./hud.js";
 
 const $ = (s) => document.querySelector(s);
 const params = new URLSearchParams(location.search);
@@ -232,13 +233,20 @@ function guestSide() {
     if (m.st) chips = { p1: unpackChips(m.st.p1), p2: unpackChips(m.st.p2) };
     if (m.ph) phase = m.ph;
     $("#rematch")?.classList.toggle("show", phase === "matchover");
-    // The guest runs no rules, so it has to take the result state off the
-    // wire — without this she was the only one who never saw the arena step
-    // back behind a countdown or a winner's name.
-    const result = phase === "roundover" || phase === "matchover";
-    document.body.classList.toggle("counting", phase === "countdown");
-    document.body.classList.toggle("result", result);
-    document.body.classList.toggle("final", phase === "matchover");
+
+    /* Everything laid over the arena, mirrored from the host.
+     *
+     * None of it happens here by itself: the banner, the countdown cards, the
+     * scrim and the notes are all written by the rules, and she runs none of
+     * them. Her screen used to dim behind a result with nothing on top of it,
+     * and the intro never appeared at all. hud.js does the drawing on both
+     * sides so the markup cannot drift. */
+    if (m.hd) applyHud(m.hd);
+    if (m.nt) for (const [id, label, colour, title, body, glyph] of m.nt)
+      HUD.showNote({ id, label }, colour, title, body, glyph);
+    // Sounds are one-shot events. Anything unknown is ignored rather than
+    // throwing — the two builds can be a version apart mid-match.
+    if (m.sx) for (const key of m.sx) { try { sfx[key]?.(); } catch {} }
 
     paintHud(m);
     wait.classList.add("gone");
@@ -352,6 +360,28 @@ function guestSide() {
   // is arriving" look identical from the outside. The host has __smashStep for
   // the same reason; this is the guest's half of it.
   window.__duoFrame = () => tick(performance.now() + 16);
+}
+
+/**
+ * The overlay state, applied only when it actually changes.
+ *
+ * setBanner and setCount both REPLACE their element, which is what restarts
+ * the CSS animation — so calling them every snapshot would retrigger the pop
+ * thirty times a second and the text would sit there vibrating.
+ */
+let hudWas = "";
+function applyHud(hd) {
+  const key = JSON.stringify(hd);
+  if (key === hudWas) return;
+  hudWas = key;
+
+  if (hd.banner) HUD.setBanner(hd.banner[0], hd.banner[1], hd.banner[2]);
+  else HUD.hideBanner();
+
+  if (hd.count != null) HUD.setCount(hd.count);
+  else HUD.clearCount();
+
+  HUD.setResult(hd.result);
 }
 
 /* ----------------------------------------------------------------- hud --- */

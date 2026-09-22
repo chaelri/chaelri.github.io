@@ -14,9 +14,71 @@ import { CHARACTERS, charById, preloadCharacters } from "./characters.js";
 import { makeActor, stepActor, kill, reviveAt } from "./physics.js";
 import { createRenderer, createScene, draw, drawScene, resize, resizeScene } from "./render.js";
 import { createHost } from "./net.js";
-import { armAudio, audioState, duckMusic, onAudioState, sfx, startAudio, startMusic, stopMusic } from "./audio.js";
+import { armAudio, audioState, duckMusic, onAudioState, sfx as rawSfx, startAudio, startMusic, stopMusic } from "./audio.js";
 import { snapshot, rowsEqual } from "./netstate.js";
 import { paintPanels, packChips } from "./panel.js";
+import * as HUD from "./hud.js";
+import { showNote as drawNote } from "./hud.js";
+import { COUNT_WORDS } from "./hud.js";
+
+/* Everything laid over the arena is MIRRORED to the guest.
+ *
+ * She runs no rules, so none of this happens on her phone by itself — before
+ * it was sent, her screen dimmed behind a result and stayed empty, and the
+ * countdown never appeared at all. These wrappers record the last thing shown
+ * so broadcast() can put it on the wire; hud.js does the actual drawing on
+ * both sides, so there is one copy of the markup. */
+const shown = { banner: null, count: null, result: null };
+
+/* Notes and sounds are EVENTS, not state: they happen once and are gone, so
+ * they ride the next snapshot as a queue that is emptied when it is sent
+ * rather than as something compared against last time. Without this the guest
+ * had no toasts and no audio at all — every `sfx` call and every note in the
+ * game happens inside the rules, and she runs none of them. */
+const pending = { notes: [], sfx: [] };
+
+function showNote(a, colour, title, body, glyph = "") {
+  pending.notes.push([a.id, a.label, colour, title, body, glyph]);
+  if (pending.notes.length > 6) pending.notes.shift();
+  drawNote(a, colour, title, body, glyph);
+}
+
+/* Every sound the rules make, mirrored.
+ *
+ * A proxy rather than touching ~40 call sites, and it keeps the two in step:
+ * anything added later is carried without being remembered about. Capped,
+ * because a tick that somehow fires a hundred of them should cost one
+ * snapshot, not a hundred sounds on the other phone. */
+const sfx = new Proxy({}, {
+  get(_, key) {
+    return (opts) => {
+      if (typeof key === "string" && pending.sfx.length < 8) pending.sfx.push(key);
+      return rawSfx[key](opts);
+    };
+  },
+});
+
+function setBanner(title, sub, pre) {
+  shown.banner = [title, sub || "", pre || ""];
+  HUD.setBanner(title, sub, pre);
+}
+function hideBanner() {
+  shown.banner = null;
+  HUD.hideBanner();
+}
+function setCount(n) {
+  shown.count = COUNT_WORDS[n] ? n : null;
+  if (n === 1) shown.banner = null;      // hud.setCount hides it
+  HUD.setCount(n);
+}
+function clearCount() {
+  shown.count = null;
+  HUD.clearCount();
+}
+function setResult(kind) {
+  shown.result = kind || null;
+  HUD.setResult(kind);
+}
 import { tileAt } from "./physics.js";
 
 const $ = (s) => document.querySelector(s);
@@ -332,59 +394,17 @@ function endRound(winnerId, why) {
  * Replacing the whole element is what restarts the CSS animation — re-setting
  * the text alone would leave the pop and the shock ring already finished.
  */
-let countHide = null;
 
 // Four beats, and they spell the game. "3 2 1 START" is four beats of
 // nothing; this is the same four saying who you are playing as and what you
 // are about to do, with the title landing on the last one as the round opens.
-// Three beats, and they spell the game. The fourth card repeated the whole
-// title straight after SMASH — and the round banner behind it says the same
-// three words, so it was the name three times in two seconds.
-const COUNT_WORDS = { 3: "BUBU", 2: "DUDU", 1: "SMASH!" };
 
-function setCount(n) {
-  clearTimeout(countHide);
-  const word = COUNT_WORDS[n];
-  if (!word) return clearCount();
-  countEl.innerHTML =
-    `<div class="count word${n === 1 ? " go" : ""}">` +
-    `<span class="ring"></span><span class="num">${word}</span></div>`;
-  // The round title lives in the middle of the screen too, so it steps up out
-  // of the way for as long as the number is there rather than sitting under it.
-  document.body.classList.add("counting");
-  // Nothing follows the last one, so it takes itself off.
-  //
-  // The round banner also says BUBU DUDU SMASH, and `body.counting` has it
-  // parked small and up out of the way. Letting it sit there until the class
-  // came off meant it SLID BACK DOWN to the middle at full size and then
-  // faded — a second title animation straight after the title card, which
-  // read as the intro playing twice. Dropped the moment the last card is up.
-  if (n === 1) hideBanner();
-}
 
-function clearCount() {
-  clearTimeout(countHide);
-  countEl.innerHTML = "";
-  document.body.classList.remove("counting");
-}
 
 /**
  * `pre` sits ABOVE the headline — the final score goes there, because under
  * the name it read as a footnote to the sentence rather than as the result.
  */
-function setBanner(title, sub, pre) {
-  // Wrapped, because a result needs a plate behind it to be readable over a
-  // bright arena and the plate has to be the size of the TEXT, not of the
-  // screen. See #banner .bwrap.
-  banner.innerHTML =
-    `<div class="bwrap">` +
-    (pre ? `<div class="bp">${pre}</div>` : "") +
-    `<div class="bt">${title}</div>` +
-    `<div class="bs">${sub || ""}</div>` +
-    `</div>`;
-  banner.classList.add("in");
-}
-const hideBanner = () => banner.classList.remove("in");
 
 /**
  * Whether a result is on screen, and how final it is.
@@ -393,10 +413,6 @@ const hideBanner = () => banner.classList.remove("in");
  * arena, "match" dims it further — the round is over in under three seconds
  * and the arena still matters, the match is not.
  */
-function setResult(kind) {
-  document.body.classList.toggle("result", !!kind);
-  document.body.classList.toggle("final", kind === "match");
-}
 
 /* ----------------------------------------------------------- the rules --- */
 
@@ -560,67 +576,8 @@ function safeSpawn(i) {
 
 /* ----------------------------------------------------------- powerups --- */
 
-// How many notes can be stacked beside one player at once, and how long each
-// one lives. The cap exists because the notes sit over the arena.
-const NOTE_MAX = 4;
-const NOTE_MS = 2900;
 
 /** A short note down that player's own side of the screen. */
-/**
- * A note beside a player — and NOT at the expense of the last one.
- *
- * This used to be a single card whose innerHTML was replaced. Pick two things
- * up in the same second — which the coin rewards make ordinary, since one of
- * them can hand you a Dudu while a power-up orb is still under your feet —
- * and the first was simply gone before it had been read. Now each note is its
- * own element on a stack with its own clock.
- *
- * A note whose title is already on the stack REFRESHES that one instead of
- * adding a second: stacking a power-up three times should say so once, in a
- * card that keeps jumping, not build a tower of identical cards.
- */
-function showNote(a, colour, title, body, glyph = "") {
-  const el = toasts[a.id];
-  if (!el) return;
-
-  const kill = (note) => {
-    if (note.dataset.dying) return;
-    note.dataset.dying = "1";
-    note.classList.remove("in");
-    setTimeout(() => note.remove(), 320);
-  };
-
-  const live = [...el.querySelectorAll(".note")].filter((n) => !n.dataset.dying);
-  let note = live.find((n) => n.dataset.title === title);
-
-  if (note) {
-    // Same thing again — refresh it in place and bump it so the change is
-    // visible, rather than quietly swapping the text under the reader.
-    note.querySelector(".ds").textContent = body;
-    note.classList.remove("bump");
-    void note.offsetWidth;                 // restart the animation
-    note.classList.add("bump");
-  } else {
-    // Oldest first out, so the newest arrival is never the one dropped.
-    for (const old of live.slice(0, Math.max(0, live.length - (NOTE_MAX - 1)))) kill(old);
-
-    note = document.createElement("div");
-    note.className = "note";
-    note.dataset.title = title;
-    note.style.setProperty("--tc", colour);
-    note.innerHTML =
-      `<div class="who">${a.label}</div>` +
-      `<div class="nm">${title}<em>${glyph}</em></div>` +
-      `<div class="ds"></div>`;
-    note.querySelector(".ds").textContent = body;
-    el.appendChild(note);
-    // One frame on the shelf so the transition has something to run from.
-    requestAnimationFrame(() => note.classList.add("in"));
-  }
-
-  clearTimeout(note._t);
-  note._t = setTimeout(() => kill(note), NOTE_MS);
-}
 
 /**
  * The fire control, per player.
@@ -2415,6 +2372,7 @@ let guestWas = false;
  * it matches the last one the guest was sent — which is most ticks.
  */
 let lastChipKey = "";
+let lastHudKey = "";
 
 function broadcast() {
   if (!host || !G) return;
@@ -2435,6 +2393,18 @@ function broadcast() {
     snap.st = chips;
   }
 
+  // The overlay — banner, countdown card, scrim state — on the same terms:
+  // only when it changes, and in full on a keyframe.
+  const hudKey = JSON.stringify(shown);
+  if (hudKey !== lastHudKey) {
+    lastHudKey = hudKey;
+    snap.hd = shown;
+  }
+
+  // One-shot events, drained on send.
+  if (pending.notes.length) { snap.nt = pending.notes; pending.notes = []; }
+  if (pending.sfx.length) { snap.sx = pending.sfx; pending.sfx = []; }
+
   // The tilemap is sent only when it differs from the last tick, because it is
   // most of the payload and it usually has not changed. That alone leaves a
   // guest who joins mid-round with NOTHING to draw against until the arena
@@ -2449,7 +2419,8 @@ function broadcast() {
   if (joined || stale || !rowsEqual(snap.rows, lastRows)) {
     lastRows = snap.rows;
     lastKeyAt = now;
-    snap.st = chips;          // a keyframe is complete, chips included
+    snap.st = chips;          // a keyframe is complete...
+    snap.hd = shown;          // ...overlay included
   } else {
     delete snap.rows;
   }

@@ -157,6 +157,15 @@ export function hydrate(s) {
    * helper made of nothing and hydrate threw on it. That is every snapshot in
    * which no Dudu happens to be out, which is most of them — and a throw here
    * means the guest never applies the frame at all. */
+  /* Every list defaults to empty.
+   *
+   * A field can legitimately be absent: Firebase RTDB stores an empty array
+   * as null, so on the relay lane `pw: []` comes back undefined, and a sender
+   * one version ahead may simply not send something. Reading `.map` off that
+   * throws — and a throw here means the guest applies no frame at all, so the
+   * whole picture goes for one missing bullet list. */
+  const A = (v) => (Array.isArray(v) ? v : []);
+
   const he = s.he;
   const rows =
     !he || !he.length ? []
@@ -180,22 +189,22 @@ export function hydrate(s) {
     time: now,
     level: { w: s.lw, h: s.lh },
     grid: { rows: s.rows },
-    actors: s.a.map((v) => unpackActor(v, now)),
-    powers: s.pw.map(([x, y, type, age]) => ({ x, y, type, born: now - age })),
-    coins: s.cn.map(([x, y, taken, n, by, milestone]) => ({
+    actors: A(s.a).map((v) => unpackActor(v, now)),
+    powers: A(s.pw).map(([x, y, type, age]) => ({ x, y, type, born: now - age })),
+    coins: A(s.cn).map(([x, y, taken, n, by, milestone]) => ({
       x, y, taken: taken ? now - taken : 0, n, by: by || null, milestone: !!milestone,
     })),
-    shots: s.sh.map(([x, y, vx, owner]) => ({ x, y, vx, vy: 0, owner, life: 1 })),
-    bursts: s.bu.map(([x, y, age, colour, big]) => ({ x, y, at: now - age, colour, big: !!big })),
-    pops: s.po.map(([x, y, age, colour, glyph]) => ({ x, y, at: now - age, colour, glyph })),
-    lostHearts: s.lh2.map(([x, y, rot, age, index]) => ({
+    shots: A(s.sh).map(([x, y, vx, owner]) => ({ x, y, vx, vy: 0, owner, life: 1 })),
+    bursts: A(s.bu).map(([x, y, age, colour, big]) => ({ x, y, at: now - age, colour, big: !!big })),
+    pops: A(s.po).map(([x, y, age, colour, glyph]) => ({ x, y, at: now - age, colour, glyph })),
+    lostHearts: A(s.lh2).map(([x, y, rot, age, index]) => ({
       x, y, rot, at: now - age, index, vx: 0, vy: 0, spin: 0,
     })),
     wildFairy: s.wf
       ? { x: s.wf[0], y: s.wf[1], phase: s.wf[2], face: s.wf[3],
           leaving: !!s.wf[4], wave: s.wf[5] }
       : null,
-    minis: s.mi.map(([body, owner, leaving, wave, until]) => ({
+    minis: A(s.mi).map(([body, owner, leaving, wave, until]) => ({
       actor: unpackBody(body), owner: owner || null,
       leaving: !!leaving, wave, until: now + until,
     })),

@@ -59,10 +59,25 @@ body.duo .chip { font-size: 9px; padding: 1px 5px; gap: 2px; }
 body.duo .chip em { display: none; }   /* no keyboard here to name a key on */
 
 /* Clear of the action buttons, which own the bottom of this page. */
+/* Under the result, not on top of it.
+ *
+ * It was pinned to the BOTTOM, to sit above the thumb buttons — but the
+ * banner is centred, and on a phone the big score above the winner's name
+ * reaches far enough down that the two met in the middle. Pinning it below
+ * the banner's centre keeps it with the text it belongs to and still clears
+ * the pad, which starts about 200px up from the bottom edge. */
 body.duo #rematch {
   z-index: 70;            /* the pad and the waiting screen both span the page */
-  top: auto; bottom: calc(max(14px, env(safe-area-inset-bottom)) + clamp(96px, 24vw, 124px));
+  top: calc(50% + clamp(92px, 22vw, 150px));
+  bottom: auto;
   font-size: clamp(14px, 4vw, 18px);
+}
+/* Landscape has no room below the banner, so it goes back to the bottom. */
+@media (orientation: landscape) and (max-height: 520px) {
+  body.duo #rematch {
+    top: auto;
+    bottom: calc(max(10px, env(safe-area-inset-bottom)) + clamp(76px, 18vh, 104px));
+  }
 }
 
 /* Banner and countdown both shrink — "BUBU DUDU SMASH" at desktop size is
