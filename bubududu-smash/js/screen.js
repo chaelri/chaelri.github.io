@@ -2512,7 +2512,8 @@ function chipsFor(a) {
   // `bump` makes the chip jump on the frame the count changes — the number
   // alone is too quiet to notice while you are looking at your character.
   out.push({
-    label: `\u25c9 ${a.coins || 0}/${COINS.perReward}`,
+    // A gem, matching what is actually lying on the platforms.
+    label: `\u25c6 ${a.coins || 0}/${COINS.perReward}`,
     colour: COINS.colour,
     pct: ((a.coins || 0) / COINS.perReward) * 100,
     bad: false,

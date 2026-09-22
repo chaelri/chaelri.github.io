@@ -218,6 +218,13 @@ function guestSide() {
     if (m.st) chips = { p1: unpackChips(m.st.p1), p2: unpackChips(m.st.p2) };
     if (m.ph) phase = m.ph;
     $("#rematch")?.classList.toggle("show", phase === "matchover");
+    // The guest runs no rules, so it has to take the result state off the
+    // wire — without this she was the only one who never saw the arena step
+    // back behind a countdown or a winner's name.
+    const result = phase === "roundover" || phase === "matchover";
+    document.body.classList.toggle("counting", phase === "countdown");
+    document.body.classList.toggle("result", result);
+    document.body.classList.toggle("final", phase === "matchover");
 
     paintHud(m);
     wait.classList.add("gone");

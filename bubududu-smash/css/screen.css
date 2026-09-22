@@ -91,18 +91,29 @@ html, body {
   position: fixed; inset: 0; z-index: 38;
   pointer-events: none;
   opacity: 0;
+  /* NO filter while it is off, and hidden outright.
+   *
+   * A `backdrop-filter` on an element at `opacity: 0` is supposed to paint
+   * nothing. iOS Safari applies the blur anyway — so this sat over the game
+   * for the whole match on a phone and blurred it, which is exactly what it
+   * looked like. The filter is only ever attached while the scrim is
+   * actually up. */
+  visibility: hidden;
   background: radial-gradient(ellipse 70% 55% at center,
     rgba(8, 20, 34, 0.74) 0%, rgba(8, 20, 34, 0.6) 55%, rgba(10, 24, 40, 0.42) 100%);
-  backdrop-filter: blur(3px) saturate(0.72);
-  -webkit-backdrop-filter: blur(3px) saturate(0.72);
-  transition: opacity 380ms ease;
+  transition: opacity 380ms ease, visibility 380ms;
 }
 /* One strength for all three moments — the intro, the end of a round and the
    end of a match. They are the same job: something is being read over the
    arena, so the arena steps back by the same amount every time. Three
    different weights just read as the screen flickering between them. */
 body.counting #scrim,
-body.result #scrim { opacity: 0.92; }
+body.result #scrim {
+  opacity: 0.92;
+  visibility: visible;
+  backdrop-filter: blur(3px) saturate(0.72);
+  -webkit-backdrop-filter: blur(3px) saturate(0.72);
+}
 
 #banner .bwrap {
   display: flex; flex-direction: column; align-items: center;
@@ -579,7 +590,18 @@ body.counting #banner {
 /* Under the winner's banner. Hidden until a match actually ends, because a
    button that restarts everything has no business being reachable mid-round. */
 #rematch {
-  position: fixed; left: 50%; z-index: 42;
+  /* Above everything, including the duo page's waiting screen, and on a
+     compositing layer of its own.
+     *
+     * It went missing on a phone. At a real 430x932 viewport the geometry is
+     * fine — on screen, visible, topmost, hit-testable — so it is not the
+     * layout. What is new is the scrim, and a full-screen fixed element with
+     * `backdrop-filter` is exactly the thing iOS Safari is known to stack its
+     * siblings against wrongly. `will-change` forces this into its own layer
+     * so it cannot be folded into that one, and the z-index puts it clear of
+     * everything rather than one step above the pad. */
+  position: fixed; left: 50%; z-index: 70;
+  will-change: transform;
   top: calc(50% + clamp(100px, 16vh, 168px));
   transform: translate(-50%, 6px);
   font-family: "Nunito", system-ui, sans-serif; font-weight: 900;

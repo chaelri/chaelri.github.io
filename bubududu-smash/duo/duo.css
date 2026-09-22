@@ -60,7 +60,7 @@ body.duo .chip em { display: none; }   /* no keyboard here to name a key on */
 
 /* Clear of the action buttons, which own the bottom of this page. */
 body.duo #rematch {
-  z-index: 55;            /* the pad spans the page; sit above it */
+  z-index: 70;            /* the pad and the waiting screen both span the page */
   top: auto; bottom: calc(max(14px, env(safe-area-inset-bottom)) + clamp(96px, 24vw, 124px));
   font-size: clamp(14px, 4vw, 18px);
 }
@@ -115,6 +115,26 @@ body.duo .toast { gap: 6px; }
 }
 #duowait .status { font-weight: 700; color: rgba(33,49,63,0.45); }
 
+/* Phones get the scrim WITHOUT a filter. Blurring a full-screen backdrop is
+   the most expensive thing on the page and the least reliable one on iOS; a
+   flat dark wash reads the same and always works. */
+/* ...and nothing else on this page gets one either. The panels and the note
+   cards carry one too, and every filtered layer is another thing for iOS to
+   re-composite. None of them needs it: they all sit on a solid-enough fill
+   already. */
+body.duo #scrim,
+body.duo .pcard,
+body.duo .note,
+body.duo #pad.duo button,
+body.duo #pad.duo #state {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+body.duo .pcard { background: rgba(255, 255, 255, 0.92); }
+body.duo .note { background: rgba(255, 255, 255, 0.94); }
+body.duo.counting #scrim,
+body.duo.result #scrim { background: rgba(8, 20, 34, 0.68); }
+
 /* ----------------------------------------------------------------- pad --- */
 
 #pad.duo {
@@ -147,7 +167,13 @@ body.duo .toast { gap: 6px; }
   border-radius: 22px; border: 2px solid rgba(255,255,255,0.55);
   background: rgba(33,49,63,0.22);
   color: rgba(255,255,255,0.92);
-  backdrop-filter: blur(6px);
+  /* No backdrop-filter. It was on every control, all the time, and on iOS
+     changing a filtered element's background — which pressing one does, via
+     .down — makes Safari re-composite the layer behind it. On Karla's phone
+     that showed up as the whole view going blurry and odd the moment she
+     touched left or right. A flatter translucent fill costs nothing and
+     cannot do that. */
+  background: rgba(33, 49, 63, 0.3);
   width: clamp(62px, 17vw, 86px); height: clamp(62px, 17vw, 86px);
   font-size: clamp(17px, 5vw, 22px);
   transition: transform 70ms, background 140ms;

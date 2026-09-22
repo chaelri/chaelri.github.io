@@ -1095,6 +1095,73 @@ const COIN_POP_SEC = 0.75;
  * drawing for a beat as it rises and fades, so the pickup has somewhere to go
  * rather than blinking out.
  */
+/* The coin, baked once.
+ *
+ * A gem rather than a disc, and dressed the way the Lunas heart is: a wide
+ * white outline so it holds against sky, dirt or a platform, a warm glow
+ * behind it, and two shine dots. Seven of these are on the field at a time,
+ * so it is rasterised once and blitted after that — the same reason the
+ * power-up marks are.
+ */
+const COIN_REF = 40;
+const COIN_SPAN = 2.2;
+let coinCanvas = null;
+
+function coinSprite() {
+  if (coinCanvas) return coinCanvas;
+  const rad = COIN_REF;
+  const half = Math.ceil(rad * COIN_SPAN);
+  const c = document.createElement("canvas");
+  c.width = c.height = half * 2;
+  const x = c.getContext("2d");
+  const cx = half;
+  const cy = half;
+
+  const glow = x.createRadialGradient(cx, cy, rad * 0.3, cx, cy, rad * 2.1);
+  glow.addColorStop(0, "rgba(255,206,90,0.5)");
+  glow.addColorStop(1, "rgba(255,206,90,0)");
+  x.fillStyle = glow;
+  x.fillRect(0, 0, c.width, c.height);
+
+  x.lineJoin = "round";
+  gemPath(x, cx, cy, rad);
+  // Widest pass first, then the white edge, then the fill — stroking on top
+  // of the fill eats the shape from its outline inward.
+  x.lineWidth = rad * 0.52;
+  x.strokeStyle = "rgba(255,214,120,0.55)";
+  x.stroke();
+  x.lineWidth = rad * 0.34;
+  x.strokeStyle = "rgba(255,255,255,0.97)";
+  x.stroke();
+  x.fillStyle = COINS.colour;
+  x.fill();
+
+  // A darker pavilion under the table, so it reads as cut rather than flat.
+  x.save();
+  gemPath(x, cx, cy, rad);
+  x.clip();
+  x.fillStyle = "rgba(196,128,10,0.28)";
+  x.beginPath();
+  x.moveTo(cx - rad, cy - rad * 0.02);
+  x.lineTo(cx + rad, cy - rad * 0.02);
+  x.lineTo(cx, cy + rad);
+  x.closePath();
+  x.fill();
+  x.restore();
+
+  // Two shines, big then small, the way the heart wears them.
+  x.fillStyle = "rgba(255,255,255,0.9)";
+  x.beginPath();
+  x.ellipse(cx - rad * 0.3, cy - rad * 0.24, rad * 0.17, rad * 0.12, -0.5, 0, Math.PI * 2);
+  x.fill();
+  x.beginPath();
+  x.arc(cx + rad * 0.2, cy + rad * 0.26, rad * 0.1, 0, Math.PI * 2);
+  x.fill();
+
+  coinCanvas = c;
+  return c;
+}
+
 function drawCoins(r, ctx, g) {
   if (!g.coins || !g.coins.length) return;
   const z = r.cam.zoom;
@@ -1130,25 +1197,8 @@ function drawCoins(r, ctx, g) {
 
     if (taken) drawCoinPop(ctx, r, c, taken);
 
-    const glow = ctx.createRadialGradient(px, py, 0, px, py, rad * 2.6);
-    glow.addColorStop(0, "rgba(255,200,61,0.45)");
-    glow.addColorStop(1, "rgba(255,200,61,0)");
-    ctx.fillStyle = glow;
-    ctx.fillRect(px - rad * 2.6, py - rad * 2.6, rad * 5.2, rad * 5.2);
-
-    // A darker rim, the face inside it, and one fixed highlight.
-    ctx.fillStyle = "#c98a12";
-    ctx.beginPath();
-    ctx.arc(px, py, rad, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = COINS.colour;
-    ctx.beginPath();
-    ctx.arc(px, py, rad * 0.78, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = "rgba(255,255,255,0.8)";
-    ctx.beginPath();
-    ctx.ellipse(px - rad * 0.26, py - rad * 0.3, rad * 0.24, rad * 0.16, -0.5, 0, Math.PI * 2);
-    ctx.fill();
+    const S = rad * COIN_SPAN;
+    ctx.drawImage(coinSprite(), px - S, py - S, S * 2, S * 2);
     ctx.restore();
   }
 }
@@ -1954,6 +2004,23 @@ function drawShots(r, ctx, g) {
  * point outwards. The first version put its control points wider than the
  * shape was tall, which squashed it into a flat blob.
  */
+/**
+ * A cut gem: a flat table across the top, two shoulders, and a point.
+ *
+ * Not a rhombus — four equal sides read as a playing-card suit rather than as
+ * something you pick up. The flat top is what makes it a gem, and it gives
+ * the shine somewhere to sit.
+ */
+function gemPath(ctx, x, y, s) {
+  ctx.beginPath();
+  ctx.moveTo(x - s * 0.58, y - s * 0.52);   // table, left
+  ctx.lineTo(x + s * 0.58, y - s * 0.52);   // table, right
+  ctx.lineTo(x + s * 0.98, y - s * 0.02);   // right shoulder
+  ctx.lineTo(x, y + s * 0.98);              // point
+  ctx.lineTo(x - s * 0.98, y - s * 0.02);   // left shoulder
+  ctx.closePath();
+}
+
 function heartPath(ctx, x, y, s) {
   // Wider than tall. The first attempt was a flat blob, the second over-
   // corrected into something narrow and upright; this sits between them.
@@ -2214,10 +2281,20 @@ function drawActor(r, ctx, g, a) {
     let colour = mine;
     let thick = z * 0.045;
     if (rev) {
-      const urgent = a.reversedUntil - g.time < 1.2;
-      const beat = 0.5 + 0.5 * Math.sin(g.time * (urgent ? 14 : 6.4));
-      colour = mix(POWERUPS.baliktad.colour, [255, 255, 255], beat * 0.55, 1);
-      thick = z * (0.075 + beat * 0.03);
+      const left = a.reversedUntil - g.time;
+      if (left < 1.4) {
+        // Nearly over: a hard BLINK between the reverse orange and their own
+        // colour. Not a pulse — a pulse is what it does the rest of the time,
+        // and the difference between "still on" and "about to end" has to be
+        // visible at a glance rather than by comparing brightnesses.
+        const on = Math.sin(g.time * 20) > 0;
+        colour = on ? POWERUPS.baliktad.colour : mine;
+        thick = z * (on ? 0.085 : 0.05);
+      } else {
+        const beat = 0.5 + 0.5 * Math.sin(g.time * 6.4);
+        colour = mix(POWERUPS.baliktad.colour, [255, 255, 255], beat * 0.55, 1);
+        thick = z * (0.075 + beat * 0.03);
+      }
     }
     stampOutline(r, ctx, colour, px, py, cw, chh, thick,
       (b, bx, by) => charById(a.char).draw(b, bx, by, cw, chh, pose));
@@ -2316,9 +2393,8 @@ function drawActor(r, ctx, g, a) {
     ctx.translate(px, by);
 
     // The pill. No white border — the arrows inside are already white and the
-    // outline only thickened the shape without adding anything to read. The
-    // last second flashes the FILL instead.
-    ctx.fillStyle = urgent && Math.sin(g.time * 18) > 0 ? lighten(RC, 0.45) : RC;
+    // outline only thickened the shape without adding anything to read.
+    ctx.fillStyle = RC;
     roundRect(ctx, -bw / 2, -bh / 2, bw, bh, bh / 2);
     ctx.fill();
 
@@ -2351,11 +2427,11 @@ function drawActor(r, ctx, g, a) {
     }
     ctx.restore();
 
-    // How long is left, draining along the bottom of the pill.
-    const frac = Math.max(0, Math.min(1, left / (POWERUPS.baliktad.reverseMs / 1000)));
-    ctx.fillStyle = "rgba(255,255,255,0.9)";
-    ctx.fillRect(-bw / 2 + z * 0.07, bh / 2 - z * 0.11,
-                 (bw - z * 0.14) * frac, Math.max(1.5, z * 0.055));
+    // No bar. A draining sliver along the bottom of a pill the size of a
+    // thumbnail is not something anyone reads mid-jump, and it made the badge
+    // look like a loading indicator. The warning that it is nearly over is
+    // the character blinking, which you cannot miss because you are already
+    // looking at them.
     ctx.restore();
   }
 
