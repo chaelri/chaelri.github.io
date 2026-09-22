@@ -10,6 +10,7 @@ import {
   SHOT_SPEED, SHOT_LIFE, SHOT_COOLDOWN_MS, SHOT_RADIUS, INPUT_HZ, STACK
 } from "./config.js";
 import { makeArena, readLevel, solidGrid } from "./levels.js";
+import { rng, seed as seedRng, newSeed } from "./rng.js";
 import { CHARACTERS, charById, preloadCharacters } from "./characters.js";
 import { makeActor, stepActor, kill, reviveAt } from "./physics.js";
 import { createRenderer, createScene, draw, drawScene, resize, resizeScene } from "./render.js";
@@ -248,14 +249,25 @@ function localInput() {
 
 /* --------------------------------------------------------------- round --- */
 
-function startRound() {
+function startRound(withSeed) {
   // Hand the camera back, in case the last thing it did was hold on a body.
   renderer.kill = null;
+
+  /* One seed decides the whole round.
+   *
+   * The arena, where every power-up lands, which of the four a ten-coin
+   * reward turns out to be, which way Dudu wanders and whether he turns —
+   * all of it comes off the same stream now. That is what makes the round
+   * reproducible from a single number, which is the thing a second phone
+   * needs in order to run the same game rather than watch a recording of it.
+   */
+  roundSeed = withSeed != null ? withSeed >>> 0 : newSeed();
+  seedRng(roundSeed);
 
   // A new arena every round. Mirrored and reachability-checked in makeArena(),
   // so the variety cannot reintroduce either of the two things that used to
   // ruin a round: an unfair side, or a platform you can see and never reach.
-  const level = makeArena();
+  const level = makeArena((rng() * 4294967296) >>> 0);
   const meta = readLevel(level);
 
   G = {
@@ -731,7 +743,7 @@ function tickCoins(dt) {
       if (spots.length) {
         // Not on top of an existing one, and not under someone's feet.
         for (let i = 0; i < 12; i++) {
-          const p = spots[Math.floor(Math.random() * spots.length)];
+          const p = spots[Math.floor(rng() * spots.length)];
           const clash =
             G.coins.some((c) => !c.taken && Math.abs(c.x - p.x) < 1.4 && Math.abs(c.y - p.y) < 1) ||
             G.actors.some((a) => !a.dead && Math.abs(a.x - p.x) < 1.2 && Math.abs(a.y - p.y) < 1.4);
@@ -793,7 +805,7 @@ function tickCoins(dt) {
 
 /** Ten coins, one of the four. */
 function grantReward(a) {
-  const pick = COINS.rewards[Math.floor(Math.random() * COINS.rewards.length)];
+  const pick = COINS.rewards[Math.floor(rng() * COINS.rewards.length)];
   renderer.punch = Math.max(renderer.punch || 0, 0.05);
   G.pops.push({ x: a.x, y: a.y - a.h * 0.6, at: G.time, colour: COINS.colour, glyph: "\u2605" });
   a.glowUntil = G.time + 0.7;
@@ -824,7 +836,7 @@ function giveFairy(a) {
     healAt: -1,
     leaving: false,
     wave: 0,
-    phase: Math.random() * Math.PI * 2,
+    phase: rng() * Math.PI * 2,
   };
   showNote(a, DIWATA.colour, DIWATA.name, "Two hearts, one at a time.");
   sfx.diwata();
@@ -846,12 +858,12 @@ function fairyPerch() {
       if (c !== "#" && c !== "=") continue;
       if (G.grid.rows[y - 1][x] !== ".") break;
       const [lo, hi] = DIWATA.wildReach;
-      spots.push({ x: x + 0.5, y: y - (lo + Math.random() * (hi - lo)) });
+      spots.push({ x: x + 0.5, y: y - (lo + rng() * (hi - lo)) });
       break;            // only the topmost surface of each column
     }
   }
   if (!spots.length) return null;
-  return spots[Math.floor(Math.random() * spots.length)];
+  return spots[Math.floor(rng() * spots.length)];
 }
 
 /** Put a loose Diwata on the field, drifting. */
@@ -864,8 +876,8 @@ function spawnWildFairy() {
     hold: 0,
     born: G.time,
     until: G.time + DIWATA.wildLifeMs / 1000,
-    phase: Math.random() * Math.PI * 2,
-    face: Math.random() < 0.5 ? 1 : -1,
+    phase: rng() * Math.PI * 2,
+    face: rng() < 0.5 ? 1 : -1,
     leaving: false,
     wave: 0,
   };
@@ -904,7 +916,7 @@ function tickWildFairy(dt) {
       const next = fairyPerch();
       if (next) { w.tx = next.x; w.ty = next.y; }
       const [lo, hi] = DIWATA.wildHoverMs;
-      w.hold = (lo + Math.random() * (hi - lo)) / 1000;
+      w.hold = (lo + rng() * (hi - lo)) / 1000;
     }
   } else {
     const step = Math.min(d, DIWATA.wildSpeed * dt * Math.min(1, 0.35 + d / 3));
@@ -995,7 +1007,7 @@ function spawnSquad(at = null) {
   if (home === null) {
     let best = -1;
     for (let i = 0; i < 8; i++) {
-      const x = floor.x0 + 2 + Math.random() * (floor.x1 - floor.x0 - 4);
+      const x = floor.x0 + 2 + rng() * (floor.x1 - floor.x0 - 4);
       const d = Math.min(...G.actors.map((a) => Math.abs(a.x - x)));
       if (d > best) { best = d; home = x; }
     }
@@ -1122,7 +1134,7 @@ function tickMinis(dt) {
       const drift = me.x - m.home;
       if (drift < -SQUAD.idleRange) me.face = 1;
       else if (drift > SQUAD.idleRange) me.face = -1;
-      else if (Math.random() < 0.5 * dt) me.face *= -1;
+      else if (rng() < 0.5 * dt) me.face *= -1;
       input.left = me.face < 0;
       input.right = me.face > 0;
       if (!groundAhead(me, me.face) || wallAhead(me, me.face)) {
@@ -1130,7 +1142,7 @@ function tickMinis(dt) {
         me.face *= -1;
       }
       // A little hop now and then, so a waiting squad is not three statues.
-      if (me.grounded && G.time * 1000 - m.jumpAt > 900 && Math.random() < 0.5 * dt) {
+      if (me.grounded && G.time * 1000 - m.jumpAt > 900 && rng() < 0.5 * dt) {
         input.jumpDown = true;
         m.jumpAt = G.time * 1000;
       }
@@ -1333,9 +1345,9 @@ function handleDeath(a) {
   G.lostHearts.push({
     x: a.x,
     y: a.y - a.h * 1.5,
-    vx: (Math.random() - 0.5) * 3,
+    vx: (rng() - 0.5) * 3,
     vy: -7,
-    spin: (Math.random() - 0.5) * 9,
+    spin: (rng() - 0.5) * 9,
     rot: 0,
     at: G.time,
     index: before - 1,
@@ -1358,9 +1370,9 @@ function handleDeath(a) {
     at: G.time,
     x: a.x,
     y: a.y,
-    vx: away * (3.2 + Math.random() * 1.6),
+    vx: away * (3.2 + rng() * 1.6),
     vy: -9.5,
-    spin: away * (5 + Math.random() * 4),
+    spin: away * (5 + rng() * 4),
     lethal,
   };
 
@@ -1435,15 +1447,15 @@ function tickPowers(dt) {
     );
     const floor = widestFloor();
     const sp = free.length
-      ? free[Math.floor(Math.random() * free.length)]
+      ? free[Math.floor(rng() * free.length)]
       : floor
         ? { x: (floor.x0 + floor.x1 + 1) / 2, y: floor.y - 1.4 }
         : null;
     if (sp) {
-      let type = POWER_ORDER[Math.floor(Math.random() * POWER_ORDER.length)];
+      let type = POWER_ORDER[Math.floor(rng() * POWER_ORDER.length)];
       let guard = 0;
       while (type === G.lastPower && guard++ < 8)
-        type = POWER_ORDER[Math.floor(Math.random() * POWER_ORDER.length)];
+        type = POWER_ORDER[Math.floor(rng() * POWER_ORDER.length)];
       G.lastPower = type;
       G.powers.push({ x: sp.x, y: sp.y, type, born: G.time });
       sfx.spawn();
@@ -1492,7 +1504,7 @@ function tickPowers(dt) {
   // expiry, and the star's sparkle
   for (const a of G.actors) {
     if (!a.power) continue;
-    if (hasPower(a, "bituin") && Math.random() < dt * 9) sfx.sparkle();
+    if (hasPower(a, "bituin") && rng() < dt * 9) sfx.sparkle();
     if (a.power.until !== Infinity && G.time > a.power.until) clearPower(a);
     if (a.power && a.power.type === "baril" && a.power.ammo <= 0) clearPower(a);
   }
@@ -1663,7 +1675,7 @@ function tickPunches() {
 
 function spawnHelper() {
   const lv = G.level;
-  const fromLeft = Math.random() < 0.5;
+  const fromLeft = rng() < 0.5;
 
   const spot = edgeFooting(fromLeft);
   if (!spot) return;
@@ -1987,10 +1999,10 @@ function tickOneHelper(h, dt) {
     if (h.pause > 0) {
       h.pause -= dt;
     } else {
-      if (Math.random() < HELPER.idlePauseChance * dt) {
+      if (rng() < HELPER.idlePauseChance * dt) {
         const [lo, hi] = HELPER.idlePauseMs;
-        h.pause = (lo + Math.random() * (hi - lo)) / 1000;
-      } else if (Math.random() < HELPER.idleTurnChance * dt) {
+        h.pause = (lo + rng() * (hi - lo)) / 1000;
+      } else if (rng() < HELPER.idleTurnChance * dt) {
         h.wanderDir *= -1;
       }
       input.left = h.wanderDir < 0;
@@ -2010,7 +2022,7 @@ function tickOneHelper(h, dt) {
       if (Math.abs(a.y - me.y) > 1.2) continue;
       // A literal coin flip, HERE, on contact — not at spawn. There is nothing
       // to read beforehand and nothing to do about it afterwards.
-      if (Math.random() < HELPER.betrayChance) {
+      if (rng() < HELPER.betrayChance) {
         beginBetrayal(h, a);
         break;
       }
@@ -2125,11 +2137,11 @@ function tickOneHelper(h, dt) {
         // about the arena instead of pacing one ledge for the whole fifteen
         // seconds.
         if (blocked) {
-          if (Math.random() < 0.55) {
+          if (rng() < 0.55) {
             input.jumpDown = true;
             h.jumpAt = G.time * 1000;
           } else h.wanderDir *= -1;
-        } else if (Math.random() < HELPER.wanderJumpChance * dt) {
+        } else if (rng() < HELPER.wanderJumpChance * dt) {
           input.jumpDown = true;
           h.jumpAt = G.time * 1000;
         }
@@ -2371,6 +2383,7 @@ let guestWas = false;
  * changes when the arena crumbles, so it is dropped from the payload whenever
  * it matches the last one the guest was sent — which is most ticks.
  */
+let roundSeed = 0;
 let lastChipKey = "";
 let lastHudKey = "";
 
@@ -2380,7 +2393,9 @@ function broadcast() {
   if (now - lastSnapAt < 1000 / DUO_SNAPSHOT_HZ) return;
   lastSnapAt = now;
 
-  const snap = snapshot(G, { ph: phase, sc: score, rn: roundNo, wn: G.winner || 0 });
+  const snap = snapshot(G, {
+    ph: phase, sc: score, rn: roundNo, wn: G.winner || 0, sd: roundSeed,
+  });
 
   // Status chips, so the other phone can show the same panel. They are sent
   // only when they actually read differently — a chip is only redrawn at
@@ -2672,6 +2687,23 @@ if (SOLO || DUO) {
     return { phase, time: G && G.time };
   };
   window.__smashInput = (id, patch) => Object.assign(pads[id], patch);
+  // Determinism harness: restart a round on a KNOWN seed and read back a
+  // fingerprint of the whole live state, so two runs can be compared.
+  window.__smashRound = (sd) => { startRound(sd); return roundSeed; };
+  window.__smashSeed = () => roundSeed;
+  window.__smashFingerprint = () => {
+    const r2 = (n) => Math.round(n * 1000) / 1000;
+    return JSON.stringify({
+      lvl: G.level.rows.join("|"),
+      a: G.actors.map((a) => [a.id, r2(a.x), r2(a.y), r2(a.vx), r2(a.vy), a.hp, a.dead ? 1 : 0]),
+      pw: G.powers.map((q) => [r2(q.x), r2(q.y), q.type]),
+      cn: G.coins.map((c) => [r2(c.x), r2(c.y)]),
+      he: G.helpers.map((h) => [r2(h.actor.x), r2(h.actor.y), h.ally || 0, h.bad ? 1 : 0]),
+      mi: G.minis.map((m) => [r2(m.actor.x), r2(m.actor.y), m.owner || 0]),
+      wf: G.wildFairy ? [r2(G.wildFairy.x), r2(G.wildFairy.y)] : 0,
+      t: r2(G.time),
+    });
+  };
   window.__smashPacket = (role, pkt) => { applyPacket(role, pkt); return { ...pads[role] }; };
   window.__smashJump = (id) => (pendingJump[id] = true);
   window.__smashShoot = (id) => (pendingShot[id] = true);
