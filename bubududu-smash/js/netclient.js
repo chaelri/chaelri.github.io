@@ -116,7 +116,17 @@ export async function connect({ role, say = () => {} }) {
 
     view.score = m.sc;
     view.roundNo = m.rn;
-    sim.applyCorrection(view, null, m.ph);
+    try {
+      sim.applyCorrection(view, null, m.ph);
+    } catch (err) {
+      // Counted and shouted about once. A correction that throws leaves the
+      // client running on prediction alone, which looks like the game working
+      // and is not — it is the same picture drifting quietly away from the
+      // server's. Silence here cost a whole round of guessing.
+      stats.bad++;
+      if (stats.bad === 1) console.error("[bubu-dudu-smash] correction threw", err);
+      return;
+    }
 
     // The overlay. setBanner and setCount REPLACE their element, which is
     // what restarts the CSS animation — applying an unchanged one thirty

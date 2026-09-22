@@ -1932,6 +1932,17 @@ function simulate(dt) {
   pendingShot.p2 = false;
 }
 
+/* How hard a correction pulls.
+ *
+ * These moved with applyCorrection and were LEFT BEHIND in screen.js, so
+ * every single correction threw a ReferenceError — nothing was ever applied,
+ * the world never updated, and the only thing still running was the local
+ * prediction. That is what "it just blinks" was.
+ */
+const CORRECT_EASE = 0.25;   // how much of the gap to close each update
+const CORRECT_SNAP = 2.2;    // tiles of disagreement before easing gives up
+const CORRECT_MINE = 3.5;    // ...and a much longer leash on your own body
+
 export function applyCorrection(view, rngAt, hostPhase) {
   if (!G || !view) return;
 
