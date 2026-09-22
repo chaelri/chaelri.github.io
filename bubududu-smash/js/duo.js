@@ -1,31 +1,33 @@
 // Two phones, no laptop, any network.
 //
-// Charlie's phone is the host: it loads screen.js unchanged and runs the whole
-// game — the same rules, the same Dudu, the same arena generator — and pushes
-// a snapshot down to Karla twenty times a second. Karla's phone never
-// simulates anything. It sends its buttons up and draws what comes back with
-// the same render.js, so there is one copy of the art and one copy of the
-// rules in this repo, not two.
+// BOTH phones run the whole game. Same rules, same Dudu, same arena — each
+// from the same seed, so neither has to be told what the other's world looks
+// like. Each applies its own thumbs the instant they move and the other
+// player's as they arrive, and the host sends where everything actually is a
+// few times a second so the two can never quietly tell different stories.
 //
-// Why Charlie always hosts: electing a host by who arrived first needs a
-// negotiation that can tie, and it can tie badly (both hosting, neither
-// finding the other). For two named people a fixed answer is simply better,
-// and it costs only that Charlie's phone has to be in the game — which it was
-// going to be anyway.
+// It used to be one-sided: the host played the live game and the guest drew
+// pictures of it, interpolated sixty milliseconds late at whatever rate they
+// turned up. That makes the two experiences different BY CONSTRUCTION — the
+// delay is the design, not a bug in it — and it is why one phone always felt
+// worse than the other however much was tuned.
+//
+// Why Charlie still hosts: somebody has to own the truth and mint the seed,
+// and electing by who arrived first needs a negotiation that can tie badly
+// (both hosting, neither finding the other). For two named people a fixed
+// answer is simply better. It buys him no advantage now — he waits on the
+// same corrections she does.
 //
 // Across two mobile networks WebRTC usually cannot connect directly (carrier
 // NAT), so net.js falls back to relaying through Firebase. That works and it
-// is slower; the status pill says which one you are on.
+// is slower; the status pill says which one you are on. Running the round on
+// both phones is what makes the relay lane playable at all: it now carries
+// corrections rather than every frame of the picture.
 
-import { createRenderer, draw, resize } from "./render.js";
-import { preloadCharacters } from "./characters.js";
-import { stepActor } from "./physics.js";
 import { createClient } from "./net.js";
 import { createPad, paintShootButton } from "./pad.js";
 import { hydrate } from "./netstate.js";
-import { paintPanels, unpackChips } from "./panel.js";
-import { armAudio, onAudioState, startAudio, sfx, startMusic, stopMusic } from "./audio.js";
-import * as HUD from "./hud.js";
+import { armAudio, onAudioState, startAudio } from "./audio.js";
 
 const $ = (s) => document.querySelector(s);
 const params = new URLSearchParams(location.search);
@@ -86,185 +88,91 @@ async function hostSide() {
   }, 600);
 }
 
-/* ---------------------------------------------------------- smoothing --- */
-//
-// Snapshots arrive ~20 times a second. Drawing them raw means the world moves
-// in 20 visible steps per second while the screen refreshes 60 times — which
-// is most of what "laggy" actually was, before any network is blamed.
-//
-// Two separate cures, because the problem is two problems:
-//
-//   EVERYONE ELSE is drawn slightly in the PAST, interpolated between the two
-//   most recent snapshots. A fixed delay of one snapshot interval is enough to
-//   always have a pair to blend, and it buys smoothness for a lag nobody can
-//   perceive on a character they do not control.
-//
-//   YOUR OWN character is drawn in the PRESENT, simulated locally from your
-//   own buttons with the same physics the host runs, and corrected toward the
-//   host whenever the two disagree. Without this, every step you take waits a
-//   full round trip before it appears, and no amount of interpolation hides
-//   that — it is the one thing you feel directly.
-
-const LERP_BACK_MS = 60;     // how far behind live the remote view is drawn
-const SNAP_AT = 2.5;         // tiles of disagreement before prediction gives up
-const CORRECT = 0.18;        // otherwise, ease toward the host this much a frame
-
-const lerp = (a, b, t) => a + (b - a) * t;
-
-/** Blend everything positional between two hydrated snapshots. */
-function tween(a, b, t) {
-  const out = { ...b };
-  out.actors = b.actors.map((nb) => {
-    const pa = a.actors.find((x) => x.id === nb.id);
-    if (!pa || pa.dead !== nb.dead) return nb;
-    return { ...nb, x: lerp(pa.x, nb.x, t), y: lerp(pa.y, nb.y, t) };
-  });
-  out.minis = b.minis.map((nb, i) => {
-    const pa = a.minis[i];
-    if (!pa) return nb;
-    return { ...nb, actor: { ...nb.actor, x: lerp(pa.actor.x, nb.actor.x, t), y: lerp(pa.actor.y, nb.actor.y, t) } };
-  });
-  out.helpers = (b.helpers || []).map((nb, i) => {
-    const pa = (a.helpers || [])[i];
-    if (!pa) return nb;
-    return { ...nb, actor: { ...nb.actor,
-      x: lerp(pa.actor.x, nb.actor.x, t),
-      y: lerp(pa.actor.y, nb.actor.y, t) } };
-  });
-  if (b.wildFairy && a.wildFairy) {
-    out.wildFairy = { ...b.wildFairy,
-      x: lerp(a.wildFairy.x, b.wildFairy.x, t),
-      y: lerp(a.wildFairy.y, b.wildFairy.y, t) };
-  }
-  return out;
-}
-
 /** Karla. Sends buttons, draws whatever comes back. */
-function guestSide() {
-  const renderer = createRenderer($("#stage"));
-  resize(renderer, innerWidth, innerHeight);
-  addEventListener("resize", () => resize(renderer, innerWidth, innerHeight));
-  preloadCharacters();
-
+/** Karla. Runs the same round Charlie is running, and shows it live. */
+async function guestSide() {
+  // screen.js boots itself on import and takes the page over — the same as it
+  // does for the host. In ?role=p2 it knows not to open a room or broadcast;
+  // everything else about it is identical, which is the point.
+  const screen = await import("./screen.js");
   const pad = createPad({ onEdge: haptic });
+
   let client = null;
   let seq = 0;
-  let lastJump = 0;
-  const got = { snapshots: 0, bytes: 0, lastAt: 0 };
-  // Status chips for both players, and what the host says the match is doing.
-  // Chips ride the wire only when they change, so like the tilemap they have
-  // to persist between the snapshots that carry them — otherwise every effect
-  // would flicker off the instant it settled.
-  let chips = { p1: [], p2: [] };
-  let phase = "";
   let rematchSeq = 0;
+  let started = false;
+  const got = { corrections: 0, bytes: 0, lastAt: 0, bad: 0 };
   window.__duo = () => ({
     ...got,
     since: got.lastAt ? Math.round(performance.now() - got.lastAt) : -1,
-    chips: { p1: chips.p1.length, p2: chips.p2.length },
-    phase,
+    mode: client && client.mode,
   });
   const sessionKey = Math.random().toString(36).slice(2, 8);
 
-  // The two most recent pictures, what time each landed, and the tilemap they
-  // were drawn against — rows only arrive on a keyframe, so they persist.
-  let prev = null, prevAt = 0;
-  let next = null, nextAt = 0;
-  let rows = null;
-  let me = null;          // the locally predicted copy of your own character
-  let grid = null;
-
   function onMessage(m) {
     if (!m) return;
-    // A power hint for the fire button, not a snapshot.
-    if (m.p !== undefined && m.a === undefined) return paintShootButton(m.p, m.ammo);
-    if (!m.a) return;
-    if (m.rows) rows = m.rows;
-    else if (rows) m.rows = rows;
-    if (!m.rows) return;                    // nothing to draw against yet
-    got.snapshots++; got.lastAt = performance.now();
-    got.bytes = JSON.stringify(m).length;
-    got.actors = m.a.length;
 
-    /* A snapshot that cannot be read is skipped, not fatal.
-     *
-     * hydrate() throwing here used to take the whole frame with it: prev and
-     * next were never updated, so the guest sat on its last good picture — or
-     * on nothing at all — with no error anywhere the player could see. One
-     * malformed field should cost one frame. */
+    // A power hint for the fire button, not a round message.
+    if (m.p !== undefined && m.a === undefined && m.rs === undefined) {
+      return paintShootButton(m.p, m.ammo);
+    }
+
+    // The host has started a round. Start the same one, from its seed.
+    if (m.rs !== undefined) {
+      started = true;
+      wait.classList.add("gone");
+      padEl.classList.remove("hidden");
+      screen.beginRoundAs(m.rs, m.rn, m.sc);
+      return;
+    }
+
+    if (!m.a) return;
+    got.corrections++;
+    got.lastAt = performance.now();
+    got.bytes = JSON.stringify(m).length;
+
+    // Charlie's thumbs, applied to our copy of him. This is what makes him
+    // move here at all — nothing about his position is trusted between
+    // corrections, it is simulated from what he is pressing.
+    if (m.i1) {
+      screen.feedRemoteInput("p1", {
+        k: "host", n: ++hostSeq,
+        l: !!m.i1[0], r: !!m.i1[1], h: !!m.i1[2], d: !!m.i1[3],
+        j: m.i1[4], s: m.i1[5],
+      });
+    }
+
+    // A round already in progress when we joined.
+    if (!started && m.sd !== undefined) {
+      started = true;
+      wait.classList.add("gone");
+      padEl.classList.remove("hidden");
+      screen.beginRoundAs(m.sd, m.rn, m.sc);
+    }
+
+    // ...and the truth, to ease onto.
     let view;
     try {
       view = hydrate(m);
     } catch (err) {
-      got.bad = (got.bad || 0) + 1;
+      got.bad++;
       got.lastError = String(err && err.message ? err.message : err);
-      console.warn("[bubu-dudu-smash] unreadable snapshot, skipped", err);
+      console.warn("[bubu-dudu-smash] unreadable correction, skipped", err);
       return;
     }
-    grid = view.grid;
-    prev = next || view; prevAt = nextAt || performance.now();
-    next = view;         nextAt = performance.now();
-
-    // Reconcile the prediction. Small disagreements are eased away so the
-    // correction is invisible; a big one means we were wrong about something
-    // real (a stomp, a throw, a respawn) and the host simply wins.
-    const server = view.actors.find((a) => a.id === "p2");
-    if (server) {
-      if (!me || server.dead || Math.hypot(server.x - me.x, server.y - me.y) > SNAP_AT) {
-        me = { ...server };
-      } else {
-        me.x = lerp(me.x, server.x, CORRECT);
-        me.y = lerp(me.y, server.y, CORRECT);
-        me.hp = server.hp;
-        me.power = server.power;
-        me.dead = server.dead;
-        me.coins = server.coins;
-        me.fairy = server.fairy;
-        me.punch = server.punch;
-        me.invulnUntil = server.invulnUntil;
-        me.frozenUntil = server.frozenUntil;
-        me.reversedUntil = server.reversedUntil;
-        me.glowUntil = server.glowUntil;
-        me.glowFor = server.glowFor;
-        me.glowColour = server.glowColour;
-      }
-    }
-
-    if (m.st) chips = { p1: unpackChips(m.st.p1), p2: unpackChips(m.st.p2) };
-    if (m.ph) phase = m.ph;
-    $("#rematch")?.classList.toggle("show", phase === "matchover");
-
-    /* Everything laid over the arena, mirrored from the host.
-     *
-     * None of it happens here by itself: the banner, the countdown cards, the
-     * scrim and the notes are all written by the rules, and she runs none of
-     * them. Her screen used to dim behind a result with nothing on top of it,
-     * and the intro never appeared at all. hud.js does the drawing on both
-     * sides so the markup cannot drift. */
-    if (m.hd) applyHud(m.hd);
-    if (m.nt) for (const [id, label, colour, title, body, glyph] of m.nt)
-      HUD.showNote({ id, label }, colour, title, body, glyph);
-    // Sounds are one-shot events. Anything unknown is ignored rather than
-    // throwing — the two builds can be a version apart mid-match.
-    if (m.sx) for (const key of m.sx) { try { sfx[key]?.(); } catch {} }
-
-    paintHud(m);
-    wait.classList.add("gone");
-    padEl.classList.remove("hidden");
+    screen.applyCorrection(view, m.rs2);
   }
+  let hostSeq = 0;
 
   function paintState(mode) {
     const el = $("#state");
-    if (!el) return;
-    el.textContent =
-      mode === "p2p" ? "direct" : mode === "relay" ? "relay" :
-      mode === "lost" ? "reconnecting…" : mode === "offline" ? "offline" : "connecting…";
-    el.dataset.mode = mode;
-
-    // Until the first snapshot there is nothing to draw, and "looking for
-    // Charlie" is wrong once we have plainly found him — it reads as broken
-    // while the round is simply still starting.
-    if (!got.snapshots) {
+    if (el) {
+      el.textContent =
+        mode === "p2p" ? "direct" : mode === "relay" ? "relay" :
+        mode === "lost" ? "reconnecting…" : mode === "offline" ? "offline" : "connecting…";
+      el.dataset.mode = mode;
+    }
+    if (!started) {
       say(mode === "p2p" || mode === "relay"
         ? "found him — waiting for the round to start"
         : mode === "lost" ? "lost him, trying again…"
@@ -280,20 +188,19 @@ function guestSide() {
     paintState(client.mode);
   }
 
-  // Karla cannot restart the match herself — only the host simulates — so the
-  // tap travels up the same input channel as her thumbs and screen.js decides.
-  $("#rematch")?.addEventListener("click", () => {
-    rematchSeq++;
-    $("#rematch").classList.remove("show");
-    haptic();
-  });
-
   connect().catch(() => say("could not reach the room — is Charlie's phone open?"));
 
+  // Our own thumbs go straight into our own simulation, with no wait at all,
+  // and up the wire for his.
   setInterval(() => {
-    if (!client) return;
     const p = pad.state;
-    client.send({ k: sessionKey, n: ++seq, l: p.l, r: p.r, h: p.h, d: p.d, j: p.j, s: p.s, rm: rematchSeq });
+    screen.feedRemoteInput("p2", {
+      k: "local", n: ++seq, l: p.l, r: p.r, h: p.h, d: p.d, j: p.j, s: p.s,
+    });
+    client?.send({
+      k: sessionKey, n: seq, l: p.l, r: p.r, h: p.h, d: p.d, j: p.j, s: p.s,
+      rm: rematchSeq,
+    });
   }, 1000 / 40);
 
   // Rejoin on its own, the same way the controller page does.
@@ -301,102 +208,16 @@ function guestSide() {
     if (client && !client.healthy) { paintState("lost"); await connect().catch(() => {}); }
   }, 1800);
 
-  let last = performance.now();
+  screen.onHostPower((mm) => paintShootButton(mm.p, mm.ammo));
 
-  function tick(now) {
-    const dt = Math.min(0.08, (now - last) / 1000);
-    last = now;
-    if (!next) return false;
-
-    // Everyone else: blended between the last two snapshots, drawn slightly
-    // behind live so there is always a pair to blend between.
-    const span = Math.max(1, nextAt - prevAt);
-    const t = Math.min(1, Math.max(0, (now - LERP_BACK_MS - prevAt) / span));
-    const view = prev && prev !== next ? tween(prev, next, t) : next;
-
-    /* Belt and braces: never let a bad number out of prediction.
-     *
-     * The host has catchLostActors() for exactly this and the guest had
-     * nothing. One NaN in the predicted position reaches updateCamera, which
-     * frames on the actors — and from there every single thing drawn through
-     * the camera disappears, permanently, with the sky still painting behind
-     * it because the sky is the one thing that does not use it. Dropping back
-     * to the host's copy costs a frame of prediction and cannot strand you
-     * looking at an empty screen. */
-    if (me && !(Number.isFinite(me.x) && Number.isFinite(me.y) &&
-                Number.isFinite(me.vx) && Number.isFinite(me.vy))) {
-      const server = next.actors.find((a) => a.id === "p2");
-      console.warn("[bubu-dudu-smash] prediction left the numbers behind, recovering");
-      me = server ? { ...server } : null;
-    }
-
-    // You: simulated here and now, from your own thumbs.
-    if (me && grid && !me.dead) {
-      const p = pad.state;
-      const flipped = me.reversedUntil > view.time;
-      const frozen = me.frozenUntil > view.time;
-      stepActor(me, {
-        left:  frozen ? false : flipped ? p.r : p.l,
-        right: frozen ? false : flipped ? p.l : p.r,
-        jumpDown: frozen ? false : p.j !== lastJump,
-        jumpHeld: frozen ? false : p.h,
-        dropDown: frozen ? false : p.d,
-      }, grid, dt, [], {});
-      lastJump = p.j;
-      view.actors = view.actors.map((a) => (a.id === "p2" ? { ...a, ...me } : a));
-    }
-
-    draw(renderer, view, dt);
-    paintPanels(view.actors, chips, dt);
-    return true;
-  }
-
-  (function frame(now) {
-    requestAnimationFrame(frame);
-    tick(now);
-  })(performance.now());
-
-  // A backgrounded tab gets almost no rAF, so "nothing is drawn" and "nothing
-  // is arriving" look identical from the outside. The host has __smashStep for
-  // the same reason; this is the guest's half of it.
-  window.__duoFrame = () => tick(performance.now() + 16);
-}
-
-/**
- * The overlay state, applied only when it actually changes.
- *
- * setBanner and setCount both REPLACE their element, which is what restarts
- * the CSS animation — so calling them every snapshot would retrigger the pop
- * thirty times a second and the text would sit there vibrating.
- */
-let hudWas = "";
-function applyHud(hd) {
-  const key = JSON.stringify(hd);
-  if (key === hudWas) return;
-  hudWas = key;
-
-  if (hd.banner) HUD.setBanner(hd.banner[0], hd.banner[1], hd.banner[2]);
-  else HUD.hideBanner();
-
-  if (hd.count != null) HUD.setCount(hd.count);
-  else HUD.clearCount();
-
-  HUD.setResult(hd.result);
+  $("#rematch")?.addEventListener("click", () => {
+    rematchSeq++;
+    $("#rematch").classList.remove("show");
+    haptic();
+  });
 }
 
 /* ----------------------------------------------------------------- hud --- */
-
-// The guest has no simulation, so the score comes off the wire — and so do the
-// status chips, which the host computes and packs (see chipsWire in screen.js).
-// Hearts are the one thing she could work out herself, and the panel draws
-// them from the snapshot's actors, same as the host's copy does.
-function paintHud(m) {
-  const hud = $("#hud");
-  if (m.sc) {
-    hud.innerHTML =
-      `<div class="score"><b class="p1">${m.sc.p1}</b><i>—</i><b class="p2">${m.sc.p2}</b></div>`;
-  }
-}
 
 function haptic() {
   const h = $("#haptic");

@@ -10,7 +10,7 @@ import {
   SHOT_SPEED, SHOT_LIFE, SHOT_COOLDOWN_MS, SHOT_RADIUS, INPUT_HZ, STACK
 } from "./config.js";
 import { makeArena, readLevel, solidGrid } from "./levels.js";
-import { rng, seed as seedRng, newSeed } from "./rng.js";
+import { rng, seed as seedRng, newSeed, rngState, setState as setRngState } from "./rng.js";
 import { CHARACTERS, charById, preloadCharacters } from "./characters.js";
 import { makeActor, stepActor, kill, reviveAt } from "./physics.js";
 import { createRenderer, createScene, draw, drawScene, resize, resizeScene } from "./render.js";
@@ -108,6 +108,23 @@ const SOLO = params.has("solo");
  * that can tie, and for two named people a fixed answer is simply better.
  */
 const DUO = params.has("duo") || document.body.classList.contains("duo");
+
+/* Guest: runs the WHOLE simulation, exactly like the host, instead of drawing
+ * pictures the host sends.
+ *
+ * The old split made the two experiences different by construction — one
+ * player watched the live game and the other watched an interpolated copy of
+ * it, sixty milliseconds late, at whatever rate the snapshots arrived. No
+ * amount of tuning closes that, because the delay IS the design.
+ *
+ * Now both phones run the same seeded, deterministic round. Each applies its
+ * own thumbs the instant they move, and the other player's as it arrives.
+ * What the host still owns is the truth: a few times a second it sends where
+ * everything actually is, and the guest eases onto it. Small disagreements
+ * are corrected before they can be seen; nothing waits on the network to
+ * start moving.
+ */
+const GUEST = DUO && params.get("role") === "p2";
 const DUO_ROOM = (params.get("r") || "BUBUDUDU").toUpperCase();
 // Higher on a direct link than the relay lane can carry; net.js rate-limits
 // its own side, so this is simply how often a fresh picture is offered.
@@ -263,6 +280,10 @@ function startRound(withSeed) {
    */
   roundSeed = withSeed != null ? withSeed >>> 0 : newSeed();
   seedRng(roundSeed);
+  // Told once, immediately, rather than waiting for the next snapshot: a
+  // round the other phone starts a fifth of a second late is a round it
+  // spends catching up on.
+  if (!GUEST && host) host.tell("p2", { rs: roundSeed, rn: roundNo, sc: { ...score } });
 
   // A new arena every round. Mirrored and reachability-checked in makeArena(),
   // so the variety cannot reintroduce either of the two things that used to
@@ -2388,13 +2409,20 @@ let lastChipKey = "";
 let lastHudKey = "";
 
 function broadcast() {
-  if (!host || !G) return;
+  if (GUEST || !host || !G) return;
   const now = performance.now();
   if (now - lastSnapAt < 1000 / DUO_SNAPSHOT_HZ) return;
   lastSnapAt = now;
 
   const snap = snapshot(G, {
     ph: phase, sc: score, rn: roundNo, wn: G.winner || 0, sd: roundSeed,
+    // The host's own thumbs, and where the random stream has got to. Between
+    // them these are what let the other phone run the same round rather than
+    // watch this one. Input is tiny and goes every tick; the rest of the
+    // snapshot is the correction it is checked against.
+    i1: [pads.p1.left ? 1 : 0, pads.p1.right ? 1 : 0, pads.p1.jumpHeld ? 1 : 0,
+         pads.p1.drop ? 1 : 0, seenJumps.p1, seenShots.p1],
+    rs2: rngState(),
   });
 
   // Status chips, so the other phone can show the same panel. They are sent
@@ -2408,17 +2436,13 @@ function broadcast() {
     snap.st = chips;
   }
 
-  // The overlay — banner, countdown card, scrim state — on the same terms:
-  // only when it changes, and in full on a keyframe.
-  const hudKey = JSON.stringify(shown);
-  if (hudKey !== lastHudKey) {
-    lastHudKey = hudKey;
-    snap.hd = shown;
-  }
 
-  // One-shot events, drained on send.
-  if (pending.notes.length) { snap.nt = pending.notes; pending.notes = []; }
-  if (pending.sfx.length) { snap.sx = pending.sfx; pending.sfx = []; }
+  /* Notes, sounds and the banner are NOT sent any more.
+   *
+   * They were, briefly, because the guest drew pictures and had no rules to
+   * generate them from. It runs the same round now, so it makes its own — and
+   * sending them as well would mean every toast twice and every sound twice.
+   */
 
   // The tilemap is sent only when it differs from the last tick, because it is
   // most of the payload and it usually has not changed. That alone leaves a
@@ -2434,8 +2458,7 @@ function broadcast() {
   if (joined || stale || !rowsEqual(snap.rows, lastRows)) {
     lastRows = snap.rows;
     lastKeyAt = now;
-    snap.st = chips;          // a keyframe is complete...
-    snap.hd = shown;          // ...overlay included
+    snap.st = chips;          // a keyframe is complete, chips included
   } else {
     delete snap.rows;
   }
@@ -2471,6 +2494,78 @@ export function feedLocalPad(pad) {
       l: p.l, r: p.r, h: p.h, d: p.d, j: p.j, s: p.s,
     });
   }, 1000 / INPUT_HZ);
+}
+
+/* ------------------------------------------------------- the guest side --- */
+
+/**
+ * Start the round the host just started, on the host's seed.
+ *
+ * Both sides then build the same arena, spawn the same power-ups in the same
+ * places and hand out the same rewards, without a byte of any of it being
+ * sent — that is the whole point of the round being reproducible from one
+ * number.
+ */
+export function beginRoundAs(seedValue, roundNumber, scoreline) {
+  if (scoreline) { score.p1 = scoreline.p1; score.p2 = scoreline.p2; }
+  if (roundNumber) roundNo = roundNumber;
+  lobby.classList.add("gone");
+  $("#scene")?.classList.add("gone");
+  startRound(seedValue);
+}
+
+/** Feed the other player's thumbs in. Same door a controller uses. */
+export const feedRemoteInput = (role, packet) => applyPacket(role, packet);
+
+/** What the guest sends up, so the host can drive its copy of this player. */
+export const localInputPacket = () => ({ ...pads.p2 });
+
+/**
+ * Ease onto the host's version of the truth.
+ *
+ * NOT a snap. The two simulations agree about almost everything almost all of
+ * the time — they are the same code on the same seed — so a correction is
+ * usually a few centimetres, and sliding onto it is invisible where jumping
+ * onto it would be a stutter thirty times a minute. Anything big enough that
+ * easing would look wrong (a death, a respawn, a throw) is taken outright.
+ */
+const CORRECT_EASE = 0.25;
+const CORRECT_SNAP = 2.2;      // tiles of disagreement before we stop easing
+
+export function applyCorrection(view, rngAt) {
+  if (!G || !view) return;
+  for (const a of G.actors) {
+    const t = view.actors.find((o) => o.id === a.id);
+    if (!t) continue;
+    // Anything the rules decide is taken as given; only POSITION is eased.
+    a.hp = t.hp;
+    a.dead = t.dead;
+    a.respawn = t.respawn;
+    a.coins = t.coins;
+    const far = Math.hypot(t.x - a.x, t.y - a.y) > CORRECT_SNAP;
+    if (far || t.dead) {
+      a.x = t.x; a.y = t.y; a.vx = t.vx; a.vy = t.vy;
+    } else {
+      a.x += (t.x - a.x) * CORRECT_EASE;
+      a.y += (t.y - a.y) * CORRECT_EASE;
+      a.vx += (t.vx - a.vx) * CORRECT_EASE;
+      a.vy += (t.vy - a.vy) * CORRECT_EASE;
+    }
+  }
+  /* The floor, when the host sends it.
+   *
+   * The arena eats itself inward all round, off each side's own accumulated
+   * dt, so the two can end up one tile apart — and one tile of floor is the
+   * difference between standing and falling. Rows only ride the keyframes,
+   * which is often enough.
+   */
+  if (view.grid && view.grid.rows && G.grid.rows.length === view.grid.rows.length) {
+    G.grid.rows = view.grid.rows;
+  }
+
+  // And rejoin the host's place in the random stream, so the next thing that
+  // is decided is decided the same way on both phones.
+  if (rngAt) setRngState(rngAt);
 }
 
 /** Is the other phone actually in the room? */
@@ -2768,6 +2863,9 @@ async function boot() {
     startMatch();
     return;
   }
+
+  // The guest is handed a link by duo.js; it is not the one holding the room.
+  if (GUEST) return;
 
   try {
     host = await createHost({ onInput: applyPacket, onPeers: paintSlots, code: keepCode() });

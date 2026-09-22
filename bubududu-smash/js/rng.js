@@ -33,5 +33,16 @@ export function rngState() {
   return a >>> 0;
 }
 
+/**
+ * Put the stream back to a known position.
+ *
+ * Two simulations running the same seed still consume it at slightly
+ * different points — whether a player has reached a coin yet depends on when
+ * their input landed, and taking one draws a reward. So the authoritative
+ * side sends where it has got to along with each correction, and the other
+ * side rejoins it there rather than slowly telling a different story.
+ */
+export const setState = seed;
+
 /** A fresh seed, for whoever is deciding the round. */
 export const newSeed = () => (Math.random() * 4294967296) >>> 0;
