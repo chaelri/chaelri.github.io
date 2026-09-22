@@ -354,6 +354,10 @@ function tickRules(dt) {
   }
 }
 
+// How much room a respawn wants from the other player before it will settle
+// for a spot. Wider than both bodies plus the stomp window.
+const SAFE_SPAWN_GAP = 4;
+
 /**
  * Somewhere solid to come back to.
  *
@@ -403,11 +407,31 @@ function safeSpawn(i) {
   const best = widestFloor();
   if (!best) return G.meta.spawns[i];
 
-  const mid = (best.x0 + best.x1) / 2 + 0.5;
+  const y = best.y - 1.2;
   // Nudged apart so two respawns in the same instant do not land on top of
   // each other and register as a stomp.
+  const mid = (best.x0 + best.x1) / 2 + 0.5;
   const nudge = (i === 0 ? -1 : 1) * Math.min(1.6, (best.x1 - best.x0) / 4);
-  return { x: mid + nudge, y: best.y - 1.2 };
+  const wanted = mid + nudge;
+
+  // ...and away from anyone ALREADY standing there. Dropping back in on top
+  // of the other player is a stomp, which is a free kill handed to whoever
+  // just died. Walk the floor and take the spot furthest from them, breaking
+  // ties toward where we wanted to land anyway.
+  const them = G.actors.filter((a, j) => j !== i && !a.dead);
+  if (!them.length) return { x: wanted, y };
+
+  const clear = (x) => Math.min(...them.map((a) => Math.abs(a.x - x)));
+  if (clear(wanted) >= SAFE_SPAWN_GAP) return { x: wanted, y };
+
+  let bestX = wanted;
+  let bestScore = -Infinity;
+  for (let x = best.x0 + 1; x <= best.x1; x += 0.5) {
+    // Far from them first; among equally clear spots, the closest to centre.
+    const score = Math.min(clear(x), SAFE_SPAWN_GAP) * 100 - Math.abs(x - wanted);
+    if (score > bestScore) { bestScore = score; bestX = x; }
+  }
+  return { x: bestX, y };
 }
 
 /* ----------------------------------------------------------- powerups --- */
@@ -1004,6 +1028,15 @@ function handleDeath(a) {
 function killPlayer(victim, by) {
   if (victim.dead) return;
   if (victim.invulnUntil && G.time < victim.invulnUntil) return;
+
+  // The grace after being hit is DEFENSIVE. It is the only thing that sets
+  // invulnUntil, so an attacker who has it is someone who just respawned or
+  // was just recovered — and they were able to land on whoever happened to be
+  // standing at the respawn point and kill them, while being untouchable
+  // themselves. Being unable to retaliate against someone killing you is the
+  // worst version of this bug. A star is different: it is meant to kill on
+  // contact, and it is a power, not grace.
+  if (by && by.invulnUntil && G.time < by.invulnUntil) return;
   // A star makes you untouchable, whoever is doing the touching. Bullets
   // already skipped a star-holder and the player-versus-player stomp turned it
   // around on the attacker, but Dudu came through this function and could
