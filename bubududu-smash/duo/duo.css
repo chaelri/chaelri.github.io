@@ -1,0 +1,127 @@
+/* Two-phone layout.
+ *
+ * Loaded AFTER css/screen.css, so this is only the difference between a game
+ * on a laptop and the same game on a phone you are also holding as the
+ * controller: the pad sits over the picture instead of beside it, and
+ * everything that assumed a wide screen gets out of the way.
+ */
+
+body.duo {
+  overscroll-behavior: none;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* The player panels are a laptop luxury. On a phone the hearts are already
+   over each character's head, and the panels would sit under your thumbs. */
+body.duo #players { display: none; }
+
+body.duo #hud { top: max(6px, env(safe-area-inset-top)); }
+body.duo #hud .score { transform: scale(0.8); transform-origin: top center; }
+
+/* Banner and countdown both shrink — "BUBU DUDU SMASH" at desktop size is
+   wider than a phone in portrait. */
+body.duo #banner .bt { font-size: clamp(22px, 7vw, 44px); }
+body.duo #banner .bs { font-size: clamp(10px, 2.6vw, 14px); }
+body.duo .count { width: clamp(110px, 40vw, 220px); height: clamp(110px, 40vw, 220px); }
+body.duo .count .num { font-size: clamp(38px, 13vw, 92px); }
+body.duo .count.title { min-width: min(94vw, 520px); }
+body.duo .count.title .num { font-size: clamp(20px, 7vw, 44px); }
+
+body.duo .toast { transform: scale(0.8); transform-origin: top left; }
+body.duo .toast.right { transform-origin: top right; }
+
+/* ------------------------------------------------------------- waiting --- */
+
+#duowait {
+  position: fixed; inset: 0; z-index: 60;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 18px;
+  padding: 6vh 6vw; text-align: center;
+  background: linear-gradient(180deg, #a5dcff 0%, #cfeeff 60%, #a7dc8a 100%);
+  transition: opacity 420ms ease, visibility 420ms;
+}
+#duowait.gone { opacity: 0; visibility: hidden; pointer-events: none; }
+
+#duowait .who { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+#duowait .who.gone { display: none; }
+#duowait .who button {
+  font-family: "Nunito", system-ui, sans-serif; font-weight: 800;
+  font-size: clamp(15px, 4.4vw, 20px);
+  padding: 14px 26px; border-radius: 18px; border: 3px solid rgba(33,49,63,0.12);
+  background: rgba(255,255,255,0.9); color: #1b6f9e;
+  box-shadow: 0 8px 20px -10px rgba(33,49,63,0.5);
+}
+#duowait .who button:active { transform: translateY(2px); }
+#duowait .who button[data-who="p2"] { color: #a63f65; }
+
+#duowait .hint, #duowait .status {
+  margin: 0; font-family: "Nunito", system-ui, sans-serif;
+  color: rgba(33,49,63,0.6); font-size: clamp(11px, 3.2vw, 14px);
+  max-width: 34ch;
+}
+#duowait .status { font-weight: 700; color: rgba(33,49,63,0.45); }
+
+/* ----------------------------------------------------------------- pad --- */
+
+#pad.duo {
+  position: fixed; inset: 0; z-index: 50;
+  display: block; pointer-events: none;   /* the buttons take their own taps */
+  background: none;
+}
+#pad.duo.hidden { display: none; }
+
+#pad.duo .dpad,
+#pad.duo .actions { position: fixed; bottom: max(14px, env(safe-area-inset-bottom)); }
+#pad.duo .dpad { left: max(12px, env(safe-area-inset-left)); display: flex; gap: 10px; }
+#pad.duo .actions {
+  right: max(12px, env(safe-area-inset-right));
+  display: grid; grid-template-columns: auto auto; gap: 10px; align-items: end;
+}
+
+/* Translucent, because they sit ON the game. Solid buttons here would hide
+   a third of the arena on a phone. */
+#pad.duo button {
+  pointer-events: auto;
+  font-family: "Nunito", system-ui, sans-serif; font-weight: 800;
+  border-radius: 22px; border: 2px solid rgba(255,255,255,0.55);
+  background: rgba(33,49,63,0.22);
+  color: rgba(255,255,255,0.92);
+  backdrop-filter: blur(6px);
+  width: clamp(62px, 17vw, 86px); height: clamp(62px, 17vw, 86px);
+  font-size: clamp(17px, 5vw, 22px);
+  transition: transform 70ms, background 140ms;
+}
+#pad.duo #jump {
+  width: clamp(78px, 21vw, 104px); height: clamp(78px, 21vw, 104px);
+  border-radius: 50%; font-size: clamp(13px, 3.6vw, 16px);
+  background: rgba(255,184,77,0.34);
+}
+#pad.duo #shoot { background: rgba(99,217,138,0.2); }
+#pad.duo button.down { transform: scale(0.93); background: rgba(255,255,255,0.4); }
+#pad.duo #jump.down { background: rgba(255,184,77,0.6); }
+#pad.duo #shoot.armed { background: rgba(99,217,138,0.45); border-color: rgba(99,217,138,0.85); }
+#pad.duo #shoot.armed.melee { background: rgba(255,107,87,0.45); border-color: rgba(255,107,87,0.85); }
+
+#pad.duo #state {
+  position: fixed; top: max(6px, env(safe-area-inset-top));
+  left: 50%; transform: translateX(-50%);
+  pointer-events: none;
+  font-family: "Nunito", system-ui, sans-serif; font-weight: 700;
+  font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase;
+  padding: 3px 10px; border-radius: 999px;
+  background: rgba(255,255,255,0.7); color: rgba(33,49,63,0.5);
+}
+#pad.duo #state[data-mode="relay"] { color: #c47b16; }
+#pad.duo #state[data-mode="lost"],
+#pad.duo #state[data-mode="offline"] { color: #d0455a; }
+
+/* Landscape is the better way to hold this, so the buttons move out of the
+   way of a wider, shorter picture. */
+@media (orientation: landscape) and (max-height: 520px) {
+  body.duo #banner .bt { font-size: clamp(18px, 5vh, 34px); }
+  #pad.duo button { width: clamp(52px, 13vh, 74px); height: clamp(52px, 13vh, 74px); }
+  #pad.duo #jump { width: clamp(66px, 17vh, 92px); height: clamp(66px, 17vh, 92px); }
+}

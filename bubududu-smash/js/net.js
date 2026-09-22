@@ -53,6 +53,10 @@ function makeCode(n = 4) {
   return s;
 }
 
+// How often the host may push down the relay lane. Input is tiny and can go
+// at INPUT_HZ_RELAY; a whole round snapshot cannot.
+const RELAY_TELL_HZ = 10;
+
 const randomId = () => crypto.randomUUID().slice(0, 12);
 
 /**
@@ -131,7 +135,7 @@ export async function createHost({ onInput, onPeers, code: wanted } = {}) {
     const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
     const queue = candidateQueue(pc);
     const base = `${roomPath}/peers/${peerId}`;
-    const rec = { role: info.role, name: info.name || info.role, mode: "off", pc, subs: [] };
+    const rec = { id: peerId, role: info.role, name: info.name || info.role, mode: "off", pc, subs: [] };
 
     // ordered, but still not retransmitted. Unordered delivery meant a stale
     // packet carrying "left is held" could land after a fresh "left is
@@ -228,7 +232,17 @@ export async function createHost({ onInput, onPeers, code: wanted } = {}) {
         if (rec.role !== role) continue;
         if (rec.dc && rec.dc.readyState === "open") {
           try { rec.dc.send(JSON.stringify(payload)); } catch {}
+          continue;
         }
+        // The relay used to run one way only — the client could reach the
+        // host but never the reverse, so tell() silently did nothing on the
+        // exact path that cross-network play depends on. This is the return
+        // lane. Rate-limited hard, because unlike a button hint it may now be
+        // carrying a whole round several times a second.
+        const now = performance.now();
+        if (now - (rec.lastTell || 0) < 1000 / RELAY_TELL_HZ) continue;
+        rec.lastTell = now;
+        set(ref(d, `${roomPath}/peers/${rec.id}/state`), payload).catch(() => {});
       }
     },
     destroy() {
@@ -310,6 +324,11 @@ export async function createClient({ code, role, name, onState, onMessage }) {
       await set(ref(d, `${base}/answer`), { type: answer.type, sdp: answer.sdp });
     }),
     onChildAdded(ref(d, `${base}/hostIce`), (snap) => queue.add(snap.val())),
+    // The host's return lane, used whenever the data channel is not up.
+    onValue(ref(d, `${base}/state`), (snap) => {
+      const v = snap.val();
+      if (v && (!dc || dc.readyState !== "open")) onMessage?.(v);
+    }),
   ];
 
   setTimeout(() => {

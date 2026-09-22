@@ -7,7 +7,7 @@
 import {
   MODES, PLAYERS, ROUNDS_TO_WIN, FEEL, HELPER, BAD_HELPER, SQUAD, DIWATA, COINS, HIT, GLYPH,
   POWERUPS, POWER_ORDER, POWER_SPAWN_MS, POWER_FIRST_MS,
-  SHOT_SPEED, SHOT_LIFE, SHOT_COOLDOWN_MS, SHOT_RADIUS,
+  SHOT_SPEED, SHOT_LIFE, SHOT_COOLDOWN_MS, SHOT_RADIUS, INPUT_HZ,
 } from "./config.js";
 import { makeArena, readLevel, solidGrid } from "./levels.js";
 import { CHARACTERS, charById, preloadCharacters } from "./characters.js";
@@ -15,6 +15,7 @@ import { makeActor, stepActor, kill, reviveAt } from "./physics.js";
 import { createRenderer, createScene, draw, drawScene, resize, resizeScene } from "./render.js";
 import { createHost } from "./net.js";
 import { armAudio, audioState, duckMusic, onAudioState, sfx, startAudio, startMusic, stopMusic } from "./audio.js";
+import { snapshot, rowsEqual } from "./netstate.js";
 import { tileAt } from "./physics.js";
 
 const $ = (s) => document.querySelector(s);
@@ -33,6 +34,22 @@ const cards = {
 
 const params = new URLSearchParams(location.search);
 const SOLO = params.has("solo");
+
+/*
+ * Duo: both players on their own phone, no laptop.
+ *
+ * This file is unchanged in every other respect — the host phone runs exactly
+ * the rules the big screen runs, against exactly the same DOM. What duo mode
+ * adds is only: a fixed room so two people on different networks can find each
+ * other without scanning anything, the host's OWN player fed through the same
+ * applyPacket() a remote controller uses, and a snapshot pushed to the guest.
+ *
+ * Charlie always hosts. Deciding it by who arrived first needs a negotiation
+ * that can tie, and for two named people a fixed answer is simply better.
+ */
+const DUO = params.has("duo") || document.body.classList.contains("duo");
+const DUO_ROOM = (params.get("r") || "BUBUDUDU").toUpperCase();
+const DUO_SNAPSHOT_HZ = 20;
 // ?mode=tapakan lets a mode be opened directly, which is the only way to test
 // the versus rules without two phones in the room.
 const FORCED = params.get("mode");
@@ -482,7 +499,11 @@ function showPickup(a, type) {
 
 
 function tellPad(a) {
-  host?.tell(a.id, { p: a.power ? a.power.type : null, ammo: a.power ? a.power.ammo : 0 });
+  const msg = { p: a.power ? a.power.type : null, ammo: a.power ? a.power.ammo : 0 };
+  host?.tell(a.id, msg);
+  // The host's own fire button is not on the far end of a data channel, so it
+  // has to be told directly or it never learns it is holding anything.
+  if (DUO && a.id === "p1") for (const fn of powerListeners) fn(msg);
 }
 
 function givePower(a, type) {
@@ -1815,6 +1836,7 @@ function advance(dt) {
     draw(renderer, G, dt);
     paintHud();
     paintPlayers(dt);
+    if (DUO) broadcast();
   }
 }
 
@@ -1860,6 +1882,58 @@ function simulate(dt) {
   pendingShot.p1 = false;
   pendingShot.p2 = false;
 }
+
+/* ------------------------------------------------------------- duo host --- */
+
+let lastSnapAt = 0;
+let lastRows = null;
+
+/**
+ * Push the round down to the guest phone.
+ *
+ * Capped by wall clock rather than by frame, so a 120 Hz phone does not send
+ * twice as much as a 60 Hz one. The tilemap is the bulky part and it only
+ * changes when the arena crumbles, so it is dropped from the payload whenever
+ * it matches the last one the guest was sent — which is most ticks.
+ */
+function broadcast() {
+  if (!host || !G) return;
+  const now = performance.now();
+  if (now - lastSnapAt < 1000 / DUO_SNAPSHOT_HZ) return;
+  lastSnapAt = now;
+
+  const snap = snapshot(G, { ph: phase, sc: score, rn: roundNo, wn: G.winner || 0 });
+  if (rowsEqual(snap.rows, lastRows)) delete snap.rows;
+  else lastRows = snap.rows;
+  host.tell("p2", snap);
+}
+
+/**
+ * The host's own thumbs, through the same door a remote controller uses.
+ *
+ * Going straight at `pads.p1` would skip the sequence and session-key handling
+ * in applyPacket, and then the two players would be running on subtly
+ * different input paths — which is exactly the kind of difference that only
+ * shows up mid-game.
+ */
+export function feedLocalPad(pad) {
+  pads.p1.connected = true;
+  let seq = 0;
+  setInterval(() => {
+    const p = pad.state;
+    applyPacket("p1", {
+      k: "local", n: ++seq,
+      l: p.l, r: p.r, h: p.h, d: p.d, j: p.j, s: p.s,
+    });
+  }, 1000 / INPUT_HZ);
+}
+
+/** Is the other phone actually in the room? */
+export const guestIn = () => !!pads.p2.connected;
+
+/** So the duo page can show the fire button the right way round. */
+export const onHostPower = (fn) => (powerListeners.push(fn), fn);
+const powerListeners = [];
 
 /* --------------------------------------------------------- player cards --- */
 
@@ -2050,7 +2124,12 @@ function paintSlots(list) {
   for (const p of PLAYERS) {
     const on = list.find((x) => x.role === p.id);
     pads[p.id].connected = !!on;
-    const el = lobby.querySelector(`[data-slot="${p.id}"]`);
+    // The duo page has no lobby cards — it is one phone, not a shared screen.
+    // Reading them unconditionally threw here, BEFORE p2's `connected` was
+    // set and before the start check below, so the host sat on "waiting for
+    // Karla" forever with her sitting right there connected.
+    const el = lobby && lobby.querySelector(`[data-slot="${p.id}"]`);
+    if (!el) continue;
     el.classList.toggle("on", !!on);
     // Empty until they are actually in. A QR code beside a name does not need
     // to be told it is for scanning.
@@ -2060,7 +2139,11 @@ function paintSlots(list) {
 
   // Both scanned in: start on its own. Nobody should have to walk back to the
   // laptop to press a key once they are already holding the controller.
-  const ready = PLAYERS.every((p) => pads[p.id].connected);
+  // In duo the host's own player is local, so it is never a connected peer:
+  // waiting for both would wait forever. The guest arriving is the start.
+  const ready = DUO
+    ? pads.p2.connected
+    : PLAYERS.every((p) => pads[p.id].connected);
   if (ready && phase === "lobby" && !starting) {
     starting = true;
     sfx.join();
@@ -2108,6 +2191,8 @@ $("#localBtn")?.addEventListener("click", () => {
  * game here for a day, so a stale one cannot be inherited forever.
  */
 function keepCode() {
+  // Duo has one room, always, so the other phone needs nothing but the URL.
+  if (DUO) return DUO_ROOM;
   const KEY = "bubududu-smash.room";
   const DAY = 24 * 60 * 60 * 1000;
   try {

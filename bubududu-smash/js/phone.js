@@ -8,6 +8,7 @@
 import { INPUT_HZ, PLAYERS } from "./config.js";
 import { CHARACTERS, charById } from "./characters.js";
 import { createClient } from "./net.js";
+import { createPad, paintShootButton } from "./pad.js";
 
 const $ = (s) => document.querySelector(s);
 const els = {
@@ -29,7 +30,7 @@ let role = params.get("role") || null;
 let character = params.get("c") || "yhon";
 let client = null;
 
-const state = { l: false, r: false, h: false, d: false, j: 0, s: 0 };
+let pad = null;
 let seq = 0;
 // A fresh key per page load. The screen uses it to tell "this is a new sender
 // starting its count again" apart from "this is an old packet arriving late",
@@ -72,102 +73,9 @@ for (const btn of els.who) {
 if (role) els.who.find((b) => b.dataset.who === role)?.click();
 
 /* ------------------------------------------------------------ buttons --- */
-// Held buttons are tracked by pointer id, because a thumb that slides off the
-// edge of a button never fires pointerup where you expect it to.
 
-/**
- * Controls, driven by the browser's own list of live touches.
- *
- * Every previous version tracked pointerdown/up pairs and kept its own record
- * of what was held. That record can desync — iOS drops or reorders a release
- * often enough — and a lost pointerup leaves a direction jammed on. The
- * symptom is confusing: pressing LEFT while RIGHT is stuck reads as "left
- * does nothing and he stops", because left and right cancel out.
- *
- * `TouchEvent.touches` is not a record, it is the complete set of fingers
- * currently on the glass. Recomputing every button from it on every touch
- * event means there is no bookkeeping left to get out of step: if a finger is
- * gone, it is simply not in the list.
- */
-function bindControls() {
-  const zones = () => ({
-    dpad: document.querySelector(".dpad").getBoundingClientRect(),
-    jump: $("#jump").getBoundingClientRect(),
-    down: $("#down").getBoundingClientRect(),
-    shoot: $("#shoot").getBoundingClientRect(),
-  });
-
-  const inside = (b, x, y, m = 14) =>
-    x >= b.left - m && x <= b.right + m && y >= b.top - m && y <= b.bottom + m;
-
-  let wasJump = false;
-  let wasShoot = false;
-
-  function apply(points) {
-    const z = zones();
-    let l = false, r = false, jump = false, down = false, shoot = false;
-
-    for (const pt of points) {
-      const { x, y } = pt;
-      if (inside(z.dpad, x, y, 20)) {
-        // Split down the middle: no dead strip, no overlap, and sliding from
-        // one arrow to the other just works.
-        if (x < z.dpad.left + z.dpad.width / 2) l = true;
-        else r = true;
-      }
-      if (inside(z.jump, x, y)) jump = true;
-      if (inside(z.down, x, y)) down = true;
-      if (inside(z.shoot, x, y)) shoot = true;
-    }
-
-    state.l = l;
-    state.r = r;
-    state.h = jump;
-    state.d = down;
-
-    // Presses are counted on the rising edge only.
-    if (jump && !wasJump) { state.j++; tick(); }
-    if (shoot && !wasShoot) { state.s++; tick(); }
-    wasJump = jump;
-    wasShoot = shoot;
-
-    $("#left").classList.toggle("down", l);
-    $("#right").classList.toggle("down", r);
-    $("#jump").classList.toggle("down", jump);
-    $("#down").classList.toggle("down", down);
-    $("#shoot").classList.toggle("down", shoot);
-  }
-
-  if ("ontouchstart" in window) {
-    const fromTouches = (e) =>
-      apply([...e.touches].map((t) => ({ x: t.clientX, y: t.clientY })));
-    for (const ev of ["touchstart", "touchmove", "touchend", "touchcancel"])
-      document.addEventListener(ev, fromTouches, { passive: true });
-  } else {
-    // Desktop fallback: one mouse pointer, same reconciliation.
-    const live = new Map();
-    const push = () => apply([...live.values()]);
-    document.addEventListener("pointerdown", (e) => {
-      live.set(e.pointerId, { x: e.clientX, y: e.clientY });
-      push();
-    });
-    document.addEventListener("pointermove", (e) => {
-      if (!live.has(e.pointerId)) return;
-      live.set(e.pointerId, { x: e.clientX, y: e.clientY });
-      push();
-    });
-    const drop = (e) => { live.delete(e.pointerId); push(); };
-    document.addEventListener("pointerup", drop);
-    document.addEventListener("pointercancel", drop);
-  }
-
-  // Anything that takes the page away releases everything.
-  const clearAll = () => apply([]);
-  addEventListener("blur", clearAll);
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState !== "visible") clearAll();
-  });
-}
+// The touch handling lives in pad.js, because the duo page's host phone needs
+// exactly the same controls and two copies of it would drift apart.
 
 function paintCharBtn() {
   const b = $("#swap");
@@ -184,26 +92,20 @@ function bindPad() {
       tick();
     });
   }
-  bindControls();
+  pad = createPad({ onEdge: tick });
 }
 
 /* --------------------------------------------------------------- send --- */
 
 function send() {
-  client?.send({ k: sessionKey, n: ++seq, l: state.l, r: state.r, h: state.h, d: state.d, j: state.j, s: state.s, c: character });
+  if (!pad) return;
+  const p = pad.state;
+  client?.send({ k: sessionKey, n: ++seq, l: p.l, r: p.r, h: p.h, d: p.d, j: p.j, s: p.s, c: character });
 }
 
 /** The screen tells us what we are holding; this is display only. */
 function onMessage(m) {
-  const b = $("#shoot");
-  if (!b || !m) return;
-  // One button, two weapons. The glyph says which, the number says how many
-  // are left — so a thumb never has to guess whether it is shooting or
-  // punching.
-  const armed = (m.p === "baril" || m.p === "suntok") && m.ammo > 0;
-  b.classList.toggle("armed", armed);
-  b.classList.toggle("melee", armed && m.p === "suntok");
-  b.textContent = armed ? `${m.p === "suntok" ? "\u270a" : "\u279c"}${m.ammo}` : "\u279c";
+  if (m) paintShootButton(m.p, m.ammo);
 }
 
 /* ---------------------------------------------------------- supervisor --- */
@@ -318,7 +220,7 @@ if (params.has("pad")) {
   els.pad.classList.remove("hidden");
   bindPad();
   paintCharBtn();
-  window.__pad = () => ({ ...state });
+  window.__pad = () => ({ ...(pad ? pad.state : {}) });
 } else if (params.get("r") && role) autoJoin();
 
 document.addEventListener("gesturestart", (e) => e.preventDefault());

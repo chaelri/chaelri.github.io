@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>BUBU DUDU SMASH — two phones</title>
+<meta name="description" content="Both of you on your own phone, anywhere. No laptop.">
+<meta name="theme-color" content="#8fd4ff">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,300..900;1,300..900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/screen.css">
+<link rel="stylesheet" href="duo.css">
+</head>
+<body class="duo">
+
+<!--
+  Both halves of the game on one page.
+
+  The DOM below is deliberately the SAME contract the big-screen page offers,
+  element for element, because the host phone runs the ordinary screen.js
+  against it — same rules, same AI, same HUD, one copy of everything. What is
+  added is the pad on top and the little status pill.
+
+  The guest phone runs duo.js instead: it draws snapshots the host sends and
+  never simulates anything.
+-->
+<canvas id="stage"></canvas>
+<div id="hud"></div>
+
+<div id="players">
+  <div class="pcard" data-p="p1">
+    <canvas class="face" width="132" height="132"></canvas>
+    <div class="pinfo">
+      <div class="pname">Charlie</div>
+      <div class="phearts"></div>
+      <div class="pchips"></div>
+    </div>
+  </div>
+  <div class="pcard right" data-p="p2">
+    <canvas class="face" width="132" height="132"></canvas>
+    <div class="pinfo">
+      <div class="pname">Karla</div>
+      <div class="phearts"></div>
+      <div class="pchips"></div>
+    </div>
+  </div>
+</div>
+
+<div id="banner"></div>
+<div id="count"></div>
+<div id="sound">tap for sound</div>
+<div id="toastL" class="toast"></div>
+<div id="toastR" class="toast right"></div>
+<canvas id="scene" hidden></canvas>
+<div id="lobby" class="gone" aria-hidden="true"><div class="slots"></div></div>
+
+<!-- Waiting room. Replaced by the pad the moment both are in. -->
+<div id="duowait">
+  <h1 class="logo" data-text="BUBU DUDU SMASH"><span>BUBU DUDU SMASH</span></h1>
+  <div class="who">
+    <button data-who="p1">I'm Charlie</button>
+    <button data-who="p2">I'm Karla</button>
+  </div>
+  <p class="hint">Open this on both phones. Any network — same WiFi, or mobile data.</p>
+  <p class="status">pick who you are</p>
+</div>
+
+<!-- Controls, over the game. Same ids as the controller page so the touch
+     handling in phone.js can be reused verbatim. -->
+<section id="pad" class="hidden duo">
+  <div id="state" class="pill">connecting…</div>
+  <div class="dpad">
+    <button id="left" aria-label="left">◀</button>
+    <button id="right" aria-label="right">▶</button>
+  </div>
+  <div class="actions">
+    <button id="shoot" aria-label="shoot">➜</button>
+    <button id="down" aria-label="drop">▼</button>
+    <button id="jump" aria-label="jump">JUMP</button>
+  </div>
+</section>
+
+<script type="module" src="../js/duo.js"></script>
+</body>
+</html>
