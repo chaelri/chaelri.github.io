@@ -11,11 +11,19 @@
 const SPRITE_W = 251;
 const SPRITE_H = 298;
 
+// Resolved against THIS MODULE, not the page. A bare "assets/..." is relative
+// to the document, so it only worked from the game's own directory — from
+// /duo/ it asked for /duo/assets/bubu/1.png, got a 404, and every sprite
+// character fell back to the pale "still loading" blob forever. Yhon Yhon
+// kept working and hid it, because he is drawn with canvas paths and needs no
+// image at all.
+const ASSETS = new URL("../assets/", import.meta.url);
+
 function loadFrames(dir, n = 6) {
   const out = [];
   for (let i = 1; i <= n; i++) {
     const img = new Image();
-    img.src = `assets/${dir}/${i}.png`;
+    img.src = new URL(`${dir}/${i}.png`, ASSETS).href;
     out.push(img);
   }
   return out;

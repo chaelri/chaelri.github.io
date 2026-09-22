@@ -132,6 +132,26 @@ try {
   log.push(`powerups  ok — ${POWER_ORDER.length} spawnable, all defined, all have a glyph`);
   log.push(`characters ok — ${CHARACTERS.map(c=>c.id).join(', ')} (+dudu, badudu)`);
 
+  /* ------------------------------------------------- the sprites LOADED --- */
+  // Not "did we ask for them" but "did the bytes arrive". drawSprite falls back
+  // to a pale blob when an image is missing, which looks like a rendering
+  // quirk rather than a 404 — that is how every sprite character shipped
+  // invisible on /duo/ while Yhon Yhon, who needs no image, hid the problem.
+  const wanted = [];
+  for (const dir of ['bubu', 'dudu']) {
+    for (let i = 1; i <= 6; i++) {
+      wanted.push(new Promise((res) => {
+        const img = new Image();
+        img.onload = () => res(null);
+        img.onerror = () => res(`${dir}/${i}.png`);
+        img.src = new URL(`../assets/${dir}/${i}.png`, new URL('./js/characters.js', location.href)).href;
+      }));
+    }
+  }
+  const missingArt = (await Promise.all(wanted)).filter(Boolean);
+  if (missingArt.length) fail('sprites', 'did not load: ' + missingArt.join(', '));
+  else log.push(`sprites   ok — ${wanted.length} frames loaded from assets/`);
+
   /* ---- the whole point: layers that failed quietly are failures anyway ---- */
   const bad = faults();
   if (bad.length) for (const f of bad) fail('draw layer', f);
