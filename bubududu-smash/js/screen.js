@@ -246,7 +246,10 @@ function startRound() {
   };
 
   phase = "countdown";
-  countdown = 3.2;
+  // Four seconds, one per card. At 3.2 the first card — BUBU — got the 0.2
+  // left over after the other three took a second each, so it flashed for two
+  // frames and the count read as DUDU, SMASH, title.
+  countdown = 3;
   lastCount = -1;
   startMusic(138);
   setBanner(`${MODES[mode].name}`, `round ${roundNo}`);
@@ -305,6 +308,7 @@ function endRound(winnerId, why) {
       // one number nobody could read, on the one screen it matters most.
       setBanner(
         `${champ} wins the match`,
+        "",
         `<div class="score final"><b class="p1">${score.p1}</b><i></i><b class="p2">${score.p2}</b></div>`
       );
       showRematch(true);
@@ -326,20 +330,29 @@ let countHide = null;
 // Four beats, and they spell the game. "3 2 1 START" is four beats of
 // nothing; this is the same four saying who you are playing as and what you
 // are about to do, with the title landing on the last one as the round opens.
-const COUNT_WORDS = { 3: "BUBU", 2: "DUDU", 1: "SMASH", 0: "BUBU DUDU SMASH!!" };
+// Three beats, and they spell the game. The fourth card repeated the whole
+// title straight after SMASH — and the round banner behind it says the same
+// three words, so it was the name three times in two seconds.
+const COUNT_WORDS = { 3: "BUBU", 2: "DUDU", 1: "SMASH!" };
 
 function setCount(n) {
   clearTimeout(countHide);
   const word = COUNT_WORDS[n];
   if (!word) return clearCount();
   countEl.innerHTML =
-    `<div class="count word${n === 0 ? " go title" : ""}">` +
+    `<div class="count word${n === 1 ? " go" : ""}">` +
     `<span class="ring"></span><span class="num">${word}</span></div>`;
   // The round title lives in the middle of the screen too, so it steps up out
   // of the way for as long as the number is there rather than sitting under it.
   document.body.classList.add("counting");
   // Nothing follows the last one, so it takes itself off.
-  if (n === 0) countHide = setTimeout(clearCount, 900);
+  //
+  // The round banner also says BUBU DUDU SMASH, and `body.counting` has it
+  // parked small and up out of the way. Letting it sit there until the class
+  // came off meant it SLID BACK DOWN to the middle at full size and then
+  // faded — a second title animation straight after the title card, which
+  // read as the intro playing twice. Dropped the moment the last card is up.
+  if (n === 1) hideBanner();
 }
 
 function clearCount() {
@@ -348,8 +361,15 @@ function clearCount() {
   document.body.classList.remove("counting");
 }
 
-function setBanner(title, sub) {
-  banner.innerHTML = `<div class="bt">${title}</div><div class="bs">${sub || ""}</div>`;
+/**
+ * `pre` sits ABOVE the headline — the final score goes there, because under
+ * the name it read as a footnote to the sentence rather than as the result.
+ */
+function setBanner(title, sub, pre) {
+  banner.innerHTML =
+    (pre ? `<div class="bp">${pre}</div>` : "") +
+    `<div class="bt">${title}</div>` +
+    `<div class="bs">${sub || ""}</div>`;
   banner.classList.add("in");
 }
 const hideBanner = () => banner.classList.remove("in");
@@ -379,6 +399,8 @@ function catchLostActors() {
     a.vy = 0;
     a.launchFor = 0;
     reviveAt(a, at.x, at.y);
+    a.cause = null;
+    a.thrownAt = null;
     a.face = charById(a.char).spawnFace || 1;
     a.invulnUntil = G.time + FEEL.hurtInvulnMs / 1000;
   }
@@ -394,6 +416,8 @@ function tickRules(dt) {
     const i = G.actors.indexOf(a);
     const at = safeSpawn(i);
     reviveAt(a, at.x, at.y);
+    a.cause = null;
+    a.thrownAt = null;
     // reviveAt keeps whatever direction you were last walking, so dying on
     // the way left brought Bubu back mirrored — paw on the wrong side for the
     // whole next life. Every spawn starts from the character's own facing.
@@ -500,20 +524,66 @@ function safeSpawn(i) {
 
 /* ----------------------------------------------------------- powerups --- */
 
-const toastTimers = {};
+// How many notes can be stacked beside one player at once, and how long each
+// one lives. The cap exists because the notes sit over the arena.
+const NOTE_MAX = 4;
+const NOTE_MS = 2900;
 
 /** A short note down that player's own side of the screen. */
+/**
+ * A note beside a player — and NOT at the expense of the last one.
+ *
+ * This used to be a single card whose innerHTML was replaced. Pick two things
+ * up in the same second — which the coin rewards make ordinary, since one of
+ * them can hand you a Dudu while a power-up orb is still under your feet —
+ * and the first was simply gone before it had been read. Now each note is its
+ * own element on a stack with its own clock.
+ *
+ * A note whose title is already on the stack REFRESHES that one instead of
+ * adding a second: stacking a power-up three times should say so once, in a
+ * card that keeps jumping, not build a tower of identical cards.
+ */
 function showNote(a, colour, title, body, glyph = "") {
   const el = toasts[a.id];
   if (!el) return;
-  el.style.setProperty("--tc", colour);
-  el.innerHTML =
-    `<div class="who">${a.label}</div>` +
-    `<div class="nm">${title}<em>${glyph}</em></div>` +
-    `<div class="ds">${body}</div>`;
-  el.classList.add("in");
-  clearTimeout(toastTimers[a.id]);
-  toastTimers[a.id] = setTimeout(() => el.classList.remove("in"), 2900);
+
+  const kill = (note) => {
+    if (note.dataset.dying) return;
+    note.dataset.dying = "1";
+    note.classList.remove("in");
+    setTimeout(() => note.remove(), 320);
+  };
+
+  const live = [...el.querySelectorAll(".note")].filter((n) => !n.dataset.dying);
+  let note = live.find((n) => n.dataset.title === title);
+
+  if (note) {
+    // Same thing again — refresh it in place and bump it so the change is
+    // visible, rather than quietly swapping the text under the reader.
+    note.querySelector(".ds").textContent = body;
+    note.classList.remove("bump");
+    void note.offsetWidth;                 // restart the animation
+    note.classList.add("bump");
+  } else {
+    // Oldest first out, so the newest arrival is never the one dropped.
+    for (const old of live.slice(0, Math.max(0, live.length - (NOTE_MAX - 1)))) kill(old);
+
+    note = document.createElement("div");
+    note.className = "note";
+    note.dataset.title = title;
+    note.style.setProperty("--tc", colour);
+    note.innerHTML =
+      `<div class="who">${a.label}</div>` +
+      `<div class="nm">${title}<em>${glyph}</em></div>` +
+      `<div class="ds"></div>`;
+    note.querySelector(".ds").textContent = body;
+    el.appendChild(note);
+    // One frame on the shelf so the transition has something to run from.
+    requestAnimationFrame(() => note.classList.add("in"));
+  }
+
+  clearTimeout(note._t);
+  note._t = setTimeout(() => kill(note), NOTE_MS);
 }
 
 /**
@@ -975,7 +1045,7 @@ function summonSquad(owner) {
   for (const m of mine) m.until = Math.max(m.until, life);
 
   if (room <= 0) {
-    showStack(owner, SQUAD.colour, "Tatlo", `${mine.length} Bubus, longer`, "\u2022\u2022\u2022");
+    showStack(owner, SQUAD.colour, "Mini Bubus!", `${mine.length} of them, longer`, "\u2022\u2022\u2022");
     sfx.helperSave();
     return;
   }
@@ -1001,7 +1071,7 @@ function claimSquad(owner, list = null) {
     m.actor.face = target ? Math.sign(target.x - m.actor.x) || 1 : 1;
   }
   const total = G.minis.filter((m) => m.owner === owner.id && !m.leaving).length;
-  showNote(owner, SQUAD.colour, "Tatlo",
+  showNote(owner, SQUAD.colour, "Mini Bubus!",
     total > SQUAD.count ? `${total} little Bubus, all yours.` : "Three little Bubus, on your side.");
   sfx.helperSave();
 }
@@ -1129,8 +1199,11 @@ function tickMinis(dt) {
           m.wave = 0;
           return;
         }
+        // Credited to whoever they are running for, not to the small white
+        // bear doing the landing — `by` here is the mini itself.
         sfx.stomp();
-        killPlayer(victim, by);
+        killPlayer(victim, G.actors.find((q) => q.id === m.owner) || null,
+                   m.owner ? "bubus" : "strayBubu");
         renderer.shake = 14;
         m.leaving = true;
         m.wave = 0;
@@ -1197,6 +1270,41 @@ function deathFocus(a) {
  * they cost health at all — without it you could fall off the arena forever
  * for free.
  */
+/**
+ * How the round actually ended, in a sentence.
+ *
+ * "out of health" was true of every death there is and told you nothing: you
+ * looked up from your own half of the screen and could not tell whether you
+ * had been stomped, shot, swarmed or had simply walked off a ledge. Every
+ * kill site tags `a.cause` on the way in, and this turns it into the one line
+ * under the winner's name.
+ */
+function deathLine(a) {
+  const nameOf = (id) => {
+    const p = PLAYERS.find((q) => q.id === id);
+    return p ? p.name : null;
+  };
+  const them = nameOf(a.id) || "they";
+  const c = a.cause || {};
+  const who = nameOf(c.by);
+
+  // A fall shortly after Bad Dudu let go is his, not theirs.
+  const thrown = a.thrownAt != null && G.time - a.thrownAt < 4;
+
+  switch (c.how) {
+    case "stomp":  return who ? `${who} finishes ${them} with a stomp` : `${them} is stomped`;
+    case "star":   return who ? `${who} runs ${them} down with the star` : `${them} runs into the star`;
+    case "shot":   return who ? `${who} shoots ${them}` : `a bullet finds ${them}`;
+    case "punch":  return who ? `${who} ends ${them} with one punch` : `one punch ends ${them}`;
+    case "dudu":   return who ? `Dudu finishes ${them} for ${who}` : `Dudu finishes ${them}`;
+    case "bubus":  return who ? `${who}'s mini Bubus swarm ${them}` : `the mini Bubus swarm ${them}`;
+    case "strayBubu": return `a stray mini Bubu lands on ${them}`;
+    case "spikes": return thrown ? `Bad Dudu throws ${them} onto the spikes` : `${them} lands on the spikes`;
+    case "fall":   return thrown ? `Bad Dudu throws ${them} off the map` : `${them} falls off the map`;
+    default:       return thrown ? `Bad Dudu throws ${them} off the map` : `${them} is out of health`;
+  }
+}
+
 function handleDeath(a) {
   clearPower(a, true);
   // A fist in mid-air when you die does not get to land afterwards.
@@ -1249,14 +1357,14 @@ function handleDeath(a) {
       hold: true,
     };
   }
-  endRound(winnerId, "out of health");
+  endRound(winnerId, deathLine(a));
 }
 
 /**
  * A death caused by the OTHER player — a stomp, a bullet, a star. These are
  * the ones a star or a moment of grace can turn aside; a pit is not.
  */
-function killPlayer(victim, by) {
+function killPlayer(victim, by, how = "stomp") {
   if (victim.dead) return;
   if (victim.invulnUntil && G.time < victim.invulnUntil) return;
 
@@ -1273,6 +1381,10 @@ function killPlayer(victim, by) {
   // around on the attacker, but Dudu came through this function and could
   // kill someone who was supposed to be invincible.
   if (victim.power && victim.power.type === "bituin") return;
+  // Recorded on the victim rather than passed down, because `kill()` in
+  // physics.js is also the one that fires for a pit and it has no idea who
+  // was involved. handleDeath reads whichever of the two got there.
+  victim.cause = { how, by: by ? by.id : null };
   kill(victim, { onDeath: handleDeath });
 }
 
@@ -1362,7 +1474,7 @@ function tickPowers(dt) {
     for (const o of G.actors) {
       if (o === a || o.dead) continue;
       if (hasPower(o, "bituin")) continue; // two stars just bounce off each other
-      if (overlapping(a, o)) killPlayer(o, a);
+      if (overlapping(a, o)) killPlayer(o, a, "star");
     }
   }
 
@@ -1387,7 +1499,7 @@ function tickPowers(dt) {
       ) {
         G.shots.splice(i, 1);
         sfx.shotHit();
-        killPlayer(o, null);
+        killPlayer(o, G.actors.find((q) => q.id === b.owner) || null, "shot");
         break;
       }
     }
@@ -1502,7 +1614,7 @@ function tickPunches() {
       renderer.flash = Math.max(renderer.flash || 0, 0.42);
       sfx.badHit();
       sfx.shotHit();
-      killPlayer(o, a);
+      killPlayer(o, a, "punch");
       // Cleared straight after, because killPlayer may refuse the kill (a
       // shield, a star, i-frames) and a flag left set would make their NEXT
       // death — a plain fall, minutes later — take the whole bar.
@@ -1765,6 +1877,10 @@ function tickBetrayal(h, dt) {
  * the counterplay exactly where it was: do not walk up to him.
  */
 function throwPlayer(a, face) {
+  // The throw does not kill — the map does, a second later, and by then the
+  // death looks exactly like walking off a ledge. Stamped here so the fall
+  // can still be credited to whoever launched them.
+  a.thrownAt = G.time;
   const floor = widestFloor();
   if (floor) {
     const centre = (floor.x0 + floor.x1 + 1) / 2;
@@ -2015,8 +2131,9 @@ function tickOneHelper(h, dt) {
         h.wave = 0;
         return;
       }
+      // Credited to whoever he is working for, not to the bear.
       sfx.stomp();
-      killPlayer(victim, by);
+      killPlayer(victim, G.actors.find((q) => q.id === h.ally) || null, "dudu");
       renderer.shake = 16;
       // He did what he came for.
       h.leaving = true;
@@ -2094,7 +2211,7 @@ function advance(dt) {
 
   if (phase === "countdown") {
     countdown -= dt;
-    const n = countdown > 1 ? Math.ceil(countdown - 1) : 0;
+    const n = Math.max(0, Math.ceil(countdown));
     if (n !== lastCount) {
       lastCount = n;
       // Each tick lands: a sound, a camera kick, and the number itself snaps
@@ -2171,7 +2288,7 @@ function simulate(dt) {
     onStomp: (by, victim) => {
       // A star beats everything, including being landed on.
       if (hasPower(victim, "bituin")) {
-        killPlayer(by, victim);
+        killPlayer(by, victim, "star");
         return;
       }
       // Being big means you get bounced off, not squashed.
@@ -2181,7 +2298,7 @@ function simulate(dt) {
         return;
       }
       sfx.stomp();
-      killPlayer(victim, by);
+      killPlayer(victim, by, "stomp");
     },
     onJump: () => sfx.jump(),
     onLand: () => sfx.land(),

@@ -206,7 +206,7 @@ export const POWERUPS_EXTRA = {
   },
 
   baliktad: {
-    id: "baliktad", name: "Baliktad", desc: "Their left and right are swapped.", en: "reversed",
+    id: "baliktad", name: "Reverse", desc: "Their left and right are swapped.", en: "reversed",
     ms: 0, colour: "#ff9c3f", reverseMs: 5000,
   },
   // Melee. Rides the same fire control as the gun, so it needs no new button

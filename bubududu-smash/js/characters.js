@@ -105,6 +105,11 @@ const Y = {
   blush: "#eb9aa8",
   foot: "#f2b0bc",
   eye: "#17111a",
+  // Bubu and Dudu are pixel art with a hard black keyline; Yhon Yhon was the
+  // only one drawn as flat shapes with no edge, and beside them he read as
+  // unfinished rather than as a different style.
+  line: "#20141a",
+  lineW: 0.032,   // of body height
 
   aspect: 1.07, // width / height
   earAt: 0.34, earSize: [0.2, 0.19], earTop: -0.42,
@@ -117,16 +122,32 @@ const Y = {
   footAt: 0.17, footSize: [0.132, 0.095], footY: 0.47,
 };
 
-function ellipse(ctx, cx, cy, rx, ry, rot, fill, alpha = 1) {
+/**
+ * `line` draws a dark outline around the shape, the way the Bubu and Dudu
+ * sprites carry one.
+ *
+ * It works because the parts are drawn back to front — feet, ears and arms
+ * first, then the body over them — so each limb keeps the outline on its own
+ * exposed edge and loses it where the body covers it. That is exactly what a
+ * hand-drawn sprite does, and it is why the outline is per-shape here rather
+ * than one silhouette traced around the finished character.
+ */
+function ellipse(ctx, cx, cy, rx, ry, rot, fill, alpha = 1, line = 0) {
   ctx.globalAlpha = alpha;
   ctx.beginPath();
   ctx.ellipse(cx, cy, rx, ry, rot, 0, Math.PI * 2);
   ctx.fillStyle = fill;
   ctx.fill();
+  if (line > 0) {
+    ctx.lineWidth = line;
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = Y.line;
+    ctx.stroke();
+  }
   ctx.globalAlpha = 1;
 }
 
-function drawYhon(ctx, x, y, w, h, pose) {
+function drawYhonVector(ctx, x, y, w, h, pose) {
   // Squash is exaggerated well past physical sense — he is supposed to read as
   // squishy, and a subtle 5% wobble on a round pink blob reads as nothing.
   // positive squash = landed, so go short and wide; negative = airborne, so
@@ -167,11 +188,15 @@ function drawYhon(ctx, x, y, w, h, pose) {
   ctx.scale(pose.face, 1);
   if (lean) ctx.rotate(lean);
 
+  // One width for every edge on him, scaled off his own height so it holds up
+  // from the player panel's 26px portrait to a kill-cam close-up.
+  const LW = Math.max(1, bh * Y.lineW);
+
   // feet, behind. Airborne they also splay outward as he reaches down.
   const splay = pose.air !== 0 ? Math.max(0, -rise) * 0.055 : 0;
   for (const side of [-1, 1]) {
     ellipse(ctx, side * S(Y.footAt + splay), V(Y.footY - tuck) + side * gait * V(0.05),
-      S(Y.footSize[0]) / 2, V(Y.footSize[1]) / 2, 0, Y.foot);
+      S(Y.footSize[0]) / 2, V(Y.footSize[1]) / 2, 0, Y.foot, 1, LW);
   }
 
   // ears, behind, with the darker inner ear. They trail the jump: flicked up
@@ -181,7 +206,7 @@ function drawYhon(ctx, x, y, w, h, pose) {
     ctx.save();
     ctx.translate(side * S(Y.earAt), V(Y.earTop));
     ctx.rotate(side * (0.34 - rise * 0.42));
-    ellipse(ctx, 0, 0, S(Y.earSize[0]) / 2, V(Y.earSize[1]) / 2, 0, Y.body);
+    ellipse(ctx, 0, 0, S(Y.earSize[0]) / 2, V(Y.earSize[1]) / 2, 0, Y.body, 1, LW);
     ellipse(ctx, 0, V(0.012), S(Y.innerEarSize[0]) / 2, V(Y.innerEarSize[1]) / 2, 0, Y.innerEar);
     ctx.restore();
   }
@@ -196,12 +221,12 @@ function drawYhon(ctx, x, y, w, h, pose) {
     ctx.save();
     ctx.translate(side * S(Y.armAt), V(Y.armY));
     ctx.rotate(swing);
-    ellipse(ctx, 0, 0, S(Y.armSize[0]) / 2, V(Y.armSize[1]) / 2, 0, Y.body);
+    ellipse(ctx, 0, 0, S(Y.armSize[0]) / 2, V(Y.armSize[1]) / 2, 0, Y.body, 1, LW);
     ctx.restore();
   }
 
   // body
-  ellipse(ctx, 0, 0, bw / 2, bh / 2, 0, Y.body);
+  ellipse(ctx, 0, 0, bw / 2, bh / 2, 0, Y.body, 1, LW);
   ellipse(ctx, 0, V(0.14), bw * 0.46, bh * 0.33, 0, Y.bodyLo, 0.45);
 
   for (const side of [-1, 1]) {
@@ -217,7 +242,7 @@ function drawYhon(ctx, x, y, w, h, pose) {
     ellipse(ctx, side * S(Y.eyeAt), V(Y.eyeY), S(Y.eyeR), S(Y.eyeR) * (1 - blink * 0.88), 0, Y.eye);
   }
 
-  ellipse(ctx, 0, V(Y.snoutY), S(Y.snoutSize[0]) / 2, V(Y.snoutSize[1]) / 2, 0, Y.snout);
+  ellipse(ctx, 0, V(Y.snoutY), S(Y.snoutSize[0]) / 2, V(Y.snoutSize[1]) / 2, 0, Y.snout, 1, LW * 0.8);
   // Nostrils are vertical ovals, not dots — it is most of what makes him a pig.
   for (const side of [-1, 1]) {
     ellipse(ctx, side * S(Y.nostrilAt), V(Y.snoutY),
@@ -248,6 +273,75 @@ let duduFrames = null;
 //
 // `stride` is tiles covered per animation frame: a bigger number is a longer,
 // slower step. Bubu was cycling far too fast for how far she was travelling.
+/* ------------------------------------------------- yhon yhon, pixelated ---
+ *
+ * Bubu and Dudu are sprites: a chunky grid with hard edges and no half
+ * pixels. Yhon Yhon is drawn from vectors, because his jump, his ear droop,
+ * his blink and his idle breath are all pose-driven and there is no sheet for
+ * them — so he is drawn small and blown up, on the same kind of grid.
+ *
+ * Two things that the first attempt got wrong, and they are the whole reason
+ * this is more than a drawImage:
+ *
+ *   ANTIALIASING IS NOT PIXEL ART. Drawing a smooth ellipse into a 30px
+ *   buffer leaves a fringe of half-transparent grey, and blowing that up with
+ *   nearest neighbour turns each of those into a visible grey BLOCK. The
+ *   result is not chunky, it is blurry — which is exactly what it looked
+ *   like. So every pixel is snapped: opaque or gone, nothing in between.
+ *
+ *   THE FIGURE IS BIGGER THAN ITS NOMINAL BOX. Ears sit above the head, arms
+ *   stick out past the body, and in the air he rotates. A buffer sized to the
+ *   body clips all three off. It is padded, and the padding is drawn through.
+ */
+const YHON_ART_H = 34;    // art pixels for the body itself
+const YHON_PAD = 7;       // ...plus room for ears, arms and the airborne lean
+let yhonBuf = null;
+
+function drawYhon(ctx, x, y, w, h, pose) {
+  // Smaller than the grid itself and there is nothing to quantise — the
+  // player-panel portrait and the fairy riding your shoulder both land here.
+  if (h < YHON_ART_H) return drawYhonVector(ctx, x, y, w, h, pose);
+
+  const bw = Math.round(YHON_ART_H * 1.25);
+  const cw = bw + YHON_PAD * 2;
+  const ch = YHON_ART_H + YHON_PAD * 2;
+
+  if (!yhonBuf) {
+    yhonBuf = document.createElement("canvas");
+    yhonBuf.width = cw;
+    yhonBuf.height = ch;
+  }
+  const b = yhonBuf.getContext("2d", { willReadFrequently: true });
+  b.setTransform(1, 0, 0, 1, 0, 0);
+  b.clearRect(0, 0, cw, ch);
+  // Feet on the padding line, not the canvas edge.
+  drawYhonVector(b, cw / 2, ch - YHON_PAD, bw, YHON_ART_H, pose);
+
+  // Snap to hard edges. Cheap — this is 48x48-ish, about 2k pixels.
+  const img = b.getImageData(0, 0, cw, ch);
+  const d = img.data;
+  for (let i = 3; i < d.length; i += 4) {
+    if (d[i] < 110) { d[i] = 0; continue; }
+    d[i] = 255;
+    // A coarse palette as well, so the shading steps the way a sprite's does
+    // instead of running a smooth gradient across two art pixels.
+    d[i - 3] = Math.min(255, Math.round(d[i - 3] / 17) * 17);
+    d[i - 2] = Math.min(255, Math.round(d[i - 2] / 17) * 17);
+    d[i - 1] = Math.min(255, Math.round(d[i - 1] / 17) * 17);
+  }
+  b.putImageData(img, 0, 0);
+
+  // Blitted so the BODY is `h` tall and its feet land on `y`; the padding
+  // scales with it and hangs outside, which is where the ears live.
+  const unit = h / YHON_ART_H;
+  const dw = cw * unit;
+  const dh = ch * unit;
+  const smooth = ctx.imageSmoothingEnabled;
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(yhonBuf, x - dw / 2, y - dh + YHON_PAD * unit, dw, dh);
+  ctx.imageSmoothingEnabled = smooth;
+}
+
 export const CHARACTERS = [
   {
     id: "yhon",

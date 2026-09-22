@@ -12,44 +12,59 @@ html, body {
   position: fixed; top: max(10px, env(safe-area-inset-top)); left: 0; right: 0;
   display: flex; justify-content: center; pointer-events: none;
 }
+/* No plate. The digits carry themselves on a thick white outline, the same
+   way the banner headline does — a translucent rounded rectangle parked at
+   the top of the arena was a hole in the picture for no gain. */
 .score {
   display: flex; align-items: center; gap: clamp(10px, 1.4vw, 18px);
-  padding: 6px clamp(12px, 1.4vw, 18px); border-radius: 999px;
-  background: rgba(255,255,255,0.72);
-  box-shadow: 0 6px 18px -10px rgba(33,49,63,0.5);
-  backdrop-filter: blur(4px);
 }
 .score b {
   font-family: "Nunito", system-ui, sans-serif; font-weight: 900;
-  font-size: clamp(20px, 3.4vh, 34px); line-height: 1;
+  font-size: clamp(24px, 4vh, 40px); line-height: 1;
   min-width: 1ch; text-align: center;
+  /* stroke behind the fill, so it thickens the digit instead of eating it */
+  -webkit-text-stroke: clamp(3px, 0.6vh, 6px) #fff;
+  paint-order: stroke fill;
+  text-shadow: 0 3px 0 rgba(33,49,63,0.18);
 }
 .score b.p1 { color: #2a9fd8; }
 .score b.p2 { color: #e0608c; }
 /* the divider between them */
 .score i {
-  width: clamp(12px, 1.6vh, 18px); height: 3px; border-radius: 3px;
-  background: rgba(33,49,63,0.2);
+  width: clamp(14px, 1.8vh, 20px); height: clamp(4px, 0.5vh, 6px);
+  border-radius: 3px;
+  background: #fff;
+  box-shadow: 0 2px 0 rgba(33,49,63,0.15);
 }
 
-/* The same pill, blown up, for the end of a match. It sits in the banner's
-   subtitle slot — which is why `.bs` has to stop being a text line and just
-   get out of its way. */
+/* The final score, above the winner's name.
+ *
+ * No pill. A translucent plate over a bright sky washed the digits out and
+ * put a big soft rectangle across the arena; the numbers carry themselves
+ * with the same white outline the headline uses, at full strength. */
 .score.final {
-  padding: clamp(10px, 1.6vh, 18px) clamp(22px, 3vw, 40px);
-  gap: clamp(18px, 2.6vw, 34px);
-  background: rgba(255,255,255,0.88);
-  box-shadow: 0 16px 34px -16px rgba(33,49,63,0.65);
+  padding: 0; gap: clamp(18px, 2.6vw, 34px);
+  background: none; box-shadow: none; backdrop-filter: none;
+  margin-bottom: clamp(0px, 0.6vh, 8px);
   animation: scorePop 620ms cubic-bezier(0.18, 1.5, 0.4, 1) both;
 }
 .score.final b {
-  font-size: clamp(44px, 9vh, 96px);
+  font-size: clamp(56px, 12vh, 128px);
+  /* paint-order keeps the stroke BEHIND the fill, so a stroke this thick
+     thickens the digit instead of eating it from the inside. */
+  -webkit-text-stroke: clamp(5px, 1vh, 11px) #fff;
+  paint-order: stroke fill;
+  text-shadow: 0 5px 0 rgba(33,49,63,0.22), 0 0 40px rgba(255,255,255,0.6);
   animation: scoreDigit 700ms cubic-bezier(0.18, 1.6, 0.4, 1) both;
+}
+.score.final i {
+  background: #fff;
+  box-shadow: 0 3px 0 rgba(33,49,63,0.18);
 }
 .score.final b.p1 { animation-delay: 120ms; }
 .score.final b.p2 { animation-delay: 240ms; }
 .score.final i {
-  width: clamp(20px, 3vh, 34px); height: clamp(5px, 0.7vh, 8px);
+  width: clamp(24px, 3.4vh, 40px); height: clamp(7px, 0.9vh, 12px);
 }
 @keyframes scorePop {
   0%   { transform: scale(0.3) translateY(18px); opacity: 0; }
@@ -60,12 +75,8 @@ html, body {
   55%  { transform: scale(0.9) rotate(2deg); opacity: 1; }
   100% { transform: scale(1) rotate(0deg); opacity: 1; }
 }
-/* The subtitle is a paragraph of small grey text everywhere else; when it is
-   holding the score pill it must not impose any of that. */
-#banner .bs:has(.score) {
-  display: flex; justify-content: center;
-  margin-top: clamp(6px, 1.4vh, 16px);
-}
+/* The slot above the headline. Nothing but the score uses it. */
+#banner .bp { display: flex; justify-content: center; }
 
 /* ------------------------------------------------------------- banner --- */
 #banner {
@@ -81,6 +92,10 @@ body.counting #banner {
   transform: translateY(-26vh) scale(0.62);
   transition: transform 260ms cubic-bezier(0.2, 1.1, 0.4, 1), opacity 320ms ease;
 }
+/* Coming back down is not an animation anyone should see: by then the banner
+   has been hidden, and easing an invisible element back into place only
+   matters if it is ever made visible mid-slide. */
+#banner:not(.in) { transition: none; }
 #banner { transition: opacity 320ms ease, transform 300ms ease; }
 #banner .bt {
   font-size: clamp(38px, 10vh, 104px); font-weight: 900; line-height: 1; color: #fff;
@@ -263,11 +278,24 @@ body.counting #banner {
 /* Down the side, never the middle: it has to be readable without taking your
    eyes off your own character, and a banner across the centre would cover the
    thing you are trying to jump onto. */
+/* The toast is a STACK now, not a card. Two things picked up in the same
+   second used to overwrite each other; each one gets its own element here and
+   they sit under one another until their own clocks run out. */
 .toast {
   position: fixed;
   top: 46%;
   left: clamp(12px, 2.4vw, 34px);
   width: clamp(148px, 17vw, 218px);
+  display: flex; flex-direction: column; gap: 8px;
+  pointer-events: none;
+}
+.toast.right {
+  left: auto;
+  right: clamp(12px, 2.4vw, 34px);
+  text-align: right;
+}
+
+.note {
   padding: 12px 14px;
   border-radius: 15px;
   background: rgba(255, 255, 255, 0.9);
@@ -277,29 +305,31 @@ body.counting #banner {
   opacity: 0;
   transform: translate(-14px, 0) scale(0.94);
   transition: opacity 260ms ease, transform 380ms cubic-bezier(0.22, 1.3, 0.5, 1);
-  pointer-events: none;
 }
-.toast.right {
-  left: auto;
-  right: clamp(12px, 2.4vw, 34px);
-  transform: translate(14px, 0) scale(0.94);
-  text-align: right;
+.toast.right .note { transform: translate(14px, 0) scale(0.94); }
+.note.in { opacity: 1; transform: translate(0, 0) scale(1); }
+/* The same thing picked up again refreshes its card rather than adding a
+   second identical one — this is how you can tell it happened. */
+.note.bump { animation: noteBump 420ms cubic-bezier(0.2, 1.6, 0.4, 1); }
+@keyframes noteBump {
+  0%   { transform: scale(1.14); }
+  55%  { transform: scale(0.97); }
+  100% { transform: scale(1); }
 }
-.toast.in { opacity: 1; transform: translate(0, 0) scale(1); }
 
-.toast .who {
+.note .who {
   font-size: 9.5px; letter-spacing: 0.22em; text-transform: uppercase;
   color: rgba(33, 49, 63, 0.42);
 }
-.toast .nm {
+.note .nm {
   display: flex; align-items: baseline; gap: 7px; margin: 2px 0 3px;
   font-family: "Nunito", system-ui, sans-serif;
   font-size: clamp(19px, 2.9vh, 27px); font-weight: 800; line-height: 1;
   color: var(--tc, #ffb84d);
 }
-.toast.right .nm { flex-direction: row-reverse; }
-.toast .nm em { font-style: normal; font-size: 0.8em; }
-.toast .ds {
+.toast.right .note .nm { flex-direction: row-reverse; }
+.note .nm em { font-style: normal; font-size: 0.8em; }
+.note .ds {
   font-size: clamp(11px, 1.55vh, 13.5px); line-height: 1.45;
   color: rgba(33, 49, 63, 0.72);
 }

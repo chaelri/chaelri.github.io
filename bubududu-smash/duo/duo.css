@@ -69,8 +69,11 @@ body.duo #rematch {
    wider than a phone in portrait. */
 body.duo #banner .bt { font-size: clamp(22px, 7vw, 44px); }
 body.duo #banner .bs { font-size: clamp(10px, 2.6vw, 14px); }
-body.duo .score.final b { font-size: clamp(40px, 15vw, 78px); }
-body.duo .score.final { padding: 10px clamp(18px, 6vw, 34px); gap: clamp(14px, 6vw, 30px); }
+body.duo .score.final b {
+  font-size: clamp(46px, 17vw, 92px);
+  -webkit-text-stroke: clamp(4px, 1.4vw, 8px) #fff;
+}
+body.duo .score.final { gap: clamp(14px, 6vw, 30px); }
 body.duo .count { width: clamp(110px, 40vw, 220px); height: clamp(110px, 40vw, 220px); }
 body.duo .count .num { font-size: clamp(38px, 13vw, 92px); }
 body.duo .count.title { min-width: min(94vw, 520px); }
@@ -78,6 +81,8 @@ body.duo .count.title .num { font-size: clamp(20px, 7vw, 44px); }
 
 body.duo .toast { transform: scale(0.8); transform-origin: top left; }
 body.duo .toast.right { transform-origin: top right; }
+/* On a phone the stack has to be shorter — the notes sit over the arena. */
+body.duo .toast { gap: 6px; }
 
 /* ------------------------------------------------------------- waiting --- */
 

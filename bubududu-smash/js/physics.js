@@ -213,9 +213,14 @@ export function stepActor(a, input, level, dt, others = [], opts = {}) {
     }
   }
 
-  // Hazards and the bottom of the world.
+  // Hazards and the bottom of the world. Which of the two it was is recorded
+  // on the actor, because the round banner names how you died and "fell off
+  // the map" and "landed on the spikes" are not the same story.
   const midTile = tileAt(level, Math.floor(a.x), Math.floor(a.y - a.h / 2));
-  if (midTile === HAZARD || a.y > level.rows.length + 4) kill(a, opts);
+  if (midTile === HAZARD || a.y > level.rows.length + 4) {
+    a.cause = { how: midTile === HAZARD ? "spikes" : "fall", by: null, thrownBy: a.thrownBy || null };
+    kill(a, opts);
+  }
 
   // Squash and stretch decays back to neutral.
   a.squash += (0 - a.squash) * Math.min(1, dt * 11);
