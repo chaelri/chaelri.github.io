@@ -82,9 +82,11 @@ function candidateQueue(pc) {
  * The MacBook. Publishes a room code, then answers whoever joins it.
  * `onInput(role, payload)` fires for every controller packet.
  */
-export async function createHost({ onInput, onPeers }) {
+export async function createHost({ onInput, onPeers, code: wanted } = {}) {
   const d = db();
-  const code = makeCode();
+  // A caller can ask for a specific code so that reloading the screen does not
+  // invalidate a QR someone has already scanned. See keepCode() in screen.js.
+  const code = wanted || makeCode();
   const roomPath = `${DB_ROOT}/rooms/${code}`;
   const roomRef = ref(d, roomPath);
 

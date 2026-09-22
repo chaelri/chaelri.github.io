@@ -90,9 +90,12 @@ body.counting #banner {
   margin: 0;
   font-family: "Nunito", system-ui, sans-serif;
   font-weight: 900;
-  font-size: clamp(52px, 12vh, 124px);
+  /* Sized for the full name, which is three times the length the old one
+     was — at the previous size it ran off both edges of a laptop screen. */
+  font-size: clamp(26px, 7.4vh, 78px);
   line-height: 1.04;
-  letter-spacing: -0.012em;
+  letter-spacing: 0.005em;
+  white-space: nowrap;
   animation: logoFloat 5.2s ease-in-out infinite;
 }
 
@@ -105,7 +108,7 @@ body.counting #banner {
 }
 
 #lobby h1.logo::before {
-  -webkit-text-stroke: 0.15em #fff;
+  -webkit-text-stroke: 0.13em #fff;
   color: #fff;
   /* Stacked zero-blur shadows make the extrude; the last one is the real
      shadow that lifts the whole thing off the hills. */
@@ -332,6 +335,18 @@ body.counting #banner {
   font-family: "Nunito", system-ui, sans-serif; font-weight: 700;
   font-size: clamp(13px, 1.9vh, 18px); line-height: 1; color: var(--pc, #1b6f9e);
 }
+/* The coin chip jumps on the frame the count goes up. Re-rendered each time,
+   so the animation restarts rather than playing once and never again. */
+.pchips .chip.bump {
+  animation: chipBump 380ms cubic-bezier(0.2, 1.6, 0.4, 1);
+  box-shadow: 0 0 0 2px rgba(255,200,61,0.55), 0 4px 14px -4px rgba(255,160,20,0.8);
+}
+@keyframes chipBump {
+  0%   { transform: scale(1.5) rotate(-4deg); }
+  45%  { transform: scale(0.96) rotate(1deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
 .phearts { display: flex; gap: 3px; }
 .phearts svg { width: clamp(12px, 1.6vh, 16px); height: auto; display: block; }
 .phearts svg path { fill: #ff4d6d; }
@@ -392,14 +407,21 @@ body.counting #banner {
   position: relative; z-index: 1;
   font-family: "Nunito", system-ui, sans-serif; font-weight: 900;
   font-size: clamp(90px, 22vh, 230px); line-height: 1; color: #fff;
+  white-space: nowrap;
   text-shadow:
     0 6px 0 rgba(33,49,63,0.22),
     0 0 40px rgba(255,255,255,0.9),
     0 0 90px rgba(76,194,255,0.7);
   animation: countPop 640ms cubic-bezier(0.2, 1.5, 0.4, 1) both;
 }
+/* Words, not digits — they need room the numbers never did. */
+.count.word { width: auto; min-width: clamp(150px, 26vh, 300px); }
+.count.word .num { font-size: clamp(46px, 12vh, 128px); letter-spacing: 0.01em; }
+/* The last beat is the whole title, so it needs a lot more room than one word. */
+.count.title { min-width: min(92vw, 1100px); }
+.count.title .num { font-size: clamp(30px, 8.4vh, 96px); }
 .count.go .num {
-  font-size: clamp(66px, 16vh, 168px); letter-spacing: 0.04em; color: #fff9d8;
+  font-size: clamp(52px, 13vh, 140px); letter-spacing: 0.02em; color: #fff9d8;
   text-shadow:
     0 6px 0 rgba(180,110,0,0.28),
     0 0 46px rgba(255,214,106,0.95),

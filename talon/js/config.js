@@ -1,4 +1,4 @@
-// Talon — a 2D platformer for two phones and one screen.
+// BUBU DUDU SMASH — a 2D platformer for two phones and one screen.
 //
 // Everything that decides how the game FEELS is in this file. Platformers live
 // or die on about eight numbers, so they are all here, named, in one place.
@@ -67,14 +67,11 @@ export const FEEL = {
   stompWindow: 0.45, // how far above them counts as a stomp
 
   // Standing on each other's head to reach high places (co-op).
-  carryGrip: 0.6,
 
   width: 0.7,
   height: 0.95,
 
   respawnMs: 900,
-  // In co-op nobody is allowed to be left behind for long.
-  leashTiles: 26,
 
   // Health, shown as a bar. Every mode uses the same three — the arena used
   // to be one hit and out, which made a single unlucky bounce end the round
@@ -94,10 +91,9 @@ export const JUMP_VELOCITY = -GRAVITY * FEEL.jumpRise;
 export const MODES = {
   tapakan: {
     id: "tapakan",
-    name: "Tapakan",
+    name: "BUBU DUDU SMASH",
     en: "stomp",
     blurb: "One shrinking arena. Land on their head before they land on yours.",
-    versus: true,
   },
 };
 
@@ -129,6 +125,12 @@ export const HIT = {
   // out to a wide shot of nothing and freezing on a banner.
   winCamMs: 1400,
   winCamZoom: 1.25,
+  // ...and then lets go. Holding indefinitely parked the camera on the spot
+  // where the loser died: they are dead so they are not drawn, the winner has
+  // walked out of a shot that is zoomed 25% in, and the match-over screen is
+  // an empty patch of ground with both characters apparently gone.
+  winCamHoldMs: 2200,
+  winCamReleaseMs: 1400,
 };
 
 export const ROUNDS_TO_WIN = 3;
@@ -192,28 +194,86 @@ export const POWERUPS_EXTRA = {
     knockback: 13,    // what it does to them if they survive it (they do not)
     cooldownMs: 420,
   },
-  // Three little Bubus. Not a clone of you — a clone of the helper, which is
-  // the thing in this game that actually threatens someone.
-  tatlo: {
-    id: "tatlo", name: "Tatlo", desc: "Three little Bubus, on your side.", en: "minis",
-    ms: 0, colour: "#8fd8ff",
-    count: 3,
-    lifeMs: 9000,
-    scale: 0.62,
-    // Quick and jumpy, because they are small and there are three of them —
-    // one that could also out-muscle you would be the whole round.
-    stats: { jump: 1.12, speed: 1.12, accel: 1.3, stride: 0.8 },
-    spread: 1.1,      // tiles between them where they land
-  },
+};
+
+/* ---------------------------------------------------------- the fairy --- */
+//
+// Fairy Yhon Yhon. She does not do anything to the other player and she does
+// not do anything quickly — she follows you around and puts a heart back
+// every few seconds, twice, and then she goes.
+//
+// The delay is the whole character. An instant two hearts is a number going
+// up; two hearts arriving while you are still in the fight is something you
+// play around, and it means picking her up when you are hurt is worth more
+// than hoarding her. She will not spend a heal on someone already full — she
+// waits, so she is never wasted.
+export const DIWATA = {
+  name: "Diwata",
+  colour: "#ffc2dd",
+  heals: 2,
+  everyMs: 3000,
+  // She goes one past what Lunas can reach. Lunas is lying on the floor for
+  // anyone to walk over; she is one of four things ten coins might buy, so
+  // she is allowed to leave you somewhere a pickup cannot.
+  hpMax: 6,
+  firstMs: 1200,      // the first one comes a little sooner than the rest
+  leaveMs: 1100,      // flutter up and fade after the last heal
+  scale: 0.46,        // of a normal character
+  orbit: 1.15,        // tiles out from the player she rides at
+};
+
+/* ----------------------------------------------------------- the squad --- */
+//
+// Three little Bubus in red caps. They are NOT a power-up: they walk onto the
+// field and stand about in a huddle exactly the way Dudu does, and whoever
+// reaches them first takes them. A pickup orb made them feel like an item,
+// and they are meant to feel like three more characters arriving.
+export const SQUAD = {
+  everyMs: 21000,
+  firstMs: 13000,
+  count: 3,
+  colour: "#8fd8ff",
+  scale: 0.62,
+  spread: 1.1,        // tiles between them, waiting and on release
+  waitMs: 13000,      // how long they hang around to be collected
+  lifeMs: 9000,       // and how long they hunt once someone has
+
+  // Quick and jumpy, because they are small and there are three of them —
+  // one that could also out-muscle you would be the whole round.
+  stats: { jump: 1.12, speed: 1.12, accel: 1.3, stride: 0.8 },
+
+  // Unclaimed they mill about on the spot rather than pacing, so they read as
+  // waiting for someone rather than as three loose enemies.
+  idleSpeedMul: 0.3,
+  idleRange: 1.4,     // tiles either side of where they landed
 };
 Object.assign(POWERUPS, POWERUPS_EXTRA);
 
 // Drawn at random rather than in strict rotation — seven in a fixed order
 // means waiting most of a round to see a particular one. Never the same twice
 // running, so you do not get the same pickup back to back.
+/**
+ * One glyph per power-up, readable from across the room without reading a
+ * word. Lives HERE because it is needed in two places — the orb in render.js
+ * and the toast/chip in screen.js — and keeping a copy in each meant adding a
+ * power-up to one and not the other, which renders a `?` on the pickup and is
+ * exactly what happened to Suntok and Tatlo.
+ */
+export const GLYPH = {
+  laki: "\u25b2",      // ▲
+  baril: "\u279c",     // ➜
+  bituin: "\u2605",    // ★
+  bilis: "\u00bb",     // »
+  yelo: "\u2744",      // ❄
+  kalasag: "\u25c7",   // ◇
+  baliktad: "\u21c4",  // ⇄
+  lunas: "\u271a",     // ✚
+  suntok: "\u270a",    // ✊
+};
+
 export const POWER_ORDER = [
   "laki", "baril", "bituin", "bilis", "yelo", "kalasag", "baliktad", "lunas",
-  "suntok", "tatlo",
+  "suntok",
 ];
 
 /* ------------------------------------------------------------- helper --- */
@@ -272,6 +332,54 @@ export const HELPER = {
 
   w: 0.8,
   h: 0.95,
+
+  // He is not always what he looks like. Rolled at the MOMENT OF CONTACT,
+  // not at spawn — there is no telling a good one from a bad one until you
+  // have already touched him, which is the entire point.
+  //
+  // A coin flip. At one in ten he was a rare surprise you would forget about
+  // between sightings; at even odds, deciding whether to run at him is a real
+  // decision every single time, which is the whole reason he exists.
+  betrayChance: 0.5,
+};
+
+/* ----------------------------------------------------------- the coins --- */
+//
+// Loose change on the platforms. Ten of them buys one of the four big things
+// in the game, picked at random — so there is always something to do with a
+// quiet moment, and the reward is worth crossing the arena for.
+export const COINS = {
+  onField: 7,         // kept topped up to this many
+  atOnce: 5,          // and this many are on the floor from the first second
+  respawnMs: 2600,    // how long before a collected one is replaced
+  perReward: 10,
+  colour: "#ffc83d",
+  radius: 0.34,
+
+  // What ten coins buys. Even odds, and none of them is a dud.
+  rewards: ["diwata", "dudu", "tatlo", "suntok"],
+};
+
+/* ---------------------------------------------------------- Bad Dudu --- */
+//
+// What Dudu turns into, one time in ten, the moment you reach him.
+//
+// This is deliberately NOT a dodging game. You already made the only decision
+// that mattered when you chose to run at him, and asking you to react a
+// second time to something you could not have predicted would just feel like
+// being cheated twice. So once he has you, he has you: you are held for the
+// wind-up and then thrown, and the wind-up exists to be WATCHED rather than
+// escaped.
+//
+// The throw does not kill. It throws you at the nearer edge and the map does
+// the rest, which is why it is survivable from the middle of a wide floor and
+// not from anywhere near a drop.
+export const BAD_HELPER = {
+  transformMs: 420,     // the reveal: he shudders and goes purple
+  holdMs: 620,          // held off the ground while he loads up
+  launchVx: 34,
+  launchVy: -12,
+  launchFor: 620,       // ms with no steering and no jump after release
 };
 export const POWER_SPAWN_MS = 6500;   // gap between pickups appearing
 export const POWER_FIRST_MS = 3000;   // first one, after the countdown

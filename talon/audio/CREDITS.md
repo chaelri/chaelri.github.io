@@ -21,6 +21,8 @@ it costs nothing and the next person will want to know where these came from.
 | `count.ogg`, `join.ogg`, `spawn.ogg`, `poof.ogg` | Interface Sounds | `bong_001`, `confirmation_001`, `open_004`, `minimize_006` |
 | `suntok.ogg` | Impact Sounds | `impactPunch_medium_000.ogg` |
 | `tatlo.ogg` | Digital Audio | `powerUp6.ogg` |
+| `badhelper.ogg`, `badwind.ogg` | Digital Audio | `lowThreeTone.ogg`, `phaserDown2.ogg` |
+| `badhit.ogg` | Impact Sounds | `impactPunch_heavy_004.ogg` |
 | `go.ogg`, `gohit.ogg` | Digital + Impact | `zapThreeToneUp`, `impactBell_heavy_000` |
 | `roundwin/roundlose/matchwin2/helper/sparkle/lowdown` | Digital Audio | `threeTone1`, `lowThreeTone`, `threeTone2`, `twoTone1`, `pepSound1`, `lowDown` |
 

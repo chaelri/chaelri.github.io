@@ -6,7 +6,11 @@
 
 import { charById } from "./characters.js";
 import { poseOf } from "./physics.js";
-import { FEEL, POWERUPS, SHOT_RADIUS } from "./config.js";
+import { BAD_HELPER, COINS, DIWATA, FEEL, GLYPH, HIT, POWERUPS, SHOT_RADIUS } from "./config.js";
+
+// How long the winning shot dwells before the camera comes back.
+const BAD_HOLD = HIT.winCamHoldMs / 1000;
+const BAD_RELEASE = HIT.winCamReleaseMs / 1000;
 
 const SKY_TOP = "#8fd4ff";
 const SKY_BOT = "#dff3ff";
@@ -105,15 +109,22 @@ function updateCamera(r, level, actors, dt) {
     // A normal death: in over the first fifth, hold, then let go on a curve.
     // A `hold` kill is the one that won the match — it rides in and stays,
     // and only startRound() gives the camera back.
-    killPull = r.kill.hold
-      ? Math.min(1, p / 0.35)
-      : p < 0.2
-        ? p / 0.2
-        : Math.pow(1 - (p - 0.2) / 0.8, 1.7);
+    if (r.kill.hold) {
+      // In, hold on the body while the result lands, then ease back out to
+      // the whole arena — the camera always comes back.
+      const held = r.kill.t - r.kill.ms / 1000;
+      const out = held <= 0
+        ? 0
+        : Math.min(1, Math.max(0, (held - BAD_HOLD) / BAD_RELEASE));
+      killPull = Math.min(1, p / 0.35) * (1 - out);
+      if (out >= 1) r.kill = null;
+    } else {
+      killPull = p < 0.2 ? p / 0.2 : Math.pow(1 - (p - 0.2) / 0.8, 1.7);
+    }
     r.cam.tx += (r.kill.x - r.cam.tx) * killPull * 0.92;
     r.cam.ty += (r.kill.y - r.cam.ty) * killPull * 0.92;
-    r.killZoom = 1 + killPull * (r.kill.zoom ?? 0.9);
-    if (p >= 1 && !r.kill.hold) r.kill = null;
+    if (r.kill) r.killZoom = 1 + killPull * (r.kill.zoom ?? 0.9);
+    if (r.kill && p >= 1 && !r.kill.hold) r.kill = null;
   }
 
   // Keep the view inside the level rather than showing void past the edges.
@@ -251,11 +262,68 @@ function clouds(r, ctx, g, dt) {
   }
 }
 
+/**
+ * One layer of the frame, isolated.
+ *
+ * This is here because of a specific, nasty failure. Every one of these
+ * functions does ctx.save() ... ctx.restore(). If one throws in between, the
+ * restore never happens, so:
+ *
+ *   - the save stack grows by one EVERY FRAME, and
+ *   - whatever state the dead function had set — usually a globalAlpha on its
+ *     way to zero — leaks out and applies to everything drawn afterwards,
+ *     in this frame and in every frame after it.
+ *
+ * The visible result is that the characters vanish mid-round and never come
+ * back, while the backdrop (drawn before any of this) carries on normally.
+ * One transient bad number becomes a permanently broken game.
+ *
+ * So: each layer is wrapped, a failure is reported once with its stack rather
+ * than silently swallowed, and the canvas state is put back whatever happens.
+ */
+const drawFaults = new Map();
+
+/**
+ * Every layer that has failed since the last reset, as name -> first error.
+ *
+ * This exists so the failures layer() swallows are still ASSERTABLE. Catching
+ * them keeps the game playable, but it also hides them from `window.onerror`,
+ * which is what _selftest.html relies on — so without this the self-test would
+ * happily report OK on a renderer that is throwing on every frame. Swallowing
+ * an error and reporting it are two different jobs; this is the second one.
+ */
+export const faults = () => [...drawFaults.entries()].map(([name, err]) => `${name}: ${err}`);
+export const clearFaults = () => drawFaults.clear();
+
+function layer(name, ctx, fn) {
+  ctx.save();
+  try {
+    fn();
+  } catch (err) {
+    if (!drawFaults.has(name)) {
+      drawFaults.set(name, (err && err.message) || String(err));
+      console.error(`[bubu-dudu-smash] draw layer "${name}" failed — skipping it`, err);
+    }
+  } finally {
+    ctx.restore();
+  }
+}
+
 export function draw(r, g, dt) {
   const ctx = r.ctx;
-  updateCamera(r, g.level, g.actors, dt);
 
-  drawBackdrop(r, ctx, g, dt);
+  // Start every frame from a known state. Belt to the layer braces above: even
+  // if the save stack has been left unbalanced by something, this frame cannot
+  // inherit a stray alpha, transform or filter from the last one.
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = "source-over";
+  ctx.filter = "none";
+  ctx.shadowBlur = 0;
+  ctx.shadowColor = "rgba(0,0,0,0)";
+
+  layer("camera", ctx, () => updateCamera(r, g.level, g.actors, dt));
+  layer("backdrop", ctx, () => drawBackdrop(r, ctx, g, dt));
 
   ctx.save();
   if (r.shake > 0) {
@@ -264,24 +332,24 @@ export function draw(r, g, dt) {
     if (r.shake < 0.5) r.shake = 0;
   }
 
-  drawTiles(r, ctx, g);
-  drawStars(r, ctx, g);
-  drawFlag(r, ctx, g);
-  drawPlates(r, ctx, g);
+  layer("tiles", ctx, () => drawTiles(r, ctx, g));
 
-  drawPowers(r, ctx, g);
-  drawHelper(r, ctx, g);
-  drawMinis(r, ctx, g);
-  for (const a of g.actors) drawActor(r, ctx, g, a);
-  for (const a of g.actors) drawPunch(r, ctx, g, a);
-  drawShots(r, ctx, g);
-  drawBursts(r, ctx, g);
-  drawPops(r, ctx, g);
-  drawLostHearts(r, ctx, g);
+  layer("coins", ctx, () => drawCoins(r, ctx, g));
+  layer("powers", ctx, () => drawPowers(r, ctx, g));
+  layer("helper", ctx, () => drawHelper(r, ctx, g));
+  layer("minis", ctx, () => drawMinis(r, ctx, g));
+  // Per actor, so one character failing can never take the other one with it.
+  for (const a of g.actors) layer(`actor:${a.char}`, ctx, () => drawActor(r, ctx, g, a));
+  for (const a of g.actors) layer("fairy", ctx, () => drawFairy(r, ctx, g, a));
+  for (const a of g.actors) layer("punch", ctx, () => drawPunch(r, ctx, g, a));
+  layer("shots", ctx, () => drawShots(r, ctx, g));
+  layer("bursts", ctx, () => drawBursts(r, ctx, g));
+  layer("pops", ctx, () => drawPops(r, ctx, g));
+  layer("hearts", ctx, () => drawLostHearts(r, ctx, g));
 
   ctx.restore();
 
-  drawKillFx(r, ctx);
+  layer("killfx", ctx, () => drawKillFx(r, ctx));
 
   // Red bloom round the edges, on top of everything and outside the shake.
   if (r.flash > 0) {
@@ -309,6 +377,7 @@ export function draw(r, g, dt) {
 function drawKillFx(r, ctx) {
   if (!r.kill) return;
   const p = Math.min(1, r.kill.t / (r.kill.ms / 1000));
+  if (p >= 1 && r.kill.hold) return;   // the flourish is over; the hold is not
   const px = (r.kill.x - r.cam.x) * r.cam.zoom + r.w / 2;
   const py = (r.kill.y - r.cam.y) * r.cam.zoom + r.h / 2;
   const reach = Math.max(r.w, r.h);
@@ -441,98 +510,11 @@ function drawTiles(r, ctx, g) {
   }
 
   // doors, drawn from the live list so they can animate open
-  for (const d of g.doors) {
-    if (d.open && g.doorUntil) {
-      const left = g.doorUntil - g.time;
-      if (left > 0 && left < 3.2 && d === g.doors[0]) {
-        ctx.fillStyle = "rgba(154,107,216,0.85)";
-        ctx.font = `800 ${r.cam.zoom * 0.5}px "Nunito", system-ui, sans-serif`;
-        ctx.textAlign = "center";
-        ctx.fillText(left.toFixed(1), toX(r, d.x + 0.5), toY(r, d.y) - r.cam.zoom * 0.35);
-      }
-    }
-    const px = toX(r, d.x);
-    const py = toY(r, d.y);
-    const z2 = r.cam.zoom;
-    ctx.save();
-    ctx.globalAlpha = d.open ? 0.22 : 1;
-    ctx.fillStyle = "#9a6bd8";
-    roundRect(ctx, px + z2 * 0.05, py, z2 * 0.9, z2, z2 * 0.12);
-    ctx.fill();
-    ctx.fillStyle = "#c4a2f0";
-    roundRect(ctx, px + z2 * 0.2, py + z2 * 0.15, z2 * 0.6, z2 * 0.2, z2 * 0.06);
-    ctx.fill();
-    ctx.restore();
-  }
 }
 
-function drawStars(r, ctx, g) {
-  for (const s of g.stars) {
-    if (s.taken) continue;
-    const px = toX(r, s.x);
-    const py = toY(r, s.y) + Math.sin(g.time * 3 + s.x) * r.cam.zoom * 0.08;
-    const rad = r.cam.zoom * 0.3;
-    ctx.save();
-    ctx.translate(px, py);
-    ctx.rotate(Math.sin(g.time * 1.5 + s.x) * 0.25);
-    ctx.fillStyle = STAR;
-    ctx.beginPath();
-    for (let i = 0; i < 10; i++) {
-      const a = (i / 10) * Math.PI * 2 - Math.PI / 2;
-      const rr = i % 2 ? rad * 0.46 : rad;
-      i ? ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr) : ctx.moveTo(Math.cos(a) * rr, Math.sin(a) * rr);
-    }
-    ctx.closePath();
-    ctx.fill();
-    ctx.restore();
-  }
-}
 
-function drawFlag(r, ctx, g) {
-  if (!g.flag) return;
-  const px = toX(r, g.flag.x);
-  const py = toY(r, g.flag.y);
-  const z = r.cam.zoom;
-  ctx.fillStyle = "#6d5040";
-  ctx.fillRect(px - z * 0.05, py - z * 2.1, z * 0.1, z * 2.1);
-  ctx.fillStyle = "#ff5d73";
-  ctx.beginPath();
-  ctx.moveTo(px + z * 0.05, py - z * 2.05);
-  const wave = Math.sin(g.time * 4) * z * 0.12;
-  ctx.quadraticCurveTo(px + z * 0.7 + wave, py - z * 1.75, px + z * 0.05, py - z * 1.4);
-  ctx.closePath();
-  ctx.fill();
-}
 
-function drawPlates(r, ctx, g) {
-  const z = r.cam.zoom;
-  for (const p of g.plates) {
-    const px = toX(r, p.x);
-    const py = toY(r, p.y);
-    ctx.fillStyle = p.on ? "#7ee081" : "#c8b28a";
-    roundRect(ctx, px + z * 0.06, py + (p.on ? z * 0.68 : z * 0.55), z * 0.88, z * 0.3, z * 0.08);
-    ctx.fill();
-  }
-}
 
-// One glyph each, readable from across the room without reading a word.
-const GLYPH = {
-  laki: "▲",
-  baril: "➜",
-  bituin: "★",
-  bilis: "»",
-  yelo: "❄",
-  kalasag: "◇",
-  baliktad: "⇄",
-  lunas: "✚",
-  suntok: "✊",
-  tatlo: "•••",
-};
-
-// A glyph that is more than one character is three times as wide as the orb
-// at the standard size, so it gets shrunk rather than given a different
-// symbol — the pickup notice and the status chip show the same "•••".
-const GLYPH_SCALE = { tatlo: 0.42 };
 
 /**
  * A little red cap, for a mini Bubu.
@@ -570,65 +552,6 @@ function drawCap(ctx, x, y, w, h, face) {
   ctx.restore();
 }
 
-/**
- * Three little Bubus, drawn on the face of the Tatlo orb.
- *
- * The two at the back are smaller and set behind, the one in front is drawn
- * last and stands a little lower, so three overlapping white characters read
- * as a group rather than as one wide smudge. A soft dark pad underneath keeps
- * them off the pale blue of the orb.
- */
-function drawTinyBubus(ctx, px, py, rad) {
-  const pose = { face: 1, run: 0, air: 0, squash: 0, rise: 0, t: 0, walk: 0, stride: 1 };
-  const bubu = charById("bubu");
-
-  ctx.save();
-  ctx.globalAlpha = 0.22;
-  ctx.fillStyle = "#0d3a55";
-  ctx.beginPath();
-  ctx.ellipse(px, py + rad * 0.12, rad * 0.72, rad * 0.5, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
-
-  // back pair first, then the leader over the top of them
-  for (const [dx, dy, k] of [[-0.46, -0.04, 0.78], [0.46, -0.04, 0.78], [0, 0.16, 1]]) {
-    const x = px + rad * dx;
-    const y = py + rad * (0.42 + dy);
-    const w = rad * 0.78 * k;
-    const h = rad * 0.92 * k;
-    const face = dx < 0 ? -1 : 1;
-    bubu.draw(ctx, x, y, w, h, { ...pose, face });
-    drawCap(ctx, x, y, w, h, face);
-  }
-}
-
-/* --------------------------------------------------------- colour help --- */
-
-function rgb(hex) {
-  const h = hex.replace("#", "");
-  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
-}
-function mix(hex, target, t, alpha = 1) {
-  const c = rgb(hex);
-  const o = c.map((v, i) => Math.round(v + (target[i] - v) * t));
-  return `rgba(${o[0]},${o[1]},${o[2]},${alpha})`;
-}
-const lighten = (hex, t, a = 1) => mix(hex, [255, 255, 255], t, a);
-const darken = (hex, t, a = 1) => mix(hex, [16, 24, 40], t, a);
-
-/** Overshoot easing for the spawn pop. */
-const backOut = (t) => 1 + 2.7 * Math.pow(t - 1, 3) + 1.7 * Math.pow(t - 1, 2);
-
-/**
- * Pickups, drawn as lit spheres rather than flat discs.
- *
- * Everything here is doing one job: making the thing look like an object in
- * the world with a light on it. The gradient is offset towards a light up and
- * to the left, there is a darker rim and a bounce highlight on the opposite
- * side, a specular dot, a shadow on the ground beneath, and three sparkles on
- * an elliptical orbit that pass BEHIND the sphere on the far half of the
- * circuit — that last one is most of what sells the depth.
- */
 function drawPowers(r, ctx, g) {
   if (!g.powers) return;
   const z = r.cam.zoom;
@@ -723,19 +646,12 @@ function drawPowers(r, ctx, g) {
     // glyph, with a little depth under it
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    // Tatlo is the one pickup whose glyph is the thing itself: three little
-    // Bubus standing on the orb, rather than three dots standing for them.
-    // You should be able to tell what you are running at without learning a
-    // symbol first.
-    if (q.type === "tatlo") drawTinyBubus(ctx, px, py, rad);
-    else {
-      const mark = GLYPH[q.type] || "?";
-      ctx.font = `800 ${rad * 0.92 * (GLYPH_SCALE[q.type] || 1)}px "Nunito", system-ui, sans-serif`;
-      ctx.fillStyle = darken(def.colour, 0.55, 0.5);
-      ctx.fillText(mark, px, py + rad * 0.1);
-      ctx.fillStyle = "#fff";
-      ctx.fillText(mark, px, py + rad * 0.04);
-    }
+    const mark = GLYPH[q.type] || "?";
+    ctx.font = `800 ${rad * 0.92}px "Nunito", system-ui, sans-serif`;
+    ctx.fillStyle = darken(def.colour, 0.55, 0.5);
+    ctx.fillText(mark, px, py + rad * 0.1);
+    ctx.fillStyle = "#fff";
+    ctx.fillText(mark, px, py + rad * 0.04);
     ctx.textBaseline = "alphabetic";
 
     // near-side sparkles, over the top
@@ -795,7 +711,7 @@ function drawPops(r, ctx, g) {
     // The glyph itself, rising out of the spot it was taken from.
     if (p.glyph) {
       ctx.globalAlpha = Math.max(0, 1 - t * 1.25);
-      ctx.font = `900 ${z * (0.7 + t * 0.5) * (p.scale || 1)}px "Nunito", system-ui, sans-serif`;
+      ctx.font = `900 ${z * (0.7 + t * 0.5)}px "Nunito", system-ui, sans-serif`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.lineWidth = Math.max(2, z * 0.08);
@@ -807,6 +723,239 @@ function drawPops(r, ctx, g) {
     }
     ctx.restore();
   }
+}
+
+/* --------------------------------------------------------- colour help --- */
+
+function rgb(hex) {
+  const h = hex.replace("#", "");
+  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+}
+function mix(hex, target, t, alpha = 1) {
+  const c = rgb(hex);
+  const o = c.map((v, i) => Math.round(v + (target[i] - v) * t));
+  return `rgba(${o[0]},${o[1]},${o[2]},${alpha})`;
+}
+const lighten = (hex, t, a = 1) => mix(hex, [255, 255, 255], t, a);
+const darken = (hex, t, a = 1) => mix(hex, [16, 24, 40], t, a);
+
+/** Overshoot easing for the spawn pop. */
+const backOut = (t) => 1 + 2.7 * Math.pow(t - 1, 3) + 1.7 * Math.pow(t - 1, 2);
+
+/**
+ * Pickups, drawn as lit spheres rather than flat discs.
+ *
+ * Everything here is doing one job: making the thing look like an object in
+ * the world with a light on it. The gradient is offset towards a light up and
+ * to the left, there is a darker rim and a bounce highlight on the opposite
+ * side, a specular dot, a shadow on the ground beneath, and three sparkles on
+ * an elliptical orbit that pass BEHIND the sphere on the far half of the
+ * circuit — that last one is most of what sells the depth.
+ */
+
+// Matched to the filter in screen.js that keeps a collected coin alive.
+const COIN_POP_SEC = 0.75;
+
+/**
+ * Coins.
+ *
+ * No spin. Squashing the width on a sine is the cheap way to fake one, and it
+ * looks exactly like what it is — a circle being squeezed. They just bob, on
+ * a per-coin phase so a row of them is never in step. A collected one keeps
+ * drawing for a beat as it rises and fades, so the pickup has somewhere to go
+ * rather than blinking out.
+ */
+function drawCoins(r, ctx, g) {
+  if (!g.coins || !g.coins.length) return;
+  const z = r.cam.zoom;
+  for (const c of g.coins) {
+    const taken = c.taken ? (g.time - c.taken) / COIN_POP_SEC : 0;
+    if (taken >= 1) continue;
+    const bob = Math.sin(g.time * 2.4 + c.x * 1.3) * z * 0.09;
+
+    let px = toX(r, c.x);
+    let py = toY(r, c.y) + bob;
+    let rad = z * COINS.radius;
+
+    if (taken) {
+      // Collected: it hops up, then homes in on whoever took it and shrinks
+      // into them. Flying to the player is what makes it read as "you got
+      // this" rather than as the coin simply ceasing to exist.
+      const owner = c.by && g.actors.find((a) => a.id === c.by && !a.dead);
+      const e = taken * taken;                 // slow start, fast finish
+      const hop = Math.sin(Math.min(1, taken * 2.4) * Math.PI) * z * 0.55;
+      if (owner) {
+        px += (toX(r, owner.x) - px) * e;
+        py += (toY(r, owner.y) - owner.h * z * 0.6 - py) * e - hop;
+      } else {
+        py -= hop + taken * z * 0.9;
+      }
+      rad *= Math.max(0, 1 + taken * 0.5 - taken * taken * 1.4);
+    }
+
+    ctx.save();
+    // It stays solid almost all the way in, then goes at the last moment —
+    // fading it out from the start just made it look like it never arrived.
+    ctx.globalAlpha = taken ? Math.max(0, 1 - Math.pow(taken, 3)) : 1;
+
+    if (taken) drawCoinPop(ctx, r, c, taken);
+
+    const glow = ctx.createRadialGradient(px, py, 0, px, py, rad * 2.6);
+    glow.addColorStop(0, "rgba(255,200,61,0.45)");
+    glow.addColorStop(1, "rgba(255,200,61,0)");
+    ctx.fillStyle = glow;
+    ctx.fillRect(px - rad * 2.6, py - rad * 2.6, rad * 5.2, rad * 5.2);
+
+    // A darker rim, the face inside it, and one fixed highlight.
+    ctx.fillStyle = "#c98a12";
+    ctx.beginPath();
+    ctx.arc(px, py, rad, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = COINS.colour;
+    ctx.beginPath();
+    ctx.arc(px, py, rad * 0.78, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,0.8)";
+    ctx.beginPath();
+    ctx.ellipse(px - rad * 0.26, py - rad * 0.3, rad * 0.24, rad * 0.16, -0.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+/**
+ * The flourish a coin leaves behind where it was picked up.
+ *
+ * Drawn at the coin's ORIGINAL position rather than following it in, so the
+ * burst marks the place it was taken from while the coin itself flies off to
+ * the player — two things happening instead of one, which is most of why this
+ * reads as an event now.
+ */
+function drawCoinPop(ctx, r, c, t) {
+  const z = r.cam.zoom;
+  const px = toX(r, c.x);
+  const py = toY(r, c.y);
+  const big = c.milestone;
+  const e = 1 - Math.pow(1 - t, 2.6);
+
+  ctx.save();
+
+  // A ring, wider and slower on the tenth.
+  ctx.globalAlpha = Math.max(0, 1 - t * 1.25) * 0.9;
+  ctx.strokeStyle = "#fff0bd";
+  ctx.lineWidth = Math.max(1.5, z * (big ? 0.11 : 0.07) * (1 - t));
+  ctx.beginPath();
+  ctx.arc(px, py, z * (0.18 + e * (big ? 2.6 : 1.15)), 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Shards thrown outward, alternating gold and white.
+  const shards = big ? 14 : 8;
+  for (let i = 0; i < shards; i++) {
+    const a = (i / shards) * Math.PI * 2 + c.x;
+    const d = z * (0.16 + e * (big ? 2.1 : 0.95));
+    ctx.globalAlpha = Math.max(0, 1 - t * 1.35);
+    ctx.fillStyle = i % 2 ? "#ffffff" : COINS.colour;
+    ctx.beginPath();
+    ctx.arc(px + Math.cos(a) * d, py + Math.sin(a) * d * 0.85,
+      z * (big ? 0.11 : 0.075) * (1 - t), 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // The running total, rising off the spot. This is the actual information —
+  // how close you are — delivered where you are already looking.
+  if (c.n) {
+    ctx.globalAlpha = Math.max(0, 1 - Math.pow(t, 1.6));
+    const size = z * (big ? 0.52 : 0.34) * (1 + t * 0.35);
+    ctx.font = `900 ${size}px "Nunito", system-ui, sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.lineWidth = Math.max(2, z * 0.06);
+    ctx.strokeStyle = "rgba(255,255,255,0.9)";
+    ctx.fillStyle = big ? "#ff8a3d" : "#c98a12";
+    const label = big ? "FULL!" : `${c.n}/${COINS.perReward}`;
+    const ty = py - z * (0.55 + e * 1.15);
+    ctx.strokeText(label, px, ty);
+    ctx.fillText(label, px, ty);
+  }
+
+  ctx.restore();
+}
+
+/**
+ * Fairy Yhon Yhon.
+ *
+ * The same pig, small, with wings, riding just behind and above her player.
+ * She trails rather than sticks, which is what makes her look like she is
+ * following you rather than glued on — and she flares every time she spends
+ * a heal, so the thing you actually care about (a heart went back) has a
+ * visible cause.
+ */
+function drawFairy(r, ctx, g, a) {
+  const f = a.fairy;
+  if (!f || a.dead) return;
+  const z = r.cam.zoom;
+
+  const leave = f.leaving ? Math.min(1, f.wave / (DIWATA.leaveMs / 1000)) : 0;
+  const bob = Math.sin(g.time * 3 + f.phase) * z * 0.18;
+  const px = toX(r, a.x - (a.face || 1) * DIWATA.orbit) + Math.cos(g.time * 1.6 + f.phase) * z * 0.12;
+  const py = toY(r, a.y - a.h * 1.15) + bob - leave * z * 2.4;
+
+  // The flare when she has just healed.
+  const since = f.healAt >= 0 ? g.time - f.healAt : 99;
+  const flare = since < 0.5 ? 1 - since / 0.5 : 0;
+
+  ctx.save();
+  ctx.globalAlpha = 1 - leave;
+
+  const glow = ctx.createRadialGradient(px, py, 0, px, py, z * (0.9 + flare * 1.1));
+  glow.addColorStop(0, `rgba(255,194,221,${0.5 + flare * 0.4})`);
+  glow.addColorStop(1, "rgba(255,194,221,0)");
+  ctx.fillStyle = glow;
+  ctx.fillRect(px - z * 2, py - z * 2, z * 4, z * 4);
+
+  // Wings behind her, beating fast.
+  const beat = Math.sin(g.time * 22 + f.phase) * 0.4 + 0.75;
+  ctx.save();
+  ctx.translate(px, py - z * 0.28);
+  ctx.globalAlpha = (1 - leave) * 0.72;
+  ctx.fillStyle = "#ffffff";
+  for (const side of [-1, 1]) {
+    ctx.save();
+    ctx.scale(side, 1);
+    ctx.rotate(-0.5);
+    ctx.beginPath();
+    ctx.ellipse(z * 0.26, 0, z * 0.3 * beat, z * 0.15, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+  ctx.restore();
+
+  const size = z * DIWATA.scale * (1 + flare * 0.18) * (1 - leave * 0.5);
+  charById("yhon").draw(ctx, px, py + size * 0.5, size, size, {
+    face: a.face || 1,
+    run: 0,
+    air: -1,
+    rise: 0.4,
+    squash: -0.1,
+    t: g.time,
+    walk: 0,
+    stride: 1,
+  });
+
+  // Dust behind her, and more of it on a heal.
+  const motes = flare > 0 ? 9 : 4;
+  for (let i = 0; i < motes; i++) {
+    const k = (g.time * 0.7 + i / motes) % 1;
+    ctx.globalAlpha = (1 - k) * (1 - leave) * (flare > 0 ? 0.9 : 0.5);
+    ctx.fillStyle = i % 2 ? "#fff" : DIWATA.colour;
+    const ang = (i / motes) * Math.PI * 2 + g.time * 2;
+    const d = z * (0.2 + k * (flare > 0 ? 1.5 : 0.6));
+    ctx.beginPath();
+    ctx.arc(px + Math.cos(ang) * d, py + Math.sin(ang) * d * 0.8, z * 0.055 * (1 - k), 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.restore();
 }
 
 /** The three little Bubus, and the puff each one leaves. */
@@ -944,9 +1093,86 @@ function drawBursts(r, ctx, g) {
 // How long Dudu's exit takes, matched to the `h.wave > 1.2` in screen.js.
 const LEAVE_SEC = 1.2;
 
+/**
+ * The betrayal.
+ *
+ * He is drawn as ordinary Dudu right up to the moment he has hold of you —
+ * there is nothing to spot beforehand, by design. The reveal is the whole
+ * show: he shudders, the warm glow goes cold, and he crossfades to purple
+ * while the victim hangs off the ground in front of him.
+ */
+function drawBetrayal(r, ctx, g, h) {
+  const me = h.actor;
+  const z = r.cam.zoom;
+  const px = toX(r, me.x);
+  const py = toY(r, me.y);
+  const ms = (g.time - h.betrayAt) * 1000;
+  const leave = h.leaving ? Math.min(1, h.wave / LEAVE_SEC) : 0;
+
+  // 0 through the grab, 1 once he is fully purple.
+  const turn = Math.min(1, ms / BAD_HELPER.transformMs);
+  const winding = !h.thrown && ms >= BAD_HELPER.transformMs;
+
+  ctx.save();
+  ctx.globalAlpha = 1 - leave;
+
+  const glow = ctx.createRadialGradient(px, py - z * 0.5, 0, px, py - z * 0.5, z * 1.7);
+  glow.addColorStop(0, `rgba(${Math.round(255 - 105 * turn)},${Math.round(208 - 118 * turn)},${Math.round(140 + 95 * turn)},${0.45 + 0.2 * turn})`);
+  glow.addColorStop(1, "rgba(150,90,235,0)");
+  ctx.fillStyle = glow;
+  ctx.fillRect(px - z * 1.7, py - z * 2.2, z * 3.4, z * 3.4);
+
+  ctx.fillStyle = "rgba(0,0,0,0.2)";
+  ctx.beginPath();
+  ctx.ellipse(px, py, z * 0.34, z * 0.1, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // The shudder: a hard shake that dies as the colour settles.
+  const shudder = turn < 1 ? Math.sin(ms * 0.09) * z * 0.09 * (1 - turn) : 0;
+  const s = Math.max(0, 1 - leave * leave);
+  ctx.save();
+  ctx.translate(px + shudder, py);
+  ctx.scale(s, s);
+  const pose = poseOf(me);
+  // Crossfade rather than swap, so you see him turn rather than blink.
+  if (turn < 1) charById("dudu").draw(ctx, 0, 0, me.w * z * 1.25, me.h * z * 1.32, pose);
+  ctx.globalAlpha = turn;
+  charById("badudu").draw(ctx, 0, 0, me.w * z * 1.3, me.h * z * 1.36, pose);
+  ctx.restore();
+
+  // Loading up: rings pulling inward toward the fist.
+  if (winding) {
+    const t = (ms - BAD_HELPER.transformMs) / BAD_HELPER.holdMs;
+    ctx.save();
+    for (let i = 0; i < 3; i++) {
+      const k = ((t * 1.6 + i / 3) % 1);
+      ctx.globalAlpha = (1 - k) * 0.55;
+      ctx.strokeStyle = "#c86bff";
+      ctx.lineWidth = Math.max(2, z * 0.07);
+      ctx.beginPath();
+      ctx.arc(px, py - me.h * z * 0.7, z * (0.3 + (1 - k) * 1.5), 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  ctx.font = `700 ${Math.max(10, z * 0.3)}px "Nunito", system-ui, sans-serif`;
+  ctx.textAlign = "center";
+  ctx.strokeStyle = "rgba(255,255,255,0.75)";
+  ctx.lineWidth = Math.max(2, z * 0.05);
+  const tag = h.leaving ? "bye!" : turn < 1 ? "?!" : "Bad Dudu";
+  ctx.fillStyle = turn < 1 ? "#c97d22" : "#7b3fd4";
+  const tagY = py - me.h * z * 1.72;
+  ctx.strokeText(tag, px, tagY);
+  ctx.fillText(tag, px, tagY);
+
+  ctx.restore();
+}
+
 function drawHelper(r, ctx, g) {
   const h = g.helper;
   if (!h || !h.actor) return;
+  if (h.bad) return drawBetrayal(r, ctx, g, h);
   const me = h.actor;
   const z = r.cam.zoom;
   const px = toX(r, me.x);
@@ -1205,7 +1431,13 @@ function drawActor(r, ctx, g, a) {
   // A brief halo in the colour of whatever was just picked up, so the effect
   // lands ON the character and not only on the spot they took it from.
   if (a.glowUntil && g.time < a.glowUntil) {
-    const t = 1 - (a.glowUntil - g.time) / 0.45;
+    // The span has to come from whoever set the glow. It was hardcoded at
+    // 0.45s while callers were asking for 0.3, 0.45 and 0.7 — and a glow
+    // longer than the hardcoded span makes `t` negative, which makes the
+    // radius below negative, which throws and takes the whole character off
+    // screen for the duration. Clamped as well, so no caller can do it again.
+    const span = a.glowFor || 0.45;
+    const t = Math.max(0, Math.min(1, 1 - (a.glowUntil - g.time) / span));
     ctx.save();
     ctx.globalAlpha = (1 - t) * 0.75;
     const gl = ctx.createRadialGradient(px, py - a.h * z * 0.5, 0, px, py - a.h * z * 0.5, z * (1 + t * 1.2));
@@ -1478,7 +1710,16 @@ export function drawScene(s, dt) {
   s.t += dt;
   const fake = { level: { w: 48, h: 16 }, time: s.t, powers: s.orbs, shots: [], bursts: [] };
 
-  drawBackdrop(s, ctx, fake, dt);
+  // Same contract as draw(): a known state every frame, and every piece
+  // isolated. The lobby had none of this, so one bad number in the title
+  // scene killed the whole screen the player sees FIRST, silently.
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = "source-over";
+  ctx.filter = "none";
+  ctx.shadowBlur = 0;
+
+  layer("scene:backdrop", ctx, () => drawBackdrop(s, ctx, fake, dt));
 
   // the ridge they walk on
   const gy = (SCENE_GROUND - s.cam.y) * s.cam.zoom + s.h / 2;
@@ -1489,7 +1730,7 @@ export function drawScene(s, dt) {
   ctx.fillStyle = "#5aa53a";
   ctx.fillRect(0, gy + s.cam.zoom * 0.3, s.w, s.cam.zoom * 0.07);
 
-  drawPowers(s, ctx, fake);
+  layer("scene:powers", ctx, () => drawPowers(s, ctx, fake));
 
   const left = s.cam.x - s.w / 2 / s.cam.zoom + 1.6;
   const right = s.cam.x + s.w / 2 / s.cam.zoom - 1.6;
@@ -1516,24 +1757,26 @@ export function drawScene(s, dt) {
     const py = (c.y - s.cam.y) * s.cam.zoom + s.h / 2;
     const air = c.y < SCENE_GROUND - 0.01 ? (c.vy < 0 ? -1 : 1) : 0;
 
-    ctx.fillStyle = "rgba(0,0,0,0.14)";
-    ctx.beginPath();
-    ctx.ellipse(px, gy + s.cam.zoom * 0.06, s.cam.zoom * 0.3, s.cam.zoom * 0.08, 0, 0, Math.PI * 2);
-    ctx.fill();
+    layer(`scene:${c.id}`, ctx, () => {
+      ctx.fillStyle = "rgba(0,0,0,0.14)";
+      ctx.beginPath();
+      ctx.ellipse(px, gy + s.cam.zoom * 0.06, s.cam.zoom * 0.3, s.cam.zoom * 0.08, 0, 0, Math.PI * 2);
+      ctx.fill();
 
-    charById(c.id).draw(ctx, px, py, 0.7 * s.cam.zoom * 1.45, 0.95 * s.cam.zoom * 1.5, {
-      face: c.face,
-      run: 1,
-      air,
-      squash: 0,
-      t: s.t,
-      walk: c.walk,
-      stride: c.id === "yhon" ? 0.78 : 1.1,
+      charById(c.id).draw(ctx, px, py, 0.7 * s.cam.zoom * 1.45, 0.95 * s.cam.zoom * 1.5, {
+        face: c.face,
+        run: 1,
+        air,
+        squash: 0,
+        t: s.t,
+        walk: c.walk,
+        stride: c.id === "yhon" ? 0.78 : 1.1,
+      });
+
+      ctx.font = `700 ${Math.max(9, s.cam.zoom * 0.24)}px "Nunito", system-ui, sans-serif`;
+      ctx.textAlign = "center";
+      ctx.fillStyle = "rgba(33,49,63,0.4)";
+      ctx.fillText(charById(c.id).name, px, py - s.cam.zoom * 1.72);
     });
-
-    ctx.font = `700 ${Math.max(9, s.cam.zoom * 0.24)}px "Nunito", system-ui, sans-serif`;
-    ctx.textAlign = "center";
-    ctx.fillStyle = "rgba(33,49,63,0.4)";
-    ctx.fillText(charById(c.id).name, px, py - s.cam.zoom * 1.72);
   }
 }

@@ -3,9 +3,7 @@
 //   #  solid          =  one-way platform (jump up through it)
 //   ^  spikes         .  air
 //   A  spawn one      B  spawn two
-//   F  the flag       *  a star to collect
-//   P  pressure plate D  door held shut until someone stands on the plate
-//   ?  a spot where a versus power-up can appear
+//   ?  a spot where a power-up can appear
 //
 // Rows must all be the same length; validate() shouts if they are not.
 
@@ -78,7 +76,7 @@ function validate(level, opts = {}) {
   return level;
 }
 
-/* -------------------------------------------------------- versus: arena --- */
+/* --------------------------------------------------------------- arena --- */
 //
 // No floor at all. Everything below the platforms is a fall, so the only way
 // to lose is to be somewhere the other person is not.
@@ -87,7 +85,7 @@ export const TAPAKAN = [
   validate({
     id: "tapakan-1",
     mode: "tapakan",
-    name: "Tapakan",
+    name: "BUBU DUDU SMASH",
     sub: "land on their head",
     // A pyramid with two-tile steps, staggered so each tier is a normal jump
     // from the one below. The first version stacked platforms at 3, 5, 7 and
@@ -114,7 +112,7 @@ export const TAPAKAN = [
   }),
 ];
 
-/* ------------------------------------------------- versus: generated --- */
+/* ----------------------------------------------------------- generated --- */
 //
 // One hand-authored arena meant every round looked the same. These build a
 // fresh one each round on the same skeleton — floor at row 13, tiers at rows
@@ -224,7 +222,7 @@ function buildArena(seed) {
   return {
     id: `tapakan-gen-${seed}`,
     mode: "tapakan",
-    name: "Tapakan",
+    name: "BUBU DUDU SMASH",
     sub: "land on their head",
     rows: grid.map((r) => r.join("")),
   };
@@ -247,19 +245,15 @@ export function makeArena(seed = (Math.random() * 1e9) | 0) {
 
 export const ALL = { tapakan: TAPAKAN };
 
-/** Pull the spawn points, flag, stars, plates and doors out of the tilemap. */
+/** Pull the spawn points and power-up spots out of the tilemap. */
 export function readLevel(level) {
-  const out = { spawns: [], flag: null, stars: [], plates: [], doors: [], powerSpots: [] };
+  const out = { spawns: [], powerSpots: [] };
   level.rows.forEach((row, y) => {
     [...row].forEach((c, x) => {
       const p = { x: x + 0.5, y: y + 1 };
       if (c === "?") out.powerSpots.push({ x: x + 0.5, y: y + 0.6 });
       else if (c === "A") out.spawns[0] = p;
       else if (c === "B") out.spawns[1] = p;
-      else if (c === "F") out.flag = p;
-      else if (c === "*") out.stars.push({ x: x + 0.5, y: y + 0.5, taken: false });
-      else if (c === "P") out.plates.push({ x, y, on: false });
-      else if (c === "D") out.doors.push({ x, y, open: false });
     });
   });
   if (!out.spawns[0]) out.spawns[0] = { x: 2.5, y: 2 };
@@ -267,19 +261,12 @@ export function readLevel(level) {
   return out;
 }
 
-/** Tiles the physics should treat as solid, given which doors are open. */
-export function solidGrid(level, doors) {
+/** Tiles the physics should treat as solid. */
+export function solidGrid(level) {
   const rows = level.rows.map((r) =>
     [...r]
       .map((c) => (c === "#" ? "#" : c === "=" ? "=" : c === "^" ? "^" : "."))
       .join("")
   );
-  for (const d of doors) {
-    const line = [...rows[d.y]];
-    line[d.x] = d.open ? "." : "#";
-    rows[d.y] = line.join("");
-  }
-  // The door column is solid from the door tile up two more, so it reads as a
-  // door rather than a single floating brick.
   return { rows };
 }

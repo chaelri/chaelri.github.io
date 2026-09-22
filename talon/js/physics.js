@@ -26,6 +26,7 @@ export function makeActor(x, y, id) {
     dead: false,
     respawn: 0,
     squash: 0,
+    launchFor: 0,   // seconds of no control after being hit hard
     t: 0,
     // Distance walked, not time elapsed. Animation driven off a clock times a
     // speed factor jumps every time that factor changes, which is what made
@@ -80,7 +81,7 @@ function oneWayUnder(level, a, prevFeet) {
 
 /**
  * input: { left, right, jumpDown, jumpHeld, dropDown }
- * others: the other actors, for standing on heads.
+ * others: the other actors, for landing on heads.
  */
 export function stepActor(a, input, level, dt, others = [], opts = {}) {
   a.t += dt;
@@ -93,12 +94,26 @@ export function stepActor(a, input, level, dt, others = [], opts = {}) {
   const dir = (input.right ? 1 : 0) - (input.left ? 1 : 0);
   if (dir !== 0) a.face = dir;
 
+  /* Being hit hard takes the controls away for a moment.
+   *
+   * This has to bypass the whole horizontal block below, not just soften it.
+   * The clamp at the end of it pins vx back to running speed the instant the
+   * victim holds a direction, so without this a launch worth thirty tiles a
+   * second was cancelled by the player pressing left — and friction ate what
+   * was left of it. No steering and no jumping while it lasts; after that
+   * they can act again, which leaves a slim chance of catching a ledge.
+   */
+  const launched = a.launchFor > 0;
+  if (launched) a.launchFor -= dt;
+
   // Horizontal: accelerate toward the target, or brake toward zero.
   const st = a.stats || { jump: 1, speed: 1, accel: 1 };
   const topSpeed = FEEL.runSpeed * st.speed * (a.speedMul || 1);
   const accel = (a.grounded ? FEEL.groundAccel : FEEL.airAccel) * st.accel;
   const friction = a.grounded ? FEEL.groundFriction : FEEL.airFriction;
-  if (dir !== 0) {
+  if (launched) {
+    // carried by whatever put them here
+  } else if (dir !== 0) {
     const target = dir * topSpeed;
     // Turning around is sharper than setting off, or direction changes feel
     // like steering a boat.
@@ -114,7 +129,7 @@ export function stepActor(a, input, level, dt, others = [], opts = {}) {
   // Jump buffering and coyote time: two small mercies that between them
   // account for most of "this game feels tight".
   a.coyote = a.grounded ? FEEL.coyoteMs / 1000 : Math.max(0, a.coyote - dt);
-  a.buffer = input.jumpDown ? FEEL.bufferMs / 1000 : Math.max(0, a.buffer - dt);
+  a.buffer = launched ? 0 : input.jumpDown ? FEEL.bufferMs / 1000 : Math.max(0, a.buffer - dt);
 
   if (a.buffer > 0 && a.coyote > 0) {
     a.vy = JUMP_VELOCITY * st.jump * (a.jumpMul || 1);
@@ -191,18 +206,10 @@ export function stepActor(a, input, level, dt, others = [], opts = {}) {
     const falling = a.vy >= 0;
     const withinWindow = myFeet > theirHead - FEEL.stompWindow && myFeet < theirHead + 0.45;
     if (falling && withinWindow && prevFeet <= theirHead + 0.2) {
-      if (opts.versus) {
-        a.vy = -FEEL.stompBounce;
-        a.squash = -0.3;
-        a.justStomped = o.id;
-        opts.onStomp?.(a, o);
-      } else {
-        // Co-op: a boost, not an attack. You ride their head.
-        a.y = theirHead;
-        a.vy = 0;
-        land(a, o.id, wasGrounded, opts);
-        a.x += o.vx * dt * FEEL.carryGrip;
-      }
+      a.vy = -FEEL.stompBounce;
+      a.squash = -0.3;
+      a.justStomped = o.id;
+      opts.onStomp?.(a, o);
     }
   }
 
@@ -242,6 +249,7 @@ export function reviveAt(a, x, y) {
   a.vy = 0;
   a.grounded = false;
   a.squash = 0;
+  a.launchFor = 0;
 }
 
 /** What the renderer needs to pose a character. */

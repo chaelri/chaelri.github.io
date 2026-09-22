@@ -5,7 +5,7 @@
 //   P1  A / D / W        P2  arrows        Enter start    R restart round
 
 import {
-  MODES, PLAYERS, ROUNDS_TO_WIN, FEEL, HELPER, HIT,
+  MODES, PLAYERS, ROUNDS_TO_WIN, FEEL, HELPER, BAD_HELPER, SQUAD, DIWATA, COINS, HIT, GLYPH,
   POWERUPS, POWER_ORDER, POWER_SPAWN_MS, POWER_FIRST_MS,
   SHOT_SPEED, SHOT_LIFE, SHOT_COOLDOWN_MS, SHOT_RADIUS,
 } from "./config.js";
@@ -165,24 +165,18 @@ function startRound() {
   // ruin a round: an unfair side, or a platform you can see and never reach.
   const level = makeArena();
   const meta = readLevel(level);
-  const doors = meta.doors.map((d) => ({ ...d }));
 
   G = {
     mode,
     level,
     meta,
-    doors,
-    plates: [],
-    stars: [],
-    flag: null,
-    grid: solidGrid(level, doors),
+    grid: solidGrid(level),
     time: 0,
     shrink: 0,
     winner: null,
     powers: [],   // pickups sitting on the field
     shots: [],    // bullets in flight
     powerAt: POWER_FIRST_MS / 1000,
-    doorUntil: 0,
     lastPower: null,
     flash: null,
     bursts: [],
@@ -191,7 +185,10 @@ function startRound() {
     slow: 0,
     helper: null,
     helperAt: HELPER.firstMs / 1000,
-    minis: [],    // the Tatlo squad, while one is out
+    minis: [],    // the Tatlo squad, waiting or hunting
+    squadAt: SQUAD.firstMs / 1000,
+    coins: [],    // loose change on the platforms
+    coinAt: 0,
     pops: [],     // pickup shockwaves
     actors: PLAYERS.map((p, i) => {
       const a = makeActor(meta.spawns[i].x, meta.spawns[i].y, p.id);
@@ -199,8 +196,8 @@ function startRound() {
       a.stats = { ...(charById(a.char).stats || {}) };
       a.tint = p.colour;
       a.label = p.name;
-      a.stars = 0;
-      a.atFlag = false;
+      a.coins = 0;
+      a.fairy = null;
       a.hp = FEEL.hp;
       a.baseW = a.w;
       a.baseH = a.h;
@@ -266,17 +263,24 @@ function endRound(winnerId, why) {
  * the text alone would leave the pop and the shock ring already finished.
  */
 let countHide = null;
+
+// Four beats, and they spell the game. "3 2 1 START" is four beats of
+// nothing; this is the same four saying who you are playing as and what you
+// are about to do, with the title landing on the last one as the round opens.
+const COUNT_WORDS = { 3: "BUBU", 2: "DUDU", 1: "SMASH", 0: "BUBU DUDU SMASH!!" };
+
 function setCount(n) {
   clearTimeout(countHide);
+  const word = COUNT_WORDS[n];
+  if (!word) return clearCount();
   countEl.innerHTML =
-    n > 0
-      ? `<div class="count"><span class="ring"></span><span class="num">${n}</span></div>`
-      : `<div class="count go"><span class="ring"></span><span class="num">GO</span></div>`;
+    `<div class="count word${n === 0 ? " go title" : ""}">` +
+    `<span class="ring"></span><span class="num">${word}</span></div>`;
   // The round title lives in the middle of the screen too, so it steps up out
   // of the way for as long as the number is there rather than sitting under it.
   document.body.classList.add("counting");
-  // GO clears itself; the numbers are replaced by the next tick.
-  if (n === 0) countHide = setTimeout(clearCount, 620);
+  // Nothing follows the last one, so it takes itself off.
+  if (n === 0) countHide = setTimeout(clearCount, 900);
 }
 
 function clearCount() {
@@ -293,7 +297,36 @@ const hideBanner = () => banner.classList.remove("in");
 
 /* ----------------------------------------------------------- the rules --- */
 
+/**
+ * An actor whose position has gone non-finite draws nothing, throws nothing,
+ * and never comes back — it simply disappears mid-round and the round cannot
+ * end because nobody can die. One bad number anywhere in the physics or in
+ * anything that pushes an actor about is enough to do it.
+ *
+ * Rather than hunt every arithmetic path, this catches the state itself: put
+ * them back on solid ground and say so, so the game survives it and the cause
+ * is named in the console instead of silently eating the match.
+ */
+function catchLostActors() {
+  for (let i = 0; i < G.actors.length; i++) {
+    const a = G.actors[i];
+    if (Number.isFinite(a.x) && Number.isFinite(a.y) &&
+        Number.isFinite(a.vx) && Number.isFinite(a.vy)) continue;
+    console.warn("[talon] actor left the numbers behind, recovering", a.id, {
+      x: a.x, y: a.y, vx: a.vx, vy: a.vy, launchFor: a.launchFor,
+    });
+    const at = safeSpawn(i);
+    a.vx = 0;
+    a.vy = 0;
+    a.launchFor = 0;
+    reviveAt(a, at.x, at.y);
+    a.invulnUntil = G.time + FEEL.hurtInvulnMs / 1000;
+  }
+}
+
 function tickRules(dt) {
+  catchLostActors();
+
   // respawns
   for (const a of G.actors) {
     if (!a.dead || a.respawn > 0) continue;
@@ -420,14 +453,9 @@ function showPickup(a, type) {
   let body = def.desc || "";
   if (type === "baril") body = `Six shots. ${shootPrompt(a.id)}`;
   if (type === "suntok") body = `Three punches. ${shootPrompt(a.id, "punch")}`;
-  showNote(a, def.colour, def.name, body, GLYPHS[type] || "");
+  showNote(a, def.colour, def.name, body, GLYPH[type] || "");
 }
 
-const GLYPHS = {
-  laki: "\u25b2", baril: "\u279c", bituin: "\u2605", bilis: "\u00bb",
-  yelo: "\u2744", kalasag: "\u25c7", baliktad: "\u21c4", lunas: "\u271a",
-  suntok: "\u270a", tatlo: "\u2022\u2022\u2022",
-};
 
 function tellPad(a) {
   host?.tell(a.id, { p: a.power ? a.power.type : null, ammo: a.power ? a.power.ammo : 0 });
@@ -459,16 +487,6 @@ function givePower(a, type) {
     return;
   }
 
-  // Three little Bubus, then the power-up is spent — it is the squad that is
-  // the effect, not a state you carry.
-  if (type === "tatlo") {
-    spawnMinis(a, def);
-    G.flash = { type, at: G.time };
-    showPickup(a, type);
-    sfx.tatlo();
-    return;
-  }
-
   clearPower(a, true);
   a.power = {
     type,
@@ -490,6 +508,165 @@ function givePower(a, type) {
   tellPad(a);
 }
 
+/* --------------------------------------------------------------- coins --- */
+//
+// Ten coins buys one of the four big things. They are the only thing in the
+// game you can collect at your own pace, which is what makes them worth
+// having: a round with nothing happening still has something to do, and the
+// reward is big enough to cross the arena for.
+
+// How long a collected coin keeps drawing its pickup. Matched in render.js.
+const COIN_POP_SEC = 0.75;
+
+/** Every tile you could stand on, top surface only. */
+function standingTiles() {
+  const out = [];
+  for (let y = 1; y < G.level.h; y++) {
+    const row = G.grid.rows[y];
+    const above = G.grid.rows[y - 1];
+    for (let x = 1; x < row.length - 1; x++) {
+      const c = row[x];
+      if ((c === "#" || c === "=") && above[x] === ".") out.push({ x: x + 0.5, y: y - 0.55 });
+    }
+  }
+  return out;
+}
+
+function tickCoins(dt) {
+  const live = G.coins.filter((c) => !c.taken).length;
+  if (live < COINS.onField) {
+    G.coinAt -= dt;
+    // The first handful land straight away — trickling them in one every two
+    // and a half seconds meant the field was still filling when the round was
+    // half over, and there was nothing to go for at the start.
+    if (live < COINS.atOnce) G.coinAt = 0;
+    if (G.coinAt <= 0) {
+      G.coinAt = COINS.respawnMs / 1000;
+      const spots = standingTiles();
+      if (spots.length) {
+        // Not on top of an existing one, and not under someone's feet.
+        for (let i = 0; i < 12; i++) {
+          const p = spots[Math.floor(Math.random() * spots.length)];
+          const clash =
+            G.coins.some((c) => !c.taken && Math.abs(c.x - p.x) < 1.4 && Math.abs(c.y - p.y) < 1) ||
+            G.actors.some((a) => !a.dead && Math.abs(a.x - p.x) < 1.2 && Math.abs(a.y - p.y) < 1.4);
+          if (!clash) { G.coins.push({ x: p.x, y: p.y, at: G.time, taken: 0 }); break; }
+        }
+      }
+    }
+  }
+
+  for (const c of G.coins) {
+    if (c.taken) continue;
+    for (const a of G.actors) {
+      if (a.dead) continue;
+      if (Math.abs(a.x - c.x) > COINS.radius + a.w / 2) continue;
+      if (Math.abs(a.y - a.h / 2 - c.y) > COINS.radius + a.h / 2) continue;
+      c.taken = G.time;
+      a.coins = (a.coins || 0) + 1;
+
+      // Everything the pickup needs to draw itself, recorded on the coin —
+      // which sticks around for another half second precisely so it can play
+      // this out. Collecting one used to be a sound and a number changing in
+      // a corner, which is no feedback at all for the thing you spend most of
+      // the round chasing.
+      c.n = a.coins;             // the count to float up from it
+      c.by = a.id;               // who took it, so it can fly to them
+      c.milestone = a.coins >= COINS.perReward;
+
+      // A flash of gold on the character, so the feedback lands on YOU and
+      // not only on the spot the coin was in.
+      a.glowUntil = G.time + 0.3;
+      a.glowFor = 0.3;
+      a.glowColour = COINS.colour;
+
+      // A kick that grows through the run: barely there on the first coin,
+      // unmistakable on the tenth. Ten identical thumps would be seasickness.
+      renderer.punch = Math.max(renderer.punch || 0, 0.012 + a.coins * 0.004);
+      renderer.shake = Math.max(renderer.shake || 0, 2 + a.coins * 0.8);
+
+      // Each coin in the run is a semitone above the last, so ten of them
+      // climb a scale and the reward lands on top of it. Resets with the
+      // count, which is what makes a full run feel like it went somewhere.
+      sfx.coin({ rate: Math.pow(2, (a.coins - 1) / 12) });
+      if (a.coins >= COINS.perReward) {
+        a.coins = 0;
+        grantReward(a);
+      }
+      break;
+    }
+  }
+
+  // A collected coin lingers only long enough to play its little rise.
+  if (G.coins.length) G.coins = G.coins.filter((c) => !c.taken || G.time - c.taken < COIN_POP_SEC);
+
+  // The arena eats its floor; take back anything left hanging over nothing.
+  for (let i = G.coins.length - 1; i >= 0; i--) {
+    if (!standingRoom(G.coins[i])) G.coins.splice(i, 1);
+  }
+}
+
+/** Ten coins, one of the four. */
+function grantReward(a) {
+  const pick = COINS.rewards[Math.floor(Math.random() * COINS.rewards.length)];
+  renderer.punch = Math.max(renderer.punch || 0, 0.05);
+  G.pops.push({ x: a.x, y: a.y - a.h * 0.6, at: G.time, colour: COINS.colour, glyph: "\u2605" });
+  a.glowUntil = G.time + 0.7;
+  a.glowFor = 0.7;
+  a.glowColour = COINS.colour;
+
+  if (pick === "suntok") { givePower(a, "suntok"); return; }
+  if (pick === "diwata") { giveFairy(a); return; }
+  if (pick === "tatlo") { summonSquad(a); return; }
+  summonDudu(a);
+}
+
+/* --------------------------------------------------------------- fairy --- */
+
+function giveFairy(a) {
+  a.fairy = {
+    left: DIWATA.heals,
+    next: G.time + DIWATA.firstMs / 1000,
+    healAt: -1,
+    leaving: false,
+    wave: 0,
+    phase: Math.random() * Math.PI * 2,
+  };
+  showNote(a, DIWATA.colour, "Diwata", "Fairy Yhon Yhon. Two hearts, one at a time.");
+  sfx.diwata();
+}
+
+function tickFairies(dt) {
+  for (const a of G.actors) {
+    const f = a.fairy;
+    if (!f) continue;
+
+    if (f.leaving) {
+      f.wave += dt;
+      if (f.wave > DIWATA.leaveMs / 1000) a.fairy = null;
+      continue;
+    }
+    if (a.dead) continue;
+
+    // She will not spend one on someone already full — the clock simply
+    // waits, so she is never wasted on a heal that does nothing. Her ceiling
+    // is one above everything else's.
+    if (a.hp >= DIWATA.hpMax) {
+      f.next = Math.max(f.next, G.time + 0.4);
+      continue;
+    }
+    if (G.time < f.next) continue;
+
+    a.hp = Math.min(DIWATA.hpMax, a.hp + 1);
+    f.left--;
+    f.healAt = G.time;
+    f.next = G.time + DIWATA.everyMs / 1000;
+    G.pops.push({ x: a.x, y: a.y - a.h * 0.7, at: G.time, colour: DIWATA.colour, glyph: "\u271a" });
+    sfx.lunas();
+    if (f.left <= 0) { f.leaving = true; f.wave = 0; }
+  }
+}
+
 /* --------------------------------------------------------------- minis --- */
 //
 // Three little Bubus. They are not clones of you — they are three small
@@ -503,35 +680,100 @@ function givePower(a, type) {
 // they do share is that immunity stops them — a starred or flashing player is
 // not something three of them get to gang up on.
 
-function spawnMinis(owner, def) {
-  const target = G.actors.find((o) => o !== owner);
-  for (let i = 0; i < def.count; i++) {
-    const off = (i - (def.count - 1) / 2) * def.spread;
-    const m = makeActor(owner.x + off, owner.y - 0.5, "bubu");
-    m.w *= def.scale;
-    m.h *= def.scale;
+/**
+ * The squad arrives on its own and waits.
+ *
+ * They land in a huddle somewhere on the surviving floor and mill about until
+ * one of the players walks into them. Whoever does takes all three at once —
+ * splitting them would make this a race to pick up items, and they are meant
+ * to read as three characters choosing a side.
+ */
+function spawnSquad(at = null) {
+  const floor = widestFloor();
+  if (!floor || floor.x1 - floor.x0 < 6) return;
+  // Somewhere along the floor, but not right on top of either player —
+  // unless they were bought, in which case they land where you are.
+  let home = at;
+  if (home === null) {
+    let best = -1;
+    for (let i = 0; i < 8; i++) {
+      const x = floor.x0 + 2 + Math.random() * (floor.x1 - floor.x0 - 4);
+      const d = Math.min(...G.actors.map((a) => Math.abs(a.x - x)));
+      if (d > best) { best = d; home = x; }
+    }
+  }
+  home = Math.max(floor.x0 + 2, Math.min(floor.x1 - 1, home));
+
+  for (let i = 0; i < SQUAD.count; i++) {
+    const off = (i - (SQUAD.count - 1) / 2) * SQUAD.spread;
+    const m = makeActor(home + off, floor.y, "bubu");
+    m.w *= SQUAD.scale;
+    m.h *= SQUAD.scale;
     m.baseW = m.w;
     m.baseH = m.h;
-    m.stats = { ...def.stats };
+    m.stats = { ...SQUAD.stats };
     m.hp = 99;
-    m.face = target ? Math.sign(target.x - owner.x) || 1 : 1;
-    // A little upward toss each, fanned out, so three do not appear stacked.
-    m.vy = -6 - Math.random() * 2;
-    m.vx = off * 1.6;
+    m.face = off < 0 ? 1 : -1;   // facing inward, so the huddle reads as one
+    m.vy = -4;
     G.minis.push({
       actor: m,
-      owner: owner.id,
-      until: G.time + def.lifeMs / 1000,
+      owner: null,                // nobody's yet
+      home: home + off,
+      until: G.time + SQUAD.waitMs / 1000,
       jumpAt: 0,
       leaving: false,
       wave: 0,
     });
   }
+  sfx.tatlo();
+}
+
+/** The coin reward version: they arrive already on your side. */
+function summonSquad(owner) {
+  if (G.minis.length) G.minis.length = 0;
+  spawnSquad(owner.x);
+  claimSquad(owner);
+}
+
+/** Hand the whole squad to whoever walked into it. */
+function claimSquad(owner) {
+  const target = G.actors.find((o) => o !== owner);
+  for (const m of G.minis) {
+    if (m.owner || m.leaving) continue;
+    m.owner = owner.id;
+    m.until = G.time + SQUAD.lifeMs / 1000;
+    m.actor.speedMul = 1;
+    m.actor.face = target ? Math.sign(target.x - m.actor.x) || 1 : 1;
+  }
+  showNote(owner, SQUAD.colour, "Tatlo", "Three little Bubus, on your side.");
+  sfx.helperSave();
 }
 
 function tickMinis(dt) {
-  if (!G.minis.length) return;
-  const def = POWERUPS.tatlo;
+  // They let themselves in, on their own clock, but never while a squad is
+  // already on the field.
+  if (!G.minis.length) {
+    G.squadAt -= dt;
+    if (G.squadAt <= 0) {
+      G.squadAt = SQUAD.everyMs / 1000;
+      spawnSquad();
+    }
+    return;
+  }
+
+  // Unclaimed: the first player to touch any of them takes all three.
+  if (G.minis.some((m) => !m.owner && !m.leaving)) {
+    for (const a of G.actors) {
+      if (a.dead) continue;
+      const hit = G.minis.some(
+        (m) =>
+          !m.owner && !m.leaving &&
+          Math.abs(a.x - m.actor.x) < (a.w + m.actor.w) / 2 + 0.2 &&
+          Math.abs(a.y - m.actor.y) < 1.2
+      );
+      if (hit) { claimSquad(a); break; }
+    }
+  }
 
   for (let i = G.minis.length - 1; i >= 0; i--) {
     const m = G.minis[i];
@@ -543,9 +785,38 @@ function tickMinis(dt) {
       continue;
     }
 
-    const target = G.actors.find((o) => o.id !== m.owner);
     let input = { left: false, right: false, jumpDown: false, jumpHeld: false, dropDown: false };
     let others = [];
+
+    if (!m.owner) {
+      // Waiting to be collected: shuffling about where they landed, not
+      // patrolling. Three small things pacing looks like a threat; three
+      // small things fidgeting on the spot looks like they are waiting.
+      me.speedMul = SQUAD.idleSpeedMul;
+      const drift = me.x - m.home;
+      if (drift < -SQUAD.idleRange) me.face = 1;
+      else if (drift > SQUAD.idleRange) me.face = -1;
+      else if (Math.random() < 0.5 * dt) me.face *= -1;
+      input.left = me.face < 0;
+      input.right = me.face > 0;
+      if (!groundAhead(me, me.face) || wallAhead(me, me.face)) {
+        input.left = input.right = false;
+        me.face *= -1;
+      }
+      // A little hop now and then, so a waiting squad is not three statues.
+      if (me.grounded && G.time * 1000 - m.jumpAt > 900 && Math.random() < 0.5 * dt) {
+        input.jumpDown = true;
+        m.jumpAt = G.time * 1000;
+      }
+      input.jumpHeld = true;
+      stepActor(me, input, G.grid, dt, [], {
+        onDeath: () => { m.leaving = true; m.wave = 0; },
+      });
+      if (G.time > m.until) { m.leaving = true; m.wave = 0; }
+      continue;
+    }
+
+    const target = G.actors.find((o) => o.id !== m.owner);
 
     if (target && !target.dead) {
       const guarded = !!(target.power && ["bituin", "kalasag"].includes(target.power.type));
@@ -591,7 +862,6 @@ function tickMinis(dt) {
     }
 
     stepActor(me, input, G.grid, dt, others, {
-      versus: true,
       onStomp: (by, victim) => {
         if (victim.power && victim.power.type === "bituin") {
           by.vy = -10;
@@ -794,11 +1064,11 @@ function tickPowers(dt) {
           y: q.y,
           at: G.time,
           colour: POWERUPS[q.type].colour,
-          glyph: GLYPHS[q.type] || "",
-          scale: q.type === "tatlo" ? 0.5 : 1,
+          glyph: GLYPH[q.type] || "",
         });
         G.bursts.push({ x: q.x, y: q.y, at: G.time, colour: POWERUPS[q.type].colour });
         a.glowUntil = G.time + 0.45;
+        a.glowFor = 0.45;
         a.glowColour = POWERUPS[q.type].colour;
         renderer.punch = Math.max(renderer.punch || 0, 0.035);
         givePower(a, q.type);
@@ -962,26 +1232,9 @@ function spawnHelper() {
   const lv = G.level;
   const fromLeft = Math.random() < 0.5;
 
-  // Walk inward from the chosen edge until there is actually a floor to stand
-  // on. Fixed columns do not work: the arena floor stops well short of both
-  // edges, so Dudu was being asked to appear in mid-air and never showed up.
-  let col = null;
-  let y = null;
-  for (let step = 0; step < lv.w && col === null; step++) {
-    const c = fromLeft ? 2 + step : lv.w - 3 - step;
-    if (c < 1 || c > lv.w - 2) break;
-    for (let ty = 2; ty < lv.h; ty++) {
-      const t = G.grid.rows[ty][c];
-      if (t === "#" || t === "=") {
-        if (G.grid.rows[ty - 1][c] === ".") {
-          col = c;
-          y = ty;
-        }
-        break;
-      }
-    }
-  }
-  if (col === null) return;
+  const spot = edgeFooting(fromLeft);
+  if (!spot) return;
+  const { col, y } = spot;
 
   // A real actor, so he falls, collides and jumps exactly like a player does.
   const actor = makeActor(col + 0.5, y, "dudu");
@@ -1007,6 +1260,162 @@ function spawnHelper() {
     wave: 0,
   };
   sfx.helper();
+}
+
+/**
+ * The coin reward: a Dudu who is already on your side.
+ *
+ * Bought rather than met, so the coin flip that makes one in ten of them turn
+ * never happens — that gamble belongs to walking up to a stranger, not to
+ * something you spent ten coins on.
+ */
+function summonDudu(owner) {
+  G.helper = null;
+  spawnHelper();
+  const h = G.helper;
+  if (!h) return;
+  // Put him beside his new ally rather than out at the edge.
+  h.actor.x = owner.x + (owner.face || 1) * -1.4;
+  h.actor.y = owner.y;
+  h.ally = owner.id;
+  h.until = G.time + HELPER.huntMs / 1000;
+  h.actor.speedMul = 1;
+  h.pause = 0;
+  showNote(owner, "#ffb84d", "Dudu", "Bought and paid for. He is on your side.");
+  sfx.helper();
+}
+
+/**
+ * Somewhere near the chosen edge with floor under it and air above it.
+ *
+ * Fixed columns do not work: the arena floor stops well short of both edges,
+ * so whoever walks in was being asked to appear in mid-air and never showed
+ * up at all. Walk inward until there is something to stand on.
+ */
+function edgeFooting(fromLeft) {
+  const lv = G.level;
+  for (let step = 0; step < lv.w; step++) {
+    const c = fromLeft ? 2 + step : lv.w - 3 - step;
+    if (c < 1 || c > lv.w - 2) break;
+    for (let ty = 2; ty < lv.h; ty++) {
+      const t = G.grid.rows[ty][c];
+      if (t === "#" || t === "=") {
+        if (G.grid.rows[ty - 1][c] === ".") return { col: c, y: ty };
+        break;
+      }
+    }
+  }
+  return null;
+}
+
+/* ------------------------------------------------------------ Bad Dudu --- */
+//
+// Half the time, Dudu is not Dudu.
+//
+// Nothing about him looks different until you touch him, and that is the
+// whole mechanic: at even odds, running at him stops being a reflex and
+// becomes a bet you place every time he walks in.
+//
+// Once triggered it plays out on its own — transform, hold, throw — and the
+// victim has no input for any of it. See BAD_HELPER in config.js for why it
+// is deliberately not dodgeable.
+
+function beginBetrayal(h, victim) {
+  h.bad = true;
+  h.ally = null;
+  h.victim = victim.id;
+  h.betrayAt = G.time;
+  h.thrown = false;
+  h.actor.speedMul = 0;
+  h.actor.face = Math.sign(victim.x - h.actor.x) || h.actor.face;
+
+  // Held. frozenUntil is already the "your buttons do nothing" flag, so the
+  // grab costs nothing new, and it covers the transform and the wind-up.
+  const hold = (BAD_HELPER.transformMs + BAD_HELPER.holdMs) / 1000;
+  victim.frozenUntil = G.time + hold;
+  victim.vx = 0;
+  victim.vy = 0;
+
+  showNote(victim, "#a970ff", "Bad Dudu", "That was not Dudu.");
+  sfx.badWind();
+  renderer.shake = 14;
+}
+
+/** The betrayal, from the grab to the throw. Runs instead of the hunt. */
+function tickBetrayal(dt) {
+  const h = G.helper;
+  const me = h.actor;
+
+  if (h.leaving) {
+    h.wave += dt;
+    if (h.wave > 1.2) G.helper = null;
+    return;
+  }
+
+  const victim = G.actors.find((a) => a.id === h.victim);
+  const ms = (G.time - h.betrayAt) * 1000;
+  const done = BAD_HELPER.transformMs + BAD_HELPER.holdMs;
+
+  if (victim && !victim.dead) {
+    if (!h.thrown) {
+      // Pinned beside him and off the ground for as long as he has hold.
+      victim.x = me.x + (me.face || 1) * 0.9;
+      victim.y = me.y - 0.35;
+      victim.vx = 0;
+      victim.vy = 0;
+      victim.grounded = false;
+    }
+    if (!h.thrown && ms >= done) {
+      h.thrown = true;
+      victim.frozenUntil = 0;
+      throwPlayer(victim, me.face || 1);
+    }
+  } else if (!h.thrown) {
+    h.thrown = true;   // they died in his hands; nothing left to throw
+  }
+
+  if (h.thrown && ms > done + 420) {
+    h.leaving = true;
+    h.wave = 0;
+    sfx.poof();
+  }
+
+  // He never moves during it. Still stepped, so he falls if the floor goes
+  // out from under him mid-throw.
+  stepActor(
+    me,
+    { left: false, right: false, jumpDown: false, jumpHeld: false, dropDown: false },
+    G.grid, dt, [],
+    { onDeath: () => { h.leaving = true; h.wave = 0; } }
+  );
+}
+
+/**
+ * Sent across the map. What kills them is the edge, not the punch.
+ *
+ * Thrown toward the NEARER end of the surviving floor rather than simply away
+ * from him. Hurling someone away from yourself sends them inward as often as
+ * out, and a throw that lands them safely in the middle of a wide floor is
+ * just a shove — measured at 17 tiles of travel and no damage at all. Aiming
+ * at the closer edge makes the throw mean what it looks like, while leaving
+ * the counterplay exactly where it was: do not walk up to him.
+ */
+function throwPlayer(a, face) {
+  const floor = widestFloor();
+  if (floor) {
+    const centre = (floor.x0 + floor.x1 + 1) / 2;
+    face = a.x === centre ? face : Math.sign(a.x - centre);
+  }
+  a.vx = face * BAD_HELPER.launchVx;
+  a.vy = BAD_HELPER.launchVy;
+  a.launchFor = BAD_HELPER.launchFor / 1000;
+  a.grounded = false;
+  a.punch = null;
+  G.bursts.push({ x: a.x, y: a.y - a.h * 0.55, at: G.time, colour: "#a970ff", big: true });
+  G.freeze = 0.09;
+  renderer.shake = 40;
+  renderer.punch = 0.07;
+  sfx.badHit();
 }
 
 /**
@@ -1038,6 +1447,8 @@ function tickHelper(dt) {
   }
 
   const h = G.helper;
+  if (h.bad) return tickBetrayal(dt);
+
   const me = h.actor;
 
   if (h.leaving) {
@@ -1080,6 +1491,12 @@ function tickHelper(dt) {
       if (a.dead) continue;
       if (Math.abs(a.x - me.x) > (a.w + me.w) / 2) continue;
       if (Math.abs(a.y - me.y) > 1.2) continue;
+      // A literal coin flip, HERE, on contact — not at spawn. There is nothing
+      // to read beforehand and nothing to do about it afterwards.
+      if (Math.random() < HELPER.betrayChance) {
+        beginBetrayal(h, a);
+        break;
+      }
       h.ally = a.id;
       h.until = G.time + HELPER.huntMs / 1000;
       me.speedMul = 1;
@@ -1218,7 +1635,6 @@ function tickHelper(dt) {
   }
 
   stepActor(me, input, G.grid, dt, others, {
-    versus: true,
     onStomp: (by, victim) => {
       // Landing on a star is a mistake, not an attack — it throws him off and
       // he gives up rather than pinballing off someone he cannot hurt.
@@ -1314,17 +1730,18 @@ function advance(dt) {
       // Each tick lands: a sound, a camera kick, and the number itself snaps
       // in from oversize. It used to be small grey text under the mode name,
       // which is not a countdown so much as a footnote.
-      renderer.punch = n > 0 ? 0.045 : 0.1;
-      renderer.shake = n > 0 ? 8 : 20;
-      if (n === 0) renderer.flash = 0.35;
-      n > 0 ? sfx.count() : sfx.go();
+      // SMASH!! is the last card and the biggest; n === 0 is the round
+      // actually starting, which clears the card rather than adding a fourth.
+      renderer.punch = n > 1 ? 0.045 : 0.1;
+      renderer.shake = n > 1 ? 8 : 22;
+      if (n <= 1) renderer.flash = 0.35;
+      n > 1 ? sfx.count() : sfx.go();
       setCount(n);
     }
     if (countdown <= 0) {
       phase = "play";
       duckMusic(false);
       hideBanner();
-      clearCount();
     }
   }
 
@@ -1350,6 +1767,8 @@ function advance(dt) {
     }
     if (phase === "play" && sim > 0) {
       tickPowers(sim);
+      tickCoins(sim);
+      tickFairies(sim);
       tickHelper(sim);
       tickMinis(sim);
       tickPunches();
@@ -1373,7 +1792,6 @@ function advance(dt) {
 
 function simulate(dt) {
   const opts = {
-    versus: MODES[G.mode].versus,
     onDeath: handleDeath,
     onStomp: (by, victim) => {
       // A star beats everything, including being landed on.
@@ -1430,6 +1848,28 @@ const HEART_SVG =
  */
 function chipsFor(a) {
   const out = [];
+
+  // Progress toward the next reward, always first so it sits in one place.
+  // `bump` makes the chip jump on the frame the count changes — the number
+  // alone is too quiet to notice while you are looking at your character.
+  out.push({
+    label: `\u25c9 ${a.coins || 0}/${COINS.perReward}`,
+    colour: COINS.colour,
+    pct: ((a.coins || 0) / COINS.perReward) * 100,
+    bad: false,
+    bump: a.glowUntil && G.time < a.glowUntil && a.glowColour === COINS.colour,
+  });
+
+  if (a.fairy && !a.fairy.leaving) {
+    const wait = Math.max(0, a.fairy.next - G.time);
+    out.push({
+      label: `\u271a ${a.fairy.left}`,
+      colour: DIWATA.colour,
+      pct: 100 - (wait / (DIWATA.everyMs / 1000)) * 100,
+      bad: false,
+    });
+  }
+
   if (a.power) {
     const def = POWERUPS[a.power.type];
     const dur = def.ms ? def.ms / 1000 : 0;
@@ -1440,9 +1880,9 @@ function chipsFor(a) {
       // Show the key only to a player who is actually on the keyboard; on a
       // phone there is a button for it.
       const key = pads[a.id] && !pads[a.id].connected ? ` <em>${SHOOT_KEY[a.id]}</em>` : "";
-      label = `${GLYPHS[a.power.type]} ${a.power.ammo}${key}`;
+      label = `${GLYPH[a.power.type]} ${a.power.ammo}${key}`;
     } else {
-      label = `${GLYPHS[a.power.type]} ${def.name}`;
+      label = `${GLYPH[a.power.type]} ${def.name}`;
     }
     out.push({ label, colour: def.colour, pct, bad: false });
   }
@@ -1509,14 +1949,14 @@ function paintPlayers(dt) {
     }
 
     const chips = chipsFor(a);
-    const key = chips.map((c) => c.label + Math.round(c.pct / 6)).join("|");
+    const key = chips.map((c) => c.label + Math.round(c.pct / 6) + (c.bump ? "!" : "")).join("|");
     const el = card.querySelector(".pchips");
     if (el.dataset.key !== key) {
       el.dataset.key = key;
       el.innerHTML = chips
         .map(
           (c) =>
-            `<span class="chip${c.bad ? " bad" : ""}" style="--cc:${c.colour};--left:${c.pct}%">${c.label}</span>`
+            `<span class="chip${c.bad ? " bad" : ""}${c.bump ? " bump" : ""}" style="--cc:${c.colour};--left:${c.pct}%">${c.label}</span>`
         )
         .join("");
     }
@@ -1590,6 +2030,39 @@ $("#localBtn")?.addEventListener("click", () => {
   startMatch();
 });
 
+/**
+ * The same room code across reloads of this screen.
+ *
+ * A fresh code every load means every refresh silently kills the room, and a
+ * QR that was already scanned — or a phone still sitting on the controller —
+ * is pointing at nothing. Since the controller retries every couple of
+ * seconds, reusing the code makes a reload invisible: the phones simply
+ * reconnect.
+ *
+ * Kept per browser, not per tab, so closing the screen and opening it again
+ * still lands on the same room. A new code is only minted if there has been no
+ * game here for a day, so a stale one cannot be inherited forever.
+ */
+function keepCode() {
+  const KEY = "bubudududsmash.room";
+  const DAY = 24 * 60 * 60 * 1000;
+  try {
+    const saved = JSON.parse(localStorage.getItem(KEY) || "null");
+    if (saved && saved.code && Date.now() - saved.at < DAY) {
+      localStorage.setItem(KEY, JSON.stringify({ code: saved.code, at: Date.now() }));
+      return saved.code;
+    }
+  } catch {}
+  // Same alphabet and length net.js uses (no look-alike characters), so a
+  // code minted here is indistinguishable from one it would have made itself.
+  const A = "23456789ACDEFGHJKLMNPQRSTUVWXYZ";
+  let code = "";
+  const bytes = crypto.getRandomValues(new Uint8Array(4));
+  for (let i = 0; i < 4; i++) code += A[bytes[i] % A.length];
+  try { localStorage.setItem(KEY, JSON.stringify({ code, at: Date.now() })); } catch {}
+  return code;
+}
+
 async function boot() {
   armAudio();
   onAudioState((st) => $("#sound")?.classList.toggle("show", st !== "on"));
@@ -1609,7 +2082,7 @@ async function boot() {
   }
 
   try {
-    host = await createHost({ onInput: applyPacket, onPeers: paintSlots });
+    host = await createHost({ onInput: applyPacket, onPeers: paintSlots, code: keepCode() });
   } catch (err) {
     console.error("could not open a room", err);
     return;

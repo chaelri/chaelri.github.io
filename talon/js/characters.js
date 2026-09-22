@@ -32,6 +32,25 @@ const WALK_FRAMES = [1, 2, 3, 4];
  * different point and the whole thing stuttered. Distance has no such seam:
  * the feet move because the character moved.
  */
+/**
+ * Standing still is not the same as being stopped.
+ *
+ * Both characters used to freeze solid the moment you let go — a static
+ * picture parked on a platform, which makes a live game look paused. This is
+ * one slow breath: a little taller and narrower on the way up, shorter and
+ * wider on the way down, with the body lifting a fraction off its feet.
+ *
+ * It is driven off `pose.t`, the actor's own clock, so the two of them are
+ * never quite in sync, and it fades out the instant you start moving so it
+ * can never fight the walk cycle.
+ */
+function idleBreath(pose) {
+  const still = pose.air === 0 ? 1 - Math.min(1, pose.run / 0.12) : 0;
+  if (still <= 0) return { squash: 0, lift: 0 };
+  const w = Math.sin((pose.t || 0) * 2.1);
+  return { squash: -w * 0.035 * still, lift: Math.max(0, w) * 0.022 * still };
+}
+
 function spriteFrame(frames, pose) {
   if (pose.air !== 0) return frames[pose.air < 0 ? 5 : 3] || frames[0];
   if (pose.run < 0.1) return frames[0];
@@ -51,11 +70,12 @@ function drawSprite(frames, ctx, x, y, w, h, pose) {
     return;
   }
   // The art is taller than it is wide; fit to height and keep the ratio.
-  const k = Math.max(0.78, Math.min(1.22, 1 - pose.squash * 0.8));
+  const breath = idleBreath(pose);
+  const k = Math.max(0.78, Math.min(1.22, 1 - (pose.squash + breath.squash) * 0.8));
   const dh = h * k;
   const dw = (h * SPRITE_W) / SPRITE_H / k;
   ctx.save();
-  ctx.translate(x, y);
+  ctx.translate(x, y - h * breath.lift);
   ctx.scale(pose.face, 1);
   ctx.drawImage(img, -dw / 2, -dh, dw, dh);
   ctx.restore();
@@ -119,11 +139,12 @@ function drawYhon(ctx, x, y, w, h, pose) {
   const air = Math.min(1, Math.abs(rise));
   const stretch = pose.air !== 0 ? air * 0.2 : 0;
 
-  const k = Math.max(0.68, Math.min(1.34, 1 - pose.squash * 1.05 - stretch));
+  const breath = idleBreath(pose);
+  const k = Math.max(0.68, Math.min(1.34, 1 - (pose.squash + breath.squash) * 1.05 - stretch));
   const bh = h * k;
   const bw = (h * Y.aspect) / k;
   const cx = x;
-  const cy = y - bh / 2;
+  const cy = y - bh / 2 - h * breath.lift;
   const S = (n) => bw * n; // horizontal fractions
   const V = (n) => bh * n; // vertical fractions
 
@@ -179,8 +200,13 @@ function drawYhon(ctx, x, y, w, h, pose) {
     ellipse(ctx, side * S(Y.blushAt), V(Y.blushY),
       S(Y.blushSize[0]) / 2, V(Y.blushSize[1]) / 2, 0, Y.blush, 0.5);
   }
+  // A blink every few seconds, on his own clock so he and Bubu never blink
+  // together. Squashing the eye rather than hiding it keeps him from looking
+  // briefly eyeless on a slow frame.
+  const blinkCycle = ((pose.t || 0) % 3.7) / 3.7;
+  const blink = blinkCycle > 0.965 ? 1 - Math.abs(blinkCycle - 0.982) / 0.017 : 0;
   for (const side of [-1, 1]) {
-    ellipse(ctx, side * S(Y.eyeAt), V(Y.eyeY), S(Y.eyeR), S(Y.eyeR), 0, Y.eye);
+    ellipse(ctx, side * S(Y.eyeAt), V(Y.eyeY), S(Y.eyeR), S(Y.eyeR) * (1 - blink * 0.88), 0, Y.eye);
   }
 
   ellipse(ctx, 0, V(Y.snoutY), S(Y.snoutSize[0]) / 2, V(Y.snoutSize[1]) / 2, 0, Y.snout);
@@ -253,8 +279,69 @@ export const HELPER_CHAR = {
   },
 };
 
+/**
+ * Bad Dudu.
+ *
+ * The same bear, gone purple. He is deliberately NOT a new silhouette: the
+ * whole point of him is that you have half a second to notice the colour and
+ * decide whether the thing walking in is worth running to. A different shape
+ * would be read as "some other character" instead of "that is Dudu, and
+ * something is wrong with him".
+ *
+ * Tinted through a scratch canvas with `source-atop`, which paints only where
+ * the sprite already has pixels — the same trick the star uses. A CSS-style
+ * hue-rotate cannot do it, because the art is mostly near-white and rotating
+ * the hue of white gives you white.
+ */
+let badBuf = null;
+
+function drawBadDudu(ctx, x, y, w, h, pose) {
+  if (!duduFrames) duduFrames = loadFrames("dudu");
+
+  if (!badBuf) {
+    badBuf = document.createElement("canvas");
+    badBuf.width = 256;
+    badBuf.height = 256;
+  }
+  const b = badBuf.getContext("2d");
+  b.clearRect(0, 0, badBuf.width, badBuf.height);
+
+  // Drawn into the buffer with its feet near the bottom, so a stretched jump
+  // pose still has room above it.
+  const bx = badBuf.width / 2;
+  const by = badBuf.height * 0.88;
+  const scale = badBuf.height * 0.8 / h;
+  drawSprite(duduFrames, b, bx, by, w * scale, h * scale, pose);
+
+  b.save();
+  b.globalCompositeOperation = "source-atop";
+  b.globalAlpha = 0.66;
+  b.fillStyle = "#7b3fd4";
+  b.fillRect(0, 0, badBuf.width, badBuf.height);
+  // A second darker pass low down, so he is not a flat purple sticker.
+  b.globalAlpha = 0.3;
+  b.fillStyle = "#2b0f52";
+  b.fillRect(0, badBuf.height * 0.6, badBuf.width, badBuf.height * 0.4);
+  b.restore();
+
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(1 / scale, 1 / scale);
+  ctx.drawImage(badBuf, -bx, -by);
+  ctx.restore();
+}
+
+export const BAD_HELPER_CHAR = {
+  id: "badudu",
+  name: "Bad Dudu",
+  tint: "#a970ff",
+  draw: drawBadDudu,
+};
+
+const OFF_ROSTER = { dudu: HELPER_CHAR, badudu: BAD_HELPER_CHAR };
+
 export const charById = (id) =>
-  CHARACTERS.find((c) => c.id === id) || (id === "dudu" ? HELPER_CHAR : CHARACTERS[0]);
+  CHARACTERS.find((c) => c.id === id) || OFF_ROSTER[id] || CHARACTERS[0];
 
 /** Warm the sprite cache so nobody's first jump is a white blob. */
 export function preloadCharacters() {

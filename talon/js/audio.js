@@ -312,6 +312,19 @@ const synth = {
     tone(150, { type: "square", peak: 0.08, attack: 0.002, decay: 0.1, to: 60 });
   },
   tatlo: () => arp([523, 659, 784], 0.05, { type: "triangle", peak: 0.08, decay: 0.22 }),
+  // Bad Dudu arrives on a falling phrase, loads up on a rising one, and lands
+  // like something much heavier than he looks.
+  badHelper: () => arp([392, 330, 262, 196], 0.08, { type: "sawtooth", peak: 0.08, decay: 0.3 }),
+  // The oscillator fallback climbs the same way the sample does.
+  coin: (o) => arp([988, 1319].map((f) => f * (o?.rate || 1)), 0.045,
+    { type: "square", peak: 0.05, decay: 0.12 }),
+  diwata: () => arp([784, 988, 1175, 1568], 0.06, { type: "sine", peak: 0.08, decay: 0.34 }),
+  badWind: () => tone(110, { type: "sawtooth", peak: 0.09, attack: 0.02, decay: 0.42, to: 300 }),
+  badHit: () => {
+    tone(70, { type: "sine", peak: 0.26, attack: 0.002, decay: 0.5, to: 32 });
+    noise({ peak: 0.22, decay: 0.2, band: 320, q: 0.5 });
+    noise({ peak: 0.12, decay: 0.34, band: 2400, q: 0.8, delay: 0.015 });
+  },
   join: () => arp([659, 880], 0.06, { peak: 0.07, decay: 0.16 }),
   spawn: () => tone(1200, { type: "sine", peak: 0.05, decay: 0.2, to: 1800 }),
 };
@@ -345,6 +358,11 @@ const BANK = {
   baliktad:    { one: ["baliktad"], gain: 0.5 },
   powerEnd:    { one: ["lowdown"], gain: 0.34 },
   suntok:      { one: ["suntok"], gain: 0.6, vary: 0.07 },
+  badHelper:   { one: ["badhelper"], gain: 0.6 },
+  coin:        { one: ["coin"], gain: 0.34, vary: 0.1 },
+  diwata:      { one: ["diwata"], gain: 0.6 },
+  badWind:     { one: ["badwind"], gain: 0.62 },
+  badHit:      { all: ["badhit", "lowdown"], gain: 0.95 },
   tatlo:       { one: ["tatlo"], gain: 0.55 },
 
   shoot:       { one: ["shoot"], gain: 0.32, vary: 0.1 },
@@ -407,12 +425,12 @@ function loadBank() {
     .catch(() => {});
 }
 
-function playBuffer(name, gain, vary) {
+function playBuffer(name, gain, vary, rate = 1) {
   const buf = buffers.get(name);
   if (!buf) return false;
   const src = ctx.createBufferSource();
   src.buffer = buf;
-  if (vary) src.playbackRate.value = 1 + (Math.random() * 2 - 1) * vary;
+  src.playbackRate.value = rate * (vary ? 1 + (Math.random() * 2 - 1) * vary : 1);
   const g = ctx.createGain();
   g.gain.value = gain;
   src.connect(g).connect(master);
@@ -420,17 +438,23 @@ function playBuffer(name, gain, vary) {
   return true;
 }
 
-/** True if the cue was played from the bank; false means "use the synth". */
-function playCue(key) {
+/**
+ * True if the cue was played from the bank; false means "use the synth".
+ *
+ * `opts.rate` shifts the pitch for that one playback — used by the coins,
+ * which climb a step with each one collected.
+ */
+function playCue(key, opts) {
   const def = BANK[key];
   if (!def || !ctx) return false;
+  const rate = opts?.rate ?? 1;
   let played = false;
   if (def.one && def.one.length) {
     const n = def.one[Math.floor(Math.random() * def.one.length)];
-    played = playBuffer(n, def.gain ?? 0.5, def.vary) || played;
+    played = playBuffer(n, def.gain ?? 0.5, def.vary, rate) || played;
   }
   for (const n of def.all || []) {
-    played = playBuffer(n, def.gain ?? 0.5, def.vary) || played;
+    played = playBuffer(n, def.gain ?? 0.5, def.vary, rate) || played;
   }
   return played;
 }
@@ -444,10 +468,10 @@ export const sfx = new Proxy(
   {},
   {
     get(_, key) {
-      return () => {
+      return (opts) => {
         if (!ctx || !enabled) return;
-        if (playCue(key)) return;
-        synth[key]?.();
+        if (playCue(key, opts)) return;
+        synth[key]?.(opts);
       };
     },
   }
