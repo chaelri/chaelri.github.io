@@ -894,6 +894,14 @@ window.openItemModal = function (who, kind, id) {
 
   const kids = it ? getKids(it) : [];
   let body = "";
+  // Whose is it? Only on a new item — the header's quick-add has no section to infer it from,
+  // and it doubles as a fix for tapping the wrong person's Add.
+  if (isNew) {
+    body += `<div class="space-y-1"><label class="text-[10px] font-bold uppercase text-slate-500 ml-1">Whose ${kind === "income" ? "income" : "expense"}</label>
+      <div class="grid grid-cols-2 gap-2" id="f-owner" data-val="${who}">
+        ${["charlie", "karla"].map((w) => `<button type="button" onclick="pickOwner(this,'${w}')" class="py-3 rounded-xl font-bold text-xs ${w === who ? "bg-indigo-600 text-white" : "bg-slate-900 text-slate-400"}">${OWNERS[w].label}</button>`).join("")}
+      </div></div>`;
+  }
   body += inputBlock(kind === "income" ? "Source" : "Name", "f-name", name, "text", 'placeholder="e.g. Rent"');
   if (kids.length) {
     body += `<div class="space-y-1"><label class="text-[10px] font-bold uppercase text-slate-500 ml-1">Amount (₱)</label>
@@ -955,6 +963,15 @@ window.openItemModal = function (who, kind, id) {
   else { delBtn.classList.remove("hidden"); delBtn.onclick = () => confirmDelete(); }
 
   openModalShell();
+  if (isNew) setTimeout(() => $("f-name")?.focus(), 320); // after the sheet finishes sliding up
+};
+
+// Add an expense without first picking a person — the owner buttons are in the form.
+// Remembers who you picked last so the common case is one tap less.
+window.quickAddExpense = function () {
+  let who = "charlie";
+  try { const w = localStorage.getItem("money.lastOwner"); if (w === "charlie" || w === "karla") who = w; } catch (e) {}
+  openItemModal(who, "expenses", null);
 };
 
 // Sub-expense modal (add/edit a child under a parent expense).
@@ -1187,7 +1204,12 @@ window.saveModal = async function () {
 
   // item
   if (!name) return toast("Name required", "error");
-  const { who, type, id } = activeEdit;
+  const { type, id } = activeEdit;
+  let who = activeEdit.who;
+  if (!id && $("f-owner")) {
+    who = $("f-owner").dataset.val;
+    try { localStorage.setItem("money.lastOwner", who); } catch (e) {}
+  }
   const recurring = $("f-recurring").dataset.on === "true";
   const start = $("f-start").value;
   const end = $("f-end").value || null;
@@ -1466,6 +1488,28 @@ function runIntro() {
   const tag = $("intro-tag");
   setTimeout(() => { if (tag) tag.style.opacity = "1"; }, 1150);
 }
+
+// =============================
+// Keyboard
+// =============================
+// Escape closes the topmost layer; Enter inside an open form saves it.
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    if ($("confirm-overlay").classList.contains("open")) return closeConfirm();
+    if ($("modal-overlay").classList.contains("open")) return closeModal();
+    if ($("more-overlay").classList.contains("open")) return closeMore();
+    if ($("month-picker").classList.contains("open")) return toggleMonthPicker();
+    return;
+  }
+  if (e.key !== "Enter") return;
+  if (!$("modal-overlay").classList.contains("open")) return;
+  const el = e.target;
+  if (!el) return;
+  if (el.id === "f-spend-amount") return; // that field logs its own entry on Enter
+  if (el.tagName === "BUTTON" || el.tagName === "TEXTAREA") return;
+  e.preventDefault();
+  saveModal();
+});
 
 let firstLoad = true;
 function boot() {
