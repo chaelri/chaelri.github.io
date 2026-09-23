@@ -9,6 +9,7 @@ import { INPUT_HZ, PLAYERS } from "./config.js";
 import { CHARACTERS, charById } from "./characters.js";
 import { createClient } from "./net.js";
 import { createPad, paintShootButton } from "./pad.js";
+import { ABILITY } from "./config.js";
 
 const $ = (s) => document.querySelector(s);
 const els = {
@@ -105,7 +106,11 @@ function send() {
 
 /** The screen tells us what we are holding; this is display only. */
 function onMessage(m) {
-  if (m) paintShootButton(m.p, m.ammo);
+  if (!m) return;
+  // `ab` is the character's own move, which shares this button whenever no
+  // power-up has taken it. The phone does not run the rules and has never
+  // seen the round, so all of this is told rather than worked out.
+  paintShootButton(m.p, m.ammo, m.ab ? ABILITY[m.ab] : null, (m.cd || 0) / 100, !!m.rd);
 }
 
 /* ---------------------------------------------------------- supervisor --- */

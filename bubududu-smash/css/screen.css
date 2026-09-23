@@ -361,7 +361,31 @@ h1.logo::after {
 .who { font-family: "Nunito", system-ui, sans-serif; font-size: clamp(19px, 2.6vh, 26px); font-weight: 700; }
 .slot[data-slot="p1"] .who { color: #1b6f9e; }
 .slot[data-slot="p2"] .who { color: #a63f65; }
-.pick { font-size: 12px; color: rgba(33,49,63,0.65); }
+/* Pick who each seat is holding, on the shared screen.
+ *
+ * It printed the character's NAME and nothing else, which was honest while
+ * the choice was cosmetic. Each one carries an ability now, so it is a
+ * choice — and on a laptop with both of you on one keyboard this is the only
+ * place to make it. */
+.pick { display: grid; justify-items: center; gap: 5px; }
+.pick .faces { display: flex; gap: 4px; }
+.pick .faces button {
+  padding: 3px; border-radius: 12px; line-height: 0;
+  border: 2px solid rgba(33,49,63,0.1); background: rgba(255,255,255,0.7);
+  transition: transform 140ms cubic-bezier(0.2,1.4,0.4,1), border-color 160ms, background 160ms;
+}
+.pick .faces canvas { width: clamp(26px, 3.4vh, 38px); height: auto; display: block; }
+.pick .faces button.on { background: #fff; transform: translateY(-2px) scale(1.06); }
+.slot[data-slot="p1"] .pick .faces button.on { border-color: #4cc2ff; }
+.slot[data-slot="p2"] .pick .faces button.on { border-color: #ff7ba8; }
+.pick .faces button:active { transform: scale(0.94); }
+.pick .says {
+  display: flex; align-items: center; gap: 4px;
+  font-family: "Nunito", system-ui, sans-serif;
+  font-size: 11.5px; font-weight: 800; color: var(--ac, #21313f);
+}
+.pick .says b { color: rgba(33,49,63,0.75); }
+.pick .says .mk { width: 1.15em; height: 1.15em; margin-left: 3px; }
 .state { font-size: 10.5px; letter-spacing: 0.1em; color: rgba(33,49,63,0.4); margin-top: 3px; }
 .slot.on .state { color: #2a9d5c; font-weight: 700; letter-spacing: 0.22em; }
 

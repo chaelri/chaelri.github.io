@@ -16,6 +16,7 @@ import { CHARACTERS, charById, preloadCharacters } from "./characters.js";
 import { makeActor, stepActor, kill, reviveAt } from "./physics.js";
 import { createRenderer, createScene, draw, drawScene, resize, resizeScene } from "./render.js";
 import { createHost } from "./net.js";
+import { markSVG } from "./marks.js";
 import { armAudio, audioState, duckMusic, onAudioState, sfx as rawSfx, startAudio, startMusic, stopMusic } from "./audio.js";
 import { snapshot, rowsEqual } from "./netstate.js";
 import { paintPanels, packChips, chipsFor as panelChips } from "./panel.js";
@@ -695,12 +696,48 @@ function showPickup(a, type) {
 }
 
 
+function padMsg(a) {
+  const st = abilityState(a.id);
+  return {
+    p: a.power ? a.power.type : null,
+    ammo: a.power ? a.power.ammo : 0,
+    // ...and the character's own move, for the same button. The phone cannot
+    // work this out: it does not run the rules and has never seen the round.
+    ab: st ? st.ability.id : null,
+    cd: st ? Math.round(st.cd * 100) : 0,
+    rd: st ? (st.ready ? 1 : 0) : 0,
+  };
+}
+
 function tellPad(a) {
-  const msg = { p: a.power ? a.power.type : null, ammo: a.power ? a.power.ammo : 0 };
+  const msg = padMsg(a);
   host?.tell(a.id, msg);
   // The host's own fire button is not on the far end of a data channel, so it
   // has to be told directly or it never learns it is holding anything.
   if (DUO && a.id === "p1") for (const fn of powerListeners) fn(msg);
+}
+
+/* The fire button, kept up to date without flooding the channel.
+ *
+ * A power-up only changes when you pick one up, so telling the pad on that
+ * event alone was enough. A cooldown changes every frame — and a cooldown
+ * that is only redrawn when something else happens is a cooldown you cannot
+ * read. Sent at ten a second, and only when it has actually changed, which
+ * for most of a round is not at all.
+ */
+const padSaid = { p1: "", p2: "" };
+let padToldAt = 0;
+function tellPads(now) {
+  if (!G || now - padToldAt < 100) return;
+  padToldAt = now;
+  for (const a of G.actors) {
+    const msg = padMsg(a);
+    const key = `${msg.p}|${msg.ammo}|${msg.ab}|${msg.cd}|${msg.rd}`;
+    if (padSaid[a.id] === key) continue;
+    padSaid[a.id] = key;
+    host?.tell(a.id, msg);
+    if (DUO && a.id === "p1") for (const fn of powerListeners) fn(msg);
+  }
 }
 
 function givePower(a, type) {
@@ -1718,6 +1755,28 @@ function holdAbility(a, dt) {
   }
 }
 
+/**
+ * What the fire button should be showing, for whoever holds this pad.
+ *
+ * Read-only, and it answers both questions the button needs: how much of the
+ * cooldown is left to draw, and whether the move is actually available —
+ * which is not the same thing. An Air Hop off cooldown is still unusable with
+ * your feet on the ground, and a button that looked ready and did nothing
+ * would be worse than one that looked spent.
+ */
+function abilityState(id) {
+  const a = G && G.actors.find((q) => q.id === id);
+  if (!a) return null;
+  const ab = abilityOf(a);
+  if (!ab) return null;
+  const since = G.time * 1000 - (a.abilityAt || -9e9);
+  return {
+    ability: ab,
+    cd: Math.max(0, Math.min(1, 1 - since / ab.cooldownMs)),
+    ready: abilityReady(a),
+  };
+}
+
 /** The shove, which only the server runs — it moves somebody else. */
 function poundLanded(a) {
   const ab = ABILITY.pound;
@@ -2480,6 +2539,7 @@ function advance(dt) {
   }
   dropStaleInput();
   localInput();
+  tellPads(performance.now());
 
   if (phase === "countdown") {
     countdown -= dt;
@@ -2963,6 +3023,75 @@ function paintHud() {
 
 /* -------------------------------------------------------------- lobby --- */
 
+// Set once the room is open; the picker calls it to redraw a code.
+let drawQR = () => {};
+
+/* Who each seat is holding, picked on the laptop.
+ *
+ * The slot used to print the character's NAME and nothing else, which was
+ * honest when the choice was cosmetic and decided by which seat you took.
+ * Each one carries an ability on the fire button now, so it is a choice and
+ * the shared screen is where you make it — for the QR (the link carries the
+ * character, so the code has to be redrawn when it changes) and for the two
+ * of you on one keyboard, where there is no phone to pick on at all.
+ *
+ * Remembered per seat, so nobody re-picks every night.
+ */
+const REMEMBER = "bubududu-smash.cast";
+function rememberCast() {
+  try {
+    localStorage.setItem(REMEMBER, JSON.stringify({ p1: pads.p1.char, p2: pads.p2.char }));
+  } catch {}
+}
+function recallCast() {
+  try {
+    const was = JSON.parse(localStorage.getItem(REMEMBER) || "{}");
+    for (const p of PLAYERS) {
+      if (CHARACTERS.some((c) => c.id === was[p.id])) pads[p.id].char = was[p.id];
+    }
+  } catch {}
+}
+
+function paintPick(id) {
+  const el = lobby && lobby.querySelector(`[data-slot="${id}"] .pick`);
+  if (!el) return;
+  if (el.dataset.built !== "1") {
+    el.dataset.built = "1";
+    el.innerHTML =
+      `<div class="faces">` +
+      CHARACTERS.map((c) => `<button type="button" data-char="${c.id}" title="${c.name}">` +
+        `<canvas width="72" height="72"></canvas></button>`).join("") +
+      `</div><div class="says"></div>`;
+    for (const b of el.querySelectorAll("button")) {
+      b.addEventListener("click", () => {
+        pads[id].char = b.dataset.char;
+        rememberCast();
+        paintPick(id);
+        // The code beside it is now for the wrong character until it is redrawn.
+        drawQR(id);
+      });
+    }
+  }
+  const mine = pads[id].char;
+  for (const b of el.querySelectorAll("button")) {
+    b.classList.toggle("on", b.dataset.char === mine);
+    // Redrawn every time, not once: two of the three are sprites and the
+    // frames arrive over the network, so drawing at build time draws nothing.
+    const cv = b.querySelector("canvas");
+    const ctx = cv.getContext("2d");
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    charById(b.dataset.char).draw(ctx, cv.width / 2, cv.height * 0.94,
+      cv.width * 0.76, cv.height * 0.82,
+      { face: 1, run: 0, air: 0, squash: 0, t: 0, walk: 0, stride: 1 });
+  }
+  const def = charById(mine);
+  const ab = def.ability && ABILITY[def.ability];
+  const says = el.querySelector(".says");
+  says.style.setProperty("--ac", ab ? ab.colour : "#21313f");
+  says.innerHTML = `<b>${def.name}</b>` + (ab ? markSVG(ab.mark, "mk") + ab.name : "");
+}
+
+
 function paintSlots(list) {
   for (const p of PLAYERS) {
     const on = list.find((x) => x.role === p.id);
@@ -2982,7 +3111,7 @@ function paintSlots(list) {
     // Empty until they are actually in. A QR code beside a name does not need
     // to be told it is for scanning.
     el.querySelector(".state").textContent = on ? (on.relay ? "in · relay" : "in") : "";
-    el.querySelector(".pick").textContent = charById(pads[p.id].char).name;
+    paintPick(p.id);
   }
 
   // Both scanned in: start on its own. Nobody should have to walk back to the
@@ -3093,7 +3222,11 @@ async function boot() {
     resize(renderer, innerWidth, innerHeight);
     resizeScene(scene, innerWidth, innerHeight);
   });
-  preloadCharacters();
+  preloadCharacters().then(() => { paintPick("p1"); paintPick("p2"); }).catch(() => {});
+  // Before the codes are drawn: they carry the character.
+  recallCast();
+  paintPick("p1");
+  paintPick("p2");
   requestAnimationFrame(frame);
 
   if (SOLO) {
@@ -3114,12 +3247,26 @@ async function boot() {
 
   const base = new URL("phone/", location.href);
 
-  // One code per player. Each link already says which room, which player and
-  // which character, so scanning it is the entire join — no typing, no
-  // picking, no button.
+  /* One code per player, redrawn whenever that player's character changes.
+   *
+   * The link already says which room, which player and which character, so
+   * scanning it is the entire join — no typing, no picking, no button. That
+   * `c=` is why this has to be redrawable rather than made once: picking a
+   * different character on the laptop has to change the code you are about to
+   * scan, or the phone joins as whoever you picked LAST.
+   */
+  let qrcode = null;
   try {
-    const { default: qrcode } = await import("https://esm.sh/qrcode-generator@1.4.4");
+    ({ default: qrcode } = await import("https://esm.sh/qrcode-generator@1.4.4"));
+  } catch (e) {
+    console.error("QR unavailable", e);
+  }
+  drawQR = (only) => {
+    if (!qrcode || !host) return;
     for (const p of PLAYERS) {
+      if (only && only !== p.id) continue;
+      const slot = lobby.querySelector(`[data-slot="${p.id}"] .qr`);
+      if (!slot) continue;
       const url = new URL(base);
       url.searchParams.set("r", host.code);
       url.searchParams.set("role", p.id);
@@ -3127,12 +3274,10 @@ async function boot() {
       const qr = qrcode(0, "M");
       qr.addData(url.toString());
       qr.make();
-      lobby.querySelector(`[data-slot="${p.id}"] .qr`).innerHTML =
-        qr.createSvgTag({ cellSize: 4, margin: 1 });
+      slot.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 1 });
     }
-  } catch (e) {
-    console.error("QR unavailable", e);
-  }
+  };
+  drawQR();
 }
 
 boot();
