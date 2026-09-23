@@ -1,0 +1,102 @@
+<!doctype html><meta charset="utf-8"><title>box</title>
+<!--
+  Everything a mystery box can be, and everything that comes out of one, drawn
+  side by side. These are rare in play — a box every nineteen seconds and the
+  King two chances in nine of one — so waiting for the game to show you each
+  state is not a way to look at them.
+-->
+<style>
+  body{margin:0;background:#dff0fb;font:12px ui-monospace,monospace;color:#21313f}
+  h1{font:600 13px system-ui;margin:12px}
+  .row{display:flex;flex-wrap:wrap;gap:6px;padding:0 12px 14px;align-items:flex-start}
+  figure{margin:0}
+  canvas{display:block;border-radius:8px}
+  figcaption{padding:3px 6px;text-align:center;opacity:.7}
+</style>
+<h1>the box, as it gives way</h1><div class="row" id="boxes"></div>
+<h1>what comes out</h1><div class="row" id="drops"></div>
+<h1>King Yhon Yhon, and the crown he leaves</h1><div class="row" id="king"></div>
+<script type="module">
+import { createRenderer, draw, resize } from "./js/render.js";
+import { makeArena, solidGrid } from "./js/levels.js";
+import { makeActor } from "./js/physics.js";
+import { BOX, KING } from "./js/config.js";
+
+const CW = 300, CH = 210;
+function world() {
+  const level = makeArena(4242);
+  const g = { level, grid: solidGrid(level), time: 1.2, shrink: 0,
+    actors: [], powers: [], coins: [], shots: [], pops: [], bursts: [],
+    helpers: [], minis: [], lostHearts: [], quakes: [], boxes: [], king: null,
+    wildFairy: null, freeze: 0, slow: 0, slowRate: 1, winner: 0 };
+  const a = makeActor(24, 10, "p1"); a.char = "bubu"; a.hp = 3; a.label = "p1"; a.face = 1;
+  // The world init sets these on the real players, not makeActor — and the
+  // crown is sized off them.
+  a.baseW = a.w; a.baseH = a.h; a.speedMul = 1; a.jumpMul = 1;
+  g.actors.push(a);
+  return g;
+}
+function floorY(g, x) {
+  for (let ty = 0; ty < g.level.h; ty++) if (g.grid.rows[ty][Math.round(x)] === "#") return ty;
+  return g.level.h - 2;
+}
+function cell(host, cap, fill, zoom = 46) {
+  const fig = document.createElement("figure");
+  const c = document.createElement("canvas");
+  const f = document.createElement("figcaption");
+  f.textContent = cap;
+  fig.append(c, f); host.append(fig);
+  const g = world();
+  fill(g, floorY(g, 24));
+  const r = createRenderer(c);
+  resize(r, CW, CH);
+  r.cam.x = 24; r.cam.y = floorY(g, 24) - 2.4; r.cam.zoom = zoom;
+  draw(r, g, 1 / 60);
+}
+
+const boxes = document.getElementById("boxes");
+for (const hits of [3, 2, 1]) {
+  cell(boxes, `${hits} bump${hits === 1 ? "" : "s"} left`, (g, fy) => {
+    g.boxes.push({ x: 24, y: fy - 3, hits, bumpAt: -9 });
+  });
+}
+cell(boxes, "struck this frame", (g, fy) => {
+  g.boxes.push({ x: 24, y: fy - 3, hits: 2, bumpAt: g.time - 0.02 });
+});
+cell(boxes, "two at once", (g, fy) => {
+  g.boxes.push({ x: 22, y: fy - 3, hits: 3, bumpAt: -9 });
+  g.boxes.push({ x: 27, y: fy - 4, hits: 1, bumpAt: -9 });
+});
+
+const drops = document.getElementById("drops");
+for (const type of ["puso", "bazuka"]) {
+  cell(drops, type, (g, fy) => { g.powers.push({ x: 24, y: fy - 2.2, type, born: 0 }); });
+}
+
+const kingRow = document.getElementById("king");
+for (const hp of [3, 2, 1]) {
+  cell(kingRow, `king, ${hp} hearts`, (g, fy) => {
+    const a = makeActor(24, fy, "yhon");
+    a.char = "yhon"; a.w *= KING.scale; a.h *= KING.scale; a.hp = hp; a.face = -1;
+    a.grounded = true;
+    g.king = { actor: a, hp, born: 0, hurtUntil: 0, leaving: false };
+  }, 34);
+}
+cell(kingRow, "king, just struck", (g, fy) => {
+  const a = makeActor(24, fy, "yhon");
+  a.char = "yhon"; a.w *= KING.scale; a.h *= KING.scale; a.hp = 2; a.face = -1;
+  a.grounded = true;
+  g.king = { actor: a, hp: 2, born: 0, hurtUntil: g.time + 0.4, leaving: false };
+}, 34);
+cell(kingRow, "crowned player", (g) => {
+  g.actors[0].crownUntil = g.time + 9;
+  g.actors[0].w = g.actors[0].baseW * KING.reward.scale;
+  g.actors[0].h = g.actors[0].baseH * KING.reward.scale;
+});
+cell(kingRow, "crown, about to lapse", (g) => {
+  g.actors[0].crownUntil = g.time + 0.7;
+  g.actors[0].w = g.actors[0].baseW * KING.reward.scale;
+  g.actors[0].h = g.actors[0].baseH * KING.reward.scale;
+});
+document.title = "box sheet";
+</script>

@@ -217,6 +217,25 @@ export const POWERUPS_EXTRA = {
     id: "lunas", name: "Heal", desc: "One heart back — or a spare, past three.", en: "heal",
     ms: 0, colour: "#ff4d6d", heal: 1,
   },
+  /* Only ever out of a box, both of these — they are NOT in POWER_ORDER, so
+   * the ordinary spawner will never offer them. A box is a thing you have to
+   * work for, and what is in it has to be worth more than what is lying on
+   * the floor for free. */
+  puso: {
+    id: "puso", name: "Big Heart", desc: "Three hearts back, all at once.", en: "big heart",
+    ms: 0, colour: "#ff2d5a", heal: 3,
+  },
+  bazuka: {
+    id: "bazuka", name: "Bazooka", desc: "One shell. It finds them, and it ends it.",
+    en: "bazooka",
+    // ONE shell, and it does not miss — it steers. Two of these would be the
+    // whole round, and a homing one-shot you can fire twice is not a reward,
+    // it is a result.
+    ammo: 1, colour: "#ff8a3d",
+    turn: 4.6,        // radians a second it may steer
+    speed: 15,        // slower than a bullet, because you must SEE it coming
+    lifeMs: 2600,
+  },
   bilis: {
     id: "bilis", name: "Speed", desc: "Much quicker on your feet.", en: "speed",
     ms: 8000, colour: "#4cc2ff", speed: 1.38, jump: 1.04,
@@ -479,6 +498,86 @@ Object.assign(POWERUPS, POWERUPS_EXTRA);
  * — it is a drawn path rather than a character, so the orb on the platform,
  * the chip in the panel and the note beside the player are all the same shape
  * on every machine. */
+
+/* ------------------------------------------------------------- boxes --- */
+/**
+ * The mystery box.
+ *
+ * It hangs in the air and you break it by jumping into it from underneath —
+ * three bumps, or one if you are BIG, or nothing at all if Yhon lands a
+ * Ground Pound on it. That spread is the point: every character has a way in,
+ * and each one's way is the thing that character already does.
+ *
+ * What comes out is deliberately better than anything on the floor, because
+ * a box costs you three jumps spent standing still underneath it while
+ * somebody else is trying to land on your head.
+ */
+export const BOX = {
+  firstMs: 11000,
+  everyMs: 19000,
+  max: 2,              // never more than this hanging about at once
+  hits: 3,             // head-bumps to break it
+  // What a BIG player's bump is worth. Equal to `hits`, so it is exactly one.
+  bigHits: 3,
+  colour: "#ffc83d",
+  w: 1.1, h: 1.1,      // tiles
+  bumpMs: 240,         // how long it is seen to jump when struck
+  bob: 0.14,           // how far it drifts up and down, in tiles
+  /* Weighted, and the King is the rare one — he is an event, not a pickup,
+   * and an event that turns up every other box stops being one. */
+  drops: [
+    { id: "puso",   weight: 4 },
+    { id: "bazuka", weight: 3 },
+    { id: "hari",   weight: 2 },
+  ],
+};
+
+/**
+ * King Yhon Yhon.
+ *
+ * The rare thing in a box, and not a pickup at all — an event. He lands in
+ * the middle of the arena with three hearts, jumps on the spot, and every
+ * landing shakes the ground hard enough to throw whoever is standing on it.
+ * He is hostile to everybody, Yhon included, so a Yhon who opened the box
+ * gets no special treatment from his own king.
+ *
+ * Everything hurts him, and everything hurts him the SAME: one heart. Star,
+ * gun, One Punch, a Ground Pound. That is deliberate — One Punch ends a
+ * player outright, and a boss it also ends outright is not a boss, it is a
+ * pickup with extra steps. Three hits from anything is three real openings
+ * you have to survive making.
+ *
+ * Whoever lands the last one takes the crown: Star and Big at once, both
+ * bigger than either is on its own, and every jump becomes a pound.
+ */
+export const KING = {
+  hp: 3,
+  colour: "#ffd24a",
+  crown: "#ffe27a",
+  scale: 2.9,              // times a normal body
+  jumpEveryMs: 1500,       // how often he leaves the floor
+  jumpVel: 17,             // tiles a second, up
+  // What a landing does. The same shape as a player's Ground Pound, harder:
+  // he is the size of three of them.
+  blast: 7.5,              // tiles
+  knockback: 24,
+  upward: 16,
+  launchMs: 420,
+  quakeMs: 900,
+  hurtInvulnMs: 700,       // so one gun burst cannot take all three hearts
+  lifeMs: 45000,           // he leaves if nobody can finish him
+  /* The crown, for whoever lands the last hit. */
+  reward: {
+    ms: 12000,
+    scale: 1.9,            // bigger than Big, which is 1.55
+    jump: 1.15,
+    speed: 1.0,
+    // Every landing is a pound, at this much of the King's own blast.
+    poundBlast: 5.0,
+    knockback: 19,
+    upward: 13,
+  },
+};
 
 export const POWER_ORDER = [
   "laki", "baril", "bituin", "bilis", "yelo", "baliktad", "lunas",

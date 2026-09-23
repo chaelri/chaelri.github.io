@@ -103,6 +103,7 @@ let forced = 0;
 const faults = [];
 const trace = [];
 let matches = 0;
+let boxSeen = false, bumped = false, kingSeen = 0;
 
 /* Between rounds the rules wait on a real timer, not the simulation clock,
  * so a loop that never yields sits in `roundover` forever and the test only
@@ -143,6 +144,18 @@ for (let i = 0; i < STEPS; i++) {
         hydrate(JSON.parse(JSON.stringify(snap)));
       }
     }
+    /* Boxes and the King are RARE — a box every nineteen seconds, and the
+     * King is two chances in nine of one. A soak that never opened one would
+     * report OK on code that had never run, which is the only way this file
+     * can lie. Counted here so the summary has to admit it. */
+    {
+      const g = sim.state.G;
+      if (g) {
+        if (g.boxes && g.boxes.length) boxSeen = true;
+        if (g.king) kingSeen++;
+        for (const b of (g.boxes || [])) if (b.hits < 3) bumped = true;
+      }
+    }
     if (i % 600 === 0) trace.push([Math.round(i / 60), sim.state.phase, sim.state.roundNo, `${sim.state.score.p1}-${sim.state.score.p2}`]);
   } catch (err) {
     faults.push({ step: i, t: sim.state.G && +sim.state.G.time.toFixed(2), err: String(err && err.stack || err) });
@@ -159,6 +172,7 @@ console.log(`phase       ${sim.state.phase}   clock ${G ? G.time.toFixed(1) : "-
 console.log(`powers hit  ${forced} forced, ${types.length} kinds`);
 console.log(`trace       ${trace.map((t) => t.join("/")).join("  ")}`);
 console.log(`effects     ${calls} calls, ${seen.size} distinct`);
+console.log(`boxes       ${boxSeen ? 'spawned' : 'NEVER SPAWNED'}, ${bumped ? 'bumped' : 'never bumped'}; king ticks ${kingSeen}`);
 if (!faults.length) console.log("\nSOAK OK — no exception in any rule, any snapshot, any round.");
 else {
   console.log(`\nSOAK FAIL — ${faults.length} exception(s):`);

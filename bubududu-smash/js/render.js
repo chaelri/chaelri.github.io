@@ -6,7 +6,7 @@
 
 import { charById } from "./characters.js";
 import { poseOf } from "./physics.js";
-import { ABILITY, BAD_HELPER, COINS, DIWATA, FEEL, HIT, PLAYERS, POWERUPS, SHOT_RADIUS } from "./config.js";
+import { ABILITY, BAD_HELPER, BOX, COINS, DIWATA, FEEL, HIT, KING, PLAYERS, POWERUPS, SHOT_RADIUS } from "./config.js";
 import { drawMark, markPath, stampMark } from "./marks.js";
 import { bakeScenery, blitRange } from "./scenery.js";
 
@@ -838,6 +838,10 @@ export function draw(r, g, dt) {
   layer("wildfairy", ctx, () => drawWildFairy(r, ctx, g));
   layer("helper", ctx, () => drawHelper(r, ctx, g));
   layer("minis", ctx, () => drawMinis(r, ctx, g));
+  layer("boxes", ctx, () => drawBoxes(r, ctx, g));
+  // Behind the players on purpose: he is scenery that hits you, and a body
+  // two and a half times theirs drawn in front would hide the fight.
+  layer("king", ctx, () => drawKing(r, ctx, g));
   // Per actor, so one character failing can never take the other one with it.
   for (const a of g.actors) layer(`actor:${a.char}`, ctx, () => drawActor(r, ctx, g, a));
   for (const a of g.actors) layer("fairy", ctx, () => drawFairy(r, ctx, g, a));
@@ -1478,6 +1482,209 @@ function drawQuakes(r, ctx, g) {
       ctx.fillRect(px - cw, py - ch, cw * 2, ch);
       ctx.restore();
     }
+  }
+}
+
+
+/* --------------------------------------------------------------- boxes --- */
+
+const BOX_MS = 240;
+
+/**
+ * A mystery box: a crate hanging in the air with a ? on it.
+ *
+ * The count of bumps it has left is the whole read, and it is shown two ways
+ * at once — the lid lifts a notch each time and the ? brightens — because a
+ * number floating over a crate in a game with no other numbers on the field
+ * reads as debug output.
+ */
+function drawBoxes(r, ctx, g) {
+  if (!g.boxes || !g.boxes.length) return;
+  const z = r.cam.zoom;
+  for (const b of g.boxes) {
+    const bob = Math.sin(g.time * 2.1 + b.x) * BOX.bob;
+    // Struck: it jumps, the way every block in every platformer has.
+    const hitT = Math.max(0, Math.min(1, (g.time - (b.bumpAt ?? -9)) / (BOX_MS / 1000)));
+    const kick = hitT < 1 ? Math.sin(hitT * Math.PI) * 0.45 : 0;
+    const px = toX(r, b.x);
+    const py = toY(r, b.y + bob - kick);
+    const s = z * BOX.w;
+    const left = Math.max(0, Math.min(BOX.hits, b.hits));
+    // Full-strength gold, dulling as it gives way.
+    const wear = left / BOX.hits;
+
+    ctx.save();
+    // A shadow under it, or it reads as painted on the sky rather than hung
+    // in front of it.
+    ctx.fillStyle = "rgba(30,24,16,0.18)";
+    ctx.beginPath();
+    ctx.ellipse(px, py + s * 0.62, s * 0.42, s * 0.1, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // the crate
+    roundRect(ctx, px - s / 2, py - s / 2, s, s, s * 0.16);
+    const grd = ctx.createLinearGradient(0, py - s / 2, 0, py + s / 2);
+    // mix() takes an RGB ARRAY as its target, not a hex string — handed a
+    // string it indexes characters, and every channel comes out NaN.
+    grd.addColorStop(0, mix(BOX.colour, [255, 255, 255], 0.35 * wear + 0.1));
+    grd.addColorStop(1, mix(BOX.colour, [107, 74, 48], 0.45 - 0.2 * wear));
+    ctx.fillStyle = grd;
+    ctx.fill();
+    ctx.lineWidth = Math.max(1.5, z * 0.045);
+    ctx.strokeStyle = "rgba(255,255,255,0.85)";
+    ctx.stroke();
+
+    // rivets at the corners, so it is a crate and not a tile
+    ctx.fillStyle = "rgba(255,255,255,0.55)";
+    for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+      ctx.beginPath();
+      ctx.arc(px + sx * s * 0.34, py + sy * s * 0.34, s * 0.045, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // The ?, bright while it is whole and fading as it gives.
+    ctx.save();
+    ctx.globalAlpha = 0.45 + 0.55 * wear;
+    stampMark(ctx, "box", px, py - s * 0.02, s * 0.52, "#ffffff",
+              Math.max(1.5, z * 0.05), mix(BOX.colour, [107, 74, 48], 0.55));
+    ctx.restore();
+
+    // The cracks it has taken, one per bump spent.
+    const cracks = BOX.hits - left;
+    if (cracks > 0) {
+      ctx.strokeStyle = "rgba(60,38,20,0.55)";
+      ctx.lineWidth = Math.max(1, z * 0.03);
+      for (let i = 0; i < cracks; i++) {
+        const n = noiseAt(i * 5 + 3);
+        ctx.beginPath();
+        ctx.moveTo(px - s * 0.42, py + (n - 0.5) * s * 0.7);
+        ctx.lineTo(px - s * 0.1 + n * s * 0.2, py + (n - 0.4) * s * 0.5);
+        ctx.lineTo(px + s * 0.42, py + (noiseAt(i * 5 + 4) - 0.5) * s * 0.7);
+        ctx.stroke();
+      }
+    }
+
+    // Flash white on the frame it is struck.
+    if (hitT < 0.35) {
+      ctx.globalAlpha = (1 - hitT / 0.35) * 0.8;
+      roundRect(ctx, px - s / 2, py - s / 2, s, s, s * 0.16);
+      ctx.fillStyle = "#ffffff";
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+}
+
+/* ---------------------------------------------------------------- king --- */
+
+/**
+ * King Yhon Yhon.
+ *
+ * The same pig everyone knows, two and a half times the size, wearing a
+ * crown — which is the entire design. A boss that looked like a new creature
+ * would need explaining; one that is plainly the pig, enormous, explains
+ * itself in the half second before it lands on you.
+ */
+function drawKing(r, ctx, g) {
+  const k = g.king;
+  if (!k || !k.actor) return;
+  const a = k.actor;
+  const z = r.cam.zoom;
+  const px = toX(r, a.x);
+  const py = toY(r, a.y);
+  const w = a.w * z, h = a.h * z;
+
+  ctx.save();
+  // A shadow the size of him, so the ground says how big he is before he
+  // lands on it.
+  ctx.fillStyle = "rgba(24,18,12,0.22)";
+  ctx.beginPath();
+  ctx.ellipse(px, py + z * 0.06, w * 0.5, z * 0.13, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Struck a moment ago: he flashes white, like everything else that is hurt.
+  const hurt = k.hurtUntil && g.time < k.hurtUntil;
+
+  // The body, outlined so he holds against the treeline.
+  stampOutline(r, ctx, "rgba(255,255,255,0.95)", px, py - h / 2, w, h,
+               Math.max(2, z * 0.07), (cx, cy, cw, chh) => {
+    charById("yhon").draw(ctx, cx, cy + chh / 2, cw, chh, {
+      face: a.face, run: 0, air: a.grounded ? 0 : (a.vy < 0 ? -1 : 1),
+      squash: 0, t: g.time, walk: 0, stride: 0.78,
+    });
+  });
+  charById("yhon").draw(ctx, px, py, w, h, {
+    face: a.face, run: 0, air: a.grounded ? 0 : (a.vy < 0 ? -1 : 1),
+    squash: 0, t: g.time, walk: 0, stride: 0.78,
+  });
+  if (hurt) {
+    ctx.save();
+    ctx.globalAlpha = 0.45 + 0.35 * Math.abs(Math.sin(g.time * 30));
+    ctx.globalCompositeOperation = "lighter";
+    ctx.fillStyle = "rgba(255,255,255,0.8)";
+    ctx.beginPath();
+    ctx.ellipse(px, py - h * 0.5, w * 0.48, h * 0.48, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  drawCrown(ctx, px, py - h, w * 0.5, z);
+
+  // His three hearts, over the crown rather than over the head — the crown
+  // is where a player's hearts would be.
+  // Above the crown, which is itself above his head — that stack is the
+  // whole silhouette, so nothing may overlap anything else in it.
+  drawBossHearts(r, ctx, px, py - h - w * 0.62, k.hp, KING.hp, z);
+  ctx.restore();
+}
+
+/** The crown. Also worn by whoever takes it off him. */
+function drawCrown(ctx, px, py, s, z) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(px - s * 0.6, py);
+  ctx.lineTo(px - s * 0.6, py - s * 0.34);
+  ctx.lineTo(px - s * 0.3, py - s * 0.1);
+  ctx.lineTo(px, py - s * 0.52);
+  ctx.lineTo(px + s * 0.3, py - s * 0.1);
+  ctx.lineTo(px + s * 0.6, py - s * 0.34);
+  ctx.lineTo(px + s * 0.6, py);
+  ctx.closePath();
+  const grd = ctx.createLinearGradient(0, py - s * 0.52, 0, py);
+  grd.addColorStop(0, "#fff0ad");
+  grd.addColorStop(1, KING.colour);
+  ctx.fillStyle = grd;
+  ctx.fill();
+  ctx.lineWidth = Math.max(1.4, z * 0.035);
+  ctx.strokeStyle = "rgba(120,80,20,0.6)";
+  ctx.stroke();
+  // Three jewels along the band.
+  for (let i = -1; i <= 1; i++) {
+    ctx.fillStyle = i === 0 ? "#ff4d6d" : "#7fd4ff";
+    ctx.beginPath();
+    ctx.arc(px + i * s * 0.34, py - s * 0.08, s * 0.08, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+/** A boss health bar: big pips, not the player's small hearts. */
+function drawBossHearts(r, ctx, cx, cy, hp, max, z) {
+  // Half again the size of a player's. He is the only thing on screen with a
+  // health bar that matters to both of them at once, and it has to be
+  // readable from wherever either of them happens to be standing.
+  const s = z * 0.26;
+  const gap = s * 2.5;
+  const total = (max - 1) * gap;
+  for (let i = 0; i < max; i++) {
+    const x = cx - total / 2 + i * gap;
+    const full = i < hp;
+    heartPath(ctx, x, cy, s);
+    ctx.fillStyle = full ? "#ff4d6d" : "rgba(255,255,255,0.45)";
+    ctx.fill();
+    ctx.lineWidth = Math.max(1.4, z * 0.04);
+    ctx.strokeStyle = full ? "rgba(255,255,255,0.95)" : "rgba(92,128,158,0.7)";
+    ctx.stroke();
   }
 }
 
@@ -3255,9 +3462,38 @@ function drawActor(r, ctx, g, a) {
     ctx.restore();
   }
 
+  /* The crown, for whoever took King Yhon Yhon down.
+   *
+   * Drawn on the head rather than shown as a chip, because everything the
+   * crown does happens in the world — they are enormous, they cannot be
+   * touched, and the floor shakes when they land. A status pill at the
+   * bottom of the screen is the wrong place to say any of that.
+   */
+  if (a.crownUntil && g.time < a.crownUntil) {
+    const left = a.crownUntil - g.time;
+    ctx.save();
+    // A gold halo, so the size alone is not the only tell against a Big.
+    ctx.globalCompositeOperation = "lighter";
+    // Blinks out over the last second and a half, like every other timer here.
+    ctx.globalAlpha = left < 1.5 ? 0.35 + 0.35 * Math.abs(Math.sin(g.time * 16)) : 0.55;
+    const hal = ctx.createRadialGradient(px, py - a.h * z * 0.5, 0,
+                                         px, py - a.h * z * 0.5, a.w * z * 0.9);
+    hal.addColorStop(0, "rgba(255,226,122,0.5)");
+    hal.addColorStop(1, "rgba(255,210,74,0)");
+    ctx.fillStyle = hal;
+    ctx.fillRect(px - a.w * z, py - a.h * z * 1.5, a.w * z * 2, a.h * z * 2);
+    ctx.restore();
+    ctx.save();
+    if (left < 1.5) ctx.globalAlpha = 0.4 + 0.6 * Math.abs(Math.sin(g.time * 16));
+    drawCrown(ctx, px, py - a.h * z, a.w * z * 0.44, z);
+    ctx.restore();
+  }
+
   // Hearts over the head, and nothing else. The name lives in the panel at
   // the bottom now — two labels for one character is one too many.
-  const heartY = py - a.h * z * HEART_Y;
+  // Lifted clear when there is a crown in the way.
+  const crowned = a.crownUntil && g.time < a.crownUntil;
+  const heartY = py - a.h * z * HEART_Y - (crowned ? a.w * z * 0.5 : 0);
   if (typeof a.hp === "number") drawHearts(r, ctx, g, a, px, heartY);
 }
 

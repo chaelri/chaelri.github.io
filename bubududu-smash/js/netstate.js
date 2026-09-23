@@ -24,7 +24,8 @@ const bit = (v) => (v ? 1 : 0);
 //  w, h, powerType, ammo, until, invulnUntil, frozenUntil, reversedUntil,
 //  coins, fairy, punch, glowUntil, glowFor, glowColour,
 //  coyote, buffer, jumpHeld, launchFor,
-//  abilityAgo, skillN, skillAgo, hops, dashLeft, dashVx, pounding, lockLeft]
+//  abilityAgo, skillN, skillAgo, hops, dashLeft, dashVx, pounding, lockLeft,
+//  crownLeft]  <- how long this player still wears King Yhon Yhon's crown
 
 function packActor(a, now) {
   return [
@@ -90,6 +91,7 @@ function packActor(a, now) {
      * running speed is a third of a tile the server never gave you. */
     Math.max(0, Math.round((a.dashFor || 0) * 1000)), r2(a.dashVx || 0),
     bit(a.pounding), Math.max(0, Math.round(((a.lockUntil || 0) - now) * 1000)),
+    r2(Math.max(0, (a.crownUntil || 0) - now)),
   ];
 }
 
@@ -98,7 +100,8 @@ function unpackActor(v, now) {
     respawn, w, h, ptype, ammo, puntil, inv, frozen, reversed, coins,
     fairy, punch, glowLeft, glowFor, glowColour,
     coyote, buffer, jumpHeld, launchFor,
-    abilityAgo, skillN, skillAgo, hops, dashLeft, dashVx, pounding, lockLeft] = v;
+    abilityAgo, skillN, skillAgo, hops, dashLeft, dashVx, pounding, lockLeft,
+    crownLeft] = v;
   const p = PLAYERS.find((q) => q.id === id);
   return {
     id, char, x, y, vx, vy, face, walk, squash, t,
@@ -134,6 +137,7 @@ function unpackActor(v, now) {
     skillN: skillN >= 0 ? skillN : undefined,
     skillAt: now * 1000 - (skillAgo || 0),
     hops: hops || 0,
+    crownUntil: crownLeft > 0 ? now + crownLeft : 0,
     dashFor: dashLeft > 0 ? dashLeft / 1000 : 0,
     dashVx: dashVx || 0,
     pounding: !!pounding,
@@ -178,12 +182,30 @@ export function snapshot(G, extra = {}) {
     pw: G.powers.map((q) => [r2(q.x), r2(q.y), q.type, r2(now - q.born)]),
     cn: G.coins.map((c) => [r2(c.x), r2(c.y), c.taken ? r2(now - c.taken) : 0,
                             c.n || 0, c.by || 0, bit(c.milestone)]),
-    sh: G.shots.map((s) => [r2(s.x), r2(s.y), r2(s.vx), s.owner, r2(now - (s.born || 0))]),
+    // vy and the `homing` flag ride along now: a bazooka shell arcs and
+    // steers, so a shot is no longer always travelling flat.
+    sh: G.shots.map((s) => [r2(s.x), r2(s.y), r2(s.vx), s.owner,
+                            r2(now - (s.born || 0)), r2(s.vy || 0), bit(s.homing)]),
     bu: G.bursts.map((b) => [r2(b.x), r2(b.y), r2(now - b.at), b.colour, bit(b.big)]),
     po: G.pops.map((p) => [r2(p.x), r2(p.y), r2(now - p.at), p.colour, p.glyph || ""]),
     // Where a ground pound landed and how hard, so the crater is in the same
     // place on both phones rather than invented twice.
     qk: (G.quakes || []).map((q) => [r2(q.x), r2(q.y), r2(now - q.at), r2(q.force)]),
+    /* Mystery boxes. `hits` is what is LEFT, and it travels because the
+     * count is the whole read on a box — two players both going for the
+     * same one need to agree about which bump is the last. `drop` is not
+     * sent: it is rolled at spawn on the server and nobody may see it
+     * before the lid comes off. */
+    bx: (G.boxes || []).map((b) => [r2(b.x), r2(b.y), b.hits, r2(now - b.bumpAt)]),
+    /* King Yhon Yhon. He is not in `ac` because that list is the two
+     * players and a great deal downstream of it assumes exactly two —
+     * scores, deaths, who won. He travels as his own thing, like the
+     * wild Diwata does. */
+    kg: G.king && !G.king.leaving ? [
+      r2(G.king.actor.x), r2(G.king.actor.y), G.king.hp, G.king.actor.face,
+      r2(G.king.actor.w), r2(G.king.actor.h), r2(now - G.king.born),
+      bit(G.king.actor.grounded), r2(Math.max(0, G.king.hurtUntil - (G.time || 0))),
+    ] : null,
     lh2: G.lostHearts.map((h) => [r2(h.x), r2(h.y), r2(h.rot), r2(now - h.at), h.index]),
     mi: G.minis.map((m) => [packBody(m.actor), m.owner || 0, bit(m.leaving),
                             r2(m.wave), r2(Math.max(0, m.until - now))]),
@@ -258,12 +280,19 @@ export function hydrate(s) {
     coins: A(s.cn).map(([x, y, taken, n, by, milestone]) => ({
       x, y, taken: taken ? now - taken : 0, n, by: by || null, milestone: !!milestone,
     })),
-    shots: A(s.sh).map(([x, y, vx, owner, age]) => ({
-      x, y, vx, vy: 0, owner, life: 1, born: now - (age || 0),
+    shots: A(s.sh).map(([x, y, vx, owner, age, vy, homing]) => ({
+      x, y, vx, vy: vy || 0, owner, life: 1, born: now - (age || 0),
+      homing: !!homing, lethal: !!homing,
     })),
     bursts: A(s.bu).map(([x, y, age, colour, big]) => ({ x, y, at: now - age, colour, big: !!big })),
     pops: A(s.po).map(([x, y, age, colour, glyph]) => ({ x, y, at: now - age, colour, glyph })),
     quakes: A(s.qk).map(([x, y, age, force]) => ({ x, y, at: now - age, force })),
+    boxes: A(s.bx).map(([x, y, hits, bumpAge]) => ({ x, y, hits, bumpAt: now - bumpAge })),
+    king: s.kg ? (([x, y, hp, face, w, h, age, grounded, hurtLeft]) => ({
+      hp, born: now - age, leaving: false, hurtUntil: now + hurtLeft,
+      actor: { x, y, hp, face, w, h, char: "yhon", id: "king", label: "King",
+               grounded: !!grounded, dead: false, walk: 0, squash: 0 },
+    }))(s.kg) : null,
     lostHearts: A(s.lh2).map(([x, y, rot, age, index]) => ({
       x, y, rot, at: now - age, index, vx: 0, vy: 0, spin: 0,
     })),

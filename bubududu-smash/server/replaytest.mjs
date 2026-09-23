@@ -38,7 +38,8 @@ const quiet = {
 const FIELDS = ["x", "y", "vx", "vy", "face", "walk", "squash", "t", "grounded",
                 "coyote", "buffer", "jumpHeld", "launchFor",
                 "abilityAt", "skillN", "skillAt", "hops",
-                "dashFor", "dashVx", "pounding", "lockUntil"];
+                "dashFor", "dashVx", "pounding", "lockUntil",
+                "poundFrom", "crownUntil"];
 const grab = (a) => Object.fromEntries(FIELDS.map((k) => [k, a[k]]));
 const put = (a, o) => { for (const k of FIELDS) a[k] = o[k]; };
 

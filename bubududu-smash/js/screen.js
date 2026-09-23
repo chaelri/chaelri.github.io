@@ -7,7 +7,7 @@
 import {
   MODES, PLAYERS, ROUNDS_TO_WIN, FEEL, HELPER, BAD_HELPER, SQUAD, DIWATA, COINS, HIT,
   POWERUPS, POWER_ORDER, POWER_SPAWN_MS, POWER_FIRST_MS,
-  SHOT_SPEED, SHOT_LIFE, SHOT_COOLDOWN_MS, SHOT_RADIUS, INPUT_HZ, STACK, ABILITY,
+  SHOT_SPEED, SHOT_LIFE, SHOT_COOLDOWN_MS, SHOT_RADIUS, INPUT_HZ, STACK, ABILITY, BOX, KING,
   GRAVITY, JUMP_VELOCITY,
 } from "./config.js";
 import { makeArena, readLevel, solidGrid } from "./levels.js";
@@ -376,6 +376,9 @@ function startRound(withSeed) {
     wildFairyAt: DIWATA.wildFirstMs / 1000,
     pops: [],     // pickup shockwaves
     quakes: [],   // where a ground pound landed, and how hard
+    boxes: [],    // mystery boxes hanging in the air, and how many bumps left
+    king: null,   // King Yhon Yhon, if a box let him out
+    boxAt: BOX.firstMs / 1000,
     actors: PLAYERS.map((p, i) => {
       const a = makeActor(meta.spawns[i].x, meta.spawns[i].y, p.id);
       a.char = pads[p.id].char;
@@ -828,8 +831,16 @@ function givePower(a, type) {
 
   // Two of them do their whole job to the OTHER player and are spent at once,
   // so they never become a state you are "holding".
-  if (type === "lunas") {
-    a.hp = Math.min(FEEL.hpMax, a.hp + def.heal);
+  if (type === "lunas" || type === "puso") {
+    /* The Big Heart is allowed past the ordinary ceiling.
+     *
+     * FEEL.hpMax is 5, and a three-heart pickup handed to a player on three
+     * would have given two — the box would open, the fanfare would play, and
+     * the bar would move by less than a Heal lying on the floor. It gets the
+     * Diwata's ceiling instead, which is the highest anything in the game
+     * goes. */
+    const cap = type === "puso" ? DIWATA.hpMax : FEEL.hpMax;
+    a.hp = Math.min(cap, a.hp + def.heal);
     G.flash = { type, at: G.time };
     showPickup(a, type);
     sfx.lunas();
@@ -1484,6 +1495,7 @@ function deathLine(a) {
   switch (c.how) {
     case "stomp":  return who ? `${who} finishes ${them} with a stomp` : `${them} is stomped`;
     case "star":   return who ? `${who} runs ${them} down with the star` : `${them} runs into the star`;
+    case "bazuka": return who ? `${who} puts a shell through ${them}` : `${them} takes a shell`;
     case "shot":   return who ? `${who} shoots ${them}` : `a bullet finds ${them}`;
     case "punch":  return who ? `${who} ends ${them} with one punch` : `one punch ends ${them}`;
     case "dudu":   return who ? `Dudu finishes ${them} for ${who}` : `Dudu finishes ${them}`;
@@ -1630,6 +1642,386 @@ function killPlayer(victim, by, how = "stomp", damage = 1) {
   kill(victim, { onDeath: handleDeath });
 }
 
+/* -------------------------------------------------------------- king --- */
+
+/**
+ * King Yhon Yhon — the rare thing in a box.
+ *
+ * Not a pickup: an event. He lands in the middle of whatever floor is left,
+ * jumps on the spot, and every landing throws anyone standing on the ground.
+ * He is hostile to both players AND to Yhon, so opening his box with the
+ * character he is a king of buys nothing.
+ *
+ * He is an actor so that the ordinary physics moves him and the ordinary
+ * bullet, fist and star code can find him, but he is NOT in `G.actors` —
+ * that list is the two players and everything downstream of it assumes so
+ * (scores, deaths, the round ending). He lives in `G.king` like the wild
+ * Diwata lives in `G.wildFairy`.
+ */
+function summonKing(from) {
+  if (G.king) return;                 // one at a time; a second is not a boss
+  const floor = widestFloor();
+  const at = floor
+    ? { x: (floor.x0 + floor.x1 + 1) / 2, y: floor.y }
+    : { x: from.x, y: from.y + 2 };
+  const a = makeActor(at.x, at.y, "yhon");
+  a.char = "yhon";
+  a.w *= KING.scale;
+  a.h *= KING.scale;
+  a.hp = KING.hp;
+  a.label = "King";
+  a.face = -1;
+  G.king = {
+    actor: a,
+    hp: KING.hp,
+    born: G.time,
+    until: G.time + KING.lifeMs / 1000,
+    jumpAt: G.time + KING.jumpEveryMs / 1000,
+    hurtUntil: 0,
+    lastHitBy: null,
+    leaving: false,
+    wave: 0,
+  };
+  // He arrives with the same weight he lands with, so the entrance reads as
+  // the thing he is about to do over and over.
+  G.quakes.push({ x: at.x, y: at.y, at: G.time, force: 1 });
+  renderer.shake = Math.max(renderer.shake || 0, 26);
+  renderer.punch = Math.max(renderer.punch || 0, 0.09);
+  sfx.suntok();
+  showNote(G.actors[0], KING.colour, "KING YHON YHON", "Three hearts. Everyone's problem.", "pound");
+}
+
+/** One heart off the King, from whoever managed it. */
+function hurtKing(by) {
+  const k = G.king;
+  if (!k || k.leaving) return false;
+  // A window after each hit, or a gun burst takes all three in a third of a
+  // second and the boss is over before it has jumped twice.
+  if (G.time < k.hurtUntil) return false;
+  k.hp -= 1;
+  k.hurtUntil = G.time + KING.hurtInvulnMs / 1000;
+  k.lastHitBy = by ? by.id : k.lastHitBy;
+  k.actor.hp = k.hp;
+  k.actor.invulnUntil = k.hurtUntil;
+  G.bursts.push({ x: k.actor.x, y: k.actor.y - k.actor.h * 0.5, at: G.time, colour: KING.colour });
+  renderer.shake = Math.max(renderer.shake || 0, 14);
+  sfx.stomp();
+  if (k.hp <= 0) crownTheVictor(k);
+  return true;
+}
+
+/** He is down. Whoever landed the last one wears it. */
+function crownTheVictor(k) {
+  k.leaving = true;
+  k.wave = 0;
+  const winner = k.lastHitBy ? G.actors.find((a) => a.id === k.lastHitBy) : null;
+  G.quakes.push({ x: k.actor.x, y: k.actor.y, at: G.time, force: 1 });
+  for (let i = 0; i < 10; i++) {
+    G.bursts.push({ x: k.actor.x, y: k.actor.y - k.actor.h * 0.5, at: G.time, colour: KING.colour });
+  }
+  renderer.shake = Math.max(renderer.shake || 0, 30);
+  renderer.punch = Math.max(renderer.punch || 0, 0.1);
+  G.flash = { type: "hit", at: G.time };
+  if (!winner || winner.dead) return;
+  /* The crown. Star and Big at once, both bigger than either alone, and
+   * every landing is a Ground Pound — which is the King's own move, handed
+   * to the player who took it off him. */
+  winner.crownUntil = G.time + KING.reward.ms / 1000;
+  // Untouchable for the whole of it. The star's own invulnerability is the
+  // same field, so a crown that outlives a star does not have to do anything
+  // clever to keep working.
+  winner.invulnUntil = Math.max(winner.invulnUntil || 0, winner.crownUntil);
+  /* ...and BIGGER than Big.
+   *
+   * Set off baseW/baseH rather than off the current size, so crowning a
+   * player who is already holding Big does not multiply the two together and
+   * wedge them in the ceiling. `clearCrown` puts it back, and it reads the
+   * same base, so the order the two effects end in does not matter. */
+  winner.w = winner.baseW * KING.reward.scale;
+  winner.h = winner.baseH * KING.reward.scale;
+  winner.y -= 0.02;
+  winner.speedMul = KING.reward.speed;
+  winner.jumpMul = KING.reward.jump;
+  showPickup(winner, "bituin");
+  showNote(winner, KING.colour, "CROWNED",
+          "Untouchable, enormous, and every landing is a pound.", "pound");
+  sfx.lunas();
+}
+
+/**
+ * The King's turn: jump, land, shake the world.
+ *
+ * He does not chase. Standing still and being enormous is the threat — the
+ * arena is small and shrinking, and "the floor is dangerous every second and
+ * a half" is a harder problem to solve than something running at you.
+ */
+function tickKing(dt) {
+  const k = G.king;
+  if (!k) return;
+  const a = k.actor;
+
+  if (k.leaving) {
+    k.wave += dt;
+    if (k.wave > 0.8) G.king = null;
+    return;
+  }
+  if (G.time > k.until) { k.leaving = true; k.wave = 0; return; }
+
+  // He faces whoever is nearer, which is all the reading anyone needs.
+  const near = G.actors.filter((q) => !q.dead)
+    .sort((p, q) => Math.abs(p.x - a.x) - Math.abs(q.x - a.x))[0];
+  if (near) a.face = Math.sign(near.x - a.x) || a.face;
+
+  const wasAir = !a.grounded;
+  stepActor(a, { left: false, right: false, jump: false, jumpHeld: false },
+            G.grid, dt, [], {
+    onDeath: () => { k.leaving = true; k.wave = 0; },
+  });
+
+  if (a.grounded && G.time >= k.jumpAt) {
+    a.vy = -KING.jumpVel;
+    a.grounded = false;
+    k.jumpAt = G.time + KING.jumpEveryMs / 1000;
+    sfx.jump();
+  }
+  // Landed: everything on the floor goes flying.
+  if (a.grounded && wasAir) kingLanded(a);
+}
+
+/** The King's landing. A player's Ground Pound, three times the size. */
+function kingLanded(a) {
+  G.quakes.push({ x: a.x, y: a.y, at: G.time, force: 1 });
+  while (G.quakes.length > 6) G.quakes.shift();
+  renderer.shake = Math.max(renderer.shake || 0, 24);
+  renderer.punch = Math.max(renderer.punch || 0, 0.08);
+  sfx.suntok();
+  for (const o of G.actors) {
+    if (o.dead) continue;
+    const d = Math.hypot(o.x - a.x, o.y - a.y);
+    if (d > KING.blast) continue;
+    const kk = 1 - d / KING.blast;
+    const dir = Math.sign(o.x - a.x) || 1;
+    o.vx = dir * KING.knockback * kk;
+    o.vy = -KING.upward * kk;
+    o.launchFor = Math.max(o.launchFor || 0, 0.25 + (KING.launchMs / 1000) * kk);
+  }
+}
+
+/* ------------------------------------------------------------- boxes --- */
+
+/**
+ * Mystery boxes: spawning them, breaking them, and what falls out.
+ *
+ * The box hangs in the air and you open it by jumping into it from below.
+ * Three bumps normally, one if you are BIG, and instantly if Yhon lands a
+ * Ground Pound on top of it — every character has a way in, and each one's
+ * way is the thing that character already does, so nobody has to be taught
+ * anything new.
+ *
+ * It is deliberately a commitment. Three jumps is three landings spent under
+ * the same square of sky with somebody else looking for your head, which is
+ * why what comes out has to beat anything lying on the floor for free.
+ */
+/**
+ * Touching the King while starred, and what the crown does on a landing.
+ *
+ * Both are "this player brushed against the world and something happened",
+ * and both need the King to exist, so they live together and run once a tick.
+ */
+function tickKingContact(dt) {
+  for (const a of G.actors) {
+    if (a.dead) continue;
+
+    /* A star takes one heart off him, like everything else does.
+     *
+     * Charlie: "Star can just hit 1 heart as well sa kanya". Note it does NOT
+     * kill him the way it kills a player — the star's whole promise is that
+     * contact ends it, and a boss is the one thing in the game that promise
+     * does not hold for. `hurtKing`'s own window stops a starred player
+     * standing inside him and draining all three in a tenth of a second. */
+    if (G.king && !G.king.leaving && hasPower(a, "bituin")) {
+      const kb = G.king.actor;
+      if (Math.abs(a.x - kb.x) < (a.w + kb.w) / 2 &&
+          Math.abs((a.y - a.h / 2) - (kb.y - kb.h / 2)) < (a.h + kb.h) / 2) {
+        hurtKing(a);
+      }
+    }
+
+    /* The crown: every landing is a Ground Pound.
+     *
+     * Detected the same way the King's own landing is — airborne last tick,
+     * grounded this one. It is the King's move, handed to whoever took it
+     * off him, which is why the reward is worth chasing a boss for. */
+    if (a.crownUntil && G.time < a.crownUntil) {
+      if (a.grounded && a.wasAirborne) crownLanded(a);
+    } else if (a.crownUntil) {
+      clearCrown(a);
+    }
+    a.wasAirborne = !a.grounded;
+  }
+  void dt;
+}
+
+/**
+ * The crown lapses.
+ *
+ * Deliberately does NOT touch `invulnUntil`: that is a deadline, and it will
+ * pass on its own. Clearing it here would also cancel the grace a player is
+ * owed from having just been hit, if the two happened to overlap.
+ */
+function clearCrown(a) {
+  a.crownUntil = 0;
+  // Unless Big is holding it up, the body goes back to what it was.
+  if (hasPower(a, "laki")) {
+    a.w = a.baseW * POWERUPS.laki.scale;
+    a.h = a.baseH * POWERUPS.laki.scale;
+  } else {
+    a.w = a.baseW;
+    a.h = a.baseH;
+  }
+  if (hasPower(a, "bilis")) {
+    a.speedMul = POWERUPS.bilis.speed;
+    a.jumpMul = POWERUPS.bilis.jump;
+  } else {
+    a.speedMul = 1;
+    a.jumpMul = 1;
+  }
+  sfx.powerEnd();
+}
+
+/** A crowned player hits the floor. */
+function crownLanded(a) {
+  const R = KING.reward;
+  G.quakes.push({ x: a.x, y: a.y, at: G.time, force: 0.8 });
+  while (G.quakes.length > 6) G.quakes.shift();
+  renderer.shake = Math.max(renderer.shake || 0, 18);
+  renderer.punch = Math.max(renderer.punch || 0, 0.06);
+  sfx.suntok();
+  for (const o of G.actors) {
+    if (o === a || o.dead) continue;
+    const d = Math.hypot(o.x - a.x, o.y - a.y);
+    if (d > R.poundBlast) continue;
+    const k = 1 - d / R.poundBlast;
+    const dir = Math.sign(o.x - a.x) || 1;
+    o.vx = dir * R.knockback * k;
+    o.vy = -R.upward * k;
+    o.launchFor = Math.max(o.launchFor || 0, 0.25 + 0.3 * k);
+  }
+}
+
+function tickBoxes(dt) {
+  // ---- spawn ------------------------------------------------------------
+  G.boxAt -= dt;
+  if (G.boxAt <= 0) {
+    G.boxAt = BOX.everyMs / 1000;
+    if (G.boxes.length < BOX.max) {
+      /* Over a platform, high enough to have to jump for.
+       *
+       * The same reachability problem the power-ups have, and worse: a
+       * power-up over the drop is bait you can decline, but a box you have
+       * bumped twice is a sunk cost that will pull a player out over the
+       * edge on the third. Only spots with something still under them. */
+      const free = G.meta.powerSpots.filter(
+        (sp) => standingRoom(sp) &&
+                !G.boxes.some((b) => Math.abs(b.x - sp.x) < 2) &&
+                !G.powers.some((q) => q.x === sp.x && q.y === sp.y)
+      );
+      const floor = widestFloor();
+      const sp = free.length
+        ? free[Math.floor(rng() * free.length)]
+        : floor ? { x: (floor.x0 + floor.x1 + 1) / 2, y: floor.y - 1.4 } : null;
+      if (sp) {
+        G.boxes.push({
+          x: sp.x, y: sp.y - 1.5, hits: BOX.hits, born: G.time, bumpAt: -9,
+          // Rolled NOW, not when it breaks.
+          //
+          // Both machines have to agree about what was inside, and the only
+          // thing they reliably agree about is the seeded rng run in the same
+          // order. Rolling at spawn puts the draw on the tick a box appears —
+          // one event, on the server, replicated like any other — instead of
+          // on whichever tick each side happened to decide it broke.
+          drop: rollDrop(),
+        });
+        sfx.spawn();
+      }
+    }
+  }
+
+  // ---- head-bumps -------------------------------------------------------
+  for (let i = G.boxes.length - 1; i >= 0; i--) {
+    const b = G.boxes[i];
+    for (const a of G.actors) {
+      if (a.dead) continue;
+      // Rising only. Walking past one at the same height is not opening it,
+      // and neither is falling onto it — that is the pound's job, below.
+      if (a.vy >= 0) continue;
+      const head = a.y - a.h;
+      if (Math.abs(a.x - b.x) > BOX.w / 2 + a.w / 2) continue;
+      if (head > b.y + BOX.h / 2 || head < b.y - BOX.h) continue;
+      hitBox(b, a, hasPower(a, "laki") ? BOX.bigHits : 1);
+      // Bounced off it, whether or not that was the last bump.
+      a.vy = 2.4;
+      break;
+    }
+    if (b.hits <= 0) { openBox(b, i); }
+  }
+}
+
+/** Which of the three it is. Weighted; see BOX.drops. */
+function rollDrop() {
+  const total = BOX.drops.reduce((n, d) => n + d.weight, 0);
+  let r = rng() * total;
+  for (const d of BOX.drops) { r -= d.weight; if (r <= 0) return d.id; }
+  return BOX.drops[0].id;
+}
+
+/** One blow against a box, worth `n` of the bumps it takes. */
+function hitBox(b, by, n) {
+  b.hits -= n;
+  b.bumpAt = G.time;
+  b.by = by ? by.id : null;
+  if (b.hits > 0) {
+    sfx.land();
+    renderer.shake = Math.max(renderer.shake || 0, 4);
+  }
+}
+
+/**
+ * A Ground Pound opens a box outright.
+ *
+ * Called from the landing rather than from the bump loop, because the pound
+ * is the one way in that does not involve hitting it from underneath — he
+ * comes down THROUGH it. Anything within the blast, which is the same radius
+ * that shoves players, so what he can see he can open.
+ */
+function poundBoxes(a, reach) {
+  for (let i = G.boxes.length - 1; i >= 0; i--) {
+    const b = G.boxes[i];
+    if (Math.hypot(b.x - a.x, b.y - a.y) > reach) continue;
+    hitBox(b, a, BOX.hits);
+    openBox(b, i);
+  }
+}
+
+/** It is open. Hand out what was in it and take the box off the field. */
+function openBox(b, i) {
+  G.boxes.splice(i, 1);
+  G.pops.push({ x: b.x, y: b.y, at: G.time, colour: BOX.colour, glyph: "box" });
+  for (let k = 0; k < 6; k++) {
+    G.bursts.push({ x: b.x, y: b.y, at: G.time, colour: BOX.colour });
+  }
+  renderer.shake = Math.max(renderer.shake || 0, 12);
+  renderer.punch = Math.max(renderer.punch || 0, 0.05);
+  sfx.poof();
+
+  if (b.drop === "hari") { summonKing(b); return; }
+  // The other two fall out as an ordinary pickup, so whoever wants it still
+  // has to go and touch it — opening a box is not the same as winning one,
+  // and the opponent gets a moment to contest it.
+  G.powers.push({ x: b.x, y: b.y, type: b.drop, born: G.time });
+  sfx.spawn();
+}
+
 function tickPowers(dt) {
 
   // spawn
@@ -1735,6 +2127,24 @@ function tickPowers(dt) {
       G.shots.splice(i, 1);
       continue;
     }
+    /* The King is in front of the players in this list ON PURPOSE.
+     *
+     * He is enormous and they fight around his feet; a shell that passes
+     * through him to hit somebody standing behind would read as the boss
+     * having no body at all. Charlie asked for the gun to work on him —
+     * "Star can just hit 1 heart as well sa kanya and even baril" — and one
+     * heart is what everything takes off him. */
+    if (G.king && !G.king.leaving) {
+      const kb = G.king.actor;
+      if (Math.abs(kb.x - b.x) < kb.w / 2 + SHOT_RADIUS &&
+          Math.abs(kb.y - kb.h / 2 - b.y) < kb.h / 2 + SHOT_RADIUS) {
+        G.pops.push({ x: b.x, y: b.y, at: G.time, colour: "#ffd873", glyph: "" });
+        G.shots.splice(i, 1);
+        sfx.shotHit();
+        hurtKing(G.actors.find((q) => q.id === b.owner) || null);
+        continue;
+      }
+    }
     for (const o of G.actors) {
       if (o.dead || o.id === b.owner) continue;
       if (hasPower(o, "bituin")) continue; // the star shrugs off bullets
@@ -1745,7 +2155,10 @@ function tickPowers(dt) {
         G.pops.push({ x: b.x, y: b.y, at: G.time, colour: "#ffd873", glyph: "" });
         G.shots.splice(i, 1);
         sfx.shotHit();
-        killPlayer(o, G.actors.find((q) => q.id === b.owner) || null, "shot");
+        // A shell ends it outright — that is the whole reward. A bullet does
+        // not, and never has.
+        if (b.lethal) { o.lethal = true; renderer.shake = Math.max(renderer.shake || 0, 18); G.flash = { type: "hit", at: G.time }; }
+        killPlayer(o, G.actors.find((q) => q.id === b.owner) || null, b.lethal ? "bazuka" : "shot");
         break;
       }
     }
@@ -1949,7 +2362,7 @@ function breakLedge(a, force) {
   for (const x of gone.slice(0, 10)) {
     G.bursts.push({ x: x + 0.5, y: ty + 0.5, at: G.time, colour: "#9a9182" });
   }
-  fx.sfx("poof");
+  sfx.poof();
 }
 
 function poundLanded(a) {
@@ -1968,6 +2381,13 @@ function poundLanded(a) {
    * ground does: the ring, the dust, and how long the cracks stay. */
   G.quakes.push({ x: a.x, y: a.y, at: G.time, force });
   breakLedge(a, force);
+  poundBoxes(a, reach);
+  // He is standing on the same floor as everybody else, so the shove finds
+  // him — and a pound landed on a boss should be worth a heart.
+  if (G.king && !G.king.leaving &&
+      Math.hypot(G.king.actor.x - a.x, G.king.actor.y - a.y) <= reach) {
+    hurtKing(a);
+  }
   while (G.quakes.length > 6) G.quakes.shift();
   for (const o of G.actors) {
     if (o === a || o.dead) continue;
@@ -2062,6 +2482,29 @@ function tickPunches() {
     if (!ph || ph.state !== "out" || a.punch.hit || a.dead) continue;
     const fx = a.x + a.punch.face * (a.w / 2 + def.reach * 0.6);
     const fy = a.y - a.h * 0.55;
+    /* One Punch takes ONE heart off the King, not all of them.
+     *
+     * Everywhere else this move ends a player outright, which is the trade it
+     * makes for being one swing you have to throw from arm's length. Against
+     * a boss that would make him a pickup with extra steps — walk up, swing
+     * once, wear the crown. Three hearts means three openings you have to
+     * survive making, whatever you are holding.
+     *
+     * (`fx` is the fist's x in this function, shadowing the effects module —
+     * hence no fx.sfx here. hurtKing does its own noise.) */
+    if (G.king && !G.king.leaving) {
+      const kb = G.king.actor;
+      const forward = (kb.x - a.x) * a.punch.face;
+      const d = Math.hypot(kb.x - fx, ((kb.y - kb.h / 2) - fy) * 0.85)
+              - (kb.w + kb.h) / 4;
+      if (forward >= -def.blastBehind && d <= def.blastRadius) {
+        a.punch.hit = true;
+        a.punch.blastAt = G.time;
+        G.bursts.push({ x: fx, y: fy, at: G.time, colour: def.colour, big: true });
+        hurtKing(a);
+        continue;
+      }
+    }
     for (const o of G.actors) {
       if (o === a || o.dead) continue;
       // A radial blast centred on the fist rather than a box the size of the
@@ -2799,6 +3242,9 @@ function advance(dt) {
      */
     if (phase === "play" && sim > 0 && !GUEST) {
       tickPowers(sim);
+      tickBoxes(sim);
+      tickKing(sim);
+      tickKingContact(sim);
       tickCoins(sim);
       tickFairies(sim);
       tickHelper(sim);
@@ -3128,6 +3574,8 @@ export function applyCorrection(view, rngAt, hostPhase) {
   G.bursts = view.bursts;
   G.pops = view.pops;
   G.quakes = view.quakes || [];
+  G.boxes = view.boxes || [];
+  G.king = view.king || null;
   G.lostHearts = view.lostHearts;
   G.minis = view.minis;
   G.helpers = view.helpers;

@@ -147,6 +147,33 @@ export const MARKS = {
   // Three little Bubus.
   squad: circle(18, 50, 13) + circle(50, 50, 13) + circle(82, 50, 13),
 
+  /* --- out of a mystery box ---------------------------------------------- */
+
+  /* The box's own mark: a question mark, drawn rather than typed.
+   *
+   * A glyph would have been one character of text and it is exactly the trap
+   * this file exists to avoid — a '?' set in the system font is a different
+   * shape on Charlie's Mac and on Karla's Windows, and the box is the one
+   * thing on the field whose whole job is to say "you do not know". */
+  box: "M30 32C30 16 40 7 51 7C63 7 72 16 72 29C72 40 65 45 57 51" +
+       "C51 55 49 59 49 68L49 72L38 72L38 66C38 54 42 48 50 42" +
+       "C56 37 60 34 60 28C60 22 56 18 51 18C45 18 41 23 41 32Z" +
+       circle(43, 88, 9),
+
+  /* The Big Heart: the same heart the bar uses, with a ring around it so it
+   * is not mistaken for an ordinary Heal at a glance. Three hearts' worth
+   * ought to look like more than one. */
+  puso: "M50 92C22 72 12 58 12 42C12 28 22 18 34 18C41 18 47 22 50 28" +
+        "C53 22 59 18 66 18C78 18 88 28 88 42C88 58 78 72 50 92Z",
+
+  /* The Bazooka: a tube on the shoulder with the shell leaving it. A gun
+   * drawn any smaller than this reads as the Baril, and confusing a
+   * six-shooter with a one-shot kill is not a mistake worth allowing. */
+  bazuka: poly([[6, 40], [64, 40], [64, 62], [6, 62]]) +
+          poly([[64, 36], [82, 46], [82, 56], [64, 66]]) +
+          poly([[18, 62], [34, 62], [28, 82], [12, 82]]) +
+          bar(86, 51, 98, 51, 9),
+
   /* --- the three abilities, on the fire button --------------------------- */
 
   // Air Hop — a chevron with a second, smaller one under it: one more jump.
