@@ -12,7 +12,8 @@
  * checked IN MOTION, which is the only way they are ever really used.
  */
 import * as sim from "../js/sim.js";
-import { ABILITY } from "../js/config.js";
+import { ABILITY, SKILL_CHARGES } from "../js/config.js";
+import { abilityLook } from "../js/ability.js";
 
 const quiet = {
   sfx: () => {}, music: () => {}, note: () => {}, banner: () => {}, count: () => {},
@@ -115,6 +116,37 @@ const say = (pass, line) => { ok &&= pass; console.log(`${pass ? "ok  " : "FAIL"
    * compares two identical numbers and says nothing. */
   say(on.fastest > off.fastest + 8,
     `yhon   pound falls at ${on.fastest.toFixed(1)} tiles a second, against ${off.fastest.toFixed(1)} falling`);
+}
+
+/* The charge stack: three in hand, spent one after another, filling back up
+ * on their own and never past the cap. No lifetime limit — the cooldown just
+ * goes into a stack instead of into a yes-or-no. */
+{
+  const G = world("dudu");
+  const a = G.actors.find((q) => q.id === "p1");
+  const look = () => abilityLook(a, G.time);
+  const max = SKILL_CHARGES;
+  say(look().charges === max, `charge  starts holding ${look().charges} of ${max}`);
+
+  let spent = 0;
+  for (let k = 1; k <= max + 1; k++) {
+    a.x = 14; a.vx = 0; a.dashFor = 0;
+    push({ k });
+    sim.step(sim.TICK);
+    if (a.dashFor > 0) spent++;
+    for (let i = 0; i < 4; i++) { push({ k }); sim.step(sim.TICK); }
+    a.dashFor = 0;
+  }
+  say(spent === max, `charge  ${spent} went off back to back, and the next was refused`);
+  say(look().charges === 0, `charge  stack is empty after spending them`);
+
+  const cd = ABILITY.dash.cooldownMs / 1000;
+  let k = 99;
+  for (let i = 0; i < Math.ceil(cd * 60) + 2; i++) { push({ k }); sim.step(sim.TICK); }
+  say(look().charges === 1, `charge  one came back after ${cd.toFixed(1)}s, and only one`);
+
+  for (let i = 0; i < 60 * 60; i++) { push({ k }); sim.step(sim.TICK); }
+  say(look().charges === max, `charge  a long wait fills to ${look().charges} and stops there`);
 }
 
 console.log(`\n${ok ? "ABILITY OK" : "ABILITY FAIL"} — every move has to work IN MOTION, which is the only way anyone uses one`);

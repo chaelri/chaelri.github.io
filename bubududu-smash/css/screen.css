@@ -592,7 +592,17 @@ h1.logo::after {
   transition: background 160ms, border-color 160ms, color 160ms;
 }
 .pskill:empty { display: none; }
-.pskill .mk { width: 62%; height: 62%; }
+.pskill .mk { width: 58%; height: 58%; margin-bottom: 14%; }
+/* How many are in hand. Pips, not a numeral — see the pad button. */
+.pskill u {
+  position: absolute; left: 0; right: 0; bottom: 11%;
+  display: flex; justify-content: center; gap: 2px; text-decoration: none;
+}
+.pskill u i {
+  width: 3.5px; height: 3.5px; border-radius: 50%;
+  background: rgba(33,49,63,0.2);
+}
+.pskill u i.on { background: currentColor; }
 /* The key to press, tucked on the corner of the badge — only ever drawn for
    a player who is on the keyboard. */
 .pskill em {

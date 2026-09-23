@@ -284,6 +284,16 @@ export const POWERUPS_EXTRA = {
 //
 // Each answers one of the three ways this arena kills you: landed on from
 // above, cornered against the shrinking edge, or dropped off it.
+//
+// They come in CHARGES, not one at a time. The cooldown is the same as it
+// ever was; what changed is where it goes — into a stack of up to three
+// rather than into a single yes-or-no. Nothing is ever used up for good, so
+// there is no rationing and no counting: play without it for a few seconds
+// and you are holding three, which you may spend one after another. That is
+// the whole of it — a decision about WHEN, not about whether you can afford
+// to. Charlie: "pwede nila istack, ipunin."
+export const SKILL_CHARGES = 3;
+
 export const ABILITY = {
   // Bubu — reach and recovery. Best at getting above someone, and the only
   // thing in the game that saves you once you are off the edge.

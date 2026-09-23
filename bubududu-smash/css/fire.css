@@ -31,7 +31,18 @@
   color: rgba(226,238,251,0.34) !important;
   transition: background 160ms, border-color 160ms, color 160ms, box-shadow 200ms;
 }
-#pad #skill.ability .mk { width: 46%; height: 46%; }
+#pad #skill.ability .mk { width: 42%; height: 42%; margin-bottom: 9%; }
+/* How many are in hand, as pips along the bottom. Three of something reads
+   without counting; a numeral has to be read. */
+#pad #skill.ability u {
+  position: absolute; left: 0; right: 0; bottom: 14%;
+  display: flex; justify-content: center; gap: 3px; text-decoration: none;
+}
+#pad #skill.ability u i {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: rgba(226,238,251,0.22);
+}
+#pad #skill.ability u i.on { background: currentColor; }
 #pad #skill.ability i { font-style: normal; font-weight: 900; margin-left: 2px; }
 
 /* How much of the cooldown has RECHARGED, as a ring round the rim.

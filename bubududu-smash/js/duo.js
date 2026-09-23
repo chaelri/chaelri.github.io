@@ -113,7 +113,7 @@ async function hostSide() {
   const pad = createPad({ onEdge: haptic });
   screen.feedLocalPad(pad);
   screen.onHostPower((m) => { paintShootButton(m.p, m.ammo);
-    paintSkillButton(m.ab ? ABILITY[m.ab] : null, (m.cd || 0) / 100, !!m.rd); });
+    paintSkillButton(m.ab ? ABILITY[m.ab] : null, (m.cd || 0) / 100, !!m.rd, m.n || 0, m.mx || 0); });
   window.__duo = () => screen.duoStats;
 
   padEl.classList.remove("hidden");
@@ -154,7 +154,7 @@ async function guestSide() {
     // A power hint for the fire button, not a round message.
     if (m.p !== undefined && m.a === undefined && m.rs === undefined) {
       paintShootButton(m.p, m.ammo);
-      return paintSkillButton(m.ab ? ABILITY[m.ab] : null, (m.cd || 0) / 100, !!m.rd);
+      return paintSkillButton(m.ab ? ABILITY[m.ab] : null, (m.cd || 0) / 100, !!m.rd, m.n || 0, m.mx || 0);
     }
 
     // The host has started a round. Start the same one, from its seed.
@@ -265,7 +265,7 @@ async function guestSide() {
   }, 1800);
 
   screen.onHostPower((mm) => { paintShootButton(mm.p, mm.ammo);
-    paintSkillButton(mm.ab ? ABILITY[mm.ab] : null, (mm.cd || 0) / 100, !!mm.rd); });
+    paintSkillButton(mm.ab ? ABILITY[mm.ab] : null, (mm.cd || 0) / 100, !!mm.rd, mm.n || 0, mm.mx || 0); });
 
   $("#rematch")?.addEventListener("click", () => {
     rematchSeq++;

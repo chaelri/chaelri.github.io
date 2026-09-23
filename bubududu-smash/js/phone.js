@@ -119,7 +119,7 @@ function onMessage(m) {
   // power-up has taken it. The phone does not run the rules and has never
   // seen the round, so all of this is told rather than worked out.
   paintShootButton(m.p, m.ammo);
-  paintSkillButton(m.ab ? ABILITY[m.ab] : null, (m.cd || 0) / 100, !!m.rd);
+  paintSkillButton(m.ab ? ABILITY[m.ab] : null, (m.cd || 0) / 100, !!m.rd, m.n || 0, m.mx || 0);
 }
 
 /* ---------------------------------------------------------- supervisor --- */

@@ -13,7 +13,7 @@ import {
 import { makeArena, readLevel, solidGrid } from "./levels.js";
 import { rng, seed as seedRng, newSeed, rngState, setState as setRngState } from "./rng.js";
 import { CHARACTERS, charById, preloadCharacters } from "./characters.js";
-import { abilityOf, abilityReady } from "./ability.js";
+import { abilityLook, abilityOf, abilityReady, tickCharges } from "./ability.js";
 import { makeActor, stepActor, kill, reviveAt } from "./physics.js";
 import { createRenderer, createScene, draw, drawScene, resize, resizeScene } from "./render.js";
 import { createHost } from "./net.js";
@@ -786,6 +786,8 @@ function padMsg(a) {
     ab: st ? st.ability.id : null,
     cd: st ? Math.round(st.cd * 100) : 0,
     rd: st ? (st.ready ? 1 : 0) : 0,
+    n: st ? st.charges : 0,
+    mx: st ? st.max : 0,
   };
 }
 
@@ -812,7 +814,7 @@ function tellPads(now) {
   padToldAt = now;
   for (const a of G.actors) {
     const msg = padMsg(a);
-    const key = `${msg.p}|${msg.ammo}|${msg.ab}|${msg.cd}|${msg.rd}`;
+    const key = `${msg.p}|${msg.ammo}|${msg.ab}|${msg.cd}|${msg.rd}|${msg.n}`;
     if (padSaid[a.id] === key) continue;
     padSaid[a.id] = key;
     host?.tell(a.id, msg);
@@ -1745,7 +1747,10 @@ function tickPowers(dt) {
 function tryAbility(a, loud) {
   const ab = abilityOf(a);
   if (!ab || !abilityReady(a, G.time)) return;
-  a.abilityAt = G.time * 1000;
+  // One off the stack. The clock is already sitting at `now` while it is
+  // full (see tickCharges), so the wait for the next one starts here.
+  a.skillN = Math.max(0, (a.skillN || 0) - 1);
+  a.abilityAt = G.time * 1000;   // when it was last used, for the effects
 
   if (ab.id === "hop") {
     a.hops = (a.hops || 0) + 1;
@@ -1798,6 +1803,9 @@ function tryAbility(a, loud) {
 function holdAbility(a, dt) {
   const ab = abilityOf(a);
   if (a.grounded) a.hops = 0;
+  // The stack fills here, every tick, so it advances identically whether this
+  // is the live step or the replay running back over the same ticks.
+  tickCharges(a, G.time);
   if (!ab) return;
   // Only the hang: the horizontal is physics's now, so that steering cannot
   // cancel it. This just stops the fall for as long as the burst lasts, which
@@ -1822,15 +1830,7 @@ function holdAbility(a, dt) {
  */
 function abilityState(id) {
   const a = G && G.actors.find((q) => q.id === id);
-  if (!a) return null;
-  const ab = abilityOf(a);
-  if (!ab) return null;
-  const since = G.time * 1000 - (a.abilityAt || -9e9);
-  return {
-    ability: ab,
-    cd: Math.max(0, Math.min(1, 1 - since / ab.cooldownMs)),
-    ready: abilityReady(a, G.time),
-  };
+  return a ? abilityLook(a, G.time) : null;
 }
 
 /** The shove, which only the server runs — it moves somebody else. */
@@ -1956,6 +1956,14 @@ function tickPunches() {
       // but not the shove, so surviving a punch still costs you your footing.
       o.vx = a.punch.face * def.knockback;
       o.vy = -6.4;
+      /* ...and MARKED as a launch, or it costs them nothing.
+       *
+       * The line above has said "still costs you your footing" since the
+       * punch was written, and it did not: without this the victim cancels
+       * the whole shove by holding a direction on the very next tick, which
+       * is what anyone is already doing. Same bypass the pound uses and the
+       * bad Dudu's throw uses — see `launched` in stepActor. */
+      o.launchFor = Math.max(o.launchFor || 0, 0.2);
       // The landing gets its own weight: a hit-stop, a hard shake, a flash,
       // a big burst at the fist and a ring of sparks thrown outward. A one-
       // punch kill that looked like a bullet hit was the complaint.

@@ -476,7 +476,8 @@ export async function connect({ role, say = () => {} }) {
       const ab = sim.abilityState(role);
       paintShootButton(me && me.power ? me.power.type : null,
                        me && me.power ? me.power.ammo || 0 : 0);
-      paintSkillButton(ab && ab.ability, ab ? ab.cd : 0, !!(ab && ab.ready));
+      paintSkillButton(ab && ab.ability, ab ? ab.cd : 0, !!(ab && ab.ready),
+                       ab ? ab.charges : 0, ab ? ab.max : 0);
       draw(renderer, G, dt);
       paintPanels(
         G.actors,

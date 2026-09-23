@@ -58,10 +58,16 @@ function paintSkill(card, id, a, now, pads) {
    * them about a keyboard they are not holding. On a laptop it is the only
    * way to know which key this is. */
   const key = pads && pads[id] && !pads[id].connected ? SKILL_KEY[id] : "";
-  const want = look.ability.mark + "|" + key;
+  const want = `${look.ability.mark}|${key}|${look.charges}/${look.max}`;
   if (el.dataset.mark !== want) {
     el.dataset.mark = want;
-    el.innerHTML = markSVG(look.ability.mark, "mk") + (key ? `<em>${key}</em>` : "");
+    // Pips for how many are in hand — three of something reads without
+    // counting, where "3" has to be read. The ring is the wait for the next.
+    const pips = look.max > 1
+      ? `<u>${Array.from({ length: look.max },
+          (_, i) => `<i class="${i < look.charges ? "on" : ""}"></i>`).join("")}</u>`
+      : "";
+    el.innerHTML = markSVG(look.ability.mark, "mk") + pips + (key ? `<em>${key}</em>` : "");
   }
   el.style.setProperty("--ac", look.ability.colour);
   el.style.setProperty("--cd", `${Math.round(look.cd * 100)}%`);

@@ -26,9 +26,19 @@ const quiet = {
   flash: () => {}, killCam: () => {}, roundStart: () => {},
 };
 
+/* Every field the body carries that the replay is allowed to touch.
+ *
+ * It has to be the WHOLE list. Anything left out is not restored before the
+ * replay, so that run starts from wherever the lived one finished and the two
+ * are no longer being asked the same question — which is how this reported a
+ * three-tile failure against a replay that was perfectly correct, twice, both
+ * times after a field was renamed or added. If a new one appears on the
+ * actor, it belongs here.
+ */
 const FIELDS = ["x", "y", "vx", "vy", "face", "walk", "squash", "t", "grounded",
                 "coyote", "buffer", "jumpHeld", "launchFor",
-                "abilityAt", "hops", "dashUntil", "dashFace", "pounding", "lockUntil"];
+                "abilityAt", "skillN", "skillAt", "hops",
+                "dashFor", "dashVx", "pounding", "lockUntil"];
 const grab = (a) => Object.fromEntries(FIELDS.map((k) => [k, a[k]]));
 const put = (a, o) => { for (const k of FIELDS) a[k] = o[k]; };
 

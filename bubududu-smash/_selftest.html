@@ -222,8 +222,8 @@ try {
   if (!same) fail('chips', 'packChips/unpackChips did not round-trip: ' + JSON.stringify(back));
 
   panel.paintPanels(
-    [{ ...rich, id: 'p1', abilityAt: 0, hops: 0 },
-     { ...rich, id: 'p2', char: 'yhon', hp: 2, abilityAt: 0, hops: 0 }],
+    [{ ...rich, id: 'p1', abilityAt: 0, hops: 0, skillN: 3, skillAt: 0 },
+     { ...rich, id: 'p2', char: 'yhon', hp: 2, abilityAt: 0, hops: 0, skillN: 3, skillAt: 0 }],
     { p1: back, p2: [] }, 1/60, 99);
   const drawn = document.querySelectorAll('#players [data-p="p1"] .chip').length;
   const hearts = document.querySelectorAll('#players [data-p="p1"] .phearts svg').length;
@@ -250,7 +250,10 @@ try {
   if (!skill || !skill.querySelector("svg.mk")) fail('panel', 'no skill badge on the card');
   else if (skill.classList.contains("ready")) fail('panel', 'skill badge reads ready while frozen');
   else {
-    const clean = { id: 'p1', char: 'bubu', hp: 3, coins: 0, abilityAt: 0, hops: 0 };
+    // skillN, because a bare object has never been through a tick and the
+    // charge stack is filled by one. A real actor always has it.
+    const clean = { id: 'p1', char: 'bubu', hp: 3, coins: 0, abilityAt: 0, hops: 0,
+                    skillN: 3, skillAt: 0 };
     panel.paintPanels([clean, { ...clean, id: 'p2', char: 'dudu' }], { p1: [], p2: [] }, 1/60, 99);
     if (!skill.classList.contains("ready")) fail('panel', 'skill badge never reads ready');
     else log.push(`skill     ok — badge on both cards, spent and ready`);

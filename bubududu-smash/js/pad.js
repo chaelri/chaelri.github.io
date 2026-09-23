@@ -158,7 +158,7 @@ let popTimer = null;
  * @param ready  whether it can actually be used — an Air Hop off cooldown is
  *               still no use with your feet on the ground.
  */
-export function paintSkillButton(ability, cd = 0, ready = false) {
+export function paintSkillButton(ability, cd = 0, ready = false, charges = 0, max = 0) {
   const b = $("#skill");
   if (!b) return;
   b.classList.toggle("ability", !!ability);
@@ -166,9 +166,22 @@ export function paintSkillButton(ability, cd = 0, ready = false) {
   b.style.setProperty("--cd", `${Math.max(0, Math.min(1, cd)) * 100}%`);
   if (ability) b.style.setProperty("--ac", ability.colour);
 
-  if (b.dataset.key !== (ability ? ability.mark : "-")) {
-    b.dataset.key = ability ? ability.mark : "-";
-    b.innerHTML = ability ? markSVG(ability.mark, "mk") : "";
+  /* How many are in hand, as PIPS rather than a number.
+   *
+   * Three of something is a quantity you read without counting; "3" is a
+   * quantity you read by reading. The ring round the rim is the wait for the
+   * next one, so between them the button answers both questions a charge
+   * stack raises — how many now, and how long until one more. */
+  const want = `${ability ? ability.mark : "-"}|${charges}/${max}`;
+  if (b.dataset.key !== want) {
+    b.dataset.key = want;
+    b.innerHTML = ability
+      ? markSVG(ability.mark, "mk") +
+        (max > 1
+          ? `<u>${Array.from({ length: max },
+              (_, i) => `<i class="${i < charges ? "on" : ""}"></i>`).join("")}</u>`
+          : "")
+      : "";
   }
 
   /* The moment it comes BACK gets said out loud, once.

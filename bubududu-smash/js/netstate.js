@@ -24,7 +24,7 @@ const bit = (v) => (v ? 1 : 0);
 //  w, h, powerType, ammo, until, invulnUntil, frozenUntil, reversedUntil,
 //  coins, fairy, punch, glowUntil, glowFor, glowColour,
 //  coyote, buffer, jumpHeld, launchFor,
-//  abilityAgo, hops, dashLeft, dashVx, pounding, lockLeft]
+//  abilityAgo, skillN, skillAgo, hops, dashLeft, dashVx, pounding, lockLeft]
 
 function packActor(a, now) {
   return [
@@ -75,6 +75,12 @@ function packActor(a, now) {
      * and taken away, which for a Dash is a tile and a half. Milliseconds
      * because that is the unit the cooldown itself is in. */
     a.abilityAt ? Math.max(0, Math.round(now * 1000 - a.abilityAt)) : -1,
+    /* The charge stack: how many are in hand, and how long the next one has
+     * been filling. Both, because neither can be worked out from the other —
+     * and a client that guessed would either hand out a charge the server
+     * never gave or refuse one it did. */
+    a.skillN === undefined ? -1 : a.skillN,
+    Math.max(0, Math.round(now * 1000 - (a.skillAt || 0))),
     a.hops || 0,
     /* In MILLISECONDS, like the cooldown above, not seconds through r2().
      *
@@ -92,7 +98,7 @@ function unpackActor(v, now) {
     respawn, w, h, ptype, ammo, puntil, inv, frozen, reversed, coins,
     fairy, punch, glowLeft, glowFor, glowColour,
     coyote, buffer, jumpHeld, launchFor,
-    abilityAgo, hops, dashLeft, dashVx, pounding, lockLeft] = v;
+    abilityAgo, skillN, skillAgo, hops, dashLeft, dashVx, pounding, lockLeft] = v;
   const p = PLAYERS.find((q) => q.id === id);
   return {
     id, char, x, y, vx, vy, face, walk, squash, t,
@@ -125,6 +131,8 @@ function unpackActor(v, now) {
     // abilityAt is kept in MILLISECONDS of game time, which is what the
     // cooldown is measured in — the only field here that is.
     abilityAt: abilityAgo >= 0 ? now * 1000 - abilityAgo : 0,
+    skillN: skillN >= 0 ? skillN : undefined,
+    skillAt: now * 1000 - (skillAgo || 0),
     hops: hops || 0,
     dashFor: dashLeft > 0 ? dashLeft / 1000 : 0,
     dashVx: dashVx || 0,
