@@ -1519,8 +1519,7 @@
         border-color: #b01049;
       }
       /* NSFW gate: every home thumbnail is blurred until its anime has been
-         cleared as safe (data-fl-safe). Unknown or unreachable stays blurred —
-         the point is never seeing it, not guessing. */
+         checked (data-fl-safe). Only a confirmed NSFW title stays hidden. */
       .episode-wrap:not([data-fl-safe]) .episode-snapshot img {
         filter: blur(22px) saturate(0.4) !important;
         transform: scale(1.15);
@@ -1884,7 +1883,8 @@
 
   function _hydrateGenres(wrap, animeId) {
     const titleWrap = wrap.querySelector(".episode-title-wrap");
-    if (!titleWrap || titleWrap.querySelector(".fl-genre-row")) return;
+    if (!titleWrap) return _nsfwCheck(wrap);
+    if (titleWrap.querySelector(".fl-genre-row")) return;
     const row = document.createElement("div");
     row.className = "fl-genre-row";
     titleWrap.appendChild(row);
@@ -1913,22 +1913,29 @@
   // verdict comes from AniList, never animepahe: one batched GraphQL request
   // per wave of cards, cached forever in chrome.storage.local, so a given
   // title is only ever looked up once. NSFW = adult, Ecchi/Hentai genre, or
-  // an adult tag (Nudity etc.) ranked 40+. Not found / request failed →
-  // stays blurred and is not cached, so it gets another try next load.
+  // an adult tag (Nudity etc.) ranked 40+. Anything AniList can't vouch for
+  // is assumed fine and shown: not found is cached as safe, a failed request
+  // is shown uncached so it gets a real verdict next load.
   const NSFW_CACHE_KEY = "nsfwVerdicts";
   const _nsfwWaiting = new Map(); // normTitle -> [wrap]
   let _nsfwTimer = null;
 
-  const _normTitle = (t) => (t || "").toLowerCase().replace(/\s+/g, " ").trim();
+  // Function declarations, not consts: the router dispatch at the top of the
+  // IIFE can reach these synchronously, before a const here would exist.
+  function _normTitle(t) {
+    return (t || "").toLowerCase().replace(/\s+/g, " ").trim();
+  }
 
-  const _markSafe = (wrap) => { if (wrap.isConnected) wrap.dataset.flSafe = "1"; };
+  function _markSafe(wrap) {
+    if (wrap.isConnected) wrap.dataset.flSafe = "1";
+  }
 
   function _nsfwCheck(wrap) {
     const title = _normTitle(
       wrap.querySelector(".episode-title a")?.getAttribute("title") ||
       wrap.querySelector(".episode-title a")?.textContent
     );
-    if (!title || !_extAlive()) return;
+    if (!title || !_extAlive()) return _markSafe(wrap);
     chrome.storage.local.get([NSFW_CACHE_KEY], (r) => {
       if (chrome.runtime?.lastError) return;
       const verdict = (r[NSFW_CACHE_KEY] || {})[title];
@@ -1965,12 +1972,18 @@
       });
       data = (await res.json())?.data || null;
     } catch (_) {}
-    if (!data) return; // unreachable → everything in this batch stays blurred
+    if (!data) {
+      batch.forEach(([, wraps]) => wraps.forEach(_markSafe));
+      return;
+    }
 
     const verdicts = {};
     batch.forEach(([title, wraps], i) => {
       const m = data["a" + i]?.media?.[0];
-      if (!m) return; // not on AniList → stays blurred
+      if (!m) {
+        verdicts[title] = false;
+        return wraps.forEach(_markSafe);
+      }
       const nsfw =
         !!m.isAdult ||
         (m.genres || []).some((g) => /^(ecchi|hentai)$/i.test(g)) ||
@@ -2049,6 +2062,7 @@
         // Async-fetch + render genres under the title (cache-backed).
         const animeId = (href.match(/\/anime\/([^/?#]+)/) || [])[1];
         if (animeId) _hydrateGenres(wrap, animeId);
+        else _markSafe(wrap);
       });
 
       _homeLoading.firstRunDone = true;
