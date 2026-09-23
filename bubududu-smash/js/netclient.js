@@ -482,7 +482,7 @@ export async function connect({ role, say = () => {} }) {
         G.actors,
         { p1: chipsFor(G.actors.find((a) => a.id === "p1"), G, sim.state.pads),
           p2: chipsFor(G.actors.find((a) => a.id === "p2"), G, sim.state.pads) },
-        dt
+        dt, G.time
       );
     } catch (err) {
       console.error("[bubu-dudu-smash] frame threw", err);

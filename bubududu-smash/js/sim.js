@@ -24,6 +24,7 @@ import { makeArena, readLevel, solidGrid } from "./levels.js";
 import { makeActor, stepActor, kill, reviveAt, poseOf, tileAt } from "./physics.js";
 import { rng, seed as seedRng, newSeed, rngState, setState as setRngState } from "./rng.js";
 import { charById } from "./characters.js";
+import { abilityOf, abilityReady } from "./ability.js";
 
 /* Is this copy of the rules the one that DECIDES?
  *
@@ -1436,38 +1437,9 @@ function tickPowers(dt) {
 // jump. Anything that touches the rest of the world (the pound's shove) is
 // fenced off behind `loud`, which only the server passes.
 
-function abilityOf(a) {
-  const def = charById(a.char);
-  return (def && def.ability && ABILITY[def.ability]) || null;
-}
-
-/** Whether the button is theirs to press, or a power-up has taken it. */
-function abilityReady(a) {
-  const ab = abilityOf(a);
-  if (!ab || a.dead) return false;
-  if (a.frozenUntil && G.time < a.frozenUntil) return false;
-  if (G.time * 1000 - (a.abilityAt || -9e9) < ab.cooldownMs) return false;
-  /* Deliberately NOT "are your feet off the ground".
-   *
-   * The server holds a couple of inputs back as jitter slack, so it simulates
-   * your press two ticks after you made it — and two ticks is easily enough
-   * to land in. Gate a move on `grounded` and the two sides answer the same
-   * press differently: you dive, the server says no, and at a pound's speed
-   * that is a tile and a half of disagreement handed to you as a jolt. The
-   * bench put it at exactly that.
-   *
-   * So nothing here reads a state that a hair's difference in position can
-   * flip. Pressing with your feet down is not refused, it just does the
-   * grounded version of the move — which for the pound is a slam on the spot,
-   * and is a better move than the refusal was. */
-  if (ab.id === "hop") return (a.hops || 0) < ab.perAir;
-  if (ab.id === "pound") return !a.pounding;
-  return true;
-}
-
 function tryAbility(a, loud) {
   const ab = abilityOf(a);
-  if (!ab || !abilityReady(a)) return;
+  if (!ab || !abilityReady(a, G.time)) return;
   a.abilityAt = G.time * 1000;
 
   if (ab.id === "hop") {
@@ -1547,7 +1519,7 @@ export function abilityState(id) {
   return {
     ability: ab,
     cd: Math.max(0, Math.min(1, 1 - since / ab.cooldownMs)),
-    ready: abilityReady(a),
+    ready: abilityReady(a, G.time),
   };
 }
 

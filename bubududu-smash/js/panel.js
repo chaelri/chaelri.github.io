@@ -6,9 +6,10 @@
 // guest is handed the same list over the wire and draws it with this exact
 // code. Two implementations would have drifted the first time a chip changed.
 
-import { PLAYERS, FEEL, COINS, DIWATA, POWERUPS, SQUAD, HELPER, ABILITY } from "./config.js";
+import { PLAYERS, FEEL, COINS, DIWATA, POWERUPS, SQUAD, HELPER } from "./config.js";
 import { charById } from "./characters.js";
 import { markSVG } from "./marks.js";
+import { abilityLook } from "./ability.js";
 
 const HEART_SVG =
   '<svg viewBox="0 0 24 22"><path d="M12 21.3C2.6 14.6 1 11.2 1 7.9 1 4.1 3.9 1.4 7.2 1.4c2.1 0 3.8 1 4.8 2.6 1-1.6 2.7-2.6 4.8-2.6C20.1 1.4 23 4.1 23 7.9c0 3.3-1.6 6.7-11 13.4z"/></svg>';
@@ -30,12 +31,55 @@ function grab() {
   return cards;
 }
 
+/* Whether each player's move is up, drawn on their card.
+ *
+ * On a phone the pad button says this, and says it well. On a laptop there is
+ * no button at all — the move is a key — so the card is the only place it can
+ * be said, and without it the only signal you ever got was a chip appearing
+ * AFTER you had already used it.
+ *
+ * Both cards carry one, which turns out to be the better half of the idea:
+ * knowing whether THEIR dash is up is worth as much as knowing about yours,
+ * and on a shared screen you can see it.
+ */
+const skillWas = { p1: false, p2: false };
+const skillTimer = { p1: null, p2: null };
+
+function paintSkill(card, id, a, now) {
+  const el = card.querySelector(".pskill");
+  if (!el) return;
+  const look = a && now !== undefined ? abilityLook(a, now) : null;
+  if (!look) { el.innerHTML = ""; el.className = "pskill"; return; }
+
+  if (el.dataset.mark !== look.ability.mark) {
+    el.dataset.mark = look.ability.mark;
+    el.innerHTML = markSVG(look.ability.mark, "mk");
+  }
+  el.style.setProperty("--ac", look.ability.colour);
+  el.style.setProperty("--cd", `${Math.round(look.cd * 100)}%`);
+  el.classList.toggle("ready", look.ready);
+  el.classList.toggle("out", !!a.dead);
+
+  // ...and the moment it comes back, once. Same reasoning as the pad button:
+  // a state you have to notice changing is a state you notice too late.
+  if (look.ready && !skillWas[id]) {
+    el.classList.remove("pop");
+    void el.offsetWidth;
+    el.classList.add("pop");
+    clearTimeout(skillTimer[id]);
+    skillTimer[id] = setTimeout(() => el.classList.remove("pop"), 560);
+  }
+  if (!look.ready) { el.classList.remove("pop"); clearTimeout(skillTimer[id]); }
+  skillWas[id] = look.ready;
+}
+
 /**
  * @param actors  whatever we have of both players this frame
  * @param chips   { p1: [{label, colour, pct, bad, bump}], p2: [...] }
  * @param dt      seconds, for the idle breath on the portraits
+ * @param now     the world clock in seconds, for the skill badges
  */
-export function paintPanels(actors, chips, dt) {
+export function paintPanels(actors, chips, dt, now) {
   const c = grab();
   if (!c) return;
   bar.classList.add("on");
@@ -74,6 +118,8 @@ export function paintPanels(actors, chips, dt) {
         return HEART_SVG.replace("<svg", `<svg class="${cls}"`);
       }).join("");
     }
+
+    paintSkill(card, p.id, a, now);
 
     const list = (chips && chips[p.id]) || [];
     const key = list
@@ -158,28 +204,13 @@ export function chipsFor(a, G, pads) {
     }
     out.push({ mark: a.power.type, label, colour: def.colour, pct, bad: false });
   }
-  /* The ability, but only while it is SPENT.
+  /* No chip for the ability any more — the badge above the chips carries it.
    *
-   * The fire button already says what the move is and whether it is ready,
-   * so a chip that sat there all round saying the same thing would be one
-   * more permanent thing to look past. It appears when you use it, drains,
-   * and goes — which is the only moment the answer is interesting. And on a
-   * laptop, where F and Shift fire it and there is no button to look at, it
-   * is the only place the cooldown is shown at all. */
-  const abDef = charById(a.char);
-  const ab = abDef && abDef.ability && ABILITY[abDef.ability];
-  if (ab) {
-    const left = ab.cooldownMs / 1000 - (G.time - (a.abilityAt || -9e9) / 1000);
-    if (left > 0) {
-      out.push({
-        mark: ab.mark,
-        label: ab.name,
-        colour: ab.colour,
-        pct: Math.max(0, Math.min(100, (left / (ab.cooldownMs / 1000)) * 100)),
-        bad: false,
-      });
-    }
-  }
+   * It was a chip because there was nowhere else to say it: on a laptop the
+   * move is a key, so there was no button to light. Now that both cards have
+   * a badge, the chip said exactly the same thing a centimetre lower, with a
+   * word next to it, permanently. One of them had to go and it was not the
+   * one that also says READY. */
 
   if (a.frozenUntil && G.time < a.frozenUntil) {
     const left = a.frozenUntil - G.time;

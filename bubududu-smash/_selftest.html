@@ -4,9 +4,9 @@
 <body><canvas id="stage"></canvas><canvas id="scene" hidden></canvas>
 <div id="players">
   <div class="pcard" data-p="p1"><canvas class="face" width="132" height="132"></canvas>
-    <div class="pinfo"><div class="pname"></div><div class="phearts"></div><div class="pchips"></div></div></div>
+    <div class="pinfo"><div class="pname"></div><div class="phearts"></div><div class="pskill"></div><div class="pchips"></div></div></div>
   <div class="pcard right" data-p="p2"><canvas class="face" width="132" height="132"></canvas>
-    <div class="pinfo"><div class="pname"></div><div class="phearts"></div><div class="pchips"></div></div></div>
+    <div class="pinfo"><div class="pname"></div><div class="phearts"></div><div class="pskill"></div><div class="pchips"></div></div></div>
 </div>
 <pre id="out" style="color:#063;font:12px monospace;position:fixed;bottom:0;left:0;background:rgba(255,255,255,.75)"></pre>
 <script type="module">
@@ -222,8 +222,9 @@ try {
   if (!same) fail('chips', 'packChips/unpackChips did not round-trip: ' + JSON.stringify(back));
 
   panel.paintPanels(
-    [{ ...rich, id: 'p1' }, { ...rich, id: 'p2', char: 'yhon', hp: 2 }],
-    { p1: back, p2: [] }, 1/60);
+    [{ ...rich, id: 'p1', abilityAt: 0, hops: 0 },
+     { ...rich, id: 'p2', char: 'yhon', hp: 2, abilityAt: 0, hops: 0 }],
+    { p1: back, p2: [] }, 1/60, 99);
   const drawn = document.querySelectorAll('#players [data-p="p1"] .chip').length;
   const hearts = document.querySelectorAll('#players [data-p="p1"] .phearts svg').length;
   const pulsing = document.querySelectorAll('#players [data-p="p1"] .chip.bad').length;
@@ -232,6 +233,23 @@ try {
   // a chip that quietly loses its icon looks fine and says less.
   const icons = document.querySelectorAll('#players [data-p="p1"] .chip svg.mk').length;
   if (icons !== made.length) fail('panel', `painted ${icons} chip marks, expected ${made.length}`);
+  /* And the skill badge, which on a laptop is the ONLY place the move's state
+     is shown — there is no pad button there, the move is a key.
+     *
+     * Checked in BOTH states, and in that order. The rich actor above is
+     * deliberately frozen solid to exercise every chip at once, and a frozen
+     * player genuinely cannot use their move — so asserting "ready" against
+     * that fixture tested nothing and failed correctly. The second paint is a
+     * clean actor, which is the one that must light up. */
+  const skill = document.querySelector('#players [data-p="p1"] .pskill');
+  if (!skill || !skill.querySelector("svg.mk")) fail('panel', 'no skill badge on the card');
+  else if (skill.classList.contains("ready")) fail('panel', 'skill badge reads ready while frozen');
+  else {
+    const clean = { id: 'p1', char: 'bubu', hp: 3, coins: 0, abilityAt: 0, hops: 0 };
+    panel.paintPanels([clean, { ...clean, id: 'p2', char: 'dudu' }], { p1: [], p2: [] }, 1/60, 99);
+    if (!skill.classList.contains("ready")) fail('panel', 'skill badge never reads ready');
+    else log.push(`skill     ok — badge on both cards, spent and ready`);
+  }
   if (drawn !== made.length) fail('panel', `painted ${drawn} chips, expected ${made.length}`);
   else if (hearts !== 5) fail('panel', `painted ${hearts} heart slots for hp 5, expected 5`);
   else if (pulsing !== 1) fail('panel', `${pulsing} chips marked bad, expected 1`);

@@ -558,6 +558,72 @@ h1.logo::after {
 .phearts svg.bonus path { fill: #ffc43c; }
 .phearts svg.bonus { filter: drop-shadow(0 0 3px rgba(255,196,60,0.85)); }
 
+/* Whether that player's move is up.
+ *
+ * On a phone the pad button says this. On a laptop the move is a KEY and
+ * there is no button at all, so without this the only signal was a chip
+ * appearing after you had already spent it. Both cards carry one, which is
+ * the better half of it: knowing whether THEIR dash is up is worth as much
+ * as knowing about your own.
+ *
+ * Spent is grey and dead — not a dimmer version of the ready colour, which is
+ * a difference you have to compare against something. Ready is the
+ * character's own colour, lit and breathing. Same language as the pad button
+ * in css/fire.css, at the size a card can spare.
+ */
+.pskill {
+  position: relative;
+  width: clamp(20px, 2.6vh, 26px); height: clamp(20px, 2.6vh, 26px);
+  border-radius: 9px; display: grid; place-items: center;
+  border: 2px solid rgba(33,49,63,0.16);
+  background: rgba(33,49,63,0.05);
+  color: rgba(33,49,63,0.3);
+  transition: background 160ms, border-color 160ms, color 160ms;
+}
+.pskill:empty { display: none; }
+.pskill .mk { width: 62%; height: 62%; }
+/* How much has RECHARGED, as a ring round the rim — it closes, and a ring
+   that has nearly closed needs no reading. */
+.pskill::before {
+  content: ""; position: absolute; inset: -2px; border-radius: inherit;
+  background: conic-gradient(from -90deg,
+    var(--ac, #7fd4ff) calc(100% - var(--cd, 0%)), transparent 0);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
+  opacity: 0.9;
+}
+.pskill.ready::before { opacity: 0; }
+.pskill.ready {
+  border-color: var(--ac, #7fd4ff);
+  background: color-mix(in srgb, var(--ac, #7fd4ff) 22%, transparent);
+  color: var(--ac, #7fd4ff);
+  animation: pskillBreathe 1.7s ease-in-out infinite;
+}
+.pskill.out { opacity: 0.25; animation: none; }
+@keyframes pskillBreathe {
+  0%, 100% { box-shadow: 0 0 0 1px color-mix(in srgb, var(--ac, #7fd4ff) 28%, transparent); }
+  50%      { box-shadow: 0 0 0 4px color-mix(in srgb, var(--ac, #7fd4ff) 14%, transparent); }
+}
+/* ...and the moment it comes back, once. */
+.pskill::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit;
+  border: 2px solid var(--ac, #7fd4ff); opacity: 0; pointer-events: none;
+}
+.pskill.pop::after { animation: pskillReady 520ms cubic-bezier(0.2, 1, 0.4, 1); }
+.pskill.pop { animation: pskillPunch 380ms cubic-bezier(0.2, 1.6, 0.4, 1); }
+@keyframes pskillReady {
+  0%   { opacity: 0.95; transform: scale(1); }
+  100% { opacity: 0;    transform: scale(2); }
+}
+@keyframes pskillPunch {
+  0%   { transform: scale(1.3); }
+  60%  { transform: scale(0.96); }
+  100% { transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pskill.ready, .pskill.pop, .pskill.pop::after { animation: none; }
+}
+
 /* Wraps, because a player can legitimately have four things running at once
    and a single non-wrapping row squeezed them until `overflow: hidden` ate
    the labels — so the effects you most needed to see were the ones missing. */
