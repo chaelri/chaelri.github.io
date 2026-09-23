@@ -606,7 +606,9 @@ h1.logo::after {
 /* The key to press, tucked on the corner of the badge — only ever drawn for
    a player who is on the keyboard. */
 .pskill em {
-  position: absolute; right: -5px; bottom: -5px;
+  /* TOP corner. It sat bottom-right, which is where the charge pips are —
+     the key covered the one thing it was next to. */
+  position: absolute; right: -6px; top: -6px;
   min-width: 15px; height: 15px; padding: 0 3px;
   display: grid; place-items: center;
   font-style: normal; font-weight: 900; font-size: 10px; line-height: 1;

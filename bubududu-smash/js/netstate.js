@@ -181,6 +181,9 @@ export function snapshot(G, extra = {}) {
     sh: G.shots.map((s) => [r2(s.x), r2(s.y), r2(s.vx), s.owner, r2(now - (s.born || 0))]),
     bu: G.bursts.map((b) => [r2(b.x), r2(b.y), r2(now - b.at), b.colour, bit(b.big)]),
     po: G.pops.map((p) => [r2(p.x), r2(p.y), r2(now - p.at), p.colour, p.glyph || ""]),
+    // Where a ground pound landed and how hard, so the crater is in the same
+    // place on both phones rather than invented twice.
+    qk: (G.quakes || []).map((q) => [r2(q.x), r2(q.y), r2(now - q.at), r2(q.force)]),
     lh2: G.lostHearts.map((h) => [r2(h.x), r2(h.y), r2(h.rot), r2(now - h.at), h.index]),
     mi: G.minis.map((m) => [packBody(m.actor), m.owner || 0, bit(m.leaving),
                             r2(m.wave), r2(Math.max(0, m.until - now))]),
@@ -260,6 +263,7 @@ export function hydrate(s) {
     })),
     bursts: A(s.bu).map(([x, y, age, colour, big]) => ({ x, y, at: now - age, colour, big: !!big })),
     pops: A(s.po).map(([x, y, age, colour, glyph]) => ({ x, y, at: now - age, colour, glyph })),
+    quakes: A(s.qk).map(([x, y, age, force]) => ({ x, y, at: now - age, force })),
     lostHearts: A(s.lh2).map(([x, y, rot, age, index]) => ({
       x, y, rot, at: now - age, index, vx: 0, vy: 0, spin: 0,
     })),

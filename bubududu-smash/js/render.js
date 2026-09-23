@@ -8,6 +8,7 @@ import { charById } from "./characters.js";
 import { poseOf } from "./physics.js";
 import { ABILITY, BAD_HELPER, COINS, DIWATA, FEEL, HIT, PLAYERS, POWERUPS, SHOT_RADIUS } from "./config.js";
 import { drawMark, markPath, stampMark } from "./marks.js";
+import { bakeScenery, blitRange } from "./scenery.js";
 
 
 const SKY_TOP = "#8fd4ff";
@@ -40,14 +41,14 @@ export function createRenderer(canvas) {
       return c;
     })(),
     // Two cloud depths. The far ones are bigger, paler and barely move.
-    clouds: Array.from({ length: 18 }, (_, i) => {
-      const far = i < 8;
+    /* Two cloud depths. `y` is a fraction of the SKY BAND, not a world
+       height — see clouds() for why they stopped being world objects. */
+    clouds: Array.from({ length: 11 }, (_, i) => {
+      const far = i < 6;
       return {
-        x: Math.random() * 60 - 6,
-        // Kept above the play area; clouds drifting through the platforms make
-        // the arena harder to read.
-        y: Math.random() * (far ? 3.4 : 4.2) + 0.2,
-        s: far ? 1.4 + Math.random() * 1.8 : 0.6 + Math.random() * 1.2,
+        x: Math.random() * 60,
+        y: far ? Math.random() * 0.55 : 0.3 + Math.random() * 0.7,
+        s: far ? 1.1 + Math.random() * 1.1 : 0.55 + Math.random() * 0.8,
         v: far ? 0.04 + Math.random() * 0.06 : 0.14 + Math.random() * 0.26,
         far,
         puffs: 3 + Math.floor(Math.random() * 3),
@@ -243,6 +244,8 @@ function noiseAt(i) {
  */
 const TILE_ART_PX = 160;
 
+const tuftCount = (key) => Math.max(5, Math.round(key / 9));
+
 function tileArt(r) {
   if (r.tiles) return r.tiles;
   const key = TILE_ART_PX;
@@ -345,53 +348,146 @@ function tileArt(r) {
     x.fillRect(ox, pad, key, Math.max(1, key * 0.035));
   }
 
-  /* ---- platform: a plank, with grain and end caps ------------------- */
+  /* ---- platform: a turfed stone ledge ------------------------------
+   *
+   * It was a wooden plank, and a plank is furniture: it belonged to a
+   * workshop, not to the valley behind it. A ledge of stone with grass
+   * growing over its lip is the same silhouette — same thickness, same
+   * readable top edge, which is the only thing the game needs from it —
+   * made of something the place is actually built out of.
+   *
+   * The turf cap is deliberately the SAME green as the ground tiles: a
+   * player has to be able to tell at a glance that a thing is standable,
+   * and "green on top" is the rule the whole arena teaches in round one. */
   {
     const ox = at(2);
     const top = pad + key * 0.1;
     const h = key * 0.34;
-    const g = x.createLinearGradient(0, top, 0, top + h);
-    g.addColorStop(0, "#efbc8a");
-    g.addColorStop(0.28, PLATFORM_TOP);
-    g.addColorStop(0.62, PLATFORM);
-    g.addColorStop(1, "#a76f3f");
     x.save();
-    roundRect(x, ox, top, key, h, key * 0.1);
+    roundRect(x, ox, top, key, h, key * 0.09);
     x.clip();
+
+    // the rock body, lit from above
+    const g = x.createLinearGradient(0, top, 0, top + h);
+    g.addColorStop(0, "#b0a695");
+    g.addColorStop(0.32, "#99907f");
+    g.addColorStop(1, "#6d6459");
     x.fillStyle = g;
     x.fillRect(ox, top, key, h);
 
-    // Grain: long, nearly-horizontal strokes at a shallow angle, plus two
-    // knots. Wood is the one texture everybody can spot as missing.
-    x.strokeStyle = "rgba(120,70,34,0.3)";
-    for (let i = 0; i < 4; i++) {
-      const n = noiseAt(i * 11 + 80), n2 = noiseAt(i * 11 + 81);
-      x.lineWidth = Math.max(0.7, key * (0.012 + n * 0.012));
+    // Bedding planes — the near-horizontal seams sedimentary rock splits on.
+    // Two of them, faint, with a lit edge under each: stone without a grain
+    // direction reads as concrete.
+    for (let i = 0; i < 2; i++) {
+      const n = noiseAt(i * 11 + 80);
+      const gy = top + h * (0.5 + i * 0.26 + (n - 0.5) * 0.06);
+      x.strokeStyle = "rgba(48,42,36,0.34)";
+      x.lineWidth = Math.max(0.7, key * 0.011);
       x.beginPath();
-      const gy = top + h * (0.24 + i * 0.19 + (n2 - 0.5) * 0.06);
       x.moveTo(ox - 1, gy);
-      x.bezierCurveTo(ox + key * 0.3, gy + h * 0.06 * (n - 0.5),
-                      ox + key * 0.7, gy - h * 0.06 * (n2 - 0.5), ox + key + 1, gy);
+      x.bezierCurveTo(ox + key * 0.34, gy + h * 0.05 * (n - 0.5),
+                      ox + key * 0.68, gy - h * 0.05 * (n - 0.5), ox + key + 1, gy);
+      x.stroke();
+      x.strokeStyle = "rgba(255,246,228,0.14)";
+      x.beginPath();
+      x.moveTo(ox - 1, gy + h * 0.035);
+      x.bezierCurveTo(ox + key * 0.34, gy + h * 0.085 * (n - 0.5) + h * 0.035,
+                      ox + key * 0.68, gy - h * 0.015 * (n - 0.5), ox + key + 1, gy + h * 0.035);
       x.stroke();
     }
-    x.fillStyle = "rgba(120,70,34,0.26)";
-    x.beginPath();
-    x.ellipse(ox + key * 0.28, top + h * 0.55, key * 0.035, key * 0.022, 0.3, 0, Math.PI * 2);
-    x.fill();
 
-    // The lit top lip and the shaded underside, which is what gives a flat
-    // strip its thickness.
-    x.fillStyle = "rgba(255,255,255,0.4)";
-    x.fillRect(ox, top, key, Math.max(1, h * 0.14));
-    x.fillStyle = "rgba(90,50,24,0.28)";
-    x.fillRect(ox, top + h * 0.84, key, h * 0.16);
+    // Weathering: a few pits, and lichen where damp collects on the underside.
+    for (let i = 0; i < 9; i++) {
+      const n1 = noiseAt(i * 3 + 91), n2 = noiseAt(i * 3 + 92), n3 = noiseAt(i * 3 + 93);
+      x.fillStyle = n3 > 0.5 ? "rgba(255,248,232,0.10)" : "rgba(44,38,32,0.14)";
+      x.beginPath();
+      x.ellipse(ox + n1 * key, top + h * (0.3 + n2 * 0.6),
+                key * (0.012 + n3 * 0.016), key * (0.008 + n3 * 0.01), 0.3, 0, Math.PI * 2);
+      x.fill();
+    }
+    for (let i = 0; i < 5; i++) {
+      const n1 = noiseAt(i * 5 + 111), n2 = noiseAt(i * 5 + 112);
+      x.fillStyle = "rgba(122,152,96,0.2)";
+      x.beginPath();
+      x.ellipse(ox + n1 * key, top + h * (0.62 + n2 * 0.3),
+                key * 0.035, key * 0.018, 0, 0, Math.PI * 2);
+      x.fill();
+    }
+
+    /* The turf cap. Same greens as the ground, hanging a ragged edge down
+     * over the stone — the ragged join is what stopped the ground tiles
+     * reading as cut paper and it does the same job here. */
+    const capH = h * 0.26;   // thin, or the ledge is a green stick
+    const tg = x.createLinearGradient(0, top, 0, top + capH);
+    tg.addColorStop(0, "#96e063");
+    tg.addColorStop(1, GROUND_TOP);
+    x.fillStyle = tg;
+    x.fillRect(ox, top, key, capH);
+    x.fillStyle = GROUND_EDGE;
+    const tufts = Math.max(5, Math.round(key / 9));
+    for (let i = 0; i < tufts; i++) {
+      const n = noiseAt(i * 5 + 130);
+      const bx = ox + ((i + 0.5) / tufts) * key + (n - 0.5) * key * 0.08;
+      const bw = key * (0.04 + n * 0.035);
+      const bh = h * (0.09 + noiseAt(i * 5 + 131) * 0.2);
+      x.beginPath();
+      x.moveTo(bx - bw, top + capH - h * 0.03);
+      x.lineTo(bx + bw, top + capH - h * 0.03);
+      x.lineTo(bx, top + capH + bh);
+      x.closePath();
+      x.fill();
+    }
+    // the lit lip along the very top, and the dark underside that gives the
+    // strip its thickness
+    x.fillStyle = "rgba(255,255,255,0.3)";
+    x.fillRect(ox, top, key, Math.max(1, h * 0.09));
+    x.fillStyle = "rgba(32,27,22,0.26)";
+    x.fillRect(ox, top + h * 0.9, key, h * 0.1);
     x.restore();
 
-    // A soft drop shadow under the plank, so it sits in front of the hills
-    // rather than being pasted onto them.
+    // Blades standing up out of the turf, OUTSIDE the clip so they break the
+    // ledge's outline — a platform whose silhouette is a perfect rectangle is
+    // the tell that it was drawn rather than grown.
+    x.strokeStyle = "rgba(168,235,120,0.95)";
+    x.lineCap = "round";
+    for (let i = 0; i < tuftCount(key); i++) {
+      const n = noiseAt(i * 9 + 150), n2 = noiseAt(i * 9 + 151);
+      const bx = ox + ((i + 0.35) / tuftCount(key)) * key + (n - 0.5) * key * 0.12;
+      x.lineWidth = Math.max(1, key * 0.018);
+      x.beginPath();
+      x.moveTo(bx, top + h * 0.02);
+      x.quadraticCurveTo(bx + (n2 - 0.5) * key * 0.1, top - key * 0.028,
+                         bx + (n2 - 0.5) * key * 0.17, top - key * 0.058);
+      x.stroke();
+    }
+
+    /* One short tendril of moss off the underside — the detail that makes a
+     * floating ledge look like it has been there a while rather than having
+     * been placed this morning.
+     *
+     * ONE, and short. The first pass hung two long vines per tile, and since
+     * every tile is the same bitmap that came out as an evenly spaced fringe
+     * of identical dangling wires along the whole ledge — the repeat became
+     * the most visible thing about it. A stub reads as growth; a wire reads
+     * as a rubber stamp. */
+    x.strokeStyle = "rgba(96,168,64,0.5)";
+    x.lineWidth = Math.max(0.8, key * 0.016);
+    {
+      const n = noiseAt(171), n2 = noiseAt(172);
+      const vx = ox + (0.32 + n * 0.3) * key;
+      const vl = h * (0.16 + n2 * 0.22);
+      x.beginPath();
+      x.moveTo(vx, top + h * 0.9);
+      x.quadraticCurveTo(vx + (n - 0.5) * key * 0.05, top + h + vl * 0.55,
+                         vx + (n2 - 0.5) * key * 0.05, top + h + vl);
+      x.stroke();
+    }
+
+    // A soft drop shadow under the ledge, so it sits in front of the valley
+    // rather than being pasted onto it.
     const sh = x.createLinearGradient(0, top + h, 0, top + h + key * 0.12);
-    sh.addColorStop(0, "rgba(40,30,20,0.2)");
-    sh.addColorStop(1, "rgba(40,30,20,0)");
+    sh.addColorStop(0, "rgba(34,28,20,0.22)");
+    sh.addColorStop(1, "rgba(34,28,20,0)");
     x.fillStyle = sh;
     x.fillRect(ox, top + h, key, key * 0.12);
   }
@@ -450,18 +546,22 @@ function skyGrain(r) {
 }
 
 function drawBackdrop(r, ctx, g, dt) {
+  /* Late afternoon, high over a forested valley. The sky carries most of the
+   * mood: warm at the horizon where the sun is going, cooling upward, with a
+   * band of haze where the land meets it. Six stops rather than four because
+   * the horizon warmth is the whole difference between "outside" and "blue". */
   const sky = ctx.createLinearGradient(0, 0, 0, r.h);
-  sky.addColorStop(0, "#4fb2ee");
-  sky.addColorStop(0.36, "#8ed2f7");
-  sky.addColorStop(0.68, "#cfeafb");
-  sky.addColorStop(1, "#f6eed9");
+  sky.addColorStop(0.00, "#2f7fc4");
+  sky.addColorStop(0.22, "#5aa8de");
+  sky.addColorStop(0.46, "#9bd0ef");
+  sky.addColorStop(0.66, "#cfe8f6");
+  sky.addColorStop(0.82, "#f2e3c9");
+  sky.addColorStop(1.00, "#f7d9ab");
   ctx.fillStyle = sky;
   ctx.fillRect(0, 0, r.w, r.h);
 
-  // Dither the gradient. Four stops down a tall screen band visibly; a couple
+  // Dither the gradient. Six stops down a tall screen band visibly; a couple
   // of percent of noise on top removes them for one fill.
-  // Cached: createPattern every frame is a needless allocation, and the tile
-  // never changes.
   const grain = r.grainPattern || (r.grainPattern = ctx.createPattern(skyGrain(r), "repeat"));
   if (grain) {
     ctx.save();
@@ -471,109 +571,194 @@ function drawBackdrop(r, ctx, g, dt) {
     ctx.restore();
   }
 
-  // sun, fixed high and to the right, with a wide soft halo
-  const sx0 = r.w * 0.78 - r.cam.x * r.cam.zoom * 0.02;
-  const sy0 = r.h * 0.16;
-  const halo = ctx.createRadialGradient(sx0, sy0, 0, sx0, sy0, r.h * 0.42);
-  halo.addColorStop(0, "rgba(255,246,214,0.85)");
-  halo.addColorStop(0.18, "rgba(255,240,190,0.35)");
-  halo.addColorStop(1, "rgba(255,240,190,0)");
+  // The sun, low and to the right where the warm band is, so the light in the
+  // sky and the light on the trees agree about where it is coming from.
+  const sx0 = r.w * 0.80 - r.cam.x * r.cam.zoom * 0.02;
+  const sy0 = r.h * 0.30;
+  const halo = ctx.createRadialGradient(sx0, sy0, 0, sx0, sy0, r.h * 0.5);
+  halo.addColorStop(0, "rgba(255,244,206,0.9)");
+  halo.addColorStop(0.16, "rgba(255,232,178,0.4)");
+  halo.addColorStop(1, "rgba(255,226,166,0)");
   ctx.fillStyle = halo;
-  ctx.fillRect(sx0 - r.h * 0.42, sy0 - r.h * 0.42, r.h * 0.84, r.h * 0.84);
-  ctx.fillStyle = "rgba(255,252,236,0.95)";
+  ctx.fillRect(sx0 - r.h * 0.5, sy0 - r.h * 0.5, r.h, r.h);
+  ctx.fillStyle = "rgba(255,253,240,0.95)";
   ctx.beginPath();
-  ctx.arc(sx0, sy0, r.h * 0.045, 0, Math.PI * 2);
+  ctx.arc(sx0, sy0, r.h * 0.042, 0, Math.PI * 2);
   ctx.fill();
 
-  // Pushed well down so the arena floats clear of them, and each range is
-  // paler than the one in front to fake distance.
-  hills(r, ctx, { depth: 0.05, base: 0.74, amp: 0.075, colour: "#aed4ec", seed: 1.0 });
-  hills(r, ctx, { depth: 0.12, base: 0.86, amp: 0.085, colour: "#93c6d4", seed: 2.6 });
-  hills(r, ctx, { depth: 0.22, base: 0.97, amp: 0.09, colour: "#86c483", seed: 4.2 });
+  godRays(r, ctx, g, sx0, sy0);
 
+  /* The four ranges. Baked once — see scenery.js for why, and for the reason
+   * every ridge in them is periodic. Rebaked only when the height changes. */
+  if (!r.scene || r.scene.H !== Math.round(r.h)) r.scene = bakeScenery(Math.round(r.h));
+  const sc = r.scene;
+  blitRange(ctx, sc.far,  r, 0.035, 0);
+  birds(r, ctx, g);
+  blitRange(ctx, sc.mid,  r, 0.075, 0);
   clouds(r, ctx, g, dt);
+  blitRange(ctx, sc.tree, r, 0.155, 0);
+  blitRange(ctx, sc.near, r, 0.28,  0);
+
+  motes(r, ctx, g, dt);
 }
 
-/** One rolling range, offset against the camera by its depth. */
-function hills(r, ctx, o) {
-  const yBase = r.h * o.base - r.cam.y * r.cam.zoom * o.depth * 0.25;
-  const amp = r.h * o.amp;
-  const off = r.cam.x * r.cam.zoom * o.depth;
-  ctx.fillStyle = o.colour;
-  ctx.beginPath();
-  ctx.moveTo(0, r.h);
-  for (let x = 0; x <= r.w + 20; x += 18) {
-    // Divided by a fraction of the height so several waves fit across the
-    // view; a larger divisor put less than one wave on screen and the ranges
-    // came out as flat bands.
-    const u = (x + off) / (r.h * 0.33);
-    const y =
-      yBase +
-      Math.sin(u * 0.8 + o.seed) * amp +
-      Math.sin(u * 1.9 + o.seed * 2.1) * amp * 0.4 +
-      Math.sin(u * 0.33 + o.seed * 3.7) * amp * 0.75;
-    ctx.lineTo(x, y);
-  }
-  ctx.lineTo(r.w + 20, r.h);
-  ctx.closePath();
-  ctx.fill();
-
-  // A lighter lip along the ridge, clipped to the range itself. Flat silhouettes
-  // read as cut paper; one band of sunlit slope is enough to give them a form.
-  // A LIP along the ridge, not a wash over the whole range. The first version
-  // covered most of the shape at 22% white and simply bleached all three
-  // ranges until they stopped separating from each other.
+/**
+ * Shafts of light leaning away from the sun.
+ *
+ * Drawn as long thin wedges in `lighter`, which is what makes them ADD to
+ * whatever is behind rather than sit on top of it — a shaft that lightens the
+ * sky and the treeline by the same amount reads as a painted stripe, one that
+ * adds reads as air full of dust.
+ *
+ * They breathe on a slow clock, out of phase with each other, so the sky is
+ * never quite still without anything ever being seen to move.
+ */
+function godRays(r, ctx, g, sx, sy) {
   ctx.save();
-  ctx.clip();
-  ctx.globalAlpha = 0.14;
-  ctx.fillStyle = "#ffffff";
-  ctx.beginPath();
-  ctx.moveTo(0, 0);
-  for (let x = 0; x <= r.w + 20; x += 18) {
-    const u = (x + off) / (r.h * 0.33);
-    const y =
-      yBase +
-      Math.sin(u * 0.8 + o.seed) * amp +
-      Math.sin(u * 1.9 + o.seed * 2.1) * amp * 0.4 +
-      Math.sin(u * 0.33 + o.seed * 3.7) * amp * 0.75;
-    ctx.lineTo(x, y + amp * 0.1 + Math.sin(u * 3.1 + o.seed) * amp * 0.04);
+  ctx.globalCompositeOperation = "lighter";
+  const len = r.h * 1.5;
+  for (let i = 0; i < 5; i++) {
+    const a = 1.94 + i * 0.14 + Math.sin(g.time * 0.06 + i) * 0.012;
+    const wid = (0.028 + i * 0.006) * (0.75 + 0.25 * Math.sin(g.time * 0.21 + i * 2.1));
+    const gr = ctx.createLinearGradient(sx, sy, sx + Math.cos(a) * len, sy + Math.sin(a) * len);
+    gr.addColorStop(0, "rgba(255,238,196,0.06)");
+    gr.addColorStop(0.55, "rgba(255,238,196,0.022)");
+    gr.addColorStop(1, "rgba(255,238,196,0)");
+    ctx.fillStyle = gr;
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(sx + Math.cos(a - wid) * len, sy + Math.sin(a - wid) * len);
+    ctx.lineTo(sx + Math.cos(a + wid) * len, sy + Math.sin(a + wid) * len);
+    ctx.closePath();
+    ctx.fill();
   }
-  ctx.lineTo(r.w + 20, 0);
-  ctx.closePath();
-  ctx.fill();
   ctx.restore();
 }
 
+/**
+ * Birds, wheeling between the two mountain ranges.
+ *
+ * Two arcs each, and never more than a few pixels across — at this distance a
+ * bird IS two marks, and drawing wings on it makes it a bat. They fly a slow
+ * ellipse rather than a straight line, because a straight line at constant
+ * speed is the one thing nothing alive does.
+ *
+ * Derived from `g.time` and nothing else, so they cost no state and they are
+ * in the same place on both screens.
+ */
+function birds(r, ctx, g) {
+  ctx.save();
+  ctx.strokeStyle = "rgba(60,84,104,0.5)";
+  ctx.lineCap = "round";
+  for (let i = 0; i < 6; i++) {
+    const t = g.time * (0.028 + i * 0.004) + i * 1.7;
+    const cx = r.w * (0.18 + i * 0.13) - r.cam.x * r.cam.zoom * 0.04;
+    const px = cx + Math.cos(t) * r.w * 0.16;
+    const py = r.h * (0.20 + (i % 3) * 0.055) + Math.sin(t * 1.6) * r.h * 0.03
+             - r.cam.y * r.cam.zoom * 0.01;
+    if (px < -20 || px > r.w + 20) continue;
+    // The flap is the same clock, faster — and it goes flat at the top of the
+    // beat, which is what a glide looks like.
+    const flap = Math.max(0.12, Math.abs(Math.sin(t * 9)));
+    const s = r.h * 0.006;
+    ctx.lineWidth = Math.max(1, s * 0.34);
+    ctx.beginPath();
+    ctx.moveTo(px - s * 2, py + s * flap);
+    ctx.quadraticCurveTo(px - s, py - s * flap, px, py);
+    ctx.quadraticCurveTo(px + s, py - s * flap, px + s * 2, py + s * flap);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/**
+ * Pollen and dust in the near air, drifting up and across.
+ *
+ * The one layer that is IN FRONT of the arena in spirit but drawn behind it,
+ * because anything over the play area is something Charlie has to see past.
+ * Faint, slow and warm: it is there to make the air visible, not to be looked
+ * at. Positions are pure functions of time for the same reason as the birds.
+ */
+function motes(r, ctx, g, dt) {
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  for (let i = 0; i < 26; i++) {
+    const sp = 0.5 + (i % 5) * 0.11;
+    const t = g.time * sp + i * 2.39;
+    const px = ((i * 137.5 + t * 26) % (r.w + 80)) - 40;
+    const py = r.h * 0.95 - ((t * 14 + i * 53) % (r.h * 0.95));
+    const fade = Math.min(1, (r.h * 0.95 - py) / (r.h * 0.2)) * Math.min(1, py / (r.h * 0.25));
+    if (fade <= 0) continue;
+    const s = r.h * (0.0016 + (i % 4) * 0.0009);
+    ctx.fillStyle = `rgba(255,244,208,${0.3 * fade})`;
+    ctx.beginPath();
+    ctx.arc(px + Math.sin(t * 0.9 + i) * 9, py, s, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+  void dt;
+}
+
+/**
+ * Clouds — flat-bottomed, warm underneath, and stretched.
+ *
+ * The old ones were a row of equal lobes, which is a caterpillar. A real
+ * cumulus has a FLAT base where the air stops rising and a piled top, so the
+ * lobes only ever go upward from a straight underside, and the light comes
+ * from the same low sun as everything else: white on top, warm grey below.
+ */
 function clouds(r, ctx, g, dt) {
+  /* Clouds live in the SKY BAND, not in the world.
+   *
+   * They used to be world objects at a world y, which worked while they were
+   * parallaxed at 0.4 and moved with the arena. Slowing them down to match the
+   * new ranges left them sitting still in the middle of the screen — right
+   * across the platforms, washing out the one part of the frame that has to
+   * stay readable. Karla cannot fight in a cloud.
+   *
+   * So they are placed as a fraction of the screen height, in the top third,
+   * and offset in x by the same parallax the ranges use. They are sky.
+   */
+  const band = r.h * 0.34;
   for (const c of r.clouds) {
     c.x += c.v * dt;
-    if (c.x > g.level.w + 10) c.x = -10;
-    const depth = c.far ? 0.12 : 0.4;
-    const px = (c.x - r.cam.x * depth) * r.cam.zoom + r.w / 2;
-    const py = (c.y - r.cam.y * depth * 0.4) * r.cam.zoom + r.h / 2;
-    const s = c.s * r.cam.zoom;
-    if (px < -s * 3 || px > r.w + s * 3) continue;
+    const depth = c.far ? 0.05 : 0.1;
+    const span = r.w + 900;
+    const px = ((c.x * 40 - r.cam.x * r.cam.zoom * depth) % span + span) % span - 450;
+    const py = r.h * 0.05 + c.y * band - r.cam.y * r.cam.zoom * depth * 0.25;
+    const s = c.s * Math.min(r.cam.zoom, 40) * (c.far ? 1.15 : 0.9);
+    if (px < -s * 4 || px > r.w + s * 4) continue;
 
     ctx.save();
-    ctx.globalAlpha = c.far ? 0.42 : 0.72;
-    ctx.fillStyle = "#ffffff";
+    ctx.globalAlpha = c.far ? 0.38 : 0.62;
+
+    // The pile, built off a flat base at py. A real cumulus has a FLAT base
+    // where the air stops rising and a piled top; the old row of equal lobes
+    // was a caterpillar.
+    const lobe = (ox, oy, rx, ry) => {
+      ctx.moveTo(px + ox + rx, py + oy);
+      ctx.ellipse(px + ox, py + oy, rx, ry, 0, 0, Math.PI * 2);
+    };
     ctx.beginPath();
-    // a handful of overlapping lobes reads as a cloud; one ellipse reads as a
-    // pill
-    ctx.ellipse(px, py, s, s * 0.52, 0, 0, Math.PI * 2);
+    ctx.rect(px - s * 1.3, py - s * 0.14, s * 2.6, s * 0.18);
     for (let i = 0; i < c.puffs; i++) {
       const t = (i / (c.puffs - 1 || 1)) * 2 - 1;
-      ctx.ellipse(
-        px + t * s * 0.85,
-        py + Math.abs(t) * s * 0.14 - s * 0.1,
-        s * (0.62 - Math.abs(t) * 0.22),
-        s * (0.42 - Math.abs(t) * 0.14),
-        0, 0, Math.PI * 2
-      );
+      const bulk = 1 - Math.abs(t) * 0.62;
+      lobe(t * s * 1.05, -s * 0.09 - bulk * s * 0.17, s * (0.26 + bulk * 0.36), s * (0.18 + bulk * 0.26));
     }
+    ctx.fillStyle = "#ffffff";
     ctx.fill();
+
+    // Warm shadow along the underside, clipped to the cloud.
+    ctx.clip();
+    const sh = ctx.createLinearGradient(0, py - s * 0.3, 0, py + s * 0.06);
+    sh.addColorStop(0, "rgba(214,206,214,0)");
+    sh.addColorStop(1, "rgba(212,204,208,0.4)");
+    ctx.fillStyle = sh;
+    ctx.fillRect(px - s * 2, py - s * 0.3, s * 4, s * 0.45);
     ctx.restore();
   }
+  void g;
 }
 
 /**
@@ -659,6 +844,7 @@ export function draw(r, g, dt) {
   for (const a of g.actors) layer("punch", ctx, () => drawPunch(r, ctx, g, a));
   layer("shots", ctx, () => drawShots(r, ctx, g));
   layer("bursts", ctx, () => drawBursts(r, ctx, g));
+  layer("quakes", ctx, () => drawQuakes(r, ctx, g));
   layer("pops", ctx, () => drawPops(r, ctx, g));
   layer("hearts", ctx, () => drawLostHearts(r, ctx, g));
 
@@ -989,6 +1175,112 @@ function drawPowers(r, ctx, g) {
  * shockwave, a ring of shards thrown outward, and the power-up's own glyph
  * lifting off and fading, all in the colour of whatever was collected.
  */
+/* Where a ground pound landed.
+ *
+ * Three things over two beats, because one expanding ring reads as a pickup
+ * and this is meant to read as the floor being hit: a shockwave that races
+ * OUT ALONG THE GROUND rather than as a circle in the air, a hard plume of
+ * dust and grit thrown up at the point of impact, and cracks that stay in
+ * the dirt for a second and a half after everything else has gone.
+ *
+ * All of it scales with `force`, which is how far he fell. A pound off a
+ * step barely marks the ground; one off the top of the arena leaves a
+ * crater. That is the same number the knockback uses, so what you see and
+ * what you felt are the same thing.
+ */
+const QUAKE_MS = 640;
+const CRACK_MS = 1600;
+
+function drawQuakes(r, ctx, g) {
+  if (!g.quakes || !g.quakes.length) return;
+  const z = r.cam.zoom;
+  for (const q of g.quakes) {
+    const age = g.time - q.at;
+    if (age < 0) continue;
+    const force = Math.max(0.15, Math.min(1, q.force || 0));
+    const px = toX(r, q.x);
+    const py = toY(r, q.y);
+
+    /* The cracks, first and longest — under everything else, in the dirt. */
+    const ct = age / (CRACK_MS / 1000);
+    if (ct < 1) {
+      const open = Math.min(1, ct * 6);          // snap open, then linger
+      const fade = 1 - Math.pow(ct, 2.2);
+      ctx.save();
+      ctx.globalAlpha = fade * 0.55;
+      ctx.strokeStyle = "rgba(48,32,22,0.9)";
+      ctx.lineCap = "round";
+      const spread = z * (1.1 + force * 2.6) * open;
+      for (let i = 0; i < 7; i++) {
+        // Fixed angles off the impact so the crack pattern is the same on
+        // both phones without sending seven of anything.
+        const a = -Math.PI + (i + 0.5) * (Math.PI / 7);
+        const wob = Math.sin(i * 12.9 + q.x) * 0.35;
+        const len = spread * (0.55 + 0.45 * Math.abs(Math.cos(i * 2.3 + q.x)));
+        ctx.lineWidth = Math.max(1, z * (0.045 + force * 0.03) * (1 - ct));
+        ctx.beginPath();
+        ctx.moveTo(px, py);
+        ctx.lineTo(px + Math.cos(a + wob) * len, py + Math.sin(a + wob) * len * 0.22);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    const t = age / (QUAKE_MS / 1000);
+    if (t >= 1) continue;
+    const e = 1 - Math.pow(1 - t, 2.6);
+
+    /* The shockwave, flat along the floor — two rings, the second trailing,
+     * both squashed hard so they read as travelling over the ground rather
+     * than expanding in the air. */
+    for (const [lag, w] of [[0, 0.13], [0.16, 0.07]]) {
+      const tt = (t - lag) / (1 - lag);
+      if (tt <= 0) continue;
+      const ee = 1 - Math.pow(1 - tt, 2.6);
+      ctx.save();
+      ctx.globalAlpha = (1 - tt) * 0.9;
+      ctx.strokeStyle = tt < 0.3 ? "#fff4e0" : ABILITY.pound.colour;
+      ctx.lineWidth = Math.max(2, z * w * (1 - tt * 0.6) * (0.5 + force));
+      ctx.beginPath();
+      ctx.ellipse(px, py, z * (0.3 + ee * (2.4 + force * 5.4)),
+                  z * (0.1 + ee * (0.5 + force * 0.9)), 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    /* Dust and grit, thrown up and out. Low and wide, not a fountain. */
+    ctx.save();
+    for (let i = 0; i < 16; i++) {
+      const side = i % 2 ? 1 : -1;
+      const lane = (i / 16);
+      const out = z * (0.4 + e * (2.2 + force * 4.2)) * (0.5 + lane);
+      const rise = z * (0.3 + force * 1.5) * Math.sin(Math.min(1, t * 1.6) * Math.PI) * (0.4 + lane);
+      ctx.globalAlpha = Math.max(0, 1 - t * 1.15) * 0.8;
+      ctx.fillStyle = i % 4 === 0 ? "#6b4a30" : i % 3 === 0 ? "#fff6e6" : "#d8c3a6";
+      ctx.beginPath();
+      ctx.arc(px + side * out, py - rise,
+              z * (0.05 + force * 0.09) * (1 - t * 0.7), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+
+    /* And a hot flash on the first frames, so the moment of contact has a
+     * bang rather than a growing ring. */
+    if (t < 0.22) {
+      const k = 1 - t / 0.22;
+      ctx.save();
+      ctx.globalAlpha = k * 0.75;
+      const fl = ctx.createRadialGradient(px, py, 0, px, py, z * (1 + force * 2.2));
+      fl.addColorStop(0, "rgba(255,255,255,0.95)");
+      fl.addColorStop(0.5, "rgba(255,200,120,0.5)");
+      fl.addColorStop(1, "rgba(255,156,63,0)");
+      ctx.fillStyle = fl;
+      ctx.fillRect(px - z * 4, py - z * 3, z * 8, z * 6);
+      ctx.restore();
+    }
+  }
+}
+
 function drawPops(r, ctx, g) {
   if (!g.pops || !g.pops.length) return;
   const z = r.cam.zoom;
@@ -2767,12 +3059,12 @@ export function createScene(canvas) {
     h: 0,
     t: 0,
     cam: { x: 24, y: 12.4, zoom: 46 },
-    clouds: Array.from({ length: 16 }, (_, i) => {
-      const far = i < 7;
+    clouds: Array.from({ length: 10 }, (_, i) => {
+      const far = i < 5;
       return {
-        x: Math.random() * 60 - 6,
-        y: Math.random() * (far ? 3.2 : 4) + 0.2,
-        s: far ? 1.4 + Math.random() * 1.8 : 0.6 + Math.random() * 1.2,
+        x: Math.random() * 60,
+        y: far ? Math.random() * 0.55 : 0.3 + Math.random() * 0.7,
+        s: far ? 1.1 + Math.random() * 1.1 : 0.55 + Math.random() * 0.8,
         v: far ? 0.05 + Math.random() * 0.06 : 0.15 + Math.random() * 0.25,
         far,
         puffs: 3 + Math.floor(Math.random() * 3),

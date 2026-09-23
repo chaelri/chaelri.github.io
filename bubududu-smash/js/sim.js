@@ -325,6 +325,7 @@ function startRound(withSeed) {
     wildFairy: null,                    // the loose Diwata, if one is out
     wildFairyAt: DIWATA.wildFirstMs / 1000,
     pops: [],     // pickup shockwaves
+    quakes: [],   // where a ground pound landed, and how hard
     actors: PLAYERS.map((p, i) => {
       const a = makeActor(meta.spawns[i].x, meta.spawns[i].y, p.id);
       a.char = pads[p.id].char;
@@ -1473,6 +1474,7 @@ function tryAbility(a, loud) {
 
   // pound
   a.pounding = true;
+  a.poundFrom = a.y;      // where the dive began — the blast is worth the fall
   a.vy = ab.speed;
   /* Horizontal momentum is KEPT, not killed.
    *
@@ -1526,21 +1528,39 @@ export function abilityState(id) {
   return a ? abilityLook(a, G.time) : null;
 }
 
-/** The shove, which only the server runs — it moves somebody else. */
+/**
+ * The landing, which only the server runs — it moves somebody else.
+ *
+ * Everything here scales with how far he fell. That is the whole decision in
+ * the move: a pound off a step is a nudge, a pound off the top of the arena
+ * takes their footing away for a third of a second and throws them most of a
+ * body-length. Waiting to get height is what makes it worth using.
+ */
 function poundLanded(a) {
   if (!authority) return;
   const ab = ABILITY.pound;
+  /* How far the dive actually was, as 0..1 of a long one. */
+  const fell = Math.max(0, a.y - (a.poundFrom ?? a.y));
+  const force = Math.max(0, Math.min(1, fell / ab.fallFull));
+  const reach = ab.blast + (ab.blastFar - ab.blast) * force;
+  a.poundFrom = null;
   fx.sfx("land");
-  fx.shake(14);
-  fx.punch(0.05);
+  fx.shake(10 + 18 * force);
+  fx.punch(0.03 + 0.06 * force);
   G.pops.push({ x: a.x, y: a.y, at: G.time, colour: ab.colour, glyph: ab.mark });
+  /* The crater, for the renderer — replicated, so both phones see the same
+   * one in the same place. `force` is how hard, which drives everything the
+   * ground does: the ring, the dust, and how long the cracks stay. */
+  G.quakes.push({ x: a.x, y: a.y, at: G.time, force });
+  while (G.quakes.length > 6) G.quakes.shift();
   for (const o of G.actors) {
     if (o === a || o.dead) continue;
     const d = Math.hypot(o.x - a.x, o.y - a.y);
-    if (d > ab.blast) continue;
+    if (d > reach) continue;
     // Away and up, hardest at the centre. It does not hurt them — the kill is
     // still the stomp, and this is what makes the stomp possible.
-    const k = 1 - d / ab.blast;
+    // Hardest at the centre, and worth what the fall was worth.
+    const k = (1 - d / reach) * (0.45 + 0.55 * force);
     const dir = Math.sign(o.x - a.x) || (a.face > 0 ? 1 : -1);
     o.vx = dir * ab.knockback * k;
     o.vy = -ab.upward * k;
@@ -1551,7 +1571,11 @@ function poundLanded(a) {
      * round trip. launchFor is how the rest of the game says "your own input
      * is not what moved you"; without it their controls fight the shove, and
      * nothing downstream can tell this apart from ordinary running. */
-    o.launchFor = Math.max(o.launchFor || 0, 0.18);
+    /* A flat quarter second of no control, however glancing the blast —
+     * plus more for a hard one. Flat, because a stun you cannot count on
+     * is a stun you cannot build anything on, and the whole reason it is
+     * here is so a pound can be followed by something. */
+    o.launchFor = Math.max(o.launchFor || 0, 0.25 + (ab.launchMs / 1000) * k);
   }
 }
 
@@ -2349,6 +2373,7 @@ export function applyServer(view, hostPhase, opts = {}) {
   G.shots = view.shots;
   G.bursts = view.bursts;
   G.pops = view.pops;
+  G.quakes = view.quakes || [];
   G.lostHearts = view.lostHearts;
   G.minis = view.minis;
   G.helpers = view.helpers;

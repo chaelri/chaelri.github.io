@@ -76,7 +76,7 @@ export function abilityReady(a, now) {
    * flip. Pressing with your feet down is not refused, it just does the
    * grounded version of the move — which for the pound is a slam on the spot,
    * and is a better move than the refusal was. */
-  if (ab.id === "hop") return (a.hops || 0) < ab.perAir;
+  // The hop is limited by the stack and nothing else — see cooldownMs there.
   if (ab.id === "pound") return !a.pounding;
   return true;
 }

@@ -301,10 +301,13 @@ export const ABILITY = {
     id: "hop", name: "Air Hop", mark: "hop",
     desc: "One more jump, in mid-air.",
     colour: "#7fd4ff",
-    cooldownMs: 380,   // only so a double-tap cannot spend it twice
-    // The real limit is one per airtime, not the clock. A second one would
-    // be flight, and flight beats an arena whose whole threat is the floor.
-    perAir: 1,
+    /* No limit but the stack. It used to be one per airtime as well, which
+     * meant a Bubu holding three could still only ever use one of them
+     * before touching the floor — the charges were real and unspendable.
+     * Three in a row IS flight, briefly, and that is the point of banking
+     * them: Charlie asked for "parang lumilipad na rin si Bubu". The wait
+     * afterwards is what stops it being flight for good. */
+    cooldownMs: 700,
     rise: 0.92,        // of a standing jump — a save, not a better jump
   },
 
@@ -337,11 +340,26 @@ export const ABILITY = {
     // is a third faster again — and every tick the two sides spend
     // disagreeing about a pound costs a third more ground at that speed.
     speed: 27,         // straight down, a shade past terminal velocity
-    // Landing shoves anyone nearby away and up. It does NOT hurt them — the
-    // kill is still the stomp, and this is what sets the stomp up.
-    blast: 2.6,        // tiles from where he lands
-    knockback: 13,
-    upward: 7,
+    /* Landing shoves anyone nearby away and up, and the shove is worth what
+     * the FALL was worth.
+     *
+     * A fixed blast made the move the same whether he dropped off a step or
+     * off the top of the arena, which throws away the one decision in it:
+     * how long to climb before committing. Measured from where the dive
+     * began, so getting height first is what makes it hurt.
+     *
+     * It still does not take a heart — the kill is the stomp, and this is
+     * what sets the stomp up. What it takes is their footing. */
+    blast: 3.0,        // tiles from where he lands, off a short drop
+    blastFar: 6.2,     // ...and off a long one
+    fallFull: 9,       // tiles of dive that counts as long
+    knockback: 17,
+    upward: 12,
+    launchMs: 320,     // no steering out of it
+    // How long the ground remembers. Cosmetic, and replicated, so both
+    // phones see the same crater.
+    quakeMs: 640,
+    crackMs: 1600,
     // You cannot steer out of it. Committing is the whole character.
     lockMs: 90,
   },
