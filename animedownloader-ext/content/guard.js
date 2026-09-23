@@ -30,7 +30,21 @@
   // player needs jQuery, hls.js, and other library CDNs; blocking them breaks
   // playback. On animepahe.pw, all legit scripts are same-origin under /app/js/
   // so anything third-party is an ad by construction.
-  const SCRIPT_BLOCK_ENABLED = /(^|\.)animepahe\.pw$/i.test(PAGE_HOST);
+  //
+  // gogoanimes.dk is a WordPress site: its own code is same-origin, plus a
+  // few library CDNs (Swiper from cdnjs). The ad tag (llvpn.com → vr-gc.com
+  // vignette) and everything it chains to rotate through throwaway domains, so
+  // it is an allowlist there too, just a wider one. Its player is a vidmoly
+  // iframe carrying a second, heavier ad stack; vidmoly needs jwplayer, its own
+  // jQuery CDN and the Chromecast SDK, nothing else.
+  const TRUSTED_BY_SITE = [
+    [/(^|\.)animepahe\.pw$/i, []],
+    [/(^|\.)gogoanimes\.dk$/i, ["cdnjs.cloudflare.com", "cdn.jsdelivr.net", "ajax.googleapis.com", "code.jquery.com"]],
+    [/(^|\.)vidmoly\.[a-z]+$/i, ["jwpcdn.com", "jwplayer.com", "staticmoly.me", "cdnjs.cloudflare.com", "gstatic.com"]],
+  ];
+  const siteRule = TRUSTED_BY_SITE.find(([re]) => re.test(PAGE_HOST));
+  const SCRIPT_BLOCK_ENABLED = !!siteRule;
+  const TRUSTED_SCRIPT_HOSTS = siteRule ? siteRule[1] : [];
 
   // Dynamic: matches any placement-queue global regardless of hash
   const AD_GLOBAL_RE = /^\$insert.+\$$|placement-queue[a-f0-9]+/i;
@@ -72,7 +86,10 @@
 
   const sameSite = (url) => {
     try {
-      const u = new URL(url, location.href);
+      let u = new URL(url, location.href);
+      // blob:https://host/<uuid> has an empty .host; judge it by its origin.
+      // LiteSpeed (gogoanimes) runs every inline script as a blob: URL.
+      if (u.protocol === "blob:") u = new URL(u.origin);
       return (
         u.host === PAGE_HOST ||
         u.host.endsWith("." + PAGE_HOST) ||
@@ -122,18 +139,56 @@
   try { document.writeln = function () {}; } catch (e) {}
 
   // ── (1) Neuter any third-party <script> before execution ──
+  const isTrustedScriptSrc = (src) => {
+    if (sameSite(src)) return true;
+    if (isCloudflareUrl(src)) return true; // never block CF challenge assets
+    try {
+      const h = new URL(src, location.href).host;
+      return TRUSTED_SCRIPT_HOSTS.some((t) => h === t || h.endsWith("." + t));
+    } catch (e) {
+      return false;
+    }
+  };
   const neuterThirdPartyScript = (s) => {
     if (!SCRIPT_BLOCK_ENABLED) return false;
     if (_cfActive) return false;
     const src = s.src || s.getAttribute("src") || "";
     if (!src) return false; // inline scripts are whitelisted implicitly
-    if (sameSite(src)) return false;
-    if (isCloudflareUrl(src)) return false; // never block CF challenge assets
+    if (isTrustedScriptSrc(src)) return false;
     try { s.type = "blocked/javascript"; } catch (e) {}
     try { s.removeAttribute("src"); } catch (e) {}
     safeRemove(s);
     return true;
   };
+
+  // ── (1b) Refuse third-party script URLs at assignment time ──
+  // The gogoanimes ad loader appends an empty <script> and only THEN sets
+  // .src, so the MutationObserver sees a src-less (inline) script and lets it
+  // through. Catching the setter means the URL is never assigned and nothing
+  // is ever fetched.
+  if (SCRIPT_BLOCK_ENABLED) {
+    try {
+      const srcDesc = Object.getOwnPropertyDescriptor(HTMLScriptElement.prototype, "src");
+      Object.defineProperty(HTMLScriptElement.prototype, "src", {
+        configurable: false,
+        get() { return srcDesc.get.call(this); },
+        set(val) {
+          if (!_cfActive && !isTrustedScriptSrc(String(val))) return;
+          srcDesc.set.call(this, val);
+        },
+      });
+      const origSetAttr = Element.prototype.setAttribute;
+      Element.prototype.setAttribute = function (name, val) {
+        if (
+          this instanceof HTMLScriptElement &&
+          String(name).toLowerCase() === "src" &&
+          !_cfActive &&
+          !isTrustedScriptSrc(String(val))
+        ) return;
+        return origSetAttr.call(this, name, val);
+      };
+    } catch (e) {}
+  }
 
   // ── (2) Rogue <html> direct-child detection ──
   const isRogueHtmlChild = (n) => {

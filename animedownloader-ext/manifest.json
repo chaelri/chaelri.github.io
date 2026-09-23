@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "AnimeDownloader",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "One-click anime bulk downloader via AnimePahe. Discover on LiveChart, download everything automatically.",
-  "permissions": ["tabs", "storage", "downloads", "tabGroups", "contextMenus"],
+  "permissions": ["tabs", "storage", "downloads", "tabGroups", "contextMenus", "declarativeNetRequest"],
   "host_permissions": [
     "*://*.livechart.me/*",
     "*://*.animepahe.pw/*",
@@ -11,7 +11,14 @@
     "*://*.animepahe.ru/*",
     "*://*.animepahe.org/*",
     "*://kwik.cx/*",
-    "*://pahe.win/*"
+    "*://pahe.win/*",
+    "*://gogoanimes.dk/*",
+    "*://*.gogoanimes.dk/*",
+    "*://vidmoly.org/*",
+    "*://vidmoly.to/*",
+    "*://vidmoly.me/*",
+    "*://vidmoly.net/*",
+    "*://vidmoly.biz/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -30,6 +37,22 @@
         "*://kwik.cx/*",
         "*://pahe.win/*"
       ],
+      "js": ["content/guard.js"],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "all_frames": true
+    },
+    {
+      "matches": [
+        "*://gogoanimes.dk/*",
+        "*://*.gogoanimes.dk/*",
+        "*://vidmoly.org/*",
+        "*://vidmoly.to/*",
+        "*://vidmoly.me/*",
+        "*://vidmoly.net/*",
+        "*://vidmoly.biz/*"
+      ],
+      "css": ["content/ad-slots.css"],
       "js": ["content/guard.js"],
       "run_at": "document_start",
       "world": "MAIN",
@@ -66,5 +89,10 @@
       "js": ["content/pahe.js"],
       "run_at": "document_idle"
     }
-  ]
+  ],
+  "declarative_net_request": {
+    "rule_resources": [
+      { "id": "gogoanimes", "enabled": true, "path": "rules/gogoanimes.json" }
+    ]
+  }
 }

@@ -1,0 +1,16 @@
+/* Injected at document_start on gogoanimes.dk and its vidmoly player, before
+   the page paints. Both sites' ads (Monetag vignette, clickbait video widget,
+   floating bubble, in-player overlays) mount as direct children of <html>,
+   outside <body>. Nothing legitimate lives there, so hide the whole slot;
+   guard.js removes the nodes as well. */
+html > :not(head):not(body) {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+/* gogoanimes' theme (animestream) wraps every ad placement in .kln — the
+   thumbnail row above the player and the banner under the header. */
+.kln {
+  display: none !important;
+}
