@@ -46,7 +46,7 @@ export function hideBanner() {
  * One countdown card.
  *
  * Replacing the whole element is what restarts the CSS animation — re-setting
- * the text alone would leave the pop and the shock ring already finished.
+ * the text alone would leave the pop already finished.
  */
 export function setCount(n) {
   const el = $("#count");
@@ -54,9 +54,11 @@ export function setCount(n) {
   clearTimeout(countHide);
   const word = COUNT_WORDS[n];
   if (!word) return clearCount();
+  // Just the word. A ring used to be thrown off behind each one — the
+  // ripple — and it is gone at Charlie's request.
   el.innerHTML =
     `<div class="count word${n === 1 ? " go" : ""}">` +
-    `<span class="ring"></span><span class="num">${word}</span></div>`;
+    `<span class="num">${word}</span></div>`;
   // The round title lives in the middle of the screen too, so it steps up out
   // of the way for as long as the card is there rather than sitting under it.
   document.body.classList.add("counting");

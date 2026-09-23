@@ -560,9 +560,18 @@ body.counting #banner {
   pointer-events: none;
   z-index: 40;
 }
+/* A full-width line, not a card.
+ *
+ * It used to be a fixed square, because there was a ring drawn on it. With
+ * the ring gone the square has no job left — and it was doing harm: the word
+ * is wider than 26vh on a phone, and a grid item WIDER THAN ITS AREA is not
+ * centred by Chrome, it falls back to start-aligned so it cannot overflow
+ * the left edge. Which is to say the word was pinned to the left of a narrow
+ * box and hung off to the right. That is the lean. Give it the whole width
+ * and there is no overflow to fall back from. */
 .count {
   position: relative; display: grid; place-items: center;
-  width: clamp(150px, 26vh, 300px); height: clamp(150px, 26vh, 300px);
+  width: 100%;
 }
 .count .num {
   position: relative; z-index: 1;
@@ -576,39 +585,30 @@ body.counting #banner {
   text-shadow: 0 6px 0 rgba(8, 20, 34, 0.45);
   animation: countPop 640ms cubic-bezier(0.2, 1.5, 0.4, 1) both;
 }
-/* Words, not digits — they need room the numbers never did. */
-.count.word { width: auto; min-width: clamp(150px, 26vh, 300px); }
-.count.word .num { font-size: clamp(46px, 12vh, 128px); letter-spacing: 0.01em; }
-/* The last beat is the whole title, so it needs a lot more room than one word. */
-.count.title { min-width: min(92vw, 1100px); }
-.count.title .num { font-size: clamp(30px, 8.4vh, 96px); }
+/* Words, not digits — they need room the numbers never did.
+ *
+ * And sized off the WIDTH as well as the height, which is the whole of what
+ * was wrong with the intro on a phone. `12vh` on a 390x844 screen is a 101px
+ * letter, and four of them is 400px of word in a 390px window — so BUBU and
+ * DUDU ran off both edges and SMASH! lost 68px at each end. It is centred
+ * the whole time; there is simply more of it than there is screen, and a word
+ * you can only see the middle of does not look centred, it looks askew.
+ * Taking whichever of the two is smaller makes it fit by construction. */
+.count.word .num { font-size: clamp(40px, min(12vh, 20vw), 128px); letter-spacing: 0.01em; }
 /* SMASH! is the last beat, so it is simply the biggest and the hardest —
    not a different colour. The yellow-into-orange bloom it used to wear was
    the one thing on the intro that did not look like the rest of the game. */
 .count.go .num {
-  font-size: clamp(58px, 15vh, 156px); letter-spacing: 0.02em; color: #fff;
+  font-size: clamp(46px, min(15vh, 21vw), 156px); letter-spacing: 0.02em; color: #fff;
   text-shadow: 0 8px 0 rgba(8, 20, 34, 0.5);
   animation: countPop 520ms cubic-bezier(0.15, 1.7, 0.4, 1) both;
 }
-/* a shock ring thrown off each tick */
-.count .ring {
-  position: absolute; inset: 0; border-radius: 50%;
-  border: clamp(4px, 0.7vh, 8px) solid rgba(255,255,255,0.85);
-  animation: countRing 700ms ease-out both;
-}
-.count.go .ring { border-color: rgba(255,255,255,0.95); animation-duration: 560ms; }
-
 @keyframes countPop {
   0%   { transform: scale(2.5) rotate(-6deg); opacity: 0; }
   22%  { transform: scale(0.9) rotate(1deg);  opacity: 1; }
   38%  { transform: scale(1.08) rotate(0deg); }
   55%  { transform: scale(1); }
   100% { transform: scale(1); opacity: 1; }
-}
-@keyframes countRing {
-  0%   { transform: scale(0.35); opacity: 0.9; }
-  70%  { opacity: 0.25; }
-  100% { transform: scale(2.3); opacity: 0; }
 }
 
 /* ------------------------------------------------------------- rematch --- */
