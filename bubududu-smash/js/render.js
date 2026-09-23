@@ -2190,13 +2190,35 @@ function drawHearts(r, ctx, g, a, cx, cy) {
   const max = Math.max(FEEL.hp, a.hp);
   const s = z * 0.19;
   const gap = s * 2.65;
-  const total = (max - 1) * gap;
   // Just hit: the hearts jump so the loss is noticed.
   const hurt = a.invulnUntil && g.time < a.invulnUntil;
   const kick = hurt ? 1 + 0.22 * Math.abs(Math.sin(g.time * 18)) : 1;
 
-  for (let i = 0; i < max; i++) {
-    const x = cx - total / 2 + i * gap;
+  /* Two rows: the three you start with, and the spares UNDER them.
+   *
+   * One row that simply grew put a five-heart bar wider than the character it
+   * belongs to, hanging off one side — and with the fairy riding the other
+   * shoulder there was nowhere for it to go. Rows of three stay the width of
+   * the body however well the round is going, and the gold ones read as
+   * something extra rather than as more of the same. The card in the panel
+   * does exactly this, for the same reason. */
+  const rows = [Math.min(FEEL.hp, max), Math.max(0, max - FEEL.hp)];
+  const rowGap = s * 2.5;
+  /* The whole block is LIFTED when there are two rows, so the bottom one
+   * stays where the single row always sat. Growing downward instead would
+   * walk the gold hearts straight onto the character's head — which is the
+   * one thing over-head hearts must never do, because the head is what you
+   * are actually looking at. */
+  const lift = rows[1] ? rowGap : 0;
+  for (let row = 0, i = 0; row < rows.length; row++) {
+    const n = rows[row];
+    if (!n) continue;
+    const total = (n - 1) * gap;
+    const y = cy - lift + row * rowGap;
+    for (let k = 0; k < n; k++, i++) drawOneHeart(i, cx - total / 2 + k * gap, y);
+  }
+
+  function drawOneHeart(i, x, cy) {
     const full = i < a.hp;
     // Anything past the three you start with is a spare, and is gold — so a
     // glance says "she has one in hand" rather than just "she is fine".
@@ -2430,9 +2452,9 @@ function drawActor(r, ctx, g, a) {
   const ab = a.power ? null : ABILITY;
   if (ab) {
     // Dash: hard streaks trailing the way they came from.
-    if (a.dashUntil && g.time < a.dashUntil) {
-      const left = (a.dashUntil - g.time) / (ABILITY.dash.ms / 1000);
-      const back = -(a.dashFace || a.face);
+    if (a.dashFor > 0) {
+      const left = a.dashFor / (ABILITY.dash.ms / 1000);
+      const back = -Math.sign(a.dashVx || a.face);
       ctx.save();
       ctx.globalAlpha = Math.min(1, left) * 0.75;
       ctx.strokeStyle = ABILITY.dash.colour;

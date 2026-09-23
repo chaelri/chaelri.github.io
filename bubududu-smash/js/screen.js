@@ -63,6 +63,14 @@ const sfx = new Proxy({}, {
 });
 
 function setBanner(title, sub, pre) {
+  /* Nothing to say means HIDE it, not print the word "nothing".
+   *
+   * setBanner(null) put the literal string "null" in forty-point white across
+   * the middle of the lobby, because the markup interpolates the title
+   * straight in. Every existing caller happened to use hideBanner(); the
+   * first one that did not found this immediately.
+   */
+  if (title == null) return hideBanner();
   shown.banner = [title, sub || "", pre || ""];
   HUD.setBanner(title, sub, pre);
 }
@@ -92,6 +100,7 @@ const banner = $("#banner");
 const countEl = $("#count");
 const hud = $("#hud");
 const rematchBtn = $("#rematch");
+const recastBtn = $("#recast");
 const toasts = { p1: $("#toastL"), p2: $("#toastR") };
 const scene = createScene($("#scene"));
 
@@ -231,6 +240,29 @@ function applyPacket(role, p) {
   }
 }
 
+/* Which keys do what, in one place.
+ *
+ * Several spellings each, because keyboards disagree about what sits next to
+ * what — but the FIRST of each list is the one the game tells you about, on
+ * the lobby card and on the skill badge. E and full stop are Charlie's pick:
+ * E beside WASD, and the full stop beside the arrows. Both used to be spare
+ * spellings of the fire key and have been taken off it, or one key would do
+ * two things.
+ */
+const SHOOT_KEYS = {
+  p1: ["KeyF", "KeyQ"],
+  p2: ["Slash", "Comma", "ShiftRight", "Enter", "NumpadEnter"],
+};
+const SKILL_KEYS = {
+  p1: ["KeyE", "KeyG", "KeyC"],
+  p2: ["Period", "Semicolon", "Quote", "ControlRight"],
+};
+/** How each is written on screen — the first spelling, in plain English. */
+export const KEY_LABEL = {
+  shoot: { p1: "F", p2: "/" },
+  skill: { p1: "E", p2: "." },
+};
+
 const keys = new Set();
 addEventListener("keydown", (e) => {
   if (!e.repeat) {
@@ -240,15 +272,13 @@ addEventListener("keydown", (e) => {
     // Shoot sits next to each player's own hand: F beside WASD, and the
     // punctuation cluster beside the arrows. Several spellings each, because
     // keyboards disagree about what is next to what.
-    if (!pads.p1.connected && ["KeyF", "KeyQ", "KeyE"].includes(e.code)) pendingShot.p1 = true;
-    if (!pads.p2.connected && ["Slash", "Period", "Comma", "ShiftRight", "Enter", "NumpadEnter"].includes(e.code))
-      pendingShot.p2 = true;
+    if (!pads.p1.connected && SHOOT_KEYS.p1.includes(e.code)) pendingShot.p1 = true;
+    if (!pads.p2.connected && SHOOT_KEYS.p2.includes(e.code)) pendingShot.p2 = true;
     /* The character's own move is its OWN key, beside the fire key, because
      * the whole reason it left the fire button is that the two are worth
      * pressing together — dash INTO a punch, hop and then shoot. */
-    if (!pads.p1.connected && ["KeyG", "KeyR", "KeyC"].includes(e.code)) pendingSkill.p1 = true;
-    if (!pads.p2.connected && ["Semicolon", "Quote", "Backslash", "ControlRight"].includes(e.code))
-      pendingSkill.p2 = true;
+    if (!pads.p1.connected && SKILL_KEYS.p1.includes(e.code)) pendingSkill.p1 = true;
+    if (!pads.p2.connected && SKILL_KEYS.p2.includes(e.code)) pendingSkill.p2 = true;
     if (e.code === "Enter") rematch();
     // KeyR is p1's skill now. The round restart moved to a modifier so a
     // thumb on the skill key cannot reroll the arena mid-fight.
@@ -402,10 +432,37 @@ export function rematch() {
   if (phase === "lobby" || phase === "matchover") startMatch();
 }
 
+/* Back to the lobby, characters and all.
+ *
+ * Rematch keeps whoever you were, which is right most of the time and is
+ * exactly wrong after a 3-0. The lobby is where the picker and the QR codes
+ * live, so this simply goes back to it — the room stays open and the codes
+ * are still the same room, so a phone already scanned in does not have to do
+ * anything.
+ */
+export function backToLobby() {
+  if (phase !== "matchover" && phase !== "lobby") return;
+  phase = "lobby";
+  G = null;
+  score.p1 = 0; score.p2 = 0; roundNo = 1;
+  setBanner(null);
+  setResult(null);
+  showRematch(false);
+  clearCount();
+  stopMusic();
+  lobby.classList.remove("gone");
+  $("#players")?.classList.remove("on");
+  paintPick("p1");
+  paintPick("p2");
+}
+
 function showRematch(on) {
   rematchBtn?.classList.toggle("show", !!on);
+  recastBtn?.classList.toggle("show", !!on);
+  $("#afterwards")?.classList.toggle("show", !!on);
 }
 rematchBtn?.addEventListener("click", rematch);
+recastBtn?.addEventListener("click", backToLobby);
 
 function endRound(winnerId, why) {
   // The guest does not run the rules, so it does not get to call the round
@@ -1703,9 +1760,12 @@ function tryAbility(a, loud) {
   }
 
   if (ab.id === "dash") {
-    a.dashUntil = G.time + ab.ms / 1000;
-    a.dashFace = a.face;
-    a.vx = a.face * ab.speed;
+    // A countdown and a velocity, which is what physics understands — it owns
+    // holding it, because it is the one place that can hold it against the
+    // steering clamp. See `dashing` in stepActor.
+    a.dashFor = ab.ms / 1000;
+    a.dashVx = a.face * ab.speed;
+    a.vx = a.dashVx;
     // Unconditional for the same reason: on the ground vy is already nothing,
     // so clamping it costs nothing and reading `grounded` costs correctness.
     a.vy = Math.min(a.vy, 0) * ab.hang;
@@ -1739,8 +1799,10 @@ function holdAbility(a, dt) {
   const ab = abilityOf(a);
   if (a.grounded) a.hops = 0;
   if (!ab) return;
-  if (ab.id === "dash" && a.dashUntil && G.time < a.dashUntil) {
-    a.vx = (a.dashFace || a.face) * ab.speed;
+  // Only the hang: the horizontal is physics's now, so that steering cannot
+  // cancel it. This just stops the fall for as long as the burst lasts, which
+  // is what makes it read as a leap rather than a shove.
+  if (ab.id === "dash" && a.dashFor > 0) {
     a.vy = Math.min(a.vy, GRAVITY * dt * ab.hang);
   }
   if (ab.id === "pound" && a.pounding) {
@@ -2975,7 +3037,7 @@ const chipsFor = (a) => panelChips(a, G, pads);
 
 function paintPlayers(dt) {
   paintPanels(G.actors, { p1: chipsFor(G.actors.find((a) => a.id === "p1")),
-                          p2: chipsFor(G.actors.find((a) => a.id === "p2")) }, dt, G.time);
+                          p2: chipsFor(G.actors.find((a) => a.id === "p2")) }, dt, G.time, pads);
 }
 
 /**

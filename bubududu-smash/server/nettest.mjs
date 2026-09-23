@@ -91,7 +91,15 @@ for (const side of [server, client]) {
   side.state.pads.p1.char = CHAR;
   side.state.pads.p2.char = CHAR === "bubu" ? "yhon" : "bubu";
 }
-server.startMatch();
+/* One fixed arena, so two runs are comparable.
+ *
+ * `startMatch()` takes a seed from Math.random, so every run of this bench
+ * played a different round — and the p99 it printed swung between 0.10 and
+ * 1.42 for the same code. That is not a gate, it is a coin toss, and I spent
+ * a while reading its noise as regressions. A seed on the command line keeps
+ * the default repeatable and still allows a sweep.
+ */
+server.startRound(Number(process.argv[7] || 20260923));
 
 /* ------------------------------------------------------------- the link --- */
 
@@ -294,7 +302,16 @@ while (clock < SECONDS * 1000) {
        * and running in a straight line does not bend at all.
        */
       const step = { x: dx - drawnWas.x, y: dy - drawnWas.y };
-      if (drawnWas.step && Math.hypot(step.x, step.y) < 1.5) {
+      /* Not while a move of your own is going off.
+       *
+       * A Dash takes you from running speed to twice it in a single tick, on
+       * purpose — that is the move. It bends the path violently and it is
+       * supposed to, so counting it here measures the ability rather than the
+       * netcode, and the number went up the moment the dash started working.
+       * What this is for is the bend you did NOT ask for. */
+      const mine = cm.abilityAt || 0;
+      const commanded = mine && (cm === null ? false : (C.time * 1000 - mine) < 320);
+      if (drawnWas.step && !commanded && Math.hypot(step.x, step.y) < 1.5) {
         myJolt.push(Math.hypot(step.x - drawnWas.step.x, step.y - drawnWas.step.y));
       }
       drawnWas = { x: dx, y: dy, step, dead: false };

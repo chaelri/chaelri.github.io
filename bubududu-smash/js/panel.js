@@ -45,15 +45,23 @@ function grab() {
 const skillWas = { p1: false, p2: false };
 const skillTimer = { p1: null, p2: null };
 
-function paintSkill(card, id, a, now) {
+function paintSkill(card, id, a, now, pads) {
   const el = card.querySelector(".pskill");
   if (!el) return;
   const look = a && now !== undefined ? abilityLook(a, now) : null;
   if (!look) { el.innerHTML = ""; el.className = "pskill"; return; }
 
-  if (el.dataset.mark !== look.ability.mark) {
-    el.dataset.mark = look.ability.mark;
-    el.innerHTML = markSVG(look.ability.mark, "mk");
+  /* The key to press, for a player who is actually on the keyboard.
+   *
+   * Same rule the power-up chip has always used: a phone has a button with
+   * the symbol on it, so telling that player about a key would be telling
+   * them about a keyboard they are not holding. On a laptop it is the only
+   * way to know which key this is. */
+  const key = pads && pads[id] && !pads[id].connected ? SKILL_KEY[id] : "";
+  const want = look.ability.mark + "|" + key;
+  if (el.dataset.mark !== want) {
+    el.dataset.mark = want;
+    el.innerHTML = markSVG(look.ability.mark, "mk") + (key ? `<em>${key}</em>` : "");
   }
   el.style.setProperty("--ac", look.ability.colour);
   el.style.setProperty("--cd", `${Math.round(look.cd * 100)}%`);
@@ -78,8 +86,9 @@ function paintSkill(card, id, a, now) {
  * @param chips   { p1: [{label, colour, pct, bad, bump}], p2: [...] }
  * @param dt      seconds, for the idle breath on the portraits
  * @param now     the world clock in seconds, for the skill badges
+ * @param pads    so a keyboard player is told which key their move is on
  */
-export function paintPanels(actors, chips, dt, now) {
+export function paintPanels(actors, chips, dt, now, pads) {
   const c = grab();
   if (!c) return;
   bar.classList.add("on");
@@ -113,13 +122,24 @@ export function paintPanels(actors, chips, dt, now) {
     const want = Array.from({ length: slots }, (_, i) => i < a.hp).join(",");
     if (hearts.dataset.state !== want) {
       hearts.dataset.state = want;
-      hearts.innerHTML = Array.from({ length: slots }, (_, i) => {
-        const cls = i >= FEEL.hp ? "bonus" : i < a.hp ? "" : "off";
-        return HEART_SVG.replace("<svg", `<svg class="${cls}"`);
-      }).join("");
+      /* Two rows: the three you start with, and the spares UNDER them.
+       *
+       * They were one row that simply grew, so carrying two spares pushed a
+       * five-heart bar out past the name and off the side of the card. Rows
+       * of three keep the card the same width however well the round is
+       * going, and put the gold ones somewhere they read as extra rather
+       * than as more of the same.
+       */
+      const heart = (i) =>
+        HEART_SVG.replace("<svg", `<svg class="${i >= FEEL.hp ? "bonus" : i < a.hp ? "" : "off"}"`);
+      const base = Array.from({ length: FEEL.hp }, (_, i) => heart(i)).join("");
+      const spare = Array.from({ length: Math.max(0, slots - FEEL.hp) },
+                               (_, i) => heart(FEEL.hp + i)).join("");
+      hearts.innerHTML =
+        `<div class="hrow">${base}</div>` + (spare ? `<div class="hrow">${spare}</div>` : "");
     }
 
-    paintSkill(card, p.id, a, now);
+    paintSkill(card, p.id, a, now, pads);
 
     const list = (chips && chips[p.id]) || [];
     const key = list
@@ -155,8 +175,11 @@ export const unpackChips = (list) =>
 
 /* ------------------------------------------------------------- the chips --- */
 
-/** Only shown to a player on a keyboard; a phone has a button for it. */
-const SHOOT_KEY = { p1: "F", p2: "Shift" };
+/* Only shown to a player on a keyboard; a phone has a button for it.
+ * These are the first spelling of each key — see SHOOT_KEYS and SKILL_KEYS
+ * in screen.js, which is where the game actually reads them. */
+const SHOOT_KEY = { p1: "F", p2: "/" };
+const SKILL_KEY = { p1: "E", p2: "." };
 
 export function chipsFor(a, G, pads) {
   const out = [];

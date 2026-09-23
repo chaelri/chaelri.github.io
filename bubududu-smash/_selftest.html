@@ -227,6 +227,11 @@ try {
     { p1: back, p2: [] }, 1/60, 99);
   const drawn = document.querySelectorAll('#players [data-p="p1"] .chip').length;
   const hearts = document.querySelectorAll('#players [data-p="p1"] .phearts svg').length;
+  /* Captured HERE, beside the others, and not queried further down — the
+     skill check below repaints the card with a three-heart actor, so a live
+     query at that point is asking about a different fixture. Which is what
+     it did, and it failed on a card that was perfectly correct. */
+  const heartRows = document.querySelectorAll('#players [data-p="p1"] .phearts .hrow').length;
   const pulsing = document.querySelectorAll('#players [data-p="p1"] .chip.bad').length;
   // ...and the symbol on each chip actually reached the DOM. It is an inline
   // <svg> now, and markSVG() of an id it does not know is an empty string —
@@ -252,6 +257,10 @@ try {
   }
   if (drawn !== made.length) fail('panel', `painted ${drawn} chips, expected ${made.length}`);
   else if (hearts !== 5) fail('panel', `painted ${hearts} heart slots for hp 5, expected 5`);
+  // ...across TWO rows: three you start with, spares beneath. One row that
+  // simply grew pushed a five-heart bar off the side of the card.
+  else if (heartRows !== 2)
+    fail('panel', `five hearts made ${heartRows} row(s), expected 2 — spares belong under, not trailing right`);
   else if (pulsing !== 1) fail('panel', `${pulsing} chips marked bad, expected 1`);
   else log.push(`panel     ok — ${drawn} chips + ${hearts} hearts, round-tripped through the wire`);
 

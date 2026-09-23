@@ -24,7 +24,7 @@ const bit = (v) => (v ? 1 : 0);
 //  w, h, powerType, ammo, until, invulnUntil, frozenUntil, reversedUntil,
 //  coins, fairy, punch, glowUntil, glowFor, glowColour,
 //  coyote, buffer, jumpHeld, launchFor,
-//  abilityAgo, hops, dashLeft, dashFace, pounding, lockLeft]
+//  abilityAgo, hops, dashLeft, dashVx, pounding, lockLeft]
 
 function packActor(a, now) {
   return [
@@ -82,7 +82,7 @@ function packActor(a, now) {
      * power-up and useless for a Dash: the whole burst is 150ms, so a
      * hundredth is seven per cent of it, and one extra tick held at twice
      * running speed is a third of a tile the server never gave you. */
-    Math.max(0, Math.round(((a.dashUntil || 0) - now) * 1000)), a.dashFace || 0,
+    Math.max(0, Math.round((a.dashFor || 0) * 1000)), r2(a.dashVx || 0),
     bit(a.pounding), Math.max(0, Math.round(((a.lockUntil || 0) - now) * 1000)),
   ];
 }
@@ -92,7 +92,7 @@ function unpackActor(v, now) {
     respawn, w, h, ptype, ammo, puntil, inv, frozen, reversed, coins,
     fairy, punch, glowLeft, glowFor, glowColour,
     coyote, buffer, jumpHeld, launchFor,
-    abilityAgo, hops, dashLeft, dashFace, pounding, lockLeft] = v;
+    abilityAgo, hops, dashLeft, dashVx, pounding, lockLeft] = v;
   const p = PLAYERS.find((q) => q.id === id);
   return {
     id, char, x, y, vx, vy, face, walk, squash, t,
@@ -126,8 +126,8 @@ function unpackActor(v, now) {
     // cooldown is measured in — the only field here that is.
     abilityAt: abilityAgo >= 0 ? now * 1000 - abilityAgo : 0,
     hops: hops || 0,
-    dashUntil: dashLeft > 0 ? now + dashLeft / 1000 : 0,
-    dashFace: dashFace || 0,
+    dashFor: dashLeft > 0 ? dashLeft / 1000 : 0,
+    dashVx: dashVx || 0,
     pounding: !!pounding,
     lockUntil: lockLeft > 0 ? now + lockLeft / 1000 : 0,
   };

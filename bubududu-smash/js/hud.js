@@ -31,6 +31,9 @@ let countHide = null;
 export function setBanner(title, sub, pre) {
   const banner = $("#banner");
   if (!banner) return;
+  // Guarded here as well as at the caller: this one is reached straight off
+  // the wire by the guest phone, which is told whatever the host was showing.
+  if (title == null) return hideBanner();
   banner.innerHTML =
     `<div class="bwrap">` +
     (pre ? `<div class="bp">${pre}</div>` : "") +

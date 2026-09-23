@@ -556,7 +556,11 @@ h1.logo::after {
   100% { transform: scale(1) rotate(0deg); }
 }
 
-.phearts { display: flex; gap: 5px; }
+/* Rows of three — see paintPanels. The card stays one width however
+   many spare hearts are being carried. */
+.phearts { display: grid; gap: 4px; justify-items: start; }
+.pcard.right .phearts { justify-items: end; }
+.phearts .hrow { display: flex; gap: 5px; }
 .phearts svg { width: clamp(17px, 2.4vh, 24px); height: auto; display: block; }
 .phearts svg path { fill: #ff4d6d; }
 .phearts svg.off path { fill: rgba(33,49,63,0.16); stroke: rgba(33,49,63,0.3); stroke-width: 1.4; }
@@ -589,6 +593,16 @@ h1.logo::after {
 }
 .pskill:empty { display: none; }
 .pskill .mk { width: 62%; height: 62%; }
+/* The key to press, tucked on the corner of the badge — only ever drawn for
+   a player who is on the keyboard. */
+.pskill em {
+  position: absolute; right: -5px; bottom: -5px;
+  min-width: 15px; height: 15px; padding: 0 3px;
+  display: grid; place-items: center;
+  font-style: normal; font-weight: 900; font-size: 10px; line-height: 1;
+  border-radius: 5px; color: #21313f; background: #fff;
+  box-shadow: 0 1px 4px -1px rgba(33,49,63,0.5);
+}
 /* How much has RECHARGED, as a ring round the rim — it closes, and a ring
    that has nearly closed needs no reading. */
 .pskill::before {
@@ -753,6 +767,35 @@ h1.logo::after {
 /* ------------------------------------------------------------- rematch --- */
 /* Under the winner's banner. Hidden until a match actually ends, because a
    button that restarts everything has no business being reachable mid-round. */
+/* The two things you can do when a match ends: go again as you are, or go
+   back and be somebody else. Side by side, because after a 3-0 the second is
+   the one you actually want. */
+#afterwards {
+  position: fixed; left: 50%; z-index: 70;
+  top: calc(50% + clamp(100px, 16vh, 168px));
+  transform: translate(-50%, 6px);
+  display: flex; gap: clamp(8px, 1.4vw, 16px); align-items: center;
+  opacity: 0; visibility: hidden; pointer-events: none;
+  transition: opacity 260ms ease, transform 260ms cubic-bezier(0.2,1.5,0.4,1), visibility 260ms;
+}
+#afterwards.show {
+  opacity: 1; visibility: visible; pointer-events: auto;
+  transform: translate(-50%, 0);
+}
+/* Quieter than Rematch — it is the second thought, not the first. */
+#recast {
+  font-family: "Nunito", system-ui, sans-serif; font-weight: 900;
+  font-size: clamp(13px, 2vh, 17px); letter-spacing: 0.03em;
+  padding: clamp(10px, 1.4vh, 14px) clamp(18px, 2.6vw, 30px);
+  border-radius: 999px; border: 3px solid rgba(255,255,255,0.85);
+  color: #21313f; background: rgba(255,255,255,0.86);
+  box-shadow: 0 10px 24px -12px rgba(33,49,63,0.8);
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none; user-select: none; touch-action: manipulation;
+  transition: transform 140ms cubic-bezier(0.2,1.5,0.4,1), background 160ms;
+}
+#recast:active { transform: scale(0.96); }
+
 #rematch {
   /* Above everything, including the duo page's waiting screen, and on a
      compositing layer of its own.
@@ -764,10 +807,8 @@ h1.logo::after {
      * siblings against wrongly. `will-change` forces this into its own layer
      * so it cannot be folded into that one, and the z-index puts it clear of
      * everything rather than one step above the pad. */
-  position: fixed; left: 50%; z-index: 70;
+  position: relative; z-index: 70;
   will-change: transform;
-  top: calc(50% + clamp(100px, 16vh, 168px));
-  transform: translate(-50%, 6px);
   font-family: "Nunito", system-ui, sans-serif; font-weight: 900;
   font-size: clamp(15px, 2.4vh, 20px); letter-spacing: 0.04em;
   padding: clamp(11px, 1.6vh, 16px) clamp(26px, 4vw, 44px);
@@ -775,12 +816,9 @@ h1.logo::after {
   color: #fff; background: linear-gradient(180deg, #ffb84d, #ff8a3d);
   box-shadow: 0 12px 26px -10px rgba(214,110,20,0.9);
   opacity: 0; visibility: hidden; pointer-events: none;
-  transition: opacity 260ms ease, transform 260ms cubic-bezier(0.2,1.5,0.4,1), visibility 260ms;
+  transition: opacity 260ms ease, transform 140ms cubic-bezier(0.2,1.5,0.4,1), visibility 260ms;
   -webkit-tap-highlight-color: transparent;
   -webkit-user-select: none; user-select: none; touch-action: manipulation;
 }
-#rematch.show {
-  opacity: 1; visibility: visible; pointer-events: auto;
-  transform: translate(-50%, 0);
-}
-#rematch:active { transform: translate(-50%, 3px) scale(0.97); }
+#rematch.show { opacity: 1; visibility: visible; pointer-events: auto; }
+#rematch:active { transform: scale(0.97); }

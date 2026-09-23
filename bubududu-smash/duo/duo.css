@@ -53,6 +53,7 @@ body.duo .pcard {
 body.duo .pcard .face { width: 26px; height: 26px; }
 body.duo .pname { font-size: 10px; }
 body.duo .phearts { gap: 2px; }
+body.duo .phearts .hrow { gap: 2px; }
 body.duo .phearts svg { width: 9px; }
 body.duo .pchips { gap: 3px; min-height: 0; max-width: min(30vw, 170px); }
 /* The card grew for the laptop, which is across a room. A phone is in your

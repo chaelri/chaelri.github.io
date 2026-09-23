@@ -1455,9 +1455,12 @@ function tryAbility(a, loud) {
   }
 
   if (ab.id === "dash") {
-    a.dashUntil = G.time + ab.ms / 1000;
-    a.dashFace = a.face;
-    a.vx = a.face * ab.speed;
+    // A countdown and a velocity, which is what physics understands — it owns
+    // holding it, because it is the one place that can hold it against the
+    // steering clamp. See `dashing` in stepActor.
+    a.dashFor = ab.ms / 1000;
+    a.dashVx = a.face * ab.speed;
+    a.vx = a.dashVx;
     // Unconditional for the same reason: on the ground vy is already nothing,
     // so clamping it costs nothing and reading `grounded` costs correctness.
     a.vy = Math.min(a.vy, 0) * ab.hang;
@@ -1491,8 +1494,10 @@ function holdAbility(a, dt) {
   const ab = abilityOf(a);
   if (a.grounded) a.hops = 0;
   if (!ab) return;
-  if (ab.id === "dash" && a.dashUntil && G.time < a.dashUntil) {
-    a.vx = (a.dashFace || a.face) * ab.speed;
+  // Only the hang: the horizontal is physics's now, so that steering cannot
+  // cancel it. This just stops the fall for as long as the burst lasts, which
+  // is what makes it read as a leap rather than a shove.
+  if (ab.id === "dash" && a.dashFor > 0) {
     a.vy = Math.min(a.vy, GRAVITY * dt * ab.hang);
   }
   if (ab.id === "pound" && a.pounding) {
@@ -2323,8 +2328,8 @@ export function applyServer(view, hostPhase, opts = {}) {
     // packActor. Whatever is still unacked is re-run by replayLocal below.
     a.abilityAt = t.abilityAt;
     a.hops = t.hops;
-    a.dashUntil = t.dashUntil;
-    a.dashFace = t.dashFace;
+    a.dashFor = t.dashFor;
+    a.dashVx = t.dashVx;
     a.pounding = t.pounding;
     a.lockUntil = t.lockUntil;
   }
@@ -2417,7 +2422,7 @@ export function replayLocal(history, ack) {
    * has just set to the server's time at the snapshot — one instant, held
    * still for every input re-run against it. For a jump that does not matter:
    * a jump is an impulse and reads no deadline. For an ability it is fatal.
-   * Dash holds your speed until `dashUntil`, the pound locks your steering
+   * Dash holds your speed for `dashFor`, the pound locks your steering
    * until `lockUntil`, and every one of them checks a cooldown — so with a
    * frozen clock the whole replay either dashed or did not, as one, and the
    * bench put the error at one and a half tiles.

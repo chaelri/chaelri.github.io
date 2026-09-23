@@ -27,6 +27,8 @@ export function makeActor(x, y, id) {
     respawn: 0,
     squash: 0,
     launchFor: 0,   // seconds of no control after being hit hard
+  dashFor: 0,     // seconds of a held velocity, which steering cannot bleed
+  dashVx: 0,
     t: 0,
     // Distance walked, not time elapsed. Animation driven off a clock times a
     // speed factor jumps every time that factor changes, which is what made
@@ -106,6 +108,21 @@ export function stepActor(a, input, level, dt, others = [], opts = {}) {
   const launched = a.launchFor > 0;
   if (launched) a.launchFor -= dt;
 
+  /* A dash is a held velocity, and it needs the same bypass for the same
+   * reason the launch above does.
+   *
+   * It did not have one. The clamp at the end of the block below pins vx back
+   * to running speed the instant a direction is held — so a dash worth
+   * twenty-four tiles a second was cancelled on the very next tick by the one
+   * thing every player does while dashing, which is hold the way they are
+   * going. It worked perfectly from a standstill and did nothing at all in
+   * motion, which is exactly how Charlie found it: "kapag moving di gumagana".
+   *
+   * Kept generic on purpose — a velocity and a clock, not an ability. Physics
+   * has no business knowing what a Dash is. */
+  const dashing = a.dashFor > 0;
+  if (dashing) a.dashFor = Math.max(0, a.dashFor - dt);
+
   // Horizontal: accelerate toward the target, or brake toward zero.
   /* Per-KEY defaults, not "only if stats is missing entirely".
    *
@@ -124,6 +141,9 @@ export function stepActor(a, input, level, dt, others = [], opts = {}) {
   const friction = a.grounded ? FEEL.groundFriction : FEEL.airFriction;
   if (launched) {
     // carried by whatever put them here
+  } else if (dashing) {
+    // held, and steering cannot bleed it away before it has gone anywhere
+    a.vx = a.dashVx;
   } else if (dir !== 0) {
     const target = dir * topSpeed;
     // Turning around is sharper than setting off, or direction changes feel
