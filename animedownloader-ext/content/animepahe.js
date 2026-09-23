@@ -1518,6 +1518,17 @@
         background: #b01049;
         border-color: #b01049;
       }
+      /* NSFW gate: every home thumbnail is blurred until its anime has been
+         cleared as safe (data-fl-safe). Unknown or unreachable stays blurred —
+         the point is never seeing it, not guessing. */
+      .episode-wrap:not([data-fl-safe]) .episode-snapshot img {
+        filter: blur(22px) saturate(0.4) !important;
+        transform: scale(1.15);
+      }
+      .episode-wrap .episode-snapshot { overflow: hidden !important; border-radius: inherit; }
+      .episode-wrap .episode-snapshot img {
+        transition: filter 0.35s ease, transform 0.35s ease;
+      }
     `;
     (document.head || document.documentElement).appendChild(style);
   }
@@ -1884,7 +1895,7 @@
       if (chrome.runtime?.lastError) return; // context died mid-flight
       const cached = result.animeHistory?.[animeId];
       if (cached?.details) {
-        _applyCardDetails(wrap, row, cached.details);
+        if (_applyCardDetails(wrap, row, cached.details) !== false) _nsfwCheck(wrap);
         if (wrap.isConnected) wrap.dataset.flHydrated = "1";
         _applyGenreFilter();
         return;
@@ -1893,6 +1904,87 @@
       // Cache miss: no fetch (see getAnimeDetails). The card keeps no genre
       // row and stays unhydrated, so the genre filter leaves it visible.
       row.remove();
+      _nsfwCheck(wrap);
+    });
+  }
+
+  // ── NSFW gate (AniList) ──────────────────────────────────────────
+  // Thumbnails stay blurred (CSS above) until the anime is cleared. The
+  // verdict comes from AniList, never animepahe: one batched GraphQL request
+  // per wave of cards, cached forever in chrome.storage.local, so a given
+  // title is only ever looked up once. NSFW = adult, Ecchi/Hentai genre, or
+  // an adult tag (Nudity etc.) ranked 40+. Not found / request failed →
+  // stays blurred and is not cached, so it gets another try next load.
+  const NSFW_CACHE_KEY = "nsfwVerdicts";
+  const _nsfwWaiting = new Map(); // normTitle -> [wrap]
+  let _nsfwTimer = null;
+
+  const _normTitle = (t) => (t || "").toLowerCase().replace(/\s+/g, " ").trim();
+
+  const _markSafe = (wrap) => { if (wrap.isConnected) wrap.dataset.flSafe = "1"; };
+
+  function _nsfwCheck(wrap) {
+    const title = _normTitle(
+      wrap.querySelector(".episode-title a")?.getAttribute("title") ||
+      wrap.querySelector(".episode-title a")?.textContent
+    );
+    if (!title || !_extAlive()) return;
+    chrome.storage.local.get([NSFW_CACHE_KEY], (r) => {
+      if (chrome.runtime?.lastError) return;
+      const verdict = (r[NSFW_CACHE_KEY] || {})[title];
+      if (verdict === false) return _markSafe(wrap);
+      if (verdict === true) return _poofRemoveCard(wrap);
+      if (!_nsfwWaiting.has(title)) _nsfwWaiting.set(title, []);
+      _nsfwWaiting.get(title).push(wrap);
+      clearTimeout(_nsfwTimer);
+      _nsfwTimer = setTimeout(_flushNsfwBatch, 120);
+    });
+  }
+
+  async function _flushNsfwBatch() {
+    const batch = Array.from(_nsfwWaiting.entries()).slice(0, 25);
+    batch.forEach(([t]) => _nsfwWaiting.delete(t));
+    if (!batch.length) return;
+    if (_nsfwWaiting.size) _nsfwTimer = setTimeout(_flushNsfwBatch, 1500);
+
+    const fields = "genres isAdult tags { rank isAdult }";
+    const vars = {};
+    const parts = batch.map(([t], i) => {
+      vars["s" + i] = t;
+      return `a${i}: Page(perPage: 1) { media(search: $s${i}, type: ANIME) { ${fields} } }`;
+    });
+    const decl = batch.map((_, i) => `$s${i}: String`).join(", ");
+    const query = `query (${decl}) { ${parts.join(" ")} }`;
+
+    let data = null;
+    try {
+      const res = await fetch("https://graphql.anilist.co", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ query, variables: vars }),
+      });
+      data = (await res.json())?.data || null;
+    } catch (_) {}
+    if (!data) return; // unreachable → everything in this batch stays blurred
+
+    const verdicts = {};
+    batch.forEach(([title, wraps], i) => {
+      const m = data["a" + i]?.media?.[0];
+      if (!m) return; // not on AniList → stays blurred
+      const nsfw =
+        !!m.isAdult ||
+        (m.genres || []).some((g) => /^(ecchi|hentai)$/i.test(g)) ||
+        (m.tags || []).some((t) => t.isAdult && t.rank >= 40);
+      verdicts[title] = nsfw;
+      wraps.forEach((w) => (nsfw ? _poofRemoveCard(w) : _markSafe(w)));
+    });
+
+    if (!_extAlive() || !Object.keys(verdicts).length) return;
+    chrome.storage.local.get([NSFW_CACHE_KEY], (r) => {
+      if (chrome.runtime?.lastError) return;
+      chrome.storage.local.set({
+        [NSFW_CACHE_KEY]: { ...(r[NSFW_CACHE_KEY] || {}), ...verdicts },
+      });
     });
   }
 
