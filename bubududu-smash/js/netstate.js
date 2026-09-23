@@ -22,7 +22,8 @@ const bit = (v) => (v ? 1 : 0);
 /* --------------------------------------------------------------- actor --- */
 // [id, char, x, y, vx, vy, face, walk, squash, t, grounded, hp, dead, respawn,
 //  w, h, powerType, ammo, until, invulnUntil, frozenUntil, reversedUntil,
-//  coins, fairy, punch, glowUntil, glowFor, glowColour]
+//  coins, fairy, punch, glowUntil, glowFor, glowColour,
+//  coyote, buffer, jumpHeld, launchFor]
 
 function packActor(a, now) {
   return [
@@ -47,17 +48,30 @@ function packActor(a, now) {
     r2(Math.max(0, (a.glowUntil || 0) - now)),
     a.glowFor || 0,
     a.glowColour || 0,
+    /* The jump's private state.
+     *
+     * Coyote time, the buffered press, whether the button is still down and
+     * whether control has been taken away by a hit. None of it is drawn, so
+     * it was never sent — but it is what DECIDES a jump, and a client that
+     * snaps to the server's position while keeping its own copy of these can
+     * then replay a jump the server never allowed, or refuse one it did. That
+     * is a whole jump's worth of disagreement, which is exactly the shape of
+     * the worst errors the bench found. Four small numbers. */
+    r2(a.coyote || 0), r2(a.buffer || 0), bit(a.jumpHeld), r2(a.launchFor || 0),
   ];
 }
 
 function unpackActor(v, now) {
   const [id, char, x, y, vx, vy, face, walk, squash, t, grounded, hp, dead,
     respawn, w, h, ptype, ammo, puntil, inv, frozen, reversed, coins,
-    fairy, punch, glowLeft, glowFor, glowColour] = v;
+    fairy, punch, glowLeft, glowFor, glowColour,
+    coyote, buffer, jumpHeld, launchFor] = v;
   const p = PLAYERS.find((q) => q.id === id);
   return {
     id, char, x, y, vx, vy, face, walk, squash, t,
     grounded: !!grounded, hp, dead: !!dead, respawn, w, h,
+    coyote: coyote || 0, buffer: buffer || 0,
+    jumpHeld: !!jumpHeld, launchFor: launchFor || 0,
     // The REAL stats for this character, looked up rather than sent: they are
     // per-character constants both sides already have, and the guest predicts
     // its own movement with them. An empty object here is what made that
@@ -187,6 +201,10 @@ export function hydrate(s) {
 
   return {
     time: now,
+    // The clock the rules run on can be stopped or slowed — see `fz` above.
+    freeze: s.fz || 0,
+    slow: s.sl || 0,
+    slowRate: s.sr || 0,
     level: { w: s.lw, h: s.lh },
     grid: { rows: s.rows },
     actors: A(s.a).map((v) => unpackActor(v, now)),

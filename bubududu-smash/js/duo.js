@@ -35,6 +35,22 @@ const params = new URLSearchParams(location.search);
 const ROOM = (params.get("r") || "BUBUDUDU").toUpperCase();
 const WHO_KEY = "bubududu-smash.who";
 
+/* Wake the server while you are still deciding who you are.
+ *
+ * It is on Cloud Run's free tier, which means when nobody has played for a
+ * few minutes there is no container at all and the first person in waits
+ * eight to twelve seconds for one to start. Nothing about that is fixable
+ * for free — but it does not have to be spent WAITING. A bare GET the moment
+ * the page opens starts the container booting behind the two taps it takes
+ * to pick a name, and by the time the socket is opened it is up. Nothing
+ * depends on the answer, so a failure here costs nothing either.
+ */
+if (params.get("net") === "server") {
+  import("./netclient.js")
+    .then(({ SERVER }) => fetch(SERVER.replace(/^ws/, "http") + "/health", { mode: "no-cors" }))
+    .catch(() => {});
+}
+
 const wait = $("#duowait");
 const padEl = $("#pad");
 const statusEl = wait.querySelector(".status");

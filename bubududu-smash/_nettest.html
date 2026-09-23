@@ -125,6 +125,34 @@ function render(id, s, other) {
   }).join("");
 }
 
+/* Where each player's OWNER had them, kept for a second. */
+const trail = { p1: [], p2: [] };
+function track(a, b) {
+  const now = performance.now();
+  for (const [id, own] of [["p1", a], ["p2", b]]) {
+    const o = own && own[id];
+    if (!o) continue;
+    const t = trail[id];
+    const last = t[t.length - 1];
+    // A respawn is a different place to be, not a mis-drawn one.
+    if (last && Math.hypot(o.x - last.x, o.y - last.y) > 2) t.length = 0;
+    t.push({ at: now, x: o.x, y: o.y });
+    while (t.length && now - t[0].at > 1000) t.shift();
+  }
+}
+const INTERP_MS = 100;
+function lagGap(id, drawn, rtt) {
+  const t = trail[id];
+  if (!drawn || t.length < 3) return 0;
+  const want = performance.now() - INTERP_MS - (rtt || 0) / 2;
+  let hi = -1;
+  for (let i = t.length - 1; i >= 0; i--) if (t[i].at <= want) { hi = i; break; }
+  if (hi < 0 || hi >= t.length - 1) return 0;
+  const p = t[hi], q = t[hi + 1];
+  const k = (want - p.at) / ((q.at - p.at) || 1);
+  return Math.hypot(drawn.x - (p.x + (q.x - p.x) * k), drawn.y - (p.y + (q.y - p.y) * k));
+}
+
 function verdict(a, b) {
   const v = $("#verdict"), sub = $("#sub");
   if (!a || !b) { v.className = "wait"; v.textContent = "waiting for both clients"; return; }
@@ -144,10 +172,23 @@ function verdict(a, b) {
   if (!moving) { stalls++; if (stalls > 6) problems.push("updates have stopped"); }
   else stalls = 0;
 
-  // ...and do the two hold the same world while it runs?
-  const gap = (x, y) => (x && y ? Math.hypot(x.x - y.x, x.y - y.y) : 0);
-  const g1 = gap(a.p1, b.p1), g2 = gap(a.p2, b.p2);
-  if (g1 > 1.5 || g2 > 1.5) problems.push(`drift p1 ${g1.toFixed(2)} p2 ${g2.toFixed(2)}`);
+  /* ...and do the two hold the same world while it runs?
+   *
+   * NOT by comparing the same player on both screens at the same instant.
+   * Each client draws ITS OWN player live and the other one deliberately a
+   * tenth of a second or so behind, so at a run those two numbers differ by a
+   * tile and a half and always will — that is the design working, not drift.
+   * Reading it as drift is how this page came to say NOT IN SYNC about a
+   * build that was more correct than the one it passed.
+   *
+   * The question that survives the delay: is the other screen's copy of a
+   * player where its OWNER had it, that delay ago? Each owner's position is
+   * kept for a second and read back at the offset the drawing is actually
+   * using — the chosen 100 ms plus half the measured round trip.
+   */
+  track(a, b);
+  const g1 = lagGap("p1", b.p1, b.rtt), g2 = lagGap("p2", a.p2, a.rtt);
+  if (g1 > 1.2 || g2 > 1.2) problems.push(`drift p1 ${g1.toFixed(2)} p2 ${g2.toFixed(2)}`);
 
   if (problems.length) {
     v.className = "bad"; v.textContent = "NOT IN SYNC";
@@ -155,7 +196,7 @@ function verdict(a, b) {
   } else {
     v.className = "ok"; v.textContent = "IN SYNC";
     sub.textContent =
-      `drift p1 ${g1.toFixed(2)} p2 ${g2.toFixed(2)} · ` +
+      `off by p1 ${g1.toFixed(2)} p2 ${g2.toFixed(2)} tiles · ` +
       `${a.fps.toFixed(0)}/${b.fps.toFixed(0)} fps · ` +
       `${a.ups.toFixed(0)}/${b.ups.toFixed(0)} updates a second · ` +
       `${a.rtt ?? 0}/${b.rtt ?? 0}ms rtt`;

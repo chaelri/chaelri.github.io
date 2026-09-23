@@ -84,6 +84,9 @@ const lastHeard = { p1: 0, p2: 0 };
 
 let acc = 0;
 const STEP = 1 / 120;
+/* The unit the network counts in: one input, one of these, on both sides.
+ * Two of the simulation's own 1/120 pieces. */
+export const TICK = 1 / 60;
 
 /** How far a respawn is nudged from the living player. */
 const SAFE_SPAWN_GAP = 4;
@@ -103,6 +106,28 @@ export const state = {
   get seed() { return roundSeed; },
   get pads() { return pads; },
   get rngAt() { return rngState(); },
+  /* What the server has actually SEEN of each thumb.
+   * It rides back in every snapshot so a client can tell which of the
+   * inputs it has sent are already baked into the picture it is looking
+   * at, and re-run only the ones that are not. */
+  get acks() { return { p1: lastSeq.p1, p2: lastSeq.p2 }; },
+  /* A fresh connection counts its ticks from one again.
+   *
+   * The room outlives a phone: reload the page, or come back after the train
+   * goes through a tunnel, and the server is still holding the sequence
+   * number the LAST connection reached. Every input from the new one is then
+   * "older than what we have" and silently dropped — the game looks perfect,
+   * runs at full rate, and the buttons do nothing at all. */
+  resetInput(role) {
+    if (!pads[role]) return;
+    lastSeq[role] = 0;
+    lastKey[role] = null;
+    seenJumps[role] = 0;
+    seenShots[role] = 0;
+    pendingJump[role] = false;
+    pendingShot[role] = false;
+    pads[role].left = pads[role].right = pads[role].jumpHeld = pads[role].drop = false;
+  },
   setScore(s) { if (s) { score.p1 = s.p1; score.p2 = s.p2; } },
   setRng(v) { if (v) setRngState(v); },
 };
@@ -1911,6 +1936,16 @@ function simulate(dt) {
     onLand: () => fx.sfx("land"),
   };
   for (const a of G.actors) {
+    /* A client moves NOBODY but you.
+     *
+     * The other player used to be predicted here from the thumbs the server
+     * echoed back, which is a guess about a person — it is right while they
+     * run in a straight line and wrong at the exact moments you are watching
+     * them: the turn, the landing, the jump. They are interpolated from the
+     * server's own record instead now (see netclient.js), so there is nothing
+     * here to guess.
+     */
+    if (!authority && a.id !== localRole) continue;
     const pad = pads[a.id];
     const frozen = a.frozenUntil && G.time < a.frozenUntil;
     const flipped = a.reversedUntil && G.time < a.reversedUntil;
@@ -1932,43 +1967,42 @@ function simulate(dt) {
   pendingShot.p2 = false;
 }
 
-/* How hard a correction pulls.
- *
- * These moved with applyCorrection and were LEFT BEHIND in screen.js, so
- * every single correction threw a ReferenceError — nothing was ever applied,
- * the world never updated, and the only thing still running was the local
- * prediction. That is what "it just blinks" was.
- */
-const CORRECT_EASE = 0.25;   // how much of the gap to close each update
-const CORRECT_SNAP = 2.2;    // tiles of disagreement before easing gives up
-const CORRECT_MINE = 3.5;    // ...and a much longer leash on your own body
+/* ------------------------------------------------------- reconciliation --- */
 
-export function applyCorrection(view, rngAt, hostPhase, lead = 0) {
+/**
+ * The server's picture, taken whole — and then your own body re-run forward.
+ *
+ * What was here before BLENDED: a quarter of the gap closed per update, and
+ * your own character left alone entirely unless it was more than three tiles
+ * out, because pulling on it every update fought your thumb and read as a
+ * shake. That is a workaround, not netcode. It cannot converge — your own
+ * player would sit a body-width from where the server had it and simply stay
+ * there — and a correction big enough to act on arrived as a jump.
+ *
+ * What every game that feels right does instead: the snapshot says which of
+ * your inputs it has already accounted for. Take its answer EXACTLY, then
+ * replay the inputs it has not seen yet on top. The result is not a
+ * compromise between two positions, it is the server's position brought up to
+ * date — and it lands where you already are, so there is nothing to see.
+ *
+ * @param view    a hydrated snapshot
+ * @param hostPhase the server's phase; taken outright, always
+ * @param opts   { history, ack, now } — your unacknowledged thumbs
+ */
+export function applyServer(view, hostPhase, opts = {}) {
   if (!G || !view) return;
 
-  /* Catch up if the host has already started playing.
-   *
-   * The round start is announced, so both countdowns normally run together —
-   * but if that one message is late or lost, this side is left counting down
-   * against a round that is already happening, being dragged about by
-   * corrections it cannot act on. Which is precisely "it shakes and the intro
-   * never starts". Skip to the end of the count and join in.
-   */
-  /* The phase is the host's, FULL STOP — including out of the countdown.
-   *
-   * This used to set `countdown = 0` and leave the frame loop to notice.
-   * That works only while the frame loop is running, and if it is not — a
-   * thrown frame, a tab the browser has throttled, a hitch during startup —
-   * the round is stuck in a countdown that can never tick, wearing a card
-   * whose entry animation is frozen at nought per cent, which is an empty
-   * ring and a banner that never goes away. Nothing recovers from that,
-   * because the one thing that could is the thing that has stopped.
-   *
-   * Taking the phase directly means the network can always drag this side
-   * back into the round on its own.
-   */
   if (view.score) { score.p1 = view.score.p1; score.p2 = view.score.p2; }
   if (view.roundNo) roundNo = view.roundNo;
+
+  /* The phase is the server's, FULL STOP — including out of the countdown.
+   *
+   * This used to set `countdown = 0` and leave the frame loop to notice. That
+   * works only while the frame loop is running, and if it is not — a thrown
+   * frame, a tab the browser has throttled, a hitch during startup — the
+   * round is stuck in a countdown that can never tick, wearing a card whose
+   * entry animation is frozen at nought per cent. Nothing recovers from that,
+   * because the one thing that could is the thing that has stopped. */
   if (hostPhase && hostPhase !== phase) {
     phase = hostPhase;
     if (phase !== "countdown") {
@@ -1978,66 +2012,45 @@ export function applyCorrection(view, rngAt, hostPhase, lead = 0) {
     }
   }
 
+  // Every actor, outright. There is no easing left anywhere: the local player
+  // is about to be replayed forward from here, and the other one is drawn
+  // from the interpolation buffer, not from this.
   for (const a of G.actors) {
     const t = view.actors.find((o) => o.id === a.id);
     if (!t) continue;
-
-    // Anything the RULES decide is taken as given, always: the host is the
-    // authority on who got hit and who is holding what.
-    a.hp = t.hp;
-    a.dead = t.dead;
-    a.respawn = t.respawn;
+    a.x = t.x; a.y = t.y; a.vx = t.vx; a.vy = t.vy;
+    a.face = t.face; a.walk = t.walk; a.squash = t.squash;
+    a.grounded = t.grounded; a.t = t.t;
+    a.coyote = t.coyote; a.buffer = t.buffer;
+    a.jumpHeld = t.jumpHeld; a.launchFor = t.launchFor;
+    /* What the power-up does to MOVEMENT, derived rather than sent.
+     *
+     * givePower sets these and only the server runs it, so a client holding
+     * Bilis was predicting at walking pace against a server running at one
+     * and a half — a divergence that grows a fifth of a tile every tick for
+     * as long as you hold the button, which is the single worst thing the
+     * bench found. They are constants keyed off the power everyone already
+     * knows about, so deriving them cannot fall out of step the way another
+     * field on the wire could. */
+    const def = a.power ? POWERUPS[a.power.type] : null;
+    a.speedMul = (def && def.speed) || 1;
+    a.jumpMul = (def && def.jump) || 1;
+    a.hp = t.hp; a.dead = t.dead; a.respawn = t.respawn;
+    a.w = t.w; a.h = t.h;
+    a.power = t.power;
+    a.invulnUntil = t.invulnUntil;
+    a.frozenUntil = t.frozenUntil;
+    a.reversedUntil = t.reversedUntil;
     a.coins = t.coins;
-
-    /* Position is different, and YOUR OWN body is different again.
-     *
-     * The host's copy of you is a round trip old — it has not seen the last
-     * few frames of your thumbs yet. Easing onto it every correction drags
-     * you backwards thirty times a second against your own input, which is
-     * exactly the shake: you press right, you move right, and something keeps
-     * tugging you left. So your own body is left alone unless the gap is big
-     * enough to mean something real happened that you have not simulated —
-     * a stomp, a throw, a respawn — and those arrive as `dead` anyway.
-     *
-     * The other player is the opposite case: he is simulated here from his
-     * inputs, nothing local owns him, and the host's copy is simply better.
-     */
-    const mine = a.id === localRole;
-
-    /* The other player's position is ALREADY OLD when it gets here.
-     *
-     * It left the server one trip ago, so easing straight onto it pins him
-     * where he was, not where he is — and while he is running that is a third
-     * of a second behind, which measured as three tiles of drift and is very
-     * visible. Carry it forward by his own velocity over the time it spent in
-     * flight first, then ease onto THAT. Extrapolating is a guess, so it is
-     * capped: over about a fifth of a second the guess is worse than the
-     * staleness it fixes.
-     */
-    let tx = t.x, ty = t.y;
-    if (!mine && lead > 0 && !t.dead) {
-      const l = Math.min(lead, 0.2);
-      tx += t.vx * l;
-      ty += t.vy * l;
-    }
-
-    const gap = Math.hypot(tx - a.x, ty - a.y);
-    if (t.dead || gap > (mine ? CORRECT_MINE : CORRECT_SNAP)) {
-      a.x = tx; a.y = ty; a.vx = t.vx; a.vy = t.vy;
-    } else if (!mine) {
-      a.x += (tx - a.x) * CORRECT_EASE;
-      a.y += (ty - a.y) * CORRECT_EASE;
-      a.vx += (t.vx - a.vx) * CORRECT_EASE;
-      a.vy += (t.vy - a.vy) * CORRECT_EASE;
-    }
+    a.fairy = t.fairy;
+    a.punch = t.punch;
+    a.glowUntil = t.glowUntil;
+    a.glowFor = t.glowFor;
+    a.glowColour = t.glowColour;
   }
-  /* Everything that is NOT a player is taken outright.
-   *
-   * Power-ups, coins, Dudu, the squad, the fairy, bullets, debris: the guest
-   * no longer simulates any of it, so there is nothing local to preserve and
-   * nothing to blend. Thirty times a second it is simply told, and it is
-   * cheap — this is the list that was already being sent.
-   */
+
+  // Everything that is not a player is the server's outright and always was —
+  // a client simulates none of it, so there is nothing local to preserve.
   G.powers = view.powers;
   G.coins = view.coins;
   G.shots = view.shots;
@@ -2047,24 +2060,76 @@ export function applyCorrection(view, rngAt, hostPhase, lead = 0) {
   G.minis = view.minis;
   G.helpers = view.helpers;
   G.wildFairy = view.wildFairy;
-  // The clock too, so anything timed off it — a power-up running out, the
-  // grace after a hit, Dudu's fifteen seconds — counts down in step.
   G.time = view.time;
+  // Hit-stop and slow motion stop the clock the rules run on, so a client
+  // that does not take them keeps moving through a moment the server is
+  // holding still — and every landed hit costs it about a tile of prediction.
+  G.freeze = view.freeze || 0;
+  G.slow = view.slow || 0;
+  if (view.slowRate) G.slowRate = view.slowRate;
 
-  /* The floor, when the host sends it.
+  /* The floor, when the server sends it.
    *
-   * The arena eats itself inward all round, off each side's own accumulated
-   * dt, so the two can end up one tile apart — and one tile of floor is the
-   * difference between standing and falling. Rows only ride the keyframes,
-   * which is often enough.
-   */
+   * The arena eats itself inward all round, so the two can end up one tile
+   * apart — and one tile of floor is the difference between standing and
+   * falling. Rows only ride the keyframes, which is often enough. */
   if (view.grid && view.grid.rows && G.grid.rows.length === view.grid.rows.length) {
     G.grid.rows = view.grid.rows;
   }
 
-  // And rejoin the host's place in the random stream, so the next thing that
-  // is decided is decided the same way on both phones.
-  if (rngAt) setRngState(rngAt);
+  if (opts.history) replayLocal(opts.history, opts.ack || 0);
+}
+
+/**
+ * Re-run the thumbs the server has not answered yet, on your body only.
+ *
+ * One tick of input, one tick of stepping — the same 1/60 the live prediction
+ * took and the same 1/60 the server took, so N replayed inputs land exactly
+ * where living through those N inputs did. Timing this off the clock instead
+ * is what left a steady third of a tile of error: a client and a server never
+ * agree on the MOMENT an input took effect, only on its number.
+ *
+ * Silent: no sounds, no deaths, no rules. Those already happened once, on the
+ * server, and it will tell us about them.
+ */
+export function replayLocal(history, ack) {
+  if (!G || !localRole || phase !== "play") return;
+  const a = G.actors.find((q) => q.id === localRole);
+  if (!a || a.dead) return;
+
+  for (let i = 0; i < history.length; i++) {
+    const h = history[i];
+    if (h.n <= ack) continue;
+    // The same two 1/120 pieces one live tick is made of.
+    stepLocal(a, h, TICK / 2, true);
+    stepLocal(a, h, TICK / 2, false);
+  }
+}
+
+/**
+ * One replayed slice. Mirrors the input derivation in simulate(), silently.
+ *
+ * `h` is the packet AS SENT — l/r/h/d and the raw counters — rather than some
+ * friendlier local shape. Keeping one shape is not tidiness: the first version
+ * remembered {left,right,jumpHeld} and put THAT on the wire, where the server
+ * reads {l,r,h} and a missing jump counter simply meant nobody ever jumped.
+ * The bench caught it; a phone would have shown it as the jump button doing
+ * nothing at all.
+ */
+function stepLocal(a, h, dt, edge) {
+  const frozen = a.frozenUntil && G.time < a.frozenUntil;
+  const flipped = a.reversedUntil && G.time < a.reversedUntil;
+  const input = {
+    left: frozen ? false : flipped ? !!h.r : !!h.l,
+    right: frozen ? false : flipped ? !!h.l : !!h.r,
+    // The press is an EDGE, so it belongs to the first half of the tick that
+    // carried it and to no other — applied twice it would count as two.
+    jumpDown: frozen ? false : (edge && !!h.jd),
+    jumpHeld: frozen ? false : !!h.h,
+    dropDown: frozen ? false : !!h.d,
+  };
+  if (frozen) a.vx *= 0.82;
+  stepActor(a, input, G.grid, dt, G.actors, {});
 }
 
 /* ----------------------------------------------------------------- tick --- */

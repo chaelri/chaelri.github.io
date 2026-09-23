@@ -44,6 +44,58 @@ export async function connect({ role, say = () => {} }) {
   preloadCharacters();
 
   const pad = createPad({ onEdge: haptic });
+
+  /* Your own thumbs, remembered.
+   *
+   * Every packet sent is kept until the server says it has seen it. When a
+   * snapshot arrives, the player is set to exactly what the server had and
+   * then these are re-run on top — so the correction lands where you already
+   * are instead of somewhere to be blended towards. This is the whole of what
+   * "client-side prediction with server reconciliation" means, and it is the
+   * reason a real game can be authoritative and still answer your thumb in
+   * the same frame you moved it.
+   */
+  const history = [];
+  let seq = 0;
+  let lastAck = -1;                      // ...which is also the tick number
+  const HISTORY_MAX = 240;          // four seconds of ticks; the wire is never that far behind
+
+  /* One input per tick, and the tick is the unit of everything.
+   *
+   * The first version of this replayed against the CLOCK: each remembered
+   * input covered the milliseconds until the next one was sent. It cannot be
+   * made exact, and the bench said so — the replay came out a steady third of
+   * a tile short, which is precisely one network trip of running. The reason
+   * is that the client and the server never agree on WHEN an input took
+   * effect: it is sent at one moment, arrives at another, and is simulated on
+   * whichever of the server's ticks happens to come next.
+   *
+   * Counting instead of timing removes the question. The client produces
+   * exactly one input per 1/60, numbered. The server consumes exactly one per
+   * 1/60, in order, and says which number it has reached. Replaying then means
+   * "step once per input after that number" — the same count of the same size
+   * of step the live prediction already took, so the two cannot drift apart
+   * by construction.
+   */
+  const TICK = 1 / 60;
+
+  /* The OTHER player, as a little archive rather than a guess.
+   *
+   * Their positions are kept with the moment each arrived, and they are drawn
+   * INTERP_MS in the past — between two places the server actually put them,
+   * never past the newest one. Every game that looks right does this: you
+   * watch the other player a tenth of a second late and perfectly smoothly,
+   * rather than live and wrong. Guessing forward by half the round trip is
+   * the alternative, and it is at its worst at the one moment you are looking
+   * hardest — the turn, the landing, the hit.
+   */
+  const other = role === "p1" ? "p2" : "p1";
+  const tape = [];
+  const TAPE_MAX = 24;
+  /* Three snapshots' worth at 30 Hz, so one lost packet still has something
+   * on both sides of the playhead to read between. */
+  const INTERP_MS = 100;
+
   let room = null;
   let started = false;
   let rematchSeq = 0;
@@ -78,6 +130,10 @@ export async function connect({ role, say = () => {} }) {
       p1: a("p1"), p2: a("p2"),
       powers: G.powers.length, coins: G.coins.length,
       helpers: G.helpers.length, minis: G.minis.length,
+      // The three numbers that say whether the netcode is alive: the tick
+      // this client has reached, the last one the server admits to having
+      // simulated, and how many are still outstanding between them.
+      tick: seq, ack: lastAck, held: history.length,
       updates: stats.updates, bad: stats.bad, rtt: Math.round(stats.rtt),
       since: stats.lastAt ? Math.round(performance.now() - stats.lastAt) : -1,
       frames: frames,
@@ -131,23 +187,42 @@ export async function connect({ role, say = () => {} }) {
       $("#pad")?.classList.remove("hidden");
       sim.startRound(m.sd);
     }
-    if (m.sd !== undefined && m.sd !== sim.state.seed) sim.startRound(m.sd);
-
-    // Both players' thumbs, so the OTHER one carries forward between
-    // updates instead of stepping thirty times a second. Ours is already in
-    // — it went straight into the prediction the moment it was pressed.
-    if (m.in) for (const id of ["p1", "p2"]) {
-      if (id === role || !m.in[id]) continue;
-      const [l, r, h, d] = m.in[id];
-      const pad = sim.state.pads[id];
-      pad.left = !!l; pad.right = !!r; pad.jumpHeld = !!h; pad.drop = !!d;
+    if (m.sd !== undefined && m.sd !== sim.state.seed) {
+      // A new arena is not somewhere the old positions can be read between.
+      tape.length = 0;
+      history.length = 0;
+      sim.startRound(m.sd);
     }
 
     view.score = m.sc;
     view.roundNo = m.rn;
+
+    // The other player, filed away to be read back a tenth of a second from
+    // now. Nothing draws them from here directly.
+    const o = view.actors.find((a) => a.id === other);
+    if (o) {
+      tape.push({
+        at: performance.now(),
+        x: o.x, y: o.y, face: o.face, walk: o.walk, squash: o.squash,
+        dead: !!o.dead, grounded: !!o.grounded,
+      });
+      while (tape.length > TAPE_MAX) tape.shift();
+    }
+
+    // Everything the server knows that we cannot have: what it made of the
+    // thumbs we sent it, so we know which of ours are still outstanding.
+    /* No `ak` at all means a server older than this page — during a deploy the
+     * two are a version apart for a minute or so. Treating that as "it has
+     * seen nothing" would replay the entire six seconds of history on every
+     * snapshot and fire the player across the map, so it counts as "it has
+     * seen everything" and prediction simply carries on unreconciled. */
+    const known = m.ak && m.ak[role] !== undefined;
+    const ack = known ? m.ak[role] : seq;
+    lastAck = known ? m.ak[role] : -1;
+    while (history.length && history[0].n < ack) history.shift();
+
     try {
-      // Half the round trip is how old this picture is.
-      sim.applyCorrection(view, null, m.ph, stats.rtt / 2000);
+      sim.applyServer(view, m.ph, { history: known ? history : null, ack });
     } catch (err) {
       // Counted and shouted about once. A correction that throws leaves the
       // client running on prediction alone, which looks like the game working
@@ -222,13 +297,30 @@ export async function connect({ role, say = () => {} }) {
     return;
   }
 
-  // Our thumbs: into our own prediction immediately, and up to the server.
-  let seq = 0;
-  setInterval(() => {
+  /* Ticks are minted in the draw loop (see below, `pump`) so that producing
+   * an input, predicting it and drawing the result are one thing.
+   *
+   * What goes up the wire is a short TAIL of them rather than the newest one,
+   * because a lost input is not a lost frame — the server would consume the
+   * next number in its place and everything after it would be replayed
+   * against the wrong history. Six ticks of redundancy is 24 bytes and covers
+   * five consecutive losses. Anything the server already has it ignores. */
+  let sawJump = pad.state.j;
+  function mintTick() {
     const p = pad.state;
-    const packet = { k: "me", n: ++seq, l: p.l, r: p.r, h: p.h, d: p.d, j: p.j, s: p.s };
-    sim.applyPacket(role, packet);
-    room?.send("input", packet);
+    // `jd` is the extra: the wire carries jump as a COUNTER, which is right
+    // for a packet that may be lost, and a replay needs to know which single
+    // tick the press belonged to.
+    const jd = p.j !== sawJump; sawJump = p.j;
+    const h = { n: ++seq, l: p.l, r: p.r, h: p.h, d: p.d, j: p.j, s: p.s, jd };
+    history.push(h);
+    while (history.length > HISTORY_MAX) history.shift();
+    sim.applyPacket(role, h);
+    return h;
+  }
+  setInterval(() => {
+    if (!history.length) return;
+    room?.send("input", history.slice(-6));
   }, 1000 / 40);
 
   setInterval(() => room?.send("ping", performance.now()), 1000);
@@ -243,17 +335,84 @@ export async function connect({ role, say = () => {} }) {
 
   /* --------------------------------------------------------------- draw --- */
 
+  /**
+   * Where the other player was a tenth of a second ago.
+   *
+   * Two entries either side of the playhead and a straight line between them.
+   * Both ends are places the server actually put them, so this can be smooth
+   * and correct at the same time — which extrapolation cannot, because the
+   * moment someone turns round, everything you know about them says they are
+   * still going the other way.
+   *
+   * Running off the end of the tape holds the newest frame rather than
+   * inventing a new one. A stalled picture for a few frames is a dropped
+   * packet; a picture that keeps walking into a wall is a lie.
+   */
+  function showOther(G) {
+    if (!tape.length) return;
+    const a = G.actors.find((q) => q.id === other);
+    if (!a) return;
+    const at = performance.now() - INTERP_MS;
+
+    let hi = -1;
+    for (let i = tape.length - 1; i >= 0; i--) if (tape[i].at <= at) { hi = i; break; }
+    if (hi < 0) return void assign(a, tape[0]);
+    if (hi >= tape.length - 1) return void assign(a, tape[tape.length - 1]);
+
+    const p = tape[hi], q = tape[hi + 1];
+    const span = q.at - p.at;
+    const k = span > 0 ? Math.min(1, Math.max(0, (at - p.at) / span)) : 0;
+    const per = span > 0 ? 1000 / span : 0;
+    assign(a, {
+      x: p.x + (q.x - p.x) * k,
+      y: p.y + (q.y - p.y) * k,
+      // The walk cycle is distance covered, so it interpolates like a
+      // position; the facing is a direction and snaps to whichever end of the
+      // pair we are nearer.
+      walk: p.walk + (q.walk - p.walk) * k,
+      squash: p.squash + (q.squash - p.squash) * k,
+      face: k < 0.5 ? p.face : q.face,
+      grounded: k < 0.5 ? p.grounded : q.grounded,
+      /* Velocity is DERIVED from the two frames, never sent.
+       *
+       * The renderer leans the body, kicks dust and picks the run weighting
+       * off it, so a velocity that disagreed with the motion on screen would
+       * be a character sprinting on the spot — or sliding along with its legs
+       * still. Taken from the same pair the position came from, it cannot. */
+      vx: (q.x - p.x) * per,
+      vy: (q.y - p.y) * per,
+    });
+  }
+  function assign(a, f) {
+    a.x = f.x; a.y = f.y; a.face = f.face; a.walk = f.walk;
+    a.squash = f.squash; a.grounded = f.grounded;
+    a.vx = f.vx || 0; a.vy = f.vy || 0;
+  }
+
   let frames = 0;
+  let acc = 0;
   let last = performance.now();
   (function frame(now) {
     requestAnimationFrame(frame);
     frames++;
-    const dt = Math.min(0.08, (now - last) / 1000);
+    const dt = Math.min(0.25, (now - last) / 1000);
     last = now;
     const G = sim.state.G;
     if (!G) return;
     try {
-      sim.step(dt);                       // predict forward
+      /* A whole number of ticks, never a fraction of one.
+       *
+       * Whatever the screen is doing — 60, 120, a hitch, a phone throttling
+       * itself — the rules advance in the same 1/60 pieces the server uses,
+       * one input each. The leftover is carried, not rounded away. */
+      acc += dt;
+      let guard = 0;
+      while (acc >= TICK && guard++ < 6) {
+        acc -= TICK;
+        mintTick();
+        sim.step(TICK);                   // predict forward — your body only
+      }
+      showOther(G);                       // ...and read theirs off the tape
       draw(renderer, G, dt);
       paintPanels(
         G.actors,

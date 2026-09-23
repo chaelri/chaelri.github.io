@@ -24,12 +24,23 @@ import { Room } from "@colyseus/core";
 import * as sim from "../js/sim.js";
 import { snapshot } from "../js/netstate.js";
 
-const packPad = (p) =>
-  [p.left ? 1 : 0, p.right ? 1 : 0, p.jumpHeld ? 1 : 0, p.drop ? 1 : 0];
-
 const TICK_HZ = 60;        // how often the rules advance
+const TICK = 1 / TICK_HZ;
 const SEND_HZ = 30;        // how often both players are told
 const KEYFRAME_MS = 1000;  // ...and told everything
+
+/* How many of a player's inputs to keep in hand before simulating them.
+ *
+ * Nought would mean every scrap of jitter shows up as a tick with nothing to
+ * run, and a tick with nothing to run has to repeat the last input — which is
+ * a tick the client will replay differently, because the client never
+ * repeated anything. Two is about 33 ms of slack, which covers ordinary
+ * jitter without putting any noticeable delay on the shot. */
+const BUFFER_MIN = 2;
+/* ...and the ceiling. A client whose clock runs fast, or one coming back from
+ * a hitch, arrives with a backlog; left alone it would be simulated late for
+ * ever. Two at a time drains it in a second or so. */
+const BUFFER_MAX = 8;
 
 class SmashRoom extends Room {
   maxClients = 2;
@@ -75,9 +86,28 @@ class SmashRoom extends Room {
       },
     });
 
+    /* Inputs are QUEUED, not applied on arrival.
+     *
+     * Applying them the moment they land ties the simulation to the network's
+     * timing: two arriving between ticks means the first is simulated for no
+     * time at all, and a gap means the last one is stretched. Neither is
+     * something the client can reproduce when it replays, and the difference
+     * is the error. Queued and consumed one per tick, the server runs exactly
+     * the sequence the client ran, only later.
+     *
+     * A packet carries the last six ticks; anything already queued or already
+     * simulated is dropped by number.
+     */
+    this.queued = { p1: [], p2: [] };
+    this.headTick = { p1: 0, p2: 0 };
     this.onMessage("input", (client, packet) => {
       const role = this.roles.get(client.sessionId);
-      if (role) sim.applyPacket(role, packet);
+      if (!role) return;
+      for (const p of Array.isArray(packet) ? packet : [packet]) {
+        if (!p || !Number.isFinite(p.n) || p.n <= this.headTick[role]) continue;
+        this.headTick[role] = p.n;
+        this.queued[role].push(p);
+      }
     });
     this.onMessage("rematch", () => sim.rematch());
     // Echoed straight back, so a client can measure its own round trip
@@ -107,6 +137,11 @@ class SmashRoom extends Room {
     let role = options.role === "p1" || options.role === "p2" ? options.role : "p1";
     if (taken.has(role)) role = role === "p1" ? "p2" : "p1";
     this.roles.set(client.sessionId, role);
+    // A new connection numbers its ticks from one, so everything the room was
+    // holding about the last one has to go with it.
+    sim.state.resetInput(role);
+    this.queued[role] = [];
+    this.headTick[role] = 0;
     sim.state.pads[role].connected = true;
     // Sent anyway, for anything that wants confirming, but nothing depends
     // on it arriving.
@@ -124,8 +159,51 @@ class SmashRoom extends Room {
     console.log(`[smash] ${client.sessionId} left`);
   }
 
+  /** One player's next input, or nothing if we are choosing to wait. */
+  feed(role) {
+    const q = this.queued[role];
+    if (!q.length) return;
+
+    /* Nothing is being simulated between rounds — so BANK nothing either.
+     *
+     * A countdown is three seconds, and a client mints a tick through every
+     * one of them whether or not anybody is moving. Queuing those and paying
+     * them out one per tick once play starts means the server spends the
+     * first three seconds of the round simulating inputs the player gave
+     * before it began, and catching up two at a time while the client only
+     * ever ran them once. That is a steadily growing error that resets at
+     * every correction and comes straight back — a quarter of a tile per
+     * tick, which is the whole of the tail the bench was showing.
+     */
+    if (sim.state.phase !== "play") {
+      while (q.length) {
+        const p = q.shift();
+        sim.applyPacket(role, { n: p.n, l: p.l, r: p.r, h: p.h, d: p.d, j: p.j, s: p.s });
+      }
+      return;
+    }
+
+    // Hold a couple back as slack against jitter.
+    if (q.length <= BUFFER_MIN) return;
+    const take = q.length > BUFFER_MAX ? 2 : 1;
+    for (let i = 0; i < take && q.length; i++) {
+      const p = q.shift();
+      sim.applyPacket(role, { n: p.n, l: p.l, r: p.r, h: p.h, d: p.d, j: p.j, s: p.s });
+    }
+  }
+
   tick(deltaMs) {
-    sim.step(Math.min(0.08, deltaMs / 1000));
+    /* A whole number of ticks. Colyseus hands back however long it actually
+     * was, and feeding that straight in makes the physics a function of how
+     * busy the box is. The leftover is carried. */
+    this.acc = (this.acc || 0) + Math.min(0.25, deltaMs / 1000);
+    let guard = 0;
+    while (this.acc >= TICK && guard++ < 8) {
+      this.acc -= TICK;
+      this.feed("p1");
+      this.feed("p2");
+      sim.step(TICK);
+    }
 
     const now = Date.now();
     if (now - this.lastSend < 1000 / SEND_HZ) return;
@@ -144,17 +222,19 @@ class SmashRoom extends Room {
       sd: sim.state.seed,
       wn: G.winner || 0,
       hd: this.shown,
-      /* Both players' thumbs.
+      /* How far into each player's thumbs this picture is.
        *
-       * Twelve bytes, and it is what lets each phone carry the OTHER player
-       * forward between updates instead of stepping him thirty times a
-       * second. Without it he is smooth on his own screen and stuttery on
-       * yours, which is half of what "laggy" ever meant.
+       * The one number a client cannot work out for itself, and the one that
+       * makes reconciliation possible rather than approximate: it says which
+       * of the inputs you have sent are already baked into what you are
+       * looking at, so you can re-run exactly the ones that are not.
+       *
+       * The pads themselves used to ride here too, so each phone could carry
+       * the OTHER player forward off his buttons. They do not any more —
+       * nobody predicts anybody else now, they interpolate between the
+       * positions in these snapshots, which is both smoother and true.
        */
-      in: {
-        p1: packPad(sim.state.pads.p1),
-        p2: packPad(sim.state.pads.p2),
-      },
+      ak: sim.state.acks,
       who: Object.fromEntries([...this.roles].map(([id, r]) => [r, id])),
     });
     // The tilemap is most of the payload and it only changes when the arena
