@@ -770,8 +770,17 @@ function showPickup(a, type) {
   // The two armed power-ups are the ones that need an instruction, and the
   // instruction differs per player and per controller — a phone says "tap the
   // button", a keyboard has to name the key.
+  /* Anything you FIRE has to say what to press.
+   *
+   * This named the Gun and the Fist, so the Bazooka — the rarest thing in the
+   * game, one shell, out of a box you spent three jumps on — arrived with a
+   * description and no instruction at all. "how is bazooka even activated"
+   * was a fair question and the toast should have answered it. */
   let body = def.desc || "";
-  if (type === "baril") body = `Six shots. ${shootPrompt(a.id)}`;
+  if (def.fires && type !== "suntok") {
+    const n = a.power ? a.power.ammo : def.ammo;
+    body = `${n === 1 ? "One shot" : `${n} shots`}. ${shootPrompt(a.id)}`;
+  }
   if (type === "suntok") {
     const n = a.power ? a.power.ammo : 1;
     body = `${n === 1 ? "One punch" : `${n} punches`}. ${shootPrompt(a.id, "punch")}`;
@@ -1714,10 +1723,64 @@ function hurtKing(by) {
   k.lastHitBy = by ? by.id : k.lastHitBy;
   k.actor.hp = k.hp;
   k.actor.invulnUntil = k.hurtUntil;
-  G.bursts.push({ x: k.actor.x, y: k.actor.y - k.actor.h * 0.5, at: G.time, colour: KING.colour });
-  renderer.shake = Math.max(renderer.shake || 0, 14);
+
+  /* Make it FELT.
+   *
+   * This was a white wash over him, a single burst and a shake — and white is
+   * what this game already puts on a player during their grace period, the
+   * least eventful thing that happens to anyone. So the biggest moment in the
+   * round wore the costume of the smallest one. Charlie: "ang panget naman ng
+   * hit animation ni boss yhon ... make it more ramdam. di lang white eme".
+   *
+   * Every tool the game has for weight, aimed at this one moment. */
+  k.hitAt = G.time;
+
+  // 1. The world stops. Nothing else here matters as much as this does.
+  G.freeze = Math.max(G.freeze, KING.hitFreezeMs / 1000);
+
+  // 2. He is knocked off his feet, away from whoever did it. Replicated for
+  //    free, because his position is already on the wire.
+  const from = by ? Math.sign(k.actor.x - by.x) || 1 : 1;
+  k.actor.vx = from * KING.hitRecoil;
+  k.actor.vy = -KING.hitLift;
+  k.actor.grounded = false;
+
+  // 3. The ground takes it too — the same crater a pound leaves, small.
+  G.quakes.push({ x: k.actor.x, y: k.actor.y, at: G.time, force: 0.45 });
+  while (G.quakes.length > 6) G.quakes.shift();
+
+  // 4. A ring of debris off the body, not one puff.
+  for (let i = 0; i < 12; i++) {
+    const ang = (i / 12) * Math.PI * 2;
+    G.bursts.push({
+      x: k.actor.x + Math.cos(ang) * k.actor.w * 0.4,
+      y: k.actor.y - k.actor.h * 0.5 + Math.sin(ang) * k.actor.h * 0.3,
+      at: G.time, colour: i % 3 ? KING.colour : "#ff4d6d",
+    });
+  }
+
+  // 5. The heart he just lost comes OFF him and falls, the way a player's
+  //    does. Three hearts is the whole fight; each one leaving should be an
+  //    event you can point at.
+  G.lostHearts.push({
+    x: k.actor.x, y: k.actor.y - k.actor.h * 1.15,
+    vx: -from * 4, vy: -8, spin: (rng() - 0.5) * 10, rot: 0,
+    at: G.time, index: k.hp,
+  });
+
+  renderer.shake = Math.max(renderer.shake || 0, KING.hitShake);
+  renderer.punch = Math.max(renderer.punch || 0, KING.hitPunch);
   sfx.stomp();
-  if (k.hp <= 0) crownTheVictor(k);
+  sfx.suntok();
+  if (k.hp <= 0) {
+    // The last one ends the fight, so it gets the full treatment: the world
+    // stops longer and comes back slowly, which is what this game does for
+    // every other blow that decides something.
+    G.freeze = Math.max(G.freeze, HIT.freezeMs / 1000);
+    G.slow = Math.max(G.slow, KING.deathSlowMs / 1000);
+    G.slowRate = KING.deathSlowRate;
+    crownTheVictor(k);
+  }
   return true;
 }
 
@@ -2123,6 +2186,28 @@ function tickPowers(dt) {
   for (let i = G.shots.length - 1; i >= 0; i--) {
     const b = G.shots[i];
     b.life -= dt;
+    /* A shell steers; a bullet does not.
+     *
+     * It turns at a fixed rate towards its target rather than snapping onto
+     * it, which is what makes it dodgeable at all. It aims at the KING first
+     * when there is one, so a one-shot is not wasted flying past a boss to
+     * hit a player. */
+    if (b.homing) {
+      const def = POWERUPS.bazuka;
+      const mark = (G.king && !G.king.leaving) ? G.king.actor
+        : G.actors.find((o) => !o.dead && o.id !== b.owner);
+      if (mark) {
+        const want = Math.atan2((mark.y - mark.h / 2) - b.y, mark.x - b.x);
+        const have = Math.atan2(b.vy, b.vx);
+        let d = want - have;
+        while (d > Math.PI) d -= Math.PI * 2;
+        while (d < -Math.PI) d += Math.PI * 2;
+        const turn = Math.max(-def.turn * dt, Math.min(def.turn * dt, d));
+        const ang = have + turn;
+        b.vx = Math.cos(ang) * def.speed;
+        b.vy = Math.sin(ang) * def.speed;
+      }
+    }
     b.x += b.vx * dt;
     b.y += b.vy * dt;
     const t = tileAt(G.grid, Math.floor(b.x), Math.floor(b.y));
@@ -2424,6 +2509,7 @@ function poundLanded(a) {
 
 function tryShoot(a) {
   if (hasPower(a, "suntok")) return tryPunch(a);
+  if (hasPower(a, "bazuka")) return tryBazooka(a);
   if (!hasPower(a, "baril") || a.power.ammo <= 0) return;
   if (G.time * 1000 - a.shotAt < SHOT_COOLDOWN_MS) return;
   a.shotAt = G.time * 1000;
@@ -2457,6 +2543,38 @@ function tryShoot(a) {
  * arm's length. `tickPunches` below is what actually looks for a connection,
  * every frame the window is open, because both bodies keep moving through it.
  */
+/**
+ * The bazooka. One shell, and it steers.
+ *
+ * Aim-assisted rather than instant: it leaves the barrel slower than a bullet
+ * and turns towards whoever it is looking for, so the target gets a moment to
+ * see it coming and to try — and mostly fail — to do something about it. A
+ * homing one-shot that arrived instantly would not be a weapon, it would be a
+ * button that says "win".
+ */
+function tryBazooka(a) {
+  if (!a.power || a.power.ammo <= 0) return;
+  if (G.time * 1000 - a.shotAt < SHOT_COOLDOWN_MS) return;
+  const def = POWERUPS.bazuka;
+  a.shotAt = G.time * 1000;
+  a.power.ammo--;
+  tellPad(a);
+  G.shots.push({
+    x: a.x + a.face * (a.w / 2 + 0.3),
+    y: a.y - a.h * 0.55,
+    vx: a.face * def.speed,
+    vy: 0,
+    owner: a.id,
+    life: def.lifeMs / 1000,
+    born: G.time,
+    homing: true,
+    lethal: true,
+  });
+  sfx.shoot();
+  renderer.shake = Math.max(renderer.shake || 0, 7);
+  renderer.punch = Math.max(renderer.punch || 0, 0.06);
+}
+
 function tryPunch(a) {
   const def = POWERUPS.suntok;
   if (!a.power || a.power.ammo <= 0) return;
@@ -3799,6 +3917,31 @@ if (SOLO || DUO) {
     return { phase, time: G && G.time };
   };
   window.__smashInput = (id, patch) => Object.assign(pads[id], patch);
+  /* Hand yourself anything, so a rare thing can actually be TESTED.
+   *
+   * The Bazooka is one shell out of one box in three, and a box turns up
+   * every nineteen seconds — so "does the bazooka work" was a question
+   * neither of us could answer in under several minutes of play, and the
+   * first attempt at answering it shipped a fire button that did nothing.
+   *
+   *   __smashGive("bazuka")          give p1 the bazooka
+   *   __smashGive("puso", "p2")      give Karla a Big Heart
+   *   __smashGive("box")             drop a box over p1's head
+   *   __smashGive("hari")            let the King out, right now
+   */
+  window.__smashGive = (what, id = "p1") => {
+    if (!G) return "no round";
+    const a = G.actors.find((q) => q.id === id);
+    if (!a) return "no such player";
+    if (what === "box") {
+      G.boxes.push({ x: a.x, y: a.y - 2.8, hits: BOX.hits, born: G.time,
+                     bumpAt: -9, drop: rollDrop() });
+      return `box over ${id}`;
+    }
+    if (what === "hari") { summonKing({ x: a.x, y: a.y }); return "king"; }
+    G.powers.push({ x: a.x, y: a.y - a.h / 2, type: what, born: G.time });
+    return `${what} at ${id}'s feet — walk into it`;
+  };
   // Determinism harness: restart a round on a KNOWN seed and read back a
   // fingerprint of the whole live state, so two runs can be compared.
   window.__smashRound = (sd) => { startRound(sd); return roundSeed; };

@@ -585,8 +585,17 @@ function showPickup(a, type) {
   // The two armed power-ups are the ones that need an instruction, and the
   // instruction differs per player and per controller — a phone says "tap the
   // button", a keyboard has to name the key.
+  /* Anything you FIRE has to say what to press.
+   *
+   * This named the Gun and the Fist, so the Bazooka — the rarest thing in the
+   * game, one shell, out of a box you spent three jumps on — arrived with a
+   * description and no instruction at all. "how is bazooka even activated"
+   * was a fair question and the toast should have answered it. */
   let body = def.desc || "";
-  if (type === "baril") body = `Six shots. ${shootPrompt(a.id)}`;
+  if (def.fires && type !== "suntok") {
+    const n = a.power ? a.power.ammo : def.ammo;
+    body = `${n === 1 ? "One shot" : `${n} shots`}. ${shootPrompt(a.id)}`;
+  }
   if (type === "suntok") {
     const n = a.power ? a.power.ammo : 1;
     body = `${n === 1 ? "One punch" : `${n} punches`}. ${shootPrompt(a.id, "punch")}`;
@@ -1407,10 +1416,64 @@ function hurtKing(by) {
   k.lastHitBy = by ? by.id : k.lastHitBy;
   k.actor.hp = k.hp;
   k.actor.invulnUntil = k.hurtUntil;
-  G.bursts.push({ x: k.actor.x, y: k.actor.y - k.actor.h * 0.5, at: G.time, colour: KING.colour });
-  fx.shake(14);
+
+  /* Make it FELT.
+   *
+   * This was a white wash over him, a single burst and a shake — and white is
+   * what this game already puts on a player during their grace period, the
+   * least eventful thing that happens to anyone. So the biggest moment in the
+   * round wore the costume of the smallest one. Charlie: "ang panget naman ng
+   * hit animation ni boss yhon ... make it more ramdam. di lang white eme".
+   *
+   * Every tool the game has for weight, aimed at this one moment. */
+  k.hitAt = G.time;
+
+  // 1. The world stops. Nothing else here matters as much as this does.
+  G.freeze = Math.max(G.freeze, KING.hitFreezeMs / 1000);
+
+  // 2. He is knocked off his feet, away from whoever did it. Replicated for
+  //    free, because his position is already on the wire.
+  const from = by ? Math.sign(k.actor.x - by.x) || 1 : 1;
+  k.actor.vx = from * KING.hitRecoil;
+  k.actor.vy = -KING.hitLift;
+  k.actor.grounded = false;
+
+  // 3. The ground takes it too — the same crater a pound leaves, small.
+  G.quakes.push({ x: k.actor.x, y: k.actor.y, at: G.time, force: 0.45 });
+  while (G.quakes.length > 6) G.quakes.shift();
+
+  // 4. A ring of debris off the body, not one puff.
+  for (let i = 0; i < 12; i++) {
+    const ang = (i / 12) * Math.PI * 2;
+    G.bursts.push({
+      x: k.actor.x + Math.cos(ang) * k.actor.w * 0.4,
+      y: k.actor.y - k.actor.h * 0.5 + Math.sin(ang) * k.actor.h * 0.3,
+      at: G.time, colour: i % 3 ? KING.colour : "#ff4d6d",
+    });
+  }
+
+  // 5. The heart he just lost comes OFF him and falls, the way a player's
+  //    does. Three hearts is the whole fight; each one leaving should be an
+  //    event you can point at.
+  G.lostHearts.push({
+    x: k.actor.x, y: k.actor.y - k.actor.h * 1.15,
+    vx: -from * 4, vy: -8, spin: (rng() - 0.5) * 10, rot: 0,
+    at: G.time, index: k.hp,
+  });
+
+  fx.shake(KING.hitShake);
+  fx.punch(KING.hitPunch);
   fx.sfx("stomp");
-  if (k.hp <= 0) crownTheVictor(k);
+  fx.sfx("suntok");
+  if (k.hp <= 0) {
+    // The last one ends the fight, so it gets the full treatment: the world
+    // stops longer and comes back slowly, which is what this game does for
+    // every other blow that decides something.
+    G.freeze = Math.max(G.freeze, HIT.freezeMs / 1000);
+    G.slow = Math.max(G.slow, KING.deathSlowMs / 1000);
+    G.slowRate = KING.deathSlowRate;
+    crownTheVictor(k);
+  }
   return true;
 }
 

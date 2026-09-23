@@ -82,12 +82,30 @@ for (const hp of [3, 2, 1]) {
     g.king = { actor: a, hp, born: 0, hurtUntil: 0, leaving: false };
   }, 34);
 }
-cell(kingRow, "king, just struck", (g, fy) => {
-  const a = makeActor(24, fy, "yhon");
-  a.char = "yhon"; a.w *= KING.scale; a.h *= KING.scale; a.hp = 2; a.face = -1;
-  a.grounded = true;
-  g.king = { actor: a, hp: 2, born: 0, hurtUntil: g.time + 0.4, leaving: false };
-}, 34);
+/* The hit, frame by frame.
+ *
+ * The whole point of the rework is what the first 200ms look like, and the
+ * live game will not hold still for them — G.freeze stops the clock but the
+ * loop keeps drawing, so a screenshot lands wherever it lands. */
+for (const ms of [20, 60, 120, 250, 500]) {
+  cell(kingRow, `struck ${ms}ms ago`, (g, fy) => {
+    const a = makeActor(24, fy, "yhon");
+    a.char = "yhon"; a.w *= KING.scale; a.h *= KING.scale; a.hp = 2; a.face = -1;
+    // Knocked back and off his feet, as hurtKing leaves him.
+    a.grounded = false; a.vx = 7.5; a.vy = -6 + 30 * (ms / 1000);
+    a.x = 24 + 7.5 * (ms / 1000);
+    a.y = fy - Math.max(0, 6 * (ms / 1000) - 15 * (ms / 1000) ** 2);
+    g.king = { actor: a, hp: 2, born: 0, leaving: false,
+               hurtUntil: g.time + KING.hurtInvulnMs / 1000 - ms / 1000 };
+    g.quakes.push({ x: 24, y: fy, at: g.time - ms / 1000, force: 0.45 });
+    for (let i = 0; i < 12; i++) {
+      const ang = (i / 12) * Math.PI * 2;
+      g.bursts.push({ x: a.x + Math.cos(ang) * a.w * 0.4,
+                      y: a.y - a.h * 0.5 + Math.sin(ang) * a.h * 0.3,
+                      at: g.time - ms / 1000, colour: i % 3 ? KING.colour : "#ff4d6d" });
+    }
+  }, 34);
+}
 for (const [cap, left] of [["crowned player", 9], ["crown, about to lapse", 0.7]]) {
   cell(kingRow, cap, (g) => {
     const a = g.actors[0];

@@ -604,6 +604,27 @@ export const KING = {
   launchMs: 420,
   quakeMs: 900,
   hurtInvulnMs: 700,       // so one gun burst cannot take all three hearts
+  /* What taking a heart off him FEELS like.
+   *
+   * It was a white ellipse laid over him and a shake, which Charlie called
+   * "panget ... di lang white eme". A white wash is what this game already
+   * uses for a player's grace period — the least eventful thing that happens
+   * to anybody — so the biggest moment in the round wore the costume of the
+   * smallest.
+   *
+   * What follows is every tool the game has for weight, aimed at one moment:
+   * the world stops, he is knocked back off his feet, a heart comes off him
+   * and falls, the ground cracks under him, and he goes deep red rather than
+   * pale. The last heart gets all of it doubled and a beat of slow motion,
+   * because that one ends the fight. */
+  hitFreezeMs: 110,        // everything stops, briefly — a death gets 150
+  hitShake: 30,
+  hitPunch: 0.07,
+  hitRecoil: 7.5,          // tiles a second, backwards off the blow
+  hitLift: 6,              // ...and up, so his feet leave the floor
+  hitSquashMs: 420,        // how long the body stays deformed
+  deathSlowMs: 520,        // the last heart slows the world down
+  deathSlowRate: 0.3,
   lifeMs: 45000,           // he leaves if nobody can finish him
   /* What the crown does on a landing. The rest of it — the size, the star,
    * the clock — is an ordinary power-up now: POWERUPS_EXTRA.korona. */

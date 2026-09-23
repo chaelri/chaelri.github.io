@@ -6,7 +6,7 @@
 
 import { charById } from "./characters.js";
 import { poseOf } from "./physics.js";
-import { ABILITY, BAD_HELPER, BOX, COINS, DIWATA, FEEL, HIT, KING, PLAYERS, POWERUPS, SHOT_RADIUS } from "./config.js";
+import { ABILITY, ALL_POWERS, BAD_HELPER, BOX, COINS, DIWATA, FEEL, HIT, KING, PLAYERS, POWERUPS, SHOT_RADIUS } from "./config.js";
 import { drawMark, markPath, stampMark } from "./marks.js";
 import { bakeScenery, blitRange } from "./scenery.js";
 
@@ -1602,8 +1602,28 @@ function drawKing(r, ctx, g) {
   ctx.ellipse(px, py + z * 0.06, w * 0.5, z * 0.13, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // Struck a moment ago: he flashes white, like everything else that is hurt.
-  const hurt = k.hurtUntil && g.time < k.hurtUntil;
+  /* How long ago he was struck, 0..1 through the window.
+   *
+   * Derived from `hurtUntil`, which is already on the wire — nothing extra
+   * travels for any of this. */
+  const hurtLeft = (k.hurtUntil || 0) - g.time;
+  const hitT = hurtLeft > 0
+    ? 1 - hurtLeft / (KING.hurtInvulnMs / 1000)
+    : 1;
+  const hurt = hurtLeft > 0;
+
+  /* Squashed by the blow, then springing back past true.
+   *
+   * A body that only changes COLOUR when it is hit has not been hit, it has
+   * been recoloured. The deformation is what the eye reads as force, and it
+   * is why every cartoon in the world does this. */
+  if (hitT < 0.55) {
+    const e = hitT / 0.55;
+    const q = Math.sin(e * Math.PI * 1.6) * (1 - e) * 0.3;
+    ctx.translate(px, py);
+    ctx.scale(1 + q, 1 - q * 0.9);
+    ctx.translate(-px, -py);
+  }
 
   // The body, outlined so he holds against the treeline.
   stampOutline(r, ctx, "rgba(255,255,255,0.95)", px, py - h / 2, w, h,
@@ -1619,13 +1639,46 @@ function drawKing(r, ctx, g) {
   });
   if (hurt) {
     ctx.save();
-    ctx.globalAlpha = 0.45 + 0.35 * Math.abs(Math.sin(g.time * 30));
-    ctx.globalCompositeOperation = "lighter";
-    ctx.fillStyle = "rgba(255,255,255,0.8)";
-    ctx.beginPath();
-    ctx.ellipse(px, py - h * 0.5, w * 0.48, h * 0.48, 0, 0, Math.PI * 2);
-    ctx.fill();
+    /* RED, and only briefly white.
+     *
+     * The first frames blow out to white — that is the impact itself — and
+     * then it settles into a deep angry red that pulses for the rest of the
+     * window. White on its own is what a player wears during their grace
+     * period, which is the most forgettable state in the game; wearing it
+     * made the boss look like he was recovering rather than hurting.
+     */
+    if (hitT < 0.12) {
+      ctx.globalAlpha = 1 - hitT / 0.12;
+      ctx.globalCompositeOperation = "lighter";
+      ctx.fillStyle = "rgba(255,255,255,0.95)";
+      ctx.beginPath();
+      ctx.ellipse(px, py - h * 0.5, w * 0.52, h * 0.52, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
     ctx.restore();
+    // Deep red, following his actual shape.
+    drawSilhouette(r, ctx, "#d81f3e",
+      (1 - hitT) * (0.55 + 0.3 * Math.abs(Math.sin(g.time * 26))),
+      px, py, w, h, (b, bx, by) => {
+        charById("yhon").draw(b, bx, by, w, h, {
+          face: a.face, run: 0, air: a.grounded ? 0 : (a.vy < 0 ? -1 : 1),
+          squash: 0, t: g.time, walk: 0, stride: 0.78,
+        });
+      });
+
+    // A shockwave off the body on the first frames, so the hit has a size.
+    if (hitT < 0.4) {
+      const e = hitT / 0.4;
+      ctx.save();
+      ctx.globalAlpha = (1 - e) * 0.8;
+      ctx.strokeStyle = "#fff0b0";
+      ctx.lineWidth = Math.max(2, z * 0.09 * (1 - e));
+      ctx.beginPath();
+      ctx.ellipse(px, py - h * 0.5, w * (0.4 + e * 1.1), h * (0.4 + e * 0.9),
+                  0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
   }
 
   drawCrown(ctx, px, py - h, w * 0.5, z);
@@ -2353,6 +2406,50 @@ function drawBursts(r, ctx, g) {
  * one. Stroking a path would not work: these are sprites and hand-drawn
  * composites, and neither has a path to stroke.
  */
+/**
+ * The same shape, flattened to one solid colour, drawn ONCE on top.
+ *
+ * A tint has to follow the body. The first attempt used
+ * `globalCompositeOperation = "source-atop"` and a rectangle, which tints
+ * every pixel already on the canvas inside that rectangle — and the canvas by
+ * that point holds the whole scene, so what appeared over King Yhon Yhon was
+ * a hard pink RECTANGLE with the sky and the platforms inside it. Visible
+ * immediately in a screenshot and not at all in the code.
+ *
+ * This borrows stampOutline's trick — draw into a scratch canvas, then
+ * `source-in` a flat fill over it, keeping only the alpha — and blits the
+ * result in place rather than around a ring.
+ */
+function drawSilhouette(r, ctx, colour, alpha, cx, cy, w, h, drawInto) {
+  const padX = Math.ceil(w * 0.6) + 4;
+  const padY = Math.ceil(h * 0.25) + 4;
+  const cw = Math.ceil(w) + padX * 2;
+  const ch = Math.ceil(h) + padY * 2;
+  if (cw <= 0 || ch <= 0 || cw > 2048 || ch > 2048) return;
+
+  // Its own buffer: stampOutline's is often mid-use by the caller above.
+  const buf = r.tintBuf || (r.tintBuf = document.createElement("canvas"));
+  if (buf.width < cw || buf.height < ch) {
+    buf.width = Math.max(buf.width, cw);
+    buf.height = Math.max(buf.height, ch);
+  }
+  const b = buf.getContext("2d", { willReadFrequently: true });
+  b.setTransform(1, 0, 0, 1, 0, 0);
+  b.clearRect(0, 0, cw, ch);
+  b.save();
+  drawInto(b, padX + w / 2, padY + h);
+  b.restore();
+  b.globalCompositeOperation = "source-in";
+  b.fillStyle = colour;
+  b.fillRect(0, 0, cw, ch);
+  b.globalCompositeOperation = "source-over";
+
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.drawImage(buf, 0, 0, cw, ch, cx - padX - w / 2, cy - padY - h, cw, ch);
+  ctx.restore();
+}
+
 function stampOutline(r, ctx, colour, cx, cy, w, h, thick, drawInto) {
   const px = Math.max(1.5, thick);
   /* The buffer is sized well past the box it is given, in both directions.
@@ -3439,6 +3536,41 @@ function drawActor(r, ctx, g, a) {
   // These are the cleared heights.
   const AMMO_Y = 1.42;
   const HEART_Y = 1.80;
+
+  /* The weapon, IN HAND.
+   *
+   * Nothing was ever drawn on the body — the gun existed as six pips over the
+   * head and a chip on the card, and that was survivable while the only
+   * weapon was a six-shooter you fired constantly. It is not survivable for a
+   * one-shot out of a box: Charlie picked up a Bazooka, looked at his
+   * character, and said "my character doesnt evn hold it". If you cannot see
+   * it, you do not believe you have it.
+   *
+   * The mark is the same drawn path the orb and the chip use, so the thing in
+   * his hands is unmistakably the thing he picked up, and it is identical on
+   * every machine. Flipped with the body, and it rides the recoil the
+   * shoulder already does after a shot.
+   */
+  if (a.power && ALL_POWERS[a.power.type]?.fires && a.power.type !== "suntok") {
+    const def = ALL_POWERS[a.power.type];
+    const big = a.power.type === "bazuka";
+    const since = g.time - (a.shotAt || -9) / 1000;
+    // Kicks back on the frame it fires, then settles.
+    const kick = since >= 0 && since < 0.2 ? (1 - since / 0.2) * (big ? 0.28 : 0.14) : 0;
+    const size = a.h * z * (big ? 0.62 : 0.4);
+    const hx = px + a.face * (a.w * z * (big ? 0.34 : 0.42) - kick * z * 0.5);
+    const hy = py - a.h * z * (big ? 0.62 : 0.5);
+    ctx.save();
+    ctx.translate(hx, hy);
+    if (a.face < 0) ctx.scale(-1, 1);
+    // A shadow under it so it sits in front of the body rather than on it.
+    ctx.globalAlpha = 0.18;
+    stampMark(ctx, a.power.type, 1, size * 0.06, size, "#2a1c12", Math.max(1, z * 0.02));
+    ctx.globalAlpha = 1;
+    stampMark(ctx, a.power.type, 0, 0, size, "#ffffff", Math.max(1.6, z * 0.045));
+    drawMark(ctx, a.power.type, 0, 0, size, def.colour);
+    ctx.restore();
+  }
 
   // Ammo pips, so you know how many shots are left without a HUD readout.
   if (a.power && a.power.type === "baril") {
