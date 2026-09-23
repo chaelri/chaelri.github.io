@@ -24,8 +24,7 @@ const bit = (v) => (v ? 1 : 0);
 //  w, h, powerType, ammo, until, invulnUntil, frozenUntil, reversedUntil,
 //  coins, fairy, punch, glowUntil, glowFor, glowColour,
 //  coyote, buffer, jumpHeld, launchFor,
-//  abilityAgo, skillN, skillAgo, hops, dashLeft, dashVx, pounding, lockLeft,
-//  crownLeft]  <- how long this player still wears King Yhon Yhon's crown
+//  abilityAgo, skillN, skillAgo, hops, dashLeft, dashVx, pounding, lockLeft]
 
 function packActor(a, now) {
   return [
@@ -91,7 +90,6 @@ function packActor(a, now) {
      * running speed is a third of a tile the server never gave you. */
     Math.max(0, Math.round((a.dashFor || 0) * 1000)), r2(a.dashVx || 0),
     bit(a.pounding), Math.max(0, Math.round(((a.lockUntil || 0) - now) * 1000)),
-    r2(Math.max(0, (a.crownUntil || 0) - now)),
   ];
 }
 
@@ -100,8 +98,7 @@ function unpackActor(v, now) {
     respawn, w, h, ptype, ammo, puntil, inv, frozen, reversed, coins,
     fairy, punch, glowLeft, glowFor, glowColour,
     coyote, buffer, jumpHeld, launchFor,
-    abilityAgo, skillN, skillAgo, hops, dashLeft, dashVx, pounding, lockLeft,
-    crownLeft] = v;
+    abilityAgo, skillN, skillAgo, hops, dashLeft, dashVx, pounding, lockLeft] = v;
   const p = PLAYERS.find((q) => q.id === id);
   return {
     id, char, x, y, vx, vy, face, walk, squash, t,
@@ -137,7 +134,6 @@ function unpackActor(v, now) {
     skillN: skillN >= 0 ? skillN : undefined,
     skillAt: now * 1000 - (skillAgo || 0),
     hops: hops || 0,
-    crownUntil: crownLeft > 0 ? now + crownLeft : 0,
     dashFor: dashLeft > 0 ? dashLeft / 1000 : 0,
     dashVx: dashVx || 0,
     pounding: !!pounding,

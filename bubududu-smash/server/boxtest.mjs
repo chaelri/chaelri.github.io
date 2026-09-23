@@ -171,12 +171,14 @@ function ABILITYSPEED() { return 27; }
     }
     ok("king  three hits put him down", k.hp <= 0, `hp ${k.hp}`);
     ok("king  the last hitter is crowned",
-       a.crownUntil > sim.state.G.time, `crownUntil ${a.crownUntil}`);
+       a.power && a.power.type === "korona", `power ${a.power && a.power.type}`);
+    ok("king  the crown IS a star — out on contact, not just safe",
+       !!POWERUPS.korona.star);
     ok("king  the crown is bigger than Big",
        a.w > a.baseW * POWERUPS.laki.scale,
        `w ${a.w.toFixed(2)} vs big ${(a.baseW * POWERUPS.laki.scale).toFixed(2)}`);
-    ok("king  ...and untouchable while it lasts",
-       a.invulnUntil >= a.crownUntil);
+    ok("king  ...and it runs on its own clock, like any power-up",
+       a.power && a.power.until > sim.state.G.time, `until ${a.power && a.power.until}`);
   }
 }
 
@@ -202,6 +204,28 @@ for (const how of ["bituin", "suntok"]) {
   ok(`king  ${how} takes exactly one heart`, k.hp === KING.hp - 1, `hp ${k.hp}`);
 }
 
+/* ---- 7b. ANY character can stomp him, holding nothing ------------------ */
+for (const char of ["bubu", "dudu", "yhon"]) {
+  const G = world(char, char === "bubu" ? "yhon" : "bubu");
+  const a = G.actors.find((q) => q.id === "p1");
+  G.boxes.push({ x: a.x, y: a.y - 3, hits: 0, born: G.time, bumpAt: G.time, drop: "hari" });
+  for (let i = 0; i < 4 && !G.king; i++) sim.step(sim.TICK);
+  const k = G.king;
+  if (!k) { ok(`king  ${char} stomp setup`, false); continue; }
+  a.power = null;                       // empty-handed, on purpose
+  let bounced = false;
+  for (let i = 0; i < 30 && k.hp === KING.hp; i++) {
+    // drop him onto the King's head
+    a.x = k.actor.x;
+    a.y = k.actor.y - k.actor.h - 0.3;
+    a.vy = 8;
+    sim.step(sim.TICK);
+    if (a.vy < 0) bounced = true;
+  }
+  ok(`king  ${char} can stomp him with nothing in hand`, k.hp === KING.hp - 1, `hp ${k.hp}`);
+  ok(`king  ...and bounces off rather than trading a body`, bounced);
+}
+
 /* ---- 8. his landing throws whoever is on the floor -------------------- */
 {
   const G = world();
@@ -225,7 +249,7 @@ for (const how of ["bituin", "suntok"]) {
   const G = world();
   const a = G.actors.find((q) => q.id === "p1");
   const o = G.actors.find((q) => q.id === "p2");
-  a.crownUntil = G.time + 9;
+  a.power = { type: "korona", until: G.time + 9, ammo: 0 };
   a.y -= 3; a.vy = 4; a.grounded = false;    // drop him onto the floor
   o.x = a.x + 1.5;
   let pounded = false;

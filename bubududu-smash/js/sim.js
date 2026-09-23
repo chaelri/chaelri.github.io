@@ -17,7 +17,7 @@
 import {
   MODES, PLAYERS, ROUNDS_TO_WIN, FEEL, HELPER, BAD_HELPER, SQUAD, DIWATA, COINS, HIT,
   POWERUPS, POWER_ORDER, POWER_SPAWN_MS, POWER_FIRST_MS,
-  SHOT_SPEED, SHOT_LIFE, SHOT_COOLDOWN_MS, SHOT_RADIUS, STACK, ABILITY, BOX, KING,
+  SHOT_SPEED, SHOT_LIFE, SHOT_COOLDOWN_MS, SHOT_RADIUS, STACK, ABILITY, BOX, KING, ALL_POWERS,
   GRAVITY, JUMP_VELOCITY,
 } from "./config.js";
 import { makeArena, readLevel, solidGrid } from "./levels.js";
@@ -651,13 +651,13 @@ function givePower(a, type) {
     until: def.ms ? G.time + def.ms / 1000 : Infinity,
     ammo: mag,
   };
-  if (type === "laki") {
+  if (type === "laki" || type === "korona") {
     a.w = a.baseW * def.scale;
     a.h = a.baseH * def.scale;
     // Grow upward, or he grows into the floor and gets shoved through it.
     a.y -= 0.02;
   }
-  if (type === "bilis") {
+  if (type === "bilis" || type === "korona") {
     a.speedMul = def.speed;
     a.jumpMul = def.jump;
   }
@@ -1073,7 +1073,7 @@ function tickMinis(dt) {
     const target = G.actors.find((o) => o.id !== m.owner);
 
     if (target && !target.dead) {
-      const guarded = !!(target.power && target.power.type === "bituin");
+      const guarded = isStar(target);
       const safe = !!(target.invulnUntil && G.time < target.invulnUntil) || guarded;
 
       const floor = widestFloor();
@@ -1117,7 +1117,7 @@ function tickMinis(dt) {
 
     stepActor(me, input, G.grid, dt, others, {
       onStomp: (by, victim) => {
-        if (victim.power && victim.power.type === "bituin") {
+        if (isStar(victim)) {
           by.vy = -10;
           m.leaving = true;
           m.wave = 0;
@@ -1147,11 +1147,11 @@ function tickMinis(dt) {
 
 function clearPower(a, quiet = false) {
   if (!a.power) return;
-  if (a.power.type === "laki") {
+  if (a.power.type === "laki" || a.power.type === "korona") {
     a.w = a.baseW;
     a.h = a.baseH;
   }
-  if (a.power.type === "bilis") {
+  if (a.power.type === "bilis" || a.power.type === "korona") {
     a.speedMul = 1;
     a.jumpMul = 1;
   }
@@ -1162,6 +1162,17 @@ function clearPower(a, quiet = false) {
 }
 
 const hasPower = (a, t) => a.power && a.power.type === t;
+
+/**
+ * Is this one untouchable-and-lethal-on-contact?
+ *
+ * The Star, and King Yhon Yhon's Crown, which is a Star and a Big at once.
+ * Fifteen places in this file tested `type === "bituin"` by name, and every
+ * one of them would have had to learn the Crown's name too — so the question
+ * is asked of the power-up instead, via its `star` flag. Add a third and
+ * nothing here changes.
+ */
+const isStar = (a) => !!(a && a.power && ALL_POWERS[a.power.type]?.star);
 
 function overlapping(a, b) {
   return (
@@ -1326,7 +1337,7 @@ function killPlayer(victim, by, how = "stomp", damage = 1) {
   // already skipped a star-holder and the player-versus-player stomp turned it
   // around on the attacker, but Dudu came through this function and could
   // kill someone who was supposed to be invincible.
-  if (victim.power && victim.power.type === "bituin") return;
+  if (isStar(victim)) return;
   // Recorded on the victim rather than passed down, because `kill()` in
   // physics.js is also the one that fires for a pit and it has no idea who
   // was involved. handleDeath reads whichever of the two got there.
@@ -1416,29 +1427,17 @@ function crownTheVictor(k) {
   fx.punch(0.1);
   fx.flash(1);
   if (!winner || winner.dead) return;
-  /* The crown. Star and Big at once, both bigger than either alone, and
-   * every landing is a Ground Pound — which is the King's own move, handed
-   * to the player who took it off him. */
-  winner.crownUntil = G.time + KING.reward.ms / 1000;
-  // Untouchable for the whole of it. The star's own invulnerability is the
-  // same field, so a crown that outlives a star does not have to do anything
-  // clever to keep working.
-  winner.invulnUntil = Math.max(winner.invulnUntil || 0, winner.crownUntil);
-  /* ...and BIGGER than Big.
+  /* The crown, as an ordinary power-up.
    *
-   * Set off baseW/baseH rather than off the current size, so crowning a
-   * player who is already holding Big does not multiply the two together and
-   * wedge them in the ceiling. `clearCrown` puts it back, and it reads the
-   * same base, so the order the two effects end in does not matter. */
-  winner.w = winner.baseW * KING.reward.scale;
-  winner.h = winner.baseH * KING.reward.scale;
-  winner.y -= 0.02;
-  winner.speedMul = KING.reward.speed;
-  winner.jumpMul = KING.reward.jump;
-  showPickup(winner, "bituin");
-  fx.note(winner, KING.colour, "CROWNED",
-          "Untouchable, enormous, and every landing is a pound.", "pound");
-  fx.sfx("lunas");
+   * This used to set four loose fields — a deadline, a size, two multipliers
+   * — and borrow `invulnUntil` for the untouchable part. `invulnUntil` is the
+   * grace after being HIT, so the reward for beating a boss made you flash
+   * like someone who had just been hurt and put a "safe" chip on your card,
+   * and the toast said "Star" because that is the pickup it borrowed the
+   * effect from. givePower does all of it properly: the chip, the clock, its
+   * own name, and `star: true` so every rule that asks `isStar` says yes. */
+  givePower(winner, "korona");
+  fx.note(winner, KING.colour, "CROWNED", POWERUPS.korona.desc, "korona");
 }
 
 /**
@@ -1525,6 +1524,35 @@ function tickKingContact(dt) {
   for (const a of G.actors) {
     if (a.dead) continue;
 
+    /* STOMPING him takes a heart, like it does to anybody else.
+     *
+     * Charlie: "bakit ground pound lang nakakapatay kay king yhon, dapat
+     * kahit sino na tumapak pwede, its not fair for other characters". He was
+     * right and it was a real hole: the pound reached him, the gun reached
+     * him, the fist and the star reached him — but the one verb every
+     * character in the game has, landing on someone's head, did not, because
+     * the King is not in `G.actors` and that is the only list `onStomp` ever
+     * looks at. So Bubu and Dudu could only hurt a boss while holding
+     * something they had to find first, and Yhon could always hurt him.
+     *
+     * Falling, feet above his head, near enough horizontally — and it bounces
+     * you off him the way stomping a player does, so it is survivable and
+     * repeatable rather than a trade of your own body for a heart.
+     */
+    if (G.king && !G.king.leaving && a.vy > 0) {
+      const kb = G.king.actor;
+      const head = kb.y - kb.h;
+      if (Math.abs(a.x - kb.x) < (a.w + kb.w) / 2 &&
+          a.y > head - kb.h * 0.35 && a.y < head + kb.h * 0.45) {
+        if (hurtKing(a)) {
+          // The same bounce a stomped player gives, plus a bit — he is
+          // three times the size and should feel like landing on one.
+          a.vy = -FEEL.stompBounce * 1.25;
+          a.y = head - 0.02;
+        }
+      }
+    }
+
     /* A star takes one heart off him, like everything else does.
      *
      * Charlie: "Star can just hit 1 heart as well sa kanya". Note it does NOT
@@ -1532,7 +1560,7 @@ function tickKingContact(dt) {
      * contact ends it, and a boss is the one thing in the game that promise
      * does not hold for. `hurtKing`'s own window stops a starred player
      * standing inside him and draining all three in a tenth of a second. */
-    if (G.king && !G.king.leaving && hasPower(a, "bituin")) {
+    if (G.king && !G.king.leaving && isStar(a)) {
       const kb = G.king.actor;
       if (Math.abs(a.x - kb.x) < (a.w + kb.w) / 2 &&
           Math.abs((a.y - a.h / 2) - (kb.y - kb.h / 2)) < (a.h + kb.h) / 2) {
@@ -1545,41 +1573,10 @@ function tickKingContact(dt) {
      * Detected the same way the King's own landing is — airborne last tick,
      * grounded this one. It is the King's move, handed to whoever took it
      * off him, which is why the reward is worth chasing a boss for. */
-    if (a.crownUntil && G.time < a.crownUntil) {
-      if (a.grounded && a.wasAirborne) crownLanded(a);
-    } else if (a.crownUntil) {
-      clearCrown(a);
-    }
+    if (hasPower(a, "korona") && a.grounded && a.wasAirborne) crownLanded(a);
     a.wasAirborne = !a.grounded;
   }
   void dt;
-}
-
-/**
- * The crown lapses.
- *
- * Deliberately does NOT touch `invulnUntil`: that is a deadline, and it will
- * pass on its own. Clearing it here would also cancel the grace a player is
- * owed from having just been hit, if the two happened to overlap.
- */
-function clearCrown(a) {
-  a.crownUntil = 0;
-  // Unless Big is holding it up, the body goes back to what it was.
-  if (hasPower(a, "laki")) {
-    a.w = a.baseW * POWERUPS.laki.scale;
-    a.h = a.baseH * POWERUPS.laki.scale;
-  } else {
-    a.w = a.baseW;
-    a.h = a.baseH;
-  }
-  if (hasPower(a, "bilis")) {
-    a.speedMul = POWERUPS.bilis.speed;
-    a.jumpMul = POWERUPS.bilis.jump;
-  } else {
-    a.speedMul = 1;
-    a.jumpMul = 1;
-  }
-  fx.sfx("powerEnd");
 }
 
 /** A crowned player hits the floor. */
@@ -1789,18 +1786,28 @@ function tickPowers(dt) {
   // expiry, and the star's sparkle
   for (const a of G.actors) {
     if (!a.power) continue;
-    if (hasPower(a, "bituin") && rng() < dt * 9) fx.sfx("sparkle");
+    if (isStar(a) && rng() < dt * 9) fx.sfx("sparkle");
     if (a.power.until !== Infinity && G.time > a.power.until) clearPower(a);
-    if (a.power && a.power.type === "baril" && a.power.ammo <= 0) clearPower(a);
+    /* A spent weapon is dropped, whichever weapon it was.
+     *
+     * Named the Gun specifically, so an empty Bazooka stayed in your hands
+     * for the rest of the round: a dead fire button and a chip claiming a
+     * weapon you no longer had. `fires` is the flag; see config.js. */
+    if (a.power && ALL_POWERS[a.power.type]?.fires && a.power.ammo <= 0
+        && a.power.type !== "suntok") {
+      // The fist is the exception — its last swing has to be allowed to land,
+      // and givePower already sets an expiry for exactly that.
+      clearPower(a);
+    }
   }
 
   // The star kills on contact from any direction — that is the whole point of
   // it, and it beats being big.
   for (const a of G.actors) {
-    if (a.dead || !hasPower(a, "bituin")) continue;
+    if (a.dead || !isStar(a)) continue;
     for (const o of G.actors) {
       if (o === a || o.dead) continue;
-      if (hasPower(o, "bituin")) continue; // two stars just bounce off each other
+      if (isStar(o)) continue; // two stars just bounce off each other
       if (overlapping(a, o)) killPlayer(o, a, "star");
     }
   }
@@ -1863,7 +1870,7 @@ function tickPowers(dt) {
     }
     for (const o of G.actors) {
       if (o.dead || o.id === b.owner) continue;
-      if (hasPower(o, "bituin")) continue; // the star shrugs off bullets
+      if (isStar(o)) continue; // the star shrugs off bullets
       if (
         Math.abs(o.x - b.x) < o.w / 2 + SHOT_RADIUS &&
         Math.abs(o.y - o.h / 2 - b.y) < o.h / 2 + SHOT_RADIUS
@@ -2425,7 +2432,7 @@ function repelBadDudu(h, victim) {
 
 function untouchableNow(a) {
   if (!a) return false;
-  if (a.power && a.power.type === "bituin") return true;
+  if (isStar(a)) return true;
   return !!(a.invulnUntil && G.time < a.invulnUntil);
 }
 
@@ -2732,7 +2739,7 @@ function tickOneHelper(h, dt) {
     onStomp: (by, victim) => {
       // Landing on a star is a mistake, not an attack — it throws him off and
       // he gives up rather than pinballing off someone he cannot hurt.
-      if (victim.power && victim.power.type === "bituin") {
+      if (isStar(victim)) {
         by.vy = -12;
         fx.sfx("land");
         h.leaving = true;
@@ -2792,7 +2799,7 @@ function simulate(dt) {
     onDeath: handleDeath,
     onStomp: (by, victim) => {
       // A star beats everything, including being landed on.
-      if (hasPower(victim, "bituin")) {
+      if (isStar(victim)) {
         killPlayer(by, victim, "star");
         return;
       }

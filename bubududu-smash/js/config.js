@@ -201,10 +201,26 @@ export const POWERUPS = {
   baril: {
     id: "baril", name: "Gun", desc: "Six shots. Tap the gun to fire.", en: "gun",
     ammo: 6, colour: "#63d98a",
+    /* `fires` means "the fire control does something while you hold this".
+     *
+     * It exists because four separate places used to test `type === "baril"
+     * || type === "suntok"` by name — the pad's fire button, its icon, the
+     * ammo chip on the card, and the cleanup that drops a spent weapon. Add a
+     * fifth weapon and you have to find all four, and if you miss the first
+     * one the weapon simply cannot be fired on a phone. Which is exactly what
+     * happened to the Bazooka: it worked on the laptop, where the key path
+     * asks the rules rather than the name, and the controller button stayed
+     * dead. Charlie found it by asking how you even fire the thing. */
+    fires: true,
   },
   bituin: {
     id: "bituin", name: "Star", desc: "Touch them and they are out.", en: "star",
     ms: 7000, colour: "#ff7be8",
+    // The flag the rules actually ask about — see isStar(). It is on the
+    // Star because the Star is what it describes, and forgetting to put it
+    // here is what made the Star stop working the moment the fifteen
+    // by-name checks were replaced with one by-behaviour check.
+    star: true,
   },
 };
 
@@ -232,9 +248,31 @@ export const POWERUPS_EXTRA = {
     // whole round, and a homing one-shot you can fire twice is not a reward,
     // it is a result.
     ammo: 1, colour: "#ff8a3d",
+    fires: true,
     turn: 4.6,        // radians a second it may steer
     speed: 15,        // slower than a bullet, because you must SEE it coming
     lifeMs: 2600,
+  },
+  /* King Yhon Yhon's crown. Only ever from taking him down.
+   *
+   * A real power-up, not a set of loose fields on the actor. It started as
+   * the latter — a deadline plus a bigger body — and Charlie's verdict was
+   * "medyo weird yung power na narereceive". It was: the untouchability rode
+   * on `invulnUntil`, which is the HIT-GRACE field, so the reward for beating
+   * a boss made you flash exactly like someone who had just been hurt and put
+   * a "safe" chip on your card. It did not kill on contact the way a Star
+   * does. And the toast said "Star", because that is the pickup it borrowed.
+   *
+   * As a power it gets the chip, the timer, its own name, the star's own
+   * treatment everywhere the rules ask `isStar`, and Big's size — which is
+   * what was asked for: "a combination of Star and Big powerup but bigger". */
+  korona: {
+    id: "korona", name: "Crown", desc: "Star and Big at once. Every landing shakes the ground.",
+    en: "crown",
+    ms: 12000, colour: "#ffd24a",
+    scale: 1.9,        // bigger than Big, which is 1.55
+    jump: 1.15, speed: 1.0,
+    star: true,        // untouchable, and out on contact — see isStar()
   },
   bilis: {
     id: "bilis", name: "Speed", desc: "Much quicker on your feet.", en: "speed",
@@ -263,6 +301,7 @@ export const POWERUPS_EXTRA = {
     // that it throws a blast you can miss with, one is a real decision, and
     // picking up a second still stacks to two.
     punches: 1,
+    fires: true,
     windupMs: 90,     // fist pulls back before it goes out
     activeMs: 200,    // and is dangerous for this long
     reach: 2.3,       // tiles in front of the body
@@ -566,18 +605,21 @@ export const KING = {
   quakeMs: 900,
   hurtInvulnMs: 700,       // so one gun burst cannot take all three hearts
   lifeMs: 45000,           // he leaves if nobody can finish him
-  /* The crown, for whoever lands the last hit. */
+  /* What the crown does on a landing. The rest of it — the size, the star,
+   * the clock — is an ordinary power-up now: POWERUPS_EXTRA.korona. */
   reward: {
-    ms: 12000,
-    scale: 1.9,            // bigger than Big, which is 1.55
-    jump: 1.15,
-    speed: 1.0,
-    // Every landing is a pound, at this much of the King's own blast.
     poundBlast: 5.0,
     knockback: 19,
     upward: 13,
   },
 };
+
+/* Every power-up there is, in one place.
+ *
+ * POWERUPS and POWERUPS_EXTRA are two objects for historical reasons, and
+ * anything that wants to look one up by name had to know which half it was
+ * in — or, more often, guess. */
+export const ALL_POWERS = { ...POWERUPS, ...POWERUPS_EXTRA };
 
 export const POWER_ORDER = [
   "laki", "baril", "bituin", "bilis", "yelo", "baliktad", "lunas",

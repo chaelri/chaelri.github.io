@@ -160,6 +160,11 @@ export const MARKS = {
        "C56 37 60 34 60 28C60 22 56 18 51 18C45 18 41 23 41 32Z" +
        circle(43, 88, 9),
 
+  /* King Yhon Yhon's crown, for the chip and the toast. The same five points
+   * the renderer draws over the winner's head, flattened into the 100-box. */
+  korona: poly([[8, 76], [8, 28], [30, 50], [50, 16], [70, 50], [92, 28], [92, 76]]) +
+          poly([[8, 80], [92, 80], [92, 92], [8, 92]]),
+
   /* The Big Heart: the same heart the bar uses, with a ring around it so it
    * is not mistaken for an ordinary Heal at a glance. Three hearts' worth
    * ought to look like more than one. */

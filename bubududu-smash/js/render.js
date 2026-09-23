@@ -3469,8 +3469,8 @@ function drawActor(r, ctx, g, a) {
    * touched, and the floor shakes when they land. A status pill at the
    * bottom of the screen is the wrong place to say any of that.
    */
-  if (a.crownUntil && g.time < a.crownUntil) {
-    const left = a.crownUntil - g.time;
+  if (a.power && a.power.type === "korona") {
+    const left = a.power.until === Infinity ? 99 : a.power.until - g.time;
     ctx.save();
     // A gold halo, so the size alone is not the only tell against a Big.
     ctx.globalCompositeOperation = "lighter";
@@ -3492,7 +3492,7 @@ function drawActor(r, ctx, g, a) {
   // Hearts over the head, and nothing else. The name lives in the panel at
   // the bottom now — two labels for one character is one too many.
   // Lifted clear when there is a crown in the way.
-  const crowned = a.crownUntil && g.time < a.crownUntil;
+  const crowned = a.power && a.power.type === "korona";
   const heartY = py - a.h * z * HEART_Y - (crowned ? a.w * z * 0.5 : 0);
   if (typeof a.hp === "number") drawHearts(r, ctx, g, a, px, heartY);
 }

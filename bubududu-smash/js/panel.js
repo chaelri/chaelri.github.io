@@ -243,7 +243,9 @@ export function chipsFor(a, G, pads) {
     const left = a.power.until === Infinity ? 1 : Math.max(0, a.power.until - G.time);
     const pct = dur ? Math.max(0, Math.min(100, (left / dur) * 100)) : 100;
     let label;
-    if (a.power.type === "baril" || a.power.type === "suntok") {
+    // Ask the definition, do not recite names — same reason as the pad's fire
+    // button, which was dead for the Bazooka because it recited them.
+    if (def.fires) {
       // Show the key only to a player who is actually on the keyboard; on a
       // phone there is a button for it.
       const key = pads[a.id] && !pads[a.id].connected ? ` <em>${SHOOT_KEY[a.id]}</em>` : "";

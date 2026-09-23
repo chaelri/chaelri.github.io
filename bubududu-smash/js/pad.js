@@ -5,6 +5,7 @@
 // this would drift. The comment below is the whole reason this code looks the
 // way it does, and it is worth keeping in front of anyone editing it.
 
+import { ALL_POWERS } from "./config.js";
 import { markSVG } from "./marks.js";
 
 const $ = (s) => document.querySelector(s);
@@ -137,13 +138,22 @@ export function createPad({ onEdge } = {}) {
 export function paintShootButton(power, ammo) {
   const b = $("#shoot");
   if (!b) return;
-  const armed = (power === "baril" || power === "suntok") && ammo > 0;
+  /* Ask the power-up whether it fires; do not recite a list of names.
+   *
+   * This read `power === "baril" || power === "suntok"`, and the Bazooka was
+   * neither — so the one button you fire it with was dead on every phone,
+   * while the laptop key worked fine because that path asks the rules. See
+   * `fires` in config.js. */
+  const def = ALL_POWERS[power];
+  const armed = !!(def && def.fires) && ammo > 0;
   b.classList.toggle("armed", armed);
   b.classList.toggle("melee", armed && power === "suntok");
   const key = `${armed ? power : "-"}|${armed ? ammo : ""}`;
   if (b.dataset.key !== key) {
     b.dataset.key = key;
-    b.innerHTML = markSVG(armed ? (power === "suntok" ? "suntok" : "baril") : "baril", "mk") +
+    // Its own mark, whatever it is — a Bazooka drawn as a six-shooter is a
+    // lie about how many shots you have.
+    b.innerHTML = markSVG(armed ? power : "baril", "mk") +
       (armed ? `<i>${ammo}</i>` : "");
   }
 }

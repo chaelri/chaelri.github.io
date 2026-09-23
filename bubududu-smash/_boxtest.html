@@ -20,7 +20,7 @@
 import { createRenderer, draw, resize } from "./js/render.js";
 import { makeArena, solidGrid } from "./js/levels.js";
 import { makeActor } from "./js/physics.js";
-import { BOX, KING } from "./js/config.js";
+import { BOX, KING, POWERUPS } from "./js/config.js";
 
 const CW = 300, CH = 210;
 function world() {
@@ -88,15 +88,14 @@ cell(kingRow, "king, just struck", (g, fy) => {
   a.grounded = true;
   g.king = { actor: a, hp: 2, born: 0, hurtUntil: g.time + 0.4, leaving: false };
 }, 34);
-cell(kingRow, "crowned player", (g) => {
-  g.actors[0].crownUntil = g.time + 9;
-  g.actors[0].w = g.actors[0].baseW * KING.reward.scale;
-  g.actors[0].h = g.actors[0].baseH * KING.reward.scale;
-});
-cell(kingRow, "crown, about to lapse", (g) => {
-  g.actors[0].crownUntil = g.time + 0.7;
-  g.actors[0].w = g.actors[0].baseW * KING.reward.scale;
-  g.actors[0].h = g.actors[0].baseH * KING.reward.scale;
-});
+for (const [cap, left] of [["crowned player", 9], ["crown, about to lapse", 0.7]]) {
+  cell(kingRow, cap, (g) => {
+    const a = g.actors[0];
+    // Exactly what givePower does for it — the crown is an ordinary power-up.
+    a.power = { type: "korona", until: g.time + left, ammo: 0 };
+    a.w = a.baseW * POWERUPS.korona.scale;
+    a.h = a.baseH * POWERUPS.korona.scale;
+  });
+}
 document.title = "box sheet";
 </script>
