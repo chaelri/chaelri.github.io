@@ -564,6 +564,16 @@ h1.logo::after {
 .phearts svg { width: clamp(17px, 2.4vh, 24px); height: auto; display: block; }
 .phearts svg path { fill: #ff4d6d; }
 .phearts svg.off path { fill: rgba(33,49,63,0.16); stroke: rgba(33,49,63,0.3); stroke-width: 1.4; }
+/* A part-full heart: the empty shell, with the left `--f` of it coloured in.
+   Two copies of the SAME path, the second clipped — so a half is visibly half
+   of the whole one next to it rather than a second, different shape. */
+.phearts .half { position: relative; display: block; }
+.phearts .half > svg:last-child {
+  position: absolute; inset: 0; width: 100%;
+  clip-path: inset(0 calc(100% - var(--f, 1) * 100%) 0 0);
+}
+.phearts .half > svg:last-child path { fill: #ff4d6d; stroke: none; }
+.phearts .half > svg.bonus:last-child path { fill: #ffc43c; }
 /* A spare heart, earned past the three you start with. Gold, so it reads as
    something extra rather than as one of the originals. */
 .phearts svg.bonus path { fill: #ffc43c; }

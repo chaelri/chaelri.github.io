@@ -124,8 +124,10 @@ export function paintPanels(actors, chips, dt, now, pads) {
     const hearts = card.querySelector(".phearts");
     // Only ever as many slots as you start with, plus however many spares you
     // are actually carrying — five empty slots would read as five lost hearts.
-    const slots = Math.max(FEEL.hp, a.hp);
-    const want = Array.from({ length: slots }, (_, i) => i < a.hp).join(",");
+    // Rounded UP, or a half heart has no slot to be drawn in.
+    const slots = Math.max(FEEL.hp, Math.ceil(a.hp));
+    const want = Array.from({ length: slots },
+                            (_, i) => Math.max(0, Math.min(1, a.hp - i))).join(",");
     if (hearts.dataset.state !== want) {
       hearts.dataset.state = want;
       /* Two rows: the three you start with, and the spares UNDER them.
@@ -136,8 +138,26 @@ export function paintPanels(actors, chips, dt, now, pads) {
        * going, and put the gold ones somewhere they read as extra rather
        * than as more of the same.
        */
-      const heart = (i) =>
-        HEART_SVG.replace("<svg", `<svg class="${i >= FEEL.hp ? "bonus" : i < a.hp ? "" : "off"}"`);
+      /* A heart is now a FRACTION, not a flag — the mini squad takes half.
+       *
+       * The colour is a clip rectangle over the same path rather than a
+       * second half-heart shape, so there is still exactly one heart outline
+       * in the file and a half is unmistakably half of the whole one beside
+       * it. `--f` is how much of it is left. */
+      const heart = (i) => {
+        const f = Math.max(0, Math.min(1, a.hp - i));
+        if (f > 0 && f < 1) {
+          // Two copies of the same path stacked, the top one clipped to `--f`.
+          // The top copy keeps its row's colour — half of a SPARE is half a
+          // gold heart, and drawing it red said she had lost a red one.
+          const top = i >= FEEL.hp ? '<svg class="bonus"' : "<svg";
+          return `<span class="half" style="--f:${f}">` +
+                 HEART_SVG.replace("<svg", '<svg class="off"') +
+                 HEART_SVG.replace("<svg", top) + "</span>";
+        }
+        const cls = i >= FEEL.hp ? "bonus" : f >= 1 ? "" : "off";
+        return HEART_SVG.replace("<svg", `<svg class="${cls}"`);
+      };
       const base = Array.from({ length: FEEL.hp }, (_, i) => heart(i)).join("");
       const spare = Array.from({ length: Math.max(0, slots - FEEL.hp) },
                                (_, i) => heart(FEEL.hp + i)).join("");

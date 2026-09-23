@@ -1116,7 +1116,7 @@ function tickMinis(dt) {
         // bear doing the landing — `by` here is the mini itself.
         fx.sfx("stomp");
         killPlayer(victim, G.actors.find((q) => q.id === m.owner) || null,
-                   m.owner ? "bubus" : "strayBubu");
+                   m.owner ? "bubus" : "strayBubu", SQUAD.damage);
         fx.shake(14);
         m.leaving = true;
         m.wave = 0;
@@ -1204,7 +1204,16 @@ function handleDeath(a) {
   // flagged lethal at the point of contact and takes the whole bar.
   const lethal = !!a.lethal;
   a.lethal = false;
-  a.hp = lethal ? 0 : Math.max(0, a.hp - 1);
+  /* How much this one cost, in hearts.
+   *
+   * A whole one unless whoever did it said otherwise, and rounded to the
+   * nearest half on the way out: hp is a float now, and 3 - 0.5 - 0.5 - 0.5
+   * in binary is 1.4999999999999998, which draws as a heart and a half but
+   * compares as less than one and a half everywhere it matters.
+   */
+  const cost = a.hitFor == null ? 1 : a.hitFor;
+  a.hitFor = null;
+  a.hp = lethal ? 0 : Math.max(0, Math.round((a.hp - cost) * 2) / 2);
 
   // Everything stops for a beat, then resumes in slow motion — except the
   // blow that takes the match, which is set up below and never stops at all.
@@ -1281,7 +1290,15 @@ function handleDeath(a) {
   endRound(winnerId, deathLine(a));
 }
 
-function killPlayer(victim, by, how = "stomp") {
+/**
+ * Take a life off somebody.
+ *
+ * `damage` is in HEARTS and may be a fraction — the mini Bubu squad takes
+ * half. It rides on the victim rather than being passed down because `kill()`
+ * in physics.js is the same door a pit death comes through, and a pit knows
+ * nothing about who or how much.
+ */
+function killPlayer(victim, by, how = "stomp", damage = 1) {
   if (victim.dead) return;
   if (victim.invulnUntil && G.time < victim.invulnUntil) return;
 
@@ -1302,6 +1319,7 @@ function killPlayer(victim, by, how = "stomp") {
   // physics.js is also the one that fires for a pit and it has no idea who
   // was involved. handleDeath reads whichever of the two got there.
   victim.cause = { how, by: by ? by.id : null };
+  victim.hitFor = damage;
   kill(victim, { onDeath: handleDeath });
 }
 
@@ -1474,8 +1492,35 @@ function tryAbility(a, loud) {
 
   // pound
   a.pounding = true;
-  a.poundFrom = a.y;      // where the dive began — the blast is worth the fall
-  a.vy = ab.speed;
+  /* From a standstill, hop first.
+   *
+   * Pressing this with both feet on the floor used to be a dive of zero
+   * tiles: minimum blast, no travel, and the landing resolved on the very
+   * next tick because `grounded` was still true. So he pops up and the dive
+   * begins at the apex.
+   *
+   * `poundFrom` is set to the apex he is ABOUT TO REACH rather than to where
+   * he is standing — the height of a launch is (v^2)/2g and nothing about it
+   * is uncertain. Doing it this way means the blast is worth the hop without
+   * a scrap of new state travelling over the wire to say "he is still on the
+   * way up", which would be another thing for the two sides to disagree
+   * about. Nothing is predicted here that is not already arithmetic.
+   *
+   * `coyote` is in the test on purpose. Reading bare `grounded` on the tick
+   * an ability fires is the shape of bug that has bitten this file before —
+   * a hair of position flips it, the two sides take different branches, and
+   * one of them hops while the other dives. The grace window makes it a
+   * decision about the last few frames rather than about one. */
+  if (a.grounded || (a.coyote || 0) > 0) {
+    const v = JUMP_VELOCITY * (a.stats?.jump ?? 1) * (a.jumpMul || 1) * ab.hop;
+    a.vy = v;
+    a.poundFrom = a.y - (v * v) / (2 * GRAVITY);
+    a.coyote = 0;
+    a.buffer = 0;
+  } else {
+    a.poundFrom = a.y;    // where the dive began — the blast is worth the fall
+    a.vy = ab.speed;
+  }
   /* Horizontal momentum is KEPT, not killed.
    *
    * Zeroing it made the pound a dead drop, which is both less useful — you
@@ -1509,7 +1554,11 @@ function holdAbility(a, dt) {
     a.vy = Math.min(a.vy, GRAVITY * dt * ab.hang);
   }
   if (ab.id === "pound" && a.pounding) {
-    if (a.grounded) { a.pounding = false; a.lockUntil = 0; poundLanded(a); }
+    // Rising out of the standing hop. Nothing to dive with yet, and
+    // `grounded` can still be true for the tick he leaves the floor — which
+    // would otherwise land the pound before it had left the ground.
+    if (a.vy < 0) { /* on the way up */ }
+    else if (a.grounded) { a.pounding = false; a.lockUntil = 0; poundLanded(a); }
     else a.vy = Math.max(a.vy, ab.speed);
   }
 }
@@ -1536,6 +1585,66 @@ export function abilityState(id) {
  * takes their footing away for a third of a second and throws them most of a
  * body-length. Waiting to get height is what makes it worth using.
  */
+/**
+ * A Ground Pound takes the ledge out from under itself.
+ *
+ * Charlie: "yhon yhon jump ground pound can actually destroy platform if he
+ * jumped and landed on platform". So it does — but only '=' , the thin
+ * ledges. Punching a hole through the '#' ground would cut the arena in two
+ * and strand whoever is on the far side of it, and the shrink already eats
+ * the floor on its own schedule without needing help.
+ *
+ * It spreads from the impact and STOPS at the first gap, rather than taking
+ * every tile within the radius. Reaching across a gap to break a platform he
+ * did not land on is not something the player can see coming, and the whole
+ * move is already about committing to one spot.
+ *
+ * How wide depends on the fall, like everything else the landing does — so
+ * the same decision (how long to climb first) buys both the blast and the
+ * demolition.
+ */
+function breakLedge(a, force) {
+  const ab = ABILITY.pound;
+  const ty = Math.floor(a.y + 0.05);          // the tile his feet are resting on
+  const row = G.grid.rows[ty];
+  if (!row) return;
+  const tx = Math.floor(a.x);
+  if (row[tx] !== "=") return;                // he landed on ground, not a ledge
+
+  const span = Math.round(ab.breaks + (ab.breaksFar - ab.breaks) * force);
+  /* A row is a STRING, not an array of characters.
+   *
+   * `G.grid.rows[ty][x] = "."` on one is a silent no-op in sloppy mode and a
+   * TypeError under a module's strict mode, which is how the soak found this
+   * the first time it ever ran a pound onto a ledge. The shrink rebuilds the
+   * whole grid from scratch every time it eats a column for the same reason;
+   * this collects the columns first and rewrites the row once. */
+  const gone = [];
+  for (const dir of [0, -1, 1]) {
+    for (let k = dir === 0 ? 0 : 1; k <= span; k++) {
+      const x = tx + dir * k;
+      if (x < 0 || x >= row.length) break;
+      if (row[x] !== "=") break;              // a gap ends it
+      gone.push(x);
+      if (dir === 0) break;
+    }
+  }
+  if (!gone.length) return;
+  const cut = new Set(gone);
+  G.grid.rows[ty] = [...row].map((c, x) => (cut.has(x) ? "." : c)).join("");
+  /* Debris where each tile was, so the platform is SEEN to go.
+   *
+   * Without this the ledge simply is not there the next frame, which reads
+   * as a rendering fault rather than as something he did. Capped, because a
+   * wide break on a long platform is a dozen tiles and the burst layer is
+   * drawn for every one of them.
+   */
+  for (const x of gone.slice(0, 10)) {
+    G.bursts.push({ x: x + 0.5, y: ty + 0.5, at: G.time, colour: "#9a9182" });
+  }
+  fx.sfx("poof");
+}
+
 function poundLanded(a) {
   if (!authority) return;
   const ab = ABILITY.pound;
@@ -1552,6 +1661,7 @@ function poundLanded(a) {
    * one in the same place. `force` is how hard, which drives everything the
    * ground does: the ring, the dust, and how long the cracks stay. */
   G.quakes.push({ x: a.x, y: a.y, at: G.time, force });
+  breakLedge(a, force);
   while (G.quakes.length > 6) G.quakes.shift();
   for (const o of G.actors) {
     if (o === a || o.dead) continue;

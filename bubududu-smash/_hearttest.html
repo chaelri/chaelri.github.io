@@ -1,0 +1,59 @@
+<!doctype html><meta charset="utf-8"><title>hearts</title>
+<!--
+  Every health value a player can actually hold, drawn large, both ways.
+  The hearts are ~20px over a character's head in the real game, which is far
+  too small to tell a half from an empty one in a screenshot — and "the hit
+  did not appear" is exactly the bug a half-heart nerf can ship with.
+-->
+<style>
+  body{margin:0;background:#dff0fb;font:12px ui-monospace,monospace;color:#21313f}
+  h1{font:600 13px system-ui;margin:12px}
+  .row{display:flex;flex-wrap:wrap;gap:8px;padding:0 12px 14px;align-items:flex-start}
+  figure{margin:0;background:#bfe0f5;border-radius:8px}
+  canvas{display:block;border-radius:8px}
+  figcaption{padding:3px 6px;text-align:center}
+</style>
+<h1>over the head</h1><div class="row" id="canv"></div>
+
+<script type="module">
+import { createRenderer, draw, resize } from "./js/render.js";
+import { makeArena, solidGrid } from "./js/levels.js";
+import { makeActor } from "./js/physics.js";
+
+const HP = [3, 2.5, 2, 1.5, 1, 0.5, 4, 4.5, 5, 5.5, 6];
+
+function world(hp) {
+  const level = makeArena(4242);
+  const g = { level, grid: solidGrid(level), time: 0, shrink: 0,
+    actors: [], powers: [], coins: [], shots: [], pops: [], bursts: [],
+    helpers: [], minis: [], lostHearts: [], quakes: [], wildFairy: null,
+    freeze: 0, slow: 0, slowRate: 1, winner: 0 };
+  const a = makeActor(24, 10, "p1"); a.char = "bubu"; a.hp = hp; a.label = "p1"; a.face = 1;
+  const b = makeActor(28, 10, "p2"); b.char = "yhon"; b.hp = 3; b.label = "p2"; b.face = 1;
+  g.actors.push(a, b);
+  return g;
+}
+const canv = document.getElementById("canv");
+for (const hp of HP) {
+  const fig = document.createElement("figure");
+  const c = document.createElement("canvas");
+  const cap = document.createElement("figcaption");
+  cap.textContent = `hp ${hp}`;
+  fig.append(c, cap); canv.append(fig);
+  const g = world(hp);
+  const r = createRenderer(c);
+  resize(r, 300, 170);
+  r.cam.x = 24; r.cam.y = g.actors[0].y - 0.95; r.cam.zoom = 260;
+  draw(r, g, 1 / 60);
+}
+
+/* The DOM cards are NOT drawn here.
+ *
+ * paintPanels caches its mount and its two cards at module scope, so calling
+ * it eleven times against eleven different containers repaints the same pair
+ * over and over — and the id-juggling needed to fool it hung the tab hard
+ * enough to take the devtools connection with it. The card halves are easy
+ * to check in the running game; it is the twenty-pixel ones over a
+ * character's head that need a sheet. */
+document.title = "heart sheet";
+</script>

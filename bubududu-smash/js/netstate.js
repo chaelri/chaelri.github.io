@@ -30,7 +30,7 @@ function packActor(a, now) {
   return [
     a.id, a.char, r2(a.x), r2(a.y), r2(a.vx), r2(a.vy), a.face,
     r2(a.walk), r2(a.squash), r2(a.t), bit(a.grounded),
-    a.hp, bit(a.dead), r2(a.respawn || 0), r2(a.w), r2(a.h),
+    r2(a.hp), bit(a.dead), r2(a.respawn || 0), r2(a.w), r2(a.h),
     a.power ? a.power.type : 0,
     a.power ? a.power.ammo || 0 : 0,
     // Deadlines travel as time REMAINING, not as absolute times. The two

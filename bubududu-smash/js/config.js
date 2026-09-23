@@ -369,6 +369,26 @@ export const ABILITY = {
     crackMs: 1200,
     // You cannot steer out of it. Committing is the whole character.
     lockMs: 90,
+
+    /* Pressing it with both feet on the floor hops him up first.
+     *
+     * Otherwise a standing pound is a dive of zero tiles: minimum blast, no
+     * travel, nothing to see. Charlie's words — "if i didnt jump when using
+     * ability of yhon, it will auto mini jump to have the same impact". The
+     * rise is measured in jump velocities, and the dive begins at the apex
+     * with `poundFrom` reset there, so the blast is worth the hop and not
+     * worth the standing still that preceded it. */
+    hop: 0.86,         // of a full jump
+
+    /* What a landing takes out of a platform.
+     *
+     * Only ever '=' — the thin ledges. Punching a hole in the '#' ground
+     * would cut the arena in half and strand whoever is on the far side,
+     * which the shrink already does on its own schedule and does not need
+     * help with. Tiles either side of the impact, scaled by the fall, and
+     * only if he actually landed ON a ledge. */
+    breaks: 1.6,       // tiles either side off a short drop
+    breaksFar: 4.0,    // ...and off a long one
   },
 };
 
@@ -427,6 +447,19 @@ export const SQUAD = {
   spread: 1.1,        // tiles between them, waiting and on release
   waitMs: 13000,      // how long they hang around to be collected
   lifeMs: 9000,       // and how long they hunt once someone has
+
+  /* Half a heart each, not a whole one.
+   *
+   * Three of them, each taking a full heart, is the entire bar — one reward
+   * could end a round outright, and there was nothing to be done about it
+   * once they were released. At a half each the squad is worth one and a
+   * half hearts if every one of them connects, which is still the strongest
+   * thing ten coins can buy and is no longer the whole game.
+   *
+   * This is the first thing in here that deals a fraction, and everything
+   * downstream of `hp` had to learn to count in halves for it — see
+   * killPlayer's `damage`, and the hearts in render.js and panel.js. */
+  damage: 0.5,
 
   // Quick and jumpy, because they are small and there are three of them —
   // one that could also out-muscle you would be the whole round.

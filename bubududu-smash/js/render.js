@@ -2679,7 +2679,7 @@ function drawHearts(r, ctx, g, a, cx, cy) {
   const z = r.cam.zoom;
   // The bar grows only when you are carrying spares. Drawing all five slots
   // all the time would mean a healthy player permanently looks two down.
-  const max = Math.max(FEEL.hp, a.hp);
+  const max = Math.max(FEEL.hp, Math.ceil(a.hp));
   const s = z * 0.19;
   const gap = s * 2.65;
   // Just hit: the hearts jump so the loss is noticed.
@@ -2711,7 +2711,14 @@ function drawHearts(r, ctx, g, a, cx, cy) {
   }
 
   function drawOneHeart(i, x, cy) {
-    const full = i < a.hp;
+    /* How much of THIS heart is left, 0 to 1.
+     *
+     * It used to be the boolean `i < a.hp`, which was right while damage
+     * came in whole hearts. The mini squad takes half now, and under the old
+     * test 2.5 health drew as three full hearts — the hit simply did not
+     * appear, which is the worst possible way for a nerf to land. */
+    const fill = Math.max(0, Math.min(1, a.hp - i));
+    const full = fill >= 1;
     // Anything past the three you start with is a spare, and is gold — so a
     // glance says "she has one in hand" rather than just "she is fine".
     const bonus = i >= FEEL.hp;
@@ -2721,16 +2728,30 @@ function drawHearts(r, ctx, g, a, cx, cy) {
       ctx.shadowColor = "rgba(255,196,60,0.9)";
       ctx.shadowBlur = z * 0.22;
     }
+    // The empty shell first, then however much of it is still there clipped
+    // over the top — a half heart is the left half coloured in, the way every
+    // game that has ever had one draws it.
     heartPath(ctx, x, cy, sz);
-    // Flat fill, thin white edge. A gradient and a shine on something this
-    // small just reads as noise, and a dark outline turns it muddy.
-    ctx.fillStyle = bonus ? "#ffc43c" : full ? "#ff4d6d" : "rgba(255,255,255,0.5)";
+    ctx.fillStyle = "rgba(255,255,255,0.5)";
     ctx.fill();
+    if (fill > 0) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(x - sz * 1.6, cy - sz * 1.6, sz * 3.2 * fill, sz * 3.2);
+      ctx.clip();
+      heartPath(ctx, x, cy, sz);
+      // Flat fill, thin white edge. A gradient and a shine on something this
+      // small just reads as noise, and a dark outline turns it muddy.
+      ctx.fillStyle = bonus ? "#ffc43c" : "#ff4d6d";
+      ctx.fill();
+      ctx.restore();
+    }
+    heartPath(ctx, x, cy, sz);
     ctx.lineWidth = Math.max(1.2, z * 0.035);
     // An empty heart outlined in white disappears the moment it drifts over a
     // cloud, so it gets a cool edge instead; a full one is red enough to keep
     // the white.
-    ctx.strokeStyle = full ? "rgba(255,255,255,0.9)" : "rgba(92,128,158,0.65)";
+    ctx.strokeStyle = fill > 0 ? "rgba(255,255,255,0.9)" : "rgba(92,128,158,0.65)";
     ctx.shadowBlur = 0;
     ctx.stroke();
     ctx.restore();
