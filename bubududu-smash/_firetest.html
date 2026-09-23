@@ -1,0 +1,37 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>fire button</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/phone.css">
+<link rel="stylesheet" href="/css/fire.css">
+<style>
+ body{margin:0;background:linear-gradient(180deg,#a5dcff,#cfeeff 60%,#a7dc8a);
+      font:13px Nunito,system-ui;min-height:100vh}
+ .row{display:flex;gap:26px;align-items:center;padding:26px;flex-wrap:wrap}
+ .cap{width:110px;text-align:center;color:#21313f;font-weight:800}
+
+ #pad button{width:74px;height:74px;border-radius:22px;border:3px solid rgba(255,255,255,0.5);
+   background:rgba(255,255,255,0.25);color:#fff;font-weight:900;font-size:20px}
+</style></head><body>
+<div class="row" id="row"></div>
+<script type="module">
+import { ABILITY } from "/js/config.js";
+import { markSVG } from "/js/marks.js";
+const row = document.getElementById("row");
+const states = [
+  ["spent",  "dash",  100, false],
+  ["40% back","dash",  60, false],
+  ["80% back","dash",  20, false],
+  ["READY",  "dash",   0, true],
+  ["READY",  "hop",    0, true],
+  ["READY",  "pound",  0, true],
+];
+for (const [cap, id, cd, ready] of states) {
+  const ab = ABILITY[id];
+  const wrap = document.createElement("div");
+  wrap.innerHTML = `<button id="shoot" class="ability${ready ? " ready" : ""}" style="--ac:${ab.colour};--cd:${cd}%">${markSVG(ab.mark,"mk")}</button><div class="cap">${cap}<br>${ab.name}</div>`;
+  const pad = document.createElement("section");
+  pad.id = "pad"; pad.style.cssText = "position:static;display:block";
+  pad.appendChild(wrap);
+  row.appendChild(pad);
+}
+document.title = "fire button";
+</script></body></html>

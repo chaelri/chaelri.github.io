@@ -128,6 +128,9 @@ export function createPad({ onEdge } = {}) {
  * @param ready  whether it can actually be used — an Air Hop off cooldown is
  *               still no use with your feet on the ground.
  */
+let wasReady = false;
+let popTimer = null;
+
 export function paintShootButton(power, ammo, ability = null, cd = 0, ready = false) {
   const b = $("#shoot");
   if (!b) return;
@@ -139,6 +142,27 @@ export function paintShootButton(power, ammo, ability = null, cd = 0, ready = fa
   b.classList.toggle("melee", armed && power === "suntok");
   b.classList.toggle("ability", !armed && !!ability);
   b.classList.toggle("ready", live);
+
+  /* The moment it comes BACK gets said out loud, once.
+   *
+   * A state you have to notice changing is a state you notice too late —
+   * mid-round nobody is watching their thumb, they are watching the other
+   * player. So the frame the cooldown ends throws one ring off the button
+   * and gives it a kick, and the rest of the time it simply breathes.
+   *
+   * Removed and re-added around a reflow, which is what restarts a CSS
+   * animation; setting the class on an element that already has it does
+   * nothing at all. Same trick the note cards use to re-bump.
+   */
+  if (live && !wasReady) {
+    b.classList.remove("pop");
+    void b.offsetWidth;
+    b.classList.add("pop");
+    clearTimeout(popTimer);
+    popTimer = setTimeout(() => b.classList.remove("pop"), 560);
+  }
+  if (!live) { b.classList.remove("pop"); clearTimeout(popTimer); }
+  wasReady = live;
   // The cooldown drains out of the button itself, the same way a chip's does.
   b.style.setProperty("--cd", `${Math.max(0, Math.min(1, cd)) * 100}%`);
   if (ability) b.style.setProperty("--ac", ability.colour);

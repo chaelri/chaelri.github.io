@@ -1,0 +1,110 @@
+/* The fire button, and the three moods it has.
+ *
+ * It lives in its own file because BOTH pads need it and neither of their
+ * stylesheets is shared: the controller page links phone.css and the two-phone
+ * page links screen.css + duo.css, and there is no third file in common. The
+ * same rules written twice is the thing that goes out of step the first time
+ * one of them changes — which is the same reason hud.js and panel.js exist.
+ * Linked LAST on both pages, so it out-orders their own `#pad #shoot` rules
+ * at equal specificity.
+ *
+ * With a power-up it is the gun or the fist, and those are handled where the
+ * rest of that page's pad is. What is here is the third mood, which is most of
+ * a round: your character's own move, and whether you can use it RIGHT NOW.
+ *
+ * That last part is the whole job. A cooldown you cannot read at a glance,
+ * mid-jump, on a bright phone screen, is a cooldown you end up guessing at —
+ * so spent and ready are not two strengths of the same tint any more. Spent is
+ * grey and dead. Ready is the character's own colour, lit, breathing, with the
+ * symbol in white. And the moment it comes back it says so.
+ */
+
+#pad #shoot.ability {
+  position: relative;
+  overflow: visible;                 /* the flash ring grows past the edge */
+  display: grid; grid-auto-flow: column; place-items: center; gap: 2px;
+  /* SPENT: grey, and not a dimmer version of the ready colour. Two strengths
+     of one tint is a difference you have to compare against something; grey
+     against colour is one you cannot miss. */
+  border-color: rgba(150,168,186,0.5) !important;
+  background: rgba(120,140,160,0.16) !important;
+  color: rgba(226,238,251,0.34) !important;
+  transition: background 160ms, border-color 160ms, color 160ms, box-shadow 200ms;
+}
+#pad #shoot.ability .mk { width: 46%; height: 46%; }
+#pad #shoot.ability i { font-style: normal; font-weight: 900; margin-left: 2px; }
+
+/* How much of the cooldown has RECHARGED, as a ring round the rim.
+ *
+ * A ring, not the bar that was here before. A bar rising up the inside of the
+ * button is read against the button's own edge and at a glance says only
+ * "something is partly full"; a ring closes, and a ring that has nearly closed
+ * is obvious without reading anything. It sweeps from the top. */
+#pad #shoot.ability::before {
+  content: ""; position: absolute; inset: -2px; border-radius: inherit;
+  background: conic-gradient(from -90deg,
+    var(--ac, #7fd4ff) calc(100% - var(--cd, 0%)), transparent 0);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
+  opacity: 0.85;
+  pointer-events: none;
+}
+/* Closed. Nothing to draw, and the lit border below is saying it already. */
+#pad #shoot.ability.ready::before { opacity: 0; }
+
+/* READY: the character's colour, lit, and breathing so it catches the eye
+   even when you are not looking at your thumb. */
+#pad #shoot.ability.ready {
+  border-color: var(--ac, #7fd4ff) !important;
+  background: color-mix(in srgb, var(--ac, #7fd4ff) 42%, transparent) !important;
+  color: #fff !important;
+  animation: fireBreathe 1.7s ease-in-out infinite;
+}
+#pad #shoot.ability.ready .mk {
+  filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.9));
+}
+#pad #shoot.ability.ready.down {
+  background: color-mix(in srgb, var(--ac, #7fd4ff) 68%, transparent) !important;
+  animation: none;
+}
+@keyframes fireBreathe {
+  0%, 100% {
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--ac, #7fd4ff) 30%, transparent),
+                0 0 16px -2px var(--ac, #7fd4ff);
+  }
+  50% {
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--ac, #7fd4ff) 12%, transparent),
+                0 0 26px -1px var(--ac, #7fd4ff);
+  }
+}
+
+/* ...and the moment it comes BACK, which is the moment that matters.
+ *
+ * A state you have to notice changing is a state you notice too late. One
+ * ring thrown off the button, once, on the frame the cooldown ends. */
+#pad #shoot.ability::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit;
+  border: 2px solid var(--ac, #7fd4ff);
+  opacity: 0; pointer-events: none;
+}
+#pad #shoot.ability.pop::after { animation: fireReady 520ms cubic-bezier(0.2, 1, 0.4, 1); }
+#pad #shoot.ability.pop { animation: firePunch 380ms cubic-bezier(0.2, 1.6, 0.4, 1); }
+@keyframes fireReady {
+  0%   { opacity: 0.95; transform: scale(1); }
+  100% { opacity: 0;    transform: scale(1.85); }
+}
+@keyframes firePunch {
+  0%   { transform: scale(1.18); }
+  60%  { transform: scale(0.97); }
+  100% { transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #pad #shoot.ability.ready,
+  #pad #shoot.ability.pop,
+  #pad #shoot.ability.pop::after { animation: none; }
+  #pad #shoot.ability.ready {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--ac, #7fd4ff) 22%, transparent),
+                0 0 20px -2px var(--ac, #7fd4ff);
+  }
+}

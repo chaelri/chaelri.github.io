@@ -273,36 +273,8 @@ body.duo.result #scrim { background: rgba(8, 20, 34, 0.68); }
 #pad.duo #shoot.armed { background: rgba(99,217,138,0.45); border-color: rgba(99,217,138,0.85); }
 #pad.duo #shoot.armed.melee { background: rgba(255,107,87,0.45); border-color: rgba(255,107,87,0.85); }
 
-/* ...and with no power-up it is the character's own move, in that
-   character's colour. These repeat what phone.css already says because this
-   page does NOT load phone.css — it links screen.css and this file, and
-   `#pad.duo #shoot` out-specifies `#pad #shoot.ability` anyway, so the
-   button stayed gun-green while holding a Dash. */
-#pad.duo #shoot.ability {
-  border-color: color-mix(in srgb, var(--ac, #7fd4ff) 34%, transparent);
-  background: color-mix(in srgb, var(--ac, #7fd4ff) 10%, transparent);
-  color: color-mix(in srgb, var(--ac, #7fd4ff) 45%, transparent);
-}
-#pad.duo #shoot.ability.ready {
-  border-color: color-mix(in srgb, var(--ac, #7fd4ff) 82%, transparent);
-  background: color-mix(in srgb, var(--ac, #7fd4ff) 26%, transparent);
-  color: #fff;
-}
-#pad.duo #shoot.ability.ready.down {
-  background: color-mix(in srgb, var(--ac, #7fd4ff) 48%, transparent) !important;
-}
-/* The cooldown drains up the button, behind the symbol and never over it. */
-#pad.duo #shoot { position: relative; overflow: hidden; display: grid;
-  grid-auto-flow: column; place-items: center; gap: 2px; }
-#pad.duo #shoot.ability::after {
-  content: ""; position: absolute; inset: 0; border-radius: inherit;
-  background: linear-gradient(to top,
-    color-mix(in srgb, var(--ac, #7fd4ff) 30%, transparent) var(--cd, 0%),
-    transparent var(--cd, 0%));
-  pointer-events: none;
-}
-#pad.duo #shoot .mk { width: 46%; height: 46%; }
-#pad.duo #shoot i { font-style: normal; font-weight: 900; margin-left: 2px; }
+/* With no power-up it is the character's own move — see css/fire.css. */
+
 
 /* The status pill is only worth screen space when something is WRONG.
    Sitting there saying DIRECT for a whole match is just something in front of
