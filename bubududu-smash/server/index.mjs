@@ -42,10 +42,24 @@ const BUFFER_MIN = 2;
  * ever. Two at a time drains it in a second or so. */
 const BUFFER_MAX = 8;
 
+/* The room is a singleton, and the seats are by NAME.
+ *
+ * `maxClients = 2` looks obviously right and is a trap: a phone that sleeps
+ * or loses signal can leave a socket the server still counts, and then the
+ * second player is refused, `joinOrCreate` opens a SECOND room — and both
+ * rooms tick the same module-level simulation, sixty times a second each.
+ * The world runs at double speed, two countdowns overlap, and the sound of
+ * that is a drum roll. There are two people and two seats: a second "Charlie"
+ * is always Charlie coming back, so he takes the seat off whoever was in it
+ * rather than being turned away.
+ */
 class SmashRoom extends Room {
-  maxClients = 2;
+  maxClients = 4;
 
   onCreate() {
+    // A new room is a new night in: the rules are module state and outlive
+    // any particular pair of phones.
+    sim.state.newSession();
     this.roles = new Map();       // sessionId -> "p1" | "p2"
     this.pending = { notes: [], sfx: [], music: [], rounds: [] };
     this.shown = { banner: null, count: null, result: null };
@@ -133,9 +147,14 @@ class SmashRoom extends Room {
      * negotiate. Whatever is left over is assigned if they ask for a seat
      * that is taken.
      */
-    const taken = new Set(this.roles.values());
     let role = options.role === "p1" || options.role === "p2" ? options.role : "p1";
-    if (taken.has(role)) role = role === "p1" ? "p2" : "p1";
+    // Whoever was sitting here is gone, whatever their socket still says.
+    for (const [sid, r] of [...this.roles]) {
+      if (r !== role || sid === client.sessionId) continue;
+      this.roles.delete(sid);
+      try { this.clients.find((c) => c.sessionId === sid)?.leave(1000); } catch {}
+      console.log(`[smash] ${sid} replaced on ${role}`);
+    }
     this.roles.set(client.sessionId, role);
     // A new connection numbers its ticks from one, so everything the room was
     // holding about the last one has to go with it.
@@ -153,8 +172,11 @@ class SmashRoom extends Room {
   }
 
   onLeave(client) {
+    // Nothing if they were already replaced — the seat belongs to whoever is
+    // sitting in it now, not to the last socket to notice it left.
     const role = this.roles.get(client.sessionId);
-    if (role) sim.state.pads[role].connected = false;
+    if (!role) return void console.log(`[smash] ${client.sessionId} left (already replaced)`);
+    sim.state.pads[role].connected = false;
     this.roles.delete(client.sessionId);
     console.log(`[smash] ${client.sessionId} left`);
   }

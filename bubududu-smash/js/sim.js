@@ -118,6 +118,27 @@ export const state = {
    * number the LAST connection reached. Every input from the new one is then
    * "older than what we have" and silently dropped — the game looks perfect,
    * runs at full rate, and the buttons do nothing at all. */
+  /* A cold lobby, for a room that has just been opened.
+   *
+   * The rules are module state and the server process outlives any particular
+   * pair of phones, so a room created tomorrow starts life holding the score
+   * and the phase of the last match played — and `startMatch()` only fires
+   * out of "lobby". Two phones opening the game then land in a finished
+   * match, with the Rematch button the only thing that does anything. Which
+   * is exactly "it does not start". */
+  newSession() {
+    phase = "lobby";
+    score.p1 = 0;
+    score.p2 = 0;
+    roundNo = 1;
+    G = null;
+    countdown = 0;
+    lastCount = -1;
+    for (const id of ["p1", "p2"]) {
+      this.resetInput(id);
+      pads[id].connected = false;
+    }
+  },
   resetInput(role) {
     if (!pads[role]) return;
     lastSeq[role] = 0;
