@@ -1231,6 +1231,21 @@ function handleDeath(a) {
   clearPower(a, true);
   // A fist in mid-air when you die does not get to land afterwards.
   a.punch = null;
+  /* ...and neither effect follows you out of the grave.
+   *
+   * Charlie: "kapag namamatay dapat mawaala rin yung reverse effect sa
+   * namatay". Reverse and Freeze are deadlines in seconds, and they were only
+   * ever reset at the START OF A ROUND — so being reversed and then killed
+   * spent the rest of those five seconds on a body that had just respawned
+   * somewhere else, holding left to go right for a life you had already paid
+   * a heart for. Freeze is worse and had the same hole: you could come back
+   * unable to move at all.
+   *
+   * Cleared HERE rather than at the respawn a second later, because the chip
+   * on the card is drawn off these same two fields — clearing late leaves it
+   * claiming an effect on a player who is not even on the board. */
+  a.reversedUntil = 0;
+  a.frozenUntil = 0;
   const before = a.hp;
   // Normally a death costs one heart. A punch is the exception — it is
   // flagged lethal at the point of contact and takes the whole bar.

@@ -70,6 +70,8 @@ const BOTH_CONTAIN = [
   ["breakLedge(a, force)", "a pound has to break the ledge"],
   ["hurtKing(a)", "the King has to be hurtable"],
   ['givePower(winner, "korona")', "the crown has to be handed over"],
+  ["a.reversedUntil = 0", "death has to clear Reverse in both copies"],
+  ["a.frozenUntil = 0", "death has to clear Freeze in both copies"],
 ];
 for (const [needle, why] of BOTH_CONTAIN) {
   const inSim = sim.includes(needle), inScreen = screen.includes(needle);

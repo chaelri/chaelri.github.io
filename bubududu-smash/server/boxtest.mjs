@@ -261,6 +261,32 @@ for (const char of ["bubu", "dudu", "yhon"]) {
   ok("crown every landing is a Ground Pound", pounded);
 }
 
+/* ---- 10. nothing follows you out of the grave ------------------------- */
+{
+  const G = world();
+  const a = G.actors.find((q) => q.id === "p1");
+  const o = G.actors.find((q) => q.id === "p2");
+  a.reversedUntil = G.time + 5;
+  a.frozenUntil = G.time + 5;
+  const hpWas = a.hp;
+  killPlayerViaStomp(G, o, a);
+  ok("death clears Reverse", !(a.reversedUntil > G.time),
+     `reversedUntil ${a.reversedUntil}`);
+  ok("death clears Freeze", !(a.frozenUntil > G.time),
+     `frozenUntil ${a.frozenUntil}`);
+  ok("death still costs a heart", a.hp === hpWas - 1, `hp ${hpWas} -> ${a.hp}`);
+}
+
+/** Land `by` on `victim`'s head, which is the ordinary way anyone dies here. */
+function killPlayerViaStomp(G, by, victim) {
+  for (let i = 0; i < 40 && !victim.dead; i++) {
+    by.x = victim.x;
+    by.y = victim.y - victim.h - 0.3;
+    by.vy = 9;
+    sim.step(sim.TICK);
+  }
+}
+
 console.log(bad
   ? `\nBOX FAIL — ${bad} check(s)`
   : "\nBOX OK — a box opens three ways, and the King goes down in three");
