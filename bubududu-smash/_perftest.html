@@ -1,0 +1,101 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>PERF…</title>
+<style>body{margin:0;background:#0d1520;color:#dfe9f3;font:13px/1.5 ui-monospace,Menlo,monospace}
+pre{padding:12px;white-space:pre-wrap}canvas{position:fixed;left:0;top:0;opacity:0.01;pointer-events:none}
+b.slow{color:#ff7a91}b.ok{color:#57e08a}</style></head><body>
+<canvas id="stage" width="1280" height="720"></canvas><pre id="out">measuring…</pre>
+<script type="module">
+/* What one frame actually costs, piece by piece.
+ *
+ * The selftest already gates the median at 6ms, which answers "is it fast
+ * enough" and never answers "what is the expensive part". This builds the
+ * same worst-case round and then takes things off the field one at a time,
+ * so a frame's cost can be attributed rather than guessed at. Everything
+ * here runs draw() directly — no rAF, no sim — because a dropped frame on a
+ * phone is a drawing problem and the loop only hides it.
+ */
+import { makeArena, solidGrid } from "./js/levels.js";
+import { makeActor, stepActor } from "./js/physics.js";
+import { createRenderer, draw, resize } from "./js/render.js";
+import { preloadCharacters } from "./js/characters.js";
+import { SQUAD, COINS, POWER_ORDER } from "./js/config.js";
+
+const out = document.getElementById("out");
+await preloadCharacters();
+const cv = document.getElementById("stage");
+const r = createRenderer(cv);
+resize(r, 1280, 720);
+
+function scene() {
+  const level = makeArena(4242);
+  const g = {
+    level, grid: solidGrid(level), time: 0, shrink: 0,
+    actors: [], powers: [], coins: [], shots: [], pops: [], bursts: [],
+    helpers: [], minis: [], lostHearts: [], wildFairy: null,
+    freeze: 0, slow: 0, slowRate: 1, winner: 0,
+  };
+  const mk = (char, x, id) => { const a = makeActor(x, 10, id || char); a.char = char; a.hp = 3; return a; };
+  g.actors.push(mk("bubu", 18, "p1"), mk("yhon", 30, "p2"));
+  for (const a of g.actors) { a.label = a.id; a.face = 1; }
+  POWER_ORDER.forEach((t, i) => g.powers.push({ x: 8 + i * 3, y: 8, type: t, born: -1 }));
+  for (let i = 0; i < 8; i++) g.coins.push({ x: 10 + i * 2.5, y: 11, born: -1, taken: false });
+  return g;
+}
+
+/* Each knob takes ONE thing off the field. The difference between the full
+ * frame and the frame without it is what that thing costs. */
+const parts = {
+  minis: (g) => { for (let i = 0; i < SQUAD.count; i++) {
+      const m = makeActor(24 + i, 10, "m" + i); m.char = "bubu";
+      m.w *= SQUAD.scale; m.h *= SQUAD.scale;
+      g.minis.push({ actor: m, owner: null, home: 24 + i, until: 9, jumpAt: 0, leaving: false, wave: 0 });
+    } },
+  dudu: (g) => { for (let i = 0; i < 2; i++) {
+      const d = makeActor(34 + i * 3, 10, "h" + i); d.char = "dudu";
+      g.helpers.push({ actor: d, ally: null, until: 20, hardUntil: 40, wanderDir: 1,
+        jumpAt: 0, pause: 0, locked: false, pouncing: false, leaving: false, waiting: false, wave: 0 });
+    } },
+  fairy: (g) => { g.actors[0].fairy = { left: 2, next: 2, healAt: -1, leaving: false, wave: 0, phase: 1 }; },
+  wild: (g) => { g.wildFairy = { x: 20, y: 6, tx: 30, ty: 5, hold: 0, born: 0, until: 40,
+                                 phase: 0.7, face: 1, leaving: false, wave: 0 }; },
+  star: (g) => { g.actors[1].power = { type: "bituin", ammo: 0, until: 99 }; },
+  shot: (g) => { g.shots.push({ x: 20, y: 9.5, vx: 24, vy: 0, owner: "p1", life: 1, born: -0.05 }); },
+};
+
+function run(skip = []) {
+  const g = scene();
+  for (const [k, add] of Object.entries(parts)) if (!skip.includes(k)) add(g);
+  const times = [];
+  for (let i = 0; i < 400; i++) {
+    g.time += 1 / 120;
+    for (const a of g.actors) {
+      const dir = Math.sin(i / 40 + (a.id === "p2" ? 2 : 0));
+      stepActor(a, { left: dir < -0.25, right: dir > 0.25, jumpDown: i % 47 === 0, jumpHeld: (i % 47) < 14 },
+                g.grid, 1 / 120, g.actors, {});
+    }
+    const t0 = performance.now();
+    draw(r, g, 1 / 120);
+    times.push(performance.now() - t0);
+  }
+  const warm = times.slice(40).sort((a, b) => a - b);
+  return { med: warm[Math.floor(warm.length / 2)], p95: warm[Math.floor(warm.length * 0.95)] };
+}
+
+run(Object.keys(parts));           // warm the atlases and gradients
+const full = run();
+const lines = [`full frame          median ${full.med.toFixed(2)}ms   p95 ${full.p95.toFixed(2)}ms`, ""];
+const costs = [];
+for (const k of Object.keys(parts)) {
+  const без = run([k]);
+  const cost = full.med - без.med;
+  costs.push([k, cost]);
+  lines.push(`without ${k.padEnd(12)}median ${без.med.toFixed(2)}ms` +
+             `   → ${k} costs ${cost.toFixed(2)}ms  (${((cost / full.med) * 100).toFixed(0)}%)`);
+}
+const bare = run(Object.keys(parts));
+lines.push("", `two players only    median ${bare.med.toFixed(2)}ms`);
+lines.push("", `A phone draws roughly three to five times slower than this machine.`);
+lines.push(`At ${full.med.toFixed(2)}ms here, a phone is ${(full.med * 3).toFixed(0)}–${(full.med * 5).toFixed(0)}ms a frame — ` +
+           (full.med * 4 > 16.7 ? "it CANNOT hold 60." : "60 holds."));
+out.innerHTML = lines.join("\n");
+document.title = full.med * 4 > 16.7 ? "PERF SLOW" : "PERF OK";
+</script></body></html>

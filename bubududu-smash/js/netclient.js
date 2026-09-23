@@ -18,6 +18,7 @@ import { preloadCharacters } from "./characters.js";
 import { createPad, paintShootButton } from "./pad.js";
 import { paintPanels, chipsFor } from "./panel.js";
 import { hydrate } from "./netstate.js";
+import { createWorldTape } from "./interp.js";
 import * as HUD from "./hud.js";
 import * as sim from "./sim.js";
 import {
@@ -79,22 +80,26 @@ export async function connect({ role, say = () => {} }) {
    */
   const TICK = 1 / 60;
 
-  /* The OTHER player, as a little archive rather than a guess.
+  /* The REMOTE WORLD, as a little archive rather than a guess.
    *
-   * Their positions are kept with the moment each arrived, and they are drawn
-   * INTERP_MS in the past — between two places the server actually put them,
-   * never past the newest one. Every game that looks right does this: you
-   * watch the other player a tenth of a second late and perfectly smoothly,
-   * rather than live and wrong. Guessing forward by half the round trip is
-   * the alternative, and it is at its worst at the one moment you are looking
-   * hardest — the turn, the landing, the hit.
+   * Every moving thing the server owns is kept with the moment it arrived,
+   * and all of it is drawn a little way in the past — between two places the
+   * server actually put it, never past the newest one.
+   *
+   * This used to hold the other PLAYER and nothing else, and everything else
+   * the server owns — the three mini Bubus, Dudu, the wild fairy, the bullets
+   * — was taken outright from each snapshot and then held still until the
+   * next one. So they moved at the snapshot rate rather than the screen's,
+   * and that is exactly where Charlie could see it: "mas noticeable sa mga
+   * element like mini bubu jumping, lumilipad na fairy yhon". They are all on
+   * one playhead now, so the whole remote world moves together — which is
+   * also the only way Dudu cannot land a stomp on somebody who, on your
+   * screen, has not arrived yet.
+   *
+   * The reading-between itself lives in interp.js, which has no socket and no
+   * DOM in it and can therefore be run against a synthetic feed and measured.
    */
-  const other = role === "p1" ? "p2" : "p1";
-  const tape = [];
-  const TAPE_MAX = 24;
-  /* Three snapshots' worth at 30 Hz, so one lost packet still has something
-   * on both sides of the playhead to read between. */
-  const INTERP_MS = 100;
+  const tape = createWorldTape();
 
   let room = null;
   let started = false;
@@ -135,6 +140,19 @@ export async function connect({ role, say = () => {} }) {
       // simulated, and how many are still outstanding between them.
       tick: seq, ack: lastAck, held: history.length,
       updates: stats.updates, bad: stats.bad, rtt: Math.round(stats.rtt),
+      // How far behind the remote world is being drawn, which is no longer a
+      // constant — a harness that assumes 100 will call a correct picture
+      // drifted, which is exactly what _nettest.html used to do.
+      interp: Math.round(tape.interpMs),
+      /* One of each thing this client does NOT predict.
+       *
+       * A harness cannot otherwise tell the difference between a world that
+       * MOVES between snapshots and one that only jumps when a snapshot
+       * lands, and that difference is the whole of how smooth it looks. For
+       * a long time it was the latter and nothing measured it. */
+      mini: G.minis[0] ? +G.minis[0].actor.x.toFixed(3) : null,
+      helper: G.helpers[0] ? +G.helpers[0].actor.x.toFixed(3) : null,
+      wild: G.wildFairy ? +G.wildFairy.x.toFixed(3) : null,
       since: stats.lastAt ? Math.round(performance.now() - stats.lastAt) : -1,
       frames: frames,
     };
@@ -189,7 +207,7 @@ export async function connect({ role, say = () => {} }) {
     }
     if (m.sd !== undefined && m.sd !== sim.state.seed) {
       // A new arena is not somewhere the old positions can be read between.
-      tape.length = 0;
+      tape.reset();
       history.length = 0;
       sim.startRound(m.sd);
     }
@@ -197,17 +215,9 @@ export async function connect({ role, say = () => {} }) {
     view.score = m.sc;
     view.roundNo = m.rn;
 
-    // The other player, filed away to be read back a tenth of a second from
-    // now. Nothing draws them from here directly.
-    const o = view.actors.find((a) => a.id === other);
-    if (o) {
-      tape.push({
-        at: performance.now(),
-        x: o.x, y: o.y, face: o.face, walk: o.walk, squash: o.squash,
-        dead: !!o.dead, grounded: !!o.grounded,
-      });
-      while (tape.length > TAPE_MAX) tape.shift();
-    }
+    // The whole remote world, filed away to be read back a moment from now.
+    // Nothing draws any of it from here directly.
+    tape.record(view, performance.now());
 
     // Everything the server knows that we cannot have: what it made of the
     // thumbs we sent it, so we know which of ours are still outstanding.
@@ -347,60 +357,6 @@ export async function connect({ role, say = () => {} }) {
 
   /* --------------------------------------------------------------- draw --- */
 
-  /**
-   * Where the other player was a tenth of a second ago.
-   *
-   * Two entries either side of the playhead and a straight line between them.
-   * Both ends are places the server actually put them, so this can be smooth
-   * and correct at the same time — which extrapolation cannot, because the
-   * moment someone turns round, everything you know about them says they are
-   * still going the other way.
-   *
-   * Running off the end of the tape holds the newest frame rather than
-   * inventing a new one. A stalled picture for a few frames is a dropped
-   * packet; a picture that keeps walking into a wall is a lie.
-   */
-  function showOther(G) {
-    if (!tape.length) return;
-    const a = G.actors.find((q) => q.id === other);
-    if (!a) return;
-    const at = performance.now() - INTERP_MS;
-
-    let hi = -1;
-    for (let i = tape.length - 1; i >= 0; i--) if (tape[i].at <= at) { hi = i; break; }
-    if (hi < 0) return void assign(a, tape[0]);
-    if (hi >= tape.length - 1) return void assign(a, tape[tape.length - 1]);
-
-    const p = tape[hi], q = tape[hi + 1];
-    const span = q.at - p.at;
-    const k = span > 0 ? Math.min(1, Math.max(0, (at - p.at) / span)) : 0;
-    const per = span > 0 ? 1000 / span : 0;
-    assign(a, {
-      x: p.x + (q.x - p.x) * k,
-      y: p.y + (q.y - p.y) * k,
-      // The walk cycle is distance covered, so it interpolates like a
-      // position; the facing is a direction and snaps to whichever end of the
-      // pair we are nearer.
-      walk: p.walk + (q.walk - p.walk) * k,
-      squash: p.squash + (q.squash - p.squash) * k,
-      face: k < 0.5 ? p.face : q.face,
-      grounded: k < 0.5 ? p.grounded : q.grounded,
-      /* Velocity is DERIVED from the two frames, never sent.
-       *
-       * The renderer leans the body, kicks dust and picks the run weighting
-       * off it, so a velocity that disagreed with the motion on screen would
-       * be a character sprinting on the spot — or sliding along with its legs
-       * still. Taken from the same pair the position came from, it cannot. */
-      vx: (q.x - p.x) * per,
-      vy: (q.y - p.y) * per,
-    });
-  }
-  function assign(a, f) {
-    a.x = f.x; a.y = f.y; a.face = f.face; a.walk = f.walk;
-    a.squash = f.squash; a.grounded = f.grounded;
-    a.vx = f.vx || 0; a.vy = f.vy || 0;
-  }
-
   let frames = 0;
   let acc = 0;
   let last = performance.now();
@@ -424,7 +380,7 @@ export async function connect({ role, say = () => {} }) {
         mintTick();
         sim.step(TICK);                   // predict forward — your body only
       }
-      showOther(G);                       // ...and read theirs off the tape
+      tape.apply(G, performance.now(), role);   // ...and read the rest off the tape
       draw(renderer, G, dt);
       paintPanels(
         G.actors,

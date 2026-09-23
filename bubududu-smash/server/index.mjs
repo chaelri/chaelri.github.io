@@ -29,6 +29,22 @@ const TICK = 1 / TICK_HZ;
 const SEND_HZ = 30;        // how often both players are told
 const KEYFRAME_MS = 1000;  // ...and told everything
 
+/* Counted in TICKS, not in milliseconds — and that is the whole point.
+ *
+ * It used to be `if (now - lastSend < 1000 / SEND_HZ) return`, which looks
+ * like thirty a second and is not. The gate can only be crossed on a tick
+ * boundary, and the ticks are 16.67ms apart: the third tick lands at 33.3ms,
+ * which is not reliably MORE than the 33.3ms the gate wants, so it is
+ * skipped and the send waits for the fourth. A 30Hz rule sampled at 60Hz
+ * aliases to 20. Measured against the live server: 22.7 snapshots a second,
+ * 49ms apart, when the code plainly asked for 33.
+ *
+ * That is a third of the updates simply not sent, and it shows up worst on
+ * everything the client does NOT predict — the squad, Dudu, the wild fairy —
+ * because those move only when a snapshot lands. Every second tick, exactly.
+ */
+const SEND_EVERY = Math.max(1, Math.round(TICK_HZ / SEND_HZ));
+
 /* How many of a player's inputs to keep in hand before simulating them.
  *
  * Nought would mean every scrap of jitter shows up as a tick with nothing to
@@ -63,7 +79,8 @@ class SmashRoom extends Room {
     this.roles = new Map();       // sessionId -> "p1" | "p2"
     this.pending = { notes: [], sfx: [], music: [], rounds: [] };
     this.shown = { banner: null, count: null, result: null };
-    this.lastSend = 0;
+    this.ticks = 0;
+    this.sentAt = 0;
     this.lastKey = 0;
 
     /* The rules reach the outside through here.
@@ -225,11 +242,12 @@ class SmashRoom extends Room {
       this.feed("p1");
       this.feed("p2");
       sim.step(TICK);
+      this.ticks++;
     }
 
     const now = Date.now();
-    if (now - this.lastSend < 1000 / SEND_HZ) return;
-    this.lastSend = now;
+    if (this.ticks - this.sentAt < SEND_EVERY) return;
+    this.sentAt = this.ticks;
 
     const G = sim.state.G;
     if (!G) return;

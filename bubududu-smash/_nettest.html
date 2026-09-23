@@ -140,11 +140,14 @@ function track(a, b) {
     while (t.length && now - t[0].at > 1000) t.shift();
   }
 }
-const INTERP_MS = 100;
-function lagGap(id, drawn, rtt) {
+function lagGap(id, drawn, rtt, interp) {
   const t = trail[id];
   if (!drawn || t.length < 3) return 0;
-  const want = performance.now() - INTERP_MS - (rtt || 0) / 2;
+  /* The delay the client is ACTUALLY drawing at, asked for rather than
+     assumed — it is read off the snapshot gaps now and moves with the
+     network, so a hardcoded 100 here would report a correct picture as
+     drifted the moment the link got good. */
+  const want = performance.now() - (interp || 100) - (rtt || 0) / 2;
   let hi = -1;
   for (let i = t.length - 1; i >= 0; i--) if (t[i].at <= want) { hi = i; break; }
   if (hi < 0 || hi >= t.length - 1) return 0;
@@ -187,7 +190,7 @@ function verdict(a, b) {
    * using — the chosen 100 ms plus half the measured round trip.
    */
   track(a, b);
-  const g1 = lagGap("p1", b.p1, b.rtt), g2 = lagGap("p2", a.p2, a.rtt);
+  const g1 = lagGap("p1", b.p1, b.rtt, b.interp), g2 = lagGap("p2", a.p2, a.rtt, a.interp);
   if (g1 > 1.2 || g2 > 1.2) problems.push(`drift p1 ${g1.toFixed(2)} p2 ${g2.toFixed(2)}`);
 
   if (problems.length) {
@@ -199,7 +202,8 @@ function verdict(a, b) {
       `off by p1 ${g1.toFixed(2)} p2 ${g2.toFixed(2)} tiles · ` +
       `${a.fps.toFixed(0)}/${b.fps.toFixed(0)} fps · ` +
       `${a.ups.toFixed(0)}/${b.ups.toFixed(0)} updates a second · ` +
-      `${a.rtt ?? 0}/${b.rtt ?? 0}ms rtt`;
+      `${a.rtt ?? 0}/${b.rtt ?? 0}ms rtt · ` +
+      `${a.interp ?? 0}/${b.interp ?? 0}ms behind`;
   }
 }
 
