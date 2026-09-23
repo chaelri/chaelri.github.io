@@ -111,7 +111,7 @@ export const FEEL = {
   // Lunas can take you PAST the three you start with, up to five. The extra
   // hearts are drawn gold and only exist once you have earned them, so a full
   // bar still reads as full rather than as "you are missing two".
-  hpMax: 5,
+  hpMax: 5,      // the ordinary ceiling; the Big Heart goes past it
   hurtInvulnMs: 1600,
 };
 
@@ -238,8 +238,19 @@ export const POWERUPS_EXTRA = {
    * work for, and what is in it has to be worth more than what is lying on
    * the floor for free. */
   puso: {
-    id: "puso", name: "Big Heart", desc: "Three hearts back, all at once.", en: "big heart",
-    ms: 0, colour: "#ff2d5a", heal: 3,
+    id: "puso", name: "Big Heart", desc: "Nine hearts. All of them, right now.", en: "big heart",
+    ms: 0, colour: "#ff2d5a",
+    /* Not a heal — a SETTING.
+     *
+     * It was +3, capped at the Diwata's six, which meant a player on four got
+     * two and the rarest pickup in the game was worth less than two Heals off
+     * the floor. Charlie: "instead na + 3 hearts, just give it total of 9
+     * hearts". So whoever opens it is simply on nine, from wherever they
+     * were — a comeback you cannot grind for, which is the point of a box.
+     *
+     * Nine is three rows of three, which is why the heart bars had to learn
+     * to wrap at all; see drawHearts and the card. */
+    set: 9,
   },
   bazuka: {
     id: "bazuka", name: "Bazooka", desc: "One shell. It finds them, and it ends it.",
@@ -249,9 +260,27 @@ export const POWERUPS_EXTRA = {
     // it is a result.
     ammo: 1, colour: "#ff8a3d",
     fires: true,
-    turn: 4.6,        // radians a second it may steer
-    speed: 15,        // slower than a bullet, because you must SEE it coming
+    /* Fast, and it still steers.
+     *
+     * It was 15 — slower than a bullet, on the theory that you should see it
+     * coming. In play that read as a lobbed brick rather than a rocket, and
+     * Charlie wanted "mas mabilis parang bazooka talaga". 26 is a shade past
+     * a bullet; the turn rate is what keeps it dodgeable, not the speed, and
+     * the warning is now the noise and the smoke trail rather than the wait.
+     */
+    speed: 26,
+    turn: 5.4,        // radians a second it may steer
     lifeMs: 2600,
+    /* ...and it does not need to touch you.
+     *
+     * "parang BOOM SABOGG ... its like really OP." It detonates on whatever
+     * it reaches first and takes everything inside the blast with it, which
+     * is the whole reason it is one shell out of one box in three. */
+    blast: 4.2,       // tiles — lethal to anything inside it
+    boomMs: 700,      // how long the fireball is drawn for
+    shake: 46,
+    freezeMs: 130,
+    breaks: 3,        // tiles of '=' ledge it takes out either side
   },
   /* King Yhon Yhon's crown. Only ever from taking him down.
    *
@@ -499,7 +528,15 @@ export const DIWATA = {
 export const SQUAD = {
   everyMs: 21000,
   firstMs: 13000,
-  count: 3,
+  /* Two, not three.
+   *
+   * Half a heart each was already a nerf from a whole one, and it was still
+   * the strongest thing ten coins can buy — three of them all connecting is
+   * a heart and a half, which is half the bar from one reward. Charlie:
+   * "instead na 3 gawin na nating 2, sobrang OP talaga e". Two is one whole
+   * heart if both land, which is worth chasing coins for and is not the
+   * round. */
+  count: 2,
   colour: "#8fd8ff",
   scale: 0.62,
   spread: 1.1,        // tiles between them, waiting and on release
@@ -559,7 +596,9 @@ export const BOX = {
   // What a BIG player's bump is worth. Equal to `hits`, so it is exactly one.
   bigHits: 3,
   colour: "#ffc83d",
-  w: 1.1, h: 1.1,      // tiles
+  // A bit bigger than it was as a crate: it is a target you are meant to
+  // want to hit, and it now has a face worth reading.
+  w: 1.35, h: 1.35,    // tiles
   bumpMs: 240,         // how long it is seen to jump when struck
   bob: 0.14,           // how far it drifts up and down, in tiles
   /* Weighted, and the King is the rare one — he is an event, not a pickup,

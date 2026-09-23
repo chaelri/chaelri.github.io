@@ -109,8 +109,17 @@ function ABILITYSPEED() { return 27; }
   a.hp = 3;
   G.powers.push({ x: a.x, y: a.y - a.h / 2, type: "puso", born: G.time });
   for (let i = 0; i < 6 && G.powers.length; i++) sim.step(sim.TICK);
-  ok("drop  Big Heart gives three", a.hp === 6, `hp ${a.hp}`);
-  ok("drop  ...past FEEL.hpMax, which is " + FEEL.hpMax, a.hp > FEEL.hpMax && a.hp <= DIWATA.hpMax);
+  ok("drop  Big Heart puts you on nine", a.hp === POWERUPS.puso.set, `hp ${a.hp}`);
+  ok("drop  ...from wherever you were, not +3", a.hp > FEEL.hpMax);
+}
+/* ...and from one heart it is still nine, because it SETS rather than adds. */
+{
+  const G = world();
+  const a = G.actors.find((q) => q.id === "p1");
+  a.hp = 1;
+  G.powers.push({ x: a.x, y: a.y - a.h / 2, type: "puso", born: G.time });
+  for (let i = 0; i < 6 && G.powers.length; i++) sim.step(sim.TICK);
+  ok("drop  ...even from one heart", a.hp === POWERUPS.puso.set, `hp ${a.hp}`);
 }
 
 /* ---- 5. the bazooka steers, and it ends it ----------------------------- */
@@ -141,6 +150,41 @@ function ABILITYSPEED() { return 27; }
   ok("bazuka the shell steers upward at it", turned);
   ok("bazuka one shell takes the whole bar", o.hp < before - 0.9 || o.dead,
       `hp ${before} -> ${o.hp}`);
+}
+
+/* ---- 5b. ...and it does not have to touch you ------------------------- */
+{
+  const G = world();
+  const a = G.actors.find((q) => q.id === "p1");
+  const o = G.actors.find((q) => q.id === "p2");
+  const def = POWERUPS.bazuka;
+  // Stand him well clear of where it will go off — inside the blast, but
+  // nowhere near the point of impact.
+  o.x = a.x + 14; o.y = a.y; o.vx = 0;
+  const hpWas = o.hp;
+  bazookaAt(G, a.x + 14 - def.blast * 0.7, o.y - o.h / 2, "p1");
+  ok("bazuka the BLAST kills, not the contact", o.hp < hpWas || o.dead,
+     `hp ${hpWas} -> ${o.hp} at ${(def.blast * 0.7).toFixed(1)} tiles`);
+}
+/* ...and not a tile further than it says it does. */
+{
+  const G = world();
+  const a = G.actors.find((q) => q.id === "p1");
+  const o = G.actors.find((q) => q.id === "p2");
+  const def = POWERUPS.bazuka;
+  o.x = a.x + 14; o.y = a.y; o.vx = 0;
+  const hpWas = o.hp;
+  bazookaAt(G, o.x - def.blast * 1.6, o.y - o.h / 2, "p1");
+  ok("bazuka ...and spares anyone outside it", o.hp === hpWas && !o.dead,
+     `hp ${hpWas} -> ${o.hp}`);
+}
+
+/** Detonate a shell at a point, by putting one there and letting it expire. */
+function bazookaAt(G, x, y, owner) {
+  G.shots.push({ x, y, vx: 0, vy: 0, owner, life: 0.001, born: G.time,
+                 homing: true, lethal: true });
+  sim.step(sim.TICK);
+  sim.step(sim.TICK);
 }
 
 /* ---- 6. the King takes three, and only one at a time ------------------- */

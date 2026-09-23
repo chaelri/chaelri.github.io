@@ -158,11 +158,17 @@ export function paintPanels(actors, chips, dt, now, pads) {
         const cls = i >= FEEL.hp ? "bonus" : f >= 1 ? "" : "off";
         return HEART_SVG.replace("<svg", `<svg class="${cls}"`);
       };
-      const base = Array.from({ length: FEEL.hp }, (_, i) => heart(i)).join("");
-      const spare = Array.from({ length: Math.max(0, slots - FEEL.hp) },
-                               (_, i) => heart(FEEL.hp + i)).join("");
-      hearts.innerHTML =
-        `<div class="hrow">${base}</div>` + (spare ? `<div class="hrow">${spare}</div>` : "");
+      /* Rows of three, however many there are — see drawHearts for why.
+       * Two rows was fine to a ceiling of six; the Big Heart puts you on
+       * nine, and a row of six runs off the side of the card. */
+      let html = "";
+      for (let from = 0; from < slots; from += FEEL.hp) {
+        const n = Math.min(FEEL.hp, slots - from);
+        html += `<div class="hrow">` +
+          Array.from({ length: n }, (_, i) => heart(from + i)).join("") +
+          `</div>`;
+      }
+      hearts.innerHTML = html;
     }
 
     paintSkill(card, p.id, a, now, pads);

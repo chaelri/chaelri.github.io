@@ -1248,6 +1248,143 @@ function softDot(rgb) {
   return c;
 }
 
+/**
+ * A bazooka shell going off.
+ *
+ * Not a crater — a rocket detonating, usually in the air. So it is spherical
+ * rather than ground-hugging, it goes white-hot before it goes orange, and it
+ * leaves smoke rather than dust: smoke BILLOWS UPWARD after it has stopped
+ * spreading, which is the single thing that separates an explosion from a
+ * firework.
+ *
+ * Sized against the real blast radius, so what you see is what it killed.
+ */
+function drawBoom(r, ctx, g, q, age) {
+  const def = POWERUPS.bazuka;
+  const z = r.cam.zoom;
+  const t = age / (def.boomMs / 1000);
+  if (t >= 1) return;
+  const px = toX(r, q.x);
+  const py = toY(r, q.y);
+  const R = def.blast * z;
+
+  /* 1. The flash — two frames of pure white, bigger than the blast.
+   *    Everything else is detail; this is the bang. */
+  if (t < 0.07) {
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.globalAlpha = (1 - t / 0.07) * 0.85;
+    const fl = ctx.createRadialGradient(px, py, 0, px, py, R * 1.05);
+    fl.addColorStop(0, "rgba(255,255,255,1)");
+    fl.addColorStop(0.5, "rgba(255,240,190,0.7)");
+    fl.addColorStop(1, "rgba(255,180,60,0)");
+    ctx.fillStyle = fl;
+    ctx.beginPath();
+    ctx.arc(px, py, R * 1.05, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  /* 2. The fireball: white core, yellow, orange, red edge — expanding fast
+   *    and then holding while it burns out. */
+  const grow = 1 - Math.pow(1 - Math.min(1, t * 2.6), 3);
+  const rad = R * (0.25 + grow * 0.85);
+  if (t < 0.55) {
+    const k = 1 - t / 0.55;
+    ctx.save();
+    /* Drawn SOLID, not additively.
+     *
+     * The first version used `lighter` for the whole fireball, which on a
+     * bright sky adds to something already near white — so the explosion came
+     * out as a pale bloom washing over half the frame rather than as a ball
+     * of fire. An explosion is an OBJECT: it is opaque, it has an edge, and
+     * it hides what is behind it. Only the initial flash adds. */
+    ctx.globalAlpha = Math.min(1, k * 1.5);
+    const fb = ctx.createRadialGradient(px, py, 0, px, py, rad);
+    fb.addColorStop(0.00, "rgba(255,250,214,1)");
+    fb.addColorStop(0.16, "rgba(255,224,102,1)");
+    fb.addColorStop(0.42, "rgba(255,150,40,1)");
+    fb.addColorStop(0.74, "rgba(214,54,22,0.92)");
+    fb.addColorStop(0.92, "rgba(120,26,16,0.45)");
+    fb.addColorStop(1.00, "rgba(90,20,14,0)");
+    ctx.fillStyle = fb;
+    ctx.beginPath();
+    ctx.arc(px, py, rad, 0, Math.PI * 2);
+    ctx.fill();
+
+    /* Lobes around the edge, so the ball is not a perfect circle. A circle
+     * is a sun; an explosion is lumpy. */
+    for (let i = 0; i < 9; i++) {
+      const n = noiseAt(i * 4 + q.x * 2.7);
+      const ang = (i / 9) * Math.PI * 2 + n * 0.6;
+      const lr = rad * (0.34 + n * 0.3);
+      const ld = rad * (0.62 + n * 0.3);
+      const lg = ctx.createRadialGradient(px + Math.cos(ang) * ld, py + Math.sin(ang) * ld, 0,
+                                          px + Math.cos(ang) * ld, py + Math.sin(ang) * ld, lr);
+      lg.addColorStop(0, "rgba(255,186,64,0.95)");
+      lg.addColorStop(0.6, "rgba(226,72,26,0.7)");
+      lg.addColorStop(1, "rgba(150,34,18,0)");
+      ctx.fillStyle = lg;
+      ctx.beginPath();
+      ctx.arc(px + Math.cos(ang) * ld, py + Math.sin(ang) * ld, lr, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  /* 3. The shockwave: a thin ring travelling out PAST the fireball, which is
+   *    what gives the blast a size you can read at a glance. */
+  if (t < 0.5) {
+    const e = t / 0.5;
+    const ee = 1 - Math.pow(1 - e, 2.4);
+    ctx.save();
+    ctx.globalAlpha = (1 - e) * 0.9;
+    ctx.strokeStyle = "#fff6dd";
+    ctx.lineWidth = Math.max(2, z * 0.12 * (1 - e));
+    ctx.beginPath();
+    ctx.arc(px, py, R * (0.3 + ee * 1.25), 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  /* 4. Smoke. Billows out, then keeps RISING after it has stopped spreading —
+   *    the lag between the two is what makes it read as smoke and not as a
+   *    second, slower fireball. */
+  ctx.save();
+  for (let i = 0; i < 22; i++) {
+    const n1 = noiseAt(i * 5 + q.x * 3.1), n2 = noiseAt(i * 5 + 1 + q.x * 3.1);
+    const ang = (i / 22) * Math.PI * 2 + n1;
+    const out = R * (0.25 + n2 * 0.85) * (1 - Math.pow(1 - Math.min(1, t * 1.8), 2));
+    const rise = z * (0.4 + n1 * 2.4) * t;
+    const pr = z * (0.12 + n2 * 0.2) * (0.5 + t * 2.4);
+    ctx.globalAlpha = Math.max(0, 1 - t * 1.1) * 0.5;
+    ctx.drawImage(softDot(i % 3 ? "78,66,60" : "156,140,128"),
+                  px + Math.cos(ang) * out - pr, py + Math.sin(ang) * out * 0.8 - rise - pr,
+                  pr * 2, pr * 2);
+  }
+  ctx.restore();
+
+  /* 5. Sparks, thrown on straight lines and fading — the only part that is
+   *    allowed to leave the blast radius. */
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  ctx.lineCap = "round";
+  for (let i = 0; i < 16; i++) {
+    const n = noiseAt(i * 7 + 90 + q.x);
+    const ang = (i / 16) * Math.PI * 2 + n * 0.4;
+    const far = R * (0.8 + n * 1.1) * Math.min(1, t * 2.2);
+    const len = z * 0.3 * (1 - t);
+    ctx.globalAlpha = Math.max(0, 1 - t * 1.6);
+    ctx.strokeStyle = n > 0.5 ? "#fff2c4" : def.colour;
+    ctx.lineWidth = Math.max(1, z * 0.045 * (1 - t));
+    ctx.beginPath();
+    ctx.moveTo(px + Math.cos(ang) * far, py + Math.sin(ang) * far);
+    ctx.lineTo(px + Math.cos(ang) * (far + len), py + Math.sin(ang) * (far + len));
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 function drawQuakes(r, ctx, g) {
   if (!g.quakes || !g.quakes.length) return;
   const z = r.cam.zoom;
@@ -1256,6 +1393,8 @@ function drawQuakes(r, ctx, g) {
   for (const q of g.quakes) {
     const age = g.time - q.at;
     if (age < 0) continue;
+    // A shell going off in the air is a different picture entirely.
+    if (q.kind === 1) { drawBoom(r, ctx, g, q, age); continue; }
     const force = Math.max(0.15, Math.min(1, q.force || 0));
     const px = toX(r, q.x);
     const py = toY(r, q.y);
@@ -1267,79 +1406,59 @@ function drawQuakes(r, ctx, g) {
     const ct = age / (CRACK_MS / 1000);
     const t = age / (QUAKE_MS / 1000);
 
-    /* ---- 1. the scorched ground, under everything and longest-lived ---- */
+    /* ---- 1. dust settling where he landed, instead of cracks ----
+     *
+     * There were fissures here: tapered black wedges radiating out, plus a
+     * dark scorch under them. Charlie: "di ko trip yung parang cracks e ...
+     * parang di bagay". He is right, and the reason is that they were the
+     * only hard-edged black thing in the whole game. Everything else here is
+     * soft, rounded and bright — the characters, the pickups, the valley —
+     * so a shattered floor read as damage from a different picture.
+     *
+     * What is left behind is DUST, warm and pale, a ring of it sitting on
+     * the ground where the shock pushed it out. Same information (something
+     * heavy landed here, this big, a moment ago) with none of the violence.
+     */
     if (ct < 1) {
-      const fade = Math.pow(1 - ct, 1.7) * 0.26;
-      const open = Math.min(1, ct * 8);
+      const open = Math.min(1, ct * 5);
+      const fade = Math.pow(1 - ct, 1.5);
       ctx.save();
-      ctx.globalAlpha = fade;
-      const sc = ctx.createRadialGradient(px, py, 0, px, py, reach * 0.85 * open);
-      sc.addColorStop(0, "rgba(46,30,20,0.85)");
-      sc.addColorStop(0.55, "rgba(58,40,26,0.35)");
-      sc.addColorStop(1, "rgba(58,40,26,0)");
-      ctx.fillStyle = sc;
-      ctx.beginPath();
-      ctx.ellipse(px, py, reach * 0.85 * open, reach * 0.2 * open, 0, 0, Math.PI * 2);
-      ctx.fill();
+      for (let i = 0; i < 14; i++) {
+        const n1 = noiseAt(i * 3 + seed), n2 = noiseAt(i * 3 + 1 + seed);
+        const ang = (i / 14) * Math.PI * 2;
+        const out = reach * (0.45 + n1 * 0.5) * open;
+        const rad = z * (0.16 + force * 0.2) * (0.6 + n2);
+        ctx.globalAlpha = fade * 0.3;
+        ctx.drawImage(softDot(i % 3 === 0 ? "168,140,104" : "226,208,180"),
+                      px + Math.cos(ang) * out - rad,
+                      py + Math.sin(ang) * out * 0.22 - rad * 0.5,
+                      rad * 2, rad);
+      }
       ctx.restore();
     }
 
-    /* ---- 2. the cracks: tapered wedges lying flat on the ground ----
+    /* ---- 2. impact rays: chunky, white, rounded — a cartoon landing ----
      *
-     * These were round-capped STROKES of constant width, forked, at full
-     * length — which is a drawing of a bare shrub, and that is exactly what
-     * it looked like sitting on the grass. A crack in the ground is wide
-     * where the thing hit and narrows to nothing, and it lies in the floor
-     * plane rather than standing up out of it. So: filled wedges, squashed
-     * on Y by the same amount as the shockwave, and short enough that they
-     * stay inside the crater instead of reaching for the next platform. */
-    if (ct < 1) {
-      const open = Math.min(1, ct * 7);
-      const fade = 1 - Math.pow(ct, 2.2);
-      const SQUASH = 0.26;
+     * The thing the cracks were really doing was saying "the force went
+     * OUTWARD from here". Lines that spread from the point of impact do that
+     * job, and in this game's language they are short, fat, white and gone
+     * in a tenth of a second. */
+    if (ct < 0.24) {
+      const e = ct / 0.24;
       ctx.save();
-      const RAYS = 7;
-      for (let i = 0; i < RAYS; i++) {
-        const a0 = -Math.PI + (i + 0.5) * (Math.PI / RAYS);
-        const wob = (noiseAt(i * 3 + seed) - 0.5) * 0.55;
-        const ang = a0 + wob;
-        const len = reach * 0.42 * (0.55 + 0.45 * noiseAt(i * 3 + 1 + seed)) * open;
-        const w = z * (0.1 + force * 0.09);
-
-        // tip, and a kink partway along so it is not a ruled line
-        const ex = px + Math.cos(ang) * len;
-        const ey = py + Math.sin(ang) * len * SQUASH;
-        const kink = (noiseAt(i * 3 + 2 + seed) - 0.5) * 0.45;
-        const mx = px + Math.cos(ang + kink) * len * 0.5;
-        const my = py + Math.sin(ang + kink) * len * 0.5 * SQUASH;
-        // across the wedge, flattened the same way as its length
-        const nx = -Math.sin(ang), ny = Math.cos(ang) * SQUASH;
-
-        const wedge = () => {
-          ctx.beginPath();
-          ctx.moveTo(px + nx * w, py + ny * w);
-          ctx.lineTo(mx + nx * w * 0.45, my + ny * w * 0.45);
-          ctx.lineTo(ex, ey);
-          ctx.lineTo(mx - nx * w * 0.45, my - ny * w * 0.45);
-          ctx.lineTo(px - nx * w, py - ny * w);
-          ctx.closePath();
-          ctx.fill();
-        };
-
-        ctx.globalAlpha = fade * 0.6;
-        ctx.fillStyle = "rgba(42,28,18,0.95)";
-        wedge();
-        // While it is still opening, the inside of the split is hot.
-        if (ct < 0.28) {
-          ctx.globalAlpha = (1 - ct / 0.28) * 0.55;
-          ctx.fillStyle = AB.colour;
-          ctx.save();
-          ctx.translate(px, py);
-          ctx.scale(0.55, 0.55);
-          ctx.translate(-px, -py);
-          wedge();
-          ctx.restore();
-        }
+      ctx.lineCap = "round";
+      ctx.strokeStyle = "rgba(255,255,255,0.95)";
+      ctx.globalAlpha = 1 - e;
+      for (let i = 0; i < 9; i++) {
+        const n = noiseAt(i * 5 + seed);
+        const ang = -Math.PI + (i + 0.5) * (Math.PI / 9) + (n - 0.5) * 0.3;
+        const from = reach * (0.18 + e * 0.5);
+        const len = reach * (0.16 + n * 0.16) * (1 - e);
+        ctx.lineWidth = Math.max(2, z * (0.09 + force * 0.07) * (1 - e));
+        ctx.beginPath();
+        ctx.moveTo(px + Math.cos(ang) * from, py + Math.sin(ang) * from * 0.3);
+        ctx.lineTo(px + Math.cos(ang) * (from + len), py + Math.sin(ang) * (from + len) * 0.3);
+        ctx.stroke();
       }
       ctx.restore();
     }
@@ -1486,89 +1605,192 @@ function drawQuakes(r, ctx, g) {
 }
 
 
-/* --------------------------------------------------------------- boxes --- */
+/* ------------------------------------------------------------- pinata --- */
 
 const BOX_MS = 240;
 
+// The paper. Bright, and deliberately nothing else in the arena wears these.
+const PINATA_BANDS = ["#ff8fb1", "#ffd24a", "#7fd4ff", "#ff8fb1", "#a8e26a", "#ffd24a"];
+
 /**
- * A mystery box: a crate hanging in the air with a ? on it.
+ * The thing you hit — a piñata, hanging from a cord.
  *
- * The count of bumps it has left is the whole read, and it is shown two ways
- * at once — the lid lifts a notch each time and the ? brightens — because a
- * number floating over a crate in a game with no other numbers on the field
- * reads as debug output.
+ * It was a wooden crate with a ? and three cracks scratched across it, and
+ * Charlie's read was the right one: "ang panget lang ng crack and pagkakagawa
+ * mismo nung asset ... yung talagang parang gusto mo basagin ... something
+ * cute na basagin ko". A crate is a container; nobody wants to break a
+ * container. A piñata is the one object in the world whose entire purpose is
+ * to be hit until it bursts, and it is cute on the way there.
+ *
+ * Which also solves the damage problem. A crack drawn on a box is a scratch —
+ * the box is the same box. A piñata comes APART: the paper frills tear off a
+ * band at a time, it hangs more and more crooked, strips come loose, and the
+ * face goes from a smile to a wince. You can read how many hits are left
+ * from across the arena without counting anything.
  */
 function drawBoxes(r, ctx, g) {
   if (!g.boxes || !g.boxes.length) return;
   const z = r.cam.zoom;
   for (const b of g.boxes) {
-    const bob = Math.sin(g.time * 2.1 + b.x) * BOX.bob;
-    // Struck: it jumps, the way every block in every platformer has.
-    const hitT = Math.max(0, Math.min(1, (g.time - (b.bumpAt ?? -9)) / (BOX_MS / 1000)));
-    const kick = hitT < 1 ? Math.sin(hitT * Math.PI) * 0.45 : 0;
-    const px = toX(r, b.x);
-    const py = toY(r, b.y + bob - kick);
-    const s = z * BOX.w;
     const left = Math.max(0, Math.min(BOX.hits, b.hits));
-    // Full-strength gold, dulling as it gives way.
-    const wear = left / BOX.hits;
+    const gone = BOX.hits - left;                 // bands torn off so far
+
+    // Struck: it swings hard, then settles. Everything hangs off this.
+    const hitT = Math.max(0, Math.min(1, (g.time - (b.bumpAt ?? -9)) / (BOX_MS / 1000)));
+    const struck = hitT < 1;
+    const swing = struck
+      ? Math.sin(hitT * Math.PI * 3) * (1 - hitT) * 0.55
+      : Math.sin(g.time * 1.9 + b.x) * 0.06;      // idle sway on the cord
+    // It hangs more crooked the more it has taken.
+    const lean = swing + gone * 0.13;
+
+    const anchorX = toX(r, b.x);
+    const anchorY = toY(r, b.y - 1.5);             // where the cord is tied
+    const s = z * BOX.w;
+    const cord = z * 1.5;
+    // The body swings from the anchor, so the cord and the body agree.
+    const px = anchorX + Math.sin(lean) * cord;
+    const py = anchorY + Math.cos(lean) * cord;
 
     ctx.save();
-    // A shadow under it, or it reads as painted on the sky rather than hung
-    // in front of it.
-    ctx.fillStyle = "rgba(30,24,16,0.18)";
-    ctx.beginPath();
-    ctx.ellipse(px, py + s * 0.62, s * 0.42, s * 0.1, 0, 0, Math.PI * 2);
-    ctx.fill();
 
-    // the crate
-    roundRect(ctx, px - s / 2, py - s / 2, s, s, s * 0.16);
-    const grd = ctx.createLinearGradient(0, py - s / 2, 0, py + s / 2);
-    // mix() takes an RGB ARRAY as its target, not a hex string — handed a
-    // string it indexes characters, and every channel comes out NaN.
-    grd.addColorStop(0, mix(BOX.colour, [255, 255, 255], 0.35 * wear + 0.1));
-    grd.addColorStop(1, mix(BOX.colour, [107, 74, 48], 0.45 - 0.2 * wear));
-    ctx.fillStyle = grd;
-    ctx.fill();
+    /* The cord. It is what says "hit me" — a thing hanging from a string at
+     * head height is an invitation in every culture that has ever had one. */
+    ctx.strokeStyle = "rgba(120,96,72,0.85)";
     ctx.lineWidth = Math.max(1.5, z * 0.045);
-    ctx.strokeStyle = "rgba(255,255,255,0.85)";
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(anchorX, anchorY);
+    ctx.quadraticCurveTo(anchorX + Math.sin(lean) * cord * 0.45, anchorY + cord * 0.5,
+                         px, py - s * 0.42);
     ctx.stroke();
 
-    // rivets at the corners, so it is a crate and not a tile
-    ctx.fillStyle = "rgba(255,255,255,0.55)";
-    for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
-      ctx.beginPath();
-      ctx.arc(px + sx * s * 0.34, py + sy * s * 0.34, s * 0.045, 0, Math.PI * 2);
-      ctx.fill();
-    }
+    ctx.translate(px, py);
+    ctx.rotate(lean * 0.5);
 
-    // The ?, bright while it is whole and fading as it gives.
-    ctx.save();
-    ctx.globalAlpha = 0.45 + 0.55 * wear;
-    stampMark(ctx, "box", px, py - s * 0.02, s * 0.52, "#ffffff",
-              Math.max(1.5, z * 0.05), mix(BOX.colour, [107, 74, 48], 0.55));
-    ctx.restore();
+    // A shadow under it, so it hangs in front of the valley rather than on it.
+    ctx.fillStyle = "rgba(30,24,16,0.16)";
+    ctx.beginPath();
+    ctx.ellipse(0, s * 0.72, s * 0.34, s * 0.08, 0, 0, Math.PI * 2);
+    ctx.fill();
 
-    // The cracks it has taken, one per bump spent.
-    const cracks = BOX.hits - left;
-    if (cracks > 0) {
-      ctx.strokeStyle = "rgba(60,38,20,0.55)";
-      ctx.lineWidth = Math.max(1, z * 0.03);
-      for (let i = 0; i < cracks; i++) {
-        const n = noiseAt(i * 5 + 3);
+    /* The body: a rounded pot, wider than tall, with a little nose. Drawn
+     * first in a dark paper colour so the torn bands show something behind
+     * them rather than sky. */
+    ctx.fillStyle = "#c2708c";
+    ctx.beginPath();
+    ctx.ellipse(0, 0, s * 0.42, s * 0.38, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    /* The frills. Six bands of paper tabs from the bottom up; each hit tears
+     * the topmost surviving one off, so the silhouette loses a layer every
+     * time and what is left droops. */
+    const bands = PINATA_BANDS.length;
+    const alive = Math.max(0, bands - gone * 2);
+    for (let i = 0; i < alive; i++) {
+      const fy = s * (0.3 - (i / bands) * 0.66);
+      const halfW = s * 0.42 * Math.cos((fy / (s * 0.42)) * 0.9);
+      ctx.fillStyle = PINATA_BANDS[i % PINATA_BANDS.length];
+      // A row of tabs, each a little triangle hanging downward.
+      const tabs = Math.max(4, Math.round(halfW / (s * 0.07)));
+      for (let k = 0; k < tabs; k++) {
+        const tx = -halfW + (k + 0.5) * (halfW * 2 / tabs);
+        const tw = (halfW * 2 / tabs) * 0.62;
+        const th = s * 0.15;
         ctx.beginPath();
-        ctx.moveTo(px - s * 0.42, py + (n - 0.5) * s * 0.7);
-        ctx.lineTo(px - s * 0.1 + n * s * 0.2, py + (n - 0.4) * s * 0.5);
-        ctx.lineTo(px + s * 0.42, py + (noiseAt(i * 5 + 4) - 0.5) * s * 0.7);
-        ctx.stroke();
+        ctx.moveTo(tx - tw, fy);
+        ctx.lineTo(tx + tw, fy);
+        ctx.lineTo(tx, fy + th);
+        ctx.closePath();
+        ctx.fill();
       }
     }
 
-    // Flash white on the frame it is struck.
-    if (hitT < 0.35) {
-      ctx.globalAlpha = (1 - hitT / 0.35) * 0.8;
-      roundRect(ctx, px - s / 2, py - s / 2, s, s, s * 0.16);
+    /* Torn paper where a band used to be — loose strips flapping, so the
+     * damage is something that HAPPENED rather than something drawn on. */
+    for (let i = 0; i < gone; i++) {
+      const n = noiseAt(i * 9 + b.x);
+      const sx = (n - 0.5) * s * 0.7;
+      const sy = s * (0.28 - i * 0.2);
+      ctx.strokeStyle = PINATA_BANDS[(bands - 1 - i * 2) % bands];
+      ctx.lineWidth = Math.max(1.5, z * 0.05);
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.quadraticCurveTo(sx + (n - 0.5) * s * 0.3, sy + s * 0.28,
+                           sx + (n - 0.5) * s * 0.5 + Math.sin(g.time * 5 + i) * s * 0.06,
+                           sy + s * 0.5);
+      ctx.stroke();
+    }
+
+    // Ears, so it is a creature rather than a pot.
+    ctx.fillStyle = "#ffd24a";
+    for (const side of [-1, 1]) {
+      ctx.beginPath();
+      ctx.moveTo(side * s * 0.16, -s * 0.34);
+      ctx.lineTo(side * s * 0.3, -s * 0.58);
+      ctx.lineTo(side * s * 0.36, -s * 0.28);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    /* The face. THE reason you want to hit it, and the clearest read on how
+     * close it is to bursting: a smile, then a wince, then dizzy. */
+    ctx.fillStyle = "#3b2a2f";
+    const eye = s * 0.045;
+    if (gone === 0) {
+      for (const side of [-1, 1]) {
+        ctx.beginPath();
+        ctx.arc(side * s * 0.13, -s * 0.06, eye, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.strokeStyle = "#3b2a2f";
+      ctx.lineWidth = Math.max(1.2, z * 0.03);
+      ctx.beginPath();
+      ctx.arc(0, s * 0.02, s * 0.1, 0.25 * Math.PI, 0.75 * Math.PI);
+      ctx.stroke();
+    } else if (gone === 1) {
+      // squeezed shut
+      ctx.strokeStyle = "#3b2a2f";
+      ctx.lineWidth = Math.max(1.4, z * 0.032);
+      for (const side of [-1, 1]) {
+        ctx.beginPath();
+        ctx.moveTo(side * s * 0.2, -s * 0.06);
+        ctx.lineTo(side * s * 0.07, -s * 0.02);
+        ctx.stroke();
+      }
+      ctx.beginPath();
+      ctx.arc(0, s * 0.14, s * 0.08, 1.15 * Math.PI, 1.85 * Math.PI);
+      ctx.stroke();
+    } else {
+      // dizzy — one more and it is confetti
+      ctx.strokeStyle = "#3b2a2f";
+      ctx.lineWidth = Math.max(1.4, z * 0.032);
+      for (const side of [-1, 1]) {
+        ctx.beginPath();
+        ctx.moveTo(side * s * 0.2, -s * 0.12);
+        ctx.lineTo(side * s * 0.06, s * 0.0);
+        ctx.moveTo(side * s * 0.06, -s * 0.12);
+        ctx.lineTo(side * s * 0.2, s * 0.0);
+        ctx.stroke();
+      }
+      ctx.beginPath();
+      ctx.ellipse(0, s * 0.16, s * 0.07, s * 0.05, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    // A white rim, so it holds against the treeline like every other pickup.
+    ctx.strokeStyle = "rgba(255,255,255,0.8)";
+    ctx.lineWidth = Math.max(1.4, z * 0.035);
+    ctx.beginPath();
+    ctx.ellipse(0, 0, s * 0.42, s * 0.38, 0, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Struck this frame: it flashes, and paper scatters.
+    if (hitT < 0.3) {
+      ctx.globalAlpha = (1 - hitT / 0.3) * 0.85;
       ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.ellipse(0, 0, s * 0.46, s * 0.42, 0, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.restore();
@@ -1691,33 +1913,137 @@ function drawKing(r, ctx, g) {
   ctx.restore();
 }
 
-/** The crown. Also worn by whoever takes it off him. */
+/**
+ * The crown. Worn by King Yhon Yhon, and by whoever takes it off him.
+ *
+ * Drawn taller and heavier than it was, with a velvet band and real jewels.
+ * The first one was a small flat zigzag that read, at playing distance, as a
+ * yellow smudge on the head — Charlie: "medyo emphasize pa natin na naging
+ * king na talaga yung character ko". A crown has to be the first thing you
+ * see about a character wearing one.
+ */
 function drawCrown(ctx, px, py, s, z) {
   ctx.save();
-  ctx.beginPath();
-  ctx.moveTo(px - s * 0.6, py);
-  ctx.lineTo(px - s * 0.6, py - s * 0.34);
-  ctx.lineTo(px - s * 0.3, py - s * 0.1);
-  ctx.lineTo(px, py - s * 0.52);
-  ctx.lineTo(px + s * 0.3, py - s * 0.1);
-  ctx.lineTo(px + s * 0.6, py - s * 0.34);
-  ctx.lineTo(px + s * 0.6, py);
-  ctx.closePath();
-  const grd = ctx.createLinearGradient(0, py - s * 0.52, 0, py);
-  grd.addColorStop(0, "#fff0ad");
-  grd.addColorStop(1, KING.colour);
-  ctx.fillStyle = grd;
+  const lw = Math.max(1.4, z * 0.035);
+
+  // The band: a velvet cuff under the gold, which is what makes it read as a
+  // crown rather than as a paper hat.
+  ctx.fillStyle = "#c0304f";
+  roundRect(ctx, px - s * 0.62, py - s * 0.12, s * 1.24, s * 0.26, s * 0.1);
   ctx.fill();
-  ctx.lineWidth = Math.max(1.4, z * 0.035);
-  ctx.strokeStyle = "rgba(120,80,20,0.6)";
+  ctx.strokeStyle = "rgba(90,20,36,0.5)";
+  ctx.lineWidth = lw;
   ctx.stroke();
-  // Three jewels along the band.
+
+  // Five points, the middle one tallest, with a ball on each tip.
+  const pts = [-0.56, -0.28, 0, 0.28, 0.56];
+  const hts = [0.52, 0.72, 0.95, 0.72, 0.52];
+  ctx.beginPath();
+  ctx.moveTo(px - s * 0.62, py - s * 0.06);
+  for (let i = 0; i < pts.length; i++) {
+    ctx.lineTo(px + s * pts[i], py - s * hts[i]);
+    const next = pts[i + 1];
+    if (next !== undefined) ctx.lineTo(px + s * (pts[i] + next) / 2, py - s * 0.14);
+  }
+  ctx.lineTo(px + s * 0.62, py - s * 0.06);
+  ctx.closePath();
+  const gold = ctx.createLinearGradient(0, py - s * 0.95, 0, py);
+  gold.addColorStop(0, "#fff6c9");
+  gold.addColorStop(0.45, "#ffd24a");
+  gold.addColorStop(1, "#d99a12");
+  ctx.fillStyle = gold;
+  ctx.fill();
+  ctx.strokeStyle = "rgba(255,255,255,0.9)";
+  ctx.lineWidth = lw;
+  ctx.stroke();
+
+  // A ball on every tip — the detail that says "gold" rather than "yellow".
+  for (let i = 0; i < pts.length; i++) {
+    ctx.fillStyle = "#fff3bd";
+    ctx.beginPath();
+    ctx.arc(px + s * pts[i], py - s * hts[i], s * 0.09, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(200,150,20,0.6)";
+    ctx.lineWidth = lw * 0.7;
+    ctx.stroke();
+  }
+
+  // Jewels along the band.
   for (let i = -1; i <= 1; i++) {
     ctx.fillStyle = i === 0 ? "#ff4d6d" : "#7fd4ff";
     ctx.beginPath();
-    ctx.arc(px + i * s * 0.34, py - s * 0.08, s * 0.08, 0, Math.PI * 2);
+    ctx.arc(px + i * s * 0.32, py + s * 0.01, s * 0.1, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,0.85)";
+    ctx.lineWidth = lw * 0.8;
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/**
+ * Everything else that says KING, on a player who is wearing the crown.
+ *
+ * The crown alone was doing all the work and it is only as big as a head. A
+ * player who has just beaten a boss should be unmistakable from anywhere on
+ * the arena, so: gold light coming off the body, a ring of royal sparks
+ * orbiting them, and a gold pool on the floor underneath. Together they read
+ * before the crown is even legible.
+ */
+function drawRoyalty(r, ctx, g, a, px, py, left) {
+  const z = r.cam.zoom;
+  const w = a.w * z, h = a.h * z;
+  // Blinks out over the last second and a half, like every other timer here.
+  const dim = left < 1.5 ? 0.35 + 0.35 * Math.abs(Math.sin(g.time * 16)) : 1;
+
+  ctx.save();
+  ctx.globalAlpha = dim;
+
+  /* A gold pool on the floor. Grounds them — a glow around a body floats,
+   * a pool underneath says the light is coming off something standing there. */
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  const pool = ctx.createRadialGradient(px, py, 0, px, py, w * 1.1);
+  pool.addColorStop(0, "rgba(255,214,90,0.5)");
+  pool.addColorStop(1, "rgba(255,196,60,0)");
+  ctx.fillStyle = pool;
+  ctx.beginPath();
+  ctx.ellipse(px, py, w * 1.1, h * 0.22, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  /* Gold coming off the body itself, in its own shape — not a circle behind
+   * it. This is what makes the character look lit rather than stood in front
+   * of a lamp. */
+  drawSilhouette(r, ctx, "#ffd24a", 0.5 * dim, px, py, w, h, (b, bx, by) => {
+    charById(a.char).draw(b, bx, by, w, h, {
+      face: a.face, run: 0, air: a.grounded ? 0 : (a.vy < 0 ? -1 : 1),
+      squash: 0, t: g.time, walk: a.walk || 0, stride: 1,
+    });
+  });
+
+  /* Royal sparks, orbiting. Six of them on a slow ellipse, each twinkling on
+   * its own clock so the ring never reads as a solid hoop. */
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  for (let i = 0; i < 6; i++) {
+    const t = g.time * 1.3 + (i / 6) * Math.PI * 2;
+    const sx = px + Math.cos(t) * w * 0.95;
+    const sy = py - h * 0.55 + Math.sin(t) * h * 0.4;
+    const tw = 0.5 + 0.5 * Math.abs(Math.sin(g.time * 5 + i * 2.1));
+    const sz = z * 0.07 * tw;
+    ctx.globalAlpha = dim * (0.5 + 0.5 * tw) * (Math.sin(t) < 0 ? 0.45 : 1);
+    ctx.fillStyle = "#fff3bd";
+    // A four-point star, not a dot — a dot is dust, a star is treasure.
+    ctx.beginPath();
+    ctx.moveTo(sx, sy - sz);
+    ctx.quadraticCurveTo(sx, sy, sx + sz, sy);
+    ctx.quadraticCurveTo(sx, sy, sx, sy + sz);
+    ctx.quadraticCurveTo(sx, sy, sx - sz, sy);
+    ctx.quadraticCurveTo(sx, sy, sx, sy - sz);
     ctx.fill();
   }
+  ctx.restore();
   ctx.restore();
 }
 
@@ -2998,14 +3324,22 @@ function drawHearts(r, ctx, g, a, cx, cy) {
    * the body however well the round is going, and the gold ones read as
    * something extra rather than as more of the same. The card in the panel
    * does exactly this, for the same reason. */
-  const rows = [Math.min(FEEL.hp, max), Math.max(0, max - FEEL.hp)];
+  /* Rows of three, however many there are.
+   *
+   * This was hardcoded as exactly two — the three you start with and every
+   * spare in one row under them. That held while the ceiling was six. The
+   * Big Heart puts you on NINE, and six hearts in one row is a bar wider than
+   * the arena is tall, hanging off both sides of a character who is two
+   * tiles across. Three per row, as many rows as it takes. */
+  const rows = [];
+  for (let left = max; left > 0; left -= FEEL.hp) rows.push(Math.min(FEEL.hp, left));
   const rowGap = s * 2.5;
   /* The whole block is LIFTED when there are two rows, so the bottom one
    * stays where the single row always sat. Growing downward instead would
    * walk the gold hearts straight onto the character's head — which is the
    * one thing over-head hearts must never do, because the head is what you
    * are actually looking at. */
-  const lift = rows[1] ? rowGap : 0;
+  const lift = (rows.length - 1) * rowGap;
   for (let row = 0, i = 0; row < rows.length; row++) {
     const n = rows[row];
     if (!n) continue;
@@ -3603,21 +3937,13 @@ function drawActor(r, ctx, g, a) {
    */
   if (a.power && a.power.type === "korona") {
     const left = a.power.until === Infinity ? 99 : a.power.until - g.time;
-    ctx.save();
-    // A gold halo, so the size alone is not the only tell against a Big.
-    ctx.globalCompositeOperation = "lighter";
-    // Blinks out over the last second and a half, like every other timer here.
-    ctx.globalAlpha = left < 1.5 ? 0.35 + 0.35 * Math.abs(Math.sin(g.time * 16)) : 0.55;
-    const hal = ctx.createRadialGradient(px, py - a.h * z * 0.5, 0,
-                                         px, py - a.h * z * 0.5, a.w * z * 0.9);
-    hal.addColorStop(0, "rgba(255,226,122,0.5)");
-    hal.addColorStop(1, "rgba(255,210,74,0)");
-    ctx.fillStyle = hal;
-    ctx.fillRect(px - a.w * z, py - a.h * z * 1.5, a.w * z * 2, a.h * z * 2);
-    ctx.restore();
+    // Gold light off the body, a pool on the floor, sparks orbiting — see
+    // drawRoyalty. The crown on its own is only as big as a head, and this
+    // has to read from anywhere on the arena.
+    drawRoyalty(r, ctx, g, a, px, py, left);
     ctx.save();
     if (left < 1.5) ctx.globalAlpha = 0.4 + 0.6 * Math.abs(Math.sin(g.time * 16));
-    drawCrown(ctx, px, py - a.h * z, a.w * z * 0.44, z);
+    drawCrown(ctx, px, py - a.h * z * 0.98, a.w * z * 0.62, z);
     ctx.restore();
   }
 
@@ -3625,7 +3951,7 @@ function drawActor(r, ctx, g, a) {
   // the bottom now — two labels for one character is one too many.
   // Lifted clear when there is a crown in the way.
   const crowned = a.power && a.power.type === "korona";
-  const heartY = py - a.h * z * HEART_Y - (crowned ? a.w * z * 0.5 : 0);
+  const heartY = py - a.h * z * HEART_Y - (crowned ? a.w * z * 0.72 : 0);
   if (typeof a.hp === "number") drawHearts(r, ctx, g, a, px, heartY);
 }
 

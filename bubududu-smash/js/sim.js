@@ -617,8 +617,9 @@ function givePower(a, type) {
      * the bar would move by less than a Heal lying on the floor. It gets the
      * Diwata's ceiling instead, which is the highest anything in the game
      * goes. */
-    const cap = type === "puso" ? DIWATA.hpMax : FEEL.hpMax;
-    a.hp = Math.min(cap, a.hp + def.heal);
+    // The Big Heart SETS you to nine; a Heal adds one up to the ordinary cap.
+    if (def.set) a.hp = def.set;
+    else a.hp = Math.min(FEEL.hpMax, a.hp + def.heal);
     G.flash = { type, at: G.time };
     showPickup(a, type);
     fx.sfx("lunas");
@@ -1775,8 +1776,16 @@ function poundBoxes(a, reach) {
 function openBox(b, i) {
   G.boxes.splice(i, 1);
   G.pops.push({ x: b.x, y: b.y, at: G.time, colour: BOX.colour, glyph: "box" });
-  for (let k = 0; k < 6; k++) {
-    G.bursts.push({ x: b.x, y: b.y, at: G.time, colour: BOX.colour });
+  /* Confetti, in the piñata's own colours, thrown in a ring.
+   *
+   * Six grey-gold puffs in one spot was a crate splintering. This bursts. */
+  const PAPER = ["#ff8fb1", "#ffd24a", "#7fd4ff", "#a8e26a"];
+  for (let k = 0; k < 16; k++) {
+    const ang = (k / 16) * Math.PI * 2;
+    G.bursts.push({
+      x: b.x + Math.cos(ang) * 0.7, y: b.y + Math.sin(ang) * 0.6,
+      at: G.time, colour: PAPER[k % PAPER.length], big: k % 4 === 0,
+    });
   }
   fx.shake(12);
   fx.punch(0.05);
@@ -1921,6 +1930,8 @@ function tickPowers(dt) {
     b.y += b.vy * dt;
     const t = tileAt(G.grid, Math.floor(b.x), Math.floor(b.y));
     if (b.life <= 0 || t === "#") {
+      // A shell always goes off — on the wall, or when it runs out of fuel.
+      if (b.homing) { bazookaBoom(b.x, b.y, b.owner); G.shots.splice(i, 1); continue; }
       if (t === "#") fx.sfx("shotWall");
       // Where it landed. A bullet that simply stops mid-air reads as the
       // game having lost it; a spray of sparks off the plank reads as a miss.
@@ -1942,6 +1953,8 @@ function tickPowers(dt) {
         G.pops.push({ x: b.x, y: b.y, at: G.time, colour: "#ffd873", glyph: "" });
         G.shots.splice(i, 1);
         fx.sfx("shotHit");
+        // A shell goes off ON him; hurtKing is called from inside the blast.
+        if (b.homing) { bazookaBoom(b.x, b.y, b.owner); continue; }
         hurtKing(G.actors.find((q) => q.id === b.owner) || null);
         continue;
       }
@@ -1956,8 +1969,9 @@ function tickPowers(dt) {
         G.pops.push({ x: b.x, y: b.y, at: G.time, colour: "#ffd873", glyph: "" });
         G.shots.splice(i, 1);
         fx.sfx("shotHit");
-        // A shell ends it outright — that is the whole reward. A bullet does
-        // not, and never has.
+        // A shell does not merely hit them — it goes off, and the blast is
+        // what does the work. See bazookaBoom.
+        if (b.homing) { bazookaBoom(b.x, b.y, b.owner); break; }
         if (b.lethal) { o.lethal = true; fx.shake(18); fx.flash(1); }
         killPlayer(o, G.actors.find((q) => q.id === b.owner) || null, b.lethal ? "bazuka" : "shot");
         break;
@@ -2256,6 +2270,83 @@ function tryShoot(a) {
  * It carries `homing` and `lethal` and is otherwise an ordinary shot, so the
  * wall hits, the wire and the renderer all already know what to do with it.
  */
+/**
+ * A bazooka shell going off.
+ *
+ * Everything within the blast is out — it does not have to touch you, which
+ * is the whole reason it is one shell out of one box in three. It takes the
+ * ledge with it too, because a rocket that leaves the floor immaculate is a
+ * firework.
+ *
+ * Called from wherever the shell stops: a body, the King, a wall, or simply
+ * running out of fuel. There is no case where it fizzles.
+ */
+function bazookaBoom(x, y, ownerId) {
+  const def = POWERUPS.bazuka;
+  const by = G.actors.find((q) => q.id === ownerId) || null;
+
+  // The fireball itself, replicated. `kind` tells the renderer this is a
+  // rocket going off in the air rather than a body hitting the floor.
+  G.quakes.push({ x, y, at: G.time, force: 1, kind: 1 });
+  while (G.quakes.length > 6) G.quakes.shift();
+
+  fx.shake(def.shake);
+  fx.punch(0.11);
+  fx.flash(1);
+  G.freeze = Math.max(G.freeze, def.freezeMs / 1000);
+  fx.sfx("suntok");
+  fx.sfx("stomp");
+
+  // Debris, thrown wide.
+  for (let i = 0; i < 20; i++) {
+    const ang = (i / 20) * Math.PI * 2;
+    const rr = def.blast * (0.3 + (i % 4) * 0.2);
+    G.bursts.push({
+      x: x + Math.cos(ang) * rr, y: y + Math.sin(ang) * rr * 0.8,
+      at: G.time, colour: i % 3 ? def.colour : "#ffe66b", big: i % 5 === 0,
+    });
+  }
+
+  // Everyone inside it, including whoever fired it — you do not get to stand
+  // in your own explosion.
+  for (const o of G.actors) {
+    if (o.dead) continue;
+    if (Math.hypot(o.x - x, (o.y - o.h / 2) - y) > def.blast) continue;
+    if (isStar(o)) continue;                    // a star shrugs off everything
+    o.lethal = true;
+    killPlayer(o, o.id === ownerId ? null : by, "bazuka");
+  }
+
+  // And the King, who is not in that list.
+  if (G.king && !G.king.leaving) {
+    const kb = G.king.actor;
+    if (Math.hypot(kb.x - x, (kb.y - kb.h / 2) - y) <= def.blast + kb.w * 0.4) hurtKing(by);
+  }
+
+  // The floor it went off on. Same rule as a Ground Pound: '=' only, or the
+  // arena gets cut in two by a weapon that is already the strongest thing in
+  // the game.
+  const ty = Math.floor(y + 0.5);
+  const row = G.grid.rows[ty];
+  if (row) {
+    const tx = Math.floor(x);
+    const gone = [];
+    for (const dir of [0, -1, 1]) {
+      for (let k = dir === 0 ? 0 : 1; k <= def.breaks; k++) {
+        const cx = tx + dir * k;
+        if (cx < 0 || cx >= row.length) break;
+        if (row[cx] !== "=") break;
+        gone.push(cx);
+        if (dir === 0) break;
+      }
+    }
+    if (gone.length) {
+      const cut = new Set(gone);
+      G.grid.rows[ty] = [...row].map((c, cx) => (cut.has(cx) ? "." : c)).join("");
+    }
+  }
+}
+
 function tryBazooka(a) {
   if (!a.power || a.power.ammo <= 0) return;
   if (G.time * 1000 - a.shotAt < SHOT_COOLDOWN_MS) return;

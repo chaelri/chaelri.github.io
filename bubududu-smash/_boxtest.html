@@ -57,16 +57,33 @@ function cell(host, cap, fill, zoom = 46) {
 const boxes = document.getElementById("boxes");
 for (const hits of [3, 2, 1]) {
   cell(boxes, `${hits} bump${hits === 1 ? "" : "s"} left`, (g, fy) => {
+    for (const q of g.actors) q.x = 60;   // out of shot, not deleted —
+                                          // updateCamera needs them
     g.boxes.push({ x: 24, y: fy - 3, hits, bumpAt: -9 });
-  });
+  }, 130);
 }
-cell(boxes, "struck this frame", (g, fy) => {
-  g.boxes.push({ x: 24, y: fy - 3, hits: 2, bumpAt: g.time - 0.02 });
-});
+for (const [cap, ago] of [["struck, 20ms", 0.02], ["struck, 90ms", 0.09]]) {
+  cell(boxes, cap, (g, fy) => {
+    for (const q of g.actors) q.x = 60;
+    g.boxes.push({ x: 24, y: fy - 3, hits: 2, bumpAt: g.time - ago });
+  }, 130);
+}
 cell(boxes, "two at once", (g, fy) => {
   g.boxes.push({ x: 22, y: fy - 3, hits: 3, bumpAt: -9 });
   g.boxes.push({ x: 27, y: fy - 4, hits: 1, bumpAt: -9 });
 });
+
+// The bazooka going off, frame by frame — the fireball is under a second.
+const booms = document.createElement("div");
+booms.className = "row";
+const bh = document.createElement("h1");
+bh.textContent = "the bazooka going off";
+document.body.append(bh, booms);
+for (const ms of [20, 60, 140, 300, 500, 680]) {
+  cell(booms, `${ms}ms`, (g, fy) => {
+    g.quakes.push({ x: 24, y: fy - 2.2, at: g.time - ms / 1000, force: 1, kind: 1 });
+  }, 30);
+}
 
 const drops = document.getElementById("drops");
 for (const type of ["puso", "bazuka"]) {
@@ -109,11 +126,13 @@ for (const ms of [20, 60, 120, 250, 500]) {
 for (const [cap, left] of [["crowned player", 9], ["crown, about to lapse", 0.7]]) {
   cell(kingRow, cap, (g) => {
     const a = g.actors[0];
+    a.char = "yhon";            // draws properly in this harness
+    g.actors[1].x = 60;         // out of shot
     // Exactly what givePower does for it — the crown is an ordinary power-up.
     a.power = { type: "korona", until: g.time + left, ammo: 0 };
     a.w = a.baseW * POWERUPS.korona.scale;
     a.h = a.baseH * POWERUPS.korona.scale;
-  });
+  }, 80);
 }
 document.title = "box sheet";
 </script>

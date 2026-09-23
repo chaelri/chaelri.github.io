@@ -186,7 +186,9 @@ export function snapshot(G, extra = {}) {
     po: G.pops.map((p) => [r2(p.x), r2(p.y), r2(now - p.at), p.colour, p.glyph || ""]),
     // Where a ground pound landed and how hard, so the crater is in the same
     // place on both phones rather than invented twice.
-    qk: (G.quakes || []).map((q) => [r2(q.x), r2(q.y), r2(now - q.at), r2(q.force)]),
+    // `kind` 0 is a body hitting the floor, 1 is a bazooka shell going off
+    // in the air — two very different pictures off one transport.
+    qk: (G.quakes || []).map((q) => [r2(q.x), r2(q.y), r2(now - q.at), r2(q.force), q.kind || 0]),
     /* Mystery boxes. `hits` is what is LEFT, and it travels because the
      * count is the whole read on a box — two players both going for the
      * same one need to agree about which bump is the last. `drop` is not
@@ -282,7 +284,7 @@ export function hydrate(s) {
     })),
     bursts: A(s.bu).map(([x, y, age, colour, big]) => ({ x, y, at: now - age, colour, big: !!big })),
     pops: A(s.po).map(([x, y, age, colour, glyph]) => ({ x, y, at: now - age, colour, glyph })),
-    quakes: A(s.qk).map(([x, y, age, force]) => ({ x, y, at: now - age, force })),
+    quakes: A(s.qk).map(([x, y, age, force, kind]) => ({ x, y, at: now - age, force, kind: kind || 0 })),
     boxes: A(s.bx).map(([x, y, hits, bumpAge]) => ({ x, y, hits, bumpAt: now - bumpAge })),
     king: s.kg ? (([x, y, hp, face, w, h, age, grounded, hurtLeft]) => ({
       hp, born: now - age, leaving: false, hurtUntil: now + hurtLeft,
