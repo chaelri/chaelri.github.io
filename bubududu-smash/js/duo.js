@@ -45,7 +45,7 @@ const WHO_KEY = "bubududu-smash.who";
  * to pick a name, and by the time the socket is opened it is up. Nothing
  * depends on the answer, so a failure here costs nothing either.
  */
-if (params.get("net") === "server") {
+if (params.get("net") !== "p2p") {
   import("./netclient.js")
     .then(({ SERVER }) => fetch(SERVER.replace(/^ws/, "http") + "/health", { mode: "no-cors" }))
     .catch(() => {});
@@ -77,22 +77,27 @@ function say(msg) {
 function begin() {
   document.body.dataset.role = role;
 
-  /* The server build.
+  /* The server build, and it is the DEFAULT now.
    *
-   * `?net=server` puts both phones on a real authoritative server, as equal
-   * clients — nobody hosts. The peer-to-peer path below stays as it is while
-   * this is proved out, so there is always something that works to fall back
-   * to; it is a query parameter rather than a rewrite for exactly that
-   * reason.
+   * Both phones are equal clients of a real authoritative server; nobody
+   * hosts. It was behind `?net=server` while it was being proved out, which
+   * turned out to be the whole of a morning's confusion: every fix to the
+   * netcode was landing on a build nobody was opening. The plain URL is the
+   * one that gets typed, so the plain URL has to be the good one.
+   *
+   * `?net=p2p` still opts back into the old peer-to-peer path, which is kept
+   * as something that works if the server is ever down — but on it one player
+   * watches the live game and the other watches a copy of it, and that gap is
+   * in the shape of the design, not in the tuning of it.
    */
-  if (params.get("net") === "server") {
+  if (params.get("net") !== "p2p") {
     wait.querySelector(".who").classList.add("gone");
     import("./netclient.js").then((net) => net.connect({ role, say }));
     return;
   }
 
   wait.querySelector(".who").classList.add("gone");
-  say(role === "p1" ? "opening the room…" : "looking for Charlie…");
+  say(role === "p1" ? "old build · opening the room…" : "old build · looking for Charlie…");
   armAudio();
   onAudioState((st) => $("#sound")?.classList.toggle("show", st !== "on"));
   if (role === "p1") hostSide();

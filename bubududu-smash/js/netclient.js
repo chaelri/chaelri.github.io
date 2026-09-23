@@ -288,13 +288,25 @@ export async function connect({ role, say = () => {} }) {
     say("in the room — waiting for the round");
   }
 
+  /* Keep trying.
+   *
+   * One attempt was all there was, and on the free tier the FIRST one is the
+   * one most likely to fail: when nobody has played for a few minutes there
+   * is no container at all, and the join can time out while one starts. A
+   * single failure then left the phone sitting on "could not reach the
+   * server" for ever with nothing to do but reload — which is indingishable,
+   * from the sofa, from the game being broken.
+   */
   say("connecting…");
-  try {
-    await join();
-  } catch (err) {
-    console.error("[bubu-dudu-smash] could not reach the server", err);
-    say("could not reach the server");
-    return;
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await join();
+      break;
+    } catch (err) {
+      console.warn("[bubu-dudu-smash] join failed, retrying", err);
+      say(attempt < 3 ? "waking the server…" : `still trying… (${attempt})`);
+      await new Promise((r) => setTimeout(r, Math.min(4000, 700 * attempt)));
+    }
   }
 
   /* Ticks are minted in the draw loop (see below, `pump`) so that producing
