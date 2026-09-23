@@ -260,7 +260,7 @@ export const POWERUPS_EXTRA = {
     blastRadius: 2.6,   // tiles from the fist, in every forward direction
     blastBehind: 0.7,   // ...and this far back past your own shoulder
     blastMs: 420,       // how long the ring is drawn expanding
-    knockback: 17,      // what it does to them if they survive it (they do not)
+    knockback: 21,      // what it does to them if they survive it (they do not)
     cooldownMs: 420,
   },
 };
@@ -350,16 +350,23 @@ export const ABILITY = {
      *
      * It still does not take a heart — the kill is the stomp, and this is
      * what sets the stomp up. What it takes is their footing. */
-    blast: 3.0,        // tiles from where he lands, off a short drop
-    blastFar: 6.2,     // ...and off a long one
-    fallFull: 9,       // tiles of dive that counts as long
-    knockback: 17,
-    upward: 12,
-    launchMs: 320,     // no steering out of it
+    /* Widened hard on 2026-09-23. The first numbers (3.0 / 6.2 off a nine
+     * tile dive) meant Yhon had to land almost ON somebody, which made the
+     * one move he commits a whole descent to feel like a tap. It is an
+     * EARTHQUAKE — it should own the platform he lands on and reach the one
+     * next door off a real drop. `fallFull` came down with it so a sensible
+     * jump-and-drop already gets most of the range; you should not have to
+     * climb to the ceiling to feel it. */
+    blast: 4.5,        // tiles from where he lands, off a short drop
+    blastFar: 9.5,     // ...and off a long one
+    fallFull: 7,       // tiles of dive that counts as long
+    knockback: 21,
+    upward: 14,
+    launchMs: 380,     // no steering out of it
     // How long the ground remembers. Cosmetic, and replicated, so both
     // phones see the same crater.
-    quakeMs: 640,
-    crackMs: 1600,
+    quakeMs: 760,
+    crackMs: 1200,
     // You cannot steer out of it. Committing is the whole character.
     lockMs: 90,
   },

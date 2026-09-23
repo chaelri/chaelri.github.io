@@ -1,0 +1,84 @@
+<!doctype html><meta charset="utf-8"><title>quake</title>
+<!--
+  A contact sheet of one ground pound.
+
+  The impact lasts well under a second and the game's own loop will not hold
+  still for it, so the only honest way to look at the thing is to draw the
+  SAME crater at a row of ages side by side. Each cell is a full frame of the
+  real renderer with the clock moved on — nothing here mocks drawQuakes, it
+  just chooses when to look.
+
+  ?force=0..1 picks how hard the landing was; the default shows a short drop
+  and a long one on two rows, because the whole point of the move is that
+  those two should not look alike.
+-->
+<style>
+  body { margin: 0; background: #11161c; color: #cfe3f2;
+         font: 12px ui-monospace, monospace; }
+  h1 { font: 600 13px system-ui; margin: 10px 12px 2px; }
+  .row { display: flex; flex-wrap: wrap; gap: 2px; padding: 2px 12px 12px; }
+  figure { margin: 0; }
+  canvas { display: block; background: #000; }
+  figcaption { padding: 2px 4px; opacity: 0.65; }
+</style>
+<div id="out"></div>
+<script type="module">
+import { createRenderer, draw, resize } from "./js/render.js";
+import { makeArena, solidGrid } from "./js/levels.js";
+import { makeActor } from "./js/physics.js";
+import { ABILITY } from "./js/config.js";
+
+const AGES = [0.02, 0.06, 0.12, 0.2, 0.32, 0.5, 0.75, 1.1];
+const CW = 360, CH = 240;
+
+function world() {
+  const level = makeArena(4242);
+  const g = {
+    level, grid: solidGrid(level), time: 0, shrink: 0,
+    actors: [], powers: [], coins: [], shots: [], pops: [], bursts: [],
+    helpers: [], minis: [], lostHearts: [], quakes: [],
+    wildFairy: null, freeze: 0, slow: 0, slowRate: 1, winner: 0,
+  };
+  const mk = (char, x, id) => { const a = makeActor(x, 10, id); a.char = char; a.hp = 3; a.label = id; a.face = 1; return a; };
+  g.actors.push(mk("yhon", 24, "p1"), mk("bubu", 28, "p2"));
+  return g;
+}
+
+// Where the arena floor actually is, so the crater sits ON something.
+function floorY(g, x) {
+  const tx = Math.round(x);
+  for (let ty = 0; ty < g.level.h; ty++) if (g.grid.rows[ty][tx] === "#") return ty;
+  return g.level.h - 2;
+}
+
+const out = document.getElementById("out");
+for (const force of [0.25, 1]) {
+  const reach = ABILITY.pound.blast + (ABILITY.pound.blastFar - ABILITY.pound.blast) * force;
+  const h = document.createElement("h1");
+  h.textContent = `force ${force}  —  reach ${reach.toFixed(1)} tiles`;
+  const row = document.createElement("div");
+  row.className = "row";
+  out.append(h, row);
+
+  for (const age of AGES) {
+    const fig = document.createElement("figure");
+    const c = document.createElement("canvas");
+    const cap = document.createElement("figcaption");
+    cap.textContent = `${Math.round(age * 1000)}ms`;
+    fig.append(c, cap);
+    row.append(fig);
+
+    const g = world();
+    const fy = floorY(g, 24);
+    g.quakes.push({ x: 24, y: fy, at: 0, force });
+    g.time = age;
+    const r = createRenderer(c);
+    resize(r, CW, CH);
+    // Park the camera on the impact rather than letting it ease in from the
+    // middle of the level — one frame is all each cell gets.
+    r.cam.x = 24; r.cam.y = fy - 1.2; r.cam.zoom = 34;
+    draw(r, g, 1 / 60);
+  }
+}
+document.title = "quake sheet";
+</script>

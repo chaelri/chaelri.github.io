@@ -1851,8 +1851,8 @@ function poundLanded(a) {
   const reach = ab.blast + (ab.blastFar - ab.blast) * force;
   a.poundFrom = null;
   sfx.land();
-  renderer.shake = Math.max(renderer.shake || 0, 10 + 18 * force);
-  renderer.punch = Math.max(renderer.punch || 0, 0.03 + 0.06 * force);
+  renderer.shake = Math.max(renderer.shake || 0, 15 + 30 * force);
+  renderer.punch = Math.max(renderer.punch || 0, 0.04 + 0.09 * force);
   G.pops.push({ x: a.x, y: a.y, at: G.time, colour: ab.colour, glyph: ab.mark });
   /* The crater, for the renderer — replicated, so both phones see the same
    * one in the same place. `force` is how hard, which drives everything the

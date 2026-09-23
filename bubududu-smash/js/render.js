@@ -1188,94 +1188,294 @@ function drawPowers(r, ctx, g) {
  * crater. That is the same number the knockback uses, so what you see and
  * what you felt are the same thing.
  */
-const QUAKE_MS = 640;
-const CRACK_MS = 1600;
+/* Read from the ability, not copied. These were two literals here and two
+ * more in config.js, and widening the pound moved the config pair while the
+ * renderer went on drawing to the old clock — the wave finished before the
+ * shove did. One source. */
+const QUAKE_MS = ABILITY.pound.quakeMs;
+const CRACK_MS = ABILITY.pound.crackMs;
+
+/**
+ * The crater a ground pound leaves, and everything that happens on the way.
+ *
+ * The first pass was thin rings and a scatter of round dots, and Charlie's
+ * word for it was "panget" — which was fair. The problem is that rings and
+ * dots are what an EXPLOSION looks like in the air; a ground pound is a mass
+ * arriving at a floor, and nothing about it should look airborne. So:
+ *
+ *   - the shockwave is a FILLED band hugging the floor, not an outline. An
+ *     outline reads as a soap bubble; a band reads as ground being shoved.
+ *   - dust BILLOWS. A dust puff grows as it travels — that single property is
+ *     the whole difference between smoke and a spray of pellets, and the old
+ *     version had constant-radius circles that only faded.
+ *   - debris is thrown on real ballistic arcs and comes back DOWN. Nothing
+ *     sells weight like seeing the pieces land.
+ *   - the wave stops exactly at the blast radius, so the range Yhon actually
+ *     has is a thing you can see and learn rather than guess at.
+ *
+ * Everything here is a pure function of (q.x, q.at, q.force) and the clock,
+ * so both phones draw an identical crater without a single extra byte on the
+ * wire. `noiseAt` seeded off q.x is what keeps the pattern stable per impact
+ * and different between impacts.
+ */
+/**
+ * A soft round blob, baked once per tint.
+ *
+ * Dust drawn with `arc` + `fill` has a hard edge, and a hard-edged circle at
+ * half opacity is a BALLOON — which is exactly what twenty-six of them looked
+ * like on the contact sheet. Smoke has no edge. A radial gradient per puff
+ * per frame would mean rebuilding a hundred-odd gradient objects every frame
+ * of every impact, so the falloff is rasterised once and blitted.
+ */
+const dotCache = new Map();
+function softDot(rgb) {
+  let c = dotCache.get(rgb);
+  if (c) return c;
+  c = document.createElement("canvas");
+  c.width = c.height = 64;
+  const x = c.getContext("2d");
+  const gr = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+  gr.addColorStop(0, `rgba(${rgb},0.85)`);
+  gr.addColorStop(0.45, `rgba(${rgb},0.45)`);
+  gr.addColorStop(1, `rgba(${rgb},0)`);
+  x.fillStyle = gr;
+  x.fillRect(0, 0, 64, 64);
+  dotCache.set(rgb, c);
+  return c;
+}
 
 function drawQuakes(r, ctx, g) {
   if (!g.quakes || !g.quakes.length) return;
   const z = r.cam.zoom;
+  const AB = ABILITY.pound;
+
   for (const q of g.quakes) {
     const age = g.time - q.at;
     if (age < 0) continue;
     const force = Math.max(0.15, Math.min(1, q.force || 0));
     const px = toX(r, q.x);
     const py = toY(r, q.y);
+    // The real radius of the shove, in px. Everything on the floor is drawn
+    // against THIS, so what you see is what the move actually covers.
+    const reach = (AB.blast + (AB.blastFar - AB.blast) * force) * z;
+    const seed = Math.abs(q.x) * 7.13 + Math.abs(q.y) * 3.7;
 
-    /* The cracks, first and longest — under everything else, in the dirt. */
     const ct = age / (CRACK_MS / 1000);
+    const t = age / (QUAKE_MS / 1000);
+
+    /* ---- 1. the scorched ground, under everything and longest-lived ---- */
     if (ct < 1) {
-      const open = Math.min(1, ct * 6);          // snap open, then linger
-      const fade = 1 - Math.pow(ct, 2.2);
+      const fade = Math.pow(1 - ct, 1.7) * 0.26;
+      const open = Math.min(1, ct * 8);
       ctx.save();
-      ctx.globalAlpha = fade * 0.55;
-      ctx.strokeStyle = "rgba(48,32,22,0.9)";
-      ctx.lineCap = "round";
-      const spread = z * (1.1 + force * 2.6) * open;
-      for (let i = 0; i < 7; i++) {
-        // Fixed angles off the impact so the crack pattern is the same on
-        // both phones without sending seven of anything.
-        const a = -Math.PI + (i + 0.5) * (Math.PI / 7);
-        const wob = Math.sin(i * 12.9 + q.x) * 0.35;
-        const len = spread * (0.55 + 0.45 * Math.abs(Math.cos(i * 2.3 + q.x)));
-        ctx.lineWidth = Math.max(1, z * (0.045 + force * 0.03) * (1 - ct));
+      ctx.globalAlpha = fade;
+      const sc = ctx.createRadialGradient(px, py, 0, px, py, reach * 0.85 * open);
+      sc.addColorStop(0, "rgba(46,30,20,0.85)");
+      sc.addColorStop(0.55, "rgba(58,40,26,0.35)");
+      sc.addColorStop(1, "rgba(58,40,26,0)");
+      ctx.fillStyle = sc;
+      ctx.beginPath();
+      ctx.ellipse(px, py, reach * 0.85 * open, reach * 0.2 * open, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    /* ---- 2. the cracks: tapered wedges lying flat on the ground ----
+     *
+     * These were round-capped STROKES of constant width, forked, at full
+     * length — which is a drawing of a bare shrub, and that is exactly what
+     * it looked like sitting on the grass. A crack in the ground is wide
+     * where the thing hit and narrows to nothing, and it lies in the floor
+     * plane rather than standing up out of it. So: filled wedges, squashed
+     * on Y by the same amount as the shockwave, and short enough that they
+     * stay inside the crater instead of reaching for the next platform. */
+    if (ct < 1) {
+      const open = Math.min(1, ct * 7);
+      const fade = 1 - Math.pow(ct, 2.2);
+      const SQUASH = 0.26;
+      ctx.save();
+      const RAYS = 7;
+      for (let i = 0; i < RAYS; i++) {
+        const a0 = -Math.PI + (i + 0.5) * (Math.PI / RAYS);
+        const wob = (noiseAt(i * 3 + seed) - 0.5) * 0.55;
+        const ang = a0 + wob;
+        const len = reach * 0.42 * (0.55 + 0.45 * noiseAt(i * 3 + 1 + seed)) * open;
+        const w = z * (0.1 + force * 0.09);
+
+        // tip, and a kink partway along so it is not a ruled line
+        const ex = px + Math.cos(ang) * len;
+        const ey = py + Math.sin(ang) * len * SQUASH;
+        const kink = (noiseAt(i * 3 + 2 + seed) - 0.5) * 0.45;
+        const mx = px + Math.cos(ang + kink) * len * 0.5;
+        const my = py + Math.sin(ang + kink) * len * 0.5 * SQUASH;
+        // across the wedge, flattened the same way as its length
+        const nx = -Math.sin(ang), ny = Math.cos(ang) * SQUASH;
+
+        const wedge = () => {
+          ctx.beginPath();
+          ctx.moveTo(px + nx * w, py + ny * w);
+          ctx.lineTo(mx + nx * w * 0.45, my + ny * w * 0.45);
+          ctx.lineTo(ex, ey);
+          ctx.lineTo(mx - nx * w * 0.45, my - ny * w * 0.45);
+          ctx.lineTo(px - nx * w, py - ny * w);
+          ctx.closePath();
+          ctx.fill();
+        };
+
+        ctx.globalAlpha = fade * 0.6;
+        ctx.fillStyle = "rgba(42,28,18,0.95)";
+        wedge();
+        // While it is still opening, the inside of the split is hot.
+        if (ct < 0.28) {
+          ctx.globalAlpha = (1 - ct / 0.28) * 0.55;
+          ctx.fillStyle = AB.colour;
+          ctx.save();
+          ctx.translate(px, py);
+          ctx.scale(0.55, 0.55);
+          ctx.translate(-px, -py);
+          wedge();
+          ctx.restore();
+        }
+      }
+      ctx.restore();
+    }
+
+    if (t >= 1) continue;
+
+    /* ---- 3. the shockwave: a filled band travelling out along the floor,
+       stopping dead at the edge of what the blast actually reaches ---- */
+    for (const [lag, thick, warm] of [[0, 0.55, false], [0.18, 0.32, true]]) {
+      const tt = (t - lag) / (1 - lag);
+      if (tt <= 0 || tt >= 1) continue;
+      const ee = 1 - Math.pow(1 - tt, 2.4);
+      const rad = reach * ee;
+      /* Capped at a fraction of the radius it is currently at.
+       *
+       * Without the cap the band is wider than the ring for the first third
+       * of its life, the inner ellipse clamps to zero, and the nonzero fill
+       * has nothing to cut out — so the "expanding band" renders as a solid
+       * pale disc sitting on the floor. On the contact sheet it read as a
+       * puddle, which is the opposite of the thing travelling outward. */
+      const band = Math.min(rad * 0.55, reach * thick * (1 - tt) * 0.5 + z * 0.12);
+      const squash = 0.26;
+
+      ctx.save();
+      ctx.globalAlpha = Math.pow(1 - tt, 1.7) * 0.95;
+      // An annulus: outer ellipse, then the inner one wound the other way so
+      // the nonzero fill rule cuts the middle out. One path, one fill — and
+      // it stays a band at every radius, which a stroke of fixed width does
+      // not once the ring is six tiles across.
+      ctx.beginPath();
+      ctx.ellipse(px, py, rad, rad * squash, 0, 0, Math.PI * 2);
+      ctx.ellipse(px, py, Math.max(0, rad - band), Math.max(0, rad - band) * squash,
+                  0, 0, Math.PI * 2, true);
+      const gr = ctx.createRadialGradient(px, py, Math.max(0, rad - band), px, py, rad);
+      if (warm) {
+        gr.addColorStop(0, "rgba(255,156,63,0)");
+        gr.addColorStop(0.7, "rgba(255,176,86,0.55)");
+        gr.addColorStop(1, "rgba(255,214,150,0.15)");
+      } else {
+        gr.addColorStop(0, "rgba(255,240,214,0)");
+        gr.addColorStop(0.6, "rgba(255,232,190,0.7)");
+        gr.addColorStop(1, "rgba(255,255,255,0.9)");
+      }
+      ctx.fillStyle = gr;
+      ctx.fill();
+      /* A thin dark line on the leading edge, and ONLY while the wave is
+       * young. The band is warm and the arena floor is bright green, so
+       * without something dark to separate them it washes out over exactly
+       * the ground it is crossing — but carried to the end of the wave's
+       * life the same line is a six-tile pencilled hoop lying on the grass,
+       * long after anything is still happening. */
+      if (tt < 0.5) {
+        ctx.globalAlpha = (1 - tt * 2) * 0.35;
+        ctx.strokeStyle = "rgba(60,36,18,0.9)";
+        ctx.lineWidth = Math.max(1, z * 0.035);
         ctx.beginPath();
-        ctx.moveTo(px, py);
-        ctx.lineTo(px + Math.cos(a + wob) * len, py + Math.sin(a + wob) * len * 0.22);
+        ctx.ellipse(px, py, rad, rad * squash, 0, 0, Math.PI * 2);
         ctx.stroke();
       }
       ctx.restore();
     }
 
-    const t = age / (QUAKE_MS / 1000);
-    if (t >= 1) continue;
-    const e = 1 - Math.pow(1 - t, 2.6);
-
-    /* The shockwave, flat along the floor — two rings, the second trailing,
-     * both squashed hard so they read as travelling over the ground rather
-     * than expanding in the air. */
-    for (const [lag, w] of [[0, 0.13], [0.16, 0.07]]) {
+    /* ---- 4. dust, billowing: each puff GROWS as it travels out ---- */
+    ctx.save();
+    const PUFFS = 26;
+    for (let i = 0; i < PUFFS; i++) {
+      const side = i % 2 ? 1 : -1;
+      const n1 = noiseAt(i * 5 + seed), n2 = noiseAt(i * 5 + 1 + seed);
+      const lag = n1 * 0.2;
       const tt = (t - lag) / (1 - lag);
       if (tt <= 0) continue;
-      const ee = 1 - Math.pow(1 - tt, 2.6);
-      ctx.save();
-      ctx.globalAlpha = (1 - tt) * 0.9;
-      ctx.strokeStyle = tt < 0.3 ? "#fff4e0" : ABILITY.pound.colour;
-      ctx.lineWidth = Math.max(2, z * w * (1 - tt * 0.6) * (0.5 + force));
-      ctx.beginPath();
-      ctx.ellipse(px, py, z * (0.3 + ee * (2.4 + force * 5.4)),
-                  z * (0.1 + ee * (0.5 + force * 0.9)), 0, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
-    }
-
-    /* Dust and grit, thrown up and out. Low and wide, not a fountain. */
-    ctx.save();
-    for (let i = 0; i < 16; i++) {
-      const side = i % 2 ? 1 : -1;
-      const lane = (i / 16);
-      const out = z * (0.4 + e * (2.2 + force * 4.2)) * (0.5 + lane);
-      const rise = z * (0.3 + force * 1.5) * Math.sin(Math.min(1, t * 1.6) * Math.PI) * (0.4 + lane);
-      ctx.globalAlpha = Math.max(0, 1 - t * 1.15) * 0.8;
-      ctx.fillStyle = i % 4 === 0 ? "#6b4a30" : i % 3 === 0 ? "#fff6e6" : "#d8c3a6";
-      ctx.beginPath();
-      ctx.arc(px + side * out, py - rise,
-              z * (0.05 + force * 0.09) * (1 - t * 0.7), 0, Math.PI * 2);
-      ctx.fill();
+      const ee = 1 - Math.pow(1 - tt, 2.2);
+      // Out to roughly the blast edge, slowest puffs about half as far.
+      const out = reach * ee * (0.45 + n2 * 0.6);
+      // Rises as it goes, and keeps rising after it has stopped travelling —
+      // that lag between moving out and drifting up is what makes it smoke.
+      const rise = z * (0.25 + force * 1.3) * (0.3 + n1) * Math.min(1, tt * 2.1);
+      const rad = z * (0.1 + force * 0.16) * (0.5 + n2) * (0.35 + ee * 2.3);
+      ctx.globalAlpha = Math.max(0, 1 - tt * 1.05) * 0.55;
+      // Two families so it is not one flat colour: pale kicked-up dust, and
+      // darker soil from where he actually hit.
+      const dot = softDot(i % 3 === 0 ? "124,92,62" : "226,208,180");
+      ctx.drawImage(dot, px + side * out - rad, py - rise - rad, rad * 2, rad * 2);
     }
     ctx.restore();
 
-    /* And a hot flash on the first frames, so the moment of contact has a
-     * bang rather than a growing ring. */
-    if (t < 0.22) {
-      const k = 1 - t / 0.22;
+    /* ---- 5. debris: thrown on real arcs, and it comes back down ---- */
+    ctx.save();
+    const CHUNKS = 12;
+    for (let i = 0; i < CHUNKS; i++) {
+      const n1 = noiseAt(i * 7 + 40 + seed), n2 = noiseAt(i * 7 + 41 + seed);
+      const n3 = noiseAt(i * 7 + 42 + seed);
+      const side = i % 2 ? 1 : -1;
+      const vx = z * (2.4 + n1 * 5.2) * (0.5 + force) * side;
+      const vy = -z * (4.5 + n2 * 5.5) * (0.5 + force);
+      const life = t * (QUAKE_MS / 1000);
+      const cx = px + vx * life;
+      const cy = py + vy * life + z * 34 * life * life;   // gravity, in px
+      if (cy > py + z * 0.25) continue;                   // landed, gone
+      ctx.globalAlpha = Math.max(0, 1 - t * 0.9);
+      ctx.fillStyle = n3 > 0.62 ? "#8f7a5e" : n3 > 0.3 ? "#6b4a30" : "#4e382a";
       ctx.save();
-      ctx.globalAlpha = k * 0.75;
-      const fl = ctx.createRadialGradient(px, py, 0, px, py, z * (1 + force * 2.2));
-      fl.addColorStop(0, "rgba(255,255,255,0.95)");
-      fl.addColorStop(0.5, "rgba(255,200,120,0.5)");
+      ctx.translate(cx, cy);
+      ctx.rotate(life * (5 + n1 * 9) * side);
+      const sz = z * (0.055 + n3 * 0.075) * (0.6 + force * 0.7);
+      ctx.fillRect(-sz, -sz * 0.7, sz * 2, sz * 1.4);
+      ctx.restore();
+    }
+    ctx.restore();
+
+    /* ---- 6. contact: a small hot flash and a short column of light ----
+     *
+     * This was a radial gradient eight tiles across in `lighter`, held for
+     * 300ms. On the contact sheet it is a white dome over the entire frame —
+     * you cannot see the shockwave, the arena, or either character through
+     * it. A flash is a flash: small, and gone before you have focused on it.
+     * The wave is what you are supposed to read, so the flash must get out
+     * of its way. */
+    if (t < 0.14) {
+      const k = Math.pow(1 - t / 0.14, 1.8);
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      ctx.globalAlpha = k * 0.85;
+      const fl = ctx.createRadialGradient(px, py, 0, px, py, reach * 0.3);
+      fl.addColorStop(0, "rgba(255,255,255,0.9)");
+      fl.addColorStop(0.4, "rgba(255,206,132,0.4)");
       fl.addColorStop(1, "rgba(255,156,63,0)");
       ctx.fillStyle = fl;
-      ctx.fillRect(px - z * 4, py - z * 3, z * 8, z * 6);
+      ctx.beginPath();
+      ctx.ellipse(px, py, reach * 0.3, reach * 0.16, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // The column. A pound is a vertical event and every other part of this
+      // spreads sideways; without it the impact has no up.
+      const ch = z * (1.2 + force * 2.4);
+      const col = ctx.createLinearGradient(px, py, px, py - ch);
+      col.addColorStop(0, "rgba(255,238,198,0.6)");
+      col.addColorStop(1, "rgba(255,238,198,0)");
+      ctx.fillStyle = col;
+      const cw = z * (0.16 + force * 0.24) * k;
+      ctx.fillRect(px - cw, py - ch, cw * 2, ch);
       ctx.restore();
     }
   }
