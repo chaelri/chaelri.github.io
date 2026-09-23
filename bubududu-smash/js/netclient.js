@@ -66,7 +66,12 @@ export async function connect({ role, say = () => {} }) {
     if (!G) return null;
     const a = (id) => {
       const x = G.actors.find((q) => q.id === id);
-      return x && { x: +x.x.toFixed(2), y: +x.y.toFixed(2), hp: x.hp, dead: !!x.dead };
+      return x && {
+        x: +x.x.toFixed(2), y: +x.y.toFixed(2),
+        vx: +x.vx.toFixed(2), vy: +x.vy.toFixed(2),
+        face: x.face, walk: +x.walk.toFixed(2),
+        hp: x.hp, dead: !!x.dead,
+      };
     };
     return {
       role, phase: sim.state.phase, seed: sim.state.seed, t: +G.time.toFixed(2),

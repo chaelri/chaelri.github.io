@@ -497,7 +497,7 @@ function givePower(a, type) {
     }
     G.flash = { type, at: G.time };
     showPickup(a, type);
-    sfx[type]?.();
+    fx.sfx(type);
     return;
   }
 
@@ -512,7 +512,7 @@ function givePower(a, type) {
       const base = def.ms / 1000;
       a.power.until = Math.min(G.time + base * STACK.maxDurationMul, a.power.until + base);
     }
-    sfx[type]?.();
+    fx.sfx(type);
     showStack(a, def.colour, def.name, mag ? `${a.power.ammo} now` : "longer", GLYPH[type] || "");
     fx.power(a);
     return;
@@ -534,7 +534,7 @@ function givePower(a, type) {
     a.speedMul = def.speed;
     a.jumpMul = def.jump;
   }
-  sfx[type]?.();
+  fx.sfx(type);
   showPickup(a, type);
   fx.power(a);
 }
@@ -1353,16 +1353,16 @@ function tickPunches() {
   for (const a of G.actors) {
     const ph = punchPhase(a);
     if (!ph || ph.state !== "out" || a.punch.hit || a.dead) continue;
-    const fx = a.x + a.punch.face * (a.w / 2 + def.reach * 0.6);
-    const fy = a.y - a.h * 0.55;
+    const fistX = a.x + a.punch.face * (a.w / 2 + def.reach * 0.6);
+    const fistY = a.y - a.h * 0.55;
     for (const o of G.actors) {
       if (o === a || o.dead) continue;
       // A radial blast centred on the fist rather than a box the size of the
       // fist. Behind you it stops almost at once, so the punch still has to
       // be aimed — but a near miss in front now connects, which is the whole
       // difference between "one of my three landed" and "none did".
-      const ox = o.x - fx;
-      const oy = (o.y - o.h / 2) - fy;
+      const ox = o.x - fistX;
+      const oy = (o.y - o.h / 2) - fistY;
       // "Is he in front of me" is measured from the PLAYER, not from the
       // fist. Measuring it from the fist — which is nearly two tiles out —
       // classified anyone standing right against you as being BEHIND the
@@ -1386,17 +1386,17 @@ function tickPunches() {
       // The landing gets its own weight: a hit-stop, a hard shake, a flash,
       // a big burst at the fist and a ring of sparks thrown outward. A one-
       // punch kill that looked like a bullet hit was the complaint.
-      G.bursts.push({ x: fx, y: fy, at: G.time, colour: def.colour, big: true });
+      G.bursts.push({ x: fistX, y: fistY, at: G.time, colour: def.colour, big: true });
       for (let i = 0; i < 8; i++) {
         const ang = (i / 8) * Math.PI * 2;
         G.bursts.push({
-          x: fx + Math.cos(ang) * def.blastRadius * 0.55,
-          y: fy + Math.sin(ang) * def.blastRadius * 0.4,
+          x: fistX + Math.cos(ang) * def.blastRadius * 0.55,
+          y: fistY + Math.sin(ang) * def.blastRadius * 0.4,
           at: G.time + i * 0.005,
           colour: i % 2 ? "#ffd7a0" : def.colour,
         });
       }
-      G.pops.push({ x: fx, y: fy, at: G.time, colour: def.colour, glyph: GLYPH.suntok || "" });
+      G.pops.push({ x: fistX, y: fistY, at: G.time, colour: def.colour, glyph: GLYPH.suntok || "" });
       G.freeze = Math.max(G.freeze, 0.13);
       G.slow = Math.max(G.slow, 0.22);
       fx.shake(46);
