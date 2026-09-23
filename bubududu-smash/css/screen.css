@@ -211,7 +211,12 @@ body.counting #banner {
 /* ------------------------------------------------------------- wordmark ---
  *
  * Three copies of the same word stacked on top of each other, which is the
- * usual way to build a sticker logo in CSS:
+ * usual way to build a sticker logo in CSS.
+ *
+ * Not scoped to the lobby any more. The waiting screen on the two-phone page
+ * carries the same <h1 class="logo">, and being scoped meant it got NONE of
+ * this — a default 2em heading that ran off both edges of a phone and was
+ * the first thing either of them saw. One logo, both pages:
  *
  *   ::before  a thick white stroke and the blue extrude under it — the
  *             "cut out and stuck on" edge. text-stroke centres on the glyph
@@ -222,31 +227,35 @@ body.counting #banner {
  * The warm face is deliberate: everything behind it is sky, and white on pale
  * blue is what made the old one disappear into the background.
  */
-#lobby h1.logo { font-family: var(--display); }
-#lobby h1.logo {
+h1.logo { font-family: var(--display); }
+h1.logo {
   position: relative;
   margin: 0;
   font-family: "Nunito", system-ui, sans-serif;
   font-weight: 900;
   /* Sized for the full name, which is three times the length the old one
      was — at the previous size it ran off both edges of a laptop screen. */
-  font-size: clamp(26px, 7.4vh, 78px);
+  font-style: italic;
+  font-size: clamp(30px, 8.6vh, 92px);
   line-height: 1.04;
-  letter-spacing: 0.005em;
+  /* Tight, but not as tight as the countdown cards: this one carries a
+     0.115em white stroke on each letter, and closing the gaps much further
+     welds the words into one blob. */
+  letter-spacing: -0.022em;
   white-space: nowrap;
   animation: logoFloat 5.2s ease-in-out infinite;
 }
 
-#lobby h1.logo::before,
-#lobby h1.logo::after {
+h1.logo::before,
+h1.logo::after {
   content: attr(data-text);
   position: absolute;
   left: 0; right: 0; top: 0;
   pointer-events: none;
 }
 
-#lobby h1.logo::before {
-  -webkit-text-stroke: 0.13em #fff;
+h1.logo::before {
+  -webkit-text-stroke: 0.115em #fff;
   color: #fff;
   /* Stacked zero-blur shadows make the extrude; the last one is the real
      shadow that lifts the whole thing off the hills. */
@@ -256,7 +265,7 @@ body.counting #banner {
     drop-shadow(0 20px 24px rgba(24,52,76,0.34));
 }
 
-#lobby h1.logo span {
+h1.logo span {
   position: relative;
   background: linear-gradient(177deg, #fffdf8 6%, #ffeec3 33%, #ffc077 63%, #ff90ad 100%);
   -webkit-background-clip: text;
@@ -264,10 +273,18 @@ body.counting #banner {
   color: transparent;
 }
 
-#lobby h1.logo::after {
+/* The glint, and it is only a glint now.
+ *
+ * It was a band eighteen per cent of a 280%-wide gradient — about half the
+ * width of the logo — at almost full white. So for a good part of every
+ * sweep, half the name was white on a white outline over a pale sky, and
+ * SMASH, which is the word the sweep reaches last and dwells on, was simply
+ * not readable. A third of the width, and short of full white, still reads
+ * as a highlight travelling across a sticker and never takes a word away. */
+h1.logo::after {
   background: linear-gradient(104deg,
-    transparent 40%, rgba(255,255,255,0.95) 49%, transparent 58%);
-  background-size: 280% 100%;
+    transparent 45.5%, rgba(255,255,255,0.7) 50%, transparent 54.5%);
+  background-size: 320% 100%;
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -286,8 +303,8 @@ body.counting #banner {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  #lobby h1.logo { animation: none; }
-  #lobby h1.logo::after { animation: none; opacity: 0; }
+  h1.logo { animation: none; }
+  h1.logo::after { animation: none; opacity: 0; }
 }
 .tag { margin: 0; font-size: 11px; letter-spacing: 0.34em; text-transform: uppercase; color: rgba(33,49,63,0.55); text-shadow: 0 1px 6px rgba(255,255,255,0.9); }
 
@@ -410,13 +427,21 @@ body.counting #banner {
   color: rgba(33, 49, 63, 0.42);
 }
 .note .nm {
-  display: flex; align-items: baseline; gap: 7px; margin: 2px 0 3px;
+  display: flex; align-items: center; gap: 7px; margin: 2px 0 3px;
   font-family: "Nunito", system-ui, sans-serif;
   font-size: clamp(19px, 2.9vh, 27px); font-weight: 800; line-height: 1;
   color: var(--tc, #ffb84d);
 }
 .toast.right .note .nm { flex-direction: row-reverse; }
-.note .nm em { font-style: normal; font-size: 0.8em; }
+.note .nm em { font-style: normal; display: inline-flex; }
+
+/* Every symbol in the game is a drawn path now rather than a character, so
+   that a power-up looks the same on a Mac, a Windows PC and a phone. They
+   take the colour of whatever they sit in — white on a chip, the power-up's
+   own colour on a note. See js/marks.js. */
+.mk { width: 1em; height: 1em; flex: none; display: block; fill: currentColor; }
+.note .nm .mk { width: 0.86em; height: 0.86em; }
+.chip .mk { width: 1.15em; height: 1.15em; margin-right: 1px; }
 .note .ds {
   font-size: clamp(11px, 1.55vh, 13.5px); line-height: 1.45;
   color: rgba(33, 49, 63, 0.72);
@@ -573,10 +598,23 @@ body.counting #banner {
   position: relative; display: grid; place-items: center;
   width: 100%;
 }
+/* Italic, heavy and set tight.
+ *
+ * Three words that spell the game go past in under two seconds, so they are
+ * read as shapes rather than as spelling — and a wide, upright word is the
+ * one shape that says nothing. Leaning it over gives the beat a direction,
+ * and closing the letters up makes each word one object instead of four
+ * letters that happen to be near each other. Both together are what the ask
+ * meant by modern.
+ *
+ * Nunito is loaded with its real italics (ital,wght@0,300..900;1,300..900 in
+ * the font link), so this is a drawn italic and not a slant applied to the
+ * upright by the browser. */
 .count .num {
   position: relative; z-index: 1;
-  font-family: var(--display); font-weight: 900;
+  font-family: var(--display); font-weight: 900; font-style: italic;
   font-size: clamp(90px, 22vh, 230px); line-height: 1; color: #fff;
+  letter-spacing: -0.052em;
   white-space: nowrap;
   /* A hard offset shadow and nothing else. The blue and white blooms that
      used to sit under this were invented to lift white type off a bright
@@ -594,12 +632,16 @@ body.counting #banner {
  * the whole time; there is simply more of it than there is screen, and a word
  * you can only see the middle of does not look centred, it looks askew.
  * Taking whichever of the two is smaller makes it fit by construction. */
-.count.word .num { font-size: clamp(40px, min(12vh, 20vw), 128px); letter-spacing: 0.01em; }
+.count.word .num { font-size: clamp(54px, min(26vh, 26vw), 240px); letter-spacing: -0.052em; }
 /* SMASH! is the last beat, so it is simply the biggest and the hardest —
    not a different colour. The yellow-into-orange bloom it used to wear was
    the one thing on the intro that did not look like the rest of the game. */
 .count.go .num {
-  font-size: clamp(46px, min(15vh, 21vw), 156px); letter-spacing: 0.02em; color: #fff;
+  /* SMASH! is six letters against BUBU's four, so the width limit is what
+     decides it on a phone — sized off min(vh, vw) for the same reason the
+     word cards were, and set even tighter so the extra two letters cost
+     nothing. */
+  font-size: clamp(58px, min(28vh, 23vw), 260px); letter-spacing: -0.062em; color: #fff;
   text-shadow: 0 8px 0 rgba(8, 20, 34, 0.5);
   animation: countPop 520ms cubic-bezier(0.15, 1.7, 0.4, 1) both;
 }

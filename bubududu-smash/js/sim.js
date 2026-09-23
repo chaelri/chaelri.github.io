@@ -15,7 +15,7 @@
 // same inputs give the same round anywhere.
 
 import {
-  MODES, PLAYERS, ROUNDS_TO_WIN, FEEL, HELPER, BAD_HELPER, SQUAD, DIWATA, COINS, HIT, GLYPH,
+  MODES, PLAYERS, ROUNDS_TO_WIN, FEEL, HELPER, BAD_HELPER, SQUAD, DIWATA, COINS, HIT,
   POWERUPS, POWER_ORDER, POWER_SPAWN_MS, POWER_FIRST_MS,
   SHOT_SPEED, SHOT_LIFE, SHOT_COOLDOWN_MS, SHOT_RADIUS, STACK,
 } from "./config.js";
@@ -433,7 +433,42 @@ function tickRules(dt) {
       }
     }
     G.grid = { rows: rows.map((r) => r.join("")) };
+    if (!widestFloor()) callItOnTheFloor();
   }
+}
+
+/* Nothing left to stand on.
+ *
+ * The floor eating in from both ends is what guarantees a round ends, and the
+ * assumption underneath it was that somebody falls off first. They do not
+ * always: the last two planks go in the same frame, both players drop, and
+ * whoever the fall check happens to reach first "wins" a round that was
+ * actually a draw — or, worse, the second one dies on the way down and the
+ * round is awarded to a corpse.
+ *
+ * So when the arena runs out, it is scored rather than raced. Hearts first,
+ * because that is what a round of this game is actually a contest about.
+ * Then whoever is still on their feet, which is Charlie's "kung sino
+ * nahulog" — someone in the middle of a respawn fell and the other one did
+ * not. Coins break a tie that is otherwise exact, and if even those match it
+ * goes down as a draw rather than being handed to whoever is listed first.
+ */
+function callItOnTheFloor() {
+  const players = PLAYERS.map((p) => G.actors.find((a) => a.id === p.id)).filter(Boolean);
+  if (players.length < 2) return;
+  const rank = (a) =>
+    Math.max(0, a.hp || 0) * 1000 + (a.dead ? 0 : 100) + Math.min(99, a.coins || 0);
+  const [a, b] = players;
+  const ra = rank(a);
+  const rb = rank(b);
+  if (ra === rb) return endRound(null, "the arena ran out");
+  const won = ra > rb ? a : b;
+  const lost = ra > rb ? b : a;
+  const why =
+    won.hp !== lost.hp ? `${won.label} had more hearts when the arena ran out`
+    : won.dead !== lost.dead ? `${lost.label} was already down when the arena ran out`
+    : `${won.label} had more gems when the arena ran out`;
+  endRound(won.id, why);
 }
 
 function standingRoom(sp) {
@@ -518,7 +553,7 @@ function showPickup(a, type) {
     const n = a.power ? a.power.ammo : 1;
     body = `${n === 1 ? "One punch" : `${n} punches`}. ${shootPrompt(a.id, "punch")}`;
   }
-  fx.note(a, def.colour, def.name, body, GLYPH[type] || "");
+  fx.note(a, def.colour, def.name, body, type);
 }
 
 
@@ -559,7 +594,7 @@ function givePower(a, type) {
       a.power.until = Math.min(G.time + base * STACK.maxDurationMul, a.power.until + base);
     }
     fx.sfx(type);
-    showStack(a, def.colour, def.name, mag ? `${a.power.ammo} now` : "longer", GLYPH[type] || "");
+    showStack(a, def.colour, def.name, mag ? `${a.power.ammo} now` : "longer", type);
     fx.power(a);
     return;
   }
@@ -675,7 +710,7 @@ function tickCoins(dt) {
 function grantReward(a) {
   const pick = COINS.rewards[Math.floor(rng() * COINS.rewards.length)];
   fx.punch(0.05);
-  G.pops.push({ x: a.x, y: a.y - a.h * 0.6, at: G.time, colour: COINS.colour, glyph: "\u2605" });
+  G.pops.push({ x: a.x, y: a.y - a.h * 0.6, at: G.time, colour: COINS.colour, glyph: "bituin" });
   a.glowUntil = G.time + 0.7;
   a.glowFor = 0.7;
   a.glowColour = COINS.colour;
@@ -692,7 +727,7 @@ function giveFairy(a) {
   // same one twice should not be the worst of the four.
   if (a.fairy && !a.fairy.leaving) {
     a.fairy.left = Math.min(STACK.maxFairyHeals, a.fairy.left + DIWATA.heals);
-    showStack(a, DIWATA.colour, DIWATA.name, `${a.fairy.left} hearts waiting`, "\u271a");
+    showStack(a, DIWATA.colour, DIWATA.name, `${a.fairy.left} hearts waiting`, "plus");
     fx.sfx("diwata");
     return;
   }
@@ -789,7 +824,7 @@ function tickWildFairy(dt) {
     if (Math.abs(a.x - w.x) > 0.85 + a.w / 2) continue;
     if (Math.abs(a.y - a.h / 2 - w.y) > 0.95 + a.h / 2) continue;
     G.wildFairy = null;
-    G.pops.push({ x: w.x, y: w.y, at: G.time, colour: DIWATA.colour, glyph: "\u271a" });
+    G.pops.push({ x: w.x, y: w.y, at: G.time, colour: DIWATA.colour, glyph: "plus" });
     G.bursts.push({ x: w.x, y: w.y, at: G.time, colour: DIWATA.colour, big: true });
     a.glowUntil = G.time + 0.45;
     a.glowFor = 0.45;
@@ -827,7 +862,7 @@ function tickFairies(dt) {
     f.left--;
     f.healAt = G.time;
     f.next = G.time + DIWATA.everyMs / 1000;
-    G.pops.push({ x: a.x, y: a.y - a.h * 0.7, at: G.time, colour: DIWATA.colour, glyph: "\u271a" });
+    G.pops.push({ x: a.x, y: a.y - a.h * 0.7, at: G.time, colour: DIWATA.colour, glyph: "plus" });
     fx.sfx("lunas");
     if (f.left <= 0) { f.leaving = true; f.wave = 0; }
   }
@@ -1281,7 +1316,7 @@ function tickPowers(dt) {
           y: q.y,
           at: G.time,
           colour: POWERUPS[q.type].colour,
-          glyph: GLYPH[q.type] || "",
+          glyph: q.type,
         });
         G.bursts.push({ x: q.x, y: q.y, at: G.time, colour: POWERUPS[q.type].colour });
         a.glowUntil = G.time + 0.45;
@@ -1333,6 +1368,9 @@ function tickPowers(dt) {
     const t = tileAt(G.grid, Math.floor(b.x), Math.floor(b.y));
     if (b.life <= 0 || t === "#") {
       if (t === "#") fx.sfx("shotWall");
+      // Where it landed. A bullet that simply stops mid-air reads as the
+      // game having lost it; a spray of sparks off the plank reads as a miss.
+      if (t === "#") G.pops.push({ x: b.x, y: b.y, at: G.time, colour: "#ffd873", glyph: "" });
       G.shots.splice(i, 1);
       continue;
     }
@@ -1343,6 +1381,7 @@ function tickPowers(dt) {
         Math.abs(o.x - b.x) < o.w / 2 + SHOT_RADIUS &&
         Math.abs(o.y - o.h / 2 - b.y) < o.h / 2 + SHOT_RADIUS
       ) {
+        G.pops.push({ x: b.x, y: b.y, at: G.time, colour: "#ffd873", glyph: "" });
         G.shots.splice(i, 1);
         fx.sfx("shotHit");
         killPlayer(o, G.actors.find((q) => q.id === b.owner) || null, "shot");
@@ -1366,8 +1405,16 @@ function tryShoot(a) {
     vy: 0,
     owner: a.id,
     life: SHOT_LIFE,
+    // When it left the barrel. Everything the renderer does with a gun — the
+    // flash, the smoke, the case coming out, the shoulder going back — is
+    // worked out from this and the bullet's own speed, so there is nothing
+    // else to send and nothing to keep in step.
+    born: G.time,
   });
   fx.sfx("shoot");
+  // The gun kicks. Small — it is a cartoon — but a shot that moves nothing
+  // at the firing end reads as the bullet having simply appeared.
+  fx.punch(0.03);
 }
 
 function tryPunch(a) {
@@ -1442,7 +1489,7 @@ function tickPunches() {
           colour: i % 2 ? "#ffd7a0" : def.colour,
         });
       }
-      G.pops.push({ x: fistX, y: fistY, at: G.time, colour: def.colour, glyph: GLYPH.suntok || "" });
+      G.pops.push({ x: fistX, y: fistY, at: G.time, colour: def.colour, glyph: "suntok" });
       G.freeze = Math.max(G.freeze, 0.13);
       G.slow = Math.max(G.slow, 0.22);
       fx.shake(46);
@@ -1509,7 +1556,7 @@ function summonDudu(owner) {
     // field forever; a stack is a legitimate way past it, so it moves with him.
     had.hardUntil = Math.max(had.hardUntil || 0, had.until + 1);
     had.waiting = false;
-    showStack(owner, "#ffb84d", "Dudu", `${Math.round(had.until - G.time)}s of hunting`, "\ud83d\udc3b");
+    showStack(owner, "#ffb84d", "Dudu", `${Math.round(had.until - G.time)}s of hunting`, "dudu");
     fx.sfx("helper");
     return;
   }
@@ -1563,7 +1610,7 @@ function repelBadDudu(h, victim) {
   G.bursts.push({ x: h.actor.x, y: h.actor.y - h.actor.h * 0.5, at: G.time,
                   colour: "#ffe66b", big: true });
   G.pops.push({ x: victim.x, y: victim.y - victim.h * 0.6, at: G.time,
-                colour: "#ffe66b", glyph: GLYPH.bituin || "\u2605" });
+                colour: "#ffe66b", glyph: "bituin" });
   G.freeze = Math.max(G.freeze, 0.1);
   fx.shake(30);
   fx.punch(0.06);

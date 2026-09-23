@@ -133,7 +133,12 @@ body.duo .toast { gap: 6px; }
 
 #duowait .who { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
 #duowait .who.gone { display: none; }
-#duowait .logo { font-family: var(--display); }
+/* The same sticker logo the lobby wears — the rules live in screen.css and
+   are no longer scoped to #lobby. All this adds is the phone's own limit:
+   fifteen letters of it have to fit across a 390px screen, so it is sized off
+   whichever of the height and the width is tighter, the same trick the
+   countdown cards needed. */
+#duowait .logo { font-size: clamp(22px, min(7.4vh, 8.2vw), 92px); margin-bottom: 4px; }
 #duowait .who button {
   font-family: "Nunito", system-ui, sans-serif; font-weight: 800;
   font-size: clamp(15px, 4.4vw, 20px);

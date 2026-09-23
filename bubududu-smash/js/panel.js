@@ -6,8 +6,9 @@
 // guest is handed the same list over the wire and draws it with this exact
 // code. Two implementations would have drifted the first time a chip changed.
 
-import { PLAYERS, FEEL, COINS, DIWATA, POWERUPS, GLYPH, SQUAD, HELPER } from "./config.js";
+import { PLAYERS, FEEL, COINS, DIWATA, POWERUPS, SQUAD, HELPER } from "./config.js";
 import { charById } from "./characters.js";
+import { markSVG } from "./marks.js";
 
 const HEART_SVG =
   '<svg viewBox="0 0 24 22"><path d="M12 21.3C2.6 14.6 1 11.2 1 7.9 1 4.1 3.9 1.4 7.2 1.4c2.1 0 3.8 1 4.8 2.6 1-1.6 2.7-2.6 4.8-2.6C20.1 1.4 23 4.1 23 7.9c0 3.3-1.6 6.7-11 13.4z"/></svg>';
@@ -75,14 +76,17 @@ export function paintPanels(actors, chips, dt) {
     }
 
     const list = (chips && chips[p.id]) || [];
-    const key = list.map((q) => q.label + Math.round(q.pct / 6) + (q.bump ? "!" : "")).join("|");
+    const key = list
+      .map((q) => (q.mark || "") + q.label + Math.round(q.pct / 6) + (q.bump ? "!" : ""))
+      .join("|");
     const el = card.querySelector(".pchips");
     if (el.dataset.key !== key) {
       el.dataset.key = key;
       el.innerHTML = list
         .map(
           (q) =>
-            `<span class="chip${q.bad ? " bad" : ""}${q.bump ? " bump" : ""}" style="--cc:${q.colour};--left:${q.pct}%">${q.label}</span>`
+            `<span class="chip${q.bad ? " bad" : ""}${q.bump ? " bump" : ""}" style="--cc:${q.colour};--left:${q.pct}%">` +
+            markSVG(q.mark) + q.label + `</span>`
         )
         .join("");
     }
@@ -95,11 +99,11 @@ export function paintPanels(actors, chips, dt) {
 // on every tick it changes.
 
 export const packChips = (list) =>
-  list.map((q) => [q.label, q.colour, Math.round(q.pct), q.bad ? 1 : 0, q.bump ? 1 : 0]);
+  list.map((q) => [q.label, q.colour, Math.round(q.pct), q.bad ? 1 : 0, q.bump ? 1 : 0, q.mark || ""]);
 
 export const unpackChips = (list) =>
-  (list || []).map(([label, colour, pct, bad, bump]) => ({
-    label, colour, pct, bad: !!bad, bump: !!bump,
+  (list || []).map(([label, colour, pct, bad, bump, mark]) => ({
+    label, colour, pct, bad: !!bad, bump: !!bump, mark: mark || "",
   }));
 
 
@@ -116,8 +120,11 @@ export function chipsFor(a, G, pads) {
   // `bump` makes the chip jump on the frame the count changes — the number
   // alone is too quiet to notice while you are looking at your character.
   out.push({
-    // A gem, matching what is actually lying on the platforms.
-    label: `\u25c6 ${a.coins || 0}/${COINS.perReward}`,
+    // The same cut gem that is lying on the platforms, drawn — it was the ◆
+    // character, which is a rhombus in most fonts and nothing like the thing
+    // you are picking up.
+    mark: "gem",
+    label: `${a.coins || 0}/${COINS.perReward}`,
     colour: COINS.colour,
     pct: ((a.coins || 0) / COINS.perReward) * 100,
     bad: false,
@@ -127,7 +134,8 @@ export function chipsFor(a, G, pads) {
   if (a.fairy && !a.fairy.leaving) {
     const wait = Math.max(0, a.fairy.next - G.time);
     out.push({
-      label: `\u271a ${a.fairy.left}`,
+      mark: "plus",
+      label: `${a.fairy.left}`,
       colour: DIWATA.colour,
       pct: 100 - (wait / (DIWATA.everyMs / 1000)) * 100,
       bad: false,
@@ -144,16 +152,17 @@ export function chipsFor(a, G, pads) {
       // Show the key only to a player who is actually on the keyboard; on a
       // phone there is a button for it.
       const key = pads[a.id] && !pads[a.id].connected ? ` <em>${SHOOT_KEY[a.id]}</em>` : "";
-      label = `${GLYPH[a.power.type]} ${a.power.ammo}${key}`;
+      label = `${a.power.ammo}${key}`;
     } else {
-      label = `${GLYPH[a.power.type]} ${def.name}`;
+      label = def.name;
     }
-    out.push({ label, colour: def.colour, pct, bad: false });
+    out.push({ mark: a.power.type, label, colour: def.colour, pct, bad: false });
   }
   if (a.frozenUntil && G.time < a.frozenUntil) {
     const left = a.frozenUntil - G.time;
     out.push({
-      label: `${GLYPH.yelo} frozen`,
+      mark: "yelo",
+      label: "frozen",
       colour: POWERUPS.yelo.colour,
       pct: (left / (POWERUPS.yelo.freezeMs / 1000)) * 100,
       bad: true,
@@ -162,7 +171,8 @@ export function chipsFor(a, G, pads) {
   if (a.reversedUntil && G.time < a.reversedUntil) {
     const left = a.reversedUntil - G.time;
     out.push({
-      label: `${GLYPH.baliktad} reversed`,
+      mark: "baliktad",
+      label: "reversed",
       colour: POWERUPS.baliktad.colour,
       pct: (left / (POWERUPS.baliktad.reverseMs / 1000)) * 100,
       bad: true,
@@ -174,7 +184,8 @@ export function chipsFor(a, G, pads) {
   const squad = G.minis.filter((m) => m.owner === a.id && !m.leaving).length;
   if (squad) {
     out.push({
-      label: `\u2022\u2022\u2022 ${squad}`,
+      mark: "squad",
+      label: `${squad}`,
       colour: SQUAD.colour,
       pct: 100,
       bad: false,
@@ -188,7 +199,8 @@ export function chipsFor(a, G, pads) {
     // the only place that can say so.
     const left = Math.max(...mine.map((h) => Math.max(0, h.until - G.time)));
     out.push({
-      label: mine.length > 1 ? `\ud83d\udc3b Dudu \u00d7${mine.length}` : "\ud83d\udc3b Dudu",
+      mark: "dudu",
+      label: mine.length > 1 ? `Dudu \u00d7${mine.length}` : "Dudu",
       colour: "#ffb84d",
       pct: Math.min(100, (left / (HELPER.huntMs / 1000)) * 100),
       bad: false,
@@ -200,7 +212,8 @@ export function chipsFor(a, G, pads) {
   if (a.invulnUntil && G.time < a.invulnUntil) {
     const left = a.invulnUntil - G.time;
     out.push({
-      label: "\u2727 safe",
+      mark: "safe",
+      label: "safe",
       colour: "#9fd8ff",
       pct: Math.min(100, (left / (FEEL.hurtInvulnMs / 1000)) * 100),
       bad: false,

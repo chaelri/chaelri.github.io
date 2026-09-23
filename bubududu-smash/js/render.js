@@ -6,7 +6,8 @@
 
 import { charById } from "./characters.js";
 import { poseOf } from "./physics.js";
-import { BAD_HELPER, COINS, DIWATA, FEEL, GLYPH, HIT, PLAYERS, POWERUPS, SHOT_RADIUS } from "./config.js";
+import { BAD_HELPER, COINS, DIWATA, FEEL, HIT, PLAYERS, POWERUPS, SHOT_RADIUS } from "./config.js";
+import { drawMark, markPath, stampMark } from "./marks.js";
 
 
 const SKY_TOP = "#8fd4ff";
@@ -889,50 +890,29 @@ function markSprite(type, glowC) {
   x.fillStyle = bloom;
   x.fillRect(0, 0, c.width, c.height);
 
-  const size = rad;
-  x.textAlign = "center";
-  x.textBaseline = "middle";
-  x.lineJoin = "round";
-
-  if (type === "lunas") {
-    // Health wears the same heart the health bar does, as a path rather than
-    // a glyph — nothing else on the field is that shape.
-    heartPath(x, cx, cy - rad * 0.1, size);
-    x.lineWidth = Math.max(2, rad * 0.5);
-    x.strokeStyle = mix(glowC, [255, 255, 255], 0.4, 0.3);
-    x.stroke();
-    x.lineWidth = Math.max(1.5, rad * 0.22);
-    x.strokeStyle = "rgba(255,255,255,0.96)";
-    x.stroke();
-    x.fillStyle = glowC;
-    x.fill();
-    heartPath(x, cx - size * 0.3, cy - rad * 0.1 - size * 0.38, size * 0.34);
-    x.fillStyle = "rgba(255,255,255,0.75)";
-    x.fill();
-  } else {
-    const mark = GLYPH[type] || "?";
-    x.font = `900 ${size * 2.1}px "Nunito", system-ui, sans-serif`;
-    // Widest first, then the white outline, then the fill. Stroking on top
-    // eats the glyph from the edges in, and at this weight there is not much
-    // glyph left to eat.
-    x.lineWidth = Math.max(2, rad * 0.5);
-    x.strokeStyle = mix(glowC, [255, 255, 255], 0.4, 0.3);
-    x.strokeText(mark, cx, cy);
-    x.lineWidth = Math.max(1.5, rad * 0.22);
-    x.strokeStyle = "rgba(255,255,255,0.96)";
-    x.strokeText(mark, cx, cy);
-    x.fillStyle = glowC;
-    x.fillText(mark, cx, cy);
-    // One highlight along the top, so it reads as an object with a lit side
-    // rather than as flat type.
-    x.save();
-    x.beginPath();
-    x.rect(cx - size * 1.4, cy - size * 1.4, size * 2.8, size * 1.1);
-    x.clip();
-    x.fillStyle = lighten(glowC, 0.55);
-    x.fillText(mark, cx, cy);
-    x.restore();
-  }
+  /* The mark, drawn rather than typed.
+   *
+   * It used to be a glyph set in Nunito and stroked three times. Seven of the
+   * eight were ordinary characters, so the same power-up came out different
+   * on a Mac and on a Windows PC; the eighth was ✊, which has an emoji
+   * presentation, and a colour emoji ignores fillStyle and strokeStyle — so
+   * One Punch alone had no white edge and no colour at all. Every one of them
+   * is a path now, which is the same pixels everywhere and takes the outline
+   * like anything else.
+   */
+  const size = rad * 2.05;
+  // Widest first, then the white edge, then the fill.
+  stampMark(x, type, cx, cy, size, mix(glowC, [255, 255, 255], 0.4, 0.3), rad * 0.25);
+  stampMark(x, type, cx, cy, size, "rgba(255,255,255,0.96)", rad * 0.11);
+  drawMark(x, type, cx, cy, size, glowC);
+  // One highlight along the top, so it reads as an object with a lit side
+  // rather than as a flat symbol.
+  x.save();
+  x.beginPath();
+  x.rect(cx - size, cy - size, size * 2, size * 0.72);
+  x.clip();
+  drawMark(x, type, cx, cy, size, lighten(glowC, 0.55));
+  x.restore();
 
   markCache.set(key, c);
   return c;
@@ -1046,18 +1026,13 @@ function drawPops(r, ctx, g) {
       ctx.fill();
     }
 
-    // The glyph itself, rising out of the spot it was taken from.
-    if (p.glyph) {
+    // The mark itself, rising out of the spot it was taken from.
+    if (p.glyph && markPath(p.glyph)) {
       ctx.globalAlpha = Math.max(0, 1 - t * 1.25);
-      ctx.font = `900 ${z * (0.7 + t * 0.5)}px "Nunito", system-ui, sans-serif`;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.lineWidth = Math.max(2, z * 0.08);
-      ctx.strokeStyle = "rgba(255,255,255,0.85)";
-      ctx.fillStyle = p.colour;
+      const gs = z * (0.78 + t * 0.55);
       const gy = py - z * (0.3 + e * 1.9);
-      ctx.strokeText(p.glyph, px, gy);
-      ctx.fillText(p.glyph, px, gy);
+      stampMark(ctx, p.glyph, px, gy, gs, "rgba(255,255,255,0.85)", Math.max(1.5, z * 0.05));
+      drawMark(ctx, p.glyph, px, gy, gs, p.colour);
     }
     ctx.restore();
   }
@@ -1344,6 +1319,17 @@ function drawWildFairy(r, ctx, g) {
   // Bigger than the one riding a player: this one has to be spotted from
   // across the arena and chased, not just noticed once it is beside you.
   const size = z * DIWATA.scale * 1.35 * (1 - leave * 0.5);
+  /* ...and traced in white, like everything else on the field that belongs
+   * to nobody yet. She is a pale pink character on a pale blue sky and the
+   * glow behind her is pink too; against a cloud she simply vanished. */
+  if (size > 1) {
+    const wpose = {
+      face: w.face || 1, run: 0, air: -1, rise: 0.4, squash: -0.1,
+      t: g.time, walk: 0, stride: 1,
+    };
+    stampOutline(r, ctx, "#ffffff", px, py + size * 0.5, size, size, z * 0.055,
+      (b, bx, by) => charById("yhon").draw(b, bx, by, size, size, wpose));
+  }
   charById("yhon").draw(ctx, px, py + size * 0.5, size, size, {
     face: w.face || 1,
     run: 0,
@@ -1364,8 +1350,14 @@ function drawFairy(r, ctx, g, a) {
 
   const leave = f.leaving ? Math.min(1, f.wave / (DIWATA.leaveMs / 1000)) : 0;
   const bob = Math.sin(g.time * 3 + f.phase) * z * 0.18;
-  const px = toX(r, a.x - (a.face || 1) * DIWATA.orbit) + Math.cos(g.time * 1.6 + f.phase) * z * 0.12;
-  const py = toY(r, a.y - a.h * 1.15) + bob - leave * z * 2.4;
+  /* She rides a fixed 1.15 tiles out, which is a comfortable arm's length
+   * from a normal body and INSIDE a big one — pick up Laki and she ends up
+   * sitting on the shoulder she is meant to be flying beside. The orbit is
+   * measured off the body she is following, so it grows with it. */
+  const grow = Math.max(1, (a.w || FEEL.width) / FEEL.width);
+  const px = toX(r, a.x - (a.face || 1) * DIWATA.orbit * grow) +
+             Math.cos(g.time * 1.6 + f.phase) * z * 0.12;
+  const py = toY(r, a.y - a.h * 1.22) + bob - leave * z * 2.4;
 
   // The flare when she has just healed.
   const since = f.healAt >= 0 ? g.time - f.healAt : 99;
@@ -1398,6 +1390,14 @@ function drawFairy(r, ctx, g, a) {
   ctx.restore();
 
   const size = z * DIWATA.scale * (1 + flare * 0.18) * (1 - leave * 0.5);
+  if (size > 1) {
+    const fpose = {
+      face: a.face || 1, run: 0, air: -1, rise: 0.4, squash: -0.1,
+      t: g.time, walk: 0, stride: 1,
+    };
+    stampOutline(r, ctx, "#ffffff", px, py + size * 0.5, size, size, z * 0.05,
+      (b, bx, by) => charById("yhon").draw(b, bx, by, size, size, fpose));
+  }
   charById("yhon").draw(ctx, px, py + size * 0.5, size, size, {
     face: a.face || 1,
     run: 0,
@@ -1462,10 +1462,14 @@ function drawMinis(r, ctx, g) {
     const mw = me.w * z * 1.2;
     const mh = me.h * z * 1.25;
 
-    // The owner's colour, traced right around them, at full strength.
-    if (m.owner && !m.leaving && s > 0.05) {
+    // The owner's colour, traced right around them, at full strength — white
+    // while they are still standing about waiting to be collected. Three
+    // small WHITE characters with no outline, against a sky and a cloud, was
+    // the worst of the lot.
+    if (!m.leaving && s > 0.05) {
+      const ring = m.owner ? own : "#ffffff";
       const pose = poseOf(me);
-      stampOutline(r, ctx, own, px, py, mw * s, mh * s, z * 0.055, (b, bx, by) => {
+      stampOutline(r, ctx, ring, px, py, mw * s, mh * s, z * 0.055, (b, bx, by) => {
         charById("bubu").draw(b, bx, by, mw * s, mh * s, pose);
         drawCap(b, bx, by, mw * s, mh * s, me.face);
       });
@@ -1923,10 +1927,13 @@ function drawOneHelper(r, ctx, g, h) {
   } else {
     const dw = me.w * z * 1.25;
     const dh = me.h * z * 1.32;
-    // Whose he is, traced right around him. Red while he is committed to a
-    // kill, because at that moment the useful information is not "he is hers"
-    // but "he is coming for you".
-    const ring = hunting ? "#ff5d73" : own;
+    /* Whose he is, traced right around him. Red while he is committed to a
+     * kill, because at that moment the useful information is not "he is hers"
+     * but "he is coming for you" — and WHITE while he belongs to nobody,
+     * which is most of the time he is on screen. He had no outline at all
+     * then, so the one moment he is worth running at was the one moment he
+     * was hardest to pick out of the arena. */
+    const ring = hunting ? "#ff5d73" : own || "#ffffff";
     if (ring && !h.leaving) {
       const pose = poseOf(me);
       stampOutline(r, ctx, ring, px, py, dw, dh, z * 0.06,
@@ -1985,6 +1992,19 @@ function drawOneHelper(r, ctx, g, h) {
   }
 }
 
+/* The gun.
+ *
+ * It was a green dot with a green smear behind it, and it read as a pea being
+ * flicked. A gun going off is four things and only one of them is the bullet:
+ * the flash at the barrel, the smoke it leaves hanging there, the case coming
+ * out of the side, and the tracer. All four are worked out from the bullet's
+ * own birth time and speed, so nothing extra crosses the wire and the two
+ * phones cannot disagree about them.
+ */
+const FLASH_MS = 0.075;     // how long the barrel is lit
+const SMOKE_MS = 0.55;      // and how long the smoke hangs
+const CASE_MS = 0.6;
+
 function drawShots(r, ctx, g) {
   if (!g.shots) return;
   const z = r.cam.zoom;
@@ -1992,17 +2012,133 @@ function drawShots(r, ctx, g) {
     const px = toX(r, b.x);
     const py = toY(r, b.y);
     const rad = SHOT_RADIUS * z;
-    // a short trail behind it
-    const tail = Math.sign(b.vx) * rad * 3.4;
+    const dir = Math.sign(b.vx) || 1;
+    const age = b.born === undefined ? 99 : Math.max(0, g.time - b.born);
+    // Where it went off. vy is zero and nothing pulls on a bullet, so the
+    // muzzle is simply back along the line it has travelled.
+    const mx = toX(r, b.x - b.vx * age);
+    const my = py;
+
+    ctx.save();
+
+    /* The muzzle flash: a hot four-point star, long down the barrel and short
+     * across it, over a white core. Drawn first so the smoke sits on top of
+     * it as it dies. */
+    if (age < FLASH_MS) {
+      const k = 1 - age / FLASH_MS;
+      const len = z * (0.55 + k * 0.85);
+      const fat = z * (0.16 + k * 0.3);
+      ctx.globalAlpha = 0.45 + k * 0.55;
+      const fl = ctx.createRadialGradient(mx, my, 0, mx, my, len);
+      fl.addColorStop(0, "rgba(255,255,255,0.95)");
+      fl.addColorStop(0.35, "rgba(255,226,120,0.8)");
+      fl.addColorStop(1, "rgba(255,150,40,0)");
+      ctx.fillStyle = fl;
+      ctx.beginPath();
+      ctx.ellipse(mx + dir * len * 0.35, my, len, fat * 1.6, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // the star, pointing the way the shot went
+      ctx.fillStyle = "rgba(255,248,214,0.95)";
+      ctx.beginPath();
+      ctx.moveTo(mx + dir * len * 1.15, my);
+      ctx.lineTo(mx, my - fat);
+      ctx.lineTo(mx - dir * len * 0.3, my);
+      ctx.lineTo(mx, my + fat);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    /* Smoke, drifting up and back off the barrel and spreading as it goes.
+     *
+     * White, and not pale grey. The arena is a pale blue sky over pale green
+     * hills, and the first version was #dfe9f2 at a fifth opacity — which is
+     * the colour of the sky at the opacity of nothing. It was drawing
+     * perfectly and could not be seen. */
+    if (age < SMOKE_MS) {
+      const k = age / SMOKE_MS;
+      for (let i = 0; i < 4; i++) {
+        const lag = i * 0.11;
+        const kk = Math.max(0, k - lag);
+        if (kk <= 0) continue;
+        ctx.globalAlpha = Math.max(0, 1 - k) * 0.85;
+        const cx2 = mx + dir * z * (0.22 + kk * 0.55) - dir * i * z * 0.12;
+        const cy2 = my - z * (0.12 + kk * 1.25) - i * z * 0.06;
+        const rr = z * (0.13 + kk * 0.5 + i * 0.03);
+        /* Grey, with a hot core — not white. Half the sky has a white cloud
+         * in it, and white smoke on a white cloud is nothing at all. */
+        const pf = ctx.createRadialGradient(cx2, cy2, 0, cx2, cy2, rr);
+        pf.addColorStop(0, "rgba(255,250,240,0.95)");
+        pf.addColorStop(0.45, "rgba(176,188,204,0.85)");
+        pf.addColorStop(1, "rgba(150,166,188,0)");
+        ctx.fillStyle = pf;
+        ctx.beginPath();
+        ctx.arc(cx2, cy2, rr, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    /* The case, thrown up and back out of the breech and tumbling. */
+    if (age < CASE_MS) {
+      const k = age / CASE_MS;
+      // Up and well clear of their own head, or it spends its whole life
+      // behind the character that ejected it.
+      const cx2 = mx - dir * z * (0.2 + k * 1.1);
+      const cy2 = my - z * (6.2 * k - 7.6 * k * k);
+      ctx.globalAlpha = Math.max(0, 1 - k * 1.3);
+      ctx.save();
+      ctx.translate(cx2, cy2);
+      ctx.rotate(k * 14 * dir);
+      ctx.fillStyle = "#e8a92f";
+      ctx.fillRect(-z * 0.12, -z * 0.065, z * 0.24, z * 0.13);
+      ctx.fillStyle = "#ffe08a";
+      ctx.fillRect(-z * 0.12, -z * 0.065, z * 0.24, z * 0.05);
+      ctx.restore();
+    }
+
+    /* The tracer: a hot line from the muzzle to the bullet on the first few
+     * frames, then just the streak that follows it. */
+    ctx.globalAlpha = 1;
+    if (age < 0.05) {
+      const tr = ctx.createLinearGradient(mx, my, px, py);
+      tr.addColorStop(0, "rgba(255,230,140,0)");
+      tr.addColorStop(1, "rgba(255,244,196,0.85)");
+      ctx.strokeStyle = tr;
+      ctx.lineWidth = rad * 0.9;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(mx, my);
+      ctx.lineTo(px, py);
+      ctx.stroke();
+    }
+
+    // The streak behind it, hot at the bullet and gone a tile back.
+    const tail = dir * rad * 4.6;
     const grd = ctx.createLinearGradient(px - tail, py, px, py);
-    grd.addColorStop(0, "rgba(99,217,138,0)");
-    grd.addColorStop(1, "rgba(99,217,138,0.75)");
+    grd.addColorStop(0, "rgba(255,168,60,0)");
+    grd.addColorStop(0.65, "rgba(255,196,86,0.5)");
+    grd.addColorStop(1, "rgba(255,238,170,0.9)");
     ctx.fillStyle = grd;
-    ctx.fillRect(Math.min(px, px - tail), py - rad * 0.5, Math.abs(tail), rad);
-    ctx.fillStyle = "#eafff0";
+    ctx.beginPath();
+    ctx.moveTo(px - tail, py);
+    ctx.lineTo(px, py - rad * 0.8);
+    ctx.lineTo(px, py + rad * 0.8);
+    ctx.closePath();
+    ctx.fill();
+
+    // ...and the round itself: a white core in a warm halo.
+    const glow = ctx.createRadialGradient(px, py, 0, px, py, rad * 2.6);
+    glow.addColorStop(0, "rgba(255,240,180,0.9)");
+    glow.addColorStop(1, "rgba(255,170,60,0)");
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(px, py, rad * 2.6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#fffdf2";
     ctx.beginPath();
     ctx.arc(px, py, rad, 0, Math.PI * 2);
     ctx.fill();
+
+    ctx.restore();
   }
 }
 
@@ -2163,9 +2299,31 @@ function drawActor(r, ctx, g, a) {
     }
     return;
   }
-  const px = toX(r, a.x);
-  const py = toY(r, a.y);
   const z = r.cam.zoom;
+  /* The shoulder going back.
+   *
+   * Worked out from their own youngest bullet rather than from any state on
+   * the character, because the bullet already carries the one thing this
+   * needs — when it left — and it crosses the wire, so the kick lands on
+   * both phones at the same moment. A tenth of a second, hard out and eased
+   * back, which is the whole of it.
+   */
+  let kick = 0;
+  if (g.shots && g.shots.length) {
+    let newest = null;
+    for (const b of g.shots) {
+      if (b.owner !== a.id || b.born === undefined) continue;
+      if (!newest || b.born > newest.born) newest = b;
+    }
+    if (newest) {
+      const t = (g.time - newest.born) / 0.14;
+      if (t >= 0 && t < 1) {
+        kick = Math.sin((1 - t) * Math.PI * 0.5) * -Math.sign(newest.vx || 1);
+      }
+    }
+  }
+  const px = toX(r, a.x) + kick * z * 0.16;
+  const py = toY(r, a.y);
 
   // contact shadow
   ctx.fillStyle = "rgba(0,0,0,0.16)";
@@ -2314,6 +2472,32 @@ function drawActor(r, ctx, g, a) {
     const left = a.power.until - g.time;
     const speed = left < 2.5 ? 900 : 480;
     const hue = (g.time * speed) % 360;
+
+    /* A white rim, at full strength, and a white bloom behind it.
+     *
+     * The spectrum cycle says "something is happening to this character" and
+     * says nothing about WHICH character, because for a third of every cycle
+     * they are the colour of the sky and for another third the colour of the
+     * dirt. The owner rim is deliberately skipped while starred — it muddies
+     * the cycle — so there was nothing holding them off the background at
+     * all. White is the one colour that cannot collide with a hue sweep, and
+     * it reads as "untouchable" rather than as "belongs to Charlie".
+     */
+    const halo = ctx.createRadialGradient(
+      px, py - chh * 0.45, chh * 0.1, px, py - chh * 0.45, chh * 0.95);
+    halo.addColorStop(0, "rgba(255,255,255,0.55)");
+    halo.addColorStop(0.55, "rgba(255,255,255,0.3)");
+    halo.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.save();
+    ctx.globalAlpha = 0.85 + 0.15 * Math.sin(g.time * 9);
+    ctx.fillStyle = halo;
+    ctx.fillRect(px - chh, py - chh * 1.5, chh * 2, chh * 2);
+    ctx.restore();
+    {
+      const pose = poseOf(a);
+      stampOutline(r, ctx, "#ffffff", px, py, cw, chh, z * 0.07,
+        (b, bx, by) => charById(a.char).draw(b, bx, by, cw, chh, pose));
+    }
     const buf = r.tint;
     const need = Math.ceil(Math.max(cw, chh) * 2.4);
     if (buf.width < need) {
@@ -2393,8 +2577,13 @@ function drawActor(r, ctx, g, a) {
     const RC = POWERUPS.baliktad.colour;
     const urgent = left < 1.2;
 
-    // Above the hearts (1.80), never under them.
-    const by = py - a.h * z * 2.2;
+    /* Above the hearts (1.80), never under them — and not touching them.
+     *
+     * 2.2 put the bottom of this pill within two hundredths of a tile of the
+     * top of the heart row, which on a phone is the same pixel: the badge
+     * and the hearts read as one lump of clutter over the head rather than
+     * as two things. This clears them by about a third of a tile. */
+    const by = py - a.h * z * 2.62;
     const bw = z * 1.5;
     const bh = z * 0.52;
 

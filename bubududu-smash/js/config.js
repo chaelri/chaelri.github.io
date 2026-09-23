@@ -210,8 +210,12 @@ export const POWERUPS = {
 
 export const POWERUPS_EXTRA = {
   lunas: {
+    // Red, like a heart. It was green — the colour every other game uses for
+    // healing — and the result was an orb, a toast and a chip that all said
+    // "health" in a colour the hearts above your head never wear. One thing,
+    // one colour.
     id: "lunas", name: "Heal", desc: "One heart back — or a spare, past three.", en: "heal",
-    ms: 0, colour: "#7ee081", heal: 1,
+    ms: 0, colour: "#ff4d6d", heal: 1,
   },
   bilis: {
     id: "bilis", name: "Speed", desc: "Much quicker on your feet.", en: "speed",
@@ -331,23 +335,10 @@ Object.assign(POWERUPS, POWERUPS_EXTRA);
 // Drawn at random rather than in strict rotation — seven in a fixed order
 // means waiting most of a round to see a particular one. Never the same twice
 // running, so you do not get the same pickup back to back.
-/**
- * One glyph per power-up, readable from across the room without reading a
- * word. Lives HERE because it is needed in two places — the orb in render.js
- * and the toast/chip in screen.js — and keeping a copy in each meant adding a
- * power-up to one and not the other, which renders a `?` on the pickup and is
- * exactly what happened to Suntok and Tatlo.
- */
-export const GLYPH = {
-  laki: "\u25b2",      // ▲
-  baril: "\u279c",     // ➜
-  bituin: "\u2605",    // ★
-  bilis: "\u00bb",     // »
-  yelo: "\u2744",      // ❄
-  baliktad: "\u21c4",  // ⇄
-  lunas: "\u2665",     // ♥
-  suntok: "\u270a",    // ✊
-};
+/* The symbol each power-up wears lives in marks.js now, keyed by the same id
+ * — it is a drawn path rather than a character, so the orb on the platform,
+ * the chip in the panel and the note beside the player are all the same shape
+ * on every machine. */
 
 export const POWER_ORDER = [
   "laki", "baril", "bituin", "bilis", "yelo", "baliktad", "lunas",

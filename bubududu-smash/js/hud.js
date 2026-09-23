@@ -10,6 +10,8 @@
 // private to screen.js, so on her phone the arena dimmed behind a result and
 // nothing appeared on top of it.
 
+import { markSVG } from "./marks.js";
+
 const $ = (s) => document.querySelector(s);
 
 // Three beats, and they spell the game. A fourth card repeating the whole
@@ -108,7 +110,7 @@ const NOTE_MS = 2900;
  * adding a second: stacking a power-up three times should say so once, in a
  * card that keeps jumping, not build a tower of identical cards.
  */
-export function showNote(a, colour, title, body, glyph = "") {
+export function showNote(a, colour, title, body, mark = "") {
   const el = a.id === "p1" ? $("#toastL") : $("#toastR");
   if (!el) return;
 
@@ -139,7 +141,7 @@ export function showNote(a, colour, title, body, glyph = "") {
     note.style.setProperty("--tc", colour);
     note.innerHTML =
       `<div class="who">${a.label}</div>` +
-      `<div class="nm">${title}<em>${glyph}</em></div>` +
+      `<div class="nm">${title}<em>${markSVG(mark, "mk big")}</em></div>` +
       `<div class="ds"></div>`;
     note.querySelector(".ds").textContent = body;
     el.appendChild(note);

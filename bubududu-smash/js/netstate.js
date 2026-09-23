@@ -135,7 +135,7 @@ export function snapshot(G, extra = {}) {
     pw: G.powers.map((q) => [r2(q.x), r2(q.y), q.type, r2(now - q.born)]),
     cn: G.coins.map((c) => [r2(c.x), r2(c.y), c.taken ? r2(now - c.taken) : 0,
                             c.n || 0, c.by || 0, bit(c.milestone)]),
-    sh: G.shots.map((s) => [r2(s.x), r2(s.y), r2(s.vx), s.owner]),
+    sh: G.shots.map((s) => [r2(s.x), r2(s.y), r2(s.vx), s.owner, r2(now - (s.born || 0))]),
     bu: G.bursts.map((b) => [r2(b.x), r2(b.y), r2(now - b.at), b.colour, bit(b.big)]),
     po: G.pops.map((p) => [r2(p.x), r2(p.y), r2(now - p.at), p.colour, p.glyph || ""]),
     lh2: G.lostHearts.map((h) => [r2(h.x), r2(h.y), r2(h.rot), r2(now - h.at), h.index]),
@@ -212,7 +212,9 @@ export function hydrate(s) {
     coins: A(s.cn).map(([x, y, taken, n, by, milestone]) => ({
       x, y, taken: taken ? now - taken : 0, n, by: by || null, milestone: !!milestone,
     })),
-    shots: A(s.sh).map(([x, y, vx, owner]) => ({ x, y, vx, vy: 0, owner, life: 1 })),
+    shots: A(s.sh).map(([x, y, vx, owner, age]) => ({
+      x, y, vx, vy: 0, owner, life: 1, born: now - (age || 0),
+    })),
     bursts: A(s.bu).map(([x, y, age, colour, big]) => ({ x, y, at: now - age, colour, big: !!big })),
     pops: A(s.po).map(([x, y, age, colour, glyph]) => ({ x, y, at: now - age, colour, glyph })),
     lostHearts: A(s.lh2).map(([x, y, rot, age, index]) => ({

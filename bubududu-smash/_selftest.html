@@ -29,13 +29,13 @@ window.onerror=(m,s,l,c,e)=>fail('window', e||m);
 window.onunhandledrejection=(e)=>fail('promise', e.reason);
 
 try {
-  const [levels, physics, render, config, chars] = await Promise.all([
+  const [levels, physics, render, config, chars, marks] = await Promise.all([
     import('./js/levels.js'), import('./js/physics.js'), import('./js/render.js'),
-    import('./js/config.js'), import('./js/characters.js')]);
+    import('./js/config.js'), import('./js/characters.js'), import('./js/marks.js')]);
   const { makeArena, readLevel, solidGrid } = levels;
   const { makeActor, stepActor, kill } = physics;
   const { createRenderer, createScene, draw, drawScene, resize, resizeScene, faults, clearFaults } = render;
-  const { PLAYERS, FEEL, POWER_ORDER, POWERUPS, GLYPH, SQUAD, DIWATA, COINS, HELPER, BAD_HELPER } = config;
+  const { PLAYERS, FEEL, POWER_ORDER, POWERUPS, SQUAD, DIWATA, COINS, HELPER, BAD_HELPER } = config;
   const { preloadCharacters, CHARACTERS, charById } = chars;
 
   preloadCharacters();
@@ -157,9 +157,21 @@ try {
   /* ------------------------------------------------------- every glyph set --- */
   const undef = POWER_ORDER.filter(t => !POWERUPS[t]);
   if (undef.length) fail('powerups', 'POWER_ORDER names with no definition: '+undef.join(', '));
-  const noGlyph = POWER_ORDER.filter(t => !GLYPH[t]);
-  if (noGlyph.length) fail('glyphs', 'spawnable with no glyph (renders "?"): '+noGlyph.join(', '));
-  log.push(`powerups  ok — ${POWER_ORDER.length} spawnable, all defined, all have a glyph`);
+  /* Every symbol the game asks for has to exist as a drawn path.
+   *
+   * It used to be a character set in Nunito, and a missing one rendered a
+   * visible "?". markSVG() returns an EMPTY STRING for an id it does not
+   * know, so a missing mark is now invisible rather than obviously wrong —
+   * which is exactly the failure this check was written for in the first
+   * place, and why it also covers the panel's own marks and not just the
+   * power-ups. */
+  const MARK_IDS = [...POWER_ORDER, 'gem', 'plus', 'safe', 'squad', 'dudu'];
+  const noMark = MARK_IDS.filter(t => !marks.MARKS[t] || !marks.markPath(t));
+  if (noMark.length) fail('marks', 'asked for with no drawn path (renders nothing): '+noMark.join(', '));
+  const emptySVG = MARK_IDS.filter(t => !marks.markSVG(t).includes('<path'));
+  if (emptySVG.length) fail('marks', 'no inline svg for: '+emptySVG.join(', '));
+  log.push(`marks     ok — ${MARK_IDS.length} drawn, canvas and DOM`);
+  log.push(`powerups  ok — ${POWER_ORDER.length} spawnable, all defined`);
   log.push(`characters ok — ${CHARACTERS.map(c=>c.id).join(', ')} (+dudu, badudu)`);
 
   /* ------------------------------------------------- the sprites LOADED --- */
@@ -195,13 +207,14 @@ try {
     frozenUntil: 9e9, reversedUntil: 9e9, invulnUntil: 9e9,
   };
   const made = [
-    { label: '\u25c9 7/10', colour: '#ffc83d', pct: 70, bad: false, bump: true },
-    { label: '\u2744 frozen', colour: '#7fd4ff', pct: 40, bad: true, bump: false },
-    { label: '\u2727 safe', colour: '#9fd8ff', pct: 10, bad: false, bump: false },
+    { mark: 'gem', label: '7/10', colour: '#ffc83d', pct: 70, bad: false, bump: true },
+    { mark: 'yelo', label: 'frozen', colour: '#7fd4ff', pct: 40, bad: true, bump: false },
+    { mark: 'safe', label: 'safe', colour: '#9fd8ff', pct: 10, bad: false, bump: false },
   ];
   const back = panel.unpackChips(panel.packChips(made));
   const same = back.length === made.length &&
     back.every((c, i) => c.label === made[i].label && c.colour === made[i].colour &&
+                         c.mark === made[i].mark &&
                          c.pct === made[i].pct && c.bad === made[i].bad && c.bump === made[i].bump);
   if (!same) fail('chips', 'packChips/unpackChips did not round-trip: ' + JSON.stringify(back));
 
@@ -211,6 +224,11 @@ try {
   const drawn = document.querySelectorAll('#players [data-p="p1"] .chip').length;
   const hearts = document.querySelectorAll('#players [data-p="p1"] .phearts svg').length;
   const pulsing = document.querySelectorAll('#players [data-p="p1"] .chip.bad').length;
+  // ...and the symbol on each chip actually reached the DOM. It is an inline
+  // <svg> now, and markSVG() of an id it does not know is an empty string —
+  // a chip that quietly loses its icon looks fine and says less.
+  const icons = document.querySelectorAll('#players [data-p="p1"] .chip svg.mk').length;
+  if (icons !== made.length) fail('panel', `painted ${icons} chip marks, expected ${made.length}`);
   if (drawn !== made.length) fail('panel', `painted ${drawn} chips, expected ${made.length}`);
   else if (hearts !== 5) fail('panel', `painted ${hearts} heart slots for hp 5, expected 5`);
   else if (pulsing !== 1) fail('panel', `${pulsing} chips marked bad, expected 1`);
