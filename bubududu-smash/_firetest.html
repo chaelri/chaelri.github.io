@@ -27,7 +27,7 @@ const states = [
 for (const [cap, id, cd, ready] of states) {
   const ab = ABILITY[id];
   const wrap = document.createElement("div");
-  wrap.innerHTML = `<button id="shoot" class="ability${ready ? " ready" : ""}" style="--ac:${ab.colour};--cd:${cd}%">${markSVG(ab.mark,"mk")}</button><div class="cap">${cap}<br>${ab.name}</div>`;
+  wrap.innerHTML = `<button id="skill" class="ability${ready ? " ready" : ""}" style="--ac:${ab.colour};--cd:${cd}%">${markSVG(ab.mark,"mk")}</button><div class="cap">${cap}<br>${ab.name}</div>`;
   const pad = document.createElement("section");
   pad.id = "pad"; pad.style.cssText = "position:static;display:block";
   pad.appendChild(wrap);

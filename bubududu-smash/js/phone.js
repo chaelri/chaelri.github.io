@@ -8,8 +8,9 @@
 import { INPUT_HZ, PLAYERS } from "./config.js";
 import { CHARACTERS, charById } from "./characters.js";
 import { createClient } from "./net.js";
-import { createPad, paintShootButton } from "./pad.js";
+import { createPad, paintShootButton, paintSkillButton } from "./pad.js";
 import { ABILITY } from "./config.js";
+import { markSVG } from "./marks.js";
 
 const $ = (s) => document.querySelector(s);
 const els = {
@@ -45,10 +46,17 @@ function tick() {
 /* ------------------------------------------------------------- roster --- */
 
 // Show how each one plays, not where the art came from — the differences are
-// small enough that nobody would find them otherwise.
-els.chars.innerHTML = CHARACTERS.map(
-  (c) => `<button data-char="${c.id}"><b>${c.name}</b><i>${c.blurb || c.from}</i></button>`
-).join("");
+// small enough that nobody would find them otherwise. The MOVE leads, because
+// it is now the thing that actually tells the three apart; the old blurb is a
+// line about their feel and was the only thing here when the choice was
+// cosmetic.
+els.chars.innerHTML = CHARACTERS.map((c) => {
+  const ab = c.ability && ABILITY[c.ability];
+  return `<button data-char="${c.id}"${ab ? ` style="--ac:${ab.colour}"` : ""}>` +
+    `<b>${c.name}</b>` +
+    (ab ? `<u>${markSVG(ab.mark, "mk")}${ab.name}</u>` : "") +
+    `<i>${c.blurb || c.from}</i></button>`;
+}).join("");
 function selectChar(id) {
   character = id;
   for (const b of els.chars.querySelectorAll("[data-char]"))
@@ -101,7 +109,7 @@ function bindPad() {
 function send() {
   if (!pad) return;
   const p = pad.state;
-  client?.send({ k: sessionKey, n: ++seq, l: p.l, r: p.r, h: p.h, d: p.d, j: p.j, s: p.s, c: character });
+  client?.send({ k: sessionKey, n: ++seq, l: p.l, r: p.r, h: p.h, d: p.d, j: p.j, s: p.s, k: p.k, c: character });
 }
 
 /** The screen tells us what we are holding; this is display only. */
@@ -110,7 +118,8 @@ function onMessage(m) {
   // `ab` is the character's own move, which shares this button whenever no
   // power-up has taken it. The phone does not run the rules and has never
   // seen the round, so all of this is told rather than worked out.
-  paintShootButton(m.p, m.ammo, m.ab ? ABILITY[m.ab] : null, (m.cd || 0) / 100, !!m.rd);
+  paintShootButton(m.p, m.ammo);
+  paintSkillButton(m.ab ? ABILITY[m.ab] : null, (m.cd || 0) / 100, !!m.rd);
 }
 
 /* ---------------------------------------------------------- supervisor --- */

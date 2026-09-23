@@ -94,9 +94,10 @@ html, body {
   touch-action: none;
 }
 
-/* The three right-hand buttons stack instead of sitting in a row. As one row
-   the whole control strip came to ~470px, which does not fit a phone held
-   upright — the shoot button landed on top of the right arrow. */
+/* The right-hand buttons stack instead of sitting in a row. As one row the
+   whole control strip came to ~470px, which does not fit a phone held upright
+   — the shoot button landed on top of the right arrow. There are FOUR of them
+   now, so they stack three deep beside the jump. */
 .actions {
   right: 16px;
   right: max(16px, env(safe-area-inset-right));
@@ -104,9 +105,16 @@ html, body {
   grid-template-columns: auto auto;
   align-items: end;
 }
-#shoot { grid-column: 1; grid-row: 1; }
+/* Two by two, with jump in the corner under the thumb.
+ *
+ * The same arrangement as the two-phone page, deliberately: these are the
+ * same two thumbs on the same two hands, and a controller whose buttons are
+ * somewhere else depending on which page you opened is a controller you have
+ * to learn twice. */
+#skill { grid-column: 1; grid-row: 1; }
+#shoot { grid-column: 2; grid-row: 1; }
 #down  { grid-column: 1; grid-row: 2; }
-#jump  { grid-column: 2; grid-row: 1 / 3; align-self: end; }
+#jump  { grid-column: 2; grid-row: 2; }
 
 /* `#pad button` is (1,0,1) and outranks a bare `#jump` at (1,0,0), so every
    per-button style below is scoped through #pad to win. Without it the jump
@@ -120,9 +128,13 @@ html, body {
 /* Sized against the viewport with a hard cap, so a narrow phone shrinks the
    controls rather than pushing them off the edge. */
 #pad #left, #pad #right { width: min(92px, 20vw); height: min(112px, 25vw); }
-#pad #down, #pad #shoot { width: min(74px, 16vw); height: min(74px, 16vw); font-size: clamp(15px, 4vw, 22px); }
+/* Three of them in a column rather than two, so each gives up a little to
+   keep the stack off the top of the arena. */
+#pad #down, #pad #shoot, #pad #skill {
+  width: min(66px, 14.5vw); height: min(66px, 14.5vw); font-size: clamp(14px, 3.6vw, 20px);
+}
 #pad #jump {
-  width: min(128px, 28vw); height: min(128px, 28vw);
+  width: min(96px, 21vw); height: min(96px, 21vw);
   border-radius: 50%; font-size: clamp(13px, 3.4vw, 21px); letter-spacing: 0.06em;
   border-color: rgba(255,184,77,0.5); background: rgba(255,184,77,0.18); color: #ffd699;
 }
@@ -152,6 +164,16 @@ html, body {
 }
 #pad #shoot.armed.melee.down { background: rgba(255,107,87,0.45) !important; }
 
+/* The move each character brings, on the picker. It leads over the feel
+   blurb because it is the thing that actually tells them apart. */
+#chars button u {
+  display: flex; align-items: center; justify-content: center; gap: 4px;
+  text-decoration: none; font-weight: 800; font-size: 11.5px;
+  color: var(--ac, #e8f0fb); margin-top: 2px;
+}
+#chars button u .mk { width: 1.15em; height: 1.15em; }
+#chars button.sel { border-color: var(--ac, #ffb84d); }
+
 /* With no power-up it is the character's own move — see css/fire.css,
    which both pads link because neither stylesheet is shared. */
 
@@ -162,8 +184,8 @@ html, body {
    tall arrow keys have to come down. */
 @media (orientation: landscape) and (max-height: 500px) {
   #pad #left, #pad #right { height: min(96px, 26vh); }
-  #pad #jump { width: min(118px, 34vh); height: min(118px, 34vh); }
-  #pad #down, #pad #shoot { width: min(68px, 19vh); height: min(68px, 19vh); }
+  #pad #jump { width: min(92px, 26vh); height: min(92px, 26vh); }
+  #pad #down, #pad #shoot, #pad #skill { width: min(60px, 16vh); height: min(60px, 16vh); }
 }
 
 /* Phone held sideways on the join screen: very little height, so everything

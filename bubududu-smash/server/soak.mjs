@@ -94,6 +94,7 @@ function thumbs(role) {
     l: !!h.left, r: !!h.right, h: !!h.jump, d: !!h.drop,
     j: (h.j = (h.j || 0) + (r() < 0.05 ? 1 : 0)),
     s: (h.s = (h.s || 0) + (r() < 0.06 ? 1 : 0)),
+    k: (h.k = (h.k || 0) + (r() < 0.06 ? 1 : 0)),
   });
 }
 

@@ -238,7 +238,7 @@ class SmashRoom extends Room {
     if (sim.state.phase !== "play") {
       while (q.length) {
         const p = q.shift();
-        sim.applyPacket(role, { n: p.n, l: p.l, r: p.r, h: p.h, d: p.d, j: p.j, s: p.s });
+        sim.applyPacket(role, { n: p.n, l: p.l, r: p.r, h: p.h, d: p.d, j: p.j, s: p.s, k: p.k });
       }
       return;
     }
@@ -248,7 +248,7 @@ class SmashRoom extends Room {
     const take = q.length > BUFFER_MAX ? 2 : 1;
     for (let i = 0; i < take && q.length; i++) {
       const p = q.shift();
-      sim.applyPacket(role, { n: p.n, l: p.l, r: p.r, h: p.h, d: p.d, j: p.j, s: p.s });
+      sim.applyPacket(role, { n: p.n, l: p.l, r: p.r, h: p.h, d: p.d, j: p.j, s: p.s, k: p.k });
     }
   }
 

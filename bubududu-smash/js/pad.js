@@ -26,13 +26,16 @@ const $ = (s) => document.querySelector(s);
  * `onEdge` fires on the rising edge of jump and shoot, for haptics.
  */
 export function createPad({ onEdge } = {}) {
-  const state = { l: false, r: false, h: false, d: false, j: 0, s: 0 };
+  // `k` is the character's own move; `s` is whatever power-up is in hand.
+  // Two counters, because they are two buttons and can be combined.
+  const state = { l: false, r: false, h: false, d: false, j: 0, s: 0, k: 0 };
 
   const zones = () => ({
     dpad: document.querySelector(".dpad").getBoundingClientRect(),
     jump: $("#jump").getBoundingClientRect(),
     down: $("#down").getBoundingClientRect(),
     shoot: $("#shoot").getBoundingClientRect(),
+    skill: $("#skill").getBoundingClientRect(),
   });
 
   const inside = (b, x, y, m = 14) =>
@@ -40,10 +43,11 @@ export function createPad({ onEdge } = {}) {
 
   let wasJump = false;
   let wasShoot = false;
+  let wasSkill = false;
 
   function apply(points) {
     const z = zones();
-    let l = false, r = false, jump = false, down = false, shoot = false;
+    let l = false, r = false, jump = false, down = false, shoot = false, skill = false;
 
     for (const pt of points) {
       const { x, y } = pt;
@@ -56,6 +60,7 @@ export function createPad({ onEdge } = {}) {
       if (inside(z.jump, x, y)) jump = true;
       if (inside(z.down, x, y)) down = true;
       if (inside(z.shoot, x, y)) shoot = true;
+      if (inside(z.skill, x, y)) skill = true;
     }
 
     state.l = l;
@@ -66,13 +71,16 @@ export function createPad({ onEdge } = {}) {
     // Presses are counted on the rising edge only.
     if (jump && !wasJump) { state.j++; onEdge?.(); }
     if (shoot && !wasShoot) { state.s++; onEdge?.(); }
+    if (skill && !wasSkill) { state.k++; onEdge?.(); }
     wasJump = jump;
     wasShoot = shoot;
+    wasSkill = skill;
 
     $("#left").classList.toggle("down", l);
     $("#right").classList.toggle("down", r);
     $("#jump").classList.toggle("down", jump);
     $("#down").classList.toggle("down", down);
+    $("#skill").classList.toggle("down", skill);
     $("#shoot").classList.toggle("down", shoot);
   }
 
@@ -114,34 +122,54 @@ export function createPad({ onEdge } = {}) {
  * page never disagree about whether you are holding a gun or a fist.
  */
 /**
- * The fire button, which is three buttons depending on what you are holding.
+ * The power-up button: the gun, or the fist, or nothing in hand.
  *
- * With a power-up it is the gun or the fist. With nothing it is your
- * character's own move, which is most of a round — that button used to sit
- * there greyed out doing nothing for four rounds out of five.
+ * It was three buttons in one — the character's move shared it whenever no
+ * power-up had taken it — and sharing made the one thing you most want to do
+ * impossible: you could not dash INTO a punch, or hop and then shoot,
+ * because the move and the power-up were the same thumb on the same button.
+ * They are two buttons now and the combination is the point.
  *
  * The symbols are drawn paths rather than characters. ✊ and ➜ were typed,
  * and ✊ has an emoji presentation, so the one button on the pad came out
  * differently on every phone. See js/marks.js.
+ */
+export function paintShootButton(power, ammo) {
+  const b = $("#shoot");
+  if (!b) return;
+  const armed = (power === "baril" || power === "suntok") && ammo > 0;
+  b.classList.toggle("armed", armed);
+  b.classList.toggle("melee", armed && power === "suntok");
+  const key = `${armed ? power : "-"}|${armed ? ammo : ""}`;
+  if (b.dataset.key !== key) {
+    b.dataset.key = key;
+    b.innerHTML = markSVG(armed ? (power === "suntok" ? "suntok" : "baril") : "baril", "mk") +
+      (armed ? `<i>${ammo}</i>` : "");
+  }
+}
+
+let wasReady = false;
+let popTimer = null;
+
+/**
+ * The character's own move, on its own button.
  *
  * @param cd     0..1 of the cooldown still to run, 0 when the clock is up.
  * @param ready  whether it can actually be used — an Air Hop off cooldown is
  *               still no use with your feet on the ground.
  */
-let wasReady = false;
-let popTimer = null;
-
-export function paintShootButton(power, ammo, ability = null, cd = 0, ready = false) {
-  const b = $("#shoot");
+export function paintSkillButton(ability, cd = 0, ready = false) {
+  const b = $("#skill");
   if (!b) return;
-  const armed = (power === "baril" || power === "suntok") && ammo > 0;
-  const mark = armed ? (power === "suntok" ? "suntok" : "baril") : ability && ability.mark;
-  const live = !armed && !!ability && ready;
+  b.classList.toggle("ability", !!ability);
+  b.classList.toggle("ready", !!ability && ready);
+  b.style.setProperty("--cd", `${Math.max(0, Math.min(1, cd)) * 100}%`);
+  if (ability) b.style.setProperty("--ac", ability.colour);
 
-  b.classList.toggle("armed", armed);
-  b.classList.toggle("melee", armed && power === "suntok");
-  b.classList.toggle("ability", !armed && !!ability);
-  b.classList.toggle("ready", live);
+  if (b.dataset.key !== (ability ? ability.mark : "-")) {
+    b.dataset.key = ability ? ability.mark : "-";
+    b.innerHTML = ability ? markSVG(ability.mark, "mk") : "";
+  }
 
   /* The moment it comes BACK gets said out loud, once.
    *
@@ -154,6 +182,7 @@ export function paintShootButton(power, ammo, ability = null, cd = 0, ready = fa
    * animation; setting the class on an element that already has it does
    * nothing at all. Same trick the note cards use to re-bump.
    */
+  const live = !!ability && ready;
   if (live && !wasReady) {
     b.classList.remove("pop");
     void b.offsetWidth;
@@ -163,13 +192,5 @@ export function paintShootButton(power, ammo, ability = null, cd = 0, ready = fa
   }
   if (!live) { b.classList.remove("pop"); clearTimeout(popTimer); }
   wasReady = live;
-  // The cooldown drains out of the button itself, the same way a chip's does.
-  b.style.setProperty("--cd", `${Math.max(0, Math.min(1, cd)) * 100}%`);
-  if (ability) b.style.setProperty("--ac", ability.colour);
-
-  const key = `${mark || "-"}|${armed ? ammo : ""}`;
-  if (b.dataset.key !== key) {
-    b.dataset.key = key;
-    b.innerHTML = markSVG(mark || "baril", "mk") + (armed ? `<i>${ammo}</i>` : "");
-  }
 }
+

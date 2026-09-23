@@ -15,7 +15,7 @@
 
 import { createRenderer, draw, resize } from "./render.js";
 import { preloadCharacters, CHARACTERS, charById } from "./characters.js";
-import { createPad, paintShootButton } from "./pad.js";
+import { createPad, paintShootButton, paintSkillButton } from "./pad.js";
 import { markSVG } from "./marks.js";
 import { ABILITY } from "./config.js";
 import { paintPanels, chipsFor } from "./panel.js";
@@ -409,17 +409,18 @@ export async function connect({ role, say = () => {} }) {
    * against the wrong history. Six ticks of redundancy is 24 bytes and covers
    * five consecutive losses. Anything the server already has it ignores. */
   let sawJump = pad.state.j;
-  let sawShot = pad.state.s;
+  let sawSkill = pad.state.k;
   function mintTick() {
     const p = pad.state;
     // `jd` is the extra: the wire carries jump as a COUNTER, which is right
     // for a packet that may be lost, and a replay needs to know which single
     // tick the press belonged to.
     const jd = p.j !== sawJump; sawJump = p.j;
-    // ...and the same for the fire button, because the ability on it MOVES
-    // you and therefore has to be re-runnable. See stepLocal in sim.js.
-    const sd = p.s !== sawShot; sawShot = p.s;
-    const h = { n: ++seq, l: p.l, r: p.r, h: p.h, d: p.d, j: p.j, s: p.s, jd, sd };
+    // ...and the same for the SKILL button, because the move on it changes
+    // where your body is and therefore has to be re-runnable. The power-up
+    // button needs no edge: a shot is the server's to spawn.
+    const kd = p.k !== sawSkill; sawSkill = p.k;
+    const h = { n: ++seq, l: p.l, r: p.r, h: p.h, d: p.d, j: p.j, s: p.s, k: p.k, jd, kd };
     history.push(h);
     while (history.length > HISTORY_MAX) history.shift();
     sim.applyPacket(role, h);
@@ -473,11 +474,9 @@ export async function connect({ role, say = () => {} }) {
        * something else happens is a cooldown you cannot read. */
       const me = G.actors.find((a) => a.id === role);
       const ab = sim.abilityState(role);
-      paintShootButton(
-        me && me.power ? me.power.type : null,
-        me && me.power ? me.power.ammo || 0 : 0,
-        ab && ab.ability, ab ? ab.cd : 0, !!(ab && ab.ready)
-      );
+      paintShootButton(me && me.power ? me.power.type : null,
+                       me && me.power ? me.power.ammo || 0 : 0);
+      paintSkillButton(ab && ab.ability, ab ? ab.cd : 0, !!(ab && ab.ready));
       draw(renderer, G, dt);
       paintPanels(
         G.actors,

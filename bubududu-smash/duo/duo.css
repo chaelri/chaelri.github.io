@@ -233,7 +233,8 @@ body.duo.result #scrim { background: rgba(8, 20, 34, 0.68); }
 #pad.duo .dpad { left: max(12px, env(safe-area-inset-left)); display: flex; gap: 10px; }
 #pad.duo .actions {
   right: max(12px, env(safe-area-inset-right));
-  display: grid; grid-template-columns: auto auto; gap: 10px; align-items: end;
+  /* Three rows now: skill, power-up, drop — beside the jump. */
+  display: grid; grid-template-columns: auto auto; gap: 8px; align-items: end;
 }
 
 /* Translucent, because they sit ON the game. Solid buttons here would hide

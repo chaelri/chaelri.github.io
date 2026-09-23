@@ -156,8 +156,12 @@ const pads = {
 };
 const seenJumps = { p1: 0, p2: 0 };
 const seenShots = { p1: 0, p2: 0 };
+const seenSkills = { p1: 0, p2: 0 };
 const pendingJump = { p1: false, p2: false };
 const pendingShot = { p1: false, p2: false };
+// The character's own move is its OWN button, so that a dash can be thrown
+// into a punch and a hop can be followed by a shot. One thumb, one thing.
+const pendingSkill = { p1: false, p2: false };
 
 const seenRematch = { p1: 0, p2: 0 };
 const lastSeq = { p1: 0, p2: 0 };
@@ -204,6 +208,16 @@ function applyPacket(role, p) {
       pendingShot[role] = true;
     }
   }
+  // Its OWN counter, and its own `if`. Nested inside the one above it went
+  // unread by any packet that carried no `s` at all — which is every packet
+  // from anything that only ever presses the skill.
+  if (Number.isFinite(p.k)) {
+    if (p.k < seenSkills[role]) seenSkills[role] = p.k;
+    else if (p.k > seenSkills[role]) {
+      seenSkills[role] = p.k;
+      pendingSkill[role] = true;
+    }
+  }
   // Rematch, asked for from the other phone. A counter like the rest, so a
   // dropped packet on the unreliable channel does not eat the request — and
   // so the level of the flag can never leave a match restarting forever.
@@ -228,8 +242,16 @@ addEventListener("keydown", (e) => {
     if (!pads.p1.connected && ["KeyF", "KeyQ", "KeyE"].includes(e.code)) pendingShot.p1 = true;
     if (!pads.p2.connected && ["Slash", "Period", "Comma", "ShiftRight", "Enter", "NumpadEnter"].includes(e.code))
       pendingShot.p2 = true;
+    /* The character's own move is its OWN key, beside the fire key, because
+     * the whole reason it left the fire button is that the two are worth
+     * pressing together — dash INTO a punch, hop and then shoot. */
+    if (!pads.p1.connected && ["KeyG", "KeyR", "KeyC"].includes(e.code)) pendingSkill.p1 = true;
+    if (!pads.p2.connected && ["Semicolon", "Quote", "Backslash", "ControlRight"].includes(e.code))
+      pendingSkill.p2 = true;
     if (e.code === "Enter") rematch();
-    if (e.code === "KeyR" && phase === "play") startRound();
+    // KeyR is p1's skill now. The round restart moved to a modifier so a
+    // thumb on the skill key cannot reroll the arena mid-fight.
+    if (e.code === "KeyR" && e.shiftKey && phase === "play") startRound();
   }
   if (["Space", "ArrowUp", "ArrowDown"].includes(e.code)) e.preventDefault();
 });
@@ -1807,13 +1829,7 @@ function poundLanded(a) {
 
 function tryShoot(a) {
   if (hasPower(a, "suntok")) return tryPunch(a);
-  /* No power-up: the button is the character's own move.
-   *
-   * A power-up TAKES the button while you hold one, which is a real cost and
-   * is meant to be — picking up the gun trades your mobility for six shots,
-   * and both of those are brief. */
-  if (!hasPower(a, "baril")) return tryAbility(a, true);
-  if (a.power.ammo <= 0) return;
+  if (!hasPower(a, "baril") || a.power.ammo <= 0) return;
   if (G.time * 1000 - a.shotAt < SHOT_COOLDOWN_MS) return;
   a.shotAt = G.time * 1000;
   a.power.ammo--;
@@ -2670,12 +2686,15 @@ function simulate(dt) {
     if (frozen) a.vx *= 0.82;
     stepActor(a, input, G.grid, dt, G.actors, opts);
     holdAbility(a, dt);
+    if (pendingSkill[a.id]) tryAbility(a, true);
     if (pendingShot[a.id]) tryShoot(a);
   }
   pendingJump.p1 = false;
   pendingJump.p2 = false;
   pendingShot.p1 = false;
   pendingShot.p2 = false;
+  pendingSkill.p1 = false;
+  pendingSkill.p2 = false;
 }
 
 /* ------------------------------------------------------------- duo host --- */

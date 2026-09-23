@@ -25,7 +25,7 @@
 // corrections rather than every frame of the picture.
 
 import { createClient } from "./net.js";
-import { createPad, paintShootButton } from "./pad.js";
+import { createPad, paintShootButton, paintSkillButton } from "./pad.js";
 import { ABILITY } from "./config.js";
 import { hydrate } from "./netstate.js";
 import { armAudio, onAudioState, startAudio, sfx } from "./audio.js";
@@ -112,7 +112,8 @@ async function hostSide() {
   const screen = await import("./screen.js");
   const pad = createPad({ onEdge: haptic });
   screen.feedLocalPad(pad);
-  screen.onHostPower((m) => paintShootButton(m.p, m.ammo, m.ab ? ABILITY[m.ab] : null, (m.cd || 0) / 100, !!m.rd));
+  screen.onHostPower((m) => { paintShootButton(m.p, m.ammo);
+    paintSkillButton(m.ab ? ABILITY[m.ab] : null, (m.cd || 0) / 100, !!m.rd); });
   window.__duo = () => screen.duoStats;
 
   padEl.classList.remove("hidden");
@@ -152,7 +153,8 @@ async function guestSide() {
 
     // A power hint for the fire button, not a round message.
     if (m.p !== undefined && m.a === undefined && m.rs === undefined) {
-      return paintShootButton(m.p, m.ammo, m.ab ? ABILITY[m.ab] : null, (m.cd || 0) / 100, !!m.rd);
+      paintShootButton(m.p, m.ammo);
+      return paintSkillButton(m.ab ? ABILITY[m.ab] : null, (m.cd || 0) / 100, !!m.rd);
     }
 
     // The host has started a round. Start the same one, from its seed.
@@ -262,7 +264,8 @@ async function guestSide() {
     if (client && !client.healthy) { paintState("lost"); await connect().catch(() => {}); }
   }, 1800);
 
-  screen.onHostPower((mm) => paintShootButton(mm.p, mm.ammo, mm.ab ? ABILITY[mm.ab] : null, (mm.cd || 0) / 100, !!mm.rd));
+  screen.onHostPower((mm) => { paintShootButton(mm.p, mm.ammo);
+    paintSkillButton(mm.ab ? ABILITY[mm.ab] : null, (mm.cd || 0) / 100, !!mm.rd); });
 
   $("#rematch")?.addEventListener("click", () => {
     rematchSeq++;

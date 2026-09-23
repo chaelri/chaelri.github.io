@@ -109,7 +109,7 @@ const drain = (q, fn) => {
 
 /* ---------------------------------------------------------- the thumbs ---- */
 
-let seq = 0, sawJump = 0, jumps = 0, sawShot = 0, shots = 0;
+let seq = 0, sawJump = 0, jumps = 0, sawSkill = 0, skills = 0;
 const history = [];
 let heldL = false, heldR = false, heldJ = false;
 /** One tick of thumbs: remembered, predicted. Sending is separate. */
@@ -124,16 +124,16 @@ function thumbs() {
   /* ...and the fire button, which with no power-up in hand is the character's
    * own move — and every one of them MOVES you.
    *
-   * This used to send `s: 0` for the whole run, so the entire ability path
+   * This used to send nothing at all for the whole run, so the ability path
    * went through the replay untested. That is precisely the shape of the
    * worst bug this bench has ever found: the jump counter was absent from
    * the wire, the server saw no jumps at all, and playing the game did not
    * reveal it. An air hop the replay does not re-run is four tiles of
    * disagreement on every correction. */
-  if (rand() < FIRE) shots++;
+  if (rand() < FIRE) skills++;
   const jd = jumps !== sawJump; sawJump = jumps;
-  const sd = shots !== sawShot; sawShot = shots;
-  const h = { n: ++seq, l: heldL, r: heldR, h: heldJ, d: false, j: jumps, s: shots, jd, sd };
+  const kd = skills !== sawSkill; sawSkill = skills;
+  const h = { n: ++seq, l: heldL, r: heldR, h: heldJ, d: false, j: jumps, k: skills, jd, kd };
   history.push(h);
   while (history.length > HISTORY_MAX) history.shift();
   client.applyPacket(ROLE, h);
@@ -142,13 +142,13 @@ function thumbs() {
 /* The other player, driven into the server's queue the same way — the client
    never sees these buttons, which is the point: it only ever sees where he
    ENDED UP. */
-let oL = false, oR = false, oJumps = 0, oSeq = 0, oShots = 0;
+let oL = false, oR = false, oJumps = 0, oSeq = 0, oSkills = 0;
 function theirThumbs() {
   if (rand() < 0.02) { oR = !oR; oL = false; }
   if (rand() < 0.02) { oL = !oL; oR = false; }
   if (rand() < 0.02) oJumps++;
-  if (rand() < FIRE) oShots++;
-  queued[OTHER].push({ n: ++oSeq, l: oL, r: oR, h: rand() < 0.5, d: false, j: oJumps, s: oShots });
+  if (rand() < FIRE) oSkills++;
+  queued[OTHER].push({ n: ++oSeq, l: oL, r: oR, h: rand() < 0.5, d: false, j: oJumps, k: oSkills });
 }
 
 /* The server's input queues, and the one-per-tick rule that makes a replay

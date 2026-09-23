@@ -59,15 +59,15 @@ for (const char of CHARS) {
   let rnd = 7;
   const rand = () => ((rnd = (rnd * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
   const inputs = [];
-  let l = false, r = true, j = 0, s = 0, sawJ = 0, sawS = 0;
+  let l = false, r = true, j = 0, k = 0, sawJ = 0, sawK = 0;
   for (let n = 1; n <= 120; n++) {
     if (rand() < 0.08) { r = !r; l = false; }
     if (rand() < 0.08) { l = !l; r = false; }
     if (rand() < 0.06) j++;
-    if (rand() < 0.10) s++;
-    inputs.push({ n, l, r, h: rand() < 0.5, d: false, j, s,
-                  jd: j !== sawJ, sd: s !== sawS });
-    sawJ = j; sawS = s;
+    if (rand() < 0.10) k++;
+    inputs.push({ n, l, r, h: rand() < 0.5, d: false, j, k,
+                  jd: j !== sawJ, kd: k !== sawK });
+    sawJ = j; sawK = k;
   }
 
   const start = grab(a);

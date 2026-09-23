@@ -76,8 +76,12 @@ const pads = {
 };
 const seenJumps = { p1: 0, p2: 0 };
 const seenShots = { p1: 0, p2: 0 };
+const seenSkills = { p1: 0, p2: 0 };
 const pendingJump = { p1: false, p2: false };
 const pendingShot = { p1: false, p2: false };
+// The character's own move is its OWN button, so that a dash can be thrown
+// into a punch and a hop can be followed by a shot. One thumb, one thing.
+const pendingSkill = { p1: false, p2: false };
 const seenRematch = { p1: 0, p2: 0 };
 const lastSeq = { p1: 0, p2: 0 };
 const lastKey = { p1: null, p2: null };
@@ -162,8 +166,10 @@ export const state = {
     lastKey[role] = null;
     seenJumps[role] = 0;
     seenShots[role] = 0;
+    seenSkills[role] = 0;
     pendingJump[role] = false;
     pendingShot[role] = false;
+    pendingSkill[role] = false;
     pads[role].left = pads[role].right = pads[role].jumpHeld = pads[role].drop = false;
   },
   setScore(s) { if (s) { score.p1 = s.p1; score.p2 = s.p2; } },
@@ -208,6 +214,16 @@ function applyPacket(role, p) {
     else if (p.s > seenShots[role]) {
       seenShots[role] = p.s;
       pendingShot[role] = true;
+    }
+  }
+  // Its OWN counter, and its own `if`. Nested inside the one above it went
+  // unread by any packet that carried no `s` at all — which is every packet
+  // from anything that only ever presses the skill.
+  if (Number.isFinite(p.k)) {
+    if (p.k < seenSkills[role]) seenSkills[role] = p.k;
+    else if (p.k > seenSkills[role]) {
+      seenSkills[role] = p.k;
+      pendingSkill[role] = true;
     }
   }
   // Rematch, asked for from the other phone. A counter like the rest, so a
@@ -1566,13 +1582,7 @@ function poundLanded(a) {
 
 function tryShoot(a) {
   if (hasPower(a, "suntok")) return tryPunch(a);
-  /* No power-up: the button is the character's own move.
-   *
-   * A power-up TAKES the button while you hold one, which is a real cost and
-   * is meant to be — picking up the gun trades your mobility for six shots,
-   * and both of those are brief. */
-  if (!hasPower(a, "baril")) return tryAbility(a, true);
-  if (a.power.ammo <= 0) return;
+  if (!hasPower(a, "baril") || a.power.ammo <= 0) return;
   if (G.time * 1000 - a.shotAt < SHOT_COOLDOWN_MS) return;
   a.shotAt = G.time * 1000;
   a.power.ammo--;
@@ -2210,12 +2220,15 @@ function simulate(dt) {
     if (frozen) a.vx *= 0.82;
     stepActor(a, input, G.grid, dt, G.actors, opts);
     holdAbility(a, dt);
+    if (pendingSkill[a.id]) tryAbility(a, true);
     if (pendingShot[a.id]) tryShoot(a);
   }
   pendingJump.p1 = false;
   pendingJump.p2 = false;
   pendingShot.p1 = false;
   pendingShot.p2 = false;
+  pendingSkill.p1 = false;
+  pendingSkill.p2 = false;
 }
 
 /* ------------------------------------------------------- reconciliation --- */
@@ -2492,11 +2505,11 @@ function stepLocal(a, h, dt, edge) {
    * An ability MOVES you, so leaving it out of the replay would mean every
    * correction landed on a body that had never air-hopped — the server would
    * say you were four tiles up and the replay would put you back on the
-   * floor. The shot and the punch are left out on purpose: they spawn things
-   * and hurt people, and the server has already done both. `loud` is what
-   * separates the two.
+   * floor. The shot and the punch are their own button and are left out on
+   * purpose: they spawn things and hurt people, and the server has already
+   * done both. `loud` is what separates the two.
    */
-  if (edge && h.sd && !hasPower(a, "baril") && !hasPower(a, "suntok")) tryAbility(a, false);
+  if (edge && h.kd) tryAbility(a, false);
 }
 
 /* ----------------------------------------------------------------- tick --- */
