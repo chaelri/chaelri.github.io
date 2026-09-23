@@ -898,7 +898,7 @@ function giveFairy(a) {
     wave: 0,
     phase: rng() * Math.PI * 2,
   };
-  showNote(a, DIWATA.colour, DIWATA.name, "Two hearts, one at a time.");
+  showNote(a, DIWATA.colour, DIWATA.name, "Two hearts, one at a time.", "plus");
   sfx.diwata();
 }
 
@@ -1140,7 +1140,8 @@ function claimSquad(owner, list = null) {
   }
   const total = G.minis.filter((m) => m.owner === owner.id && !m.leaving).length;
   showNote(owner, SQUAD.colour, "Mini Bubus!",
-    total > SQUAD.count ? `${total} little Bubus, all yours.` : "Three little Bubus, on your side.");
+    total > SQUAD.count ? `${total} little Bubus, all yours.` : "Three little Bubus, on your side.",
+    "squad");
   sfx.helperSave();
 }
 
@@ -1819,7 +1820,7 @@ function summonDudu(owner) {
   h.until = G.time + HELPER.huntMs / 1000;
   h.actor.speedMul = 1;
   h.pause = 0;
-  showNote(owner, "#ffb84d", "Dudu", "Bought and paid for. He is on your side.");
+  showNote(owner, "#ffb84d", "Dudu", "Bought and paid for. He is on your side.", "dudu");
   sfx.helper();
 }
 
@@ -1889,7 +1890,7 @@ function repelBadDudu(h, victim) {
   G.freeze = Math.max(G.freeze, 0.1);
   renderer.shake = 30;
   renderer.punch = Math.max(renderer.punch || 0, 0.06);
-  showNote(victim, "#ffe66b", "Nice try", "He bounced. The star does not care.");
+  showNote(victim, "#ffe66b", "Nice try", "He bounced. The star does not care.", "bituin");
   sfx.badHit();
 }
 
@@ -1927,7 +1928,7 @@ function beginBetrayal(h, victim) {
   victim.vx = 0;
   victim.vy = 0;
 
-  showNote(victim, "#a970ff", "Bad Dudu", "That was not Dudu.");
+  showNote(victim, "#a970ff", "Bad Dudu", "That was not Dudu.", "dudu");
   sfx.badWind();
   renderer.shake = 14;
 }
@@ -2102,7 +2103,7 @@ function tickOneHelper(h, dt) {
       h.until = G.time + HELPER.huntMs / 1000;
       me.speedMul = 1;
       h.pause = 0;
-      showNote(a, "#ffb84d", "Dudu", "He is on your side. He roams, and jumps them if they get close.");
+      showNote(a, "#ffb84d", "Dudu", "He is on your side. He roams, and jumps them if they get close.", "dudu");
       sfx.helper();
       break;
     }

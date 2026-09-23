@@ -739,7 +739,7 @@ function giveFairy(a) {
     wave: 0,
     phase: rng() * Math.PI * 2,
   };
-  fx.note(a, DIWATA.colour, DIWATA.name, "Two hearts, one at a time.");
+  fx.note(a, DIWATA.colour, DIWATA.name, "Two hearts, one at a time.", "plus");
   fx.sfx("diwata");
 }
 
@@ -949,7 +949,8 @@ function claimSquad(owner, list = null) {
   }
   const total = G.minis.filter((m) => m.owner === owner.id && !m.leaving).length;
   fx.note(owner, SQUAD.colour, "Mini Bubus!",
-    total > SQUAD.count ? `${total} little Bubus, all yours.` : "Three little Bubus, on your side.");
+    total > SQUAD.count ? `${total} little Bubus, all yours.` : "Three little Bubus, on your side.",
+    "squad");
   fx.sfx("helperSave");
 }
 
@@ -1574,7 +1575,7 @@ function summonDudu(owner) {
   h.until = G.time + HELPER.huntMs / 1000;
   h.actor.speedMul = 1;
   h.pause = 0;
-  fx.note(owner, "#ffb84d", "Dudu", "Bought and paid for. He is on your side.");
+  fx.note(owner, "#ffb84d", "Dudu", "Bought and paid for. He is on your side.", "dudu");
   fx.sfx("helper");
 }
 
@@ -1614,7 +1615,7 @@ function repelBadDudu(h, victim) {
   G.freeze = Math.max(G.freeze, 0.1);
   fx.shake(30);
   fx.punch(0.06);
-  fx.note(victim, "#ffe66b", "Nice try", "He bounced. The star does not care.");
+  fx.note(victim, "#ffe66b", "Nice try", "He bounced. The star does not care.", "bituin");
   fx.sfx("badHit");
 }
 
@@ -1645,7 +1646,7 @@ function beginBetrayal(h, victim) {
   victim.vx = 0;
   victim.vy = 0;
 
-  fx.note(victim, "#a970ff", "Bad Dudu", "That was not Dudu.");
+  fx.note(victim, "#a970ff", "Bad Dudu", "That was not Dudu.", "dudu");
   fx.sfx("badWind");
   fx.shake(14);
 }
@@ -1791,7 +1792,7 @@ function tickOneHelper(h, dt) {
       h.until = G.time + HELPER.huntMs / 1000;
       me.speedMul = 1;
       h.pause = 0;
-      fx.note(a, "#ffb84d", "Dudu", "He is on your side. He roams, and jumps them if they get close.");
+      fx.note(a, "#ffb84d", "Dudu", "He is on your side. He roams, and jumps them if they get close.", "dudu");
       fx.sfx("helper");
       break;
     }
