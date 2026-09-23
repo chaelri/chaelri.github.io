@@ -162,10 +162,49 @@
     }
   };
 
+  // ── (7) Hold animepahe's own player until our UI takes over ──
+  // animepahe.js replaces the /play/ page with its own UI and its own kwik
+  // iframe. Left alone, the site's player starts loading the same stream
+  // first, so every episode hit kwik twice (and bulk-download tabs streamed
+  // video nobody watches). Frames outside #nuke-body are parked on
+  // about:blank; if our UI never mounts they are put back so the page still
+  // plays.
+  const HOLD_PLAYER =
+    window.top === window &&
+    /(^|\.)animepahe\.pw$/i.test(PAGE_HOST) &&
+    location.pathname.startsWith("/play/");
+  let holding = HOLD_PLAYER;
+  const heldFrames = new Set();
+  const holdFrame = (f) => {
+    if (!holding || _cfActive) return;
+    if (document.getElementById("nuke-body")?.contains(f)) return;
+    const src = f.getAttribute("src");
+    if (!src || src === "about:blank" || isCloudflareUrl(src)) return;
+    f.dataset.adxHeldSrc = src;
+    f.setAttribute("src", "about:blank");
+    heldFrames.add(f);
+  };
+  if (HOLD_PLAYER) {
+    setTimeout(() => {
+      if (document.getElementById("nuke-body")) return;
+      holding = false;
+      heldFrames.forEach((f) => {
+        if (f.isConnected && f.dataset.adxHeldSrc) f.setAttribute("src", f.dataset.adxHeldSrc);
+      });
+      heldFrames.clear();
+    }, 10000);
+  }
+
   // ── MutationObserver: real-time ad-node removal as they get injected ──
   const mo = new MutationObserver((muts) => {
     for (const m of muts) {
+      if (m.type === "attributes") {
+        if (m.target.tagName === "IFRAME") holdFrame(m.target);
+        continue;
+      }
       for (const node of m.addedNodes) {
+        if (node.tagName === "IFRAME") holdFrame(node);
+        else if (HOLD_PLAYER && node.querySelectorAll) node.querySelectorAll("iframe").forEach(holdFrame);
         if (node.nodeType !== 1) continue;
         if (node.tagName === "SCRIPT") {
           if (neuterThirdPartyScript(node)) continue;
@@ -177,7 +216,10 @@
 
   const startObserver = () => {
     if (!document.documentElement) return setTimeout(startObserver, 0);
-    mo.observe(document.documentElement, { childList: true, subtree: true });
+    mo.observe(document.documentElement, HOLD_PLAYER
+      ? { childList: true, subtree: true, attributes: true, attributeFilter: ["src"] }
+      : { childList: true, subtree: true });
+    document.querySelectorAll("iframe").forEach(holdFrame);
     // Catch anything already parsed before observer attached
     document.querySelectorAll("script[src]").forEach((s) => neuterThirdPartyScript(s));
     Array.from(document.documentElement.children).forEach((c) => {
