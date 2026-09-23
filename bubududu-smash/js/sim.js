@@ -1265,16 +1265,25 @@ function handleDeath(a) {
 
   // Everything stops for a beat, then resumes in slow motion — except the
   // blow that takes the match, which is set up below and never stops at all.
-  G.freeze = HIT.freezeMs / 1000;
-  G.slow = HIT.slowMoMs / 1000;
-  G.slowRate = HIT.slowMoRate;
+  const gone = a.dead || a.hp <= 0;
+  // A hit you walk away from stops the world for less time and does not put
+  // it into slow motion afterwards — that treatment belongs to a life ending.
+  G.freeze = gone ? HIT.freezeMs / 1000 : HIT.hurtFreezeMs / 1000;
+  if (gone) {
+    G.slow = HIT.slowMoMs / 1000;
+    G.slowRate = HIT.slowMoRate;
+  }
 
-  fx.shake(HIT.shake);
-  fx.punch(HIT.punch);
-  fx.flash(1);
-  // And the camera drops the framing rule and dives onto the body. See the
-  // kill cam in render.js — it is time-boxed and hands the camera back.
-  fx.killCam({ ...deathFocus(a), t: 0, ms: HIT.killCamMs });
+  fx.shake(gone ? HIT.shake : HIT.hurtShake);
+  fx.punch(gone ? HIT.punch : HIT.hurtPunch);
+  if (gone) fx.flash(1);
+  /* The camera only dives on a body that has actually gone.
+   *
+   * Diving onto a player who is still standing there — and who is about to
+   * be shoved and keep playing — throws the framing away mid-fight for
+   * something that is not over. It still rides a pit death, and the blow
+   * that ends the round gets its own camera further down. */
+  if (a.dead || a.hp <= 0) fx.killCam({ ...deathFocus(a), t: 0, ms: HIT.killCamMs });
 
   // Debris at the point of impact, and the heart they just lost thrown clear.
   G.bursts.push({ x: a.x, y: a.y - a.h * 0.55, at: G.time, colour: "#ff4d6d", big: true });
@@ -1302,7 +1311,9 @@ function handleDeath(a) {
    */
   const killer = a.cause && a.cause.by ? G.actors.find((o) => o.id === a.cause.by) : null;
   const away = killer ? Math.sign(a.x - killer.x) || 1 : (a.face || 1) * -1;
-  a.defeat = {
+  // ...and only a body that has gone gets thrown. Someone who took a heart
+  // and is still playing is animated by the ordinary character code.
+  if (a.dead || a.hp <= 0) a.defeat = {
     at: G.time,
     x: a.x,
     y: a.y,
@@ -1368,7 +1379,37 @@ function killPlayer(victim, by, how = "stomp", damage = 1) {
   // was involved. handleDeath reads whichever of the two got there.
   victim.cause = { how, by: by ? by.id : null };
   victim.hitFor = damage;
-  kill(victim, { onDeath: handleDeath });
+
+  /* A hit does NOT take you off the board.
+   *
+   * It used to call kill(), which sets `dead`, starts a respawn clock and
+   * puts you back at a spawn point a second later — so every stomp, every
+   * bullet, every punch teleported you across the arena. Charlie, watching
+   * the boss take three hits without going anywhere: "make it same like king
+   * yhon di talaga nagrereset position unless nahulog sa map".
+   *
+   * So: handleDeath is called DIRECTLY, and it has never touched `dead`
+   * itself — kill() does. Falling off the map and landing on spikes still go
+   * through kill() from physics.js and still put you back, because there is
+   * nowhere to stand when the reason you lost the heart is that there was
+   * nowhere to stand.
+   *
+   * What replaces the respawn is what the King already had: knocked away
+   * from whoever did it, and a moment of grace so the same fist cannot take
+   * the next heart before you have landed. */
+  handleDeath(victim);
+  if (victim.dead || victim.hp <= 0) return;
+
+  const away = by ? Math.sign(victim.x - by.x) || 1 : -(victim.face || 1);
+  victim.vx = away * HIT.knockback;
+  victim.vy = -HIT.lift;
+  victim.grounded = false;
+  // Marked as a launch, or they cancel the whole shove on the next tick by
+  // holding the direction they were already holding. Same bypass the pound
+  // and the punch use.
+  victim.launchFor = Math.max(victim.launchFor || 0, HIT.launchMs / 1000);
+  victim.invulnUntil = Math.max(victim.invulnUntil || 0,
+                                G.time + FEEL.hurtInvulnMs / 1000);
 }
 
 /* -------------------------------------------------------------- king --- */

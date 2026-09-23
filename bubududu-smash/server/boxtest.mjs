@@ -321,9 +321,41 @@ for (const char of ["bubu", "dudu", "yhon"]) {
   ok("death still costs a heart", a.hp === hpWas - 1, `hp ${hpWas} -> ${a.hp}`);
 }
 
-/** Land `by` on `victim`'s head, which is the ordinary way anyone dies here. */
+/* ---- 11. a hit costs a heart and leaves you where you were ------------- */
+{
+  const G = world();
+  const a = G.actors.find((q) => q.id === "p1");
+  const o = G.actors.find((q) => q.id === "p2");
+  a.x = 14; a.y = 13; a.vx = 0; a.vy = 0;
+  for (let i = 0; i < 20; i++) sim.step(sim.TICK);      // let him settle
+  const where = { x: a.x, y: a.y };
+  const hpWas = a.hp;
+  killPlayerViaStomp(G, o, a);
+  ok("hit   costs a heart", a.hp === hpWas - 1, `hp ${hpWas} -> ${a.hp}`);
+  ok("hit   does NOT take you off the board", !a.dead && !a.respawn,
+     `dead ${a.dead} respawn ${a.respawn}`);
+  ok("hit   leaves you roughly where you were",
+     Math.abs(a.x - where.x) < 4, `x ${where.x.toFixed(1)} -> ${a.x.toFixed(1)}`);
+  ok("hit   shoves you, and marks it as a launch", (a.launchFor || 0) > 0);
+  ok("hit   gives you a moment of grace", a.invulnUntil > sim.state.G.time);
+}
+
+/* ...but falling off the map still puts you back. */
+{
+  const G = world();
+  const a = G.actors.find((q) => q.id === "p1");
+  const hpWas = a.hp;
+  a.y = G.level.h + 4;                                   // below the world
+  for (let i = 0; i < 20 && !a.dead; i++) sim.step(sim.TICK);
+  ok("fall  still takes you off the board", a.dead || a.y < G.level.h,
+     `dead ${a.dead} y ${a.y.toFixed(1)}`);
+  ok("fall  ...and still costs a heart", a.hp === hpWas - 1, `hp ${hpWas} -> ${a.hp}`);
+}
+
+/** Land `by` on `victim`'s head, which is the ordinary way anyone loses one. */
 function killPlayerViaStomp(G, by, victim) {
-  for (let i = 0; i < 40 && !victim.dead; i++) {
+  const hpWas = victim.hp;
+  for (let i = 0; i < 40 && victim.hp === hpWas && !victim.dead; i++) {
     by.x = victim.x;
     by.y = victim.y - victim.h - 0.3;
     by.vy = 9;

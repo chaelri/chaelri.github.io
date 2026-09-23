@@ -142,6 +142,21 @@ export const HIT = {
   // treatment: everything stops, the camera dives onto the body, and it all
   // resumes in slow motion while the impact frame plays out. The earlier
   // numbers were a quarter of these and it read as a stumble.
+  /* A hit you survive is not a death, and must not be dressed as one.
+   *
+   * Losing a heart no longer takes you off the board — see killPlayer — so
+   * the full treatment below would now fire several times a round instead of
+   * two or three times a match. These are the smaller numbers for a hit you
+   * walk away from: a shorter stop, no slow motion, no flash, no kill cam.
+   */
+  hurtFreezeMs: 70,
+  hurtShake: 22,
+  hurtPunch: 0.05,
+  // ...and the shove that replaces the respawn.
+  knockback: 13,
+  lift: 9,
+  launchMs: 260,
+
   freezeMs: 150,      // everything stops dead on contact
   slowMoMs: 620,      // then runs slow for a moment as it resumes
   slowMoRate: 0.22,

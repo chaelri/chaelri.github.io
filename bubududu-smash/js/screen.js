@@ -1566,18 +1566,29 @@ function handleDeath(a) {
   a.hitFor = null;
   a.hp = lethal ? 0 : Math.max(0, Math.round((a.hp - cost) * 2) / 2);
 
-  // Everything stops for a beat, then resumes in slow motion — except the
-  // blow that takes the match, which is set up below and never stops at all.
-  G.freeze = HIT.freezeMs / 1000;
-  G.slow = HIT.slowMoMs / 1000;
-  G.slowRate = HIT.slowMoRate;
+  const gone = a.dead || a.hp <= 0;
+  /* Everything stops for a beat, then resumes in slow motion — except the
+   * blow that takes the match, which is set up below and never stops at all.
+   *
+   * A hit you WALK AWAY FROM stops the world for less and does not slow it
+   * down afterwards: that treatment belongs to a life ending, and since a
+   * stomp no longer removes you it would otherwise fire several times a
+   * round. */
+  G.freeze = gone ? HIT.freezeMs / 1000 : HIT.hurtFreezeMs / 1000;
+  if (gone) {
+    G.slow = HIT.slowMoMs / 1000;
+    G.slowRate = HIT.slowMoRate;
+  }
 
-  renderer.shake = HIT.shake;
-  renderer.punch = HIT.punch;
-  renderer.flash = 1;
-  // And the camera drops the framing rule and dives onto the body. See the
-  // kill cam in render.js — it is time-boxed and hands the camera back.
-  renderer.kill = { ...deathFocus(a), t: 0, ms: HIT.killCamMs };
+  renderer.shake = gone ? HIT.shake : HIT.hurtShake;
+  renderer.punch = gone ? HIT.punch : HIT.hurtPunch;
+  if (gone) renderer.flash = 1;
+  /* The camera only dives on a body that has actually gone.
+   *
+   * Diving onto a player who is still standing there — and who is about to
+   * be shoved and keep playing — throws the framing away mid-fight for
+   * something that is not over. */
+  if (gone) renderer.kill = { ...deathFocus(a), t: 0, ms: HIT.killCamMs };
 
   // Debris at the point of impact, and the heart they just lost thrown clear.
   G.bursts.push({ x: a.x, y: a.y - a.h * 0.55, at: G.time, colour: "#ff4d6d", big: true });
@@ -1605,7 +1616,9 @@ function handleDeath(a) {
    */
   const killer = a.cause && a.cause.by ? G.actors.find((o) => o.id === a.cause.by) : null;
   const away = killer ? Math.sign(a.x - killer.x) || 1 : (a.face || 1) * -1;
-  a.defeat = {
+  // ...and only a body that has gone gets thrown. Someone who took a heart
+  // and is still playing is animated by the ordinary character code.
+  if (gone) a.defeat = {
     at: G.time,
     x: a.x,
     y: a.y,
