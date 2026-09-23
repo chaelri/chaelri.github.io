@@ -57,7 +57,18 @@
 
 <!-- The way back into a match. Enter does the same thing, but a phone has
      no Enter key, which is why this exists. See rematch() in screen.js. -->
-<button id="rematch" type="button">Rematch</button>
+<div id="afterwards">
+  <button id="rematch" type="button">Rematch</button>
+  <!-- Back to the lobby, where the characters are picked. A rematch keeps
+       whoever you were; this is how you stop being them.
+
+       It was missing here for as long as duo has existed: the big-screen page
+       grew an #afterwards row with both buttons in it and this page kept the
+       single Rematch button it started with, so on two phones there was no way
+       to change character without reloading. Charlie: "wala palang try again
+       and change character". -->
+  <button id="recast" type="button">Change character</button>
+</div>
 <!-- Knocks the arena back behind a result, so the text on top of it can
      actually be read. See setResult() in screen.js. -->
 <div id="scrim"></div>

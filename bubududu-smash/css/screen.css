@@ -34,6 +34,15 @@ html, body {
 #hud {
   position: fixed; top: max(10px, env(safe-area-inset-top)); left: 0; right: 0;
   display: flex; justify-content: center; pointer-events: none;
+  /* Explicitly above the layers that span the whole page.
+   *
+   * It had no z-index at all, which on the big screen is fine because
+   * nothing covers it. On two phones the pad (#pad.duo, z-index 50) and the
+   * waiting screen (#duowait, 60) are both `inset: 0`, so the score was
+   * sitting underneath two full-page elements and depending on one of them
+   * being transparent to be seen at all. The score is the one thing that has
+   * to be legible in every state; it should not be winning that by luck. */
+  z-index: 65;
 }
 /* No plate. The digits carry themselves on a thick white outline, the same
    way the banner headline does — a translucent rounded rectangle parked at

@@ -74,17 +74,32 @@ body.duo .chip em { display: none; }   /* no keyboard here to name a key on */
  * reaches far enough down that the two met in the middle. Pinning it below
  * the banner's centre keeps it with the text it belongs to and still clears
  * the pad, which starts about 200px up from the bottom edge. */
-body.duo #rematch {
+/* The whole row moves, not just the one button.
+ *
+ * This positioned #rematch itself, from when that was the only thing here.
+ * Now there are two — Rematch and Change character — and they have to travel
+ * together or the second one lands wherever the shared stylesheet left it. */
+body.duo #afterwards {
   z-index: 70;            /* the pad and the waiting screen both span the page */
   top: calc(50% + clamp(92px, 22vw, 150px));
   bottom: auto;
+  /* Stacked on a phone. Side by side they are each too narrow to read and
+     too close together to hit with a thumb. */
+  flex-direction: column;
+  gap: 8px;
+}
+body.duo #rematch,
+body.duo #recast {
+  position: static;       /* the row places them now */
   font-size: clamp(14px, 4vw, 18px);
 }
 /* Landscape has no room below the banner, so it goes back to the bottom. */
 @media (orientation: landscape) and (max-height: 520px) {
-  body.duo #rematch {
+  body.duo #afterwards {
     top: auto;
     bottom: calc(max(10px, env(safe-area-inset-bottom)) + clamp(76px, 18vh, 104px));
+    /* Side by side in landscape — there is width to spare and no height. */
+    flex-direction: row;
   }
   /* ...and then the result has to get out of ITS way.
    *
