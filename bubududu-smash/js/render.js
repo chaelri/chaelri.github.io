@@ -6,7 +6,7 @@
 
 import { charById } from "./characters.js";
 import { poseOf } from "./physics.js";
-import { BAD_HELPER, COINS, DIWATA, FEEL, HIT, PLAYERS, POWERUPS, SHOT_RADIUS } from "./config.js";
+import { ABILITY, BAD_HELPER, COINS, DIWATA, FEEL, HIT, PLAYERS, POWERUPS, SHOT_RADIUS } from "./config.js";
 import { drawMark, markPath, stampMark } from "./marks.js";
 
 
@@ -2322,8 +2322,12 @@ function drawActor(r, ctx, g, a) {
       }
     }
   }
-  const px = toX(r, a.x) + kick * z * 0.16;
-  const py = toY(r, a.y);
+  /* `ox`/`oy` is the last correction, being given back over a tenth of a
+   * second rather than all at once. It exists only here — the physics never
+   * sees it, and it is zero on everybody but the player holding this phone.
+   * See applyServer in sim.js. */
+  const px = toX(r, a.x + (a.ox || 0)) + kick * z * 0.16;
+  const py = toY(r, a.y + (a.oy || 0));
 
   // contact shadow
   ctx.fillStyle = "rgba(0,0,0,0.16)";
@@ -2415,6 +2419,60 @@ function drawActor(r, ctx, g, a) {
       ctx.fill();
     }
     ctx.restore();
+  }
+
+  /* The abilities, drawn ON the character rather than announced.
+   *
+   * None of them lasts long enough to read a label for — a dash is a sixth of
+   * a second — so each one is a shape you recognise at a glance and never
+   * have to think about: streaks behind a dash, a ring under a hop, a column
+   * of pressure under a pound. */
+  const ab = a.power ? null : ABILITY;
+  if (ab) {
+    // Dash: hard streaks trailing the way they came from.
+    if (a.dashUntil && g.time < a.dashUntil) {
+      const left = (a.dashUntil - g.time) / (ABILITY.dash.ms / 1000);
+      const back = -(a.dashFace || a.face);
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, left) * 0.75;
+      ctx.strokeStyle = ABILITY.dash.colour;
+      ctx.lineCap = "round";
+      for (let i = 0; i < 4; i++) {
+        const y = py - a.h * z * (0.25 + i * 0.28);
+        ctx.lineWidth = Math.max(1.5, z * (0.09 - i * 0.015));
+        ctx.beginPath();
+        ctx.moveTo(px + back * z * (0.3 + i * 0.12), y);
+        ctx.lineTo(px + back * z * (1.5 + i * 0.5), y);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+    // Pound: the column of air being shoved down ahead of him.
+    if (a.pounding) {
+      ctx.save();
+      ctx.globalAlpha = 0.35 + 0.25 * Math.abs(Math.sin(g.time * 26));
+      const col = ctx.createLinearGradient(px, py, px, py + z * 2.4);
+      col.addColorStop(0, ABILITY.pound.colour);
+      col.addColorStop(1, "rgba(255,156,63,0)");
+      ctx.fillStyle = col;
+      ctx.fillRect(px - a.w * z * 0.5, py, a.w * z, z * 2.4);
+      ctx.restore();
+    }
+    // Air Hop: a ring left behind at the height it was spent.
+    if (a.hops && !a.grounded && a.abilityAt) {
+      const age = g.time - a.abilityAt / 1000;
+      if (age >= 0 && age < 0.4) {
+        const k = age / 0.4;
+        ctx.save();
+        ctx.globalAlpha = (1 - k) * 0.8;
+        ctx.strokeStyle = ABILITY.hop.colour;
+        ctx.lineWidth = Math.max(1.5, z * 0.07 * (1 - k));
+        ctx.beginPath();
+        ctx.ellipse(px, py, z * (0.2 + k * 1.1), z * (0.07 + k * 0.34), 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
   }
 
   const cw = a.w * z * 1.25;

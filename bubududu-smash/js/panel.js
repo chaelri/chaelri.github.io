@@ -6,7 +6,7 @@
 // guest is handed the same list over the wire and draws it with this exact
 // code. Two implementations would have drifted the first time a chip changed.
 
-import { PLAYERS, FEEL, COINS, DIWATA, POWERUPS, SQUAD, HELPER } from "./config.js";
+import { PLAYERS, FEEL, COINS, DIWATA, POWERUPS, SQUAD, HELPER, ABILITY } from "./config.js";
 import { charById } from "./characters.js";
 import { markSVG } from "./marks.js";
 
@@ -158,6 +158,29 @@ export function chipsFor(a, G, pads) {
     }
     out.push({ mark: a.power.type, label, colour: def.colour, pct, bad: false });
   }
+  /* The ability, but only while it is SPENT.
+   *
+   * The fire button already says what the move is and whether it is ready,
+   * so a chip that sat there all round saying the same thing would be one
+   * more permanent thing to look past. It appears when you use it, drains,
+   * and goes — which is the only moment the answer is interesting. And on a
+   * laptop, where F and Shift fire it and there is no button to look at, it
+   * is the only place the cooldown is shown at all. */
+  const abDef = charById(a.char);
+  const ab = abDef && abDef.ability && ABILITY[abDef.ability];
+  if (ab) {
+    const left = ab.cooldownMs / 1000 - (G.time - (a.abilityAt || -9e9) / 1000);
+    if (left > 0) {
+      out.push({
+        mark: ab.mark,
+        label: ab.name,
+        colour: ab.colour,
+        pct: Math.max(0, Math.min(100, (left / (ab.cooldownMs / 1000)) * 100)),
+        bad: false,
+      });
+    }
+  }
+
   if (a.frozenUntil && G.time < a.frozenUntil) {
     const left = a.frozenUntil - G.time;
     out.push({

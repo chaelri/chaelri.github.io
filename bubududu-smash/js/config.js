@@ -265,6 +265,74 @@ export const POWERUPS_EXTRA = {
   },
 };
 
+/* -------------------------------------------------------- the abilities --- */
+//
+// One per character, on the fire button.
+//
+// That button already exists and is dead weight for most of a round — it does
+// nothing at all unless you are holding the gun or One Punch, which is maybe a
+// fifth of the time. So it carries your character's move the rest of the time,
+// and a power-up takes it over while you have one. No new button, nothing new
+// to reach for on a phone, and the button is always worth pressing.
+//
+// They are POSITION, never stats. That is the whole design rule here: the
+// power-ups already own the stats lane — Bilis makes you faster, Laki makes
+// you bigger — and an ability that also made you faster would make Bilis
+// boring. These move you somewhere. And none of them kills: the kill in this
+// game is landing on a head, and One Punch is the one thing that gets to
+// shortcut it. An ability makes the kill POSSIBLE, it does not do it for you.
+//
+// Each answers one of the three ways this arena kills you: landed on from
+// above, cornered against the shrinking edge, or dropped off it.
+export const ABILITY = {
+  // Bubu — reach and recovery. Best at getting above someone, and the only
+  // thing in the game that saves you once you are off the edge.
+  hop: {
+    id: "hop", name: "Air Hop", mark: "hop",
+    desc: "One more jump, in mid-air.",
+    colour: "#7fd4ff",
+    cooldownMs: 380,   // only so a double-tap cannot spend it twice
+    // The real limit is one per airtime, not the clock. A second one would
+    // be flight, and flight beats an arena whose whole threat is the floor.
+    perAir: 1,
+    rise: 0.92,        // of a standing jump — a save, not a better jump
+  },
+
+  // Dudu — space. Crosses what the shrinking floor opens up, and the only
+  // answer to being cornered.
+  dash: {
+    id: "dash", name: "Dash", mark: "dash",
+    desc: "A hard burst, the way you are facing.",
+    colour: "#ffb84d",
+    cooldownMs: 2200,
+    speed: 19,         // tiles a second, about twice a run
+    ms: 150,           // held for this long, then ordinary friction takes it
+    // Off the ground it also kills your fall for the moment it lasts, so it
+    // reads as a leap rather than as a shove.
+    hang: 0.25,
+  },
+
+  // Yhon — the kill. He is the slowest thing on the field and this is why
+  // that is survivable: from above, he arrives before you can leave.
+  pound: {
+    id: "pound", name: "Ground Pound", mark: "pound",
+    desc: "Drop like a stone. Lands hard.",
+    colour: "#ff9c3f",
+    cooldownMs: 1600,
+    // Terminal velocity is 26 and this is a shade past it. It was 34, which
+    // is a third faster again — and every tick the two sides spend
+    // disagreeing about a pound costs a third more ground at that speed.
+    speed: 27,         // straight down, a shade past terminal velocity
+    // Landing shoves anyone nearby away and up. It does NOT hurt them — the
+    // kill is still the stomp, and this is what sets the stomp up.
+    blast: 2.6,        // tiles from where he lands
+    knockback: 13,
+    upward: 7,
+    // You cannot steer out of it. Committing is the whole character.
+    lockMs: 90,
+  },
+};
+
 /* ---------------------------------------------------------- the fairy --- */
 //
 // Fairy Yhon Yhon. She does not do anything to the other player and she does

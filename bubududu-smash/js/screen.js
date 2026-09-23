@@ -7,7 +7,8 @@
 import {
   MODES, PLAYERS, ROUNDS_TO_WIN, FEEL, HELPER, BAD_HELPER, SQUAD, DIWATA, COINS, HIT,
   POWERUPS, POWER_ORDER, POWER_SPAWN_MS, POWER_FIRST_MS,
-  SHOT_SPEED, SHOT_LIFE, SHOT_COOLDOWN_MS, SHOT_RADIUS, INPUT_HZ, STACK
+  SHOT_SPEED, SHOT_LIFE, SHOT_COOLDOWN_MS, SHOT_RADIUS, INPUT_HZ, STACK, ABILITY,
+  GRAVITY, JUMP_VELOCITY,
 } from "./config.js";
 import { makeArena, readLevel, solidGrid } from "./levels.js";
 import { rng, seed as seedRng, newSeed, rngState, setState as setRngState } from "./rng.js";
@@ -1613,9 +1614,147 @@ function tickPowers(dt) {
   }
 }
 
+/* ------------------------------------------------------------ abilities --- */
+//
+// The fire button, when you are not holding a power-up.
+//
+// Everything here is REPLAYABLE: it reads only the actor's own fields and the
+// clock, and it writes only the actor's own fields. That is what lets a client
+// fire its ability the instant the thumb moves and still land exactly where
+// the server put it — reconciliation re-runs these the same way it re-runs a
+// jump. Anything that touches the rest of the world (the pound's shove) is
+// fenced off behind `loud`, which only the server passes.
+
+function abilityOf(a) {
+  const def = charById(a.char);
+  return (def && def.ability && ABILITY[def.ability]) || null;
+}
+
+/** Whether the button is theirs to press, or a power-up has taken it. */
+function abilityReady(a) {
+  const ab = abilityOf(a);
+  if (!ab || a.dead) return false;
+  if (a.frozenUntil && G.time < a.frozenUntil) return false;
+  if (G.time * 1000 - (a.abilityAt || -9e9) < ab.cooldownMs) return false;
+  /* Deliberately NOT "are your feet off the ground".
+   *
+   * The server holds a couple of inputs back as jitter slack, so it simulates
+   * your press two ticks after you made it — and two ticks is easily enough
+   * to land in. Gate a move on `grounded` and the two sides answer the same
+   * press differently: you dive, the server says no, and at a pound's speed
+   * that is a tile and a half of disagreement handed to you as a jolt. The
+   * bench put it at exactly that.
+   *
+   * So nothing here reads a state that a hair's difference in position can
+   * flip. Pressing with your feet down is not refused, it just does the
+   * grounded version of the move — which for the pound is a slam on the spot,
+   * and is a better move than the refusal was. */
+  if (ab.id === "hop") return (a.hops || 0) < ab.perAir;
+  if (ab.id === "pound") return !a.pounding;
+  return true;
+}
+
+function tryAbility(a, loud) {
+  const ab = abilityOf(a);
+  if (!ab || !abilityReady(a)) return;
+  a.abilityAt = G.time * 1000;
+
+  if (ab.id === "hop") {
+    a.hops = (a.hops || 0) + 1;
+    a.vy = JUMP_VELOCITY * (a.stats?.jump ?? 1) * (a.jumpMul || 1) * ab.rise;
+    // The buffered-jump grace would otherwise spend itself on the landing
+    // and give a third jump for free.
+    a.buffer = 0;
+    a.coyote = 0;
+    a.jumpHeld = true;
+    if (loud) { sfx.jump(); showNote(a, ab.colour, ab.name, ab.desc, ab.mark); }
+    return;
+  }
+
+  if (ab.id === "dash") {
+    a.dashUntil = G.time + ab.ms / 1000;
+    a.dashFace = a.face;
+    a.vx = a.face * ab.speed;
+    // Unconditional for the same reason: on the ground vy is already nothing,
+    // so clamping it costs nothing and reading `grounded` costs correctness.
+    a.vy = Math.min(a.vy, 0) * ab.hang;
+    if (loud) { sfx.bilis(); renderer.shake = Math.max(renderer.shake || 0, 4); }
+    return;
+  }
+
+  // pound
+  a.pounding = true;
+  a.vy = ab.speed;
+  /* Horizontal momentum is KEPT, not killed.
+   *
+   * Zeroing it made the pound a dead drop, which is both less useful — you
+   * can only ever hit what is directly beneath you — and worse to predict:
+   * if the two sides disagree by a tick about when it fired, the difference
+   * is the whole of a run, nine and a half tiles a second. Keeping it means
+   * a disagreement costs nothing sideways. You still cannot STEER, which is
+   * what makes it a commitment; you just keep what you came in with. */
+  a.lockUntil = G.time + ab.lockMs / 1000;
+  if (loud) sfx.suntok();
+}
+
+/**
+ * Held for as long as the burst lasts, AFTER the step that would have bled it.
+ *
+ * A dash written as a one-off shove is eaten by ground friction inside two
+ * ticks and reads as a stumble. Written as a window, the friction is simply
+ * outvoted for the length of it and then takes over cleanly.
+ */
+function holdAbility(a, dt) {
+  const ab = abilityOf(a);
+  if (a.grounded) a.hops = 0;
+  if (!ab) return;
+  if (ab.id === "dash" && a.dashUntil && G.time < a.dashUntil) {
+    a.vx = (a.dashFace || a.face) * ab.speed;
+    a.vy = Math.min(a.vy, GRAVITY * dt * ab.hang);
+  }
+  if (ab.id === "pound" && a.pounding) {
+    if (a.grounded) { a.pounding = false; a.lockUntil = 0; poundLanded(a); }
+    else a.vy = Math.max(a.vy, ab.speed);
+  }
+}
+
+/** The shove, which only the server runs — it moves somebody else. */
+function poundLanded(a) {
+  const ab = ABILITY.pound;
+  sfx.land();
+  renderer.shake = Math.max(renderer.shake || 0, 14);
+  renderer.punch = Math.max(renderer.punch || 0, 0.05);
+  G.pops.push({ x: a.x, y: a.y, at: G.time, colour: ab.colour, glyph: ab.mark });
+  for (const o of G.actors) {
+    if (o === a || o.dead) continue;
+    const d = Math.hypot(o.x - a.x, o.y - a.y);
+    if (d > ab.blast) continue;
+    // Away and up, hardest at the centre. It does not hurt them — the kill is
+    // still the stomp, and this is what makes the stomp possible.
+    const k = 1 - d / ab.blast;
+    const dir = Math.sign(o.x - a.x) || (a.face > 0 ? 1 : -1);
+    o.vx = dir * ab.knockback * k;
+    o.vy = -ab.upward * k;
+    /* Marked as a LAUNCH, like every other authoritative shove.
+     *
+     * It is the one thing here the other player cannot have predicted — the
+     * pound landed on the server and they will not hear about it for half a
+     * round trip. launchFor is how the rest of the game says "your own input
+     * is not what moved you"; without it their controls fight the shove, and
+     * nothing downstream can tell this apart from ordinary running. */
+    o.launchFor = Math.max(o.launchFor || 0, 0.18);
+  }
+}
+
 function tryShoot(a) {
   if (hasPower(a, "suntok")) return tryPunch(a);
-  if (!hasPower(a, "baril") || a.power.ammo <= 0) return;
+  /* No power-up: the button is the character's own move.
+   *
+   * A power-up TAKES the button while you hold one, which is a real cost and
+   * is meant to be — picking up the gun trades your mobility for six shots,
+   * and both of those are brief. */
+  if (!hasPower(a, "baril")) return tryAbility(a, true);
+  if (a.power.ammo <= 0) return;
   if (G.time * 1000 - a.shotAt < SHOT_COOLDOWN_MS) return;
   a.shotAt = G.time * 1000;
   a.power.ammo--;
@@ -2457,16 +2596,20 @@ function simulate(dt) {
     const pad = pads[a.id];
     const frozen = a.frozenUntil && G.time < a.frozenUntil;
     const flipped = a.reversedUntil && G.time < a.reversedUntil;
+    // Committed to a pound: you cannot steer out of it, which is the whole
+    // of what makes it a decision rather than a free fall.
+    const locked = a.lockUntil && G.time < a.lockUntil;
     const input = {
-      left: frozen ? false : flipped ? pad.right : pad.left,
-      right: frozen ? false : flipped ? pad.left : pad.right,
-      jumpDown: frozen ? false : pendingJump[a.id],
+      left: frozen || locked ? false : flipped ? pad.right : pad.left,
+      right: frozen || locked ? false : flipped ? pad.left : pad.right,
+      jumpDown: frozen || locked ? false : pendingJump[a.id],
       jumpHeld: frozen ? false : pad.jumpHeld,
-      dropDown: frozen ? false : pad.drop,
+      dropDown: frozen || locked ? false : pad.drop,
     };
     // Frozen still falls — being iced mid-air should not park you in the sky.
     if (frozen) a.vx *= 0.82;
     stepActor(a, input, G.grid, dt, G.actors, opts);
+    holdAbility(a, dt);
     if (pendingShot[a.id]) tryShoot(a);
   }
   pendingJump.p1 = false;

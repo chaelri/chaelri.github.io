@@ -22,6 +22,7 @@ import { WebSocketTransport } from "@colyseus/ws-transport";
 import { Room } from "@colyseus/core";
 
 import * as sim from "../js/sim.js";
+import { CHARACTERS } from "../js/characters.js";
 import { snapshot } from "../js/netstate.js";
 
 const TICK_HZ = 60;        // how often the rules advance
@@ -140,6 +141,20 @@ class SmashRoom extends Room {
         this.queued[role].push(p);
       }
     });
+    /* Who each player is holding.
+     *
+     * Not on the input packet: the character changes about twice a night and
+     * the packet goes forty times a second. It lands on the pad, and the pad
+     * is read by startRound — so a change made mid-round takes effect at the
+     * next one rather than swapping the body out from under a jump.
+     */
+    this.onMessage("char", (client, id) => {
+      const role = this.roles.get(client.sessionId);
+      if (!role || typeof id !== "string") return;
+      if (!CHARACTERS.some((c) => c.id === id)) return;
+      sim.state.pads[role].char = id;
+      this.broadcast("cast", { role, char: id });
+    });
     this.onMessage("rematch", () => sim.rematch());
     // Echoed straight back, so a client can measure its own round trip
     // rather than guess at it.
@@ -179,10 +194,13 @@ class SmashRoom extends Room {
     this.queued[role] = [];
     this.headTick[role] = 0;
     sim.state.pads[role].connected = true;
+    if (typeof options.char === "string" && CHARACTERS.some((c) => c.id === options.char)) {
+      sim.state.pads[role].char = options.char;
+    }
     // Sent anyway, for anything that wants confirming, but nothing depends
     // on it arriving.
     client.send("you", { role });
-    console.log(`[smash] ${client.sessionId} joined as ${role}`);
+    console.log(`[smash] ${client.sessionId} joined as ${role} (${sim.state.pads[role].char})`);
 
     // Both in: play. Nobody should have to press anything.
     if (this.roles.size === 2 && sim.state.phase === "lobby") sim.startMatch();
@@ -202,6 +220,9 @@ class SmashRoom extends Room {
   feed(role) {
     const q = this.queued[role];
     if (!q.length) return;
+    // A tick the rules are not advancing is a tick with no input to spend.
+    // See `frozen` in js/sim.js for what taking them anyway cost.
+    if (sim.state.frozen) return;
 
     /* Nothing is being simulated between rounds — so BANK nothing either.
      *

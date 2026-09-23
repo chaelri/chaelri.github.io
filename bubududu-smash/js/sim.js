@@ -17,7 +17,8 @@
 import {
   MODES, PLAYERS, ROUNDS_TO_WIN, FEEL, HELPER, BAD_HELPER, SQUAD, DIWATA, COINS, HIT,
   POWERUPS, POWER_ORDER, POWER_SPAWN_MS, POWER_FIRST_MS,
-  SHOT_SPEED, SHOT_LIFE, SHOT_COOLDOWN_MS, SHOT_RADIUS, STACK,
+  SHOT_SPEED, SHOT_LIFE, SHOT_COOLDOWN_MS, SHOT_RADIUS, STACK, ABILITY,
+  GRAVITY, JUMP_VELOCITY,
 } from "./config.js";
 import { makeArena, readLevel, solidGrid } from "./levels.js";
 import { makeActor, stepActor, kill, reviveAt, poseOf, tileAt } from "./physics.js";
@@ -111,6 +112,22 @@ export const state = {
    * inputs it has sent are already baked into the picture it is looking
    * at, and re-run only the ones that are not. */
   get acks() { return { p1: lastSeq.p1, p2: lastSeq.p2 }; },
+
+  /* Whether the rules are actually advancing, or the world is held still.
+   *
+   * A landed hit stops the clock for a tenth of a second so the blow reads as
+   * weight. During that the server must ALSO stop taking inputs — it consumes
+   * exactly one per simulated tick, and a tick it does not simulate is a tick
+   * it has no business consuming one for. It used to take them anyway, and
+   * then tell the client it had seen them: the client trimmed those inputs
+   * out of its history and stopped replaying them, having already predicted
+   * them, while the server never simulated them at all. A whole hit-stop's
+   * worth of movement, silently discarded, every time anybody got hit — and
+   * the bench put it at one to two tiles. It only became obvious once the
+   * abilities arrived, because an ability injects velocity and velocity
+   * integrates.
+   */
+  get frozen() { return !!(G && G.freeze > 0); },
   /* A fresh connection counts its ticks from one again.
    *
    * The room outlives a phone: reload the page, or come back after the train
@@ -1392,9 +1409,170 @@ function tickPowers(dt) {
   }
 }
 
+/* ------------------------------------------------------------ abilities --- */
+//
+// The fire button, when you are not holding a power-up.
+//
+// Everything here is REPLAYABLE: it reads only the actor's own fields and the
+// clock, and it writes only the actor's own fields. That is what lets a client
+// fire its ability the instant the thumb moves and still land exactly where
+// the server put it — reconciliation re-runs these the same way it re-runs a
+// jump. Anything that touches the rest of the world (the pound's shove) is
+// fenced off behind `loud`, which only the server passes.
+
+function abilityOf(a) {
+  const def = charById(a.char);
+  return (def && def.ability && ABILITY[def.ability]) || null;
+}
+
+/** Whether the button is theirs to press, or a power-up has taken it. */
+function abilityReady(a) {
+  const ab = abilityOf(a);
+  if (!ab || a.dead) return false;
+  if (a.frozenUntil && G.time < a.frozenUntil) return false;
+  if (G.time * 1000 - (a.abilityAt || -9e9) < ab.cooldownMs) return false;
+  /* Deliberately NOT "are your feet off the ground".
+   *
+   * The server holds a couple of inputs back as jitter slack, so it simulates
+   * your press two ticks after you made it — and two ticks is easily enough
+   * to land in. Gate a move on `grounded` and the two sides answer the same
+   * press differently: you dive, the server says no, and at a pound's speed
+   * that is a tile and a half of disagreement handed to you as a jolt. The
+   * bench put it at exactly that.
+   *
+   * So nothing here reads a state that a hair's difference in position can
+   * flip. Pressing with your feet down is not refused, it just does the
+   * grounded version of the move — which for the pound is a slam on the spot,
+   * and is a better move than the refusal was. */
+  if (ab.id === "hop") return (a.hops || 0) < ab.perAir;
+  if (ab.id === "pound") return !a.pounding;
+  return true;
+}
+
+function tryAbility(a, loud) {
+  const ab = abilityOf(a);
+  if (!ab || !abilityReady(a)) return;
+  a.abilityAt = G.time * 1000;
+
+  if (ab.id === "hop") {
+    a.hops = (a.hops || 0) + 1;
+    a.vy = JUMP_VELOCITY * (a.stats?.jump ?? 1) * (a.jumpMul || 1) * ab.rise;
+    // The buffered-jump grace would otherwise spend itself on the landing
+    // and give a third jump for free.
+    a.buffer = 0;
+    a.coyote = 0;
+    a.jumpHeld = true;
+    if (loud) { fx.sfx("jump"); fx.note(a, ab.colour, ab.name, ab.desc, ab.mark); }
+    return;
+  }
+
+  if (ab.id === "dash") {
+    a.dashUntil = G.time + ab.ms / 1000;
+    a.dashFace = a.face;
+    a.vx = a.face * ab.speed;
+    // Unconditional for the same reason: on the ground vy is already nothing,
+    // so clamping it costs nothing and reading `grounded` costs correctness.
+    a.vy = Math.min(a.vy, 0) * ab.hang;
+    if (loud) { fx.sfx("bilis"); fx.shake(4); }
+    return;
+  }
+
+  // pound
+  a.pounding = true;
+  a.vy = ab.speed;
+  /* Horizontal momentum is KEPT, not killed.
+   *
+   * Zeroing it made the pound a dead drop, which is both less useful — you
+   * can only ever hit what is directly beneath you — and worse to predict:
+   * if the two sides disagree by a tick about when it fired, the difference
+   * is the whole of a run, nine and a half tiles a second. Keeping it means
+   * a disagreement costs nothing sideways. You still cannot STEER, which is
+   * what makes it a commitment; you just keep what you came in with. */
+  a.lockUntil = G.time + ab.lockMs / 1000;
+  if (loud) fx.sfx("suntok");
+}
+
+/**
+ * Held for as long as the burst lasts, AFTER the step that would have bled it.
+ *
+ * A dash written as a one-off shove is eaten by ground friction inside two
+ * ticks and reads as a stumble. Written as a window, the friction is simply
+ * outvoted for the length of it and then takes over cleanly.
+ */
+function holdAbility(a, dt) {
+  const ab = abilityOf(a);
+  if (a.grounded) a.hops = 0;
+  if (!ab) return;
+  if (ab.id === "dash" && a.dashUntil && G.time < a.dashUntil) {
+    a.vx = (a.dashFace || a.face) * ab.speed;
+    a.vy = Math.min(a.vy, GRAVITY * dt * ab.hang);
+  }
+  if (ab.id === "pound" && a.pounding) {
+    if (a.grounded) { a.pounding = false; a.lockUntil = 0; poundLanded(a); }
+    else a.vy = Math.max(a.vy, ab.speed);
+  }
+}
+
+/**
+ * What the fire button should be showing, for whoever is holding this phone.
+ *
+ * Read-only, and it answers both questions the button needs: how much of the
+ * cooldown is left to draw, and whether the move is actually available —
+ * which is not the same thing. An Air Hop off cooldown is still unusable with
+ * your feet on the ground, and a button that looked ready and did nothing
+ * would be worse than one that looked spent.
+ */
+export function abilityState(id) {
+  const a = G && G.actors.find((q) => q.id === id);
+  if (!a) return null;
+  const ab = abilityOf(a);
+  if (!ab) return null;
+  const since = G.time * 1000 - (a.abilityAt || -9e9);
+  return {
+    ability: ab,
+    cd: Math.max(0, Math.min(1, 1 - since / ab.cooldownMs)),
+    ready: abilityReady(a),
+  };
+}
+
+/** The shove, which only the server runs — it moves somebody else. */
+function poundLanded(a) {
+  if (!authority) return;
+  const ab = ABILITY.pound;
+  fx.sfx("land");
+  fx.shake(14);
+  fx.punch(0.05);
+  G.pops.push({ x: a.x, y: a.y, at: G.time, colour: ab.colour, glyph: ab.mark });
+  for (const o of G.actors) {
+    if (o === a || o.dead) continue;
+    const d = Math.hypot(o.x - a.x, o.y - a.y);
+    if (d > ab.blast) continue;
+    // Away and up, hardest at the centre. It does not hurt them — the kill is
+    // still the stomp, and this is what makes the stomp possible.
+    const k = 1 - d / ab.blast;
+    const dir = Math.sign(o.x - a.x) || (a.face > 0 ? 1 : -1);
+    o.vx = dir * ab.knockback * k;
+    o.vy = -ab.upward * k;
+    /* Marked as a LAUNCH, like every other authoritative shove.
+     *
+     * It is the one thing here the other player cannot have predicted — the
+     * pound landed on the server and they will not hear about it for half a
+     * round trip. launchFor is how the rest of the game says "your own input
+     * is not what moved you"; without it their controls fight the shove, and
+     * nothing downstream can tell this apart from ordinary running. */
+    o.launchFor = Math.max(o.launchFor || 0, 0.18);
+  }
+}
+
 function tryShoot(a) {
   if (hasPower(a, "suntok")) return tryPunch(a);
-  if (!hasPower(a, "baril") || a.power.ammo <= 0) return;
+  /* No power-up: the button is the character's own move.
+   *
+   * A power-up TAKES the button while you hold one, which is a real cost and
+   * is meant to be — picking up the gun trades your mobility for six shots,
+   * and both of those are brief. */
+  if (!hasPower(a, "baril")) return tryAbility(a, true);
+  if (a.power.ammo <= 0) return;
   if (G.time * 1000 - a.shotAt < SHOT_COOLDOWN_MS) return;
   a.shotAt = G.time * 1000;
   a.power.ammo--;
@@ -2018,16 +2196,20 @@ function simulate(dt) {
     const pad = pads[a.id];
     const frozen = a.frozenUntil && G.time < a.frozenUntil;
     const flipped = a.reversedUntil && G.time < a.reversedUntil;
+    // Committed to a pound: you cannot steer out of it, which is the whole
+    // of what makes it a decision rather than a free fall.
+    const locked = a.lockUntil && G.time < a.lockUntil;
     const input = {
-      left: frozen ? false : flipped ? pad.right : pad.left,
-      right: frozen ? false : flipped ? pad.left : pad.right,
-      jumpDown: frozen ? false : pendingJump[a.id],
+      left: frozen || locked ? false : flipped ? pad.right : pad.left,
+      right: frozen || locked ? false : flipped ? pad.left : pad.right,
+      jumpDown: frozen || locked ? false : pendingJump[a.id],
       jumpHeld: frozen ? false : pad.jumpHeld,
-      dropDown: frozen ? false : pad.drop,
+      dropDown: frozen || locked ? false : pad.drop,
     };
     // Frozen still falls — being iced mid-air should not park you in the sky.
     if (frozen) a.vx *= 0.82;
     stepActor(a, input, G.grid, dt, G.actors, opts);
+    holdAbility(a, dt);
     if (pendingShot[a.id]) tryShoot(a);
   }
   pendingJump.p1 = false;
@@ -2058,7 +2240,31 @@ function simulate(dt) {
  * @param hostPhase the server's phase; taken outright, always
  * @param opts   { history, ack, now } — your unacknowledged thumbs
  */
+/* How a correction is GIVEN BACK to your eyes.
+ *
+ * The simulation takes the server's answer whole and re-runs your unacked
+ * inputs — that part is hard, exact, and must stay that way. But the result
+ * can still differ from where your body was being drawn a frame ago, because
+ * the server knows things you cannot: a punch that landed, a Dudu that shoved
+ * you, a power-up the other player picked up. Snapped straight onto the
+ * screen that reads as a jolt, and an ability makes it worse, because an
+ * ability injects velocity and velocity integrates.
+ *
+ * So the correction goes into the simulation immediately and into the PICTURE
+ * over the next tenth of a second. Nothing about the rules changes: this is
+ * an offset the renderer adds and the physics never sees.
+ *
+ * The offset is held to a length rather than dropped when it gets big: a
+ * dropped offset is a jump of whatever it had reached, which is the thing
+ * this exists to prevent. A death or a respawn clears it, because the body
+ * has genuinely gone somewhere else and nobody is watching it arrive.
+ */
+const SMOOTH_MAX = 1.1;       // tiles the picture may ever be behind the rules
+const SMOOTH_HALFLIFE = 0.07; // seconds to give back half of what is left
+
 export function applyServer(view, hostPhase, opts = {}) {
+  const me = G && localRole ? G.actors.find((q) => q.id === localRole) : null;
+  const wasAt = me ? { x: me.x, y: me.y, dead: !!me.dead } : { x: 0, y: 0, dead: true };
   if (!G || !view) return;
 
   if (view.score) { score.p1 = view.score.p1; score.p2 = view.score.p2; }
@@ -2087,6 +2293,18 @@ export function applyServer(view, hostPhase, opts = {}) {
   for (const a of G.actors) {
     const t = view.actors.find((o) => o.id === a.id);
     if (!t) continue;
+    /* WHO they are holding, taken from the server like everything else.
+     *
+     * It was not, and it cannot be worked out locally: a client knows its own
+     * pick and has no idea what the other phone chose. So the other player
+     * was drawn as whatever this client's copy of the pad happened to default
+     * to — Karla picks Yhon Yhon and Charlie's phone draws a panda — and,
+     * worse, carried that character's speed and jump into the prediction.
+     */
+    if (t.char && a.char !== t.char) {
+      a.char = t.char;
+      a.stats = { ...(charById(t.char).stats || {}) };
+    }
     a.x = t.x; a.y = t.y; a.vx = t.vx; a.vy = t.vy;
     a.face = t.face; a.walk = t.walk; a.squash = t.squash;
     a.grounded = t.grounded; a.t = t.t;
@@ -2116,6 +2334,14 @@ export function applyServer(view, hostPhase, opts = {}) {
     a.glowUntil = t.glowUntil;
     a.glowFor = t.glowFor;
     a.glowColour = t.glowColour;
+    // The ability's private state, taken outright like the jump's — see
+    // packActor. Whatever is still unacked is re-run by replayLocal below.
+    a.abilityAt = t.abilityAt;
+    a.hops = t.hops;
+    a.dashUntil = t.dashUntil;
+    a.dashFace = t.dashFace;
+    a.pounding = t.pounding;
+    a.lockUntil = t.lockUntil;
   }
 
   // Everything that is not a player is the server's outright and always was —
@@ -2147,6 +2373,40 @@ export function applyServer(view, hostPhase, opts = {}) {
   }
 
   if (opts.history) replayLocal(opts.history, opts.ack || 0);
+
+  // ...and hand the difference to the renderer rather than to the eye.
+  if (me && localRole) {
+    if (me.dead || wasAt.dead) {
+      // A death and a respawn put the body somewhere else on purpose. There
+      // is nothing to give back and nobody is looking at it.
+      me.ox = 0; me.oy = 0;
+    } else {
+      me.ox = (me.ox || 0) + (wasAt.x - me.x);
+      me.oy = (me.oy || 0) + (wasAt.y - me.y);
+      /* CLAMPED, never zeroed.
+       *
+       * The first version dropped the offset outright when a correction came
+       * in bigger than the cap — and dropping it is itself a jump, of exactly
+       * the size it had got to. The bench caught that: the worst thing drawn
+       * in a run got WORSE with the smoothing on than without it. Holding it
+       * to a length and letting it decay cannot do that. */
+      const m = Math.hypot(me.ox, me.oy);
+      if (m > SMOOTH_MAX) { me.ox *= SMOOTH_MAX / m; me.oy *= SMOOTH_MAX / m; }
+    }
+  }
+}
+
+/** Give back whatever is left of the last correction, a little each frame. */
+function easeCorrection(dt) {
+  if (!G || !localRole) return;
+  const a = G.actors.find((q) => q.id === localRole);
+  if (!a || (!a.ox && !a.oy)) return;
+  const k = Math.pow(0.5, dt / SMOOTH_HALFLIFE);
+  a.ox *= k;
+  a.oy *= k;
+  // Under a hundredth of a tile is under a pixel. Stop, or it never ends.
+  if (Math.abs(a.ox) < 0.01) a.ox = 0;
+  if (Math.abs(a.oy) < 0.01) a.oy = 0;
 }
 
 /**
@@ -2166,13 +2426,39 @@ export function replayLocal(history, ack) {
   const a = G.actors.find((q) => q.id === localRole);
   if (!a || a.dead) return;
 
+  /* The CLOCK has to walk forward too, and it did not.
+   *
+   * Everything replayed here was stepped against `G.time`, which applyServer
+   * has just set to the server's time at the snapshot — one instant, held
+   * still for every input re-run against it. For a jump that does not matter:
+   * a jump is an impulse and reads no deadline. For an ability it is fatal.
+   * Dash holds your speed until `dashUntil`, the pound locks your steering
+   * until `lockUntil`, and every one of them checks a cooldown — so with a
+   * frozen clock the whole replay either dashed or did not, as one, and the
+   * bench put the error at one and a half tiles.
+   *
+   * Each replayed input is one tick after the last, so the clock advances by
+   * one tick per input and is put back afterwards: the world's clock belongs
+   * to the server, and only this body is being re-run.
+   */
+  const was = G.time;
   for (let i = 0; i < history.length; i++) {
     const h = history[i];
     if (h.n <= ack) continue;
     // The same two 1/120 pieces one live tick is made of.
     stepLocal(a, h, TICK / 2, true);
     stepLocal(a, h, TICK / 2, false);
+    /* ...and ONCE, after both halves, because that is what step() does.
+     *
+     * Advancing it between the halves looks more accurate and is not: a live
+     * tick runs both of its 1/120 pieces against the clock as it stood at the
+     * START of the tick and only then moves it on. Splitting it here meant
+     * the second half of every replayed tick read a deadline the live one
+     * never saw, which for Dudu's Dash — held until a deadline — put the
+     * replay a sixtieth of a second out of step on every single tick. */
+    G.time += TICK;
   }
+  G.time = was;
 }
 
 /**
@@ -2188,17 +2474,29 @@ export function replayLocal(history, ack) {
 function stepLocal(a, h, dt, edge) {
   const frozen = a.frozenUntil && G.time < a.frozenUntil;
   const flipped = a.reversedUntil && G.time < a.reversedUntil;
+  const locked = a.lockUntil && G.time < a.lockUntil;
   const input = {
-    left: frozen ? false : flipped ? !!h.r : !!h.l,
-    right: frozen ? false : flipped ? !!h.l : !!h.r,
+    left: frozen || locked ? false : flipped ? !!h.r : !!h.l,
+    right: frozen || locked ? false : flipped ? !!h.l : !!h.r,
     // The press is an EDGE, so it belongs to the first half of the tick that
     // carried it and to no other — applied twice it would count as two.
-    jumpDown: frozen ? false : (edge && !!h.jd),
+    jumpDown: frozen || locked ? false : (edge && !!h.jd),
     jumpHeld: frozen ? false : !!h.h,
-    dropDown: frozen ? false : !!h.d,
+    dropDown: frozen || locked ? false : !!h.d,
   };
   if (frozen) a.vx *= 0.82;
   stepActor(a, input, G.grid, dt, G.actors, {});
+  holdAbility(a, dt);
+  /* ...and the fire button, silently.
+   *
+   * An ability MOVES you, so leaving it out of the replay would mean every
+   * correction landed on a body that had never air-hopped — the server would
+   * say you were four tiles up and the replay would put you back on the
+   * floor. The shot and the punch are left out on purpose: they spawn things
+   * and hurt people, and the server has already done both. `loud` is what
+   * separates the two.
+   */
+  if (edge && h.sd && !hasPower(a, "baril") && !hasPower(a, "suntok")) tryAbility(a, false);
 }
 
 /* ----------------------------------------------------------------- tick --- */
@@ -2287,6 +2585,7 @@ export function step(dt) {
       tickRules(sim);
     }
     G.time += sim;
+    easeCorrection(dt);
     if (G.lostHearts.length) {
       for (const h of G.lostHearts) {
         h.vy += 26 * dt;

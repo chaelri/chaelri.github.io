@@ -151,6 +151,37 @@ html, body {
   color: #fff1ee;
 }
 #pad #shoot.armed.melee.down { background: rgba(255,107,87,0.45) !important; }
+
+/* And with no power-up at all it is your character's own move, which is most
+   of a round. It used to be a greyed-out button that did nothing for four
+   rounds out of five. */
+#pad #shoot.ability {
+  border-color: color-mix(in srgb, var(--ac, #7fd4ff) 34%, transparent);
+  background: color-mix(in srgb, var(--ac, #7fd4ff) 10%, transparent);
+  color: color-mix(in srgb, var(--ac, #7fd4ff) 45%, transparent);
+}
+#pad #shoot.ability.ready {
+  border-color: color-mix(in srgb, var(--ac, #7fd4ff) 82%, transparent);
+  background: color-mix(in srgb, var(--ac, #7fd4ff) 26%, transparent);
+  color: #fff;
+}
+#pad #shoot.ability.ready.down {
+  background: color-mix(in srgb, var(--ac, #7fd4ff) 48%, transparent) !important;
+}
+/* The cooldown drains down the button, the way a chip's bar drains across.
+   Behind the symbol, never over it. */
+#pad #shoot.ability::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit;
+  background: linear-gradient(to top,
+    color-mix(in srgb, var(--ac, #7fd4ff) 30%, transparent) var(--cd, 0%),
+    transparent var(--cd, 0%));
+  pointer-events: none;
+}
+#pad #shoot { position: relative; overflow: hidden; }
+/* The symbol, and the shots left beside it. */
+#pad #shoot .mk { width: 46%; height: 46%; }
+#pad #shoot i { font-style: normal; font-weight: 900; margin-left: 2px; }
+#pad #shoot { display: grid; grid-auto-flow: column; place-items: center; gap: 2px; }
 #pad button.down { transform: scale(0.94); background: rgba(232,240,251,0.2) !important; }
 #pad #jump.down { background: rgba(255,184,77,0.4) !important; }
 

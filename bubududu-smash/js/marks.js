@@ -147,6 +147,20 @@ export const MARKS = {
   // Three little Bubus.
   squad: circle(18, 50, 13) + circle(50, 50, 13) + circle(82, 50, 13),
 
+  /* --- the three abilities, on the fire button --------------------------- */
+
+  // Air Hop — a chevron with a second, smaller one under it: one more jump.
+  hop: poly([[50, 4], [92, 44], [74, 44], [50, 24], [26, 44], [8, 44]]) +
+       poly([[50, 52], [92, 92], [74, 92], [50, 72], [26, 92], [8, 92]]),
+
+  // Dash — three speed lines behind an arrowhead.
+  dash: poly([[46, 14], [96, 50], [46, 86], [46, 62], [66, 50], [46, 38]]) +
+        bar(6, 26, 34, 26, 11) + bar(2, 50, 34, 50, 11) + bar(6, 74, 34, 74, 11),
+
+  // Ground Pound — a heavy arrow down onto a floor.
+  pound: poly([[34, 6], [66, 6], [66, 40], [88, 40], [50, 78], [12, 40], [34, 40]]) +
+         bar(10, 92, 90, 92, 13),
+
   // Dudu himself — a head and two ears is the whole of him at this size.
   dudu: circle(23, 26, 15) + circle(77, 26, 15) + circle(50, 56, 32) +
         circle(50, 74, 15) + circle(39, 49, 5, true) + circle(61, 49, 5, true) +

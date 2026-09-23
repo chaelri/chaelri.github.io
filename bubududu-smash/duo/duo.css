@@ -149,6 +149,49 @@ body.duo .toast { gap: 6px; }
 #duowait .who button:active { transform: translateY(2px); }
 #duowait .who button[data-who="p2"] { color: #a63f65; }
 
+/* Pick who you are.
+ *
+ * On the waiting screen, and again behind a finished match, which are the two
+ * moments a choice is actually available — the match starts itself the
+ * instant both phones are in, and it is meant to. A change mid-match lands on
+ * the next round. */
+.cast {
+  display: flex; gap: clamp(6px, 2.4vw, 14px); justify-content: center; flex-wrap: wrap;
+}
+.cast button {
+  display: grid; justify-items: center; gap: 1px;
+  padding: clamp(6px, 1.8vw, 12px) clamp(8px, 3vw, 18px);
+  border-radius: 18px; border: 3px solid rgba(33,49,63,0.1);
+  background: rgba(255,255,255,0.72);
+  font-family: "Nunito", system-ui, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 140ms cubic-bezier(0.2,1.4,0.4,1), border-color 160ms, background 160ms;
+}
+.cast button canvas { width: clamp(42px, 13vw, 64px); height: auto; display: block; }
+.cast button b { font-size: clamp(12px, 3.4vw, 15px); font-weight: 900; color: #21313f; }
+.cast button span {
+  display: flex; align-items: center; gap: 3px;
+  font-size: clamp(9px, 2.6vw, 11.5px); font-weight: 800;
+  letter-spacing: 0.02em; color: var(--ac, #1b6f9e);
+}
+.cast button .mk { width: 1.1em; height: 1.1em; }
+.cast button.on {
+  border-color: var(--ac, #4cc2ff);
+  background: #fff;
+  transform: translateY(-3px) scale(1.04);
+  box-shadow: 0 10px 22px -12px var(--ac, #4cc2ff);
+}
+.cast button:active { transform: scale(0.96); }
+
+/* ...and behind a finished match, where the rematch button is. */
+#cast { display: none; }
+#duowait:not(.gone) #cast { display: flex; }
+body.duo.final #cast {
+  display: flex; position: fixed; z-index: 71;
+  left: 50%; transform: translateX(-50%);
+  top: calc(50% + clamp(150px, 24vh, 240px));
+}
+
 #duowait .hint, #duowait .status {
   margin: 0; font-family: "Nunito", system-ui, sans-serif;
   color: rgba(33,49,63,0.6); font-size: clamp(11px, 3.2vw, 14px);
@@ -229,6 +272,37 @@ body.duo.result #scrim { background: rgba(8, 20, 34, 0.68); }
 #pad.duo #jump.down { background: rgba(255,184,77,0.6); }
 #pad.duo #shoot.armed { background: rgba(99,217,138,0.45); border-color: rgba(99,217,138,0.85); }
 #pad.duo #shoot.armed.melee { background: rgba(255,107,87,0.45); border-color: rgba(255,107,87,0.85); }
+
+/* ...and with no power-up it is the character's own move, in that
+   character's colour. These repeat what phone.css already says because this
+   page does NOT load phone.css — it links screen.css and this file, and
+   `#pad.duo #shoot` out-specifies `#pad #shoot.ability` anyway, so the
+   button stayed gun-green while holding a Dash. */
+#pad.duo #shoot.ability {
+  border-color: color-mix(in srgb, var(--ac, #7fd4ff) 34%, transparent);
+  background: color-mix(in srgb, var(--ac, #7fd4ff) 10%, transparent);
+  color: color-mix(in srgb, var(--ac, #7fd4ff) 45%, transparent);
+}
+#pad.duo #shoot.ability.ready {
+  border-color: color-mix(in srgb, var(--ac, #7fd4ff) 82%, transparent);
+  background: color-mix(in srgb, var(--ac, #7fd4ff) 26%, transparent);
+  color: #fff;
+}
+#pad.duo #shoot.ability.ready.down {
+  background: color-mix(in srgb, var(--ac, #7fd4ff) 48%, transparent) !important;
+}
+/* The cooldown drains up the button, behind the symbol and never over it. */
+#pad.duo #shoot { position: relative; overflow: hidden; display: grid;
+  grid-auto-flow: column; place-items: center; gap: 2px; }
+#pad.duo #shoot.ability::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit;
+  background: linear-gradient(to top,
+    color-mix(in srgb, var(--ac, #7fd4ff) 30%, transparent) var(--cd, 0%),
+    transparent var(--cd, 0%));
+  pointer-events: none;
+}
+#pad.duo #shoot .mk { width: 46%; height: 46%; }
+#pad.duo #shoot i { font-style: normal; font-weight: 900; margin-left: 2px; }
 
 /* The status pill is only worth screen space when something is WRONG.
    Sitting there saying DIRECT for a whole match is just something in front of

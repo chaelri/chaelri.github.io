@@ -55,6 +55,42 @@ server.state.pads.p1.connected = true;
 server.state.pads.p2.connected = true;
 client.state.pads.p1.connected = true;
 client.state.pads.p2.connected = true;
+
+/* Which character, and therefore which ability, this run is measuring.
+ *
+ * It matters which: they move you differently and they are replayed
+ * differently. `node server/nettest.mjs 20 60 0 dudu` runs the Dash.
+ */
+/* How many times each side actually used the ability.
+ *
+ * Counted by watching the one field a use writes — but only around the LIVE
+ * step. Reconciliation re-runs the same press on every snapshot until it is
+ * acked, so counting everywhere reported the client firing two hundred and
+ * fifty times for seventy presses and said nothing useful about either side.
+ */
+const fired = { client: 0, server: 0 };
+const lastFire = { client: 0, server: 0 };
+const abilityAtOf = (side) => {
+  const G = side.state.G;
+  const a = G && G.actors.find((q) => q.id === ROLE);
+  return a ? a.abilityAt || 0 : 0;
+};
+function countFires(k, side) {
+  const at = abilityAtOf(side);
+  if (at && at !== lastFire[k]) fired[k]++;
+  lastFire[k] = at;
+}
+/** After a correction, adopt the server's answer without counting it. */
+const syncFire = (k, side) => { lastFire[k] = abilityAtOf(side); };
+const CHAR = process.argv[5] || "bubu";
+// How often the fire button is pressed, per tick. 0 takes the abilities
+// out of the run entirely, which is how you tell an ability problem from
+// everything else.
+const FIRE = process.argv[6] === undefined ? 0.03 : Number(process.argv[6]);
+for (const side of [server, client]) {
+  side.state.pads.p1.char = CHAR;
+  side.state.pads.p2.char = CHAR === "bubu" ? "yhon" : "bubu";
+}
 server.startMatch();
 
 /* ------------------------------------------------------------- the link --- */
@@ -73,7 +109,7 @@ const drain = (q, fn) => {
 
 /* ---------------------------------------------------------- the thumbs ---- */
 
-let seq = 0, sawJump = 0, jumps = 0;
+let seq = 0, sawJump = 0, jumps = 0, sawShot = 0, shots = 0;
 const history = [];
 let heldL = false, heldR = false, heldJ = false;
 /** One tick of thumbs: remembered, predicted. Sending is separate. */
@@ -85,8 +121,19 @@ function thumbs() {
   if (rand() < 0.02) { heldL = !heldL; heldR = false; }
   if (rand() < 0.02) { jumps++; }
   if (rand() < 0.05) heldJ = rand() < 0.5;
+  /* ...and the fire button, which with no power-up in hand is the character's
+   * own move — and every one of them MOVES you.
+   *
+   * This used to send `s: 0` for the whole run, so the entire ability path
+   * went through the replay untested. That is precisely the shape of the
+   * worst bug this bench has ever found: the jump counter was absent from
+   * the wire, the server saw no jumps at all, and playing the game did not
+   * reveal it. An air hop the replay does not re-run is four tiles of
+   * disagreement on every correction. */
+  if (rand() < FIRE) shots++;
   const jd = jumps !== sawJump; sawJump = jumps;
-  const h = { n: ++seq, l: heldL, r: heldR, h: heldJ, d: false, j: jumps, s: 0, jd };
+  const sd = shots !== sawShot; sawShot = shots;
+  const h = { n: ++seq, l: heldL, r: heldR, h: heldJ, d: false, j: jumps, s: shots, jd, sd };
   history.push(h);
   while (history.length > HISTORY_MAX) history.shift();
   client.applyPacket(ROLE, h);
@@ -95,12 +142,13 @@ function thumbs() {
 /* The other player, driven into the server's queue the same way — the client
    never sees these buttons, which is the point: it only ever sees where he
    ENDED UP. */
-let oL = false, oR = false, oJumps = 0, oSeq = 0;
+let oL = false, oR = false, oJumps = 0, oSeq = 0, oShots = 0;
 function theirThumbs() {
   if (rand() < 0.02) { oR = !oR; oL = false; }
   if (rand() < 0.02) { oL = !oL; oR = false; }
   if (rand() < 0.02) oJumps++;
-  queued[OTHER].push({ n: ++oSeq, l: oL, r: oR, h: rand() < 0.5, d: false, j: oJumps, s: 0 });
+  if (rand() < FIRE) oShots++;
+  queued[OTHER].push({ n: ++oSeq, l: oL, r: oR, h: rand() < 0.5, d: false, j: oJumps, s: oShots });
 }
 
 /* The server's input queues, and the one-per-tick rule that makes a replay
@@ -110,6 +158,7 @@ const headTick = { p1: 0, p2: 0 };
 function feed(role) {
   const q = queued[role];
   if (!q.length) return;
+  if (server.state.frozen) return;          // mirrors the real feed()
   if (server.state.phase !== "play") { while (q.length) server.applyPacket(role, q.shift()); return; }
   if (q.length <= BUFFER_MIN) return;
   const take = q.length > BUFFER_MAX ? 2 : 1;
@@ -136,6 +185,7 @@ function onSnapshot(m) {
   while (history.length && history[0].n < ack) history.shift();
   view.score = m.sc; view.roundNo = m.rn;
   client.applyServer(view, m.ph, { history, ack });
+  syncFire("client", client);
   corrections++;
 }
 
@@ -160,7 +210,8 @@ const predIn = new Map();
 const calmErr = [];
 const big = [];
 let noisy = 0;
-const mineErr = [], theirErr = [], theirJerk = [];
+const mineErr = [], theirErr = [], theirJerk = [], myJolt = [];
+let drawnWas = null;
 let prevOther = null, prevOther2 = null;
 let lastInput = 0, lastSend = 0;
 
@@ -172,6 +223,7 @@ while (clock < SECONDS * 1000) {
   thumbs();
   theirThumbs();
   client.step(STEP);
+  countFires("client", client);
   if (clock - lastInput >= 1000 / SEND_INPUT_HZ) {
     lastInput = clock;
     post(toServer, JSON.parse(JSON.stringify(history.slice(-6))));
@@ -187,6 +239,7 @@ while (clock < SECONDS * 1000) {
   feed("p1");
   feed("p2");
   server.step(STEP);
+  countFires("server", server);
 
   if (clock - lastSend >= 1000 / SEND_HZ) {
     lastSend = clock;
@@ -218,6 +271,37 @@ while (clock < SECONDS * 1000) {
   const S = server.state.G, C = client.state.G;
   if (!S || !C || server.state.phase !== "play" || client.state.phase !== "play") continue;
   const sm = S.actors.find((a) => a.id === ROLE), cm = C.actors.find((a) => a.id === ROLE);
+
+  /* What the player SEES, which is not what the simulation holds.
+   *
+   * Every number above measures whether the prediction was RIGHT. This one
+   * measures whether it LOOKED right — the frame-to-frame jump in the drawn
+   * position, which is where a correction actually reaches the eye. A
+   * correction taken straight onto the screen shows up here as a jolt; one
+   * eased in over a tenth of a second does not. They are different questions
+   * and for a long time only the first was being asked.
+   */
+  if (cm && !cm.dead) {
+    const dx = cm.x + (cm.ox || 0), dy = cm.y + (cm.oy || 0);
+    if (drawnWas && !drawnWas.dead) {
+      /* The CHANGE in the step, frame to frame — the same question this
+       * already asks of the other player, asked of your own drawn body.
+       *
+       * The step on its own says almost nothing, because nearly all of it is
+       * the character running and a correction hides inside that. What a
+       * jolt actually is, is the step suddenly being a different size: the
+       * path bending. A smooth path barely bends, a snap bends violently,
+       * and running in a straight line does not bend at all.
+       */
+      const step = { x: dx - drawnWas.x, y: dy - drawnWas.y };
+      if (drawnWas.step && Math.hypot(step.x, step.y) < 1.5) {
+        myJolt.push(Math.hypot(step.x - drawnWas.step.x, step.y - drawnWas.step.y));
+      }
+      drawnWas = { x: dx, y: dy, step, dead: false };
+    } else {
+      drawnWas = { x: dx, y: dy, step: null, dead: false };
+    }
+  } else drawnWas = { x: 0, y: 0, step: null, dead: true };
   if (cm && !cm.dead) { predTick.set(seq, { x: cm.x, y: cm.y, vx: cm.vx }); predIn.set(seq, history[history.length-1]); }
   if (sm && !sm.dead) {
     const at = server.state.acks[ROLE];
@@ -238,7 +322,7 @@ while (clock < SECONDS * 1000) {
           spad: `${server.state.pads[ROLE].left?"L":"-"}${server.state.pads[ROLE].right?"R":"-"}${server.state.pads[ROLE].jumpHeld?"H":"-"}`,
           sx: +sm.x.toFixed(2), cx: +p.x.toFixed(2),
           svx: +sm.vx.toFixed(2), cvx: +(p.vx||0).toFixed(2),
-          sy: +sm.y.toFixed(2), cy: +p.y.toFixed(2), rev: +(sm.reversedUntil||0).toFixed(1), now: +S.time.toFixed(1),
+          sy: +sm.y.toFixed(2), cy: +p.y.toFixed(2), rev: +(sm.reversedUntil||0).toFixed(1), frz: +(sm.frozenUntil||0).toFixed(1), now: +S.time.toFixed(1),
           pw: sm.power && sm.power.type });
       }
       predTick.delete(at);
@@ -280,14 +364,24 @@ const row = (name, a) => `  ${name.padEnd(22)} median ${String(q(a,.5)).padStart
 console.log(`\nlink        ${LATENCY}ms +-${JITTER} one way, ${LOSS}% snapshot loss`);
 console.log(`ran         ${SECONDS}s, ${frames} frames, ${corrections} snapshots applied, ${bad} unreadable`);
 console.log(`rounds      server ${server.state.roundNo} / client ${client.state.roundNo}   score ${JSON.stringify(server.state.score)}`);
+/* Did the two sides even make the same DECISION?
+ *
+ * An ability that fires on one side and not the other is a different problem
+ * from one that fires on both and lands differently, and the error alone
+ * cannot tell them apart. */
+console.log(`\nability   client fired ${fired.client}, server fired ${fired.server}` +
+            (fired.client === fired.server ? "  (agreed)" : "  ** DISAGREED **"));
 console.log(`\nerror, in tiles (a character is about one):`);
 console.log(row("your own body, per tick", mineErr));
 console.log(row("your own body, calm", calmErr));
+console.log(row("...how much it bends", myJolt));
 console.log(row("the other player", theirErr));
 console.log(`  ${"...drawn".padEnd(22)} ${INTERP_MS + LATENCY}ms behind live (${INTERP_MS} chosen + ${LATENCY} on the wire)`);
 console.log(row("their frame-to-frame", theirJerk));
 console.log(`\nover half a tile: ${big.length} of ${mineErr.length} ticks (${noisy} were near a hit or a respawn)`);
 console.log(big.slice(0, 10).map((b) => "  " + JSON.stringify(b)).join("\n"));
-const ok = q(calmErr, .99) !== null && q(calmErr, .99) < 0.5 && q(theirErr, .99) < 0.5 && q(theirJerk, .99) < 0.4;
-console.log(`\n${ok ? "NETTEST OK" : "NETTEST FAIL"} — own body p99 ${q(calmErr,.99)} (< 0.5), other p99 ${q(theirErr,.99)} (< 0.5), jerk p99 ${q(theirJerk,.99)} (< 0.4)`);
+const ok = q(calmErr, .99) !== null && q(calmErr, .99) < 0.5 && q(theirErr, .99) < 0.5 &&
+           q(theirJerk, .99) < 0.4 && q(myJolt, .99) < 0.5;
+console.log(`\n${ok ? "NETTEST OK" : "NETTEST FAIL"} — own body p99 ${q(calmErr,.99)} (< 0.5), ` +
+            `bend p99 ${q(myJolt,.99)} (< 0.5), other p99 ${q(theirErr,.99)} (< 0.5), jerk p99 ${q(theirJerk,.99)} (< 0.4)`);
 if (!ok) process.exitCode = 1;

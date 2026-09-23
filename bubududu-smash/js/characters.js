@@ -240,15 +240,17 @@ let duduFrames = null;
 // feel in config.js, kept small — enough that you notice who you are holding,
 // not so much that one of them is simply better.
 //
-// The jump range is bounded at BOTH ends by the co-op gate, which sits four
-// tiles up and is meant to need a boost:
-//   - the best jumper must not clear 4 alone (Dudu at 1.10 managed 4.10, which
-//     quietly removed the need for a partner at all)
-//   - the worst jumper, standing on a partner, must clear it with room to
-//     spare (Yhon at 0.95 landed on 4.02, which is not a margin)
-// Height goes with the square of the multiplier, so the usable window is
-// narrow: everything sits between 0.98 and 1.05, and the characters are told
-// apart by speed, acceleration and stride instead.
+// The jump range used to be pinned at both ends by a co-op gate four tiles up
+// that needed a boost to clear. That mode is gone — MODES has only the arena
+// in it now — so the window is no longer that tight. What still binds is the
+// arena grammar: platforms step two tiles at a time, so every character has
+// to clear two comfortably and none of them may clear four, or the level
+// stops being a climb. Height goes with the SQUARE of the multiplier, so
+// small numbers here do more than they look like they do.
+//
+// Each also carries an ABILITY, on the fire button. They are what actually
+// tells the three apart — the stats below are the character's resting feel
+// and the ability is what they DO about it. See ABILITY in config.js.
 //
 // `stride` is tiles covered per animation frame: a bigger number is a longer,
 // slower step. Bubu was cycling far too fast for how far she was travelling.
@@ -260,6 +262,10 @@ export const CHARACTERS = [
     tint: "#ffbec2",
     spawnFace: 1,
     blurb: "heavy, short steps",
+    // The slowest thing on the field, and Ground Pound is why that survives:
+    // he cannot chase you down, so he gets above you and arrives before you
+    // can leave.
+    ability: "pound",
     stats: { jump: 0.98, speed: 0.93, accel: 0.86, stride: 0.78 },
     draw: drawYhon,
   },
@@ -274,10 +280,40 @@ export const CHARACTERS = [
     // the way left brought him back mirrored.
     spawnFace: 1,
     blurb: "even all round",
+    // Nothing to complain about and nothing special, until you are falling —
+    // the Air Hop is the only recovery in the game, and the best way to get
+    // above somebody.
+    ability: "hop",
     stats: { jump: 1.0, speed: 1.02, accel: 1.0, stride: 1.15 },
     draw: (ctx, x, y, w, h, pose) => {
       if (!bubuFrames) bubuFrames = loadFrames("bubu");
       drawSprite(bubuFrames, ctx, x, y, w, h, pose);
+    },
+  },
+  {
+    /* Dudu was in the title and was not playable.
+     *
+     * He has wandered the arena as the helper since the beginning, which is
+     * the one argument against promoting him — but the squad is already
+     * "three little Bubus" standing next to a playable Bubu and nobody has
+     * ever been confused by it. A player wears their owner's colour traced
+     * right round them and carries hearts over their head; a helper wears a
+     * white rim and a countdown. They do not read as the same thing.
+     */
+    id: "dudu",
+    name: "Dudu",
+    from: "bubududu",
+    tint: "#ffd7a8",
+    spawnFace: 1,
+    blurb: "quick, low jump",
+    // Quickest across the ground and the worst at getting above anyone, so
+    // the Dash doubles down on what he already is: he owns the horizontal and
+    // has to be clever about the vertical.
+    ability: "dash",
+    stats: { jump: 0.98, speed: 1.06, accel: 1.18, stride: 0.95 },
+    draw: (ctx, x, y, w, h, pose) => {
+      if (!duduFrames) duduFrames = loadFrames("dudu");
+      drawSprite(duduFrames, ctx, x, y, w, h, pose);
     },
   },
 ];
@@ -361,8 +397,26 @@ const OFF_ROSTER = { dudu: HELPER_CHAR, badudu: BAD_HELPER_CHAR };
 export const charById = (id) =>
   CHARACTERS.find((c) => c.id === id) || OFF_ROSTER[id] || CHARACTERS[0];
 
-/** Warm the sprite cache so nobody's first jump is a white blob. */
+/**
+ * Warm the sprite cache so nobody's first jump is a white blob.
+ *
+ * Returns a promise that settles once the frames are actually decoded, which
+ * anything drawing a character ONCE — a portrait on a card rather than sixty
+ * times a second — has to wait for. Without it the character select drew two
+ * empty cards and one pig, because Yhon Yhon is vector and the other two are
+ * images that had not arrived yet.
+ */
 export function preloadCharacters() {
   if (!bubuFrames) bubuFrames = loadFrames("bubu");
   if (!duduFrames) duduFrames = loadFrames("dudu");
+  return Promise.all(
+    [...bubuFrames, ...duduFrames].map((img) =>
+      img.complete
+        ? Promise.resolve()
+        : new Promise((done) => {
+            img.addEventListener("load", done, { once: true });
+            img.addEventListener("error", done, { once: true });
+          })
+    )
+  );
 }

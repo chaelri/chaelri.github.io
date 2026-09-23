@@ -35,7 +35,7 @@ try {
   const { makeArena, readLevel, solidGrid } = levels;
   const { makeActor, stepActor, kill } = physics;
   const { createRenderer, createScene, draw, drawScene, resize, resizeScene, faults, clearFaults } = render;
-  const { PLAYERS, FEEL, POWER_ORDER, POWERUPS, SQUAD, DIWATA, COINS, HELPER, BAD_HELPER } = config;
+  const { PLAYERS, FEEL, POWER_ORDER, POWERUPS, SQUAD, DIWATA, COINS, HELPER, BAD_HELPER, ABILITY } = config;
   const { preloadCharacters, CHARACTERS, charById } = chars;
 
   preloadCharacters();
@@ -165,14 +165,17 @@ try {
    * which is exactly the failure this check was written for in the first
    * place, and why it also covers the panel's own marks and not just the
    * power-ups. */
-  const MARK_IDS = [...POWER_ORDER, 'gem', 'plus', 'safe', 'squad', 'dudu'];
+  const MARK_IDS = [...POWER_ORDER, 'gem', 'plus', 'safe', 'squad', 'dudu',
+                    ...CHARACTERS.map(c => ABILITY[c.ability].mark)];
   const noMark = MARK_IDS.filter(t => !marks.MARKS[t] || !marks.markPath(t));
   if (noMark.length) fail('marks', 'asked for with no drawn path (renders nothing): '+noMark.join(', '));
   const emptySVG = MARK_IDS.filter(t => !marks.markSVG(t).includes('<path'));
   if (emptySVG.length) fail('marks', 'no inline svg for: '+emptySVG.join(', '));
   log.push(`marks     ok — ${MARK_IDS.length} drawn, canvas and DOM`);
   log.push(`powerups  ok — ${POWER_ORDER.length} spawnable, all defined`);
-  log.push(`characters ok — ${CHARACTERS.map(c=>c.id).join(', ')} (+dudu, badudu)`);
+  const noAbility = CHARACTERS.filter(c => !c.ability || !ABILITY[c.ability]);
+  if (noAbility.length) fail('characters', 'playable with no ability — their fire button does nothing: ' + noAbility.map(c=>c.id).join(', '));
+  log.push(`characters ok — ${CHARACTERS.map(c=>`${c.id} (${ABILITY[c.ability].name})`).join(', ')} (+badudu)`);
 
   /* ------------------------------------------------- the sprites LOADED --- */
   // Not "did we ask for them" but "did the bytes arrive". drawSprite falls back

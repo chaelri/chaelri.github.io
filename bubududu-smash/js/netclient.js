@@ -14,8 +14,10 @@
 // correction that arrives is simply better than the guess.
 
 import { createRenderer, draw, resize } from "./render.js";
-import { preloadCharacters } from "./characters.js";
+import { preloadCharacters, CHARACTERS, charById } from "./characters.js";
 import { createPad, paintShootButton } from "./pad.js";
+import { markSVG } from "./marks.js";
+import { ABILITY } from "./config.js";
 import { paintPanels, chipsFor } from "./panel.js";
 import { hydrate } from "./netstate.js";
 import { createWorldTape } from "./interp.js";
@@ -38,11 +40,12 @@ export const SERVER =
  */
 export async function connect({ role, say = () => {} }) {
   const { Client } = await import("https://esm.sh/colyseus.js@0.16.22");
+  const params = new URLSearchParams(location.search);
 
   const renderer = createRenderer($("#stage"));
   resize(renderer, innerWidth, innerHeight);
   addEventListener("resize", () => resize(renderer, innerWidth, innerHeight));
-  preloadCharacters();
+  preloadCharacters().then(() => paintCast()).catch(() => {});
 
   const pad = createPad({ onEdge: haptic });
 
@@ -100,6 +103,77 @@ export async function connect({ role, say = () => {} }) {
    * DOM in it and can therefore be run against a synthetic feed and measured.
    */
   const tape = createWorldTape();
+
+  /* ------------------------------------------------------------- the cast --- */
+  /*
+   * Who you are holding, and the one move that is yours.
+   *
+   * The character used to be fixed by seat — Charlie was always the pig and
+   * Karla always the panda — and it was cosmetic, so there was nothing to
+   * pick. Now each one carries an ability on the fire button and the choice
+   * is the whole of it.
+   *
+   * It is remembered, and the match still starts itself the moment both
+   * phones are in: nobody should have to press anything to play, so this
+   * cannot become a gate in front of the game. Changing it mid-match takes
+   * effect at the next round rather than swapping the body out from under a
+   * jump — see startRound, which reads the pad.
+   */
+  const REMEMBER = "bubududu-smash.char";
+  let myChar =
+    params.get("char") ||
+    localStorage.getItem(REMEMBER) ||
+    sim.state.pads[role].char;
+  if (!CHARACTERS.some((c) => c.id === myChar)) myChar = sim.state.pads[role].char;
+  sim.state.pads[role].char = myChar;
+
+  function pickChar(id) {
+    if (!CHARACTERS.some((c) => c.id === id)) return;
+    myChar = id;
+    try { localStorage.setItem(REMEMBER, id); } catch {}
+    sim.state.pads[role].char = id;
+    room?.send("char", id);
+    paintCast();
+  }
+
+  function paintCast() {
+    const el = $("#cast");
+    if (!el) return;
+    if (el.dataset.built !== "1") {
+      el.dataset.built = "1";
+      el.innerHTML = CHARACTERS.map((c) => {
+        const ab = c.ability && ABILITY[c.ability];
+        return `<button type="button" data-char="${c.id}" style="--ac:${ab ? ab.colour : "#fff"}">` +
+               `<canvas width="96" height="96"></canvas>` +
+               `<b>${c.name}</b>` +
+               `<span>${markSVG(ab ? ab.mark : "", "mk")}${ab ? ab.name : ""}</span>` +
+               `</button>`;
+      }).join("");
+      for (const b of el.querySelectorAll("button")) {
+        b.addEventListener("click", () => pickChar(b.dataset.char));
+      }
+    }
+    for (const b of el.querySelectorAll("button")) {
+      b.classList.toggle("on", b.dataset.char === myChar);
+      /* Redrawn every time, not once when the cards are built.
+       *
+       * Two of the three are sprites and the frames arrive over the network,
+       * so drawing them once at build time drew nothing at all: Yhon Yhon is
+       * vector and turned up, Bubu and Dudu were empty cards. */
+      const cv = b.querySelector("canvas");
+      const ctx = cv.getContext("2d");
+      ctx.clearRect(0, 0, cv.width, cv.height);
+      charById(b.dataset.char).draw(ctx, cv.width / 2, cv.height * 0.94,
+        cv.width * 0.74, cv.height * 0.8,
+        { face: 1, run: 0, air: 0, squash: 0, t: 0, walk: 0, stride: 1 });
+    }
+  }
+  // Painted HERE and not up beside createPad, which is where it was: `myChar`
+  // is a `let` declared in this block, so reading it from earlier in the
+  // function is a temporal dead zone throw — inside paintCast, after it had
+  // already built the cards. Three cards, none of them lit, and connect()
+  // quietly abandoned on an unhandled rejection.
+  paintCast();
 
   let room = null;
   let started = false;
@@ -286,9 +360,16 @@ export async function connect({ role, say = () => {} }) {
 
   async function join() {
     const client = new Client(SERVER);
-    room = await client.joinOrCreate("smash", { role });
+    room = await client.joinOrCreate("smash", { role, char: myChar });
     room.onMessage("s", apply);
     room.onMessage("power", (m) => { if (m.id === role) paintShootButton(m.p, m.ammo); });
+    // Whoever changed, including us — the server is the one that decides it
+    // took, so the highlight follows its answer and not the tap.
+    room.onMessage("cast", (m) => {
+      if (!m || !sim.state.pads[m.role]) return;
+      sim.state.pads[m.role].char = m.char;
+      if (m.role === role) { myChar = m.char; paintCast(); }
+    });
     // Smoothed, because one slow packet should not move the whole picture.
     room.onMessage("pong", (t) => {
       const sample = performance.now() - t;
@@ -328,13 +409,17 @@ export async function connect({ role, say = () => {} }) {
    * against the wrong history. Six ticks of redundancy is 24 bytes and covers
    * five consecutive losses. Anything the server already has it ignores. */
   let sawJump = pad.state.j;
+  let sawShot = pad.state.s;
   function mintTick() {
     const p = pad.state;
     // `jd` is the extra: the wire carries jump as a COUNTER, which is right
     // for a packet that may be lost, and a replay needs to know which single
     // tick the press belonged to.
     const jd = p.j !== sawJump; sawJump = p.j;
-    const h = { n: ++seq, l: p.l, r: p.r, h: p.h, d: p.d, j: p.j, s: p.s, jd };
+    // ...and the same for the fire button, because the ability on it MOVES
+    // you and therefore has to be re-runnable. See stepLocal in sim.js.
+    const sd = p.s !== sawShot; sawShot = p.s;
+    const h = { n: ++seq, l: p.l, r: p.r, h: p.h, d: p.d, j: p.j, s: p.s, jd, sd };
     history.push(h);
     while (history.length > HISTORY_MAX) history.shift();
     sim.applyPacket(role, h);
@@ -381,6 +466,18 @@ export async function connect({ role, say = () => {} }) {
         sim.step(TICK);                   // predict forward — your body only
       }
       tape.apply(G, performance.now(), role);   // ...and read the rest off the tape
+
+      /* The fire button, every frame rather than only when a power-up lands.
+       *
+       * It carries a cooldown now, and a cooldown that only repaints when
+       * something else happens is a cooldown you cannot read. */
+      const me = G.actors.find((a) => a.id === role);
+      const ab = sim.abilityState(role);
+      paintShootButton(
+        me && me.power ? me.power.type : null,
+        me && me.power ? me.power.ammo || 0 : 0,
+        ab && ab.ability, ab ? ab.cd : 0, !!(ab && ab.ready)
+      );
       draw(renderer, G, dt);
       paintPanels(
         G.actors,

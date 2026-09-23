@@ -45,7 +45,36 @@ sim.configure({
 
 sim.state.pads.p1.connected = true;
 sim.state.pads.p2.connected = true;
+
+/* All three characters, and therefore all three abilities.
+ *
+ * The defaults are Yhon and Bubu, so Dudu's Dash — and everything the wire,
+ * the replay and the renderer do with it — would never once be run by a test
+ * that left them alone. Rotated every match, both seats. */
+const CAST = ["yhon", "bubu", "dudu"];
+let castAt = 0;
+function nextCast() {
+  sim.state.pads.p1.char = CAST[castAt % CAST.length];
+  sim.state.pads.p2.char = CAST[(castAt + 1) % CAST.length];
+  castAt++;
+}
+nextCast();
 sim.startMatch();
+
+// Every use of every ability, counted by watching the one field each of them
+// writes. A test that fires the button and never checks anything happened is
+// a test that passes on an ability that silently does nothing.
+const usedBy = {};
+const lastUse = { p1: 0, p2: 0 };
+function countAbilities() {
+  const G = sim.state.G;
+  if (!G) return;
+  for (const a of G.actors) {
+    if (!a.abilityAt || a.abilityAt === lastUse[a.id]) continue;
+    lastUse[a.id] = a.abilityAt;
+    usedBy[a.char] = (usedBy[a.char] || 0) + 1;
+  }
+}
 
 // A cheap deterministic stream for the fake thumbs, kept OUT of the game's
 // own rng so driving the test cannot change what the game decides.
@@ -82,11 +111,12 @@ for (let i = 0; i < STEPS; i++) {
   try {
     if (sim.state.phase === "roundover" || sim.state.phase === "matchover") {
       await new Promise((r) => setTimeout(r, 12));
-      if (sim.state.phase === "matchover") { matches++; sim.rematch(); }
+      if (sim.state.phase === "matchover") { matches++; nextCast(); sim.rematch(); }
     }
     thumbs("p1");
     thumbs("p2");
     sim.step(DT);
+    countAbilities();
 
     const G = sim.state.G;
     if (G) {
@@ -122,6 +152,7 @@ for (let i = 0; i < STEPS; i++) {
 const G = sim.state.G;
 console.log(`steps       ${STEPS} (${MINUTES} simulated minutes)`);
 console.log(`matches     ${matches} played to the end`);
+console.log(`abilities   ${Object.entries(usedBy).map(([k, v]) => `${k} ${v}`).join("  ") || "NONE"}`);
 console.log(`rounds      ${sim.state.roundNo}   score ${JSON.stringify(sim.state.score)}`);
 console.log(`phase       ${sim.state.phase}   clock ${G ? G.time.toFixed(1) : "-"}`);
 console.log(`powers hit  ${forced} forced, ${types.length} kinds`);

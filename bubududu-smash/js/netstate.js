@@ -23,7 +23,8 @@ const bit = (v) => (v ? 1 : 0);
 // [id, char, x, y, vx, vy, face, walk, squash, t, grounded, hp, dead, respawn,
 //  w, h, powerType, ammo, until, invulnUntil, frozenUntil, reversedUntil,
 //  coins, fairy, punch, glowUntil, glowFor, glowColour,
-//  coyote, buffer, jumpHeld, launchFor]
+//  coyote, buffer, jumpHeld, launchFor,
+//  abilityAgo, hops, dashLeft, dashFace, pounding, lockLeft]
 
 function packActor(a, now) {
   return [
@@ -58,6 +59,31 @@ function packActor(a, now) {
      * is a whole jump's worth of disagreement, which is exactly the shape of
      * the worst errors the bench found. Four small numbers. */
     r2(a.coyote || 0), r2(a.buffer || 0), bit(a.jumpHeld), r2(a.launchFor || 0),
+    /* The ability's private state, for exactly the same reason.
+     *
+     * An ability MOVES you — an air hop is four tiles of height the server
+     * knows about and a client that kept its own copy of "have I hopped yet"
+     * would either replay a hop the server refused or refuse one it allowed.
+     * Deadlines travel as time remaining, like every other one here; `hops`
+     * and `pounding` are counters and do not. */
+    /* How long ago the ability was used, in MILLISECONDS, and -1 for never.
+     *
+     * It was seconds through r2(), which rounds to a hundredth — so a use on
+     * the same tick as the snapshot packed as "0 ago", and 0 is also what
+     * "never used" looked like. The client read that as a cooldown that was
+     * up, fired again, and the server refused: a whole second use predicted
+     * and taken away, which for a Dash is a tile and a half. Milliseconds
+     * because that is the unit the cooldown itself is in. */
+    a.abilityAt ? Math.max(0, Math.round(now * 1000 - a.abilityAt)) : -1,
+    a.hops || 0,
+    /* In MILLISECONDS, like the cooldown above, not seconds through r2().
+     *
+     * r2 rounds to a hundredth of a second, which is fine for a nine-second
+     * power-up and useless for a Dash: the whole burst is 150ms, so a
+     * hundredth is seven per cent of it, and one extra tick held at twice
+     * running speed is a third of a tile the server never gave you. */
+    Math.max(0, Math.round(((a.dashUntil || 0) - now) * 1000)), a.dashFace || 0,
+    bit(a.pounding), Math.max(0, Math.round(((a.lockUntil || 0) - now) * 1000)),
   ];
 }
 
@@ -65,7 +91,8 @@ function unpackActor(v, now) {
   const [id, char, x, y, vx, vy, face, walk, squash, t, grounded, hp, dead,
     respawn, w, h, ptype, ammo, puntil, inv, frozen, reversed, coins,
     fairy, punch, glowLeft, glowFor, glowColour,
-    coyote, buffer, jumpHeld, launchFor] = v;
+    coyote, buffer, jumpHeld, launchFor,
+    abilityAgo, hops, dashLeft, dashFace, pounding, lockLeft] = v;
   const p = PLAYERS.find((q) => q.id === id);
   return {
     id, char, x, y, vx, vy, face, walk, squash, t,
@@ -95,6 +122,14 @@ function unpackActor(v, now) {
     glowUntil: glowLeft > 0 ? now + glowLeft : 0,
     glowFor: glowFor || 0,
     glowColour: glowColour || null,
+    // abilityAt is kept in MILLISECONDS of game time, which is what the
+    // cooldown is measured in — the only field here that is.
+    abilityAt: abilityAgo >= 0 ? now * 1000 - abilityAgo : 0,
+    hops: hops || 0,
+    dashUntil: dashLeft > 0 ? now + dashLeft / 1000 : 0,
+    dashFace: dashFace || 0,
+    pounding: !!pounding,
+    lockUntil: lockLeft > 0 ? now + lockLeft / 1000 : 0,
   };
 }
 
