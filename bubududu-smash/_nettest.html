@@ -80,6 +80,7 @@ const rows = [
   ["frames/sec", (s) => s.fps.toFixed(0)],
   ["faults", (s) => s.bad],
   ["last msg", (s) => s.since + "ms"],
+  ["round trip", (s) => (s.rtt ?? 0) + "ms"],
 ];
 
 /* Rates, not totals.
@@ -156,7 +157,8 @@ function verdict(a, b) {
     sub.textContent =
       `drift p1 ${g1.toFixed(2)} p2 ${g2.toFixed(2)} · ` +
       `${a.fps.toFixed(0)}/${b.fps.toFixed(0)} fps · ` +
-      `${a.ups.toFixed(0)}/${b.ups.toFixed(0)} updates a second`;
+      `${a.ups.toFixed(0)}/${b.ups.toFixed(0)} updates a second · ` +
+      `${a.rtt ?? 0}/${b.rtt ?? 0}ms rtt`;
   }
 }
 

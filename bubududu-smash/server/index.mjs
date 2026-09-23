@@ -80,6 +80,9 @@ class SmashRoom extends Room {
       if (role) sim.applyPacket(role, packet);
     });
     this.onMessage("rematch", () => sim.rematch());
+    // Echoed straight back, so a client can measure its own round trip
+    // rather than guess at it.
+    this.onMessage("ping", (client, t) => client.send("pong", t));
 
     this.setSimulationInterval((deltaMs) => this.tick(deltaMs), 1000 / TICK_HZ);
     console.log(`[smash] room ${this.roomId} open`);

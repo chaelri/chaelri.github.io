@@ -1943,7 +1943,7 @@ const CORRECT_EASE = 0.25;   // how much of the gap to close each update
 const CORRECT_SNAP = 2.2;    // tiles of disagreement before easing gives up
 const CORRECT_MINE = 3.5;    // ...and a much longer leash on your own body
 
-export function applyCorrection(view, rngAt, hostPhase) {
+export function applyCorrection(view, rngAt, hostPhase, lead = 0) {
   if (!G || !view) return;
 
   /* Catch up if the host has already started playing.
@@ -2003,12 +2003,30 @@ export function applyCorrection(view, rngAt, hostPhase) {
      * inputs, nothing local owns him, and the host's copy is simply better.
      */
     const mine = a.id === localRole;
-    const gap = Math.hypot(t.x - a.x, t.y - a.y);
+
+    /* The other player's position is ALREADY OLD when it gets here.
+     *
+     * It left the server one trip ago, so easing straight onto it pins him
+     * where he was, not where he is — and while he is running that is a third
+     * of a second behind, which measured as three tiles of drift and is very
+     * visible. Carry it forward by his own velocity over the time it spent in
+     * flight first, then ease onto THAT. Extrapolating is a guess, so it is
+     * capped: over about a fifth of a second the guess is worse than the
+     * staleness it fixes.
+     */
+    let tx = t.x, ty = t.y;
+    if (!mine && lead > 0 && !t.dead) {
+      const l = Math.min(lead, 0.2);
+      tx += t.vx * l;
+      ty += t.vy * l;
+    }
+
+    const gap = Math.hypot(tx - a.x, ty - a.y);
     if (t.dead || gap > (mine ? CORRECT_MINE : CORRECT_SNAP)) {
-      a.x = t.x; a.y = t.y; a.vx = t.vx; a.vy = t.vy;
+      a.x = tx; a.y = ty; a.vx = t.vx; a.vy = t.vy;
     } else if (!mine) {
-      a.x += (t.x - a.x) * CORRECT_EASE;
-      a.y += (t.y - a.y) * CORRECT_EASE;
+      a.x += (tx - a.x) * CORRECT_EASE;
+      a.y += (ty - a.y) * CORRECT_EASE;
       a.vx += (t.vx - a.vx) * CORRECT_EASE;
       a.vy += (t.vy - a.vy) * CORRECT_EASE;
     }

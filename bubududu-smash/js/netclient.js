@@ -47,7 +47,7 @@ export async function connect({ role, say = () => {} }) {
   let room = null;
   let started = false;
   let rematchSeq = 0;
-  const stats = { updates: 0, bytes: 0, lastAt: 0, bad: 0 };
+  const stats = { updates: 0, bytes: 0, lastAt: 0, bad: 0, rtt: 0 };
   window.__net = () => ({
     ...stats,
     since: stats.lastAt ? Math.round(performance.now() - stats.lastAt) : -1,
@@ -73,7 +73,7 @@ export async function connect({ role, say = () => {} }) {
       p1: a("p1"), p2: a("p2"),
       powers: G.powers.length, coins: G.coins.length,
       helpers: G.helpers.length, minis: G.minis.length,
-      updates: stats.updates, bad: stats.bad,
+      updates: stats.updates, bad: stats.bad, rtt: Math.round(stats.rtt),
       since: stats.lastAt ? Math.round(performance.now() - stats.lastAt) : -1,
       frames: frames,
     };
@@ -141,7 +141,8 @@ export async function connect({ role, say = () => {} }) {
     view.score = m.sc;
     view.roundNo = m.rn;
     try {
-      sim.applyCorrection(view, null, m.ph);
+      // Half the round trip is how old this picture is.
+      sim.applyCorrection(view, null, m.ph, stats.rtt / 2000);
     } catch (err) {
       // Counted and shouted about once. A correction that throws leaves the
       // client running on prediction alone, which looks like the game working
@@ -198,6 +199,11 @@ export async function connect({ role, say = () => {} }) {
     room = await client.joinOrCreate("smash", { role });
     room.onMessage("s", apply);
     room.onMessage("power", (m) => { if (m.id === role) paintShootButton(m.p, m.ammo); });
+    // Smoothed, because one slow packet should not move the whole picture.
+    room.onMessage("pong", (t) => {
+      const sample = performance.now() - t;
+      stats.rtt = stats.rtt ? stats.rtt * 0.8 + sample * 0.2 : sample;
+    });
     room.onLeave(() => { say("lost the room — reconnecting…"); setTimeout(join, 1200); });
     say("in the room — waiting for the round");
   }
@@ -219,6 +225,9 @@ export async function connect({ role, say = () => {} }) {
     sim.applyPacket(role, packet);
     room?.send("input", packet);
   }, 1000 / 40);
+
+  setInterval(() => room?.send("ping", performance.now()), 1000);
+  room?.send("ping", performance.now());
 
   $("#rematch")?.addEventListener("click", () => {
     rematchSeq++;
