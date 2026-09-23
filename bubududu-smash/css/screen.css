@@ -512,13 +512,20 @@ h1.logo::after {
 }
 #players.on { opacity: 1; }
 
+/* Sized for a laptop across the room, not for a phone in your hand.
+ *
+ * These were the phone's numbers with the laptop inheriting them, which is
+ * backwards: the shared screen is the one you are FURTHEST from — it is on a
+ * desk and you are both holding controllers — and the card is where the
+ * hearts, the gems and now the skill live. The duo page pins its own smaller
+ * values below, so the phone is unaffected by any of this. */
 .pcard {
-  display: flex; align-items: center; gap: clamp(6px, 0.9vw, 12px);
-  padding: clamp(6px, 0.9vh, 10px) clamp(10px, 1.2vw, 16px);
-  border-radius: 20px;
-  background: rgba(255,255,255,0.82);
-  border: 3px solid var(--pc, #4cc2ff);
-  box-shadow: 0 8px 22px -10px rgba(33,49,63,0.5);
+  display: flex; align-items: center; gap: clamp(9px, 1.4vw, 18px);
+  padding: clamp(9px, 1.3vh, 15px) clamp(14px, 1.8vw, 24px);
+  border-radius: 26px;
+  background: rgba(255,255,255,0.86);
+  border: 4px solid var(--pc, #4cc2ff);
+  box-shadow: 0 12px 30px -12px rgba(33,49,63,0.55);
   backdrop-filter: blur(4px);
   transition: border-color 250ms, background 250ms;
 }
@@ -527,15 +534,15 @@ h1.logo::after {
 
 /* No plate behind the portrait — the character sits straight on the card. */
 .pcard .face {
-  width: clamp(40px, 6.4vh, 62px); height: clamp(40px, 6.4vh, 62px);
+  width: clamp(58px, 9.6vh, 96px); height: clamp(58px, 9.6vh, 96px);
   flex: none;
 }
-.pinfo { display: grid; gap: 3px; }
+.pinfo { display: grid; gap: 5px; }
 .pcard.right .pinfo { justify-items: end; }
 
 .pname {
   font-family: "Nunito", system-ui, sans-serif; font-weight: 700;
-  font-size: clamp(13px, 1.9vh, 18px); line-height: 1; color: var(--pc, #1b6f9e);
+  font-size: clamp(18px, 2.8vh, 27px); line-height: 1; color: var(--pc, #1b6f9e);
 }
 /* The coin chip jumps on the frame the count goes up. Re-rendered each time,
    so the animation restarts rather than playing once and never again. */
@@ -549,8 +556,8 @@ h1.logo::after {
   100% { transform: scale(1) rotate(0deg); }
 }
 
-.phearts { display: flex; gap: 3px; }
-.phearts svg { width: clamp(12px, 1.6vh, 16px); height: auto; display: block; }
+.phearts { display: flex; gap: 5px; }
+.phearts svg { width: clamp(17px, 2.4vh, 24px); height: auto; display: block; }
 .phearts svg path { fill: #ff4d6d; }
 .phearts svg.off path { fill: rgba(33,49,63,0.16); stroke: rgba(33,49,63,0.3); stroke-width: 1.4; }
 /* A spare heart, earned past the three you start with. Gold, so it reads as
@@ -573,8 +580,8 @@ h1.logo::after {
  */
 .pskill {
   position: relative;
-  width: clamp(20px, 2.6vh, 26px); height: clamp(20px, 2.6vh, 26px);
-  border-radius: 9px; display: grid; place-items: center;
+  width: clamp(29px, 3.9vh, 39px); height: clamp(29px, 3.9vh, 39px);
+  border-radius: 12px; display: grid; place-items: center;
   border: 2px solid rgba(33,49,63,0.16);
   background: rgba(33,49,63,0.05);
   color: rgba(33,49,63,0.3);
@@ -628,18 +635,18 @@ h1.logo::after {
    and a single non-wrapping row squeezed them until `overflow: hidden` ate
    the labels — so the effects you most needed to see were the ones missing. */
 .pchips {
-  display: flex; flex-wrap: wrap; gap: 4px;
-  min-height: clamp(16px, 2.2vh, 22px);
-  max-width: clamp(180px, 22vw, 300px);
+  display: flex; flex-wrap: wrap; gap: 6px;
+  min-height: clamp(22px, 3vh, 30px);
+  max-width: clamp(240px, 28vw, 400px);
 }
 .pcard.right .pchips { flex-direction: row-reverse; }
 .chip {
   position: relative; overflow: hidden;
   flex: none;                       /* never shrink a chip into an ellipsis */
   display: flex; align-items: center; gap: 3px;
-  padding: 2px 7px; border-radius: 999px;
+  padding: 3px 11px; border-radius: 999px;
   font-family: "Nunito", system-ui, sans-serif; font-weight: 700;
-  font-size: clamp(10px, 1.35vh, 13px); line-height: 1.35;
+  font-size: clamp(14px, 1.95vh, 19px); line-height: 1.35;
   color: #fff; background: var(--cc, #888);
   box-shadow: 0 2px 6px -2px var(--cc, #888);
 }

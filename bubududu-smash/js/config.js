@@ -305,8 +305,12 @@ export const ABILITY = {
     desc: "A hard burst, the way you are facing.",
     colour: "#ffb84d",
     cooldownMs: 2200,
-    speed: 19,         // tiles a second, about twice a run
-    ms: 150,           // held for this long, then ordinary friction takes it
+    /* About two and a half times a run, held long enough to actually GO
+     * somewhere: four and a half tiles, which is a gap the shrinking floor
+     * can open and a distance you cannot walk in the time you have. At 19
+     * over 150ms it covered 2.8 and read as a shove rather than a dash. */
+    speed: 24,         // tiles a second
+    ms: 185,           // held for this long, then ordinary friction takes it
     // Off the ground it also kills your fall for the moment it lasts, so it
     // reads as a leap rather than as a shove.
     hang: 0.25,

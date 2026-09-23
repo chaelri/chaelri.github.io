@@ -55,6 +55,13 @@ body.duo .pname { font-size: 10px; }
 body.duo .phearts { gap: 2px; }
 body.duo .phearts svg { width: 9px; }
 body.duo .pchips { gap: 3px; min-height: 0; max-width: min(30vw, 170px); }
+/* The card grew for the laptop, which is across a room. A phone is in your
+   hand and the card sits ON the arena, so every one of those sizes is pinned
+   back here — otherwise the panel eats a third of the screen. */
+body.duo .chip { font-size: 10px; padding: 2px 6px; }
+body.duo .chip .mk { width: 1em; height: 1em; }
+body.duo .pskill { width: 18px; height: 18px; border-radius: 7px; }
+body.duo .pinfo { gap: 2px; }
 body.duo .chip { font-size: 9px; padding: 1px 5px; gap: 2px; }
 body.duo .chip em { display: none; }   /* no keyboard here to name a key on */
 
