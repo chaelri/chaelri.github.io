@@ -455,10 +455,35 @@ function tickRules(dt) {
     return;
   }
 
+  /* The round ENDS when the floor has gone and somebody drops.
+   *
+   * Nothing tallies it any more (see where `floorGone` is set): the arena
+   * simply stops existing and the last one still in the air has won. If they
+   * both go inside the same frame, whoever was higher takes it — which is
+   * exactly the sentence Charlie used, "dun magdedecide kung sino mas
+   * mataas", and is what anyone watching would call anyway.
+   */
+  if (G.floorGone && !G.finishAt) {
+    const ps = PLAYERS.map((p) => G.actors.find((q) => q.id === p.id)).filter(Boolean);
+    if (ps.length === 2) {
+      const down = ps.filter((q) => q.dead || q.hp <= 0);
+      if (down.length === 1) {
+        const won = ps.find((q) => q !== down[0]);
+        endRound(won.id, `${down[0].label} ran out of floor first`);
+      } else if (down.length === 2) {
+        // Both in the same frame: the higher body was the later fall.
+        const won = ps[0].y < ps[1].y ? ps[0] : ps[1];
+        endRound(won.id, `${won.label} stayed up longest`);
+      }
+    }
+  }
+
   // respawns
   for (const a of G.actors) {
     if (!a.dead || a.respawn > 0) continue;
     if (a.hp <= 0) continue; // stays down — the round is already over
+    // ...and there is nowhere to come back TO once the arena has gone.
+    if (G.floorGone) continue;
     const i = G.actors.indexOf(a);
     const at = safeSpawn(i);
     reviveAt(a, at.x, at.y);
@@ -487,7 +512,29 @@ function tickRules(dt) {
       }
     }
     G.grid = { rows: rows.map((r) => r.join("")) };
-    if (!widestFloor()) callItOnTheFloor();
+    /* The floor running out does NOT end the round any more.
+     *
+     * It used to decide it on the spot — most hearts, then most gems — and
+     * the banner simply appeared while both of them were still standing on
+     * the last tile. Charlie: "dapat di nagaautoterminate laro agad pag
+     * nawala yung arena, it will let the players fall pa rin tapos dun
+     * magdedecide kung sino mas mataas ang weird kasi bigla nalang lalabas
+     * banner."
+     *
+     * So the arena simply stops existing and gravity finishes the round: the
+     * last one still in the air has won it. That is also a better ending than
+     * a tally — it is something you watch rather than something you are
+     * told, and there is a second of jumping left in it.
+     *
+     * `floorGone` is what tells handleDeath to stop respawning anybody; see
+     * where it is read. If both are already gone, the tally is still there as
+     * the tie-break. */
+    if (!widestFloor() && !G.floorGone) {
+      G.floorGone = true;
+      fx.note(G.actors[0], "#ff8a3b", "NO FLOOR LEFT", "Last one up wins.", "gem");
+      fx.sfx("badWind");
+      fx.shake(22);
+    }
   }
 }
 
@@ -507,23 +554,13 @@ function tickRules(dt) {
  * not. Coins break a tie that is otherwise exact, and if even those match it
  * goes down as a draw rather than being handed to whoever is listed first.
  */
-function callItOnTheFloor() {
-  const players = PLAYERS.map((p) => G.actors.find((a) => a.id === p.id)).filter(Boolean);
-  if (players.length < 2) return;
-  const rank = (a) =>
-    Math.max(0, a.hp || 0) * 1000 + (a.dead ? 0 : 100) + Math.min(99, a.coins || 0);
-  const [a, b] = players;
-  const ra = rank(a);
-  const rb = rank(b);
-  if (ra === rb) return endRound(null, "the arena ran out");
-  const won = ra > rb ? a : b;
-  const lost = ra > rb ? b : a;
-  const why =
-    won.hp !== lost.hp ? `${won.label} had more hearts when the arena ran out`
-    : won.dead !== lost.dead ? `${lost.label} was already down when the arena ran out`
-    : `${won.label} had more gems when the arena ran out`;
-  endRound(won.id, why);
-}
+/* callItOnTheFloor is gone.
+ *
+ * It decided the round on hearts, then on who was down, then on gems, the
+ * instant the last plank went. Nothing calls it now — the arena stops
+ * existing and the fall decides it. Deleted rather than left unused,
+ * because a scoring function nobody calls is the kind of thing somebody
+ * wires back up. */
 
 function standingRoom(sp) {
   const x = Math.floor(sp.x);
@@ -641,7 +678,24 @@ function restat(a) {
   const big = a.power && a.power.type === "laki" ? POWERUPS.laki.scale : 1;
   const fast = a.power && a.power.type === "bilis" ? POWERUPS.bilis : null;
   const k = a.crowned ? POWERUPS.korona : null;
-  const scale = Math.max(big, k ? k.scale : 1);
+  /* HEALTH MAKES YOU BIGGER, on its own.
+   *
+   * Charlie: "dapat pala the more na mataas hp nung character mas malaki yung
+   * character kahit walang big power up, pero mas malaki shempre pag full hp
+   * tapos may big power up pa."
+   *
+   * It is a good rule because it makes the health bar redundant at a glance —
+   * you can read how a round is going from across the room without reading
+   * anything. It also cuts both ways: a big target is easier to land on, so
+   * being ahead costs you something, which is exactly what a game like this
+   * wants.
+   *
+   * Three per cent a heart, from the three you start with, so nine hearts is
+   * about a fifth bigger and the difference is felt rather than announced.
+   * MULTIPLIED by Grow and the crown rather than maxed against them, because
+   * "bigger still" is the whole of the sentence. */
+  const heart = 1 + Math.max(0, (a.hp || FEEL.hp) - FEEL.hp) * 0.03;
+  const scale = Math.max(big, k ? k.scale : 1) * heart;
   const was = a.h;
   a.w = a.baseW * scale;
   a.h = a.baseH * scale;
@@ -678,6 +732,8 @@ function givePower(a, type) {
      * what you already have, so the next ceiling change cannot bring it back.
      * Past the cap it simply does nothing. */
     else a.hp = Math.max(a.hp, Math.min(FEEL.hpMax, a.hp + def.heal));
+    // Gaining one makes you bigger, the same way losing one makes you smaller.
+    restat(a);
     G.flash = { type, at: G.time };
     showPickup(a, type);
     fx.sfx("lunas");
@@ -1046,6 +1102,7 @@ function tickFairies(dt) {
     // guard a few lines up already skips a full player, but a heal that CAN
     // subtract is a bug waiting for the next ceiling change.
     a.hp = Math.max(a.hp, Math.min(FEEL.hpMax, a.hp + 1));
+    restat(a);
     f.left--;
     f.healAt = G.time;
     f.next = G.time + DIWATA.everyMs / 1000;
@@ -1406,6 +1463,8 @@ function handleDeath(a) {
   const cost = a.hitFor == null ? 1 : a.hitFor;
   a.hitFor = null;
   a.hp = lethal ? 0 : Math.max(0, Math.round((a.hp - cost) * 2) / 2);
+  // Size follows health now — see restat — so losing one has to re-derive it.
+  restat(a);
 
   // Everything stops for a beat, then resumes in slow motion — except the
   // blow that takes the match, which is set up below and never stops at all.

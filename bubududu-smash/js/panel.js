@@ -133,6 +133,18 @@ export function paintPanels(actors, chips, dt, now, pads) {
      * one in the arena. The two ends are squared off by the bar's own
      * overflow, which is what keeps the whole thing a rectangle.
      */
+    /* Who they are HOLDING, which the card never said.
+     *
+     * The seat's name is on it — Charlie, Karla — and they both know which
+     * one they are; what changes round to round is the character, and that
+     * was only ever readable from the portrait. Charlie: "dapat nadidisplay
+     * din kung sino character say like Bubu, dudu or yhon." */
+    const who = card.querySelector(".pchar");
+    if (who) {
+      const label = charById(a.char).name;
+      if (who.textContent !== label) who.textContent = label;
+    }
+
     const hearts = card.querySelector(".phearts");
     const slots = Math.max(FEEL.hp, Math.ceil(a.hp));
     const want = Array.from({ length: slots },
@@ -161,7 +173,7 @@ export function paintPanels(actors, chips, dt, now, pads) {
       el.innerHTML = list
         .map(
           (q) =>
-            `<span class="chip${q.bad ? " bad" : ""}${q.bump ? " bump" : ""}" style="--cc:${q.colour};--left:${q.pct}%">` +
+            `<span class="chip${q.bad ? " bad" : ""}${q.bump ? " bump" : ""}" style="--cc:${q.colour};--sweep:${q.pct}%">` +
             markSVG(q.mark) + q.label + `</span>`
         )
         .join("");

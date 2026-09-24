@@ -590,15 +590,64 @@ h1.logo::after {
  * desk and you are both holding controllers — and the card is where the
  * hearts, the gems and now the skill live. The duo page pins its own smaller
  * values below, so the phone is unaffected by any of this. */
+/* The player card, and it is a GAME thing now.
+ *
+ * It was a white rounded rectangle with a lot of air in it — Charlie: "lets
+ * actually revamp the UI menu of characters lets make it more gamified idk
+ * plain white doesnt look nice. idk parang dami rin white space."
+ *
+ * Three changes do the work. A dark slate body, so everything on it — the
+ * name, the bar, the gold of the coins — is bright against something instead
+ * of pale against white. The player's own colour running down the edge as a
+ * solid block, which is the badge that says whose card this is and which the
+ * old border said quietly. And tighter geometry: less padding, a smaller
+ * corner, the portrait cropped into its own well rather than floating in
+ * space.
+ */
 .pcard {
-  display: flex; align-items: center; gap: clamp(9px, 1.4vw, 18px);
-  padding: clamp(9px, 1.3vh, 15px) clamp(14px, 1.8vw, 24px);
-  border-radius: 26px;
-  background: rgba(255,255,255,0.86);
-  border: 4px solid var(--pc, #4cc2ff);
-  box-shadow: 0 12px 30px -12px rgba(33,49,63,0.55);
-  backdrop-filter: blur(4px);
-  transition: border-color 250ms, background 250ms;
+  display: flex; align-items: center; gap: clamp(8px, 1.1vw, 14px);
+  padding: clamp(7px, 1vh, 11px) clamp(11px, 1.4vw, 17px);
+  /* Cut corners rather than round ones, and a plate rather than a card.
+   *
+   * Charlie pointed at League's HUD — "make an effort parang ganto ng league
+   * oh pero wag mo naman gayahin, dapat theme pa rin natin" — and what makes
+   * that bar read as equipment is three things, none of which is its colour:
+   * the corners are CUT, the frame is metal with a highlight along the top,
+   * and the portrait is a disc set into the plate rather than a picture
+   * beside it. All three work in pastel; none of them needs bronze filigree.
+   */
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px),
+                     calc(100% - 10px) 100%, 0 100%, 0 10px);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.14), rgba(255,255,255,0) 42%),
+    linear-gradient(180deg, #33485f, #1b2a3a 62%, #16222f);
+  border: 0;
+  /* No coloured slab down the edge — Charlie asked for it gone. The name
+     carries the seat's colour and that is enough; a blue or pink bar welded
+     to one side of a dark panel read as a stripe on a label. */
+  box-shadow:
+    inset 0 2px 0 rgba(255,255,255,0.22),      /* the lit top edge */
+    inset 0 -2px 0 rgba(0,0,0,0.3),
+    inset 0 0 0 2px rgba(255,255,255,0.1),
+    0 12px 26px -12px rgba(10,20,32,0.85);
+  transition: box-shadow 250ms, background 250ms;
+}
+/* The portrait gets a well of its own, so the character is mounted rather
+   than adrift in a field of white. */
+/* The portrait, as a disc SET INTO the plate.
+ *
+ * Round, because a portrait in a rounded square reads as an app icon and a
+ * circle reads as a player — "make icon circle for character" — and ringed in
+ * the seat's own colour, which is where the colour went when the slab down
+ * the edge came off. The inner shadow is what makes it a socket rather than a
+ * sticker. */
+.pcard .face {
+  border-radius: 50%;
+  background: radial-gradient(120% 120% at 50% 18%, #f4fbff, #cfe6f5);
+  box-shadow:
+    0 0 0 3px var(--pc, #4cc2ff),
+    0 0 0 5px rgba(255,255,255,0.14),
+    inset 0 3px 8px rgba(20,40,60,0.28);
 }
 .pcard.right { flex-direction: row-reverse; }
 .pcard.out { opacity: 0.45; filter: grayscale(0.7); }
@@ -615,10 +664,23 @@ h1.logo::after {
 .pinfo { display: grid; gap: clamp(7px, 1.2vh, 12px); }
 .pcard.right .pinfo { justify-items: end; }
 
+/* The name: smaller, spaced, uppercase. It was the biggest thing on the card
+   and it is the one piece of information neither of them ever needs to read —
+   they know who they are. */
 .pname {
-  font-family: "Nunito", system-ui, sans-serif; font-weight: 700;
-  font-size: clamp(18px, 2.8vh, 27px); line-height: 1; color: var(--pc, #1b6f9e);
+  font-family: "Nunito", system-ui, sans-serif; font-weight: 900;
+  font-size: clamp(11px, 1.5vh, 14px); line-height: 1;
+  letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--pc, #4cc2ff);
 }
+/* ...and which character is in that seat, under the name. Bigger than the
+   name, because this is the part that changes. */
+.pchar {
+  font-family: "Nunito", system-ui, sans-serif; font-weight: 800;
+  font-size: clamp(15px, 2.1vh, 21px); line-height: 1;
+  color: rgba(255,255,255,0.94); margin-top: -3px;
+}
+
 /* The coin chip jumps on the frame the count goes up. Re-rendered each time,
    so the animation restarts rather than playing once and never again. */
 .pchips .chip.bump {
@@ -638,6 +700,8 @@ h1.logo::after {
 .phearts { display: block; }
 .phearts .hbar {
   display: flex; overflow: hidden;          /* squares off both ends */
+  /* On a dark card the white frame is the thing that separates it from the
+     panel, so it stays — see the box-shadow below. */
   width: clamp(80px, 12vh, 130px);
   height: clamp(13px, 1.9vh, 20px);
   /* Barely rounded. A pill reads as a lozenge; this is a gauge, and Charlie
@@ -657,7 +721,16 @@ h1.logo::after {
   border-left: 2px solid #fff;
   background: rgba(33,49,63,0.12);
 }
-.phearts .hseg:first-child { border-left: 0; }
+/* The two END segments reach PAST the bar and get clipped by it.
+ *
+ * A skewed box leaves a triangle of nothing in the top-left of the first one
+ * and the bottom-right of the last, and on a dark card that triangle is the
+ * card showing through a full-health bar. Charlie: "dapat full red sa upper
+ * left and lower right nakakita ko may transparent." Eight pixels is more
+ * than the lean can ever be at these heights, and `overflow: hidden` on the
+ * bar squares the result off. */
+.phearts .hseg:first-child { border-left: 0; margin-left: -8px; }
+.phearts .hseg:last-child { margin-right: -8px; }
 /* ...and the fill inside it, which is how a half heart is half a segment. */
 .phearts .hseg::after {
   content: ""; position: absolute; inset: 0;
@@ -766,7 +839,7 @@ h1.logo::after {
 }
 .pcard.right .pchips { flex-direction: row-reverse; }
 .chip {
-  position: relative; overflow: hidden;
+  position: relative;
   flex: none;                       /* never shrink a chip into an ellipsis */
   display: flex; align-items: center; gap: 3px;
   padding: 3px 11px; border-radius: 999px;
@@ -775,12 +848,26 @@ h1.logo::after {
   color: #fff; background: var(--cc, #888);
   box-shadow: 0 2px 6px -2px var(--cc, #888);
 }
-/* The remaining time drains out of the chip itself. */
+/* The remaining time runs AROUND the chip, not along the bottom of it.
+ *
+ * It was a three-pixel white bar across the foot, which is a loading bar —
+ * and a loading bar says "wait", where this is saying "you have this much
+ * left". Charlie: "loader on the bottom is not giving nice vibes ... cooldown
+ * siguro isip ko around border progress nalang much better."
+ *
+ * A conic gradient painted into the chip's own border, by masking out
+ * everything inside the padding box. It sweeps from the top, clockwise, and
+ * the pill shape carries it without any extra markup. */
 .chip::after {
-  content: ""; position: absolute; inset: auto 0 0 0; height: 3px;
-  background: rgba(255,255,255,0.75);
-  width: var(--left, 100%);
-  transition: width 120ms linear;
+  content: ""; position: absolute; inset: -2.5px;
+  border-radius: inherit; padding: 2.5px;
+  background: conic-gradient(rgba(255,255,255,0.95) var(--sweep, 100%),
+                             rgba(255,255,255,0.18) 0);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
 }
 /* the key to press, inside the chip */
 .chip em {
