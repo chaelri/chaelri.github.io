@@ -1,0 +1,78 @@
+<!doctype html><meta charset="utf-8"><title>dash</title>
+<!--
+  Dudu's dash, frame by frame, which is the only way to look at it.
+
+  It lasts 185ms and the trail behind it lives a further 300, so in the
+  running game it is over before a screenshot can be taken — and a background
+  tab gets no animation frames at all, so the live page cannot be driven to
+  the moment either. Here the renderer is called by hand with the character
+  moved a little further along each time, which is exactly what a real dash
+  does to it: the ghosts are sampled per draw, so N draws is N ghosts.
+-->
+<style>
+  body{margin:0;background:#dff0fb;font:12px ui-monospace,monospace;color:#21313f}
+  h1{font:600 13px system-ui;margin:12px}
+  .row{display:flex;flex-wrap:wrap;gap:10px;padding:0 12px 16px;align-items:flex-start}
+  figure{margin:0}
+  canvas{display:block;border-radius:10px}
+  figcaption{padding:4px 2px;text-align:center}
+</style>
+<h1>the dash, at four points along it</h1><div class="row" id="canv"></div>
+
+<script type="module">
+import { createRenderer, draw, resize } from "./js/render.js";
+import { makeArena, solidGrid } from "./js/levels.js";
+import { makeActor } from "./js/physics.js";
+import { ABILITY } from "./js/config.js";
+import { preloadCharacters } from "./js/characters.js";
+
+await preloadCharacters().catch(() => {});
+
+// How many frames into the dash each panel is. The last one is AFTER it has
+// finished, which is the panel that matters: the whole point of the rebuild
+// is that the trail outlives the move.
+const STOPS = [2, 6, 11, 16];
+const DT = 1 / 60;
+
+function world() {
+  const level = makeArena(4242);
+  const g = { level, grid: solidGrid(level), time: 0, shrink: 0,
+    actors: [], powers: [], coins: [], shots: [], pops: [], bursts: [],
+    helpers: [], minis: [], lostHearts: [], quakes: [], wildFairy: null,
+    freeze: 0, slow: 0, slowRate: 1, winner: 0 };
+  const a = makeActor(14, 10, "p1"); a.char = "dudu"; a.hp = 3; a.label = "p1"; a.face = 1;
+  const b = makeActor(34, 10, "p2"); b.char = "bubu"; b.hp = 3; b.label = "p2"; b.face = -1;
+  g.actors.push(a, b);
+  return g;
+}
+
+const canv = document.getElementById("canv");
+for (const stop of STOPS) {
+  const fig = document.createElement("figure");
+  const c = document.createElement("canvas");
+  const cap = document.createElement("figcaption");
+  fig.append(c, cap); canv.append(fig);
+
+  const g = world();
+  const a = g.actors[0];
+  const r = createRenderer(c);
+  resize(r, 340, 190);
+  a.dashFor = ABILITY.dash.ms / 1000;
+  a.dashVx = ABILITY.dash.speed;
+
+  for (let i = 0; i <= stop; i++) {
+    g.time += DT;
+    if (a.dashFor > 0) {
+      a.x += ABILITY.dash.speed * DT;
+      a.dashFor = Math.max(0, a.dashFor - DT);
+      a.walk += DT * 9;
+    }
+    r.cam.x = 15.6; r.cam.y = a.y - 0.9; r.cam.zoom = 118;
+    draw(r, g, DT);
+  }
+  const after = a.dashFor <= 0;
+  cap.textContent = `${stop} frames — ${after ? "trail outliving it" : "mid-dash"}`;
+}
+
+document.title = "dash sheet";
+</script>

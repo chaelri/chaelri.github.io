@@ -289,6 +289,20 @@ addEventListener("keydown", (e) => {
      * pressing together — dash INTO a punch, hop and then shoot. */
     if (!pads.p1.connected && SKILL_KEYS.p1.includes(e.code)) pendingSkill.p1 = true;
     if (!pads.p2.connected && SKILL_KEYS.p2.includes(e.code)) pendingSkill.p2 = true;
+    /* In the lobby, the movement keys pick your character.
+     *
+     * Both of them are on one keyboard here, and the picker is otherwise a
+     * mouse-only control on the one screen where two people are choosing at
+     * once — so one of them has to hand the mouse over. A and D are already
+     * Charlie's left and right, and the arrows are already Karla's; they
+     * steer the carousel before there is anything else to steer.
+     */
+    if (phase === "lobby") {
+      if (e.code === "KeyA") stepCast("p1", -1);
+      if (e.code === "KeyD") stepCast("p1", 1);
+      if (e.code === "ArrowLeft") stepCast("p2", -1);
+      if (e.code === "ArrowRight") stepCast("p2", 1);
+    }
     if (e.code === "Enter") rematch();
     // KeyR is p1's skill now. The round restart moved to a modifier so a
     // thumb on the skill key cannot reroll the arena mid-fight.
@@ -3785,9 +3799,20 @@ function frame(now) {
  * the versus rules untestable without two phones and a foreground window.
  */
 function advance(dt) {
-  // The title scene runs only while the lobby is up.
+  // The title scene runs only while the lobby is up — and so do the two
+  // character carousels, which are canvases that have to be redrawn to move.
   if (phase === "lobby") {
     drawScene(scene, dt);
+    /* Its own guard. It draws two sprite sheets that may not have arrived
+     * yet, and a throw here is inside advance()'s try — which would take the
+     * whole lobby, scene and all, and look like the page had frozen. */
+    try {
+      spinCarousels(dt);
+    } catch (err) {
+      frameFaults++;
+      if (!lastFrameFault) console.error("[bubu-dudu-smash] carousel threw", err);
+      lastFrameFault = String((err && err.stack) || err);
+    }
     return;
   }
   dropStaleInput();
@@ -4320,42 +4345,188 @@ function recallCast() {
   } catch {}
 }
 
+/* The picker: a carousel, with the character actually moving in it.
+ *
+ * It was three 38-pixel thumbnails in a row and a line of text — which was
+ * fine when the choice was cosmetic, and stopped being fine the moment each
+ * one carried an ability. You cannot tell a pig from a panda at 38 pixels
+ * from the sofa, and the ability was a five-word label nobody read. Charlie:
+ * "make the choices bigger ... character picker betterrr maybe an idle and a
+ * carousel view and also show casing their skills better."
+ *
+ * So: one figure at a time, big, jogging on the spot, with the next and the
+ * previous peeking in at the sides; arrows to move; and the ability given
+ * room to say what it does.
+ *
+ * The carousel is drawn in ONE canvas rather than as three DOM elements that
+ * animate. Two of the three characters are sprite sheets that arrive over the
+ * network, so they have to be redrawn every frame anyway — and once you are
+ * redrawing every frame, a canvas is both simpler and the only way the idle
+ * animation can exist at all.
+ */
+const CAROUSEL = new Map();          // role -> { pos, walk, t, blink }
+
+/** Move one seat's pick along, wrapping. The arrows, the figure and the
+ *  movement keys all come through here. */
+function stepCast(id, dir) {
+  const at = CHARACTERS.findIndex((c) => c.id === pads[id].char);
+  const next = CHARACTERS[(at + dir + CHARACTERS.length) % CHARACTERS.length];
+  pads[id].char = next.id;
+  rememberCast();
+  // A real cue, not a made-up name: `sfx` is a Proxy, so `sfx.pick()` would
+  // have been a silent no-op that looked like a sound.
+  sfx.coin();
+  paintPick(id);
+}
+
 function paintPick(id) {
   const el = lobby && lobby.querySelector(`[data-slot="${id}"] .pick`);
   if (!el) return;
   if (el.dataset.built !== "1") {
     el.dataset.built = "1";
     el.innerHTML =
-      `<div class="faces">` +
-      CHARACTERS.map((c) => `<button type="button" data-char="${c.id}" title="${c.name}">` +
-        `<canvas width="72" height="72"></canvas></button>`).join("") +
-      `</div><div class="says"></div>`;
-    for (const b of el.querySelectorAll("button")) {
-      b.addEventListener("click", () => {
-        pads[id].char = b.dataset.char;
+      `<canvas class="hero"></canvas>` +
+      `<div class="nom"></div>` +
+      `<div class="skill"></div>` +
+      /* The arrows sit in the dot row rather than over the canvas.
+       * On the canvas they landed exactly where the peeking neighbours are —
+       * the one place in the card guaranteed to be occupied — so each arrow
+       * had half a character behind it. Down here nothing is under them and
+       * the whole width of the stage belongs to the figures. */
+      `<div class="nav">` +
+        `<button type="button" class="arrow prev" aria-label="previous">\u2039</button>` +
+        `<div class="dots">` +
+          CHARACTERS.map((c) => `<i data-char="${c.id}" title="${c.name}"></i>`).join("") +
+        `</div>` +
+        `<button type="button" class="arrow next" aria-label="next">\u203a</button>` +
+      `</div>`;
+    el.querySelector(".prev").addEventListener("click", () => stepCast(id, -1));
+    el.querySelector(".next").addEventListener("click", () => stepCast(id, 1));
+    // The dots are a picker too — three characters is few enough that going
+    // straight to one should not cost two taps.
+    for (const d of el.querySelectorAll(".dots i")) {
+      d.addEventListener("click", () => {
+        pads[id].char = d.dataset.char;
         rememberCast();
         paintPick(id);
-        // The code beside it is now for the wrong character until it is redrawn.
       });
     }
+    // Tapping the figure itself moves it on, which is what anyone tries first.
+    el.querySelector(".hero").addEventListener("click", () => stepCast(id, 1));
   }
-  const mine = pads[id].char;
-  for (const b of el.querySelectorAll("button")) {
-    b.classList.toggle("on", b.dataset.char === mine);
-    // Redrawn every time, not once: two of the three are sprites and the
-    // frames arrive over the network, so drawing at build time draws nothing.
-    const cv = b.querySelector("canvas");
-    const ctx = cv.getContext("2d");
-    ctx.clearRect(0, 0, cv.width, cv.height);
-    charById(b.dataset.char).draw(ctx, cv.width / 2, cv.height * 0.94,
-      cv.width * 0.76, cv.height * 0.82,
-      { face: 1, run: 0, air: 0, squash: 0, t: 0, walk: 0, stride: 1 });
-  }
-  const def = charById(mine);
+
+  const def = charById(pads[id].char);
   const ab = def.ability && ABILITY[def.ability];
-  const says = el.querySelector(".says");
-  says.style.setProperty("--ac", ab ? ab.colour : "#21313f");
-  says.innerHTML = `<b>${def.name}</b>` + (ab ? markSVG(ab.mark, "mk") + ab.name : "");
+  el.style.setProperty("--ac", ab ? ab.colour : "#21313f");
+  el.querySelector(".nom").textContent = def.name;
+  /* The ability, with its mark and its own sentence.
+   *
+   * `desc` is the line the power-up cards use and it has always existed; the
+   * lobby simply never showed it, so the whole of "what does Dudu do" was the
+   * word "Dash". */
+  el.querySelector(".skill").innerHTML = ab
+    ? `<span class="mk">${markSVG(ab.mark, "mk")}</span>` +
+      `<b>${ab.name}</b><small>${ab.desc || ""}</small>`
+    : "";
+  for (const d of el.querySelectorAll(".dots i")) {
+    d.classList.toggle("on", d.dataset.char === pads[id].char);
+  }
+}
+
+/* One frame of both carousels. Called from the lobby branch of the loop.
+ *
+ * Everything here is per-frame state that belongs to nothing else in the
+ * game, so it lives in its own Map rather than on the pads.
+ */
+function spinCarousels(dt) {
+  if (!lobby || lobby.classList.contains("gone")) return;
+  for (const p of PLAYERS) {
+    const el = lobby.querySelector(`[data-slot="${p.id}"] .pick`);
+    const cv = el && el.querySelector(".hero");
+    if (!cv) continue;
+
+    let st = CAROUSEL.get(p.id);
+    if (!st) CAROUSEL.set(p.id, (st = { pos: 0, walk: 0, t: 0, blink: 1.5 }));
+    st.walk += dt * 5.2;
+    st.t += dt;
+
+    // Backing store to match the box, once. A canvas resized every frame is
+    // cleared every frame and costs a reallocation each time.
+    const dpr = Math.min(2, devicePixelRatio || 1);
+    const w = Math.max(80, cv.clientWidth), h = Math.max(80, cv.clientHeight);
+    if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) {
+      cv.width = Math.round(w * dpr);
+      cv.height = Math.round(h * dpr);
+    }
+    const ctx = cv.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+
+    const n = CHARACTERS.length;
+    const want = Math.max(0, CHARACTERS.findIndex((c) => c.id === pads[p.id].char));
+    /* Eased along the SHORT way round.
+     *
+     * Going from the third character to the first is one step forward, not
+     * two back, and a carousel that scrolls the long way is the clearest
+     * possible sign that it is a list pretending to be a wheel. */
+    let d = want - st.pos;
+    while (d > n / 2) d -= n;
+    while (d < -n / 2) d += n;
+    st.pos += d * Math.min(1, dt * 9);
+    st.pos = ((st.pos % n) + n) % n;
+
+    // Tucked well in, so a neighbour never reaches the canvas edge and never
+    // sits under an arrow — a peek that gets clipped reads as a bug.
+    const gap = w * 0.325;
+    const baseH = h * 0.74;
+    // Back to front, so the chosen one is drawn over its neighbours.
+    const order = [];
+    for (let i = 0; i < n; i++) {
+      let off = i - st.pos;
+      while (off > n / 2) off -= n;
+      while (off < -n / 2) off += n;
+      order.push({ i, off });
+    }
+    order.sort((x, y) => Math.abs(y.off) - Math.abs(x.off));
+
+    for (const { i, off } of order) {
+      /* How far out of the spotlight, 0..1 — and NOT simply |off|.
+       *
+       * With three characters the neighbours sit exactly one step away, so
+       * measuring in whole steps put them at k = 1 and the skip below threw
+       * them away: at rest you saw one figure and nothing else, and the two
+       * arrows pointed at an empty promise. Divided by 1.5, a neighbour
+       * lands at two thirds — small, faint and plainly there. */
+      const k = Math.min(1, Math.abs(off) / 1.5);
+      if (k >= 0.999) continue;                 // far enough to be nobody
+      const scale = 1 - k * 0.56;
+      const cw = baseH * 0.78 * scale;
+      const ch = baseH * scale;
+      const cx = w / 2 + off * gap;
+      // A gentle jog: the body rises on the stride, and the further from the
+      // centre the stiller it stands.
+      const bob = Math.sin(st.walk * 2) * ch * 0.035 * (1 - k);
+      const cy = h * 0.88 + bob;
+      ctx.save();
+      ctx.globalAlpha = 1 - k * 0.8;
+      // A soft pool under it, or the figure floats on the card.
+      ctx.fillStyle = "rgba(33,49,63,0.12)";
+      ctx.beginPath();
+      ctx.ellipse(cx, h * 0.9, cw * 0.36, cw * 0.075, 0, 0, Math.PI * 2);
+      ctx.fill();
+      charById(CHARACTERS[i].id).draw(ctx, cx, cy, cw, ch, {
+        face: 1,
+        // Enough run to move the legs, not enough to look like fleeing.
+        run: 0.34 * (1 - k),
+        air: 0,
+        squash: Math.sin(st.walk * 2) * 0.04 * (1 - k),
+        t: st.t,
+        walk: st.walk,
+        stride: 1,
+      });
+      ctx.restore();
+    }
+  }
 }
 
 

@@ -65,22 +65,28 @@
   <h1 class="logo" data-text="BUBU DUDU SMASH"><span>BUBU DUDU SMASH</span></h1>
 
 
+  <!-- Two seats, and in each one the character you are holding, life size.
+       The QR codes are gone (the room is joined from the page now) and what
+       replaced them is the one thing you actually come here to do: see who
+       you are picking. See paintPick in js/screen.js — the card is built
+       there and the figure inside it is drawn every frame. -->
   <div class="slots">
     <div class="slot" data-slot="p1">
       <div class="who">Charlie</div>
-      <!-- The QR is gone. It was the only way in when a phone had to be
-           pointed at the screen to join; the room is joined from the page
-           itself now, so a code the size of the card was carrying nothing
-           and crowding out the one thing you come here to do. -->
-      <div class="pick">—</div>
+      <div class="pick"></div>
       <div class="state"></div>
     </div>
     <div class="slot" data-slot="p2">
       <div class="who">Karla</div>
-      <div class="pick">—</div>
+      <div class="pick"></div>
       <div class="state"></div>
     </div>
   </div>
+
+  <!-- Both of them are stood at one keyboard here, so the picker answers to
+       the keys they already own. Said out loud because an arrow button on
+       screen does not suggest it. -->
+  <p class="pickhint"><b>A</b> <b>D</b> and <b>&larr;</b> <b>&rarr;</b> pick your character</p>
 
   <div class="orline"><span>or</span></div>
 

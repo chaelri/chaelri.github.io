@@ -1811,6 +1811,44 @@ function drawBoxes(r, ctx, g) {
     ctx.ellipse(0, s * 0.72, s * 0.34, s * 0.08, 0, 0, Math.PI * 2);
     ctx.fill();
 
+    /* A glow around it, breathing, and a flare on every hit.
+     *
+     * It is one of two things on the field worth crossing the arena for and
+     * it was drawn like scenery — a pastel object against a pastel valley,
+     * quiet enough to walk past. Charlie: "make this glowing." The halo is
+     * warm rather than the body's pink so it separates from its own skirt,
+     * and it BRIGHTENS the moment it is struck, which is also the clearest
+     * read that a hit registered on something that mostly just swings.
+     */
+    const pulse = 0.5 + 0.5 * Math.sin(g.time * 3.2 + b.x * 1.7);
+    const flare = struck ? (1 - hitT) * (1 - hitT) : 0;
+    const lift = 0.26 + 0.12 * pulse + flare * 0.55;
+    const halo = ctx.createRadialGradient(0, -s * 0.06, s * 0.16,
+                                          0, -s * 0.06, s * (0.95 + flare * 0.35));
+    halo.addColorStop(0, `rgba(255,228,150,${(0.55 + flare * 0.45).toFixed(3)})`);
+    halo.addColorStop(0.42, `rgba(255,186,214,${lift.toFixed(3)})`);
+    halo.addColorStop(1, "rgba(255,186,214,0)");
+    ctx.fillStyle = halo;
+    ctx.beginPath();
+    ctx.arc(0, -s * 0.06, s * (0.95 + flare * 0.35), 0, Math.PI * 2);
+    ctx.fill();
+
+    /* Four motes turning around it, because a still glow reads as a blur and
+     * a moving one reads as alive. They are the only thing in this drawing
+     * that is not attached to the body, which is what makes the body look
+     * like it is giving something off. */
+    for (let i = 0; i < 4; i++) {
+      const ang = g.time * 1.15 + (i / 4) * Math.PI * 2 + b.x;
+      const rr = s * (0.56 + 0.06 * Math.sin(g.time * 2.4 + i));
+      ctx.globalAlpha = 0.35 + 0.35 * (0.5 + 0.5 * Math.sin(ang * 2));
+      ctx.fillStyle = i % 2 ? "#fff3c4" : "#ffd6ea";
+      ctx.beginPath();
+      ctx.arc(Math.cos(ang) * rr, -s * 0.06 + Math.sin(ang) * rr * 0.55,
+              s * 0.045, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
     /* The body: one clean pastel dome, and the face lives on it.
      *
      * The first one wrapped the WHOLE body in rows of coloured paper tabs,
@@ -4197,20 +4235,104 @@ function drawActor(r, ctx, g, a) {
    * of pressure under a pound. */
   const ab = a.power ? null : ABILITY;
   if (ab) {
-    // Dash: hard streaks trailing the way they came from.
+    /* Dash: a blink, in the Valorant sense.
+     *
+     * Four straight lines behind the body was a speed EFFECT and not a move
+     * — it lasted the 185ms the dash lasts and then everything was ordinary
+     * again, so from across the room the character had simply teleported a
+     * few tiles with a smudge. Charlie: "make dudu's dash more defined and
+     * more noticeable na nagdash something like Jett from valorant dash."
+     *
+     * What makes that read is three things, and none of them is the lines:
+     * copies of the BODY left along the path, a mark at the place you left
+     * from, and a wake that OUTLIVES the dash. The last one matters most —
+     * the move is over in a sixth of a second, which is less than most people
+     * look at anything, so the trail has to still be there when the eye
+     * arrives.
+     */
+    const trails = (r.dashTrail || (r.dashTrail = new Map()));
+    let tr = trails.get(a.id);
+    if (!tr) trails.set(a.id, (tr = []));
+    if (a.dashFor > 0) {
+      /* Sampled by DISTANCE, not per frame.
+       *
+       * Per frame gave sixteen copies overlapping each other into one amber
+       * smear — which is a motion blur, and a motion blur is the thing this
+       * was already doing with lines. What reads as a blink is a few
+       * separate bodies you can count. Distance also makes it the same on a
+       * 60Hz screen and a 120Hz one, which frame counting is not. */
+      const last = tr[tr.length - 1];
+      // A whole body-width apart, or they overlap into the same amber band
+      // the lines were already making. Four of them over a 4.4-tile dash.
+      if (!last || Math.abs(a.x - last.x) > 1.05 || Math.abs(a.y - last.y) > 1.05) {
+        tr.push({ x: a.x, y: a.y, at: g.time, w: a.w, h: a.h,
+                  char: a.char, pose: poseOf(a) });
+        if (tr.length > 8) tr.shift();
+      }
+    }
+    if (tr.length) {
+      const GHOST_SEC = 0.3;
+      ctx.save();
+      for (let i = 0; i < tr.length; i++) {
+        const gh = tr[i];
+        const age = g.time - gh.at;
+        // A new round resets the clock, which makes every stored age absurd.
+        if (age < 0 || age > GHOST_SEC) continue;
+        const k = 1 - age / GHOST_SEC;
+        const gx = toX(r, gh.x);
+        const gy = toY(r, gh.y);
+        const gw = gh.w * z * 1.24;
+        const ghh = gh.h * z * 1.3;
+        // Newest ghosts are the character's own colour; older ones cool into
+        // the dash's amber as they go, which is what gives the trail a
+        // direction to read along.
+        drawSilhouette(r, ctx, ABILITY.dash.colour, k * 0.62,
+                       gx, gy, gw, ghh,
+                       (b, bx, by) => charById(gh.char).draw(b, bx, by, gw, ghh, gh.pose));
+      }
+      ctx.restore();
+
+      /* The mark where it STARTED. A dash you can see the origin of is a
+       * distance travelled; one you cannot is a character that moved. */
+      const from = tr[0];
+      const fAge = g.time - from.at;
+      if (fAge >= 0 && fAge < 0.36) {
+        const k = 1 - fAge / 0.36;
+        const fx0 = toX(r, from.x);
+        const fy0 = toY(r, from.y) - from.h * z * 0.5;
+        const dir = Math.sign(a.dashVx || a.face) || 1;
+        ctx.save();
+        ctx.globalAlpha = k * 0.95;
+        ctx.strokeStyle = ABILITY.dash.colour;
+        ctx.lineWidth = Math.max(2, z * 0.1 * k);
+        ctx.lineCap = "round";
+        // Two crescents opening the way they went — air being shoved aside.
+        for (const sp of [0.42, 0.66]) {
+          ctx.beginPath();
+          ctx.arc(fx0, fy0, z * sp * (1 + (1 - k) * 0.7),
+                  -dir * 0.8 + (dir < 0 ? Math.PI : 0),
+                  dir * 0.8 + (dir < 0 ? Math.PI : 0));
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+    }
+    // ...and the speed lines, on the body itself, while it is actually going.
     if (a.dashFor > 0) {
       const left = a.dashFor / (ABILITY.dash.ms / 1000);
       const back = -Math.sign(a.dashVx || a.face);
       ctx.save();
-      ctx.globalAlpha = Math.min(1, left) * 0.75;
-      ctx.strokeStyle = ABILITY.dash.colour;
+      ctx.globalAlpha = Math.min(1, left) * 0.9;
+      ctx.strokeStyle = "#fff4d6";
       ctx.lineCap = "round";
-      for (let i = 0; i < 4; i++) {
-        const y = py - a.h * z * (0.25 + i * 0.28);
-        ctx.lineWidth = Math.max(1.5, z * (0.09 - i * 0.015));
+      // Three, not six: the ghosts carry the speed now, and six lines over
+      // the top of them was the smear this was supposed to stop being.
+      for (let i = 0; i < 3; i++) {
+        const y = py - a.h * z * (0.28 + i * 0.3);
+        ctx.lineWidth = Math.max(1.5, z * (0.08 - i * 0.012));
         ctx.beginPath();
         ctx.moveTo(px + back * z * (0.3 + i * 0.12), y);
-        ctx.lineTo(px + back * z * (1.5 + i * 0.5), y);
+        ctx.lineTo(px + back * z * (1.5 + i * 0.35), y);
         ctx.stroke();
       }
       ctx.restore();
