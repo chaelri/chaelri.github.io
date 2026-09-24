@@ -2,9 +2,13 @@
   {
     "id": 1,
     "priority": 1,
-    "action": { "type": "block" },
+    "action": {
+      "type": "block"
+    },
     "condition": {
-      "initiatorDomains": ["gogoanimes.dk"],
+      "initiatorDomains": [
+        "gogoanimes.dk"
+      ],
       "excludedRequestDomains": [
         "gogoanimes.dk",
         "cdnjs.cloudflare.com",
@@ -13,15 +17,25 @@
         "code.jquery.com",
         "challenges.cloudflare.com"
       ],
-      "resourceTypes": ["script"]
+      "resourceTypes": [
+        "script"
+      ]
     }
   },
   {
     "id": 2,
     "priority": 1,
-    "action": { "type": "block" },
+    "action": {
+      "type": "block"
+    },
     "condition": {
-      "initiatorDomains": ["vidmoly.org", "vidmoly.to", "vidmoly.me", "vidmoly.net", "vidmoly.biz"],
+      "initiatorDomains": [
+        "vidmoly.org",
+        "vidmoly.to",
+        "vidmoly.me",
+        "vidmoly.net",
+        "vidmoly.biz"
+      ],
       "excludedRequestDomains": [
         "vidmoly.org",
         "vidmoly.to",
@@ -35,7 +49,70 @@
         "gstatic.com",
         "challenges.cloudflare.com"
       ],
-      "resourceTypes": ["script"]
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 3,
+    "priority": 1,
+    "action": {
+      "type": "block"
+    },
+    "condition": {
+      "initiatorDomains": [
+        "dramavideo.se"
+      ],
+      "excludedRequestDomains": [
+        "dramavideo.se",
+        "ajax.googleapis.com",
+        "cdnjs.cloudflare.com",
+        "cdn.jsdelivr.net",
+        "cdn.plyr.io",
+        "challenges.cloudflare.com"
+      ],
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 4,
+    "priority": 1,
+    "action": {
+      "type": "block"
+    },
+    "condition": {
+      "initiatorDomains": [
+        "animeheaven.me"
+      ],
+      "excludedRequestDomains": [
+        "animeheaven.me",
+        "challenges.cloudflare.com"
+      ],
+      "resourceTypes": [
+        "script",
+        "stylesheet",
+        "sub_frame",
+        "xmlhttprequest",
+        "ping",
+        "websocket",
+        "image"
+      ]
+    }
+  },
+  {
+    "id": 5,
+    "priority": 1,
+    "action": {
+      "type": "block"
+    },
+    "condition": {
+      "regexFilter": "^https?://animeheaven\\.me/(style|chartstyle|dark[0-9]*|light[0-9]*)\\.css",
+      "resourceTypes": [
+        "stylesheet"
+      ]
     }
   }
 ]

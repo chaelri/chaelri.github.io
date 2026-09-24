@@ -41,6 +41,9 @@
     [/(^|\.)animepahe\.pw$/i, []],
     [/(^|\.)gogoanimes\.dk$/i, ["cdnjs.cloudflare.com", "cdn.jsdelivr.net", "ajax.googleapis.com", "code.jquery.com"]],
     [/(^|\.)vidmoly\.[a-z]+$/i, ["jwpcdn.com", "jwplayer.com", "staticmoly.me", "cdnjs.cloudflare.com", "gstatic.com"]],
+    // animeheaven.me serves everything itself; its pop-under loader is the
+    // only thing that reaches off-site.
+    [/(^|\.)animeheaven\.me$/i, []],
   ];
   const siteRule = TRUSTED_BY_SITE.find(([re]) => re.test(PAGE_HOST));
   const SCRIPT_BLOCK_ENABLED = !!siteRule;

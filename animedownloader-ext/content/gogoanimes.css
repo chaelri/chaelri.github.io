@@ -1,0 +1,51 @@
+/* Injected at document_start on gogoanimes.dk, before the cards paint.
+   Every card's poster stays blurred until its series' genres are known, so an
+   Ecchi / Erotica / Hentai poster never flashes on screen. gogoanimes.js
+   sets data-adx-safe on a card once it clears (or can't be checked), and
+   drops the whole card when it doesn't. */
+.bsx:not([data-adx-safe]) img,
+.serieslist li:not([data-adx-safe]) img {
+  filter: blur(14px) saturate(0.6);
+}
+.bsx img,
+.serieslist li img {
+  transition: filter 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.adx-nsfw {
+  display: none !important;
+}
+
+/* Genre chips under each card title — same shape as the animepahe chips,
+   in gogoanimes' own amber. */
+.adx-genre-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 6px 0 2px;
+  opacity: 0;
+  transition: opacity 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.adx-genre-row.is-loaded {
+  opacity: 1;
+}
+.adx-genre-chip {
+  font-family: "Fira Sans", sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  line-height: 1.2;
+  padding: 3px 7px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.85) !important;
+  text-decoration: none !important;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.adx-genre-chip:hover {
+  background: #dd8808;
+  border-color: #dd8808;
+  color: #fff !important;
+}

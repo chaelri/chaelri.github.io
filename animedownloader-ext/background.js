@@ -281,6 +281,31 @@ async function closeOldestFinishedTab() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════
+// Pop-under killer — gogoanimes swaps its player host per episode (vidmoly,
+// dramavideo, ...), and each one runs its own ad code in a cross-origin
+// iframe that our page guard can't reach. Instead of chasing every host and
+// every trick (anchor clicks, blank-iframe window.open, form targets), close
+// any new tab/window a guarded site's tab spawns unless it stays on that
+// site. animeheaven's pop-under network is caught the same way. Cmd-clicking
+// a link on the site itself still opens normally.
+// ══════════════════════════════════════════════════════════════════════════
+const POPUP_GUARDED_RE = /^https?:\/\/([^/]+\.)?(gogoanimes\.dk|animeheaven\.me)(\/|$)/i;
+
+if (chrome.webNavigation) {
+  chrome.webNavigation.onCreatedNavigationTarget.addListener(async (d) => {
+    if (POPUP_GUARDED_RE.test(d.url)) return;
+    try {
+      const source = await chrome.tabs.get(d.sourceTabId);
+      if (!POPUP_GUARDED_RE.test(source.url || "")) return;
+      await chrome.tabs.remove(d.tabId);
+      // A pop-under steals focus from the tab you were on; hand it back.
+      chrome.tabs.update(d.sourceTabId, { active: true }).catch(() => {});
+      chrome.windows.update(source.windowId, { focused: true }).catch(() => {});
+    } catch (e) {}
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════════════
 // Context menu — right-click animepahe links to kick off auto-pilot
 // Guarded: chrome.contextMenus can be undefined briefly while Chrome is
 // activating a newly-granted permission; we bail quietly instead of crashing.

@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "AnimeDownloader",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "One-click anime bulk downloader via AnimePahe. Discover on LiveChart, download everything automatically.",
-  "permissions": ["tabs", "storage", "downloads", "tabGroups", "contextMenus", "declarativeNetRequest"],
+  "permissions": ["tabs", "storage", "downloads", "tabGroups", "contextMenus", "declarativeNetRequest", "webNavigation"],
   "host_permissions": [
     "*://*.livechart.me/*",
     "*://*.animepahe.pw/*",
@@ -18,7 +18,11 @@
     "*://vidmoly.to/*",
     "*://vidmoly.me/*",
     "*://vidmoly.net/*",
-    "*://vidmoly.biz/*"
+    "*://vidmoly.biz/*",
+    "*://dramavideo.se/*",
+    "*://*.dramavideo.se/*",
+    "*://animeheaven.me/*",
+    "*://*.animeheaven.me/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -57,6 +61,35 @@
       "run_at": "document_start",
       "world": "MAIN",
       "all_frames": true
+    },
+    {
+      "matches": ["*://gogoanimes.dk/*", "*://*.gogoanimes.dk/*"],
+      "css": ["content/gogoanimes.css"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["*://gogoanimes.dk/*", "*://*.gogoanimes.dk/*"],
+      "js": ["content/gogoanimes.js"],
+      "run_at": "document_end"
+    },
+    {
+      "matches": ["*://dramavideo.se/*"],
+      "js": ["content/dramavideo.js"],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "all_frames": true
+    },
+    {
+      "matches": ["*://animeheaven.me/*", "*://*.animeheaven.me/*"],
+      "css": ["content/ad-slots.css", "content/animeheaven.css"],
+      "js": ["content/guard.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["*://animeheaven.me/*", "*://*.animeheaven.me/*"],
+      "js": ["content/animeheaven.js"],
+      "run_at": "document_end"
     },
     {
       "matches": ["*://*.livechart.me/*"],
