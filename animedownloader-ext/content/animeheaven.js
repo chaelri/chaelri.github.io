@@ -178,6 +178,12 @@
     if (info) renderChips(card, info);
     // Every tag, not just the chips shown, is what the genre filter matches.
     card.dataset.adxTags = info ? info.genres.map(([n]) => n.toLowerCase()).join(" | ") : "";
+    // Status for the All / Finished / Not finished switch. A schedule
+    // card's own timer line (set in tintTimers) wins over the lookup.
+    if (info && card.dataset.adxStatus === undefined) {
+      const done = /finished/i.test(info.status) || (+info.latest > 0 && +info.latest >= +info.total);
+      card.dataset.adxStatus = done ? "done" : "airing";
+    }
     markSafe(card);
     scheduleFilter();
   };
@@ -188,20 +194,28 @@
     const id = showIdOf(card.querySelector('a[href*="anime.php"]')?.href);
     if (!id) {
       card.dataset.adxTags = "";
+      if (card.dataset.adxStatus === undefined) card.dataset.adxStatus = "";
       markSafe(card);
       return scheduleFilter();
     }
-    lookup(id).then((genres) => apply(card, genres));
+    lookup(id).then((info) => {
+      apply(card, info);
+      // unverifiable: still settle it so the filter stops waiting on it
+      if (card.dataset.adxStatus === undefined) card.dataset.adxStatus = "";
+    });
   };
 
   // ── genre filter (same behaviour as the animepahe home grid) ──
   // Words are whitespace/comma separated; a card stays when EVERY word
-  // appears in one of its tags. Genres load lazily, so while a filter is
+  // appears in one of its tags — and, when the status switch isn't on All,
+  // when it is (Finished) or isn't (Not finished) done airing. Genres load lazily, so while a filter is
   // active every card on the page is looked up (cached ones instantly);
   // cards still loading stay hidden and the counter shows the progress.
   const FILTER_KEY = "adx.heaven.filter";
   const QUICK = ["Action", "Comedy", "Romance", "Fantasy", "Drama", "Isekai", "Slice Of Life", "Sports", "Mystery", "Horror"];
+  const STATUS_KEY = "adx.heaven.status";
   let tokens = [];
+  let statusMode = "all"; // "all" | "done" | "airing" (= not finished)
   let filterTimer = null;
   const scheduleFilter = () => {
     clearTimeout(filterTimer);
@@ -215,35 +229,42 @@
     const cards = filterable();
     let shown = 0;
     let pending = 0;
+    const active = tokens.length > 0 || statusMode !== "all";
     for (const card of cards) {
-      if (!tokens.length) {
+      if (!active) {
         card.classList.remove("adx-filtered");
         continue;
       }
-      if (card.dataset.adxTags === undefined) {
+      const needTags = tokens.length && card.dataset.adxTags === undefined;
+      const needStatus = statusMode !== "all" && card.dataset.adxStatus === undefined;
+      if (needTags || needStatus) {
         pending++;
         card.classList.add("adx-filtered");
         io.unobserve(card);
         check(card);
         continue;
       }
-      const hay = card.dataset.adxTags;
-      const hit = tokens.every((t) => hay.includes(t));
+      const hay = card.dataset.adxTags || "";
+      const st = card.dataset.adxStatus;
+      const hit = tokens.every((t) => hay.includes(t)) &&
+        (statusMode === "all" || (statusMode === "done" ? st === "done" : st !== "done"));
       card.classList.toggle("adx-filtered", !hit);
       if (hit) shown++;
     }
     const bar = document.getElementById("adx-filter");
     if (!bar) return;
     const count = bar.querySelector(".adx-filter-count");
-    count.textContent = !tokens.length ? ""
+    count.textContent = !active ? ""
       : pending ? shown + " match · checking " + pending + "…"
       : shown + " / " + cards.length;
     bar.querySelectorAll(".adx-quick").forEach((b) =>
       b.classList.toggle("is-on", tokens.includes(b.dataset.q)));
+    bar.querySelectorAll(".adx-seg button").forEach((b) =>
+      b.classList.toggle("is-on", b.dataset.s === statusMode));
     const empty = document.getElementById("adx-filter-empty");
-    if (empty) empty.hidden = !(tokens.length && !pending && !shown);
+    if (empty) empty.hidden = !(active && !pending && !shown);
     // Section headings and "See More" links read as noise mid-filter.
-    document.documentElement.classList.toggle("adx-filtering", tokens.length > 0);
+    document.documentElement.classList.toggle("adx-filtering", active);
   };
   const setFilter = (raw) => {
     const str = String(raw || "").trim();
@@ -268,6 +289,11 @@
         '<span class="adx-filter-count"></span>' +
         '<button type="button" class="adx-filter-clear" aria-label="Clear filter">\u00D7</button>' +
       "</label>" +
+      '<div class="adx-seg" role="group" aria-label="Airing status">' +
+        '<button type="button" data-s="all">All</button>' +
+        '<button type="button" data-s="done">Finished</button>' +
+        '<button type="button" data-s="airing">Not finished</button>' +
+      "</div>" +
       '<div class="adx-filter-quick"></div>';
     const quick = bar.querySelector(".adx-filter-quick");
     for (const g of QUICK) {
@@ -281,7 +307,7 @@
     const empty = document.createElement("div");
     empty.id = "adx-filter-empty";
     empty.className = "adx-filter-empty";
-    empty.textContent = "No anime on this page match that genre filter.";
+    empty.textContent = "No anime on this page match these filters.";
     empty.hidden = true;
 
     // Sit above the grid: before the first card, after the section title.
@@ -317,6 +343,18 @@
       setFilter(input.value);
     });
 
+    bar.querySelector(".adx-seg").addEventListener("click", (e) => {
+      const b = e.target.closest("button[data-s]");
+      if (!b) return;
+      statusMode = b.dataset.s;
+      try { sessionStorage.setItem(STATUS_KEY, statusMode); } catch (e) {}
+      applyFilter();
+    });
+    try {
+      const saved = sessionStorage.getItem(STATUS_KEY);
+      if (saved === "done" || saved === "airing") statusMode = saved;
+    } catch (e) {}
+
     let initial = "";
     try { initial = sessionStorage.getItem(FILTER_KEY) || ""; } catch (e) {}
     input.value = initial;
@@ -341,6 +379,8 @@
     document.querySelectorAll(".charttimer:not([data-adx-tint])").forEach((t) => {
       const txt = t.textContent;
       t.dataset.adxTint = /finished/i.test(txt) ? "done" : /released/i.test(txt) ? "new" : "wait";
+      const card = t.closest(".chart");
+      if (card && !RANK_PAGE) card.dataset.adxStatus = t.dataset.adxTint === "done" ? "done" : "airing";
     });
   };
 
