@@ -1674,53 +1674,51 @@ function drawBoxes(r, ctx, g) {
     ctx.ellipse(0, s * 0.72, s * 0.34, s * 0.08, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    /* The body: a rounded pot, wider than tall, with a little nose. Drawn
-     * first in a dark paper colour so the torn bands show something behind
-     * them rather than sky. */
-    ctx.fillStyle = "#c2708c";
+    /* The body: one clean pastel dome, and the face lives on it.
+     *
+     * The first one wrapped the WHOLE body in rows of coloured paper tabs,
+     * which buried the face in confetti and read as a beach ball — "ang
+     * panget ng itsura". The paper is a skirt and a collar now: the middle
+     * of the face is left alone, because the face is the reason you want to
+     * hit it.
+     */
+    const bodyGrd = ctx.createLinearGradient(0, -s * 0.4, 0, s * 0.4);
+    bodyGrd.addColorStop(0, "#ffe3ef");
+    bodyGrd.addColorStop(1, "#ffb9d4");
+    ctx.fillStyle = bodyGrd;
     ctx.beginPath();
-    ctx.ellipse(0, 0, s * 0.42, s * 0.38, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 0, s * 0.42, s * 0.4, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    /* The frills. Six bands of paper tabs from the bottom up; each hit tears
-     * the topmost surviving one off, so the silhouette loses a layer every
-     * time and what is left droops. */
-    const bands = PINATA_BANDS.length;
-    const alive = Math.max(0, bands - gone * 2);
+    /* The skirt: bands of paper tabs hanging off the BOTTOM only. Each hit
+     * tears the top surviving band away, so the silhouette loses a layer
+     * every time and the damage is something that happened rather than a
+     * scratch drawn on. */
+    const bands = 3;
+    const alive = Math.max(0, bands - gone);
     for (let i = 0; i < alive; i++) {
-      const fy = s * (0.3 - (i / bands) * 0.66);
-      const halfW = s * 0.42 * Math.cos((fy / (s * 0.42)) * 0.9);
+      const fy = s * (0.06 + i * 0.13);
+      const halfW = s * 0.42 * Math.cos((fy / (s * 0.46)) * 1.1);
       ctx.fillStyle = PINATA_BANDS[i % PINATA_BANDS.length];
-      // A row of tabs, each a little triangle hanging downward.
-      const tabs = Math.max(4, Math.round(halfW / (s * 0.07)));
+      const tabs = Math.max(5, Math.round(halfW / (s * 0.06)));
       for (let k = 0; k < tabs; k++) {
         const tx = -halfW + (k + 0.5) * (halfW * 2 / tabs);
-        const tw = (halfW * 2 / tabs) * 0.62;
-        const th = s * 0.15;
+        const tw = (halfW * 2 / tabs) * 0.6;
         ctx.beginPath();
         ctx.moveTo(tx - tw, fy);
         ctx.lineTo(tx + tw, fy);
-        ctx.lineTo(tx, fy + th);
+        ctx.lineTo(tx, fy + s * 0.14);
         ctx.closePath();
         ctx.fill();
       }
     }
 
-    /* Torn paper where a band used to be — loose strips flapping, so the
-     * damage is something that HAPPENED rather than something drawn on. */
-    for (let i = 0; i < gone; i++) {
-      const n = noiseAt(i * 9 + b.x);
-      const sx = (n - 0.5) * s * 0.7;
-      const sy = s * (0.28 - i * 0.2);
-      ctx.strokeStyle = PINATA_BANDS[(bands - 1 - i * 2) % bands];
-      ctx.lineWidth = Math.max(1.5, z * 0.05);
-      ctx.beginPath();
-      ctx.moveTo(sx, sy);
-      ctx.quadraticCurveTo(sx + (n - 0.5) * s * 0.3, sy + s * 0.28,
-                           sx + (n - 0.5) * s * 0.5 + Math.sin(g.time * 5 + i) * s * 0.06,
-                           sy + s * 0.5);
-      ctx.stroke();
-    }
+    // A collar of the same paper under the chin, which ties the skirt to the
+    // head and gives the face something to sit above.
+    ctx.fillStyle = PINATA_BANDS[(alive + 1) % PINATA_BANDS.length];
+    ctx.beginPath();
+    ctx.ellipse(0, -s * 0.02, s * 0.3, s * 0.07, 0, 0, Math.PI * 2);
+    ctx.fill();
 
     // Ears, so it is a creature rather than a pot.
     ctx.fillStyle = "#ffd24a";
@@ -1731,6 +1729,33 @@ function drawBoxes(r, ctx, g) {
       ctx.lineTo(side * s * 0.36, -s * 0.28);
       ctx.closePath();
       ctx.fill();
+      // a paler inner ear, or they read as horns
+      ctx.fillStyle = "#ffeeb5";
+      ctx.beginPath();
+      ctx.moveTo(side * s * 0.21, -s * 0.34);
+      ctx.lineTo(side * s * 0.29, -s * 0.5);
+      ctx.lineTo(side * s * 0.31, -s * 0.3);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = "#ffd24a";
+    }
+
+    // A pom on top where the cord ties on — the piece that makes it a party
+    // object rather than a bag.
+    ctx.fillStyle = "#7fd4ff";
+    ctx.beginPath();
+    ctx.arc(0, -s * 0.44, s * 0.1, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,0.85)";
+    ctx.lineWidth = Math.max(1.2, z * 0.03);
+    ctx.stroke();
+
+    // Blush. Two dots of warmth and the thing is suddenly worth hitting.
+    ctx.fillStyle = "rgba(255,138,170,0.55)";
+    for (const side of [-1, 1]) {
+      ctx.beginPath();
+      ctx.ellipse(side * s * 0.26, -s * 0.09, s * 0.075, s * 0.05, 0, 0, Math.PI * 2);
+      ctx.fill();
     }
 
     /* The face. THE reason you want to hit it, and the clearest read on how
@@ -1740,13 +1765,13 @@ function drawBoxes(r, ctx, g) {
     if (gone === 0) {
       for (const side of [-1, 1]) {
         ctx.beginPath();
-        ctx.arc(side * s * 0.13, -s * 0.06, eye, 0, Math.PI * 2);
+        ctx.arc(side * s * 0.14, -s * 0.16, eye, 0, Math.PI * 2);
         ctx.fill();
       }
       ctx.strokeStyle = "#3b2a2f";
       ctx.lineWidth = Math.max(1.2, z * 0.03);
       ctx.beginPath();
-      ctx.arc(0, s * 0.02, s * 0.1, 0.25 * Math.PI, 0.75 * Math.PI);
+      ctx.arc(0, -s * 0.1, s * 0.1, 0.2 * Math.PI, 0.8 * Math.PI);
       ctx.stroke();
     } else if (gone === 1) {
       // squeezed shut
@@ -2014,30 +2039,13 @@ function drawRoyalty(r, ctx, g, a, px, py, left) {
   ctx.fill();
   ctx.restore();
 
-  /* Gold coming off the body, as a RIM rather than a coat of paint.
+  /* No gold wash over the body here any more.
    *
-   * At half opacity over the whole silhouette this turned a pink pig tan —
-   * the face went muddy and the character stopped looking like themselves,
-   * which is the opposite of what a reward should do. Drawn slightly larger
-   * and behind the edges, it lights them without touching the middle. */
-  ctx.save();
-  ctx.globalCompositeOperation = "lighter";
-  drawSilhouette(r, ctx, "#ffd24a", 0.34 * dim, px, py + h * 0.03, w * 1.1, h * 1.06,
-    (b, bx, by) => {
-      charById(a.char).draw(b, bx, by, w * 1.1, h * 1.06, {
-        face: a.face, run: 0, air: a.grounded ? 0 : (a.vy < 0 ? -1 : 1),
-        squash: 0, t: g.time, walk: a.walk || 0, stride: 1,
-      });
-    });
-  ctx.restore();
-  // A whisper of it over the body itself, so the edge and the middle belong
-  // to the same light. Faint on purpose — see above.
-  drawSilhouette(r, ctx, "#ffe9a8", 0.12 * dim, px, py, w, h, (b, bx, by) => {
-    charById(a.char).draw(b, bx, by, w, h, {
-      face: a.face, run: 0, air: a.grounded ? 0 : (a.vy < 0 ? -1 : 1),
-      squash: 0, t: g.time, walk: a.walk || 0, stride: 1,
-    });
-  });
+   * drawActor replaces a crowned character's whole sprite with a lit
+   * silhouette — see the `korona` branch there — so laying more gold on top
+   * of it only flattened the one thing that was doing the work. What is left
+   * in this function is the things AROUND them: the pool on the floor and
+   * the sparks. */
 
   /* Royal sparks, orbiting. Six of them on a slow ellipse, each twinkling on
    * its own clock so the ring never reads as a solid hoop. */
@@ -2783,8 +2791,12 @@ function drawSilhouette(r, ctx, colour, alpha, cx, cy, w, h, drawInto) {
   drawInto(b, padX + w / 2, padY + h);
   b.restore();
   b.globalCompositeOperation = "source-in";
-  b.fillStyle = colour;
-  b.fillRect(0, 0, cw, ch);
+  /* `colour` may be a function, which is handed the buffer and the box the
+   * shape occupies inside it. That is the only way to fill a silhouette with
+   * a GRADIENT: the gradient's coordinates have to be buffer coordinates, and
+   * the caller has no idea what those are — the padding is worked out here. */
+  if (typeof colour === "function") colour(b, padX, padY, w, h);
+  else { b.fillStyle = colour; b.fillRect(0, 0, cw, ch); }
   b.globalCompositeOperation = "source-over";
 
   ctx.save();
@@ -2825,8 +2837,12 @@ function stampOutline(r, ctx, colour, cx, cy, w, h, thick, drawInto) {
 
   // Flatten whatever was drawn to one solid colour, keeping only its alpha.
   b.globalCompositeOperation = "source-in";
-  b.fillStyle = colour;
-  b.fillRect(0, 0, cw, ch);
+  /* `colour` may be a function, which is handed the buffer and the box the
+   * shape occupies inside it. That is the only way to fill a silhouette with
+   * a GRADIENT: the gradient's coordinates have to be buffer coordinates, and
+   * the caller has no idea what those are — the padding is worked out here. */
+  if (typeof colour === "function") colour(b, padX, padY, w, h);
+  else { b.fillStyle = colour; b.fillRect(0, 0, cw, ch); }
   b.globalCompositeOperation = "source-over";
 
   /* And then HARDEN that alpha — on the GPU.
@@ -3144,10 +3160,123 @@ const FLASH_MS = 0.075;     // how long the barrel is lit
 const SMOKE_MS = 0.55;      // and how long the smoke hangs
 const CASE_MS = 0.6;
 
+/**
+ * The bazooka shell in flight.
+ *
+ * It was the ordinary bullet sprite with homing bolted on, which Charlie
+ * summed up exactly: "kasi parang gun lang na sumusunod right now e". A
+ * rocket is a different object — it has a nose, it has fins, it burns out of
+ * the back, and it leaves the air behind it dirty. And because this one
+ * STEERS, it has to be drawn along its own heading rather than flipped
+ * left-or-right like a bullet; a shell curving upward while pointing
+ * sideways is the tell that it is a bullet in costume.
+ */
+function drawRocket(r, ctx, g, b) {
+  const z = r.cam.zoom;
+  const px = toX(r, b.x);
+  const py = toY(r, b.y);
+  const ang = Math.atan2(b.vy, b.vx);
+  const age = b.born === undefined ? 99 : Math.max(0, g.time - b.born);
+  const L = z * 0.62;              // body length
+  const W = z * 0.2;               // and half its width
+  // Burn flicker, fast and deterministic so both phones see the same flame.
+  const burn = 0.72 + 0.28 * Math.sin(g.time * 47 + b.x * 3);
+
+  /* The trail first, so everything else sits on top of it.
+   *
+   * Traced back along the CURRENT heading rather than from a history of
+   * where it has been — over the last few puffs' worth of distance a steering
+   * shell is near enough straight, and this costs no state on either side. */
+  ctx.save();
+  for (let i = 1; i <= 12; i++) {
+    const back = i * L * 0.62;
+    const n1 = noiseAt(i * 3 + Math.floor(b.born * 97));
+    const n2 = noiseAt(i * 3 + 1 + Math.floor(b.born * 97));
+    const drift = (n1 - 0.5) * z * 0.12 * i;
+    const tx = px - Math.cos(ang) * back - Math.sin(ang) * drift;
+    const ty = py - Math.sin(ang) * back + Math.cos(ang) * drift - i * z * 0.02;
+    const rad = z * (0.09 + i * 0.035) * (0.7 + n2 * 0.6);
+    // Younger puffs nearer the tail are still hot; the far ones are grey.
+    const hot = i < 3;
+    ctx.globalAlpha = Math.max(0, (1 - i / 12)) * (hot ? 0.5 : 0.34)
+                    * Math.min(1, age * 6);
+    ctx.drawImage(softDot(hot ? "255,196,96" : i % 2 ? "142,132,126" : "96,88,84"),
+                  tx - rad, ty - rad, rad * 2, rad * 2);
+  }
+  ctx.restore();
+
+  ctx.save();
+  ctx.translate(px, py);
+  ctx.rotate(ang);
+
+  /* The flame, out of the back. Two cones — a wide orange one and a short
+   * white core — both flickering, because a steady flame is a nozzle and a
+   * flickering one is thrust. */
+  ctx.globalCompositeOperation = "lighter";
+  for (const [len, wide, col] of [[L * (2.1 * burn), W * 1.15, "rgba(255,138,45,0.55)"],
+                                  [L * (1.15 * burn), W * 0.66, "rgba(255,226,120,0.8)"],
+                                  [L * (0.6 * burn), W * 0.34, "rgba(255,255,240,0.95)"]]) {
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    ctx.moveTo(-L * 0.52, -wide);
+    ctx.quadraticCurveTo(-L * 0.52 - len * 0.6, -wide * 0.35, -L * 0.52 - len, 0);
+    ctx.quadraticCurveTo(-L * 0.52 - len * 0.6, wide * 0.35, -L * 0.52, wide);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.globalCompositeOperation = "source-over";
+
+  // Fins — two at the tail, so it reads as a thing that was aimed.
+  ctx.fillStyle = "#b9452a";
+  for (const side of [-1, 1]) {
+    ctx.beginPath();
+    ctx.moveTo(-L * 0.42, side * W * 0.5);
+    ctx.lineTo(-L * 0.68, side * W * 1.5);
+    ctx.lineTo(-L * 0.24, side * W * 0.95);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  /* The body: a capsule with a nose cone. White rim, like every other thing
+   * in this game that has to hold against sky, dirt and a treeline. */
+  ctx.beginPath();
+  ctx.moveTo(L * 0.62, 0);                       // the point
+  ctx.quadraticCurveTo(L * 0.3, -W, -L * 0.1, -W);
+  ctx.lineTo(-L * 0.5, -W * 0.82);
+  ctx.quadraticCurveTo(-L * 0.62, 0, -L * 0.5, W * 0.82);
+  ctx.lineTo(-L * 0.1, W);
+  ctx.quadraticCurveTo(L * 0.3, W, L * 0.62, 0);
+  ctx.closePath();
+  const body = ctx.createLinearGradient(0, -W, 0, W);
+  body.addColorStop(0, "#ffd9a8");
+  body.addColorStop(0.42, POWERUPS.bazuka.colour);
+  body.addColorStop(1, "#a8521f");
+  ctx.fillStyle = body;
+  ctx.fill();
+  ctx.lineWidth = Math.max(1.4, z * 0.035);
+  ctx.strokeStyle = "rgba(255,255,255,0.92)";
+  ctx.stroke();
+
+  // A dark nose cone and a band, so it is not one smooth blob.
+  ctx.fillStyle = "#3f2a22";
+  ctx.beginPath();
+  ctx.moveTo(L * 0.62, 0);
+  ctx.quadraticCurveTo(L * 0.34, -W * 0.92, L * 0.2, -W * 0.72);
+  ctx.lineTo(L * 0.2, W * 0.72);
+  ctx.quadraticCurveTo(L * 0.34, W * 0.92, L * 0.62, 0);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,0.75)";
+  ctx.fillRect(-L * 0.06, -W * 0.95, L * 0.1, W * 1.9);
+  ctx.restore();
+}
+
 function drawShots(r, ctx, g) {
   if (!g.shots) return;
   const z = r.cam.zoom;
   for (const b of g.shots) {
+    // A bazooka shell is not a bullet and must not be drawn as one.
+    if (b.homing) { drawRocket(r, ctx, g, b); continue; }
     const px = toX(r, b.x);
     const py = toY(r, b.y);
     const rad = SHOT_RADIUS * z;
@@ -3778,6 +3907,44 @@ function drawActor(r, ctx, g, a) {
       ctx.arc(sx2, sy2, z * 0.08, 0, Math.PI * 2);
       ctx.fill();
     }
+  } else if (a.power && a.power.type === "korona") {
+    /* Crowned: the character IS the light.
+     *
+     * The first attempt kept the ordinary body and laid gold over and around
+     * it, which gave you a pink pig with a cream smear on him and a second,
+     * brighter shape inside his own outline — Charlie, looking at it: "mas ok
+     * na yung glowing nalang wala na yung pink ... dapat whole thing glowing
+     * pero wala ng pink pero size ng pink".
+     *
+     * So the body is not drawn at all. What is drawn is its SILHOUETTE,
+     * filled with a hot gradient — white at the middle where the light is
+     * coming from, gold at the edges — at the full crowned size. A statue of
+     * you, lit from inside, for as long as you wear it.
+     */
+    const heat = 0.9 + 0.1 * Math.sin(g.time * 7);
+    // A wide glow first, so the light spills past the body onto the arena.
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    drawSilhouette(r, ctx, "#ffb43a", 0.5, px, py, cw * 1.16, chh * 1.1,
+      (b, bx, by) => charById(a.char).draw(b, bx, by, cw * 1.16, chh * 1.1, poseOf(a)));
+    ctx.restore();
+
+    // Then the figure itself, opaque, so nothing of the old colour shows.
+    drawSilhouette(r, ctx, "#ffd24a", 1, px, py, cw, chh,
+      (b, bx, by) => charById(a.char).draw(b, bx, by, cw, chh, poseOf(a)));
+    // ...with a white core THROUGH it — brightest in the middle of the body,
+    // which is what makes it read as lit from inside rather than as painted
+    // gold. Clipped to the silhouette by being painted into it.
+    drawSilhouette(r, ctx, (b, padX, padY, w, h) => {
+      const gx = padX + w / 2, gy = padY + h * 0.55;
+      const core = b.createRadialGradient(gx, gy, 0, gx, gy, w * 0.8);
+      core.addColorStop(0, `rgba(255,255,244,${0.95 * heat})`);
+      core.addColorStop(0.5, `rgba(255,240,180,${0.5 * heat})`);
+      core.addColorStop(1, "rgba(255,214,90,0)");
+      b.fillStyle = core;
+      b.fillRect(0, 0, padX * 2 + w, padY * 2 + h);
+    }, 1, px, py, cw, chh,
+      (b, bx, by) => charById(a.char).draw(b, bx, by, cw, chh, poseOf(a)));
   } else {
     charById(a.char).draw(ctx, px, py, cw, chh, poseOf(a));
   }

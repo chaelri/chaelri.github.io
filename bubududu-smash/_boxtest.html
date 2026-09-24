@@ -73,6 +73,22 @@ cell(boxes, "two at once", (g, fy) => {
   g.boxes.push({ x: 27, y: fy - 4, hits: 1, bumpAt: -9 });
 });
 
+// The shell in flight, at a few headings — it steers, so it must look right
+// pointing anywhere, not just left and right.
+const fly = document.createElement("div");
+fly.className = "row";
+const fhh = document.createElement("h1");
+fhh.textContent = "the shell in flight";
+document.body.append(fhh, fly);
+for (const [cap, vx, vy] of [["flat →", 26, 0], ["climbing", 20, -16],
+                             ["diving", 20, 16], ["flat ←", -26, 0]]) {
+  cell(fly, cap, (g, fy) => {
+    for (const q of g.actors) q.x = 60;
+    g.shots.push({ x: 24, y: fy - 2.4, vx, vy, owner: "p1", life: 1,
+                   born: g.time - 0.5, homing: true, lethal: true });
+  }, 90);
+}
+
 // The bazooka going off, frame by frame — the fireball is under a second.
 const booms = document.createElement("div");
 booms.className = "row";

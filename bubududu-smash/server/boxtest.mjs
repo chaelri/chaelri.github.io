@@ -355,7 +355,15 @@ for (const char of ["bubu", "dudu", "yhon"]) {
      `dead ${a.dead} respawn ${a.respawn}`);
   ok("hit   leaves you roughly where you were",
      Math.abs(a.x - where.x) < 4, `x ${where.x.toFixed(1)} -> ${a.x.toFixed(1)}`);
-  ok("hit   shoves you, and marks it as a launch", (a.launchFor || 0) > 0);
+  /* Deliberately the OPPOSITE of what this file asserted a commit ago.
+   *
+   * The respawn came out and a knockback went in to replace it, and that was
+   * still wrong: thirteen tiles a second threw you most of the way across
+   * the arena, which is the same complaint in a different costume. A hit
+   * moves you nowhere at all now. Being thrown belongs to moves built to
+   * throw you, and those are checked elsewhere in this file. */
+  ok("hit   does NOT shove you either", !(a.launchFor > 0) && Math.abs(a.vy) < 6,
+     `launchFor ${a.launchFor || 0} vy ${a.vy.toFixed(1)}`);
   ok("hit   gives you a moment of grace", a.invulnUntil > sim.state.G.time);
   ok("hit   does NOT stop the world", !G.freeze && !G.slow,
      `freeze ${G.freeze} slow ${G.slow}`);

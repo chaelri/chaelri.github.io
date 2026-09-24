@@ -1409,20 +1409,28 @@ function killPlayer(victim, by, how = "stomp", damage = 1) {
    * nowhere to stand when the reason you lost the heart is that there was
    * nowhere to stand.
    *
-   * What replaces the respawn is what the King already had: knocked away
-   * from whoever did it, and a moment of grace so the same fist cannot take
-   * the next heart before you have landed. */
+   * "pag nahulog lang yun."
+   *
+   * And a hit moves you NOWHERE — no shove either. Being thrown belongs to
+   * moves built to throw you: the pound, the punch, the King's landing, a
+   * bazooka. All a hit costs is the heart and a moment of grace. */
   handleDeath(victim);
   if (victim.dead || victim.hp <= 0) return;
 
-  const away = by ? Math.sign(victim.x - by.x) || 1 : -(victim.face || 1);
-  victim.vx = away * HIT.knockback;
-  victim.vy = -HIT.lift;
-  victim.grounded = false;
-  // Marked as a launch, or they cancel the whole shove on the next tick by
-  // holding the direction they were already holding. Same bypass the pound
-  // and the punch use.
-  victim.launchFor = Math.max(victim.launchFor || 0, HIT.launchMs / 1000);
+  /* No shove, either.
+   *
+   * The respawn came out and a knockback went in to replace it, and that was
+   * still the wrong shape: thirteen tiles a second plus a launch flag threw
+   * you most of the way across the arena, which is the same complaint in a
+   * different costume. Charlie: "not necesarily tatalbog yung character when
+   * hit ... parang king yhon yhon nga pag nahit diba di naman tatalbog tapos
+   * pupunta sa gitna wag ganon."
+   *
+   * So a hit moves you NOWHERE. You lose the heart, you flash for a moment,
+   * and you are exactly where you were doing exactly what you were doing.
+   * Being thrown is what happens when something is designed to throw you —
+   * a Ground Pound, a punch, the King landing — and those all still do.
+   */
   victim.invulnUntil = Math.max(victim.invulnUntil || 0,
                                 G.time + FEEL.hurtInvulnMs / 1000);
 }

@@ -165,10 +165,13 @@ export const HIT = {
   hurtFreezeMs: 0,
   hurtShake: 9,
   hurtPunch: 0.022,
-  // ...and the shove that replaces the respawn.
-  knockback: 13,
-  lift: 9,
-  launchMs: 260,
+  /* There is deliberately NO knockback here any more.
+   *
+   * A hit used to respawn you; that was replaced with a shove, which threw
+   * you most of the way across the arena and was the same complaint wearing
+   * a different hat. A hit now moves you nowhere at all — see killPlayer.
+   * Being thrown belongs to moves built to throw you: the pound, the punch,
+   * the King's landing, a bazooka. */
 
   freezeMs: 150,      // everything stops dead on contact
   slowMoMs: 620,      // then runs slow for a moment as it resumes

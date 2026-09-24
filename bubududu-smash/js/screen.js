@@ -1703,7 +1703,27 @@ function killPlayer(victim, by, how = "stomp", damage = 1) {
   // was involved. handleDeath reads whichever of the two got there.
   victim.cause = { how, by: by ? by.id : null };
   victim.hitFor = damage;
-  kill(victim, { onDeath: handleDeath });
+
+  /* A hit does NOT take you off the board.
+   *
+   * It used to call kill(), which sets `dead`, starts a respawn clock and
+   * puts you back at a spawn point a second later — so every stomp, bullet
+   * and punch teleported you across the arena. handleDeath is called
+   * DIRECTLY instead, and it has never touched `dead` itself; kill() does.
+   *
+   * Falling off the map and landing on spikes still go through kill() from
+   * physics.js and still put you back, because there is nowhere to stand
+   * when the reason you lost the heart is that there was nowhere to stand.
+   * "pag nahulog lang yun."
+   *
+   * And a hit moves you NOWHERE — no shove either. Being thrown belongs to
+   * moves built to throw you: the pound, the punch, the King's landing, a
+   * bazooka. All a hit costs is the heart and a moment of grace.
+   */
+  handleDeath(victim);
+  if (victim.dead || victim.hp <= 0) return;
+  victim.invulnUntil = Math.max(victim.invulnUntil || 0,
+                                G.time + FEEL.hurtInvulnMs / 1000);
 }
 
 /* -------------------------------------------------------------- king --- */
