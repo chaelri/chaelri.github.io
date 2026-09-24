@@ -73,6 +73,21 @@ cell(boxes, "two at once", (g, fy) => {
   g.boxes.push({ x: 27, y: fy - 4, hits: 1, bumpAt: -9 });
 });
 
+// The shield, at a few points through its five and a half seconds.
+const sh = document.createElement("div");
+sh.className = "row";
+const shh = document.createElement("h1");
+shh.textContent = "the shield";
+document.body.append(shh, sh);
+for (const [cap, left] of [["just taken", 5.4], ["half gone", 2.7],
+                           ["nearly out", 0.9], ["last moment", 0.3]]) {
+  cell(sh, cap, (g, fy) => {
+    const a = g.actors[0];
+    a.char = "yhon"; a.x = 24; a.y = fy; a.grounded = true;
+    a.power = { type: "kalasag", until: g.time + left, ammo: 0 };
+  }, 95);
+}
+
 // A player taking a hit, frame by frame — the flash is under half a second
 // and the game no longer stops for it at all.
 const hits = document.createElement("div");

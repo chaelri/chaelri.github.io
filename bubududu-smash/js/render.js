@@ -2136,7 +2136,10 @@ function drawRoyalPool(ctx, px, py, w, h, dim) {
 
 function drawRoyalty(r, ctx, g, a, px, py, left) {
   const z = r.cam.zoom;
-  const w = a.w * z;
+  // `h` is still needed by the sparks below; deleting it when the pool moved
+  // out of this function made drawRoyalty throw every frame, which layer()
+  // swallowed — so the sparks simply stopped and nothing said why.
+  const w = a.w * z, h = a.h * z;
   // Blinks out over the last second and a half, like every other timer here.
   const dim = left < 1.5 ? 0.35 + 0.35 * Math.abs(Math.sin(g.time * 16)) : 1;
 
@@ -3887,46 +3890,115 @@ function drawActor(r, ctx, g, a) {
    * to stay away, and a bubble with no clock on it is just a bubble.
    */
   if (a.power && a.power.type === "kalasag") {
+    /* An energy shield, and it has to SHOUT.
+     *
+     * The first one was a pale glass bubble with a thin ring on it, and at
+     * playing distance it read as a faint outline around the character —
+     * Charlie: "di masyado visible yung shield effect sa character dapat mas
+     * more and with animation."
+     *
+     * The problem was that it was all edge and no substance. What makes a
+     * shield read is the SURFACE: something happening across the whole dome,
+     * moving, so the eye sees a field rather than a circle. So it has a
+     * hexagonal lattice turning slowly inside it, a highlight sweeping round
+     * the rim, sparks riding the edge, and a countdown that is now a fat arc
+     * rather than a hairline. It also breathes.
+     */
     const def = POWERUPS.kalasag;
     const left = Math.max(0, a.power.until - g.time);
     const frac = Math.max(0, Math.min(1, left / (def.ms / 1000)));
-    const rad = a.w * z * 1.05;
-    const wobble = 1 + 0.02 * Math.sin(g.time * 5);
-    ctx.save();
-    // ...blinking out over the last second, like every other timer here.
-    ctx.globalAlpha = left < 1 ? 0.45 + 0.4 * Math.abs(Math.sin(g.time * 16)) : 1;
+    const cx = px, cy = py - a.h * z * 0.55;
+    const rx = a.w * z * 1.15, ry = a.h * z * 0.86;
+    const beat = 1 + 0.035 * Math.sin(g.time * 4.5);
+    const RX = rx * beat, RY = ry * beat;
 
-    // the glass
-    const glass = ctx.createRadialGradient(px, py - a.h * z * 0.55, rad * 0.2,
-                                           px, py - a.h * z * 0.55, rad);
-    glass.addColorStop(0, "rgba(127,212,255,0.05)");
-    glass.addColorStop(0.72, "rgba(127,212,255,0.18)");
-    glass.addColorStop(1, "rgba(180,238,255,0.45)");
+    ctx.save();
+    // Blinks over the last second, like every other timer in the game.
+    ctx.globalAlpha = left < 1 ? 0.5 + 0.45 * Math.abs(Math.sin(g.time * 18)) : 1;
+
+    /* The field itself — bright at the rim, hollow in the middle so the
+     * character stays legible through it. This is the part that was missing. */
+    const glass = ctx.createRadialGradient(cx, cy, RX * 0.25, cx, cy, RX);
+    glass.addColorStop(0, "rgba(127,212,255,0.04)");
+    glass.addColorStop(0.55, "rgba(127,212,255,0.16)");
+    glass.addColorStop(0.86, "rgba(150,228,255,0.42)");
+    glass.addColorStop(1, "rgba(220,248,255,0.72)");
     ctx.fillStyle = glass;
     ctx.beginPath();
-    ctx.ellipse(px, py - a.h * z * 0.55, rad * wobble, a.h * z * 0.78 * wobble,
-                0, 0, Math.PI * 2);
+    ctx.ellipse(cx, cy, RX, RY, 0, 0, Math.PI * 2);
     ctx.fill();
-    ctx.lineWidth = Math.max(2, z * 0.06);
-    ctx.strokeStyle = "rgba(200,244,255,0.9)";
+
+    /* The lattice. Clipped to the dome and turning, which is the whole
+     * animation — a still pattern is wallpaper. */
+    ctx.save();
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, RX, RY, 0, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.globalAlpha *= 0.5;
+    ctx.strokeStyle = "rgba(190,240,255,0.9)";
+    ctx.lineWidth = Math.max(1, z * 0.025);
+    const cell = z * 0.34;
+    const spin = g.time * 0.5;
+    for (let ring = 1; ring <= 3; ring++) {
+      for (let i = 0; i < ring * 6; i++) {
+        const ang = spin * (ring % 2 ? 1 : -1) + (i / (ring * 6)) * Math.PI * 2;
+        const hx = cx + Math.cos(ang) * cell * ring * 1.1;
+        const hy = cy + Math.sin(ang) * cell * ring * 0.85;
+        ctx.beginPath();
+        for (let k = 0; k <= 6; k++) {
+          const ha = (k / 6) * Math.PI * 2 + Math.PI / 6;
+          const hxx = hx + Math.cos(ha) * cell * 0.5;
+          const hyy = hy + Math.sin(ha) * cell * 0.5;
+          k ? ctx.lineTo(hxx, hyy) : ctx.moveTo(hxx, hyy);
+        }
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+
+    // The rim, thick and bright.
+    ctx.lineWidth = Math.max(3, z * 0.1);
+    ctx.strokeStyle = "rgba(226,250,255,0.95)";
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, RX, RY, 0, 0, Math.PI * 2);
     ctx.stroke();
 
-    // the clock, drawn ON the bubble's own edge
-    ctx.lineWidth = Math.max(2.5, z * 0.075);
+    /* The clock, ON the rim and fat enough to read across the arena. It is
+     * the reason the other player can wait this out rather than guess. */
+    ctx.lineWidth = Math.max(4, z * 0.13);
     ctx.strokeStyle = def.colour;
+    ctx.lineCap = "round";
     ctx.beginPath();
-    ctx.ellipse(px, py - a.h * z * 0.55, rad * wobble, a.h * z * 0.78 * wobble,
-                0, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2);
+    ctx.ellipse(cx, cy, RX, RY, 0, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2);
     ctx.stroke();
 
-    // a highlight, so it reads as glass rather than as a coloured circle
-    ctx.globalAlpha *= 0.6;
+    // A highlight sweeping round it, so the surface is plainly moving.
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    const sweep = -g.time * 1.6;
+    ctx.globalAlpha *= 0.9;
     ctx.strokeStyle = "rgba(255,255,255,0.95)";
-    ctx.lineWidth = Math.max(2, z * 0.05);
+    ctx.lineWidth = Math.max(3, z * 0.09);
     ctx.beginPath();
-    ctx.ellipse(px - rad * 0.34, py - a.h * z * 0.85, rad * 0.26, a.h * z * 0.2,
-                -0.5, 0, Math.PI * 1.1);
+    ctx.ellipse(cx, cy, RX, RY, 0, sweep, sweep + 0.8);
     ctx.stroke();
+    ctx.restore();
+
+    // ...and sparks riding the edge.
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    for (let i = 0; i < 5; i++) {
+      const ang = g.time * 2.1 + (i / 5) * Math.PI * 2;
+      const sx = cx + Math.cos(ang) * RX;
+      const sy = cy + Math.sin(ang) * RY;
+      const tw = 0.4 + 0.6 * Math.abs(Math.sin(g.time * 7 + i * 2));
+      ctx.globalAlpha = tw;
+      ctx.fillStyle = "#e8fbff";
+      ctx.beginPath();
+      ctx.arc(sx, sy, z * 0.07 * tw, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
     ctx.restore();
   }
 
