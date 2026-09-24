@@ -136,7 +136,7 @@
     const done = +info.latest > 0 && +info.latest >= +info.total;
     const pill = statusPill(info.status || (done ? "Finished airing" : ""));
     // Schedule cards already print the status on their timer line.
-    const timerSaysIt = /finished|airing/i.test(card.querySelector(".charttimer")?.textContent || "");
+    const timerSaysIt = /finished airing/i.test(card.querySelector(".charttimer")?.textContent || "");
     if (pill && !timerSaysIt) {
       const el = document.createElement("span");
       el.className = "adx-status " + pill[1];
@@ -379,8 +379,15 @@
     document.querySelectorAll(".charttimer:not([data-adx-tint])").forEach((t) => {
       const txt = t.textContent;
       t.dataset.adxTint = /finished/i.test(txt) ? "done" : /released/i.test(txt) ? "new" : "wait";
+      // Only a line that states the status decides it: the schedule's
+      // "Finished airing" / countdown / "Episode Released". New Episodes
+      // shows "15 h ago" there and Popular the rank change — those leave
+      // it to the looked-up status.
       const card = t.closest(".chart");
-      if (card && !RANK_PAGE) card.dataset.adxStatus = t.dataset.adxTint === "done" ? "done" : "airing";
+      const says = /finished/i.test(txt) ? "done"
+        : /released/i.test(txt) || (/\b(day|hour|min)s?\b/i.test(txt) && !/ago/i.test(txt)) ? "airing"
+        : null;
+      if (card && says && !RANK_PAGE) card.dataset.adxStatus = says;
     });
   };
 
