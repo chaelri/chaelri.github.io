@@ -4200,7 +4200,6 @@ function paintHud() {
 /* -------------------------------------------------------------- lobby --- */
 
 // Set once the room is open; the picker calls it to redraw a code.
-let drawQR = () => {};
 
 /* Who each seat is holding, picked on the laptop.
  *
@@ -4244,7 +4243,6 @@ function paintPick(id) {
         rememberCast();
         paintPick(id);
         // The code beside it is now for the wrong character until it is redrawn.
-        drawQR(id);
       });
     }
   }
@@ -4456,29 +4454,18 @@ async function boot() {
    * different character on the laptop has to change the code you are about to
    * scan, or the phone joins as whoever you picked LAST.
    */
-  let qrcode = null;
-  try {
-    ({ default: qrcode } = await import("https://esm.sh/qrcode-generator@1.4.4"));
-  } catch (e) {
-    console.error("QR unavailable", e);
-  }
-  drawQR = (only) => {
-    if (!qrcode || !host) return;
-    for (const p of PLAYERS) {
-      if (only && only !== p.id) continue;
-      const slot = lobby.querySelector(`[data-slot="${p.id}"] .qr`);
-      if (!slot) continue;
-      const url = new URL(base);
-      url.searchParams.set("r", host.code);
-      url.searchParams.set("role", p.id);
-      url.searchParams.set("c", pads[p.id].char);
-      const qr = qrcode(0, "M");
-      qr.addData(url.toString());
-      qr.make();
-      slot.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 1 });
-    }
-  };
-  drawQR();
+  /* No QR any more.
+   *
+   * It was the only way in when a phone had to be pointed at the shared
+   * screen to join a room. The room is joined from the page itself now, so
+   * the code was a hundred-pixel square of nothing sitting where the
+   * character picker wanted to be — Charlie: "remove the QRs feature here ...
+   * just retain character select."
+   *
+   * Removing it also drops a runtime import of qrcode-generator from esm.sh,
+   * which was the only third-party fetch the lobby made.
+   */
+
 }
 
 boot();

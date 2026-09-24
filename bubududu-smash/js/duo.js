@@ -69,6 +69,40 @@ for (const b of wait.querySelectorAll("[data-who]")) {
   });
 }
 
+/* The lobby scene, running behind the waiting screen.
+ *
+ * The big screen gets this for free: screen.js owns the page there and draws
+ * it whenever the phase is "lobby". On two phones the relay path never loads
+ * screen.js until a role is picked, so the canvas sat there doing nothing and
+ * duo had a flat blue page where the shared screen has a valley with the
+ * three of them wandering about in it. Charlie: "update yung background na to
+ * in duo like the one in this."
+ *
+ * So this drives it directly, and stops the moment the waiting screen goes —
+ * there is no reason to animate a lobby nobody is looking at, and the round
+ * needs the frame budget.
+ */
+async function runLobbyScene() {
+  const cv = document.getElementById("scene");
+  if (!cv) return;
+  const { createScene, drawScene, resizeScene } = await import("./render.js");
+  const sc = createScene(cv);
+  const fit = () => resizeScene(sc, cv.clientWidth, cv.clientHeight);
+  fit();
+  addEventListener("resize", fit);
+  let last = performance.now();
+  const frame = (now) => {
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    // Gone means the round has it — stop drawing a screen nobody can see.
+    if (wait.classList.contains("gone")) return;
+    try { drawScene(sc, dt); } catch { /* one bad frame is not worth the lobby */ }
+    requestAnimationFrame(frame);
+  };
+  requestAnimationFrame(frame);
+}
+runLobbyScene();
+
 // Stamp the build into the lobby the moment this file runs, so it is there
 // whatever else fails afterwards.
 {

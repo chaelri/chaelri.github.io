@@ -337,10 +337,6 @@ h1.logo::after {
   padding: 14px 20px; border-radius: 18px;
   background: rgba(255,255,255,0.68); border: 2px solid rgba(33,49,63,0.1);
 }
-.qr { width: clamp(84px, 12vh, 124px); height: clamp(84px, 12vh, 124px); display: grid; place-items: center; border-radius: 10px; }
-.qr:not(:empty) { background: #fff; padding: 5px; }
-.qr svg { width: 100%; height: 100%; display: block; }
-.qr svg rect:first-child { fill: transparent; }
 .joinText { text-align: left; display: grid; gap: 2px; }
 .label { font-size: 9.5px; letter-spacing: 0.24em; text-transform: uppercase; color: rgba(33,49,63,0.4); }
 .url { font-size: clamp(12px, 1.7vh, 15px); color: rgba(33,49,63,0.8); margin-bottom: 0.6em; }
@@ -357,14 +353,9 @@ h1.logo::after {
   transition: border-color 300ms, background 300ms, transform 300ms;
 }
 .slot.on { transform: translateY(-3px); }
-.slot .qr {
   width: clamp(112px, 15vh, 168px); height: clamp(112px, 15vh, 168px);
   display: grid; place-items: center; border-radius: 12px;
 }
-.slot .qr:not(:empty) { background: #fff; padding: 6px; }
-.slot .qr svg { width: 100%; height: 100%; display: block; }
-.slot .qr svg rect:first-child { fill: transparent; }
-.slot.on .qr { opacity: 0.25; }
 .slot[data-slot="p1"].on { border-color: #4cc2ff; background: #eaf7ff; }
 .slot[data-slot="p2"].on { border-color: #ff7ba8; background: #fff0f5; }
 .who { font-family: "Nunito", system-ui, sans-serif; font-size: clamp(19px, 2.6vh, 26px); font-weight: 700; }

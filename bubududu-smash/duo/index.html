@@ -77,7 +77,11 @@
 <div id="sound">tap for sound</div>
 <div id="toastL" class="toast"></div>
 <div id="toastR" class="toast right"></div>
-<canvas id="scene" hidden></canvas>
+<!-- The animated lobby, the same one the big screen has: the valley, the
+     clouds, the three of them wandering about. It was `hidden` here and
+     #duowait painted a flat gradient over the top of it, so the two-phone
+     build had a plain blue page where the shared screen has a place. -->
+<canvas id="scene"></canvas>
 <div id="lobby" class="gone" aria-hidden="true"><div class="slots"></div></div>
 
 <!-- Waiting room. Replaced by the pad the moment both are in. -->
