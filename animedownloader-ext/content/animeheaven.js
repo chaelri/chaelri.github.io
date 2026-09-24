@@ -141,6 +141,7 @@
       const el = document.createElement("span");
       el.className = "adx-status " + pill[1];
       el.textContent = pill[0];
+      el.title = pill[0];
       row.appendChild(el);
     }
     byRelevance(info.genres).slice(0, MAX_CHIPS).forEach(([name, href]) => {
@@ -163,8 +164,10 @@
       t.textContent = " / " + total;
       siteBadge.appendChild(t);
     }
-    const frame = card.querySelector(".similarimg .p1, .similarimg .asp") ||
+    const box = card.querySelector(".similarimg .p1, .similarimg .asp") ||
       (card.matches(".similarimg") && card.querySelector(".p1, .asp"));
+    // .p1 holds the title too; the badge belongs on the framed cover link.
+    const frame = box && (box.querySelector(":scope > a:has(> .coverimg)") || box);
     if (frame && info.latest && !frame.querySelector(".adx-ep")) {
       const ep = document.createElement("span");
       ep.className = "adx-ep";

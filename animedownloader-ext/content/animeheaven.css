@@ -466,18 +466,23 @@ h1 { margin: 0; font: inherit; }
   gap: 24px 16px;
   margin-bottom: 12px;
 }
-.similarimg { display: flex; flex-direction: column; min-width: 0; }
-.similarimg .p1 {
+.similarimg { display: flex; flex-direction: column; min-width: 0; max-width: none; }
+/* .p1 wraps the cover link AND the title, so the frame goes on the link;
+   framing .p1 itself clips the title out of the 16:9 box. */
+.similarimg .p1 { width: 100%; margin: 0; padding: 0; text-align: left; }
+.similarimg .p1 > a:has(> .coverimg) {
   position: relative;
+  display: block;
+  width: 100%;
   aspect-ratio: 16 / 9;
   border-radius: var(--ah-radius);
   overflow: hidden;
   background: var(--ah-surface);
   box-shadow: 0 0 0 1px var(--ah-line);
 }
-.similarimg .p1 > a { display: block; height: 100%; }
 .similarname {
   padding: 10px 2px 0;
+  text-align: left;
   font-size: 13.5px;
   font-weight: 600;
   line-height: 1.35;
@@ -821,9 +826,20 @@ h1 { margin: 0; font: inherit; }
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  background: rgba(61, 214, 140, 0.2);
-  border-color: rgba(61, 214, 140, 0.6);
-  color: #5ee8a4;
+  background: #1f9d5c;
+  border-color: #1f9d5c;
+  color: #fff;
+}
+/* on cards it is just the circle and the check */
+.adx-genre-row > .adx-status.is-done {
+  flex: none;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  font-size: 0;
+  align-self: center;
 }
 .adx-status.is-done::before {
   content: "";
@@ -842,6 +858,7 @@ h1 { margin: 0; font: inherit; }
   padding: 0;
   border: 0;
   background: none;
+  color: #5ee8a4;
   font-size: 12.5px;
   letter-spacing: 0.8px;
 }
@@ -871,7 +888,7 @@ h1 { margin: 0; font: inherit; }
   .searchbox { flex: 1; margin-right: 8px; }
   .fastbox { margin-left: auto; margin-right: auto; }
   .boldtext:has(> .chart),
-  .info3 { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 18px 12px; }
+  .info3 { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 18px 12px; --adx-row-gap: 18px; }
   .info { grid-template-columns: 1fr; padding: 18px; gap: 20px; }
   .infoimg { max-width: 200px; }
   .infotitle { font-size: 22px; }
@@ -975,10 +992,14 @@ h1 { margin: 0; font: inherit; }
   gap: 10px 14px;
   margin: 0 calc(-1 * var(--ah-gutter)) 4px;
   padding: 12px var(--ah-gutter);
+  /* the bar is a grid item: eat most of the row gap below it, and the one
+     above it when the section title is in the same grid (home/schedule) */
+  margin-bottom: calc(-1 * var(--adx-row-gap, 24px) + 12px);
   background: rgba(11, 11, 13, 0.86);
   backdrop-filter: saturate(160%) blur(14px);
   -webkit-backdrop-filter: saturate(160%) blur(14px);
 }
+.adx-filter:not(:first-child) { margin-top: calc(-1 * var(--adx-row-gap, 24px) + 2px); }
 .adx-filter-field {
   flex: 0 1 460px;
   display: flex;
@@ -1115,9 +1136,10 @@ h1 { margin: 0; font: inherit; }
 .info3 {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 36px 24px;
+  --adx-row-gap: 36px;
 }
 .chartimg,
-.similarimg .p1 { border-radius: 14px; }
+.similarimg .p1 > a:has(> .coverimg) { border-radius: 14px; }
 .chartinfo,
 .similarname { padding-top: 14px; }
 .charttitle,
@@ -1133,10 +1155,11 @@ h1 { margin: 0; font: inherit; }
 .adx-genre-chip,
 .adx-status { font-size: 11px; padding: 4px 9px; }
 .adx-status.is-done::before { width: 10px; height: 10px; }
+.adx-genre-row > .adx-status.is-done::before { width: 13px; height: 13px; }
 
 @media (max-width: 1000px) {
   .boldtext:has(> .chart),
-  .info3 { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 30px 20px; }
+  .info3 { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 30px 20px; --adx-row-gap: 30px; }
 }
 @media (max-width: 560px) {
   .boldtext:has(> .chart),
@@ -1163,5 +1186,5 @@ h1 { margin: 0; font: inherit; }
 }
 .adx-seg button:hover { color: var(--ah-text); }
 .adx-seg button.is-on { background: var(--ah-surface-3); color: var(--ah-text); }
-.adx-seg button[data-s="done"].is-on { background: rgba(61, 214, 140, 0.2); color: #5ee8a4; }
+.adx-seg button[data-s="done"].is-on { background: #1f9d5c; color: #fff; }
 .adx-seg button[data-s="airing"].is-on { background: var(--ah-red-soft); color: var(--ah-red); }
