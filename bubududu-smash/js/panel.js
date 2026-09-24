@@ -158,6 +158,10 @@ export function paintPanels(actors, chips, dt, now, pads) {
           const cls = i >= FEEL.hp ? "hseg bonus" : "hseg";
           return `<i class="${cls}" style="--f:${f}"></i>`;
         }).join("") +
+        // The number, ON the bar. A segmented bar says "some of it is gone";
+        // a number says how much, and every game that has both puts them in
+        // the same place.
+        `<b class="hnum">${a.hp % 1 ? a.hp.toFixed(1) : a.hp}</b>` +
         `</div>`;
     }
 

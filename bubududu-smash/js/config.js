@@ -332,6 +332,22 @@ export const POWERUPS_EXTRA = {
     reach: 3.1,          // tiles in front of the body
     reachY: 1.7,         // and how far off the waist it still bites
     behind: 0.7,         // the arc starts behind you and comes over the top
+
+    /* ...and the MEGA one, which a king carries.
+     *
+     * Beating King Yhon Yhon already makes you enormous and untouchable;
+     * handing the same player a sword to go with it is the obvious next
+     * sentence and Charlie wrote it: "kapag naging king character, maganda
+     * may instant excalibur din siya na mas malaki, 3 hits damage non mega
+     * excalibur."
+     *
+     * Three hearts is a third of the highest anybody ever holds, in a swing
+     * you can throw twice a second — which sounds absurd until you remember
+     * what it took to get: three openings against something that flattens
+     * the floor every second and a half, while somebody else was trying to
+     * stop you. It ends when you fall off the map, like the crown. */
+    kingHearts: 3,
+    kingScale: 1.55,     // of the ordinary reach
   },
   lunas: {
     // Red, like a heart. It was green — the colour every other game uses for
@@ -957,7 +973,7 @@ export const ALL_POWERS = { ...POWERUPS, ...POWERUPS_EXTRA };
  *
  * Bumped by hand on each deploy, which is the point: it can only be right.
  */
-export const BUILD = "2026-09-24-m";
+export const BUILD = "2026-09-24-n";
 
 export const SPAWN_CLEAR = {
   power: 4.5,

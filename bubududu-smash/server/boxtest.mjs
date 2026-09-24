@@ -909,6 +909,48 @@ for (const ward of ["kalasag", "bituin"]) {
   ok("stomp ...but a stomp from one still does not", o.hp === hpWas, `hp ${o.hp}`);
 }
 
+
+/* ---- 17. a king's Excalibur -------------------------------------------- */
+/*
+ * "kapag naging king character, maganda may instant excalibur din siya na mas
+ * malaki, 3 hits damage non mega excalibur."
+ */
+{
+  const G = world();
+  const a = G.actors.find((q) => q.id === "p1");
+  const o = G.actors.find((q) => q.id === "p2");
+  a.crowned = true;
+  a.power = { type: "espada", until: Infinity, ammo: 0 };
+  a.face = 1;
+  o.hp = 9;
+  o.x = a.x + 1.6; o.y = a.y;
+  const hpWas = o.hp;
+  sim.applyPacket("p1", { n: 1, s: 1 });
+  for (let i = 0; i < 25 && o.hp === hpWas; i++) {
+    o.x = a.x + 1.6; o.y = a.y;
+    sim.step(sim.TICK);
+  }
+  ok("mega  a king's sword takes three", o.hp === hpWas - 3, `hp ${hpWas} -> ${o.hp}`);
+}
+{
+  // ...and it reaches further than an ordinary one, which stops at 3.1.
+  const G = world();
+  const a = G.actors.find((q) => q.id === "p1");
+  const o = G.actors.find((q) => q.id === "p2");
+  a.crowned = true;
+  a.power = { type: "espada", until: Infinity, ammo: 0 };
+  a.face = 1;
+  o.hp = 9;
+  o.x = a.x + 4.2; o.y = a.y;          // past an ordinary sword's reach
+  const hpWas = o.hp;
+  sim.applyPacket("p1", { n: 1, s: 1 });
+  for (let i = 0; i < 25 && o.hp === hpWas; i++) {
+    o.x = a.x + 4.2; o.y = a.y;
+    sim.step(sim.TICK);
+  }
+  ok("mega  ...and reaches past four tiles", o.hp < hpWas, `hp ${o.hp}`);
+}
+
 /** Land `by` on `victim`'s head, which is the ordinary way anyone loses one. */
 function killPlayerViaStomp(G, by, victim) {
   const hpWas = victim.hp;

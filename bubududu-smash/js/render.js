@@ -1273,9 +1273,90 @@ function markSprite(type, glowC) {
   return c;
 }
 
+/* An orb ARRIVES and an orb LEAVES, and both used to be a jump cut.
+ *
+ * Arriving already had a pop — a back-eased scale over 0.42s — but leaving
+ * had nothing at all: taken off the floor or, worse, deleted because the
+ * arena had eaten the ground under it, an orb was simply there on one frame
+ * and gone on the next. That second case is the one that reads as a bug,
+ * because nothing touched it. Charlie: "yung mga nagsspawn na characters and
+ * powerups make proper IN animation and out animation pag nakukuha ng
+ * character or naeexpire kasi lagpas stage na."
+ *
+ * Kept in the renderer rather than the rules: it is a drawing, both screens
+ * watch the same list disappear, and putting a `leaving` flag on the wire for
+ * a third of a second of sparkle is not a trade worth making.
+ */
+const ORB_OUT = 0.34;
+
+function trackOrbs(r, g) {
+  const seen = (r.orbSeen || (r.orbSeen = new Map()));
+  const going = (r.orbGone || (r.orbGone = []));
+  const now = g.time;
+  const live = new Set();
+
+  for (const q of g.powers) {
+    const k = `${q.type}:${q.born.toFixed(3)}`;
+    live.add(k);
+    seen.set(k, { x: q.x, y: q.y, type: q.type, t: now });
+  }
+  for (const [k, v] of [...seen]) {
+    if (live.has(k)) continue;
+    seen.delete(k);
+    /* Only if it was there on the PREVIOUS frame. A new round resets the
+     * clock and empties the field, and without this every orb alive when the
+     * round ended would burst again at the start of the next one. */
+    const gap = now - v.t;
+    if (gap >= 0 && gap < 0.1) going.push({ ...v, at: now });
+  }
+  if (going.length) r.orbGone = going.filter((q) => now - q.at < ORB_OUT && now >= q.at);
+}
+
+function drawOrbExits(r, ctx, g) {
+  if (!r.orbGone || !r.orbGone.length) return;
+  const z = r.cam.zoom;
+  for (const q of r.orbGone) {
+    const t = (g.time - q.at) / ORB_OUT;
+    if (t < 0 || t >= 1) continue;
+    const def = POWERUPS[q.type];
+    const px = toX(r, q.x);
+    const py = toY(r, q.y) - t * z * 0.55;          // it lifts as it goes
+    const rad = z * 0.44 * (1 + t * 0.5);
+    ctx.save();
+    ctx.globalAlpha = (1 - t) * 0.8;
+    // A ring opening outward, in the thing's own colour.
+    ctx.strokeStyle = def ? def.colour : "#fff";
+    ctx.lineWidth = Math.max(1.5, z * 0.07 * (1 - t));
+    ctx.beginPath();
+    ctx.arc(px, py, rad, 0, Math.PI * 2);
+    ctx.stroke();
+    // ...and the mark itself, shrinking into nothing inside it.
+    ctx.globalAlpha = (1 - t) * (1 - t);
+    const sz = z * 0.66 * (1 - t * 0.7);
+    if (sz > 1) {
+      stampMark(ctx, q.type, px, py, sz, "rgba(255,255,255,0.9)", Math.max(1, z * 0.03));
+      drawMark(ctx, q.type, px, py, sz, def ? def.colour : "#fff");
+    }
+    // Four grains thrown out of it.
+    ctx.globalAlpha = (1 - t) * 0.9;
+    ctx.fillStyle = def ? def.colour : "#fff";
+    for (let i = 0; i < 4; i++) {
+      const ang = (i / 4) * Math.PI * 2 + t * 1.6;
+      const d = rad * (0.8 + t * 0.9);
+      ctx.beginPath();
+      ctx.arc(px + Math.cos(ang) * d, py + Math.sin(ang) * d * 0.8,
+              z * 0.05 * (1 - t), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+}
+
 function drawPowers(r, ctx, g) {
   if (!g.powers) return;
   const z = r.cam.zoom;
+  trackOrbs(r, g);
+  drawOrbExits(r, ctx, g);
 
   for (const q of g.powers) {
     const def = POWERUPS[q.type];
@@ -1284,6 +1365,20 @@ function drawPowers(r, ctx, g) {
     // radius makes ellipse() throw — which killed the whole frame from here
     // on, taking everything drawn after it with it.
     const pop = age < 0.42 ? Math.max(0.06, backOut(age / 0.42)) : 1;
+    /* Arriving: a ring closing IN on it, the mirror of the one that opens
+     * when it goes. The scale pop on its own reads as a thing growing; a ring
+     * arriving with it reads as a thing being put there. */
+    if (age < 0.42) {
+      const t = age / 0.42;
+      ctx.save();
+      ctx.globalAlpha = (1 - t) * 0.85;
+      ctx.strokeStyle = def.colour;
+      ctx.lineWidth = Math.max(1.5, z * 0.06 * (1 - t));
+      ctx.beginPath();
+      ctx.arc(toX(r, q.x), toY(r, q.y), z * 0.44 * (2.4 - t * 1.7), 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
     const bob = Math.sin(age * 2.6) * z * 0.15;
     const px = toX(r, q.x);
     const py = toY(r, q.y) + bob;
@@ -3417,7 +3512,8 @@ function drawSword(r, ctx, g, a) {
     const from = a.swing.up ? 1.15 : -1.15;
     const to = a.swing.up ? -0.95 : 0.95;
     const ang = from + (to - from) * k;
-    const R = def.reach * z * 0.92;
+    // A king's arc is longer, the same as his reach — see tickSwings.
+    const R = def.reach * (a.crowned ? def.kingScale : 1) * z * 0.92;
 
     ctx.save();
     ctx.translate(px, midY);
@@ -3482,7 +3578,7 @@ function drawSword(r, ctx, g, a) {
         ctx.globalAlpha = 1 - bt;
         ctx.strokeStyle = "#ffffff";
         ctx.lineWidth = Math.max(2, z * 0.06 * (1 - bt));
-        const hx = px + face * def.reach * z * 0.5;
+        const hx = px + face * def.reach * (a.crowned ? def.kingScale : 1) * z * 0.5;
         for (const d of [-1, 1]) {
           ctx.beginPath();
           ctx.moveTo(hx - face * z * 0.5, midY + d * z * 0.5 * (1 + bt));
@@ -5337,6 +5433,44 @@ function drawActor(r, ctx, g, a) {
     charById(a.char).draw(ctx, px, py, cw, chh, poseOf(a));
   }
   ctx.restore();
+
+  /* ARRIVING BACK. A respawn used to be a character simply existing again.
+   *
+   * The same ask as the orbs — "make proper IN animation" — and the same
+   * mechanism: the renderer remembers who was dead last frame, so the moment
+   * one of them stops being dead there is something to play. Nothing goes on
+   * the wire for it; both screens watch the same flag flip.
+   */
+  {
+    const mem = (r.aliveMem || (r.aliveMem = {}));
+    const was = mem[a.id];
+    if (was === undefined) mem[a.id] = a.dead ? 1 : 0;
+    else if (was && !a.dead) { mem[a.id] = 0; r.spawnAt = (r.spawnAt || {}); r.spawnAt[a.id] = g.time; }
+    else if (!was && a.dead) mem[a.id] = 1;
+    const at = r.spawnAt && r.spawnAt[a.id];
+    const age = at != null ? g.time - at : 99;
+    if (age >= 0 && age < 0.45) {
+      const t = age / 0.45;
+      ctx.save();
+      // Two rings falling in on them, and a column of light they land in.
+      ctx.globalAlpha = (1 - t) * 0.9;
+      ctx.strokeStyle = ownerColour(a.id) || "#fff";
+      for (const off of [0, 0.18]) {
+        const k = Math.max(0, Math.min(1, t + off));
+        ctx.lineWidth = Math.max(1.5, z * 0.07 * (1 - k));
+        ctx.beginPath();
+        ctx.ellipse(px, py - a.h * z * 0.5, a.w * z * (2.2 - k * 1.6),
+                    a.h * z * (1.5 - k * 1.1), 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      const col = ctx.createLinearGradient(px, py - a.h * z * 3, px, py);
+      col.addColorStop(0, "rgba(255,255,255,0)");
+      col.addColorStop(1, `rgba(255,255,255,${((1 - t) * 0.42).toFixed(3)})`);
+      ctx.fillStyle = col;
+      ctx.fillRect(px - a.w * z * 0.6, py - a.h * z * 3, a.w * z * 1.2, a.h * z * 3);
+      ctx.restore();
+    }
+  }
 
   /* Just hit: white-hot for two frames, then deep red.
    *

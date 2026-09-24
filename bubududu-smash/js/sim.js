@@ -1872,6 +1872,11 @@ function crownTheVictor(k) {
    * writes, and only a death takes it. */
   winner.crowned = true;
   restat(winner);
+  /* ...and a sword with it, which is bigger than anyone else's — see
+   * `kingHearts` in config. It replaces whatever they were holding, Bazooka
+   * included: what they have just been given is strictly better, and a king
+   * with two fire buttons is not a thing this game can express. */
+  givePower(winner, "espada");
   fx.note(winner, KING.colour, "CROWNED", POWERUPS.korona.desc, "korona");
 }
 
@@ -2946,6 +2951,10 @@ function tickSwings() {
     if (!ph || ph.state !== "out" || a.swing.hit || a.dead) continue;
     const face = a.swing.face;
     const midY = a.y - a.h * 0.55;
+    // A king's sword is longer and takes three. See `kingHearts` in config.
+    const mega = !!a.crowned;
+    const hearts = mega ? def.kingHearts : def.hearts;
+    const reach = mega ? def.reach * def.kingScale : def.reach;
     /* Does this thing lie inside the sweep?
      *
      * Ahead of the body out to `reach`, a little behind it — the arc starts
@@ -2954,7 +2963,7 @@ function tickSwings() {
      * player is not judged by one pixel at its centre. */
     const inArc = (x, y, halfW, halfH) => {
       const ahead = (x - a.x) * face;
-      if (ahead < -def.behind - halfW || ahead > def.reach + halfW) return false;
+      if (ahead < -def.behind - halfW || ahead > reach + halfW) return false;
       return Math.abs(y - midY) <= def.reachY + halfH;
     };
 
@@ -2965,7 +2974,7 @@ function tickSwings() {
       const bx = G.boxes[k];
       if (!inArc(bx.x, bx.y, BOX.w / 2, BOX.h / 2)) continue;
       landed = true;
-      hitBox(bx, a, def.hearts);
+      hitBox(bx, a, hearts);
       if (bx.hits <= 0) openBox(bx, k);
     }
 
@@ -2973,7 +2982,7 @@ function tickSwings() {
     if (G.king && !G.king.leaving) {
       const kb = G.king.actor;
       if (inArc(kb.x, kb.y - kb.h * 0.5, kb.w / 2, kb.h / 2)) {
-        if (hurtKing(a, def.hearts)) landed = true;
+        if (hurtKing(a, hearts)) landed = true;
       }
     }
 
@@ -2983,7 +2992,7 @@ function tickSwings() {
       if (!inArc(o.x, o.y - o.h * 0.5, o.w / 2, o.h / 2)) continue;
       if (!canHit(o, a)) continue;
       landed = true;
-      killPlayer(o, a, "espada", def.hearts);
+      killPlayer(o, a, "espada", hearts);
     }
 
     if (landed) {
@@ -2993,7 +3002,7 @@ function tickSwings() {
       fx.shake(14);
       fx.punch(0.045);
       G.bursts.push({
-        x: a.x + face * def.reach * 0.5, y: midY,
+        x: a.x + face * reach * 0.5, y: midY,
         at: G.time, colour: def.colour, big: true,
       });
     }

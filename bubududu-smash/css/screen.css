@@ -618,9 +618,22 @@ h1.logo::after {
    */
   clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px),
                      calc(100% - 10px) 100%, 0 100%, 0 10px);
+  /* Not a flat slab. Three layers: a diagonal weave so the surface has a
+     grain, a warm rim light down the leading edge, and the body itself.
+     "di ko pa rin trip to.... hayy panget it looks dull and plain" — and it
+     was, because a single dark fill has nothing for light to do. */
+  /* BLACK AND GREY, not blue-grey. The slate carried a blue cast and a blue
+     glow in the corner, which put a third colour on a card that already has
+     the seat's colour and the character's — "i want black and gray background
+     instead of blusing eme". Neutral is also the better backdrop: every
+     coloured thing on the plate now sits on nothing. */
   background:
-    linear-gradient(180deg, rgba(255,255,255,0.14), rgba(255,255,255,0) 42%),
-    linear-gradient(180deg, #33485f, #1b2a3a 62%, #16222f);
+    repeating-linear-gradient(135deg,
+      rgba(255,255,255,0.04) 0 2px, rgba(255,255,255,0) 2px 7px),
+    radial-gradient(120% 160% at 0% 0%,
+      rgba(255,255,255,0.1), rgba(255,255,255,0) 60%),
+    linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0) 42%),
+    linear-gradient(180deg, #3a3a3d, #202023 62%, #141416);
   border: 0;
   /* No coloured slab down the edge — Charlie asked for it gone. The name
      carries the seat's colour and that is enough; a blue or pink bar welded
@@ -629,7 +642,7 @@ h1.logo::after {
     inset 0 2px 0 rgba(255,255,255,0.22),      /* the lit top edge */
     inset 0 -2px 0 rgba(0,0,0,0.3),
     inset 0 0 0 2px rgba(255,255,255,0.1),
-    0 12px 26px -12px rgba(10,20,32,0.85);
+    0 12px 26px -12px rgba(0,0,0,0.85);
   transition: box-shadow 250ms, background 250ms;
 }
 /* The portrait gets a well of its own, so the character is mounted rather
@@ -643,11 +656,11 @@ h1.logo::after {
  * sticker. */
 .pcard .face {
   border-radius: 50%;
-  background: radial-gradient(120% 120% at 50% 18%, #f4fbff, #cfe6f5);
+  background: radial-gradient(120% 120% at 50% 18%, #fbfbfc, #d9d9dd);
   box-shadow:
     0 0 0 3px var(--pc, #4cc2ff),
     0 0 0 5px rgba(255,255,255,0.14),
-    inset 0 3px 8px rgba(20,40,60,0.28);
+    inset 0 3px 8px rgba(0,0,0,0.3);
 }
 .pcard.right { flex-direction: row-reverse; }
 .pcard.out { opacity: 0.45; filter: grayscale(0.7); }
@@ -661,8 +674,39 @@ h1.logo::after {
    health bar, a skill badge and a coin chip — had them touching, and the
    skill badge's own key bubble overlapped the bar above it. Charlie: "lets
    make this not crowded." */
-.pinfo { display: grid; gap: clamp(7px, 1.2vh, 12px); }
-.pcard.right .pinfo { justify-items: end; }
+/* The right-hand side FILLS the plate.
+ *
+ * It was a left-aligned column in a box twice its width, so a third of the
+ * card was empty slate — which is most of why it read as plain. Now: a name
+ * row, a bar that stretches the whole way, and one bottom row holding the
+ * ability badge and every chip. */
+.pinfo {
+  display: grid; gap: clamp(5px, 0.8vh, 9px) clamp(6px, 0.8vw, 10px);
+  grid-template-areas: "nm ch2" "hp hp" "sk ch";
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  width: clamp(150px, 20vw, 250px);
+}
+.pinfo .pname { grid-area: nm; }
+.pinfo .pchar { grid-area: ch2; justify-self: end; }
+.pinfo .phearts { grid-area: hp; }
+/* Its own COLUMN, not the same cell as the chips — they were stacked on top
+   of each other and the ability badge was simply behind the coin chip. */
+.pinfo .pskill { grid-area: sk; justify-self: start; }
+.pinfo .pchips { grid-area: ch; justify-self: end; }
+.pcard.right .pinfo { grid-template-areas: "ch2 nm" "hp hp" "ch sk";
+                      grid-template-columns: 1fr auto; }
+.pcard.right .pinfo .pchar { justify-self: start; }
+.pcard.right .pinfo .pname { justify-self: end; }
+.pcard.right .pinfo .pskill { justify-self: end; }
+.pcard.right .pinfo .pchips { justify-self: start; }
+/* No blanket `justify-items: end` on the mirrored card.
+ *
+ * It shrink-wrapped every item to its content, including the health bar's
+ * container — and the bar inside it is `width: 100%`, which of a shrink-to-fit
+ * parent is zero. Karla's card had no health on it at all: "wala hp sa other
+ * side pafix." Each item says where it wants to sit, four lines above; the
+ * bar says nothing and therefore stretches, which is the point of it. */
 
 /* The name: smaller, spaced, uppercase. It was the biggest thing on the card
    and it is the one piece of information neither of them ever needs to read —
@@ -699,17 +743,18 @@ h1.logo::after {
    bar in the arena already says, and at nine it filled the card. */
 .phearts { display: block; }
 .phearts .hbar {
+  position: relative;
   display: flex; overflow: hidden;          /* squares off both ends */
   /* On a dark card the white frame is the thing that separates it from the
      panel, so it stays — see the box-shadow below. */
-  width: clamp(80px, 12vh, 130px);
-  height: clamp(13px, 1.9vh, 20px);
+  width: 100%;
+  height: clamp(15px, 2.2vh, 23px);
   /* Barely rounded. A pill reads as a lozenge; this is a gauge, and Charlie
      asked for it square: "wag mo lagyan border radius or babaan medyo
      rectangle." */
   border-radius: 3px;
-  background: rgba(33,49,63,0.18);
-  box-shadow: 0 0 0 3px #fff, 0 2px 6px -2px rgba(33,49,63,0.5);
+  background: rgba(0,0,0,0.42);
+  box-shadow: 0 0 0 3px #fff, 0 2px 6px -2px rgba(0,0,0,0.6);
 }
 .pcard.right .phearts .hbar { margin-left: auto; }
 /* Each segment is skewed, so the CUT between two of them is diagonal while
@@ -738,6 +783,15 @@ h1.logo::after {
   background: linear-gradient(#ff8fa6, #e8324f);
 }
 .phearts .hseg.bonus::after { background: linear-gradient(#ffe9a8, #f5b43a); }
+/* The number, centred on the bar. Shadowed rather than outlined so it sits
+   ON the fill instead of cutting a hole in it. */
+.phearts .hnum {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  font-family: "Nunito", system-ui, sans-serif; font-weight: 900;
+  font-size: clamp(10px, 1.4vh, 13px); color: #fff;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.9), 0 0 6px rgba(0,0,0,0.65);
+  pointer-events: none;
+}
 /* Wider than the bar so the skew cannot leave a sliver of sky at the edges. */
 .phearts .hbar { padding: 0; }
 
