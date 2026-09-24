@@ -3969,7 +3969,7 @@ function drawActor(r, ctx, g, a) {
    *
    * Derived from the grace deadline, which is already on the wire. */
   const hurtAge = FEEL.hurtInvulnMs / 1000 - ((a.invulnUntil || 0) - g.time);
-  const crowned = a.power && a.power.type === "korona";
+  const crowned = !!a.crowned;
   const shudder = (hurtAge >= 0 && hurtAge < 0.18 && !crowned)
     ? Math.sin(hurtAge * 95) * (1 - hurtAge / 0.18) * z * 0.11
     : 0;
@@ -4272,7 +4272,11 @@ function drawActor(r, ctx, g, a) {
     // still had to read, which way they were facing, went with it.
     const rev = a.reversedUntil && g.time < a.reversedUntil;
     let colour = mine;
-    let thick = z * 0.045;
+    // Thicker than it began. At the distance the two of them actually sit
+    // from the screen a four-hundredth-of-a-tile rim reads as an anti-alias
+    // artefact rather than as "this one is mine". Charlie, twice, with a
+    // close-up of each character: "medyo kapalan pa outline ng onti."
+    let thick = z * 0.062;
     if (rev) {
       const left = a.reversedUntil - g.time;
       if (left < 1.4) {
@@ -4356,7 +4360,7 @@ function drawActor(r, ctx, g, a) {
       ctx.arc(sx2, sy2, z * 0.08, 0, Math.PI * 2);
       ctx.fill();
     }
-  } else if (a.power && a.power.type === "korona") {
+  } else if (a.crowned) {
     /* Crowned: the ordinary character, with a glow behind it.
      *
      * Three wrong answers before this one, each more elaborate than the last
@@ -4716,8 +4720,10 @@ function drawActor(r, ctx, g, a) {
    * touched, and the floor shakes when they land. A status pill at the
    * bottom of the screen is the wrong place to say any of that.
    */
-  if (a.power && a.power.type === "korona") {
-    const left = a.power.until === Infinity ? 99 : a.power.until - g.time;
+  if (a.crowned) {
+    // No deadline at all any more — the crown is a flag that a fall takes, so
+    // there is nothing left to count down and nothing to fade out on.
+    const left = 99;
     // Gold light off the body, a pool on the floor, sparks orbiting — see
     // drawRoyalty. The crown on its own is only as big as a head, and this
     // has to read from anywhere on the arena.

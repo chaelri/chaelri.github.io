@@ -24,7 +24,8 @@ const bit = (v) => (v ? 1 : 0);
 //  w, h, powerType, ammo, until, invulnUntil, frozenUntil, reversedUntil,
 //  coins, fairy, punch, glowUntil, glowFor, glowColour,
 //  coyote, buffer, jumpHeld, launchFor,
-//  abilityAgo, skillN, skillAgo, hops, dashLeft, dashVx, pounding, lockLeft]
+//  abilityAgo, skillN, skillAgo, hops, dashLeft, dashVx, pounding, lockLeft,
+//  crowned]
 
 function packActor(a, now) {
   return [
@@ -90,6 +91,14 @@ function packActor(a, now) {
      * running speed is a third of a tile the server never gave you. */
     Math.max(0, Math.round((a.dashFor || 0) * 1000)), r2(a.dashVx || 0),
     bit(a.pounding), Math.max(0, Math.round(((a.lockUntil || 0) - now) * 1000)),
+    /* The crown, which is NOT the power-up slot any more.
+     *
+     * It used to ride here as `powerType: "korona"`, and picking anything up
+     * overwrote it — a Heal off the floor cost you the boss you had just put
+     * down. It is its own flag now, so it survives whatever else you are
+     * holding, and it has to be on the wire or the other phone draws an
+     * ordinary character where a king is standing. */
+    bit(a.crowned),
   ];
 }
 
@@ -98,7 +107,8 @@ function unpackActor(v, now) {
     respawn, w, h, ptype, ammo, puntil, inv, frozen, reversed, coins,
     fairy, punch, glowLeft, glowFor, glowColour,
     coyote, buffer, jumpHeld, launchFor,
-    abilityAgo, skillN, skillAgo, hops, dashLeft, dashVx, pounding, lockLeft] = v;
+    abilityAgo, skillN, skillAgo, hops, dashLeft, dashVx, pounding, lockLeft,
+    crowned] = v;
   const p = PLAYERS.find((q) => q.id === id);
   return {
     id, char, x, y, vx, vy, face, walk, squash, t,
@@ -125,6 +135,7 @@ function unpackActor(v, now) {
       ? { at: now - punch[0], face: punch[1], hit: !!punch[2],
           blastAt: punch[3] != null && punch[3] >= 0 ? now - punch[3] : null }
       : null,
+    crowned: !!crowned,
     glowUntil: glowLeft > 0 ? now + glowLeft : 0,
     glowFor: glowFor || 0,
     glowColour: glowColour || null,

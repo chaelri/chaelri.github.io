@@ -360,7 +360,15 @@ function startRound(withSeed) {
   countdown = 3;
   lastCount = -1;
   fx.music("start", 138);
-  fx.banner(`${MODES[mode].name}`, `round ${roundNo}`);
+  /* Just the round number.
+   *
+   * It used to be the game's name with the round under it — and the three
+   * countdown cards that follow it spell BUBU, DUDU, SMASH, so the title was
+   * on screen twice inside two seconds, the second time letter by letter.
+   * Charlie, over a screenshot of the two together: "redundant yung
+   * bubududusmash sa taas dito." The cards are the better of the two, so the
+   * banner keeps the one thing they do not say. */
+  fx.banner(`Round ${roundNo}`, "");
 }
 
 function endRound(winnerId, why) {
@@ -606,6 +614,36 @@ function showPickup(a, type) {
 }
 
 
+/* Size and speed, worked out from EVERYTHING that is affecting you.
+ *
+ * Both used to be assigned inside givePower and undone inside clearPower,
+ * which works exactly as long as only one thing at a time can change them.
+ * The crown broke that: it is not a pickup you find, it is what you get for
+ * putting down a boss, and it is meant to last. It lived in the power slot,
+ * so taking so much as a Heal off the floor called clearPower on the way past
+ * and handed back an ordinary character. Charlie: "kumuha lang ng power up
+ * nawala na king status ng character, mawawala lang yun pag nahulog."
+ *
+ * So the crown is its own flag and this recomputes the two numbers from
+ * scratch whenever anything changes. The largest wins rather than the latest:
+ * a Grow taken while crowned should not SHRINK you, and its ending should not
+ * leave you at ordinary size with a crown still on your head.
+ */
+function restat(a) {
+  const big = a.power && a.power.type === "laki" ? POWERUPS.laki.scale : 1;
+  const fast = a.power && a.power.type === "bilis" ? POWERUPS.bilis : null;
+  const k = a.crowned ? POWERUPS.korona : null;
+  const scale = Math.max(big, k ? k.scale : 1);
+  const was = a.h;
+  a.w = a.baseW * scale;
+  a.h = a.baseH * scale;
+  // Grow upward, or the new body is shoved through the floor it is standing
+  // on. Only when it actually grew.
+  if (a.h > was) a.y -= 0.02;
+  a.speedMul = Math.max(fast ? fast.speed : 1, k ? k.speed : 1);
+  a.jumpMul = Math.max(fast ? fast.jump : 1, k ? k.jump : 1);
+}
+
 function givePower(a, type) {
   const def = POWERUPS[type];
 
@@ -641,6 +679,7 @@ function givePower(a, type) {
   if (type === "yelo" || type === "baliktad") {
     for (const o of G.actors) {
       if (o === a || o.dead) continue;
+      if (isWarded(o)) continue;
       if (type === "yelo") o.frozenUntil = G.time + def.freezeMs / 1000;
       else o.reversedUntil = G.time + def.reverseMs / 1000;
     }
@@ -673,16 +712,7 @@ function givePower(a, type) {
     until: def.ms ? G.time + def.ms / 1000 : Infinity,
     ammo: mag,
   };
-  if (type === "laki" || type === "korona") {
-    a.w = a.baseW * def.scale;
-    a.h = a.baseH * def.scale;
-    // Grow upward, or he grows into the floor and gets shoved through it.
-    a.y -= 0.02;
-  }
-  if (type === "bilis" || type === "korona") {
-    a.speedMul = def.speed;
-    a.jumpMul = def.jump;
-  }
+  restat(a);
   fx.sfx(type);
   showPickup(a, type);
   fx.power(a);
@@ -1197,16 +1227,10 @@ function tickMinis(dt) {
 
 function clearPower(a, quiet = false) {
   if (!a.power) return;
-  if (a.power.type === "laki" || a.power.type === "korona") {
-    a.w = a.baseW;
-    a.h = a.baseH;
-  }
-  if (a.power.type === "bilis" || a.power.type === "korona") {
-    a.speedMul = 1;
-    a.jumpMul = 1;
-  }
+
   if (a.power.type === "suntok") a.punch = null;
   a.power = null;
+  restat(a);
   if (!quiet) fx.sfx("powerEnd");
   fx.power(a);
 }
@@ -1222,7 +1246,9 @@ const hasPower = (a, t) => a.power && a.power.type === t;
  * is asked of the power-up instead, via its `star` flag. Add a third and
  * nothing here changes.
  */
-const isStar = (a) => !!(a && a.power && ALL_POWERS[a.power.type]?.star);
+// The crown counts too, and it is no longer in the power slot to be found
+// by the second half of this.
+const isStar = (a) => !!(a && (a.crowned || (a.power && ALL_POWERS[a.power.type]?.star)));
 
 /**
  * Untouchable, but not lethal to touch — the Shield.
@@ -1232,6 +1258,19 @@ const isStar = (a) => !!(a && a.power && ALL_POWERS[a.power.type]?.star);
  * should bounce off and carry on, not lose the round.
  */
 const isShielded = (a) => !!(a && a.power && ALL_POWERS[a.power.type]?.shield);
+
+/* A Star or a Shield turns aside the SHOVE as well as the damage.
+ *
+ * They were two different promises: damage went through killPlayer, which has
+ * always refused both, and being thrown went through half a dozen places that
+ * did not ask. So a shielded player was still launched off the arena by a
+ * Ground Pound, still frozen solid by an Ice, and still sent across the map
+ * by a fist — the map doing the killing that the power-up had just refused to
+ * let anyone do. Charlie: "dapat pag may star or shield power up immune ako sa
+ * knock up ni yhon ground pound, king yhon ground pound, frozen, star,
+ * bazooka, one punch man (even yung talbog)."
+ */
+const isWarded = (a) => isStar(a) || isShielded(a);
 
 function overlapping(a, b) {
   return (
@@ -1285,6 +1324,11 @@ function handleDeath(a) {
   // motion gets to change who won it or end the round a second time.
   if (G.finishAt) return;
   clearPower(a, true);
+  // ...and the crown, which nothing else takes. Being untouchable, the
+  // only way a king reaches this line is by falling off the map, which is
+  // exactly the one way it is meant to be lost.
+  a.crowned = false;
+  restat(a);
   // A fist in mid-air when you die does not get to land afterwards.
   a.punch = null;
   /* ...and neither effect follows you out of the grave.
@@ -1458,30 +1502,41 @@ function handleDeath(a) {
  * in physics.js is the same door a pit death comes through, and a pit knows
  * nothing about who or how much.
  */
-function killPlayer(victim, by, how = "stomp", damage = 1) {
-  if (victim.dead) return;
-  if (victim.invulnUntil && G.time < victim.invulnUntil) return;
-
-  // The grace after being hit is DEFENSIVE. It is the only thing that sets
-  // invulnUntil, so an attacker who has it is someone who just respawned or
-  // was just recovered — and they were able to land on whoever happened to be
-  // standing at the respawn point and kill them, while being untouchable
-  // themselves. Being unable to retaliate against someone killing you is the
-  // worst version of this bug. A star is different: it is meant to kill on
-  // contact, and it is a power, not grace.
-  if (by && by.invulnUntil && G.time < by.invulnUntil) return;
-  // A star makes you untouchable, whoever is doing the touching. Bullets
-  // already skipped a star-holder and the player-versus-player stomp turned it
-  // around on the attacker, but Dudu came through this function and could
-  // kill someone who was supposed to be invincible.
-  if (isStar(victim)) return;
+/* Whether a blow can land on this player at all.
+ *
+ * Every one of killPlayer's early-outs, pulled out where an attacker can ask
+ * BEFORE it commits to anything. That matters because `lethal` — the flag
+ * that says "this one takes the whole bar, not a heart" — is read by
+ * handleDeath and not by killPlayer: a Bazooka or a One Punch that armed it
+ * and was then turned away at the door left it armed on the victim's body,
+ * and the next ordinary hit they took, a minute later, killed them outright.
+ * Charlie: "the bazooka and one punch man overrides damage null when a person
+ * just respawn."
+ */
+function canHit(victim, by) {
+  if (!victim || victim.dead) return false;
+  // The grace after being hit, and the grace after coming back.
+  if (victim.invulnUntil && G.time < victim.invulnUntil) return false;
+  /* ...and an ATTACKER who has it cannot swing either. It is defensive and
+   * nothing else sets it, so someone with it just respawned — and landing on
+   * whoever happens to be standing at the spawn point while being untouchable
+   * yourself is the worst version of this. */
+  if (by && by.invulnUntil && G.time < by.invulnUntil) return false;
+  // A Star, and the crown, kill on contact and cannot be touched back.
+  if (isStar(victim)) return false;
   /* ...and the Shield refuses everything for as long as it lasts.
    *
    * Everything that TAKES A HEART comes through here — stomps, bullets, the
    * fist, the bazooka's blast, the mini squad, a bad Dudu. The drop does not,
    * and must not: it goes through kill() in physics.js, and a shield that
    * covered it would let you sit in the one place the arena cannot reach. */
-  if (isShielded(victim)) return;
+  if (isShielded(victim)) return false;
+  return true;
+}
+
+function killPlayer(victim, by, how = "stomp", damage = 1) {
+  // Every reason a blow bounces off, in one place. See canHit.
+  if (!canHit(victim, by)) return;
   // Recorded on the victim rather than passed down, because `kill()` in
   // physics.js is also the one that fires for a pit and it has no idea who
   // was involved. handleDeath reads whichever of the two got there.
@@ -1578,13 +1633,15 @@ function summonKing(from) {
 }
 
 /** One heart off the King, from whoever managed it. */
-function hurtKing(by) {
+function hurtKing(by, hearts = 1) {
   const k = G.king;
   if (!k || k.leaving) return false;
   // A window after each hit, or a gun burst takes all three in a third of a
   // second and the boss is over before it has jumped twice.
   if (G.time < k.hurtUntil) return false;
-  k.hp -= 1;
+  // Everything takes one, except the One Punch — which takes all three. See
+  // the punch's own call.
+  k.hp -= hearts;
   k.hurtUntil = G.time + KING.hurtInvulnMs / 1000;
   k.lastHitBy = by ? by.id : k.lastHitBy;
   k.actor.hp = k.hp;
@@ -1672,7 +1729,15 @@ function crownTheVictor(k) {
    * and the toast said "Star" because that is the pickup it borrowed the
    * effect from. givePower does all of it properly: the chip, the clock, its
    * own name, and `star: true` so every rule that asks `isStar` says yes. */
-  givePower(winner, "korona");
+  /* The crown is a FLAG on the player, not the power-up they are holding.
+   *
+   * givePower put it in the slot, which gave it the chip and the toast for
+   * free and cost the thing outright: every pickup goes through clearPower
+   * on its way in, so a Heal lying under your feet took the boss you had
+   * just beaten off your head. It is kept here instead, where nothing else
+   * writes, and only a death takes it. */
+  winner.crowned = true;
+  restat(winner);
   fx.note(winner, KING.colour, "CROWNED", POWERUPS.korona.desc, "korona");
 }
 
@@ -1724,7 +1789,7 @@ function kingLanded(a) {
   fx.punch(0.08);
   fx.sfx("suntok");
   for (const o of G.actors) {
-    if (o.dead) continue;
+    if (o.dead || isWarded(o)) continue;
     const d = Math.hypot(o.x - a.x, o.y - a.y);
     if (d > KING.blast) continue;
     const kk = 1 - d / KING.blast;
@@ -1816,7 +1881,7 @@ function tickKingContact(dt) {
      * Detected the same way the King's own landing is — airborne last tick,
      * grounded this one. It is the King's move, handed to whoever took it
      * off him, which is why the reward is worth chasing a boss for. */
-    if (hasPower(a, "korona") && a.grounded && a.wasAirborne) crownLanded(a);
+    if (a.crowned && a.grounded && a.wasAirborne) crownLanded(a);
     a.wasAirborne = !a.grounded;
   }
   void dt;
@@ -1831,7 +1896,7 @@ function crownLanded(a) {
   fx.punch(0.06);
   fx.sfx("suntok");
   for (const o of G.actors) {
-    if (o === a || o.dead) continue;
+    if (o === a || o.dead || isWarded(o)) continue;
     const d = Math.hypot(o.x - a.x, o.y - a.y);
     if (d > R.poundBlast) continue;
     const k = 1 - d / R.poundBlast;
@@ -2215,7 +2280,7 @@ function tickPowers(dt) {
         // A shell does not merely hit them — it goes off, and the blast is
         // what does the work. See bazookaBoom.
         if (b.homing) { bazookaBoom(b.x, b.y, b.owner); break; }
-        if (b.lethal) { o.lethal = true; fx.shake(18); fx.flash(1); }
+        if (b.lethal && canHit(o, G.actors.find((q) => q.id === b.owner) || null)) { o.lethal = true; fx.shake(18); fx.flash(1); }
         killPlayer(o, G.actors.find((q) => q.id === b.owner) || null, b.lethal ? "bazuka" : "shot");
         break;
       }
@@ -2449,7 +2514,8 @@ function poundLanded(a) {
   }
   while (G.quakes.length > 6) G.quakes.shift();
   for (const o of G.actors) {
-    if (o === a || o.dead) continue;
+    // Warded players are not thrown either — see isWarded.
+    if (o === a || o.dead || isWarded(o)) continue;
     const d = Math.hypot(o.x - a.x, o.y - a.y);
     if (d > reach) continue;
     // Away and up, hardest at the centre. It does not hurt them — the kill is
@@ -2555,8 +2621,13 @@ function bazookaBoom(x, y, ownerId) {
   for (const o of G.actors) {
     if (o.dead) continue;
     if (Math.hypot(o.x - x, (o.y - o.h / 2) - y) > def.blast) continue;
-    if (isStar(o)) continue;                    // a star shrugs off everything
-    o.lethal = true;
+    // A Star or a Shield shrugs off the whole thing — the heart, the throw and
+    // the mark that says an explosion moved you. See isWarded.
+    if (isWarded(o)) continue;
+    // Armed only if it can actually land — see canHit. Arming it on someone
+    // who is untouchable leaves it on their body for the NEXT hit they take,
+    // which then costs them the whole bar instead of a heart.
+    if (canHit(o, o.id === ownerId ? null : by)) o.lethal = true;
     /* Thrown FROM THE BLAST, not from the shooter.
      *
      * handleDeath works out which way to throw a body from `cause.by` — the
@@ -2672,11 +2743,19 @@ function tickPunches() {
 
     /* One Punch takes ONE heart off the King, not all of them.
      *
-     * Everywhere else this move ends a player outright, which is the trade it
-     * makes for being one swing you have to throw from arm's length. Against
-     * a boss that would make him a pickup with extra steps — walk up, swing
-     * once, wear the crown. Three hearts means three openings you have to
-     * survive making, whatever you are holding. */
+     * It ends him in ONE, the same as it ends a player and the same as it
+     * opens a box.
+     *
+     * It used to take a heart like anything else, on the reasoning that a
+     * boss worth three openings should not become a pickup with extra steps.
+     * Charlie overruled it, and he is right about what the move is for: the
+     * whole identity of the One Punch is that whatever is in front of it is
+     * finished, and a boss that shrugs one off is the move being special
+     * everywhere except the one place it would be remembered. It is two
+     * chances in nine out of a box that turns up every nineteen seconds, and
+     * you still have to be stood next to a thing that flattens the floor.
+     * "dapat pag inone punchman ko yung box or si king yhon talagang one hit
+     * lang sila." */
     if (G.king && !G.king.leaving) {
       const kb = G.king.actor;
       const forward = (kb.x - a.x) * a.punch.face;
@@ -2685,7 +2764,7 @@ function tickPunches() {
         a.punch.hit = true;
         a.punch.blastAt = G.time;
         G.bursts.push({ x: fistX, y: fistY, at: G.time, colour: def.colour, big: true });
-        hurtKing(a);
+        hurtKing(a, KING.hp);
         continue;
       }
     }
@@ -2702,13 +2781,21 @@ function tickPunches() {
       const forward = (o.x - a.x) * a.punch.face;
       if (forward < -def.blastBehind || forward > def.reachX) continue;
       if (Math.abs((o.y - o.h / 2) - fistY) > def.reachY + o.h / 2) continue;
+      // Warded: the fist passes straight through. It used to throw them
+      // anyway — "a star turns the damage aside but not the shove" — and a
+      // shove out over a chasm is a kill by another name.
+      if (isWarded(o)) continue;
       a.punch.hit = true;
       a.punch.blastAt = G.time;
       // One punch. Not one heart — everything, spare hearts included. That is
       // the trade the Suntok makes: three swings, each one has to be thrown
       // from arm's length and each one can miss, so the one that lands ends
       // the round. A star still stops it outright.
-      o.lethal = true;
+      // ...and armed only if it can land. See canHit: a fist thrown at someone
+      // who is still in their respawn grace used to leave `lethal` set on them
+      // for good, so the next stomp they took an entire round later killed
+      // them outright.
+      if (canHit(o, a)) o.lethal = true;
       // Sent flying whether or not it kills — a star turns the damage aside
       // but not the shove, so surviving a punch still costs you your footing.
       o.vx = a.punch.face * def.knockback;
@@ -2835,7 +2922,9 @@ function repelBadDudu(h, victim) {
 
 function untouchableNow(a) {
   if (!a) return false;
-  if (isStar(a)) return true;
+  // The Shield belongs here too — it refuses the grab for the same reason it
+  // refuses a Ground Pound: both end with you thrown off the map.
+  if (isWarded(a)) return true;
   return !!(a.invulnUntil && G.time < a.invulnUntil);
 }
 
@@ -2917,11 +3006,16 @@ function throwPlayer(a, face) {
   // death looks exactly like walking off a ledge. Stamped here so the fall
   // can still be credited to whoever launched them.
   a.thrownAt = G.time;
-  const floor = widestFloor();
-  if (floor) {
-    const centre = (floor.x0 + floor.x1 + 1) / 2;
-    face = a.x === centre ? face : Math.sign(a.x - centre);
-  }
+  /* Thrown the way he is FACING, which is the side he grabbed you from.
+   *
+   * It used to work out the nearest edge and throw you at that instead, on
+   * the reasoning that the map should do the killing — and it read as the
+   * throw ignoring the whole struggle: he takes you from the right and hurls
+   * you left, past himself. Charlie: "kung san nagcontact si character dun
+   * din talbog so kung from right si character, right din talbog sa corner,
+   * pag sa left sa left." He already faces you when he grabs (see
+   * beginBetrayal), and you are pinned on that side, so the direction is
+   * there to be used rather than recomputed. */
   a.vx = face * BAD_HELPER.launchVx;
   a.vy = BAD_HELPER.launchVy;
   a.launchFor = BAD_HELPER.launchFor / 1000;
@@ -3358,12 +3452,23 @@ export function applyServer(view, hostPhase, opts = {}) {
      * bench found. They are constants keyed off the power everyone already
      * knows about, so deriving them cannot fall out of step the way another
      * field on the wire could. */
-    const def = a.power ? POWERUPS[a.power.type] : null;
-    a.speedMul = (def && def.speed) || 1;
-    a.jumpMul = (def && def.jump) || 1;
     a.hp = t.hp; a.dead = t.dead; a.respawn = t.respawn;
     a.w = t.w; a.h = t.h;
     a.power = t.power;
+    a.crowned = t.crowned;
+    /* ...read off the NEW power, and off the crown beside it.
+     *
+     * Two things were wrong here. It was computed before `a.power` was
+     * replaced, so for one snapshot every client predicted at the speed of
+     * the power-up it used to be holding. And the crown is no longer in that
+     * slot, so a king predicted at walking pace against a server running him
+     * at the crown's. Largest wins, exactly as restat does it — this cannot
+     * call restat itself, because restat nudges a growing body up out of the
+     * floor and the position here is the server's. */
+    const def = a.power ? POWERUPS[a.power.type] : null;
+    const kd = a.crowned ? POWERUPS.korona : null;
+    a.speedMul = Math.max((def && def.speed) || 1, kd ? kd.speed : 1);
+    a.jumpMul = Math.max((def && def.jump) || 1, kd ? kd.jump : 1);
     a.invulnUntil = t.invulnUntil;
     a.frozenUntil = t.frozenUntil;
     a.reversedUntil = t.reversedUntil;

@@ -254,19 +254,35 @@ function bazookaAt(G, x, y, owner) {
       if (sim.state.G.time >= k.hurtUntil) fire(); else sim.step(sim.TICK);
     }
     ok("king  three hits put him down", k.hp <= 0, `hp ${k.hp}`);
-    ok("king  the last hitter is crowned",
-       a.power && a.power.type === "korona", `power ${a.power && a.power.type}`);
+    // A FLAG on the player, not the power-up slot — which is the whole point
+    // of the change: whatever you pick up afterwards, you stay king.
+    ok("king  the last hitter is crowned", !!a.crowned, `crowned ${!!a.crowned}`);
     ok("king  the crown IS a star — out on contact, not just safe",
        !!POWERUPS.korona.star);
     ok("king  the crown is bigger than Big",
        a.w > a.baseW * POWERUPS.laki.scale,
        `w ${a.w.toFixed(2)} vs big ${(a.baseW * POWERUPS.laki.scale).toFixed(2)}`);
-    ok("king  ...and the crown lasts the round, not a timer",
-       a.power && a.power.until === Infinity, `until ${a.power && a.power.until}`);
+    // ...and a pickup does not take it. This is the bug: Charlie took a power-up
+    // and stopped being king, because every pickup runs clearPower on its way in.
+    const wBefore = a.w;
+    const orb = { x: a.x, y: a.y - a.h / 2, type: "baril", born: G.time };
+    G.powers.push(orb);
+    // Held onto him each tick: the arena has been eaten inward by this point
+    // in the fight and a dropped orb with no floor under it is culled before
+    // anyone can walk into it.
+    for (let i = 0; i < 20 && G.powers.length; i++) {
+      orb.x = a.x; orb.y = a.y - a.h / 2;
+      sim.step(sim.TICK);
+    }
+    ok("king  a pickup is still taken", a.power && a.power.type === "baril",
+       `holding ${a.power && a.power.type}`);
+    ok("king  ...and does not uncrown you", !!a.crowned, `crowned ${!!a.crowned}`);
+    ok("king  ...nor shrink you back", Math.abs(a.w - wBefore) < 1e-6,
+       `w ${a.w.toFixed(2)} was ${wBefore.toFixed(2)}`);
   }
 }
 
-/* ---- 7. the star and the fist take one heart, not the lot ------------- */
+/* ---- 7. the star takes one heart; the fist takes the lot -------------- */
 for (const how of ["bituin", "suntok"]) {
   const G = world();
   const a = G.actors.find((q) => q.id === "p1");
@@ -285,7 +301,12 @@ for (const how of ["bituin", "suntok"]) {
     a.y = k.actor.y;
     sim.step(sim.TICK);
   }
-  ok(`king  ${how} takes exactly one heart`, k.hp === KING.hp - 1, `hp ${k.hp}`);
+  /* The One Punch is the exception, at Charlie's word: "dapat pag inone
+   * punchman ko yung box or si king yhon talagang one hit lang sila." A Star
+   * still takes one, because a Star is contact and you can hold it. */
+  const want = how === "suntok" ? 0 : KING.hp - 1;
+  ok(`king  ${how} takes ${how === "suntok" ? "the lot" : "exactly one heart"}`,
+     k.hp === want, `hp ${k.hp}`);
 }
 
 /* ---- 7b. ANY character can stomp him, holding nothing ------------------ */
@@ -384,7 +405,7 @@ for (const char of ["bubu", "dudu", "yhon"]) {
   const G = world();
   const a = G.actors.find((q) => q.id === "p1");
   const o = G.actors.find((q) => q.id === "p2");
-  a.power = { type: "korona", until: G.time + 9, ammo: 0 };
+  a.crowned = true;                          // the crown is a flag, not a slot
   a.y -= 3; a.vy = 4; a.grounded = false;    // drop him onto the floor
   o.x = a.x + 1.5;
   let pounded = false;
@@ -633,6 +654,55 @@ for (const char of ["bubu", "dudu", "yhon"]) {
   ok("fall  still takes you off the board", a.dead || a.y < G.level.h,
      `dead ${a.dead} y ${a.y.toFixed(1)}`);
   ok("fall  ...and still costs a heart", a.hp === hpWas - 1, `hp ${hpWas} -> ${a.hp}`);
+}
+
+
+/* ---- 12. a ward refuses the shove, not only the heart ----------------- */
+/*
+ * "dapat pag may star or shield power up immune ako sa knock up ni yhon
+ * ground pound, king yhon ground pound, frozen, star, bazooka, one punch man
+ * (even yung talbog)." Damage and displacement were two different promises —
+ * killPlayer refused both, and half a dozen shove sites asked neither.
+ */
+for (const ward of ["kalasag", "bituin"]) {
+  const G = world();
+  const a = G.actors.find((q) => q.id === "p1");
+  const o = G.actors.find((q) => q.id === "p2");
+  o.power = { type: ward, until: G.time + 99, ammo: 0 };
+  o.x = a.x + 1; o.y = a.y; o.vx = 0; o.vy = 0;
+  const hpWas = o.hp;
+  // A bazooka going off on top of him.
+  G.shots.push({ x: o.x, y: o.y - o.h / 2, vx: 0, vy: 0, owner: "p1",
+                 life: 1, born: G.time, homing: true, lethal: true, fuse: 0 });
+  for (let i = 0; i < 12; i++) { o.vx = 0; o.vy = 0; sim.step(sim.TICK); }
+  ok(`ward  ${ward} keeps its hearts through a blast`, o.hp === hpWas, `hp ${o.hp}`);
+  ok(`ward  ${ward} is not armed for a later hit`, !o.lethal, `lethal ${!!o.lethal}`);
+}
+
+/* ---- 13. a blow turned away must not stay armed ----------------------- */
+/*
+ * The bug behind "the bazooka and one punch man overrides damage null when a
+ * person just respawn": `lethal` is read by handleDeath, not by killPlayer,
+ * so a One Punch thrown at someone still in their respawn grace left the flag
+ * set on their body — and the next ordinary stomp, a round later, took the
+ * whole bar instead of one heart.
+ */
+{
+  const G = world();
+  const a = G.actors.find((q) => q.id === "p1");
+  const o = G.actors.find((q) => q.id === "p2");
+  a.power = { type: "suntok", until: Infinity, ammo: 3 };
+  a.face = 1;
+  o.x = a.x + 2; o.y = a.y;
+  o.invulnUntil = G.time + 2;             // just came back
+  a.punch = { at: G.time, face: 1, hit: false };
+  for (let i = 0; i < 20; i++) { o.x = a.x + 2; o.y = a.y; sim.step(sim.TICK); }
+  ok("punch a fist through respawn grace does nothing", o.hp === 3, `hp ${o.hp}`);
+  ok("punch ...and leaves nothing armed", !o.lethal, `lethal ${!!o.lethal}`);
+  // ...and the next ordinary hit costs exactly one heart.
+  o.invulnUntil = 0;
+  killPlayerViaStomp(G, a, o);
+  ok("punch ...so the next stomp costs one heart", o.hp === 2, `hp ${o.hp}`);
 }
 
 /** Land `by` on `victim`'s head, which is the ordinary way anyone loses one. */

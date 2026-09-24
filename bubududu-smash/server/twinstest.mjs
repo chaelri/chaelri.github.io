@@ -69,7 +69,8 @@ const BOTH_CONTAIN = [
   ["SQUAD.damage", "the mini squad's half heart"],
   ["breakLedge(a, force)", "a pound has to break the ledge"],
   ["hurtKing(a)", "the King has to be hurtable"],
-  ['givePower(winner, "korona")', "the crown has to be handed over"],
+  ["winner.crowned = true", "the crown has to be handed over"],
+  ["function restat", "size and speed have to be derived the same way"],
   ["a.reversedUntil = 0", "death has to clear Reverse in both copies"],
   ["a.frozenUntil = 0", "death has to clear Freeze in both copies"],
 ];
