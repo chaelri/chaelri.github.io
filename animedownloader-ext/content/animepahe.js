@@ -1889,7 +1889,7 @@
     row.className = "fl-genre-row";
     titleWrap.appendChild(row);
 
-    // Genres come from the local cache only; see getAnimeDetails.
+    // animepahe genres come from the local cache only; see getAnimeDetails.
     if (!_extAlive()) return;
     chrome.storage.local.get(["animeHistory"], (result) => {
       if (chrome.runtime?.lastError) return; // context died mid-flight
@@ -1901,23 +1901,23 @@
         return;
       }
 
-      // Cache miss: no fetch (see getAnimeDetails). The card keeps no genre
-      // row and stays unhydrated, so the genre filter leaves it visible.
-      row.remove();
-      _nsfwCheck(wrap);
+      // Cache miss: no animepahe fetch (see getAnimeDetails). AniList fills
+      // the row instead, in the same request that decides the NSFW gate.
+      _nsfwCheck(wrap, row);
     });
   }
 
-  // ── NSFW gate (AniList) ──────────────────────────────────────────
-  // Thumbnails stay blurred (CSS above) until the anime is cleared. The
-  // verdict comes from AniList, never animepahe: one batched GraphQL request
-  // per wave of cards, cached forever in chrome.storage.local, so a given
-  // title is only ever looked up once. NSFW = adult, Ecchi/Hentai genre, or
-  // an adult tag (Nudity etc.) ranked 40+. Anything AniList can't vouch for
-  // is assumed fine and shown: not found is cached as safe, a failed request
-  // is shown uncached so it gets a real verdict next load.
-  const NSFW_CACHE_KEY = "nsfwVerdicts";
-  const _nsfwWaiting = new Map(); // normTitle -> [wrap]
+  // ── AniList: NSFW gate + genre chips ─────────────────────────────
+  // Thumbnails stay blurred (CSS above) until the anime is checked. The
+  // check is AniList, never animepahe: one batched GraphQL request per wave
+  // of cards, cached forever in chrome.storage.local, so a title is only ever
+  // looked up once. The same answer fills the genre row, "Completed" and the
+  // "/ 12" total for cards animepahe's own details were never cached for.
+  // NSFW = adult, Ecchi/Hentai genre, or an adult tag (Nudity etc.) ranked
+  // 40+. Anything AniList can't vouch for is shown: not found is cached as
+  // safe, a failed request is shown uncached so it gets retried next load.
+  const ANILIST_CACHE_KEY = "anilistCards";
+  const _nsfwWaiting = new Map(); // normTitle -> [{ wrap, row }]
   let _nsfwTimer = null;
 
   // Function declarations, not consts: the router dispatch at the top of the
@@ -1930,23 +1930,56 @@
     if (wrap.isConnected) wrap.dataset.flSafe = "1";
   }
 
-  function _nsfwCheck(wrap) {
+  // row is the empty genre row to fill, or null when animepahe's cached
+  // details already filled it and only the NSFW verdict is wanted.
+  function _applyAnilistCard(wrap, row, card) {
+    if (card.nsfw) return _poofRemoveCard(wrap);
+    if (row) {
+      if (card.genres?.length) {
+        const info = [];
+        if (card.status) info.push({ label: "Status", value: card.status });
+        if (card.episodes) info.push({ label: "Episodes", value: String(card.episodes) });
+        const genres = card.genres.map((name) => ({
+          name,
+          url: "/anime/genre/" + name.toLowerCase().replace(/\s+/g, "-"),
+        }));
+        _applyCardDetails(wrap, row, { info, genres });
+        if (wrap.isConnected) wrap.dataset.flHydrated = "1";
+        _applyGenreFilter();
+      } else {
+        row.remove();
+      }
+    }
+    _markSafe(wrap);
+  }
+
+  function _nsfwCheck(wrap, row = null) {
     const title = _normTitle(
       wrap.querySelector(".episode-title a")?.getAttribute("title") ||
       wrap.querySelector(".episode-title a")?.textContent
     );
-    if (!title || !_extAlive()) return _markSafe(wrap);
-    chrome.storage.local.get([NSFW_CACHE_KEY], (r) => {
+    if (!title || !_extAlive()) {
+      row?.remove();
+      return _markSafe(wrap);
+    }
+    chrome.storage.local.get([ANILIST_CACHE_KEY], (r) => {
       if (chrome.runtime?.lastError) return;
-      const verdict = (r[NSFW_CACHE_KEY] || {})[title];
-      if (verdict === false) return _markSafe(wrap);
-      if (verdict === true) return _poofRemoveCard(wrap);
+      const card = (r[ANILIST_CACHE_KEY] || {})[title];
+      if (card) return _applyAnilistCard(wrap, row, card);
       if (!_nsfwWaiting.has(title)) _nsfwWaiting.set(title, []);
-      _nsfwWaiting.get(title).push(wrap);
+      _nsfwWaiting.get(title).push({ wrap, row });
       clearTimeout(_nsfwTimer);
       _nsfwTimer = setTimeout(_flushNsfwBatch, 120);
     });
   }
+
+  const ANILIST_STATUS = {
+    FINISHED: "Finished Airing",
+    RELEASING: "Currently Airing",
+    NOT_YET_RELEASED: "Not yet aired",
+    CANCELLED: "Cancelled",
+    HIATUS: "On Hiatus",
+  };
 
   async function _flushNsfwBatch() {
     const batch = Array.from(_nsfwWaiting.entries()).slice(0, 25);
@@ -1954,7 +1987,7 @@
     if (!batch.length) return;
     if (_nsfwWaiting.size) _nsfwTimer = setTimeout(_flushNsfwBatch, 1500);
 
-    const fields = "genres isAdult tags { rank isAdult }";
+    const fields = "genres isAdult status episodes tags { rank isAdult }";
     const vars = {};
     const parts = batch.map(([t], i) => {
       vars["s" + i] = t;
@@ -1973,32 +2006,40 @@
       data = (await res.json())?.data || null;
     } catch (_) {}
     if (!data) {
-      batch.forEach(([, wraps]) => wraps.forEach(_markSafe));
+      const unknown = { nsfw: false };
+      batch.forEach(([, waiters]) =>
+        waiters.forEach(({ wrap, row }) => _applyAnilistCard(wrap, row, unknown))
+      );
       return;
     }
 
-    const verdicts = {};
-    batch.forEach(([title, wraps], i) => {
+    const cards = {};
+    batch.forEach(([title, waiters], i) => {
       const m = data["a" + i]?.media?.[0];
-      if (!m) {
-        verdicts[title] = false;
-        return wraps.forEach(_markSafe);
-      }
-      const nsfw =
-        !!m.isAdult ||
-        (m.genres || []).some((g) => /^(ecchi|hentai)$/i.test(g)) ||
-        (m.tags || []).some((t) => t.isAdult && t.rank >= 40);
-      verdicts[title] = nsfw;
-      wraps.forEach((w) => (nsfw ? _poofRemoveCard(w) : _markSafe(w)));
+      const card = m
+        ? {
+            nsfw:
+              !!m.isAdult ||
+              (m.genres || []).some((g) => /^(ecchi|hentai)$/i.test(g)) ||
+              (m.tags || []).some((t) => t.isAdult && t.rank >= 40),
+            genres: m.genres || [],
+            status: ANILIST_STATUS[m.status] || null,
+            episodes: m.episodes || null,
+          }
+        : { nsfw: false };
+      cards[title] = card;
+      waiters.forEach(({ wrap, row }) => _applyAnilistCard(wrap, row, card));
     });
 
-    if (!_extAlive() || !Object.keys(verdicts).length) return;
-    chrome.storage.local.get([NSFW_CACHE_KEY], (r) => {
+    if (!_extAlive()) return;
+    chrome.storage.local.get([ANILIST_CACHE_KEY], (r) => {
       if (chrome.runtime?.lastError) return;
       chrome.storage.local.set({
-        [NSFW_CACHE_KEY]: { ...(r[NSFW_CACHE_KEY] || {}), ...verdicts },
+        [ANILIST_CACHE_KEY]: { ...(r[ANILIST_CACHE_KEY] || {}), ...cards },
       });
     });
+    // The old verdict-only cache is superseded.
+    chrome.storage.local.remove("nsfwVerdicts");
   }
 
   function animePaheHomeInjector() {
