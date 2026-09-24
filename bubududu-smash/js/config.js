@@ -149,9 +149,22 @@ export const HIT = {
    * two or three times a match. These are the smaller numbers for a hit you
    * walk away from: a shorter stop, no slow motion, no flash, no kill cam.
    */
-  hurtFreezeMs: 70,
-  hurtShake: 22,
-  hurtPunch: 0.05,
+  /* A hit that is not a kill barely interrupts anything.
+   *
+   * These started at half the death numbers, which was still a hitch, a
+   * lurch and a shove several times a round — Charlie: "ang annoying lang
+   * talaga every kill, lets remove concept of damang dama, every hit should
+   * not much on impact unless talagang kill na ... make it like nabawasan
+   * lang si king yhon parang ganon".
+   *
+   * So a hit does not stop the world AT ALL. What is left is a nudge to the
+   * camera, the heart visibly coming off, the body flashing through its
+   * grace, and the shove. Everything ceremonial — the stop, the slow motion,
+   * the flash, the kill cam, the thrown body — belongs to the blow that
+   * ends the round, and only to that one. */
+  hurtFreezeMs: 0,
+  hurtShake: 9,
+  hurtPunch: 0.022,
   // ...and the shove that replaces the respawn.
   knockback: 13,
   lift: 9,

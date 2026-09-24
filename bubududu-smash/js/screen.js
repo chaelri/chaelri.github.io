@@ -850,7 +850,17 @@ function givePower(a, type) {
      * goes. */
     // The Big Heart SETS you to nine; a Heal adds one up to the ordinary cap.
     if (def.set) a.hp = def.set;
-    else a.hp = Math.min(FEEL.hpMax, a.hp + def.heal);
+    /* A heal can never LOWER you.
+     *
+     * This was a flat `Math.min(FEEL.hpMax, hp + heal)`, and FEEL.hpMax is
+     * five. Take the Big Heart out of a box, stand on nine, pick up an
+     * ordinary Heal off the floor — and it clamps you to five. Charlie:
+     * "9 healths tapos kumuha ng heart bumaba ... yung limit naging 5".
+     *
+     * The cap belongs to what the pickup can ADD, not to what you already
+     * have: nothing that says "heal" is allowed to take four hearts off you.
+     * Past the cap it simply does nothing. */
+    else a.hp = Math.max(a.hp, Math.min(FEEL.hpMax, a.hp + def.heal));
     G.flash = { type, at: G.time };
     showPickup(a, type);
     sfx.lunas();
@@ -1167,7 +1177,10 @@ function tickFairies(dt) {
     }
     if (G.time < f.next) continue;
 
-    a.hp = Math.min(DIWATA.hpMax, a.hp + 1);
+    // Same rule as the Heal above: cap the addition, never the total. The
+    // guard a few lines up already skips a full player, but a heal that CAN
+    // subtract is a bug waiting for the next ceiling change.
+    a.hp = Math.max(a.hp, Math.min(DIWATA.hpMax, a.hp + 1));
     f.left--;
     f.healAt = G.time;
     f.next = G.time + DIWATA.everyMs / 1000;
@@ -1603,7 +1616,9 @@ function handleDeath(a) {
     index: before - 1,
   });
 
-  sfx.die();
+  // "die" is a life ending. A hit you walk away from gets the ordinary
+  // impact instead — the same sound anything else landing on you makes.
+  gone ? sfx.die() : sfx.stomp();
 
   /* They do not vanish.
    *

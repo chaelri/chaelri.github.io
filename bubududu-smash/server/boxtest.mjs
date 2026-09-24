@@ -321,6 +321,25 @@ for (const char of ["bubu", "dudu", "yhon"]) {
   ok("death still costs a heart", a.hp === hpWas - 1, `hp ${hpWas} -> ${a.hp}`);
 }
 
+/* ---- 10b. nothing called "heal" may ever take hearts OFF you ---------- */
+{
+  const G = world();
+  const a = G.actors.find((q) => q.id === "p1");
+  // Nine, out of a box.
+  G.powers.push({ x: a.x, y: a.y - a.h / 2, type: "puso", born: G.time });
+  for (let i = 0; i < 6 && G.powers.length; i++) sim.step(sim.TICK);
+  const nine = a.hp;
+  // ...then an ordinary Heal off the floor.
+  G.powers.push({ x: a.x, y: a.y - a.h / 2, type: "lunas", born: G.time });
+  for (let i = 0; i < 6 && G.powers.length; i++) sim.step(sim.TICK);
+  ok("heal  a Heal at nine does not drop you to five", a.hp >= nine,
+     `hp ${nine} -> ${a.hp}`);
+  // ...and the fairy, which heals on its own clock.
+  a.fairy = { left: 2, next: 0, healAt: -1, leaving: false, wave: 0, phase: 0 };
+  for (let i = 0; i < 60; i++) sim.step(sim.TICK);
+  ok("heal  ...and neither does the Diwata", a.hp >= nine, `hp ${a.hp}`);
+}
+
 /* ---- 11. a hit costs a heart and leaves you where you were ------------- */
 {
   const G = world();
@@ -338,6 +357,19 @@ for (const char of ["bubu", "dudu", "yhon"]) {
      Math.abs(a.x - where.x) < 4, `x ${where.x.toFixed(1)} -> ${a.x.toFixed(1)}`);
   ok("hit   shoves you, and marks it as a launch", (a.launchFor || 0) > 0);
   ok("hit   gives you a moment of grace", a.invulnUntil > sim.state.G.time);
+  ok("hit   does NOT stop the world", !G.freeze && !G.slow,
+     `freeze ${G.freeze} slow ${G.slow}`);
+}
+
+/* ...but the blow that ends the round still gets the full treatment. */
+{
+  const G = world();
+  const a = G.actors.find((q) => q.id === "p1");
+  const o = G.actors.find((q) => q.id === "p2");
+  a.hp = 1;
+  killPlayerViaStomp(G, o, a);
+  ok("kill  the last heart DOES stop the world", G.freeze > 0 || G.slow > 0,
+     `hp ${a.hp} freeze ${G.freeze} slow ${G.slow}`);
 }
 
 /* ...but falling off the map still puts you back. */

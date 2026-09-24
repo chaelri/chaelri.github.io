@@ -127,7 +127,7 @@ for (const [cap, left] of [["crowned player", 9], ["crown, about to lapse", 0.7]
   cell(kingRow, cap, (g) => {
     const a = g.actors[0];
     a.char = "yhon";            // draws properly in this harness
-    g.actors[1].x = 60;         // out of shot
+    for (const q of g.actors) if (q !== a) q.x = 60;   // out of shot
     // Exactly what givePower does for it — the crown is an ordinary power-up.
     a.power = { type: "korona", until: g.time + left, ammo: 0 };
     a.w = a.baseW * POWERUPS.korona.scale;

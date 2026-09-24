@@ -1903,13 +1903,15 @@ function drawKing(r, ctx, g) {
     }
   }
 
-  drawCrown(ctx, px, py - h, w * 0.5, z);
+  // Same anchor correction as the player's: the sprite reaches 1.32 of the
+  // body box, so `py - h` is inside his head rather than on top of it.
+  drawCrown(ctx, px, py - h * 1.3, w * 0.46, z);
 
   // His three hearts, over the crown rather than over the head — the crown
   // is where a player's hearts would be.
   // Above the crown, which is itself above his head — that stack is the
   // whole silhouette, so nothing may overlap anything else in it.
-  drawBossHearts(r, ctx, px, py - h - w * 0.62, k.hp, KING.hp, z);
+  drawBossHearts(r, ctx, px, py - h * 1.3 - w * 0.62, k.hp, KING.hp, z);
   ctx.restore();
 }
 
@@ -2012,10 +2014,25 @@ function drawRoyalty(r, ctx, g, a, px, py, left) {
   ctx.fill();
   ctx.restore();
 
-  /* Gold coming off the body itself, in its own shape — not a circle behind
-   * it. This is what makes the character look lit rather than stood in front
-   * of a lamp. */
-  drawSilhouette(r, ctx, "#ffd24a", 0.5 * dim, px, py, w, h, (b, bx, by) => {
+  /* Gold coming off the body, as a RIM rather than a coat of paint.
+   *
+   * At half opacity over the whole silhouette this turned a pink pig tan —
+   * the face went muddy and the character stopped looking like themselves,
+   * which is the opposite of what a reward should do. Drawn slightly larger
+   * and behind the edges, it lights them without touching the middle. */
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  drawSilhouette(r, ctx, "#ffd24a", 0.34 * dim, px, py + h * 0.03, w * 1.1, h * 1.06,
+    (b, bx, by) => {
+      charById(a.char).draw(b, bx, by, w * 1.1, h * 1.06, {
+        face: a.face, run: 0, air: a.grounded ? 0 : (a.vy < 0 ? -1 : 1),
+        squash: 0, t: g.time, walk: a.walk || 0, stride: 1,
+      });
+    });
+  ctx.restore();
+  // A whisper of it over the body itself, so the edge and the middle belong
+  // to the same light. Faint on purpose — see above.
+  drawSilhouette(r, ctx, "#ffe9a8", 0.12 * dim, px, py, w, h, (b, bx, by) => {
     charById(a.char).draw(b, bx, by, w, h, {
       face: a.face, run: 0, air: a.grounded ? 0 : (a.vy < 0 ? -1 : 1),
       squash: 0, t: g.time, walk: a.walk || 0, stride: 1,
@@ -3943,7 +3960,14 @@ function drawActor(r, ctx, g, a) {
     drawRoyalty(r, ctx, g, a, px, py, left);
     ctx.save();
     if (left < 1.5) ctx.globalAlpha = 0.4 + 0.6 * Math.abs(Math.sin(g.time * 16));
-    drawCrown(ctx, px, py - a.h * z * 0.98, a.w * z * 0.62, z);
+    /* On the crown of the head, not across the eyes.
+     *
+     * The band was anchored at 0.98 of body height. The sprite reaches 1.32
+     * — the same number AMMO_Y and HEART_Y are derived from, six lines down
+     * — so 0.98 is a third of the way INTO the head, which put the velvet
+     * band straight over both eyes. "ang panget ng itsura as a king ...
+     * natatakpan na mukha e." It perches now. */
+    drawCrown(ctx, px, py - a.h * z * 1.30, a.w * z * 0.5, z);
     ctx.restore();
   }
 
@@ -3951,7 +3975,9 @@ function drawActor(r, ctx, g, a) {
   // the bottom now — two labels for one character is one too many.
   // Lifted clear when there is a crown in the way.
   const crowned = a.power && a.power.type === "korona";
-  const heartY = py - a.h * z * HEART_Y - (crowned ? a.w * z * 0.72 : 0);
+  // A crown reaches 1.30 of the body plus its own height, which is taller
+  // than HEART_Y on its own.
+  const heartY = py - a.h * z * HEART_Y - (crowned ? a.w * z * 0.5 : 0);
   if (typeof a.hp === "number") drawHearts(r, ctx, g, a, px, heartY);
 }
 
