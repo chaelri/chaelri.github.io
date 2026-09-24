@@ -4018,55 +4018,34 @@ function drawActor(r, ctx, g, a) {
       ctx.fill();
     }
   } else if (a.power && a.power.type === "korona") {
-    /* Crowned: washed white-gold, and STILL THEMSELVES.
+    /* Crowned: the ordinary character, with a glow behind it.
      *
-     * Two wrong answers before this one. First the ordinary body with gold
-     * laid over and around it, which gave a pink pig with a cream smear on
-     * him. Then a flat silhouette, which took the face off entirely —
-     * Charlie: "nawala na ng mukha ... yung kanina glowing white tapos may
-     * mukha pa rin."
+     * Three wrong answers before this one, each more elaborate than the last
+     * — gold laid over the body, then a flat silhouette with no face, then a
+     * white tint that ghosted every feature into a cream blob. Charlie, after
+     * the third: "panget pa rin ... normal character plus lagyan mo nalang ng
+     * glow."
      *
-     * What he is describing is a TINT, not a fill: the same trick the Star
-     * already uses a few lines up. Draw the character into a buffer, then
-     * `source-atop` a colour over it — the dark features stay darker than
-     * the body they sit on, so the eyes, the snout and the ears all survive
-     * while every trace of pink goes. It is unmistakably them, lit up.
-     */
-    const need = Math.ceil(Math.max(cw, chh) * 2.2);
-    const buf = r.tintChar || (r.tintChar = document.createElement("canvas"));
-    if (buf.width < need) { buf.width = need; buf.height = need; }
-    const b2 = buf.getContext("2d");
-    b2.setTransform(1, 0, 0, 1, 0, 0);
-    b2.clearRect(0, 0, buf.width, buf.height);
-    const bx = buf.width / 2;
-    const by = buf.height * 0.86;
-    charById(a.char).draw(b2, bx, by, cw, chh, poseOf(a));
-    b2.save();
-    b2.globalCompositeOperation = "source-atop";
-    // Warm white, strong enough that nothing of the old colour reads as
-    // colour, weak enough that the features keep their contrast.
-    b2.globalAlpha = 0.82;
-    b2.fillStyle = "#fff6cf";
-    b2.fillRect(0, 0, buf.width, buf.height);
-    // ...and a gold gradient down the body, so it is lit rather than bleached.
-    b2.globalAlpha = 0.5;
-    const warm = b2.createLinearGradient(0, by - chh, 0, by);
-    warm.addColorStop(0, "rgba(255,246,207,0)");
-    warm.addColorStop(1, "rgba(255,196,60,0.9)");
-    b2.fillStyle = warm;
-    b2.fillRect(0, 0, buf.width, buf.height);
-    b2.restore();
-
-    // The cape, behind everything of theirs.
+     * He is right and it is the obvious answer. The character is already the
+     * best-looking thing in the game; nothing needed to be done TO it. The
+     * crown, the cape and the light around it say everything, and the player
+     * still looks like the player. */
     drawCape(ctx, px, py, cw, chh, z, a.face, g.time);
 
-    // A wide glow underneath it first, so the light spills onto the arena.
+    // The glow, behind: the same silhouette a size up, added to whatever is
+    // there, so the light spills onto the arena rather than onto the sprite.
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
-    ctx.globalAlpha = 0.45 + 0.1 * Math.sin(g.time * 7);
-    ctx.drawImage(buf, px - bx * 1.14, py - by * 1.14, buf.width * 1.14, buf.height * 1.14);
+    const pulse = 0.42 + 0.12 * Math.sin(g.time * 6);
+    for (const [grow, alpha, col] of [[1.26, pulse * 0.55, "#ffb43a"],
+                                      [1.1, pulse, "#ffe9a8"]]) {
+      drawSilhouette(r, ctx, col, alpha, px, py, cw * grow, chh * grow,
+        (b2, bx, by) => charById(a.char).draw(b2, bx, by, cw * grow, chh * grow, poseOf(a)));
+    }
     ctx.restore();
-    ctx.drawImage(buf, px - bx, py - by);
+
+    // ...and then simply them.
+    charById(a.char).draw(ctx, px, py, cw, chh, poseOf(a));
   } else {
     charById(a.char).draw(ctx, px, py, cw, chh, poseOf(a));
   }

@@ -321,6 +321,44 @@ for (const char of ["bubu", "dudu", "yhon"]) {
   ok("death still costs a heart", a.hp === hpWas - 1, `hp ${hpWas} -> ${a.hp}`);
 }
 
+/* ---- 5d. a shell is not stopped by the floor -------------------------- */
+{
+  const G = world();
+  const a = G.actors.find((q) => q.id === "p1");
+  // Fire it straight DOWN, into the ground.
+  G.shots.push({ x: a.x, y: a.y - 1, vx: 0, vy: 14, owner: "p1", life: 0.6,
+                 born: G.time, homing: true, lethal: true });
+  const yWas = G.shots[0].y;
+  let through = false;
+  for (let i = 0; i < 12 && G.shots.length; i++) {
+    sim.step(sim.TICK);
+    const sh = G.shots[0];
+    // It is through once it is below the tile it started above.
+    if (sh && sh.y > yWas + 1.5) through = true;
+  }
+  ok("bazuka the shell passes through the floor", through,
+     `still flying ${!!G.shots.length}`);
+}
+
+/* ---- 5c. a Gun does not take a Bazooka off you ------------------------ */
+{
+  const G = world();
+  const a = G.actors.find((q) => q.id === "p1");
+  a.power = { type: "bazuka", until: Infinity, ammo: 1 };
+  G.powers.push({ x: a.x, y: a.y - a.h / 2, type: "baril", born: G.time });
+  for (let i = 0; i < 10; i++) sim.step(sim.TICK);
+  ok("bazuka a Gun does not replace it", a.power && a.power.type === "bazuka",
+     `holding ${a.power && a.power.type}`);
+  ok("bazuka ...and the Gun is left for the other player", G.powers.length === 1,
+     `powers ${G.powers.length}`);
+  // ...but a Star still does.
+  G.powers.length = 0;
+  G.powers.push({ x: a.x, y: a.y - a.h / 2, type: "bituin", born: G.time });
+  for (let i = 0; i < 10 && G.powers.length; i++) sim.step(sim.TICK);
+  ok("bazuka ...but a Star still takes it", a.power && a.power.type === "bituin",
+     `holding ${a.power && a.power.type}`);
+}
+
 /* ---- 10b. nothing called "heal" may ever take hearts OFF you ---------- */
 {
   const G = world();

@@ -375,10 +375,24 @@ export const POWERUPS_EXTRA = {
      * punch is still directional and still has to be aimed — you cannot hit
      * someone behind you — but being half a tile out no longer whiffs it.
      */
-    blastRadius: 2.6,   // tiles from the fist, in every forward direction
+    blastRadius: 3.4,   // tiles from the fist, in every forward direction
     blastBehind: 0.7,   // ...and this far back past your own shoulder
-    blastMs: 420,       // how long the ring is drawn expanding
-    knockback: 21,      // what it does to them if they survive it (they do not)
+    blastMs: 620,       // how long the ring is drawn expanding
+    /* What it does to the body.
+     *
+     * It ends them either way — that is the trade the Suntok makes — but 21
+     * meant the round's most decisive blow shoved them about as far as a
+     * Ground Pound does, and then they simply stopped. Charlie: "it should be
+     * super eaxcessive kasi 1 hit just like pasabog ng basooka, tapos
+     * animation na tatalbog kalaban hanggang dulo."
+     *
+     * So they LEAVE. Fifty tiles a second is most of the arena in under a
+     * second, and the defeat animation carries them out of the frame rather
+     * than dropping them where they stood. */
+    knockback: 50,
+    lift: 14,           // and up, so the arc is visible before they are gone
+    shake: 52,
+    freezeMs: 190,      // a beat longer than a death, because it IS the death
     cooldownMs: 420,
   },
 };
@@ -711,6 +725,29 @@ export const KING = {
  * anything that wants to look one up by name had to know which half it was
  * in — or, more often, guess. */
 export const ALL_POWERS = { ...POWERUPS, ...POWERUPS_EXTRA };
+
+/**
+ * How far a thing must SPAWN from a player, in tiles.
+ *
+ * Charlie: "may times nagsspawn powerups and boxes and other stuff near a
+ * character dapat hindi coconsider niya." He is right, and it is worse for
+ * some of them than others — a power-up landing on your head is a free
+ * pickup, but a pinata spawning beside you hands you all three bumps before
+ * the other player has seen it, and the pinata is the biggest thing in the
+ * game.
+ *
+ * Distances differ because what "too close" means differs: a coin you can
+ * take in one step is barely unfair, a box you can open unopposed is the
+ * round. If NOTHING qualifies — which happens late, when the floor has eaten
+ * itself down to a few tiles — the spawner takes the furthest spot it can
+ * find rather than giving up, because a round with no pickups at all is
+ * worse than one with a slightly close pickup.
+ */
+export const SPAWN_CLEAR = {
+  power: 4.5,
+  box: 7,
+  coin: 2.5,
+};
 
 export const POWER_ORDER = [
   "laki", "baril", "bituin", "bilis", "yelo", "baliktad", "lunas",

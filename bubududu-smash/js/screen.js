@@ -7,7 +7,7 @@
 import {
   MODES, PLAYERS, ROUNDS_TO_WIN, FEEL, HELPER, BAD_HELPER, SQUAD, DIWATA, COINS, HIT,
   POWERUPS, POWER_ORDER, POWER_SPAWN_MS, POWER_FIRST_MS,
-  SHOT_SPEED, SHOT_LIFE, SHOT_COOLDOWN_MS, SHOT_RADIUS, INPUT_HZ, STACK, ABILITY, BOX, KING, ALL_POWERS,
+  SHOT_SPEED, SHOT_LIFE, SHOT_COOLDOWN_MS, SHOT_RADIUS, INPUT_HZ, STACK, ABILITY, BOX, KING, ALL_POWERS, SPAWN_CLEAR,
   GRAVITY, JUMP_VELOCITY,
 } from "./config.js";
 import { makeArena, readLevel, solidGrid } from "./levels.js";
@@ -928,6 +928,43 @@ function givePower(a, type) {
 const COIN_POP_SEC = 0.75;
 
 /** Every tile you could stand on, top surface only. */
+/**
+ * How far the nearest living player is from a point, in tiles.
+ *
+ * The one question every spawner has to ask. Dead players do not count —
+ * they are not standing anywhere yet, and treating a corpse's last position
+ * as occupied would push spawns away from somewhere nobody is.
+ */
+function playerGap(sp) {
+  let best = Infinity;
+  for (const a of G.actors) {
+    if (a.dead) continue;
+    best = Math.min(best, Math.hypot(a.x - sp.x, a.y - sp.y));
+  }
+  return best;
+}
+
+/**
+ * Pick from `spots`, preferring anywhere at least `clear` tiles from both
+ * players — and if nothing is that far, taking the furthest there is.
+ *
+ * The fallback is the whole point. Late in a round the floor is a handful of
+ * tiles wide and both players are standing on it; a filter that returns an
+ * empty list there means no more pickups for the rest of the round, which is
+ * a worse outcome than a pickup landing a bit close.
+ */
+function spawnAwayFrom(spots, clear) {
+  if (!spots.length) return null;
+  const roomy = spots.filter((sp) => playerGap(sp) >= clear);
+  if (roomy.length) return roomy[Math.floor(rng() * roomy.length)];
+  let best = spots[0], bestGap = -1;
+  for (const sp of spots) {
+    const gap = playerGap(sp);
+    if (gap > bestGap) { bestGap = gap; best = sp; }
+  }
+  return best;
+}
+
 function standingTiles() {
   const out = [];
   for (let y = 1; y < G.level.h; y++) {
@@ -958,7 +995,9 @@ function tickCoins(dt) {
           const p = spots[Math.floor(rng() * spots.length)];
           const clash =
             G.coins.some((c) => !c.taken && Math.abs(c.x - p.x) < 1.4 && Math.abs(c.y - p.y) < 1) ||
-            G.actors.some((a) => !a.dead && Math.abs(a.x - p.x) < 1.2 && Math.abs(a.y - p.y) < 1.4);
+            // Not merely "not under their feet" — a short walk away, or one
+            // player hoovers up everything that appears while they stand still.
+            playerGap(p) < SPAWN_CLEAR.coin;
           if (!clash) { G.coins.push({ x: p.x, y: p.y, at: G.time, taken: 0 }); break; }
         }
       }
@@ -1643,9 +1682,17 @@ function handleDeath(a) {
     at: G.time,
     x: a.x,
     y: a.y,
-    vx: away * (3.2 + rng() * 1.6),
-    vy: -9.5,
-    spin: away * (5 + rng() * 4),
+    /* A One Punch throws them OUT.
+     *
+     * Every other defeat drops the body a few tiles from where it stood,
+     * which is right for a stomp. The Suntok is the one blow that ends a
+     * round outright and it was landing them in a heap at arm's length —
+     * "animation na tatalbog kalaban hanggang dulo". A lethal one leaves at
+     * five times the speed and spins twice as hard, so it clears the arena
+     * while you are still watching it. */
+    vx: away * (lethal ? 30 + rng() * 8 : 3.2 + rng() * 1.6),
+    vy: lethal ? -13 : -9.5,
+    spin: away * (lethal ? 14 + rng() * 6 : 5 + rng() * 4),
     lethal,
   };
 
@@ -2057,9 +2104,13 @@ function tickBoxes(dt) {
                 !G.powers.some((q) => q.x === sp.x && q.y === sp.y)
       );
       const floor = widestFloor();
-      const sp = free.length
-        ? free[Math.floor(rng() * free.length)]
-        : floor ? { x: (floor.x0 + floor.x1 + 1) / 2, y: floor.y - 1.4 } : null;
+      /* Boxes get the widest berth of anything.
+       *
+       * A pinata is three bumps and whatever is inside it, so one that
+       * appears beside a player is not a pickup they were quicker to — it is
+       * a reward nobody contested. */
+      const sp = spawnAwayFrom(free, SPAWN_CLEAR.box)
+        || (floor ? { x: (floor.x0 + floor.x1 + 1) / 2, y: floor.y - 1.4 } : null);
       if (sp) {
         G.boxes.push({
           x: sp.x, y: sp.y - 1.5, hits: BOX.hits, born: G.time, bumpAt: -9,
@@ -2176,11 +2227,9 @@ function tickPowers(dt) {
       (sp) => !G.powers.some((q) => q.x === sp.x && q.y === sp.y) && standingRoom(sp)
     );
     const floor = widestFloor();
-    const sp = free.length
-      ? free[Math.floor(rng() * free.length)]
-      : floor
-        ? { x: (floor.x0 + floor.x1 + 1) / 2, y: floor.y - 1.4 }
-        : null;
+    // Away from both of them, or the pickup is a gift rather than a race.
+    const sp = spawnAwayFrom(free, SPAWN_CLEAR.power)
+      || (floor ? { x: (floor.x0 + floor.x1 + 1) / 2, y: floor.y - 1.4 } : null);
     if (sp) {
       let type = POWER_ORDER[Math.floor(rng() * POWER_ORDER.length)];
       let guard = 0;
@@ -2198,6 +2247,19 @@ function tickPowers(dt) {
     for (const a of G.actors) {
       if (a.dead) continue;
       if (Math.abs(a.x - q.x) < 0.8 + a.w / 2 && Math.abs(a.y - a.h / 2 - q.y) < 0.9 + a.h / 2) {
+        /* A Gun does not take a Bazooka off you.
+         *
+         * They share the fire button, so picking one up while holding the
+         * other swaps them — and walking over a six-shooter is not a decision
+         * anyone makes on purpose when they are carrying the one shell that
+         * ends a round. Charlie: "normal gun di talaga."
+         *
+         * The orb is LEFT on the field rather than consumed, so the other
+         * player can still have it. Everything else still replaces normally,
+         * the Star included, because taking a Star is a choice you can see
+         * yourself making and it is not strictly worse.
+         */
+        if (q.type === "baril" && hasPower(a, "bazuka")) continue;
         G.powers.splice(i, 1);
         // Contact is the payoff, so it gets its own effect rather than the
         // same small ring a bullet gets: a shockwave where it was taken, a
@@ -2289,8 +2351,19 @@ function tickPowers(dt) {
     b.x += b.vx * dt;
     b.y += b.vy * dt;
     const t = tileAt(G.grid, Math.floor(b.x), Math.floor(b.y));
-    if (b.life <= 0 || t === "#") {
-      // A shell always goes off — on the wall, or when it runs out of fuel.
+    /* A shell goes THROUGH the ground.
+     *
+     * It was detonating on the first solid tile like a bullet, and since it
+     * steers towards a target that is usually on another platform, the tile
+     * it met first was almost always the floor between them — Charlie: "dapat
+     * oks lang siya tumagos sa pinakaplatform sa baba di kasi umaabot sa
+     * kalaban e." A guided weapon that cannot get to the thing it is guiding
+     * itself at is not a weapon.
+     *
+     * So terrain does not stop it at all. It goes off on a body, on the King,
+     * or when it runs out of fuel — and its fuel is what stops it circling
+     * the level forever. */
+    if (b.life <= 0 || (t === "#" && !b.homing)) {
       if (b.homing) { bazookaBoom(b.x, b.y, b.owner); G.shots.splice(i, 1); continue; }
       if (t === "#") sfx.shotWall();
       // Where it landed. A bullet that simply stops mid-air reads as the
@@ -2817,7 +2890,7 @@ function tickPunches() {
       // Sent flying whether or not it kills — a star turns the damage aside
       // but not the shove, so surviving a punch still costs you your footing.
       o.vx = a.punch.face * def.knockback;
-      o.vy = -6.4;
+      o.vy = -def.lift;
       /* ...and MARKED as a launch, or it costs them nothing.
        *
        * The line above has said "still costs you your footing" since the
@@ -2825,7 +2898,11 @@ function tickPunches() {
        * the whole shove by holding a direction on the very next tick, which
        * is what anyone is already doing. Same bypass the pound uses and the
        * bad Dudu's throw uses — see `launched` in stepActor. */
-      o.launchFor = Math.max(o.launchFor || 0, 0.2);
+      o.launchFor = Math.max(o.launchFor || 0, 0.4);
+      // Its own treatment, louder than a death's, because it IS the death and
+      // the whole move is that it is excessive.
+      G.freeze = Math.max(G.freeze, def.freezeMs / 1000);
+      renderer.shake = Math.max(renderer.shake || 0, def.shake);
       // The landing gets its own weight: a hit-stop, a hard shake, a flash,
       // a big burst at the fist and a ring of sparks thrown outward. A one-
       // punch kill that looked like a bullet hit was the complaint.
