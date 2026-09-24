@@ -75,6 +75,46 @@ function bump(G, a, b) {
       `boxes ${G.boxes.length} powers ${G.powers.map((q) => q.type).join(",")}`);
 }
 
+/* ---- 1b. a bullet chips it, a punch opens it -------------------------- */
+{
+  const G = world();
+  const a = G.actors.find((q) => q.id === "p1");
+  const b = placeBox(G, a, "puso");
+  const shoot = () => {
+    G.shots.push({ x: b.x, y: b.y, vx: 1, vy: 0, owner: "p1", life: 1, born: G.time });
+    sim.step(sim.TICK);
+  };
+  shoot();
+  ok("box   a bullet is worth one bump", b.hits === BOX.hits - 1, `hits ${b.hits}`);
+  shoot(); shoot();
+  ok("box   ...and three of them open it", G.boxes.length === 0, `boxes ${G.boxes.length}`);
+}
+{
+  const G = world();
+  const a = G.actors.find((q) => q.id === "p1");
+  // Beside him, within the fist's reach and in front of his face.
+  const b = { x: a.x + 1.2, y: a.y - a.h * 0.55, hits: BOX.hits, born: G.time,
+              bumpAt: -9, drop: "puso" };
+  G.boxes.push(b);
+  a.face = 1;
+  a.power = { type: "suntok", until: Infinity, ammo: 1 };
+  a.punch = { at: G.time, face: 1, hit: false };
+  for (let i = 0; i < 20 && G.boxes.length; i++) sim.step(sim.TICK);
+  ok("box   a One Punch opens it outright", G.boxes.length === 0, `boxes ${G.boxes.length}`);
+}
+
+/* ---- 1c. what a box drops overrides what you are holding -------------- */
+{
+  const G = world();
+  const a = G.actors.find((q) => q.id === "p1");
+  a.power = { type: "suntok", until: Infinity, ammo: 1 };
+  // A Bazooka out of a box, which normally an OP holder would decline.
+  G.powers.push({ x: a.x, y: a.y - a.h / 2, type: "bazuka", born: G.time, fromBox: true });
+  for (let i = 0; i < 10 && G.powers.length; i++) sim.step(sim.TICK);
+  ok("box   its loot overwrites an OP item", a.power && a.power.type === "bazuka",
+     `holding ${a.power && a.power.type}`);
+}
+
 /* ---- 2. BIG opens it in one ------------------------------------------- */
 {
   const G = world();
@@ -270,6 +310,37 @@ for (const char of ["bubu", "dudu", "yhon"]) {
   ok(`king  ...and bounces off rather than trading a body`, bounced);
 }
 
+/* ---- 7d. One Punch reaches across the map, but only level with it ----- */
+{
+  const G = world();
+  const a = G.actors.find((q) => q.id === "p1");
+  const o = G.actors.find((q) => q.id === "p2");
+  const def = POWERUPS.suntok;
+  a.x = 10; a.y = 13; a.face = 1; a.vx = 0;
+  o.x = a.x + 20; o.y = a.y; o.vx = 0;            // twenty tiles away, level
+  a.power = { type: "suntok", until: Infinity, ammo: 1 };
+  a.punch = { at: G.time, face: 1, hit: false };
+  const hpWas = o.hp;
+  for (let i = 0; i < 20 && o.hp === hpWas; i++) { o.x = a.x + 20; o.y = a.y; sim.step(sim.TICK); }
+  ok("punch reaches twenty tiles down the arena", o.hp < hpWas || o.dead,
+     `hp ${hpWas} -> ${o.hp}`);
+}
+{
+  const G = world();
+  const a = G.actors.find((q) => q.id === "p1");
+  const o = G.actors.find((q) => q.id === "p2");
+  const def = POWERUPS.suntok;
+  a.x = 10; a.y = 13; a.face = 1; a.vx = 0;
+  // Same distance, but well above the fist — the counter-play is height.
+  o.x = a.x + 20; o.y = a.y - def.reachY * 3; o.vx = 0;
+  a.power = { type: "suntok", until: Infinity, ammo: 1 };
+  a.punch = { at: G.time, face: 1, hit: false };
+  const hpWas = o.hp;
+  for (let i = 0; i < 20; i++) { o.x = a.x + 20; o.y = a.y - def.reachY * 3; o.vy = 0; sim.step(sim.TICK); }
+  ok("punch ...and misses anyone above the line", o.hp === hpWas && !o.dead,
+     `hp ${hpWas} -> ${o.hp}`);
+}
+
 /* ---- 7c. the two OP items never trade for each other ------------------ */
 {
   const G = world();
@@ -377,6 +448,43 @@ for (const char of ["bubu", "dudu", "yhon"]) {
   for (let i = 0; i < 10 && G.powers.length; i++) sim.step(sim.TICK);
   ok("bazuka ...but a Star still takes it", a.power && a.power.type === "bituin",
      `holding ${a.power && a.power.type}`);
+}
+
+/* ---- 9b. the Shield refuses damage, but not the drop ------------------ */
+{
+  const G = world();
+  const a = G.actors.find((q) => q.id === "p1");
+  const o = G.actors.find((q) => q.id === "p2");
+  a.power = { type: "kalasag", until: G.time + 5, ammo: 0 };
+  const hpWas = a.hp;
+  killPlayerViaStomp(G, o, a);
+  ok("shield a stomp does nothing to you", a.hp === hpWas, `hp ${hpWas} -> ${a.hp}`);
+
+}
+/* ...nor a bazooka going off on top of you.
+ *
+ * Its own world: the shell catches whoever fired it as well, and a lethal
+ * one ends the round — which stops the sim, which made the NEXT assertion
+ * fail for a reason that had nothing to do with shields. */
+{
+  const G = world();
+  const a = G.actors.find((q) => q.id === "p1");
+  a.power = { type: "kalasag", until: G.time + 5, ammo: 0 };
+  const hpWas = a.hp;
+  bazookaAt(G, a.x, a.y - a.h / 2, "p2");
+  ok("shield ...nor a shell", a.hp === hpWas && !a.dead, `hp ${a.hp}`);
+}
+/* ...but the map still does. A shield that covered the drop would let you
+ * stand in the one place the arena cannot reach. */
+{
+  const G = world();
+  const a = G.actors.find((q) => q.id === "p1");
+  a.power = { type: "kalasag", until: G.time + 5, ammo: 0 };
+  const hpWas = a.hp;
+  a.y = G.level.h + 4;
+  for (let i = 0; i < 20 && !a.dead; i++) sim.step(sim.TICK);
+  ok("shield ...but falling off still costs you", a.hp === hpWas - 1,
+     `hp ${hpWas} -> ${a.hp}`);
 }
 
 /* ---- 10b. nothing called "heal" may ever take hearts OFF you ---------- */

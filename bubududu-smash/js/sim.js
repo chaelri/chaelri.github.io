@@ -1254,6 +1254,15 @@ const hasPower = (a, t) => a.power && a.power.type === t;
  */
 const isStar = (a) => !!(a && a.power && ALL_POWERS[a.power.type]?.star);
 
+/**
+ * Untouchable, but not lethal to touch — the Shield.
+ *
+ * Kept apart from `isStar` on purpose: a Star turns contact around on the
+ * attacker, a Shield just refuses it. Somebody running into a shielded player
+ * should bounce off and carry on, not lose the round.
+ */
+const isShielded = (a) => !!(a && a.power && ALL_POWERS[a.power.type]?.shield);
+
 function overlapping(a, b) {
   return (
     Math.abs(a.x - b.x) < (a.w + b.w) / 2 &&
@@ -1460,6 +1469,13 @@ function killPlayer(victim, by, how = "stomp", damage = 1) {
   // around on the attacker, but Dudu came through this function and could
   // kill someone who was supposed to be invincible.
   if (isStar(victim)) return;
+  /* ...and the Shield refuses everything for as long as it lasts.
+   *
+   * Everything that TAKES A HEART comes through here — stomps, bullets, the
+   * fist, the bazooka's blast, the mini squad, a bad Dudu. The drop does not,
+   * and must not: it goes through kill() in physics.js, and a shield that
+   * covered it would let you sit in the one place the arena cannot reach. */
+  if (isShielded(victim)) return;
   // Recorded on the victim rather than passed down, because `kill()` in
   // physics.js is also the one that fires for a pit and it has no idea who
   // was involved. handleDeath reads whichever of the two got there.
@@ -1941,7 +1957,13 @@ function openBox(b, i) {
   // The other two fall out as an ordinary pickup, so whoever wants it still
   // has to go and touch it — opening a box is not the same as winning one,
   // and the opponent gets a moment to contest it.
-  G.powers.push({ x: b.x, y: b.y, type: b.drop, born: G.time });
+  /* Flagged as box loot, which overrides the decline rules below.
+   *
+   * Walking over a Gun must not cost you a Bazooka — but if you spent three
+   * bumps on a pinata and a Bazooka came out, you are having it, whatever is
+   * in your hands. Charlie: "any box can overwrite current op item." The
+   * refusals exist to stop ACCIDENTS, and opening a box is not one. */
+  G.powers.push({ x: b.x, y: b.y, type: b.drop, born: G.time, fromBox: true });
   fx.sfx("spawn");
 }
 
@@ -1993,14 +2015,15 @@ function tickPowers(dt) {
          * the Star included, because taking a Star is a choice you can see
          * yourself making and it is not strictly worse.
          */
-        if (q.type === "baril" && hasPower(a, "bazuka")) continue;
+        if (!q.fromBox && q.type === "baril" && hasPower(a, "bazuka")) continue;
         /* ...and the two OP items never trade for each other.
          *
          * A Bazooka and a One Punch are each one input that ends a round.
          * They share the fire button so you could never hold both anyway;
          * what this stops is the bad half of that — walking over one and
          * silently losing the other. Left on the field, like the Gun. */
-        if (ALL_POWERS[q.type]?.op && a.power && ALL_POWERS[a.power.type]?.op) continue;
+        if (!q.fromBox && ALL_POWERS[q.type]?.op
+            && a.power && ALL_POWERS[a.power.type]?.op) continue;
         G.powers.splice(i, 1);
         // Contact is the payoff, so it gets its own effect rather than the
         // same small ring a bullet gets: a shockwave where it was taken, a
@@ -2114,6 +2137,30 @@ function tickPowers(dt) {
       G.shots.splice(i, 1);
       continue;
     }
+    /* A bullet opens a pinata too, a bump at a time.
+     *
+     * "even baril pwede rin sa box." Six shots is two boxes, which gives the
+     * Gun something to do besides chase people and is the only way to open
+     * one without standing underneath it. */
+    {
+      let hitOne = false;
+      for (let k = G.boxes.length - 1; k >= 0; k--) {
+        const bx = G.boxes[k];
+        if (Math.abs(bx.x - b.x) > BOX.w / 2 + SHOT_RADIUS) continue;
+        if (Math.abs(bx.y - b.y) > BOX.h / 2 + SHOT_RADIUS) continue;
+        G.pops.push({ x: b.x, y: b.y, at: G.time, colour: "#ffd873", glyph: "" });
+        // A shell blows it open outright; a bullet is worth one bump.
+        hitBox(bx, G.actors.find((q) => q.id === b.owner) || null,
+               b.homing ? BOX.hits : 1);
+        if (b.homing) bazookaBoom(b.x, b.y, b.owner);
+        if (bx.hits <= 0) openBox(bx, k);
+        G.shots.splice(i, 1);
+        hitOne = true;
+        break;
+      }
+      if (hitOne) continue;
+    }
+
     /* The King is in front of the players in this list ON PURPOSE.
      *
      * He is enormous and they fight around his feet; a shell that passes
@@ -2576,6 +2623,25 @@ function tickPunches() {
     if (!ph || ph.state !== "out" || a.punch.hit || a.dead) continue;
     const fistX = a.x + a.punch.face * (a.w / 2 + def.reach * 0.6);
     const fistY = a.y - a.h * 0.55;
+    /* A One Punch opens a pinata outright.
+     *
+     * "yung mga one punch man pwede gamitin kay king yhon or sa mismong box."
+     * It is the same blast that ends a player; a paper animal is not going to
+     * survive it. Checked before the King and the players so the swing is
+     * spent on the thing nearest the fist. */
+    for (let k = G.boxes.length - 1; k >= 0; k--) {
+      const bx = G.boxes[k];
+      const ahead = (bx.x - a.x) * a.punch.face;
+      if (ahead < -def.blastBehind || ahead > def.reachX) continue;
+      if (Math.abs(bx.y - fistY) > def.reachY + BOX.h / 2) continue;
+      a.punch.hit = true;
+      a.punch.blastAt = G.time;
+      hitBox(bx, a, BOX.hits);
+      openBox(bx, k);
+      break;
+    }
+    if (a.punch.hit) continue;
+
     /* One Punch takes ONE heart off the King, not all of them.
      *
      * Everywhere else this move ends a player outright, which is the trade it
@@ -2586,9 +2652,8 @@ function tickPunches() {
     if (G.king && !G.king.leaving) {
       const kb = G.king.actor;
       const forward = (kb.x - a.x) * a.punch.face;
-      const d = Math.hypot(kb.x - fistX, ((kb.y - kb.h / 2) - fistY) * 0.85)
-              - (kb.w + kb.h) / 4;
-      if (forward >= -def.blastBehind && d <= def.blastRadius) {
+      const level = Math.abs((kb.y - kb.h / 2) - fistY) <= def.reachY + kb.h / 2;
+      if (forward >= -def.blastBehind && forward <= def.reachX && level) {
         a.punch.hit = true;
         a.punch.blastAt = G.time;
         G.bursts.push({ x: fistX, y: fistY, at: G.time, colour: def.colour, big: true });
@@ -2602,17 +2667,13 @@ function tickPunches() {
       // fist. Behind you it stops almost at once, so the punch still has to
       // be aimed — but a near miss in front now connects, which is the whole
       // difference between "one of my three landed" and "none did".
-      const ox = o.x - fistX;
-      const oy = (o.y - o.h / 2) - fistY;
-      // "Is he in front of me" is measured from the PLAYER, not from the
-      // fist. Measuring it from the fist — which is nearly two tiles out —
-      // classified anyone standing right against you as being BEHIND the
-      // punch, so the one range you cannot miss from was the one range that
-      // never connected.
+      /* A CORRIDOR in front, not a blob around the fist.
+       *
+       * Forward as far as the arena goes, and level with the fist to within
+       * a couple of tiles. See `reachX` in config for why this shape. */
       const forward = (o.x - a.x) * a.punch.face;
-      if (forward < -def.blastBehind) continue;
-      const d = Math.hypot(ox, oy * 0.85) - (o.w + o.h) / 4;
-      if (d > def.blastRadius) continue;
+      if (forward < -def.blastBehind || forward > def.reachX) continue;
+      if (Math.abs((o.y - o.h / 2) - fistY) > def.reachY + o.h / 2) continue;
       a.punch.hit = true;
       a.punch.blastAt = G.time;
       // One punch. Not one heart — everything, spare hearts included. That is

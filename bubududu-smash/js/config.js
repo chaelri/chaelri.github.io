@@ -336,6 +336,27 @@ export const POWERUPS_EXTRA = {
     jump: 1.15, speed: 1.0,
     star: true,        // untouchable, and out on contact — see isStar()
   },
+  /* The shield, back — as a CLOCK rather than a charge.
+   *
+   * There was a Kalasag once and it was removed on 2026-09-22 for being "the
+   * one answer to everything else in the game": it blocked a hit outright, so
+   * whoever held it simply won the next exchange whatever it was, and there
+   * was nothing the other player could do but wait for them to spend it.
+   *
+   * A duration is a different thing entirely. Charlie: "di na one time na di
+   * matatablan pero on that duration invulnerable." You cannot be touched for
+   * five and a half seconds — which is enormous — but it is running down the
+   * whole time and everyone can see it, so the answer is to disengage and
+   * come back, which is a decision rather than a coin toss. It does not save
+   * you from the drop: nothing does, and a shield that did would let you
+   * stand in the one place the arena cannot reach you.
+   */
+  kalasag: {
+    id: "kalasag", name: "Shield", desc: "Nothing can touch you. Not for long.",
+    en: "shield",
+    ms: 5500, colour: "#7fd4ff",
+    shield: true,
+  },
   bilis: {
     id: "bilis", name: "Speed", desc: "Much quicker on your feet.", en: "speed",
     ms: 8000, colour: "#4cc2ff", speed: 1.38, jump: 1.04,
@@ -389,7 +410,22 @@ export const POWERUPS_EXTRA = {
      * punch is still directional and still has to be aimed — you cannot hit
      * someone behind you — but being half a tile out no longer whiffs it.
      */
-    blastRadius: 3.4,   // tiles from the fist, in every forward direction
+    /* It goes ACROSS THE MAP.
+     *
+     * "yung one punch man across the map and explosive punch effect palagay
+     * ah." It was a blob three tiles round the fist, which is a heavy jab.
+     * What it is now is a CORRIDOR: everything in front of you, as far as the
+     * arena goes, as long as it is roughly level with the fist.
+     *
+     * That shape is what makes it a decision rather than a dice roll. You
+     * cannot miss sideways, so the counter-play is height — get above them,
+     * or be on another platform — and both players can read that instantly
+     * from where the wave goes. A radius you could sidestep at range and
+     * could not sidestep up close was the opposite.
+     */
+    reachX: 34,         // tiles in front — more than any arena is wide
+    reachY: 2.4,        // ...but this is all the vertical slack there is
+    blastRadius: 3.4,   // the fireball at the fist itself
     blastBehind: 0.7,   // ...and this far back past your own shoulder
     blastMs: 620,       // how long the ring is drawn expanding
     /* What it does to the body.
@@ -765,7 +801,7 @@ export const SPAWN_CLEAR = {
 
 export const POWER_ORDER = [
   "laki", "baril", "bituin", "bilis", "yelo", "baliktad", "lunas",
-  "suntok",
+  "suntok", "kalasag",
 ];
 
 /* ------------------------------------------------------------- helper --- */

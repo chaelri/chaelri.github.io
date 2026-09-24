@@ -156,6 +156,14 @@ export const MARKS = {
   // Fairy Yhon's heal.
   plus: bar(50, 14, 50, 86, 24) + bar(14, 50, 86, 50, 24),
 
+  /* The Shield: a heater shield with a band across it.
+   *
+   * Not the four-point sparkle `safe` uses — that one is the grace after a
+   * hit, which is a moment, and this is a thing you are holding. They appear
+   * on the same card and must not be mistaken for each other. */
+  kalasag: "M50 5C68 16 84 20 95 21C95 52 88 82 50 97C12 82 5 52 5 21C16 20 32 16 50 5Z"
+         + bar(18, 44, 82, 44, 11, true),
+
   // The grace after a hit: a four-point sparkle.
   safe: "M50 3C57 29 71 43 97 50C71 57 57 71 50 97C43 71 29 57 3 50C29 43 43 29 50 3Z",
 

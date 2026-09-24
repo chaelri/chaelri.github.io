@@ -2112,19 +2112,18 @@ function drawCrown(ctx, px, py, s, z) {
  * orbiting them, and a gold pool on the floor underneath. Together they read
  * before the crown is even legible.
  */
-function drawRoyalty(r, ctx, g, a, px, py, left) {
-  const z = r.cam.zoom;
-  const w = a.w * z, h = a.h * z;
-  // Blinks out over the last second and a half, like every other timer here.
-  const dim = left < 1.5 ? 0.35 + 0.35 * Math.abs(Math.sin(g.time * 16)) : 1;
-
-  ctx.save();
-  ctx.globalAlpha = dim;
-
-  /* A gold pool on the floor. Grounds them — a glow around a body floats,
-   * a pool underneath says the light is coming off something standing there. */
+/**
+ * The gold pool a crowned player stands in.
+ *
+ * Drawn BEFORE the character — a glow around a body floats, a pool
+ * underneath says the light is coming off something standing there, but only
+ * if the body is on top of it. Painted after, it washes out their feet and
+ * the hem of the cape.
+ */
+function drawRoyalPool(ctx, px, py, w, h, dim) {
   ctx.save();
   ctx.globalCompositeOperation = "lighter";
+  ctx.globalAlpha = dim;
   const pool = ctx.createRadialGradient(px, py, 0, px, py, w * 1.1);
   pool.addColorStop(0, "rgba(255,214,90,0.5)");
   pool.addColorStop(1, "rgba(255,196,60,0)");
@@ -2133,14 +2132,27 @@ function drawRoyalty(r, ctx, g, a, px, py, left) {
   ctx.ellipse(px, py, w * 1.1, h * 0.22, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
+}
 
-  /* No gold wash over the body here any more.
+function drawRoyalty(r, ctx, g, a, px, py, left) {
+  const z = r.cam.zoom;
+  const w = a.w * z;
+  // Blinks out over the last second and a half, like every other timer here.
+  const dim = left < 1.5 ? 0.35 + 0.35 * Math.abs(Math.sin(g.time * 16)) : 1;
+
+  ctx.save();
+  ctx.globalAlpha = dim;
+
+  /* The pool on the floor is NOT here.
    *
-   * drawActor replaces a crowned character's whole sprite with a lit
-   * silhouette — see the `korona` branch there — so laying more gold on top
-   * of it only flattened the one thing that was doing the work. What is left
-   * in this function is the things AROUND them: the pool on the floor and
-   * the sparks. */
+   * It used to be, and this function runs after the body is on the canvas —
+   * so a bright wash was painting over their feet and the bottom of the
+   * cape. Charlie: "make yung nasa baba na glow sa likod nung character."
+   * It is drawn with the cape and the glow now, before the sprite, in
+   * drawActor's `korona` branch. See drawRoyalPool.
+   *
+   * What is left here is the one thing that SHOULD be in front: the sparks.
+   */
 
   /* Royal sparks, orbiting. Six of them on a slow ellipse, each twinkling on
    * its own clock so the ring never reads as a solid hoop. */
@@ -2782,6 +2794,57 @@ function drawPunch(r, ctx, g, a) {
         ctx.stroke();
       }
       ctx.restore();
+
+      /* ...and the WAVE, out across the arena.
+       *
+       * The blast is a corridor now — everything in front of you, level with
+       * the fist — and a ring drawn at the fist says nothing about that. This
+       * is the part that tells both players what the move actually did, and
+       * it has to arrive fast: it crosses the whole reach in the first third
+       * of the animation, because a shockwave that travels slowly enough to
+       * watch is a projectile, and this is not one.
+       */
+      const face = a.punch.face;
+      const head = Math.min(1, bt * 3.2);          // how far the front has got
+      const tail = Math.max(0, (bt - 0.22) * 2.3); // ...and the back
+      if (head > tail) {
+        const x0 = px + face * def.reachX * z * tail;
+        const x1 = px + face * def.reachX * z * head;
+        const halfH = z * def.reachY;
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+        ctx.globalAlpha = (1 - bt) * (1 - bt) * 0.95;
+        // A lens shape: fat at the fist end, tapering to the front, so it
+        // reads as something LEAVING rather than as a painted bar.
+        const wave = ctx.createLinearGradient(x0, 0, x1, 0);
+        wave.addColorStop(0, "rgba(255,120,80,0)");
+        wave.addColorStop(0.35, "rgba(255,180,90,0.75)");
+        wave.addColorStop(0.85, "rgba(255,245,210,0.95)");
+        wave.addColorStop(1, "rgba(255,255,255,0)");
+        ctx.fillStyle = wave;
+        ctx.beginPath();
+        ctx.moveTo(x0, py - halfH * 0.25);
+        ctx.quadraticCurveTo((x0 + x1) / 2, py - halfH, x1, py - halfH * 0.18);
+        ctx.lineTo(x1, py + halfH * 0.18);
+        ctx.quadraticCurveTo((x0 + x1) / 2, py + halfH, x0, py + halfH * 0.25);
+        ctx.closePath();
+        ctx.fill();
+
+        // Streaks inside it, which is what gives a wave a direction.
+        ctx.globalAlpha = (1 - bt) * 0.6;
+        ctx.strokeStyle = "rgba(255,255,255,0.9)";
+        ctx.lineWidth = Math.max(1.5, z * 0.045);
+        for (let i = 0; i < 7; i++) {
+          const n = noiseAt(i * 5 + 31);
+          const y = py + (n - 0.5) * halfH * 1.5;
+          const sx = x0 + (x1 - x0) * (0.1 + n * 0.55);
+          ctx.beginPath();
+          ctx.moveTo(sx, y);
+          ctx.lineTo(sx + face * (x1 - x0) * 0.3, y);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
     }
   }
 
@@ -3815,6 +3878,58 @@ function drawActor(r, ctx, g, a) {
     }
   }
 
+  /* The Shield: a hard bubble, and a clock you can read from across the map.
+   *
+   * It has to look DIFFERENT from the grace bubble below, which is soft,
+   * white and short. This one is cyan, has an edge, and carries a ring that
+   * empties as the five and a half seconds run down — the whole design of
+   * the power-up is that the other player can see exactly how long they have
+   * to stay away, and a bubble with no clock on it is just a bubble.
+   */
+  if (a.power && a.power.type === "kalasag") {
+    const def = POWERUPS.kalasag;
+    const left = Math.max(0, a.power.until - g.time);
+    const frac = Math.max(0, Math.min(1, left / (def.ms / 1000)));
+    const rad = a.w * z * 1.05;
+    const wobble = 1 + 0.02 * Math.sin(g.time * 5);
+    ctx.save();
+    // ...blinking out over the last second, like every other timer here.
+    ctx.globalAlpha = left < 1 ? 0.45 + 0.4 * Math.abs(Math.sin(g.time * 16)) : 1;
+
+    // the glass
+    const glass = ctx.createRadialGradient(px, py - a.h * z * 0.55, rad * 0.2,
+                                           px, py - a.h * z * 0.55, rad);
+    glass.addColorStop(0, "rgba(127,212,255,0.05)");
+    glass.addColorStop(0.72, "rgba(127,212,255,0.18)");
+    glass.addColorStop(1, "rgba(180,238,255,0.45)");
+    ctx.fillStyle = glass;
+    ctx.beginPath();
+    ctx.ellipse(px, py - a.h * z * 0.55, rad * wobble, a.h * z * 0.78 * wobble,
+                0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.lineWidth = Math.max(2, z * 0.06);
+    ctx.strokeStyle = "rgba(200,244,255,0.9)";
+    ctx.stroke();
+
+    // the clock, drawn ON the bubble's own edge
+    ctx.lineWidth = Math.max(2.5, z * 0.075);
+    ctx.strokeStyle = def.colour;
+    ctx.beginPath();
+    ctx.ellipse(px, py - a.h * z * 0.55, rad * wobble, a.h * z * 0.78 * wobble,
+                0, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2);
+    ctx.stroke();
+
+    // a highlight, so it reads as glass rather than as a coloured circle
+    ctx.globalAlpha *= 0.6;
+    ctx.strokeStyle = "rgba(255,255,255,0.95)";
+    ctx.lineWidth = Math.max(2, z * 0.05);
+    ctx.beginPath();
+    ctx.ellipse(px - rad * 0.34, py - a.h * z * 0.85, rad * 0.26, a.h * z * 0.2,
+                -0.5, 0, Math.PI * 1.1);
+    ctx.stroke();
+    ctx.restore();
+  }
+
   // Still untouchable after a hit. Worth being obvious about: without it you
   // cannot tell why a stomp did nothing, and you spend the grace period you
   // were given standing still instead of using it.
@@ -4031,6 +4146,10 @@ function drawActor(r, ctx, g, a) {
      * crown, the cape and the light around it say everything, and the player
      * still looks like the player. */
     drawCape(ctx, px, py, cw, chh, z, a.face, g.time);
+    // The pool on the floor goes here, under everything of theirs.
+    drawRoyalPool(ctx, px, py, cw, chh,
+      (a.power.until === Infinity ? 99 : a.power.until - g.time) < 1.5
+        ? 0.35 + 0.35 * Math.abs(Math.sin(g.time * 16)) : 1);
 
     // The glow, behind: the same silhouette a size up, added to whatever is
     // there, so the light spills onto the arena rather than onto the sprite.
