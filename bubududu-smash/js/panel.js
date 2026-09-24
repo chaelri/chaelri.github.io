@@ -205,7 +205,7 @@ export const unpackChips = (list) =>
  * These are the first spelling of each key — see SHOOT_KEYS and SKILL_KEYS
  * in screen.js, which is where the game actually reads them. */
 const SHOOT_KEY = { p1: "F", p2: "/" };
-const SKILL_KEY = { p1: "E", p2: "." };
+const SKILL_KEY = { p1: "Q", p2: "." };
 
 export function chipsFor(a, G, pads) {
   const out = [];

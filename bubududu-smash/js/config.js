@@ -973,7 +973,7 @@ export const ALL_POWERS = { ...POWERUPS, ...POWERUPS_EXTRA };
  *
  * Bumped by hand on each deploy, which is the point: it can only be right.
  */
-export const BUILD = "2026-09-24-n";
+export const BUILD = "2026-09-24-o";
 
 export const SPAWN_CLEAR = {
   power: 4.5,

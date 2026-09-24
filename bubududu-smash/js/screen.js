@@ -262,17 +262,23 @@ function applyPacket(role, p) {
  * two things.
  */
 const SHOOT_KEYS = {
-  p1: ["KeyF", "KeyQ"],
+  /* Q is NOT here any more — it is the skill key now, and a key that does
+   * both would fire the gun every time Charlie used his move. */
+  p1: ["KeyF"],
   p2: ["Slash", "Comma", "ShiftRight", "Enter", "NumpadEnter"],
 };
 const SKILL_KEYS = {
-  p1: ["KeyE", "KeyG", "KeyC"],
+  /* Q, at Charlie's word: "make skill for player 1, Q instead of E." It is
+   * also the better key — WASD keeps the hand at the left of the board, and Q
+   * is the one his little finger already rests beside, where E needs the
+   * middle finger to leave W. */
+  p1: ["KeyQ", "KeyG", "KeyC"],
   p2: ["Period", "Semicolon", "Quote", "ControlRight"],
 };
 /** How each is written on screen — the first spelling, in plain English. */
 export const KEY_LABEL = {
   shoot: { p1: "F", p2: "/" },
-  skill: { p1: "E", p2: "." },
+  skill: { p1: "Q", p2: "." },
 };
 
 const keys = new Set();
