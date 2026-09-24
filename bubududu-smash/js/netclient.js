@@ -175,6 +175,62 @@ export async function connect({ role, say = () => {} }) {
   // quietly abandoned on an unhandled rejection.
   paintCast();
 
+  /* ------------------------------------------------------------ ready up --- */
+  /*
+   * The match no longer starts itself.
+   *
+   * It used to begin the moment the second phone was in, on the reasoning
+   * that nobody should have to press anything to play — and that reasoning
+   * held right up until you watch how it is actually done. One page is
+   * opened, put face-down on the sofa, and the other phone is fetched from
+   * the kitchen; by the time it is picked back up the first round is half
+   * over and one of the two never saw the countdown. Charlie: "dapat
+   * magreready muna, once hindi magaauto start laro."
+   *
+   * The button is a TOGGLE and the server owns the answer — this paints only
+   * what it says, never the tap, so both phones show the same thing even
+   * when one of them pressed it.
+   */
+  const readyEl = $("#ready");
+  const readyBtn = $("#readybtn");
+  let iAmReady = false;
+
+  function paintReady(m) {
+    if (!readyEl) return;
+    const rs = (m && m.ready) || {};
+    const seated = (m && m.in) || {};
+    for (const span of readyEl.querySelectorAll("[data-r]")) {
+      const r = span.dataset.r;
+      span.classList.toggle("on", !!rs[r]);
+      span.classList.toggle("out", !seated[r]);
+    }
+    // Ours comes back from the server too, so a press that never arrived
+    // un-presses itself rather than lying about it.
+    iAmReady = !!rs[role];
+    if (readyBtn) {
+      readyBtn.classList.toggle("on", iAmReady);
+      readyBtn.textContent = iAmReady ? "Ready" : "I'm ready";
+    }
+    if (started) return;
+    const them = role === "p1" ? "p2" : "p1";
+    const theirName = role === "p1" ? "Karla" : "Charlie";
+    if (!seated[them]) say(`waiting for ${theirName} to open the page`);
+    else if (!iAmReady) say("pick who you are holding, then tap Ready");
+    else if (!rs[them]) say(`ready — waiting for ${theirName}`);
+    else say("here we go…");
+  }
+
+  readyBtn?.addEventListener("click", () => {
+    iAmReady = !iAmReady;
+    readyBtn.classList.toggle("on", iAmReady);
+    readyBtn.textContent = iAmReady ? "Ready" : "I'm ready";
+    room?.send("ready", iAmReady);
+    // The first tap is also the one that unlocks sound on iOS, and the lobby
+    // is the only moment there is to spend on it.
+    startAudio();
+    haptic();
+  });
+
   let room = null;
   let started = false;
   let rematchSeq = 0;
@@ -279,6 +335,9 @@ export async function connect({ role, say = () => {} }) {
       $("#pad")?.classList.remove("hidden");
       sim.startRound(m.sd);
     }
+    // Spent for this match. It comes back with the waiting screen, which is
+    // the only place it can be pressed.
+    if (iAmReady) { iAmReady = false; if (readyBtn) { readyBtn.classList.remove("on"); readyBtn.textContent = "I'm ready"; } }
     if (m.sd !== undefined && m.sd !== sim.state.seed) {
       // A new arena is not somewhere the old positions can be read between.
       tape.reset();
@@ -360,8 +419,17 @@ export async function connect({ role, say = () => {} }) {
 
   async function join() {
     const client = new Client(SERVER);
-    room = await client.joinOrCreate("smash", { role, char: myChar });
+    // `gate: true` says this page HAS a Ready button. A server that is a
+    // deploy behind ignores it and plays as before; a page that is a deploy
+    // behind never sends it and is taken as ready, so neither half of an
+    // in-progress rollout leaves the two of them stuck on a lobby.
+    room = await client.joinOrCreate("smash", { role, char: myChar, gate: true });
     room.onMessage("s", apply);
+    room.onMessage("lobby", paintReady);
+    readyEl?.classList.remove("hidden");
+    // Whatever we had said before the drop, said again — a reconnect gets a
+    // fresh seat and the server has forgotten.
+    if (iAmReady) room.send("ready", true);
     room.onMessage("power", (m) => { if (m.id === role) paintShootButton(m.p, m.ammo); });
     // Whoever changed, including us — the server is the one that decides it
     // took, so the highlight follows its answer and not the tap.

@@ -92,6 +92,18 @@
     <button data-who="p2">I'm Karla</button>
   </div>
   <div id="cast" class="cast"></div>
+  <!-- Nobody is dropped into a round they were not looking at. The match used
+       to begin the instant the second phone was in, which meant the one who
+       opened the page first watched it from a pocket. Both have to say so
+       now; pressing it again takes it back. See maybeStart in
+       server/index.mjs — the server is the one that decides. -->
+  <div id="ready" class="ready hidden">
+    <button id="readybtn" type="button">I'm ready</button>
+    <div class="rstate">
+      <span data-r="p1">Charlie</span>
+      <span data-r="p2">Karla</span>
+    </div>
+  </div>
   <p class="hint">Open this on both phones. Any network — same WiFi, or mobile data.</p>
   <p class="status">pick who you are</p>
   <!-- Which build this phone is running. Deliberately in the lobby and

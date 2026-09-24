@@ -21,6 +21,7 @@ import { Server } from "@colyseus/core";
 import { WebSocketTransport } from "@colyseus/ws-transport";
 import { Room } from "@colyseus/core";
 
+import { shouldStart } from "./gate.mjs";
 import * as sim from "../js/sim.js";
 import { CHARACTERS } from "../js/characters.js";
 import { snapshot } from "../js/netstate.js";
@@ -78,6 +79,22 @@ class SmashRoom extends Room {
     // any particular pair of phones.
     sim.state.newSession();
     this.roles = new Map();       // sessionId -> "p1" | "p2"
+    /* Who has said they are ready, and who is even capable of saying it.
+     *
+     * The match used to start itself the moment the second phone was in, and
+     * that was deliberate — nobody should have to press anything to play. It
+     * is wrong for the way they actually play: the page is opened, put down,
+     * and the other one is fetched, and the round Charlie never saw is
+     * already two kills old by the time he picks the phone back up. "Diba
+     * sabi ko dapat magreready muna, once hindi magaauto start laro."
+     *
+     * `gated` is what keeps a deploy from breaking the game for the minutes
+     * it takes both phones to pick up new files: a client says `gate: true`
+     * when it joins to mean "I have a Ready button and I will use it". One
+     * that does not is taken as ready, so an old page still plays.
+     */
+    this.ready = { p1: false, p2: false };
+    this.gated = { p1: false, p2: false };
     this.pending = { notes: [], sfx: [], music: [], rounds: [] };
     this.shown = { banner: null, count: null, result: null };
     this.ticks = 0;
@@ -155,6 +172,15 @@ class SmashRoom extends Room {
       sim.state.pads[role].char = id;
       this.broadcast("cast", { role, char: id });
     });
+    /* Ready, and un-ready — it is a toggle, because a phone put down by
+     * mistake has to be retractable. */
+    this.onMessage("ready", (client, on) => {
+      const role = this.roles.get(client.sessionId);
+      if (!role) return;
+      this.ready[role] = !!on;
+      this.tellLobby();
+      this.maybeStart();
+    });
     this.onMessage("rematch", () => sim.rematch());
     // Echoed straight back, so a client can measure its own round trip
     // rather than guess at it.
@@ -162,6 +188,31 @@ class SmashRoom extends Room {
 
     this.setSimulationInterval((deltaMs) => this.tick(deltaMs), 1000 / TICK_HZ);
     console.log(`[smash] room ${this.roomId} open`);
+  }
+
+  /** Where the two of them stand, for the lobby to draw. */
+  tellLobby() {
+    const seated = new Set(this.roles.values());
+    this.broadcast("lobby", {
+      in: { p1: seated.has("p1"), p2: seated.has("p2") },
+      ready: { p1: !!this.ready.p1, p2: !!this.ready.p2 },
+      gate: { p1: !!this.gated.p1, p2: !!this.gated.p2 },
+      phase: sim.state.phase,
+    });
+  }
+
+  /** Both seats filled and both of them looking at the phone. */
+  maybeStart() {
+    const seated = new Set(this.roles.values());
+    const ok = shouldStart({
+      seated: { p1: seated.has("p1"), p2: seated.has("p2") },
+      ready: this.ready, gated: this.gated, phase: sim.state.phase,
+    });
+    if (!ok) return;
+    // Spent. The next time this room is in the lobby it asks again.
+    this.ready.p1 = this.ready.p2 = false;
+    sim.startMatch();
+    this.tellLobby();
   }
 
   queue(kind, value) {
@@ -193,6 +244,10 @@ class SmashRoom extends Room {
     sim.state.resetInput(role);
     this.queued[role] = [];
     this.headTick[role] = 0;
+    // A fresh socket is a fresh answer: whoever sat here before may have been
+    // ready, this one has not said so yet.
+    this.ready[role] = false;
+    this.gated[role] = options.gate === true;
     sim.state.pads[role].connected = true;
     if (typeof options.char === "string" && CHARACTERS.some((c) => c.id === options.char)) {
       sim.state.pads[role].char = options.char;
@@ -202,8 +257,9 @@ class SmashRoom extends Room {
     client.send("you", { role });
     console.log(`[smash] ${client.sessionId} joined as ${role} (${sim.state.pads[role].char})`);
 
-    // Both in: play. Nobody should have to press anything.
-    if (this.roles.size === 2 && sim.state.phase === "lobby") sim.startMatch();
+    // Both in AND both ready: play. See maybeStart.
+    this.tellLobby();
+    this.maybeStart();
   }
 
   onLeave(client) {
@@ -213,6 +269,9 @@ class SmashRoom extends Room {
     if (!role) return void console.log(`[smash] ${client.sessionId} left (already replaced)`);
     sim.state.pads[role].connected = false;
     this.roles.delete(client.sessionId);
+    this.ready[role] = false;
+    this.gated[role] = false;
+    this.tellLobby();
     console.log(`[smash] ${client.sessionId} left`);
   }
 

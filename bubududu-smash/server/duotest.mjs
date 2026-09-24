@@ -144,6 +144,11 @@ const FEATURES = [
   ["the proximity fuse",     "js/config.js",  "fuse: 1.6"],
   ["the floor trembles",     "js/render.js",  "const eaten = Math.floor(g.shrink"],
   ["the build stamp",        "js/config.js",  "BUILD = "],
+  ["the lobby valley",       "js/duo.js",     "runLobbyScene"],
+  ["...and it gets out of the way", "js/duo.js", "function closeScene"],
+  ["ready up, both of you",  "duo/index.html", 'id="readybtn"'],
+  ["...answered by the server", "js/netclient.js", 'room.onMessage("lobby", paintReady)'],
+  ["...and it gates the start", "js/netclient.js", 'client.joinOrCreate("smash", { role, char: myChar, gate: true })'],
 ];
 
 let bad = 0;

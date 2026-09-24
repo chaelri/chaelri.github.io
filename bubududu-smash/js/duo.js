@@ -95,12 +95,33 @@ async function runLobbyScene() {
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
     // Gone means the round has it — stop drawing a screen nobody can see.
-    if (wait.classList.contains("gone")) return;
+    if (wait.classList.contains("gone")) return void closeScene();
     try { drawScene(sc, dt); } catch { /* one bad frame is not worth the lobby */ }
     requestAnimationFrame(frame);
   };
   requestAnimationFrame(frame);
 }
+
+/* ...and TAKE IT AWAY again, which is the half that was missing.
+ *
+ * On the big screen screen.js owns the page and puts `.gone` on this canvas
+ * itself when the round starts. The server build does not load screen.js at
+ * all — netclient.js has its own renderer and never touches it — so the
+ * canvas, which this page had just unhidden and spread across the whole
+ * screen at z-index 1, stayed exactly where it was: a frozen photograph of
+ * the lobby laid over the arena, with the pad on top of that. The game was
+ * running perfectly underneath and could not be seen. Charlie, with a picture
+ * of it: "anyare sa duo parang sira".
+ *
+ * It is done on a class change rather than only from the frame loop because a
+ * phone that backgrounds the tab gets no frames to notice in.
+ */
+function closeScene() {
+  document.getElementById("scene")?.classList.add("gone");
+}
+new MutationObserver(() => {
+  if (wait.classList.contains("gone")) closeScene();
+}).observe(wait, { attributes: true, attributeFilter: ["class"] });
 runLobbyScene();
 
 // Stamp the build into the lobby the moment this file runs, so it is there
