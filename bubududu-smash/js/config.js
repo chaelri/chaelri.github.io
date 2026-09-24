@@ -302,7 +302,22 @@ export const POWERUPS_EXTRA = {
      * the warning is now the noise and the smoke trail rather than the wait.
      */
     speed: 26,
-    turn: 5.4,        // radians a second it may steer
+    /* Turn rate, and why it is not a constant.
+     *
+     * A missile at a fixed speed with a fixed turn rate has a TURN RADIUS —
+     * speed over turn rate, which at 26 and 5.4 is nearly five tiles. Get
+     * inside that and it physically cannot come round; it orbits instead,
+     * which is exactly what Charlie saw: "umiikot lang spiral tapos since may
+     * duration bigla nalang puputok."
+     *
+     * So the rate is a FLOOR, and it tightens as the target gets nearer —
+     * always enough to turn inside the distance that is left. Below `fuse` it
+     * stops trying and goes off, which is what a rocket with a four-tile
+     * blast should have been doing all along: it never needed to touch
+     * anybody. "intention ko dito maganda pagkakapathing towards kalaban and
+     * sure kill." */
+    turn: 5.4,        // radians a second, at the very least
+    fuse: 1.6,        // tiles — this close and it detonates rather than steers
     lifeMs: 2600,
     /* ...and it does not need to touch you.
      *
@@ -331,7 +346,18 @@ export const POWERUPS_EXTRA = {
   korona: {
     id: "korona", name: "Crown", desc: "Star and Big at once. Every landing shakes the ground.",
     en: "crown",
-    ms: 12000, colour: "#ffd24a",
+    /* It lasts the ROUND.
+     *
+     * Twelve seconds was a power-up's clock, and this is not a power-up you
+     * find — it is what you get for putting down a boss with three hearts
+     * while the other player was trying to stop you. Charlie: "make the king
+     * character until end of the game unless he fell."
+     *
+     * `ms: 0` means no deadline at all. Losing it is not a timer running out,
+     * it is handleDeath calling clearPower — which happens when you fall off
+     * the map, and (since the crown makes you untouchable) essentially only
+     * then. */
+    ms: 0, colour: "#ffd24a",
     scale: 1.9,        // bigger than Big, which is 1.55
     jump: 1.15, speed: 1.0,
     star: true,        // untouchable, and out on contact — see isStar()

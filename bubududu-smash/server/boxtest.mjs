@@ -261,8 +261,8 @@ function bazookaAt(G, x, y, owner) {
     ok("king  the crown is bigger than Big",
        a.w > a.baseW * POWERUPS.laki.scale,
        `w ${a.w.toFixed(2)} vs big ${(a.baseW * POWERUPS.laki.scale).toFixed(2)}`);
-    ok("king  ...and it runs on its own clock, like any power-up",
-       a.power && a.power.until > sim.state.G.time, `until ${a.power && a.power.until}`);
+    ok("king  ...and the crown lasts the round, not a timer",
+       a.power && a.power.until === Infinity, `until ${a.power && a.power.until}`);
   }
 }
 
@@ -429,6 +429,42 @@ for (const char of ["bubu", "dudu", "yhon"]) {
   }
   ok("bazuka the shell passes through the floor", through,
      `still flying ${!!G.shots.length}`);
+}
+
+/* ---- 5e. the shell reaches them, from anywhere, every time ------------ */
+{
+  // Eight starting angles, including straight AWAY from the target — the
+  // hardest case for a missile, and the one that used to spiral.
+  let worst = 0, reached = 0;
+  for (let k = 0; k < 8; k++) {
+    const G = world();
+    const a = G.actors.find((q) => q.id === "p1");
+    const o = G.actors.find((q) => q.id === "p2");
+    const def = POWERUPS.bazuka;
+    a.x = 12; a.y = 13; a.vx = 0;
+    /* THREE tiles away, which is the case that used to spiral.
+     *
+     * A missile at 26 tiles a second turning at 5.4 radians has a turn radius
+     * of nearly five tiles; anything nearer than that it cannot come round on,
+     * so it orbits until the fuel runs out. Ten tiles away it converges fine,
+     * which is why the first version of this check passed against the broken
+     * code and proved nothing. */
+    o.x = 15; o.y = 12.4; o.vx = 0;
+    const ang = (k / 8) * Math.PI * 2;
+    G.shots.push({ x: a.x, y: a.y - 1, vx: Math.cos(ang) * def.speed,
+                   vy: Math.sin(ang) * def.speed, owner: "p1", life: def.lifeMs / 1000,
+                   born: G.time, homing: true, lethal: true });
+    const hpWas = o.hp;
+    let t = 0;
+    for (let i = 0; i < 200 && o.hp === hpWas && !o.dead; i++) {
+      o.x = 15; o.y = 12.4; o.vx = 0; o.vy = 0;   // hold him still to be shot at
+      sim.step(sim.TICK);
+      t += sim.TICK;
+    }
+    if (o.hp < hpWas || o.dead) { reached++; worst = Math.max(worst, t); }
+  }
+  ok("bazuka it reaches the target from every angle", reached === 8,
+     `${reached}/8, slowest ${worst.toFixed(2)}s of ${(POWERUPS.bazuka.lifeMs / 1000)}s fuel`);
 }
 
 /* ---- 5c. a Gun does not take a Bazooka off you ------------------------ */

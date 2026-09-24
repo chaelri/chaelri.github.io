@@ -2479,12 +2479,27 @@ function tickPowers(dt) {
       const mark = (G.king && !G.king.leaving) ? G.king.actor
         : G.actors.find((o) => !o.dead && o.id !== b.owner);
       if (mark) {
-        const want = Math.atan2((mark.y - mark.h / 2) - b.y, mark.x - b.x);
+        const tx = mark.x, ty = mark.y - mark.h / 2;
+        const dist = Math.hypot(tx - b.x, ty - b.y);
+        /* Close enough — go off.
+         *
+         * A proximity fuse, which a four-tile blast has never needed to do
+         * without. It is also what stops the spiral: inside its own turn
+         * radius the shell cannot come round, so rather than orbit until the
+         * fuel runs out it simply detonates where it is. */
+        if (dist <= def.fuse) { bazookaBoom(b.x, b.y, b.owner); G.shots.splice(i, 1); continue; }
+        const want = Math.atan2(ty - b.y, tx - b.x);
         const have = Math.atan2(b.vy, b.vx);
         let d = want - have;
         while (d > Math.PI) d -= Math.PI * 2;
         while (d < -Math.PI) d += Math.PI * 2;
-        const turn = Math.max(-def.turn * dt, Math.min(def.turn * dt, d));
+        /* Turn hard enough to actually get there.
+         *
+         * `def.turn` is a floor. What it really needs is a rate whose turn
+         * radius (speed / rate) fits inside the distance left — so the rate
+         * rises as the gap closes and the shell can always come round. */
+        const rate = Math.max(def.turn, (def.speed / Math.max(0.5, dist)) * 1.6);
+        const turn = Math.max(-rate * dt, Math.min(rate * dt, d));
         const ang = have + turn;
         b.vx = Math.cos(ang) * def.speed;
         b.vy = Math.sin(ang) * def.speed;

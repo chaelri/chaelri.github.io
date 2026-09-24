@@ -3718,7 +3718,20 @@ const DEFEAT_SEC = 1.15;
 const DEFEAT_GRAVITY = 10;
 
 function drawActor(r, ctx, g, a) {
-  if (a.dead) {
+  /* Thrown, whether or not they were taken off the board.
+   *
+   * This tested `a.dead`, which was right while every lost heart was a
+   * respawn. It is not any more — a hit leaves you standing exactly where you
+   * were — so the one blow that DOES end things, the killing one, had its
+   * body animation silently skipped: the character stood still at zero hearts
+   * while the round ended around them. Charlie, after One Punch sent nobody
+   * anywhere: "it just froze kasi death na hmm."
+   *
+   * The animation belongs to `defeat` existing, not to `dead`. A pit death
+   * still sets both. */
+  const d0 = a.defeat;
+  const flying = d0 && g.time - d0.at >= 0 && g.time - d0.at <= DEFEAT_SEC;
+  if (a.dead || flying) {
     const d = a.defeat;
     const age = d ? g.time - d.at : 99;
     if (!d || age > DEFEAT_SEC || age < 0) return;
