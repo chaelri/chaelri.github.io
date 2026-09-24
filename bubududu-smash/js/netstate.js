@@ -188,6 +188,10 @@ export function snapshot(G, extra = {}) {
     // place on both phones rather than invented twice.
     // `kind` 0 is a body hitting the floor, 1 is a bazooka shell going off
     // in the air — two very different pictures off one transport.
+    /* How far the floor has been eaten, as a fraction of a column.
+     * The renderer needs it to shake the two columns that are ABOUT to
+     * go — a warning is no use if it only reaches one phone. */
+    sk: r2(G.shrink || 0),
     qk: (G.quakes || []).map((q) => [r2(q.x), r2(q.y), r2(now - q.at), r2(q.force), q.kind || 0]),
     /* Mystery boxes. `hits` is what is LEFT, and it travels because the
      * count is the whole read on a box — two players both going for the
@@ -284,6 +288,7 @@ export function hydrate(s) {
     })),
     bursts: A(s.bu).map(([x, y, age, colour, big]) => ({ x, y, at: now - age, colour, big: !!big })),
     pops: A(s.po).map(([x, y, age, colour, glyph]) => ({ x, y, at: now - age, colour, glyph })),
+    shrink: s.sk || 0,
     quakes: A(s.qk).map(([x, y, age, force, kind]) => ({ x, y, at: now - age, force, kind: kind || 0 })),
     boxes: A(s.bx).map(([x, y, hits, bumpAge]) => ({ x, y, hits, bumpAt: now - bumpAge })),
     king: s.kg ? (([x, y, hp, face, w, h, age, grounded, hurtLeft]) => ({

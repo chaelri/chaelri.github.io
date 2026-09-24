@@ -1158,20 +1158,16 @@ function grantReward(a) {
   a.glowFor = 0.7;
   a.glowColour = COINS.colour;
 
-  /* Ten coins cannot hand you the OP item you are not holding.
-   *
-   * Same rule as the pickup above, and it matters more here: a reward you
-   * did not choose, arriving at the moment you banked ten coins, taking the
-   * Bazooka you were saving. You get a Dudu instead, which is the one reward
-   * that is never wasted. */
-  if (pick === "suntok") {
-    if (a.power && ALL_POWERS[a.power.type]?.op) { summonDudu(a); return; }
-    givePower(a, "suntok");
-    return;
-  }
   if (pick === "diwata") { giveFairy(a); return; }
-  if (pick === "tatlo") { summonSquad(a); return; }
-  summonDudu(a);
+  /* Everything else on the list is simply a power-up.
+   *
+   * ...except that a Gun must not arrive and take a Bazooka off you. It is
+   * the same refusal the pickup makes, and it matters more here because a
+   * coin counter hitting ten is not a thing you can step around: you get the
+   * Shield instead, which is the reward nobody is ever sad to see. */
+  const give = (pick === "baril" && a.power && ALL_POWERS[a.power.type]?.op)
+    ? "kalasag" : pick;
+  givePower(a, give);
 }
 
 /* --------------------------------------------------------------- fairy --- */
@@ -1398,33 +1394,6 @@ function spawnSquad(at = null) {
   }
   sfx.tatlo();
   return made;
-}
-
-/** The coin reward version: they arrive already on your side. */
-function summonSquad(owner) {
-  // They ADD to whatever you already have rather than replacing it — that is
-  // the whole point of buying a second squad. Your existing ones also get
-  // their clock refreshed, so a stack expires together instead of dribbling
-  // away one Bubu at a time.
-  const mine = G.minis.filter((m) => m.owner === owner.id && !m.leaving);
-  const room = STACK.maxMinis - mine.length;
-  const life = G.time + SQUAD.lifeMs / 1000;
-  for (const m of mine) m.until = Math.max(m.until, life);
-
-  if (room <= 0) {
-    showStack(owner, SQUAD.colour, "Mini Bubus!", `${mine.length} of them, longer`, "\u2022\u2022\u2022");
-    sfx.helperSave();
-    return;
-  }
-
-  // Claim only the ones this call just made. Claiming every unowned mini
-  // would also pocket a WILD squad standing on the field waiting to be
-  // collected — buying one reward should not quietly take another.
-  const fresh = spawnSquad(owner.x);
-  claimSquad(owner, fresh.slice(0, room));
-  // Anything over the cap simply never joined; send it away rather than
-  // leaving it standing there unowned in the middle of your squad.
-  for (const m of fresh.slice(room)) m.leaving = true;
 }
 
 /** Hand a squad to whoever walked into it — by default, every loose one. */
@@ -1738,6 +1707,25 @@ function handleDeath(a) {
   a.hitFor = null;
   a.hp = lethal ? 0 : Math.max(0, Math.round((a.hp - cost) * 2) / 2);
 
+  /* Out of hearts is OUT.
+   *
+   * A hit stopped setting `dead` when it stopped respawning you, which is
+   * right for a hit you survive — but the LAST one left the character
+   * standing there as a live actor on zero hearts. The defeat animation plays
+   * over the top of them for a second and then ends, and the ordinary sprite
+   * is drawn again underneath: they pop back into existence. Charlie:
+   * "namatay na nga nagrerespawn pa somehow ... magsstop talaga siya sa
+   * pagkamatay."
+   *
+   * So the killing blow takes them off the board. Not a respawn — the loop
+   * that revives people skips anyone on zero — it simply stops them being
+   * there, which is what being out of a round means. */
+  if (a.hp <= 0 && !a.dead) {
+    a.dead = true;
+    a.respawn = 0;
+    a.vx = 0;
+    a.vy = 0;
+  }
   const gone = a.dead || a.hp <= 0;
   /* Everything stops for a beat, then resumes in slow motion — except the
    * blow that takes the match, which is set up below and never stops at all.
@@ -1789,7 +1777,11 @@ function handleDeath(a) {
    * cannot collide with anything or be stomped again.
    */
   const killer = a.cause && a.cause.by ? G.actors.find((o) => o.id === a.cause.by) : null;
-  const away = killer ? Math.sign(a.x - killer.x) || 1 : (a.face || 1) * -1;
+  /* An explosion throws you away from ITSELF. Anything else throws you away
+   * from whoever did it. See `blastFrom` in bazookaBoom. */
+  const from = a.blastFrom || killer;
+  a.blastFrom = null;
+  const away = from ? Math.sign(a.x - from.x) || 1 : (a.face || 1) * -1;
   // ...and only a body that has gone gets thrown. Someone who took a heart
   // and is still playing is animated by the ordinary character code.
   if (gone) a.defeat = {
@@ -1806,6 +1798,11 @@ function handleDeath(a) {
      * while you are still watching it. */
     vx: away * (lethal ? 30 + rng() * 8 : 3.2 + rng() * 1.6),
     vy: lethal ? -13 : -9.5,
+    // ...and a shell throws harder still, and more upward, because a blast
+    // lifts you off the ground before it moves you sideways.
+    ...(a.cause && a.cause.how === "bazuka"
+      ? { vx: away * POWERUPS.bazuka.throw, vy: -POWERUPS.bazuka.throwUp }
+      : {}),
     spin: away * (lethal ? 14 + rng() * 6 : 5 + rng() * 4),
     lethal,
   };
@@ -1833,7 +1830,15 @@ function handleDeath(a) {
     G.finishWith = { winnerId, why: deathLine(a) };
     return;
   }
-  endRound(winnerId, deathLine(a));
+  /* An ordinary round end waits too.
+   *
+   * It used to call endRound on the very frame of the death, which put the
+   * banner — and the scrim that dims the arena behind it — straight over the
+   * body still travelling, the shell still going off, the fall still
+   * happening. Same deferral the match-winning blow has always used, just a
+   * shorter one, and the kill cam runs underneath it. */
+  G.finishAt = performance.now() + HIT.roundBannerMs;
+  G.finishWith = { winnerId, why: deathLine(a) };
 }
 
 /**
@@ -2933,6 +2938,13 @@ function bazookaBoom(x, y, ownerId) {
     if (Math.hypot(o.x - x, (o.y - o.h / 2) - y) > def.blast) continue;
     if (isStar(o)) continue;                    // a star shrugs off everything
     o.lethal = true;
+    /* Thrown FROM THE BLAST, not from the shooter.
+     *
+     * handleDeath works out which way to throw a body from `cause.by` — the
+     * player who did it — which for a shell is whoever pulled the trigger,
+     * usually standing somewhere else entirely. What should move you is the
+     * explosion, so the explosion says where it was. */
+    o.blastFrom = { x, y };
     killPlayer(o, o.id === ownerId ? null : by, "bazuka");
   }
 
@@ -3171,47 +3183,6 @@ function spawnHelper() {
   G.helpers.push(h);
   sfx.helper();
   return h;
-}
-
-/**
- * The coin reward: a Dudu who is already on your side.
- *
- * Bought rather than met, so the coin flip that makes one in ten of them turn
- * never happens — that gamble belongs to walking up to a stranger, not to
- * something you spent ten coins on.
- */
-function summonDudu(owner) {
-  // Already have one of your own out? He stays and works longer. Replacing
-  // him would be the reward quietly cancelling itself: a fresh Dudu with a
-  // fresh fifteen seconds is worth LESS than one with twelve left plus this.
-  const had = G.helpers.find((h) => h.ally === owner.id && !h.bad && !h.leaving);
-  if (had) {
-    const base = HELPER.huntMs / 1000;
-    had.until = Math.min(G.time + base * STACK.maxDurationMul, had.until + base);
-    // The hard ceiling exists to stop chained immunity parking him on the
-    // field forever; a stack is a legitimate way past it, so it moves with him.
-    had.hardUntil = Math.max(had.hardUntil || 0, had.until + 1);
-    had.waiting = false;
-    showStack(owner, "#ffb84d", "Dudu", `${Math.round(had.until - G.time)}s of hunting`, "dudu");
-    sfx.helper();
-    return;
-  }
-
-  // Emphatically NOT `G.helpers = []` first. A Dudu already wandering the
-  // arena belongs to nobody yet and either player can still go and meet him;
-  // deleting him because someone else spent ten coins takes a live chance off
-  // the field. The bought one simply joins him.
-  const h = spawnHelper();
-  if (!h) return;
-  // Put him beside his new ally rather than out at the edge.
-  h.actor.x = owner.x + (owner.face || 1) * -1.4;
-  h.actor.y = owner.y;
-  h.ally = owner.id;
-  h.until = G.time + HELPER.huntMs / 1000;
-  h.actor.speedMul = 1;
-  h.pause = 0;
-  showNote(owner, "#ffb84d", "Dudu", "Bought and paid for. He is on your side.", "dudu");
-  sfx.helper();
 }
 
 /**
@@ -4133,6 +4104,7 @@ export function applyCorrection(view, rngAt, hostPhase) {
   G.shots = view.shots;
   G.bursts = view.bursts;
   G.pops = view.pops;
+  if (view.shrink != null) G.shrink = view.shrink;
   G.quakes = view.quakes || [];
   G.boxes = view.boxes || [];
   G.king = view.king || null;

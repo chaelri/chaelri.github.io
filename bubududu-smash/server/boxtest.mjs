@@ -18,7 +18,7 @@
  *   "kung sino makalast hit ... will have a combination of Star and Big"
  */
 import * as sim from "../js/sim.js";
-import { BOX, KING, POWERUPS, FEEL, DIWATA } from "../js/config.js";
+import { BOX, COINS, KING, POWERUPS, FEEL, DIWATA } from "../js/config.js";
 
 const quiet = {
   sfx: () => {}, music: () => {}, note: () => {}, banner: () => {}, count: () => {},
@@ -441,7 +441,15 @@ for (const char of ["bubu", "dudu", "yhon"]) {
     const a = G.actors.find((q) => q.id === "p1");
     const o = G.actors.find((q) => q.id === "p2");
     const def = POWERUPS.bazuka;
-    a.x = 12; a.y = 13; a.vx = 0;
+    /* The shooter stands WELL clear.
+     *
+     * The blast is 4.6 tiles and catches whoever fired it — correctly; you do
+     * not get to stand in your own explosion. Firing from three tiles away
+     * therefore kills you too and ends the round, which made this check read
+     * 0/8 for a reason that had nothing to do with homing. The shell is
+     * launched near the target instead and its owner is across the map.
+     */
+    a.x = 40; a.y = 13; a.vx = 0;
     /* THREE tiles away, which is the case that used to spiral.
      *
      * A missile at 26 tiles a second turning at 5.4 radians has a turn radius
@@ -451,7 +459,7 @@ for (const char of ["bubu", "dudu", "yhon"]) {
      * code and proved nothing. */
     o.x = 15; o.y = 12.4; o.vx = 0;
     const ang = (k / 8) * Math.PI * 2;
-    G.shots.push({ x: a.x, y: a.y - 1, vx: Math.cos(ang) * def.speed,
+    G.shots.push({ x: o.x - 3, y: o.y - 1, vx: Math.cos(ang) * def.speed,
                    vy: Math.sin(ang) * def.speed, owner: "p1", life: def.lifeMs / 1000,
                    born: G.time, homing: true, lethal: true });
     const hpWas = o.hp;
@@ -523,6 +531,34 @@ for (const char of ["bubu", "dudu", "yhon"]) {
      `hp ${hpWas} -> ${a.hp}`);
 }
 
+/* ---- 9c. what ten coins buys --------------------------------------- */
+{
+  const G = world();
+  const a = G.actors.find((q) => q.id === "p1");
+  const got = new Set();
+  // Bank ten coins over and over and see what comes out.
+  for (let n = 0; n < 60; n++) {
+    a.power = null;
+    a.fairy = null;
+    a.hp = 2;                       // so a Big Heart is visible as a jump
+    a.coins = COINS.perReward - 1;
+    G.coins.push({ x: a.x, y: a.y - a.h / 2, at: G.time, taken: 0 });
+    for (let i = 0; i < 8 && G.coins.length; i++) sim.step(sim.TICK);
+    // The Big Heart is spent the instant it lands — it is never HELD — so it
+    // shows up in the hearts rather than in `power`.
+    if (a.hp >= POWERUPS.puso.set) got.add("puso");
+    else if (a.power) got.add(a.power.type);
+    else if (a.fairy) got.add("diwata");
+  }
+  const want = new Set(COINS.rewards);
+  ok("coins  every reward on the list can come out", [...want].every((k) => got.has(k)),
+     `got ${[...got].join(",")}`);
+  ok("coins  ...and nothing that is NOT on it", [...got].every((k) => want.has(k)),
+     `got ${[...got].join(",")}`);
+  ok("coins  no Dudu and no squad", !G.helpers.length && !G.minis.length,
+     `dudu ${G.helpers.length} minis ${G.minis.length}`);
+}
+
 /* ---- 10b. nothing called "heal" may ever take hearts OFF you ---------- */
 {
   const G = world();
@@ -580,6 +616,11 @@ for (const char of ["bubu", "dudu", "yhon"]) {
   killPlayerViaStomp(G, o, a);
   ok("kill  the last heart DOES stop the world", G.freeze > 0 || G.slow > 0,
      `hp ${a.hp} freeze ${G.freeze} slow ${G.slow}`);
+  ok("kill  ...and takes them off the board", a.dead, `dead ${a.dead}`);
+  // ...and they stay off it: the revive loop must never bring back a zero.
+  for (let i = 0; i < 200; i++) sim.step(sim.TICK);
+  ok("kill  ...and they never come back", a.dead && a.hp <= 0,
+     `dead ${a.dead} hp ${a.hp}`);
 }
 
 /* ...but falling off the map still puts you back. */

@@ -182,6 +182,21 @@ export const HIT = {
   // How long the camera abandons its framing rule to sit on the body. Must
   // outlast the slow motion, or normal speed returns to a close-up.
   killCamMs: 1300,
+  /* How long the board is left alone before the banner arrives.
+   *
+   * Charlie: "sa death ng kalaban wag auto ipakita yung charlie wins or any
+   * banner, maganda maemphasize talaga yung characters and skills pano
+   * namatay, and after few seconds yung banner na."
+   *
+   * The banner used to land on the same frame as the death, on top of the
+   * one moment worth watching — the shell going off, the body leaving, the
+   * fall. It dims the arena behind it too, so the thing it was announcing
+   * was greyed out underneath it. The kill cam and the slow motion were
+   * already doing the right job; they just had a lid put on them.
+   *
+   * The match-winning blow has always deferred like this. Now every round
+   * does, on the same mechanism. */
+  roundBannerMs: 1500,
   // The one that wins the match doesn't get handed back. The camera rides in
   // and STAYS in on the body while the result comes up, rather than pulling
   // out to a wide shot of nothing and freezing on a banner.
@@ -324,10 +339,19 @@ export const POWERUPS_EXTRA = {
      * "parang BOOM SABOGG ... its like really OP." It detonates on whatever
      * it reaches first and takes everything inside the blast with it, which
      * is the whole reason it is one shell out of one box in three. */
-    blast: 4.2,       // tiles — lethal to anything inside it
-    boomMs: 700,      // how long the fireball is drawn for
-    shake: 46,
-    freezeMs: 130,
+    blast: 4.6,       // tiles — lethal to anything inside it
+    boomMs: 950,      // how long the fireball is drawn for
+    shake: 60,
+    freezeMs: 160,
+    /* ...and it THROWS whatever it catches.
+     *
+     * "mapapathrow din away yung enemy character na masasabugan." They were
+     * dying where they stood, which for a four-tile blast is the wrong
+     * picture entirely — the kill is the blast, so the blast is what should
+     * be seen moving them. Away from the detonation, not away from whoever
+     * fired it, which is usually somewhere else. */
+    throw: 42,        // tiles a second, outward
+    throwUp: 15,
     breaks: 3,        // tiles of '=' ledge it takes out either side
   },
   /* King Yhon Yhon's crown. Only ever from taking him down.
@@ -911,7 +935,19 @@ export const COINS = {
   radius: 0.34,
 
   // What ten coins buys. Even odds, and none of them is a dud.
-  rewards: ["diwata", "dudu", "tatlo", "suntok"],
+  /* What ten coins buys.
+   *
+   * Dudu and the Tatlo squad are out, at Charlie's call — they were the two
+   * that put something ELSE on the field to do your fighting, which is a
+   * strange prize for a duel and made half the rounds three-sided. What is
+   * left is four things that happen to YOU: all your hearts back, the Diwata
+   * who keeps giving them back, a shield, or a gun.
+   *
+   * One Punch is out too. It is an OP item now and the other one comes out of
+   * a pinata; handing one over on a coin counter you cannot decline was how
+   * you lost a Bazooka you had worked for.
+   */
+  rewards: ["puso", "diwata", "kalasag", "baril"],
 };
 
 /* ---------------------------------------------------------- Bad Dudu --- */

@@ -982,20 +982,48 @@ function drawTiles(r, ctx, g) {
     for (let tx = x0; tx <= x1; tx++) {
       const c = g.grid.rows[ty][tx];
       if (c !== "#" && c !== "=" && c !== "^") continue;
-      const px = toX(r, tx);
-      const py = toY(r, ty);
+      /* The two columns about to be eaten SHAKE first.
+       *
+       * The arena closes in from both ends and a column simply vanished on
+       * the frame the counter crossed an integer — no warning, and if you
+       * were standing on it you found out by falling. Charlie: "dapat may
+       * alog alog dun sa part na mga yun na nawawala to give players kinda
+       * reaction na ay pawala na pala."
+       *
+       * So the doomed pair trembles through the last part of its second,
+       * harder the closer it gets, and goes pale as it loses its grip. The
+       * warning window is a fraction of a column rather than a fixed time,
+       * which keeps it in step with the shrink however fast that is running.
+       */
+      const eaten = Math.floor(g.shrink || 0);
+      const doomed = tx === eaten || tx === g.level.w - 1 - eaten;
+      const near = (g.shrink || 0) % 1;
+      let shakeX = 0, shakeY = 0, doomFade = 1;
+      if (doomed && near > 0.45) {
+        const k = (near - 0.45) / 0.55;              // 0 -> 1 as it runs out
+        const amp = z * 0.055 * k * k;
+        // Two frequencies, so it is a tremble rather than a vibration.
+        shakeX = (Math.sin(g.time * 47 + tx) + Math.sin(g.time * 31 + ty * 0.7)) * amp;
+        shakeY = Math.sin(g.time * 53 + ty) * amp * 0.6;
+        doomFade = 1 - k * 0.45;
+      }
+      const px = toX(r, tx) + shakeX;
+      const py = toY(r, ty) + shakeY;
       const kind =
         c === "=" ? "plat" :
         c === "^" ? "spike" :
         (ty === 0 || g.grid.rows[ty - 1][tx] !== "#") ? "grass" : "soil";
       // +1 on the destination so neighbouring tiles overlap by a hair;
       // without it a fractional zoom leaves a seam of sky between them.
+      if (doomFade < 1) ctx.globalAlpha = doomFade;
       ctx.drawImage(
         art.canvas,
         art.index[kind] * art.cell, 0, art.cell, art.cell,
         px - (art.pad / art.key) * z, py - (art.pad / art.key) * z,
         z * (art.cell / art.key) + 1, z * (art.cell / art.key) + 1
       );
+      // Put it back, or every tile drawn after a doomed one inherits the fade.
+      if (doomFade < 1) ctx.globalAlpha = 1;
     }
   }
 
@@ -1135,6 +1163,69 @@ function drawPowers(r, ctx, g) {
     ctx.fill();
     ctx.restore();
 
+    /* The two OP items BURN.
+     *
+     * One Punch and the Bazooka are the only things on the field that end a
+     * round the instant they connect, and they were sitting there looking
+     * like a Speed pickup. Charlie: "make it blazing hot kasi super rare non
+     * isipin mo basta nakatapat sa kalaban patay ... improve itsura nung
+     * pickup item mismo."
+     *
+     * So they get fire: a ring of flame licking upward off the orb, embers
+     * rising from it, and a hot floor glow underneath. All of it derived from
+     * `age`, so both phones see the same flame with nothing on the wire.
+     */
+    if (def.op) {
+      ctx.save();
+      // A hot pool on the ground beneath it, replacing the cool shadow's job.
+      ctx.globalCompositeOperation = "lighter";
+      ctx.globalAlpha = 0.35 + 0.15 * pulse;
+      const pool = ctx.createRadialGradient(px, py + drop, 0, px, py + drop, rad * 2);
+      pool.addColorStop(0, "rgba(255,150,50,0.55)");
+      pool.addColorStop(1, "rgba(255,90,20,0)");
+      ctx.fillStyle = pool;
+      ctx.beginPath();
+      ctx.ellipse(px, py + drop, rad * 2, rad * 0.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Tongues of flame around it, each on its own flicker so the ring is
+      // never symmetrical — a steady ring is a halo, a jittering one is fire.
+      for (let i = 0; i < 11; i++) {
+        const n = noiseAt(i * 7 + 13);
+        const ang = (i / 11) * Math.PI * 2 - Math.PI / 2;
+        const lick = 0.55 + 0.45 * Math.abs(Math.sin(age * (7 + n * 5) + i * 2.1));
+        const inner = rad * 0.82;
+        const outer = rad * (1.05 + lick * (0.5 + n * 0.5));
+        // Flames reach upward wherever they are on the ring — heat rises.
+        const tipY = py + Math.sin(ang) * outer - rad * lick * 0.5;
+        ctx.globalAlpha = 0.5 + 0.4 * lick;
+        const fg = ctx.createLinearGradient(px, py, px + Math.cos(ang) * outer, tipY);
+        fg.addColorStop(0, "rgba(255,244,190,0.95)");
+        fg.addColorStop(0.5, "rgba(255,160,50,0.8)");
+        fg.addColorStop(1, "rgba(220,50,20,0)");
+        ctx.fillStyle = fg;
+        ctx.beginPath();
+        ctx.moveTo(px + Math.cos(ang - 0.22) * inner, py + Math.sin(ang - 0.22) * inner);
+        ctx.lineTo(px + Math.cos(ang) * outer, tipY);
+        ctx.lineTo(px + Math.cos(ang + 0.22) * inner, py + Math.sin(ang + 0.22) * inner);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      // Embers coming off the top, because fire sheds.
+      for (let i = 0; i < 7; i++) {
+        const n = noiseAt(i * 5 + 61);
+        const t = (age * (0.5 + n * 0.5) + n * 3) % 1;
+        ctx.globalAlpha = (1 - t) * 0.85;
+        ctx.fillStyle = n > 0.5 ? "#ffd27a" : "#ff8a3d";
+        ctx.beginPath();
+        ctx.arc(px + (n - 0.5) * rad * 2 + Math.sin(age * 3 + i) * rad * 0.2,
+                py - t * rad * 3, z * 0.035 * (1 - t * 0.6), 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
     // Bloom and mark come from one baked sprite; see markSprite().
     const glowC = q.type === "lunas" ? "#ff4d6d" : def.colour;
     const sprite = markSprite(q.type, glowC);
@@ -1268,6 +1359,22 @@ function drawBoom(r, ctx, g, q, age) {
   const py = toY(r, q.y);
   const R = def.blast * z;
 
+  /* 0. A scorch under it, laid down first and outlasting everything else, so
+   *    the ground remembers where a rocket went off. */
+  {
+    const ct = Math.min(1, t / 1);
+    ctx.save();
+    ctx.globalAlpha = Math.pow(1 - ct, 1.4) * 0.35;
+    const sc = ctx.createRadialGradient(px, py, 0, px, py, R * 0.9);
+    sc.addColorStop(0, "rgba(38,24,16,0.9)");
+    sc.addColorStop(1, "rgba(38,24,16,0)");
+    ctx.fillStyle = sc;
+    ctx.beginPath();
+    ctx.ellipse(px, py, R * 0.9, R * 0.24, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
   /* 1. The flash — two frames of pure white, bigger than the blast.
    *    Everything else is detail; this is the bang. */
   if (t < 0.07) {
@@ -1314,9 +1421,9 @@ function drawBoom(r, ctx, g, q, age) {
 
     /* Lobes around the edge, so the ball is not a perfect circle. A circle
      * is a sun; an explosion is lumpy. */
-    for (let i = 0; i < 9; i++) {
+    for (let i = 0; i < 16; i++) {
       const n = noiseAt(i * 4 + q.x * 2.7);
-      const ang = (i / 9) * Math.PI * 2 + n * 0.6;
+      const ang = (i / 16) * Math.PI * 2 + n * 0.6;
       const lr = rad * (0.34 + n * 0.3);
       const ld = rad * (0.62 + n * 0.3);
       const lg = ctx.createRadialGradient(px + Math.cos(ang) * ld, py + Math.sin(ang) * ld, 0,
@@ -1351,9 +1458,9 @@ function drawBoom(r, ctx, g, q, age) {
    *    the lag between the two is what makes it read as smoke and not as a
    *    second, slower fireball. */
   ctx.save();
-  for (let i = 0; i < 22; i++) {
+  for (let i = 0; i < 38; i++) {
     const n1 = noiseAt(i * 5 + q.x * 3.1), n2 = noiseAt(i * 5 + 1 + q.x * 3.1);
-    const ang = (i / 22) * Math.PI * 2 + n1;
+    const ang = (i / 38) * Math.PI * 2 + n1;
     const out = R * (0.25 + n2 * 0.85) * (1 - Math.pow(1 - Math.min(1, t * 1.8), 2));
     const rise = z * (0.4 + n1 * 2.4) * t;
     const pr = z * (0.12 + n2 * 0.2) * (0.5 + t * 2.4);
@@ -1364,14 +1471,44 @@ function drawBoom(r, ctx, g, q, age) {
   }
   ctx.restore();
 
+  /* 4b. SECONDARY detonations — three more fireballs popping off around the
+   *     first, each on its own short clock.
+   *
+   *     One ball of fire is a firework; a thing that keeps going off for the
+   *     next third of a second is an explosion. Cheap, and it is most of the
+   *     difference between "it popped" and "sabog na sabog". */
+  for (let i = 0; i < 3; i++) {
+    const n = noiseAt(i * 11 + q.x * 5.3);
+    const at = 0.1 + i * 0.09;
+    const tt = (t - at) / 0.3;
+    if (tt <= 0 || tt >= 1) continue;
+    const ang = n * Math.PI * 2;
+    const d = R * (0.35 + n * 0.5);
+    const sx = px + Math.cos(ang) * d;
+    const sy = py + Math.sin(ang) * d * 0.8;
+    const sr = R * (0.3 + n * 0.28) * (0.4 + (1 - Math.pow(1 - tt, 3)) * 0.9);
+    ctx.save();
+    ctx.globalAlpha = (1 - tt) * 0.9;
+    const sg = ctx.createRadialGradient(sx, sy, 0, sx, sy, sr);
+    sg.addColorStop(0, "rgba(255,250,220,1)");
+    sg.addColorStop(0.3, "rgba(255,212,90,1)");
+    sg.addColorStop(0.7, "rgba(238,96,30,0.85)");
+    sg.addColorStop(1, "rgba(140,30,16,0)");
+    ctx.fillStyle = sg;
+    ctx.beginPath();
+    ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
   /* 5. Sparks, thrown on straight lines and fading — the only part that is
    *    allowed to leave the blast radius. */
   ctx.save();
   ctx.globalCompositeOperation = "lighter";
   ctx.lineCap = "round";
-  for (let i = 0; i < 16; i++) {
+  for (let i = 0; i < 30; i++) {
     const n = noiseAt(i * 7 + 90 + q.x);
-    const ang = (i / 16) * Math.PI * 2 + n * 0.4;
+    const ang = (i / 30) * Math.PI * 2 + n * 0.4;
     const far = R * (0.8 + n * 1.1) * Math.min(1, t * 2.2);
     const len = z * 0.3 * (1 - t);
     ctx.globalAlpha = Math.max(0, 1 - t * 1.6);
@@ -3338,8 +3475,10 @@ function drawRocket(r, ctx, g, b) {
   const py = toY(r, b.y);
   const ang = Math.atan2(b.vy, b.vx);
   const age = b.born === undefined ? 99 : Math.max(0, g.time - b.born);
-  const L = z * 0.62;              // body length
-  const W = z * 0.2;               // and half its width
+  // Sized against the launcher it came out of, which is now nearly as tall
+  // as a character — a pea leaving a cannon looks wrong.
+  const L = z * 0.9;               // body length
+  const W = z * 0.27;              // and half its width
   // Burn flicker, fast and deterministic so both phones see the same flame.
   const burn = 0.72 + 0.28 * Math.sin(g.time * 47 + b.x * 3);
 
@@ -4308,27 +4447,119 @@ function drawActor(r, ctx, g, a) {
     }
   }
 
-  // Frozen: encased, with the ice fading as it thaws.
+  /* Frozen: crystallised, and the crystal is doing something.
+   *
+   * It was a flat blue pentagon with a white outline — the silhouette of a
+   * block of ice, and nothing else. Charlie: "can we improve
+   * cystalyzation/frozen effect animation yung pagkakacrystal lagyan mo ng
+   * sprinkle idk."
+   *
+   * What ice has that a pentagon does not: facets that catch the light at
+   * different angles, a frosted rim where it meets the air, internal cracks,
+   * and glints coming off it. The glints are the "sprinkle" — they twinkle on
+   * their own clocks so the block is never still, which is the whole
+   * difference between frozen and merely painted blue.
+   */
   if (a.frozenUntil && g.time < a.frozenUntil) {
     const left = a.frozenUntil - g.time;
+    const fade = Math.min(1, left * 1.8);
+    const w = a.w * z, h = a.h * z;
+    const top = py - h * 1.5;
+    // The block's outline, kept as one path so everything can clip to it.
+    const block = () => {
+      ctx.beginPath();
+      ctx.moveTo(px, top);
+      ctx.lineTo(px + w * 0.9, py - h * 0.95);
+      ctx.lineTo(px + w * 0.72, py);
+      ctx.lineTo(px - w * 0.72, py);
+      ctx.lineTo(px - w * 0.9, py - h * 0.95);
+      ctx.closePath();
+    };
+
     ctx.save();
-    ctx.globalAlpha = Math.min(0.82, left * 1.8);
-    ctx.fillStyle = "#6fc9f0";
-    ctx.strokeStyle = "#e6f8ff";
-    ctx.lineWidth = Math.max(2, z * 0.06);
-    ctx.beginPath();
-    ctx.moveTo(px, py - a.h * z * 1.5);
-    ctx.lineTo(px + a.w * z * 0.85, py - a.h * z * 0.95);
-    ctx.lineTo(px + a.w * z * 0.68, py);
-    ctx.lineTo(px - a.w * z * 0.68, py);
-    ctx.lineTo(px - a.w * z * 0.85, py - a.h * z * 0.95);
-    ctx.closePath();
-    // Bubu is mostly white, so a pale frost over her reads as nothing. The
-    // block is tinted hard enough to be obvious on any of the three.
-    ctx.globalAlpha *= 0.8;
+    ctx.globalAlpha = fade * 0.78;
+    // Body of the ice: darker at the base where it is thick, bright at the
+    // top where the light gets in.
+    const icy = ctx.createLinearGradient(0, top, 0, py);
+    icy.addColorStop(0, "#d6f4ff");
+    icy.addColorStop(0.45, "#7fd0f2");
+    icy.addColorStop(1, "#3f97c4");
+    block();
+    ctx.fillStyle = icy;
     ctx.fill();
-    ctx.globalAlpha = Math.min(0.9, left * 1.8);
+
+    /* Facets. Long triangles from the apex down, alternating light and dark,
+     * which is what makes a lump of blue read as something CUT. */
+    ctx.save();
+    block();
+    ctx.clip();
+    for (let i = 0; i < 6; i++) {
+      const n = noiseAt(i * 7 + 3);
+      const x0 = px + (i / 5 - 0.5) * w * 1.9;
+      ctx.globalAlpha = fade * (i % 2 ? 0.22 : 0.13);
+      ctx.fillStyle = i % 2 ? "#ffffff" : "#1f6c98";
+      ctx.beginPath();
+      ctx.moveTo(px + (n - 0.5) * w * 0.5, top);
+      ctx.lineTo(x0 + w * 0.2, py + h * 0.1);
+      ctx.lineTo(x0 - w * 0.2, py + h * 0.1);
+      ctx.closePath();
+      ctx.fill();
+    }
+    // Internal cracks — thin, bright, and not reaching the edges.
+    ctx.globalAlpha = fade * 0.5;
+    ctx.strokeStyle = "rgba(255,255,255,0.9)";
+    ctx.lineWidth = Math.max(1, z * 0.025);
+    for (let i = 0; i < 4; i++) {
+      const n1 = noiseAt(i * 9 + 21), n2 = noiseAt(i * 9 + 22);
+      const sx = px + (n1 - 0.5) * w * 1.2;
+      const sy = py - h * (0.25 + n2);
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(sx + (n2 - 0.5) * w * 0.5, sy - h * 0.3);
+      ctx.lineTo(sx + (n1 - 0.5) * w * 0.7, sy - h * 0.55);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // A frosted rim, thick, where the block meets the air.
+    ctx.globalAlpha = fade * 0.95;
+    ctx.strokeStyle = "#eefaff";
+    ctx.lineWidth = Math.max(2, z * 0.07);
+    block();
     ctx.stroke();
+
+    /* The sprinkle: glints on the surface and frost motes drifting off it.
+     * Each on its own clock, so the block never holds still. */
+    ctx.globalCompositeOperation = "lighter";
+    for (let i = 0; i < 7; i++) {
+      const n1 = noiseAt(i * 5 + 40), n2 = noiseAt(i * 5 + 41);
+      const tw = Math.max(0, Math.sin(g.time * 3.2 + i * 1.9));
+      if (tw <= 0.05) continue;
+      const gx = px + (n1 - 0.5) * w * 1.5;
+      const gy = py - h * (0.15 + n2 * 1.25);
+      const gs = z * (0.05 + n2 * 0.06) * tw;
+      ctx.globalAlpha = fade * tw;
+      ctx.fillStyle = "#ffffff";
+      // A four-point glint, not a dot — a dot is snow, a glint is ice.
+      ctx.beginPath();
+      ctx.moveTo(gx, gy - gs * 2.2);
+      ctx.quadraticCurveTo(gx, gy, gx + gs, gy);
+      ctx.quadraticCurveTo(gx, gy, gx, gy + gs * 2.2);
+      ctx.quadraticCurveTo(gx, gy, gx - gs, gy);
+      ctx.quadraticCurveTo(gx, gy, gx, gy - gs * 2.2);
+      ctx.fill();
+    }
+    // ...and frost falling off it, so it is plainly cold rather than glass.
+    for (let i = 0; i < 9; i++) {
+      const n = noiseAt(i * 3 + 70);
+      const t = (g.time * (0.4 + n * 0.5) + n * 3) % 1;
+      ctx.globalAlpha = fade * (1 - t) * 0.7;
+      ctx.fillStyle = "#dff6ff";
+      ctx.beginPath();
+      ctx.arc(px + (n - 0.5) * w * 1.7, py - h * 1.2 + t * h * 1.3,
+              z * 0.028, 0, Math.PI * 2);
+      ctx.fill();
+    }
     ctx.restore();
   }
 
@@ -4433,9 +4664,17 @@ function drawActor(r, ctx, g, a) {
     const since = g.time - (a.shotAt || -9) / 1000;
     // Kicks back on the frame it fires, then settles.
     const kick = since >= 0 && since < 0.2 ? (1 - since / 0.2) * (big ? 0.28 : 0.14) : 0;
-    const size = a.h * z * (big ? 0.62 : 0.4);
-    const hx = px + a.face * (a.w * z * (big ? 0.34 : 0.42) - kick * z * 0.5);
-    const hy = py - a.h * z * (big ? 0.62 : 0.5);
+    /* A Bazooka is nearly as big as the character carrying it.
+     *
+     * It was drawn at 0.62 of body height, which is a large pistol — Charlie:
+     * "its a bazooka so bigg talaga sha somehow baka kasing laki pa ng
+     * character." It is a tube you put on your shoulder. At this size it also
+     * does the job the chip and the toast were doing on their own: you can
+     * tell from across the arena who is carrying the thing that ends rounds.
+     */
+    const size = a.h * z * (big ? 1.15 : 0.4);
+    const hx = px + a.face * (a.w * z * (big ? 0.42 : 0.42) - kick * z * (big ? 0.7 : 0.5));
+    const hy = py - a.h * z * (big ? 0.78 : 0.5);
     ctx.save();
     ctx.translate(hx, hy);
     if (a.face < 0) ctx.scale(-1, 1);

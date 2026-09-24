@@ -73,6 +73,26 @@ cell(boxes, "two at once", (g, fy) => {
   g.boxes.push({ x: 27, y: fy - 4, hits: 1, bumpAt: -9 });
 });
 
+// Frozen, and a character carrying the Bazooka — both things whose whole
+// point is how they look, and neither easy to catch in a live round.
+const misc = document.createElement("div");
+misc.className = "row";
+const mhh = document.createElement("h1");
+mhh.textContent = "frozen, and the bazooka in hand";
+document.body.append(mhh, misc);
+for (const [cap, fit] of [
+  ["frozen", (g, a) => { a.frozenUntil = g.time + 3; }],
+  ["frozen, thawing", (g, a) => { a.frozenUntil = g.time + 0.35; }],
+  ["holding a bazooka", (g, a) => { a.power = { type: "bazuka", until: Infinity, ammo: 1 }; }],
+  ["holding a gun", (g, a) => { a.power = { type: "baril", until: Infinity, ammo: 6 }; }],
+]) {
+  cell(misc, cap, (g, fy) => {
+    const a = g.actors[0];
+    a.char = "yhon"; a.x = 24; a.y = fy; a.face = 1; a.grounded = true;
+    fit(g, a);
+  }, 95);
+}
+
 // The shield, at a few points through its five and a half seconds.
 const sh = document.createElement("div");
 sh.className = "row";
@@ -135,8 +155,11 @@ for (const ms of [20, 60, 140, 300, 500, 680]) {
 }
 
 const drops = document.getElementById("drops");
-for (const type of ["puso", "bazuka"]) {
-  cell(drops, type, (g, fy) => { g.powers.push({ x: 24, y: fy - 2.2, type, born: 0 }); });
+for (const type of ["puso", "bazuka", "suntok", "kalasag", "baril"]) {
+  cell(drops, type, (g, fy) => {
+    for (const q of g.actors) q.x = 60;
+    g.powers.push({ x: 24, y: fy - 2.2, type, born: 0 });
+  }, 90);
 }
 
 const kingRow = document.getElementById("king");
