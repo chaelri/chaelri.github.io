@@ -25,6 +25,7 @@ import { makeActor, stepActor, kill, reviveAt, poseOf, tileAt } from "./physics.
 import { rng, seed as seedRng, newSeed, rngState, setState as setRngState } from "./rng.js";
 import { charById } from "./characters.js";
 import { abilityLook, abilityOf, abilityReady, tickCharges } from "./ability.js";
+import { forceRound, rollRound, roundCard, heartsOn, applyBody, pinHeld, tryGrab, modeHit, modeFall, onCoin, coinsWanted, pickPower, powerEvery, tickRound } from "./rounds.js";
 
 /* Is this copy of the rules the one that DECIDES?
  *
@@ -58,6 +59,8 @@ export function configure(opts = {}) {
   if (opts.fx) fx = { ...fx, ...opts.fx };
   if (opts.authority !== undefined) authority = !!opts.authority;
   if (opts.role !== undefined) localRole = opts.role;
+  // { mode, mod } pins the wheel — tests use it to get a plain Smash round.
+  if (opts.round) forceRound(opts.round.mode, opts.round.mod);
 }
 
 /* ---------------------------------------------------------------- state --- */
@@ -295,6 +298,8 @@ function startRound(withSeed) {
   // A new arena every round. Mirrored and reachability-checked in makeArena(),
   // so the variety cannot reintroduce either of the two things that used to
   // ruin a round: an unfair side, or a platform you can see and never reach.
+  // Kept a moment, so the next round's mode cannot repeat this one's.
+  const prevRd = G && G.rd;
   const level = makeArena((rng() * 4294967296) >>> 0);
   const meta = readLevel(level);
 
@@ -354,6 +359,9 @@ function startRound(withSeed) {
     }),
   };
 
+  // The mode wheel and the modifier card. See rounds.js.
+  rollRound(G, prevRd, rng);
+
   phase = "countdown";
   fx.result(null);
   // Four seconds, one per card. At 3.2 the first card — BUBU — got the 0.2
@@ -374,7 +382,8 @@ function startRound(withSeed) {
    * Charlie, over a screenshot of the two together: "redundant yung
    * bubududusmash sa taas dito." The cards are the better of the two, so the
    * banner keeps the one thing they do not say. */
-  fx.banner(`Round ${roundNo}`, "");
+  const card = roundCard(G, roundNo);
+  fx.banner(card.title, card.sub);
 }
 
 function endRound(winnerId, why) {
@@ -859,7 +868,7 @@ function standingTiles() {
 
 function tickCoins(dt) {
   const live = G.coins.filter((c) => !c.taken).length;
-  if (live < COINS.onField) {
+  if (live < coinsWanted(G)) {
     G.coinAt -= dt;
     // The first handful land straight away — trickling them in one every two
     // and a half seconds meant the field was still filling when the round was
@@ -891,6 +900,7 @@ function tickCoins(dt) {
       if (Math.abs(a.y - a.h / 2 - c.y) > COINS.radius + a.h / 2) continue;
       c.taken = G.time;
       a.coins = (a.coins || 0) + 1;
+      onCoin(G, a);
 
       // Everything the pickup needs to draw itself, recorded on the coin —
       // which sticks around for another half second precisely so it can play
@@ -1398,7 +1408,12 @@ function deathLine(a) {
    * the words. */
   if (a.kingedAt != null && G.time - a.kingedAt < 4) return "SHOW RESPECT TO THE KING!";
 
+  // Thrown by the other player — a grab, or a knock in a no-hearts mode.
+  if (a.grabThrownBy && G.time - (a.grabThrownAt || -9) < 4 && (c.how === "fall" || c.how === "spikes"))
+    return `${nameOf(a.grabThrownBy)} throws ${them} off the map`;
   switch (c.how) {
+    case "bomb":   return `the bomb goes off in ${them}'s hands`;
+    case "lava":   return `${them} sinks into the lava`;
     case "stomp":  return who ? `${who} finishes ${them} with a stomp` : `${them} is stomped`;
     case "star":   return who ? `${who} runs ${them} down with the star` : `${them} runs into the star`;
     case "bazuka": return who ? `${who} puts a shell through ${them}` : `${them} takes a shell`;
@@ -1460,7 +1475,9 @@ function handleDeath(a) {
    * in binary is 1.4999999999999998, which draws as a heart and a half but
    * compares as less than one and a half everywhere it matters.
    */
-  const cost = a.hitFor == null ? 1 : a.hitFor;
+  // Hearts are off outside Smash: a fall costs whatever the mode says.
+  const cost = !heartsOn(G) && !lethal ? 0 : a.hitFor == null ? 1 : a.hitFor;
+  if (!cost && fell) modeFall(G, a, roundCtx());
   a.hitFor = null;
   a.hp = lethal ? 0 : Math.max(0, Math.round((a.hp - cost) * 2) / 2);
   // Size follows health now — see restat — so losing one has to re-derive it.
@@ -1528,7 +1545,7 @@ function handleDeath(a) {
 
   // Debris at the point of impact, and the heart they just lost thrown clear.
   G.bursts.push({ x: a.x, y: a.y - a.h * 0.55, at: G.time, colour: "#ff4d6d", big: true });
-  G.lostHearts.push({
+  if (cost) G.lostHearts.push({
     x: a.x,
     y: a.y - a.h * 1.5,
     vx: (rng() - 0.5) * 3,
@@ -1666,11 +1683,34 @@ function canHit(victim, by, thrown = false) {
   return true;
 }
 
+/* What rounds.js needs from this copy of the rules. See js/rounds.js. */
+function roundCtx() {
+  return {
+    fx, rng, standingTiles, standingRoom, widestFloor, canHit, givePower, summonKing, endRound,
+    killFall(a, how) {
+      a.cause = { how, by: null };
+      kill(a, { onDeath: handleDeath });
+    },
+    /* Hot Potato: the fuse ran out in somebody's hands. */
+    detonate(a) {
+      G.quakes.push({ x: a.x, y: a.y - a.h / 2, at: G.time, force: 1, kind: 1 });
+      a.lethal = true;
+      a.cause = { how: "bomb", by: null };
+      fx.shake(40);
+      fx.flash(1);
+      fx.sfx("suntok");
+      handleDeath(a);
+    },
+  };
+}
+
 function killPlayer(victim, by, how = "stomp", damage = 1) {
   // Every reason a blow bounces off, in one place. See canHit. A bullet and a
   // shell are THROWN: they are in the world on their own account and do not
   // care what has happened to whoever fired them since.
   if (!canHit(victim, by, how === "shot" || how === "bazuka")) return;
+  // Every mode but Smash: no hearts, a hit knocks you back. See rounds.js.
+  if (!heartsOn(G)) { modeHit(G, victim, by, how, roundCtx()); return; }
   // Recorded on the victim rather than passed down, because `kill()` in
   // physics.js is also the one that fires for a pit and it has no idea who
   // was involved. handleDeath reads whichever of the two got there.
@@ -2200,7 +2240,7 @@ function tickPowers(dt) {
   // spawn
   G.powerAt -= dt;
   if (G.powerAt <= 0 && G.meta.powerSpots.length) {
-    G.powerAt = POWER_SPAWN_MS / 1000;
+    G.powerAt = powerEvery(G, POWER_SPAWN_MS) / 1000;
     // The spots come from the tilemap, but the arena eats its floor inward as
     // the round runs — so by the middle of a round the outer spots are hanging
     // over open air. A power-up nobody can reach is worse than no power-up:
@@ -2215,8 +2255,10 @@ function tickPowers(dt) {
     const sp = spawnAwayFrom(free, SPAWN_CLEAR.power)
       || (floor ? { x: (floor.x0 + floor.x1 + 1) / 2, y: floor.y - 1.4 } : null);
     if (sp) {
-      let type = POWER_ORDER[Math.floor(rng() * POWER_ORDER.length)];
-      let guard = 0;
+      // Gunfight decides for itself. See pickPower.
+      const forced = pickPower(G, rng);
+      let type = forced || POWER_ORDER[Math.floor(rng() * POWER_ORDER.length)];
+      let guard = forced ? 9 : 0;
       while (type === G.lastPower && guard++ < 8)
         type = POWER_ORDER[Math.floor(rng() * POWER_ORDER.length)];
       G.lastPower = type;
@@ -2730,10 +2772,16 @@ function poundLanded(a) {
 }
 
 function tryShoot(a) {
+  // Holding someone over your head: the button throws them.
+  if (G.rd && G.rd.grab && G.rd.grab.by === a.id) return tryGrab(G, a, roundCtx());
   if (hasPower(a, "suntok")) return tryPunch(a);
   if (hasPower(a, "bazuka")) return tryBazooka(a);
   if (hasPower(a, "espada")) return trySwing(a);
-  if (!hasPower(a, "baril") || a.power.ammo <= 0) return;
+  /* Nothing to fire: the same button grabs. See GRAB in config.js. */
+  if (!hasPower(a, "baril") || a.power.ammo <= 0) {
+    if (!a.power || !ALL_POWERS[a.power.type]?.fires || !(a.power.ammo > 0)) tryGrab(G, a, roundCtx());
+    return;
+  }
   if (G.time * 1000 - a.shotAt < SHOT_COOLDOWN_MS) return;
   a.shotAt = G.time * 1000;
   a.power.ammo--;
@@ -3632,11 +3680,14 @@ function simulate(dt) {
     };
     // Frozen still falls — being iced mid-air should not park you in the sky.
     if (frozen) a.vx *= 0.82;
+    applyBody(G, a);
     stepActor(a, input, G.grid, dt, G.actors, opts);
     holdAbility(a, dt);
     if (pendingSkill[a.id]) tryAbility(a, true);
     if (pendingShot[a.id]) tryShoot(a);
   }
+  // Whoever is being held goes where the holder goes.
+  pinHeld(G);
   pendingJump.p1 = false;
   pendingJump.p2 = false;
   pendingShot.p1 = false;
@@ -3793,6 +3844,9 @@ export function applyServer(view, hostPhase, opts = {}) {
   G.bursts = view.bursts;
   G.pops = view.pops;
   if (view.shrink != null) G.shrink = view.shrink;
+  // A server from before the mode wheel sends none: play it as plain Smash
+  // rather than guess at a mode it is not running.
+  G.rd = view.rd || null;
   G.quakes = view.quakes || [];
   G.boxes = view.boxes || [];
   G.king = view.king || null;
@@ -4042,6 +4096,7 @@ export function step(dt) {
      * does. The server owns the world; you predict yourself.
      */
     if (phase === "play" && sim > 0 && authority) {
+      tickRound(G, sim, roundCtx());
       tickPowers(sim);
       tickBoxes(sim);
       tickKing(sim);

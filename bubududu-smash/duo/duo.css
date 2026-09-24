@@ -348,6 +348,7 @@ body.duo.result #scrim { background: rgba(8, 20, 34, 0.68); }
 #pad.duo #jump.down { background: rgba(255,184,77,0.6); }
 #pad.duo #shoot.armed { background: rgba(99,217,138,0.45); border-color: rgba(99,217,138,0.85); }
 #pad.duo #shoot.armed.melee { background: rgba(255,107,87,0.45); border-color: rgba(255,107,87,0.85); }
+#pad.duo #shoot.grab { background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.6); color: #fff; }
 
 /* With no power-up it is the character's own move — see css/fire.css. */
 

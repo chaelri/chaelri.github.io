@@ -151,13 +151,15 @@ export function paintShootButton(power, ammo) {
   const armed = !!(def && def.fires) && (ammo > 0 || !!def.endless);
   b.classList.toggle("armed", armed);
   b.classList.toggle("melee", armed && (power === "suntok" || power === "espada"));
+  b.classList.toggle("grab", !armed);
   const count = armed && !def.endless ? String(ammo) : "";
   const key = `${armed ? power : "-"}|${count}`;
   if (b.dataset.key !== key) {
     b.dataset.key = key;
     // Its own mark, whatever it is — a Bazooka drawn as a six-shooter is a
     // lie about how many shots you have.
-    b.innerHTML = markSVG(armed ? power : "baril", "mk") +
+    // Nothing to fire: the same button grabs. See GRAB in config.js.
+    b.innerHTML = markSVG(armed ? power : "grab", "mk") +
       (count ? `<i>${count}</i>` : "");
   }
 }

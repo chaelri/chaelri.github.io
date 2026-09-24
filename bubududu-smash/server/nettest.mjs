@@ -49,7 +49,7 @@ const FX = {
   rematch: noop, power: noop, shake: noop, punch: noop, flash: noop,
   killCam: noop, roundStart: noop,
 };
-server.configure({ authority: true, fx: FX });
+server.configure({ round: { mode: "smash", mod: null }, authority: true, fx: FX });
 client.configure({ authority: false, role: ROLE, fx: FX });
 server.state.pads.p1.connected = true;
 server.state.pads.p2.connected = true;

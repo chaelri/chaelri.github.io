@@ -6,8 +6,8 @@
 
 import { charById } from "./characters.js";
 import { poseOf } from "./physics.js";
-import { ABILITY, ALL_POWERS, BAD_HELPER, BOX, COINS, DIWATA, FEEL, HIT, KING, PLAYERS, POWERUPS, SHOT_RADIUS } from "./config.js";
-import { drawMark, markPath, stampMark } from "./marks.js";
+import { ABILITY, ALL_POWERS, BAD_HELPER, BOX, COINS, DIWATA, FEEL, HIT, KING, PLAYERS, POWERUPS, ROUND, ROUND_MODES, ROUND_MODS, SHOT_RADIUS } from "./config.js";
+import { drawMark, drawMarkOutlined, markPath, stampMark } from "./marks.js";
 import { bakeScenery, blitRange } from "./scenery.js";
 
 
@@ -850,6 +850,7 @@ export function draw(r, g, dt) {
   }
 
   layer("tiles", ctx, () => drawTiles(r, ctx, g));
+  layer("zone", ctx, () => drawZone(r, ctx, g));
 
   layer("coins", ctx, () => drawCoins(r, ctx, g));
   layer("powers", ctx, () => drawPowers(r, ctx, g));
@@ -871,10 +872,15 @@ export function draw(r, g, dt) {
   layer("quakes", ctx, () => drawQuakes(r, ctx, g));
   layer("pops", ctx, () => drawPops(r, ctx, g));
   layer("hearts", ctx, () => drawLostHearts(r, ctx, g));
+  layer("carried", ctx, () => drawCarried(r, ctx, g));
+  layer("lava", ctx, () => drawLava(r, ctx, g));
 
   ctx.restore();
 
+  layer("dark", ctx, () => drawDark(r, ctx, g));
+
   layer("killfx", ctx, () => drawKillFx(r, ctx));
+  layer("roundhud", ctx, () => drawRoundHud(r, ctx, g));
 
   // Red bloom round the edges, on top of everything and outside the shake.
   if (r.flash > 0) {
@@ -5997,4 +6003,256 @@ export function drawScene(s, dt) {
       ctx.fillText(charById(c.id).name, px, py - s.cam.zoom * 1.72);
     });
   }
+}
+
+/* ------------------------------------------------------- round variety --- */
+//
+// The mode wheel and the modifier card, drawn. Everything reads `g.rd`, which
+// is the same object on the laptop and on a phone — see rounds.js.
+
+const PCOL = Object.fromEntries(PLAYERS.map((p) => [p.id, p.colour]));
+const nameOf = (id) => (PLAYERS.find((p) => p.id === id) || {}).name || "";
+
+/** King of the Hill: the crown pad, glowing, with a crown turning over it. */
+function drawZone(r, ctx, g) {
+  const rd = g.rd;
+  if (!rd || rd.mode !== "hill" || !rd.zone) return;
+  const z = r.cam.zoom;
+  const t = g.time || 0;
+  const x0 = toX(r, rd.zone.x - ROUND.hillHalfW), x1 = toX(r, rd.zone.x + ROUND.hillHalfW);
+  const y = toY(r, rd.zone.row);
+  const cx = (x0 + x1) / 2;
+  // Who is on it decides the colour: gold for nobody, their colour for one,
+  // red flicker when you are both there and nobody is scoring.
+  const on = (g.actors || []).filter((a) => !a.dead && Math.abs(a.x - rd.zone.x) <= ROUND.hillHalfW
+                                           && Math.abs(a.y - rd.zone.row) < 0.35);
+  const col = rd.contested ? (Math.sin(t * 20) > 0 ? "#ff4d6d" : "#ffffff")
+            : on.length === 1 ? PCOL[on[0].id] : "#ffc23f";
+  const moving = rd.zoneLeft < 2.5;
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  // A column of light off the pad, so it can be found from anywhere.
+  const h = z * 5.5;
+  const grd = ctx.createLinearGradient(0, y, 0, y - h);
+  grd.addColorStop(0, hexA(col, moving ? 0.25 + 0.2 * Math.sin(t * 16) : 0.42));
+  grd.addColorStop(1, hexA(col, 0));
+  ctx.fillStyle = grd;
+  ctx.fillRect(x0, y - h, x1 - x0, h);
+  ctx.restore();
+  // The pad itself.
+  ctx.save();
+  ctx.fillStyle = hexA(col, 0.85);
+  roundRect(ctx, x0, y - z * 0.14, x1 - x0, z * 0.2, z * 0.1);
+  ctx.fill();
+  ctx.restore();
+  // The crown, bobbing and turning.
+  ctx.save();
+  ctx.translate(cx, y - z * 1.9 + Math.sin(t * 2.4) * z * 0.15);
+  ctx.scale(Math.cos(t * 1.6), 1);
+  drawMarkOutlined(ctx, "korona", 0, 0, z * 1.1, col, "rgba(40,24,0,0.8)", Math.max(1.5, z * 0.05));
+  ctx.restore();
+}
+
+/** Things carried over a head: the bomb in Hot Potato, the IT tag in Tag. */
+function drawCarried(r, ctx, g) {
+  const rd = g.rd;
+  if (!rd) return;
+  const z = r.cam.zoom;
+  const t = g.time || 0;
+  const id = rd.mode === "potato" ? rd.holder : rd.mode === "tag" ? rd.it : null;
+  const a = id && (g.actors || []).find((q) => q.id === id);
+  if (!a || a.dead) return;
+  const px = toX(r, a.x + (a.ox || 0));
+  const py = toY(r, a.y + (a.oy || 0) - a.h) - z * 1.3;
+  ctx.save();
+  if (rd.mode === "potato") {
+    // Blinks faster as the fuse burns down — the only clock you get.
+    const rate = rd.fuse < 3 ? 14 : rd.fuse < 6 ? 8 : 4;
+    const hot = Math.sin(t * rate) > 0;
+    const rad = z * 0.42;
+    ctx.fillStyle = "#1d1f2b";
+    ctx.beginPath(); ctx.arc(px, py, rad, 0, Math.PI * 2); ctx.fill();
+    ctx.lineWidth = Math.max(1.5, z * 0.06);
+    ctx.strokeStyle = hot ? "#ff4d3d" : "#454a63";
+    ctx.stroke();
+    ctx.fillStyle = "rgba(255,255,255,0.35)";
+    ctx.beginPath(); ctx.arc(px - rad * 0.35, py - rad * 0.35, rad * 0.22, 0, Math.PI * 2); ctx.fill();
+    // Fuse and its spark.
+    ctx.strokeStyle = "#8a6a3a";
+    ctx.beginPath(); ctx.moveTo(px + rad * 0.5, py - rad * 0.8);
+    ctx.quadraticCurveTo(px + rad * 0.9, py - rad * 1.5, px + rad * 0.4, py - rad * 1.7); ctx.stroke();
+    ctx.globalCompositeOperation = "lighter";
+    const sp = z * (0.18 + 0.08 * Math.abs(Math.sin(t * 30)));
+    const sg = ctx.createRadialGradient(px + rad * 0.4, py - rad * 1.7, 0, px + rad * 0.4, py - rad * 1.7, sp * 2);
+    sg.addColorStop(0, "rgba(255,240,180,1)");
+    sg.addColorStop(1, "rgba(255,120,40,0)");
+    ctx.fillStyle = sg;
+    ctx.beginPath(); ctx.arc(px + rad * 0.4, py - rad * 1.7, sp * 2, 0, Math.PI * 2); ctx.fill();
+  } else {
+    const bob = Math.sin(t * 6) * z * 0.08;
+    ctx.font = `900 ${Math.round(z * 0.62)}px Nunito, system-ui, sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.lineJoin = "round";
+    ctx.lineWidth = Math.max(2, z * 0.12);
+    ctx.strokeStyle = "#2a1045";
+    ctx.strokeText("IT", px, py + bob);
+    ctx.fillStyle = "#c98bff";
+    ctx.fillText("IT", px, py + bob);
+  }
+  ctx.restore();
+}
+
+/** Lava Rising: a glowing sea with a moving surface. */
+function drawLava(r, ctx, g) {
+  const rd = g.rd;
+  if (!rd || rd.mod !== "lava") return;
+  const z = r.cam.zoom;
+  const t = g.time || 0;
+  const top = toY(r, rd.lava);
+  if (top > r.h) return;
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(0, r.h);
+  for (let x = 0; x <= r.w + 8; x += 8) {
+    const wx = (x - r.w / 2) / z + r.cam.x;
+    ctx.lineTo(x, top + Math.sin(wx * 1.3 + t * 2.2) * z * 0.08 + Math.sin(wx * 0.5 - t * 1.3) * z * 0.06);
+  }
+  ctx.lineTo(r.w, r.h);
+  ctx.closePath();
+  const grd = ctx.createLinearGradient(0, top, 0, top + z * 3);
+  grd.addColorStop(0, "#ffd24a");
+  grd.addColorStop(0.12, "#ff7a1f");
+  grd.addColorStop(1, "#b3200e");
+  ctx.fillStyle = grd;
+  ctx.fill();
+  // Heat haze above it.
+  ctx.globalCompositeOperation = "lighter";
+  const glow = ctx.createLinearGradient(0, top - z * 2.2, 0, top);
+  glow.addColorStop(0, "rgba(255,120,30,0)");
+  glow.addColorStop(1, "rgba(255,120,30,0.35)");
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, top - z * 2.2, r.w, z * 2.2);
+  ctx.restore();
+}
+
+/** Lights Out: everything dark except a pool of light round each of you. */
+function drawDark(r, ctx, g) {
+  const rd = g.rd;
+  if (!rd || rd.mod !== "dark") return;
+  const z = r.cam.zoom;
+  if (!r.darkCanvas) r.darkCanvas = document.createElement("canvas");
+  const c = r.darkCanvas;
+  if (c.width !== r.w || c.height !== r.h) { c.width = r.w; c.height = r.h; }
+  const d = c.getContext("2d");
+  d.globalCompositeOperation = "source-over";
+  d.clearRect(0, 0, c.width, c.height);
+  d.fillStyle = "rgba(6,8,22,0.94)";
+  d.fillRect(0, 0, c.width, c.height);
+  d.globalCompositeOperation = "destination-out";
+  const hole = (wx, wy, rad) => {
+    const x = toX(r, wx), y = toY(r, wy);
+    const gr = d.createRadialGradient(x, y, rad * 0.35, x, y, rad);
+    gr.addColorStop(0, "rgba(0,0,0,1)");
+    gr.addColorStop(1, "rgba(0,0,0,0)");
+    d.fillStyle = gr;
+    d.beginPath(); d.arc(x, y, rad, 0, Math.PI * 2); d.fill();
+  };
+  for (const a of g.actors || []) if (!a.dead) hole(a.x + (a.ox || 0), a.y + (a.oy || 0) - a.h / 2, z * 4.2);
+  // Pickups and shots glow a little on their own, so there is something to
+  // go for in the dark.
+  for (const q of g.powers || []) hole(q.x, q.y, z * 1.1);
+  for (const s of g.shots || []) hole(s.x, s.y, z * 1.2);
+  if (g.king && g.king.actor) hole(g.king.actor.x, g.king.actor.y - 1.5, z * 3);
+  // ...and the crown, or there is nothing to fight over.
+  if (rd.mode === "hill" && rd.zone) hole(rd.zone.x, rd.zone.row - 1.2, z * 2.6);
+  ctx.drawImage(c, 0, 0);
+}
+
+/**
+ * The round, top centre: the mode, what it is keeping score of, and the
+ * modifier under it.
+ */
+function drawRoundHud(r, ctx, g) {
+  const rd = g.rd;
+  if (!rd) return;
+  const W = r.w;
+  const dpr = W / Math.max(1, (r.canvas && r.canvas.clientWidth) || W);
+  const u = dpr * Math.max(0.8, Math.min(1.15, Math.min(W, r.h) / dpr / 700));
+  const cx = W / 2;
+  const y = 84 * u;
+  const t = g.time || 0;
+  const mode = ROUND_MODES.find((m) => m.id === rd.mode);
+  const mod = ROUND_MODS.find((m) => m.id === rd.mod);
+
+  let label = mode ? mode.name.toUpperCase() : "";
+  let bars = null;       // [{ id, frac, text }]
+  if (rd.mode === "hill") {
+    bars = ["p1", "p2"].map((id) => ({ id, frac: rd.meter[id] / ROUND.hillGoal, text: `${Math.floor(rd.meter[id])}s` }));
+  } else if (rd.mode === "tag") {
+    label = `TAG: ${nameOf(rd.it).toUpperCase()} IS IT`;
+    bars = ["p1", "p2"].map((id) => ({ id, frac: rd.itTime[id] / ROUND.tagLose, text: `${Math.floor(rd.itTime[id])}s` }));
+  } else if (rd.mode === "potato") {
+    label = rd.holder ? `HOT POTATO: ${nameOf(rd.holder).toUpperCase()} HAS IT` : "HOT POTATO";
+  } else if (rd.mode === "rush") {
+    const s = Math.max(0, Math.ceil(rd.rushLeft));
+    label = `${rd.overtime ? "OVERTIME" : "COIN RUSH"}  0:${String(s).padStart(2, "0")}`;
+    bars = ["p1", "p2"].map((id) => ({ id, frac: -1, text: String(rd.bank[id] || 0) }));
+  }
+
+  ctx.save();
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.font = `900 ${Math.round(16 * u)}px Nunito, system-ui, sans-serif`;
+  const tw = ctx.measureText(label).width;
+  const bw = bars ? 76 * u : 0;
+  const w = tw + 34 * u + (bars ? (bw + 14 * u) * 2 : 0);
+  const h = 34 * u;
+  const x = cx - w / 2;
+  ctx.fillStyle = "rgba(14,18,30,0.74)";
+  roundRect(ctx, x, y - h / 2, w, h, h / 2);
+  ctx.fill();
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText(label, cx, y + 1 * u);
+  if (bars) {
+    bars.forEach((b, i) => {
+      const bx = i === 0 ? x + 12 * u : x + w - 12 * u - bw;
+      const by = y - 7 * u;
+      const col = PCOL[b.id];
+      if (b.frac >= 0) {
+        ctx.fillStyle = "rgba(255,255,255,0.14)";
+        roundRect(ctx, bx, by, bw, 14 * u, 7 * u); ctx.fill();
+        ctx.fillStyle = col;
+        roundRect(ctx, bx, by, Math.max(14 * u, bw * Math.min(1, b.frac)), 14 * u, 7 * u); ctx.fill();
+        ctx.font = `900 ${Math.round(11 * u)}px Nunito, system-ui, sans-serif`;
+        ctx.fillStyle = "#0e121e";
+        ctx.fillText(b.text, bx + bw / 2, by + 7.5 * u);
+      } else {
+        ctx.font = `900 ${Math.round(18 * u)}px Nunito, system-ui, sans-serif`;
+        ctx.fillStyle = col;
+        ctx.fillText(b.text, bx + bw / 2, y + 1 * u);
+      }
+      ctx.font = `900 ${Math.round(16 * u)}px Nunito, system-ui, sans-serif`;
+    });
+  }
+  // The modifier, as a chip under it.
+  if (mod) {
+    let chip = mod.name.toUpperCase();
+    if (rd.mod === "swap" && rd.swapLeft < 3.2) chip = `SWAP IN ${Math.ceil(rd.swapLeft)}`;
+    ctx.font = `800 ${Math.round(12 * u)}px Nunito, system-ui, sans-serif`;
+    const cw = ctx.measureText(chip).width + 22 * u;
+    const ch = 22 * u;
+    const warn = rd.mod === "swap" && rd.swapLeft < 3.2;
+    ctx.fillStyle = warn ? `rgba(184,121,255,${0.7 + 0.3 * Math.sin(t * 12)})` : "rgba(255,255,255,0.88)";
+    roundRect(ctx, cx - cw / 2, y + h / 2 + 6 * u, cw, ch, ch / 2);
+    ctx.fill();
+    ctx.fillStyle = warn ? "#ffffff" : "#21313f";
+    ctx.fillText(chip, cx, y + h / 2 + 6 * u + ch / 2 + 1 * u);
+  }
+  ctx.restore();
+}
+
+function hexA(hex, a) {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${Math.max(0, Math.min(1, a))})`;
 }

@@ -22,7 +22,7 @@ const quiet = {
 };
 
 function world(char) {
-  sim.configure({ authority: true, fx: quiet });
+  sim.configure({ round: { mode: "smash", mod: null }, authority: true, fx: quiet });
   sim.state.newSession();
   sim.state.pads.p1.connected = true;
   sim.state.pads.p2.connected = true;

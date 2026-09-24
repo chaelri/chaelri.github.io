@@ -163,6 +163,14 @@ html, body {
   color: #fff1ee;
 }
 #pad #shoot.armed.melee.down { background: rgba(255,107,87,0.45) !important; }
+/* Empty hands: the same button grabs. White, and live — it always does
+   something now, so it no longer sits there looking switched off. */
+#pad #shoot.grab {
+  border-color: rgba(255,255,255,0.5);
+  background: rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.85);
+}
+#pad #shoot.grab.down { background: rgba(255,255,255,0.3) !important; }
 
 /* The move each character brings, on the picker. It leads over the feel
    blurb because it is the thing that actually tells them apart. */

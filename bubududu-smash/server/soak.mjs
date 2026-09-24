@@ -24,7 +24,7 @@ let calls = 0;
 const seen = new Set();
 const tally = (k) => { calls++; seen.add(k); };
 
-sim.configure({
+sim.configure({ round: { mode: "smash", mod: null },
   authority: true,
   fx: {
     sfx: (n) => tally("sfx:" + n),

@@ -136,9 +136,14 @@ export function stepActor(a, input, level, dt, others = [], opts = {}) {
   const st = a.stats || {};
   const speed = st.speed ?? 1;
   const accelMul = st.accel ?? 1;
-  const topSpeed = FEEL.runSpeed * speed * (a.speedMul || 1);
-  const accel = (a.grounded ? FEEL.groundAccel : FEEL.airAccel) * accelMul;
-  const friction = a.grounded ? FEEL.groundFriction : FEEL.airFriction;
+  /* Four numbers the round can bend, set on the body by rounds.js each tick
+   * so that physics never has to know what a modifier is: `modSpeed`
+   * (Turbo, carrying someone), `grip` (Ice), `gravMul` (Low Gravity) and
+   * `bouncy`. All default to doing nothing. */
+  const topSpeed = FEEL.runSpeed * speed * (a.speedMul || 1) * (a.modSpeed || 1);
+  const grip = a.grounded ? (a.grip ?? 1) : 1;
+  const accel = (a.grounded ? FEEL.groundAccel : FEEL.airAccel) * accelMul * grip;
+  const friction = (a.grounded ? FEEL.groundFriction : FEEL.airFriction) * grip;
   if (launched) {
     // carried by whatever put them here
   } else if (dashing) {
@@ -177,7 +182,7 @@ export function stepActor(a, input, level, dt, others = [], opts = {}) {
   if (a.jumpHeld && !input.jumpHeld && a.vy < 0) a.vy *= FEEL.shortHopMultiplier;
   a.jumpHeld = !!input.jumpHeld;
 
-  let g = GRAVITY;
+  let g = GRAVITY * (a.gravMul || 1);
   if (a.vy > 0) g *= FEEL.fallMultiplier;
   else if (Math.abs(a.vy) < FEEL.apexThreshold) g *= FEEL.apexMultiplier;
   a.vy = Math.min(a.vy + g * dt, FEEL.maxFall);
@@ -204,6 +209,7 @@ export function stepActor(a, input, level, dt, others = [], opts = {}) {
 
   // --- vertical move, then resolve
   const wasGrounded = a.grounded;
+  const fallV = a.vy;
   a.grounded = false;
   a.groundedOn = null;
   a.y += a.vy * dt;
@@ -225,6 +231,16 @@ export function stepActor(a, input, level, dt, others = [], opts = {}) {
       land(a, "tile", wasGrounded, opts);
       a.vy = 0;
     }
+  }
+
+  // Bouncy: a real landing throws you back up at most of the speed you came
+  // down with. Walking off a step does not.
+  if (a.bouncy && a.grounded && !wasGrounded && fallV > 6) {
+    a.vy = -Math.min(fallV * 0.82, 22);
+    a.grounded = false;
+    a.groundedOn = null;
+    a.coyote = 0;
+    a.squash = 0.3;
   }
 
   // --- standing on the other one's head

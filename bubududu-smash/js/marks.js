@@ -163,6 +163,14 @@ export const MARKS = {
   /* Not a power-up: the coin count, the fairy, the squad, the grace window
    * and Dudu all wear a mark in the panel too, and they were all type. */
 
+  // An open hand, fingers up — grab. What the power-up button does when you
+  // are holding nothing to fire.
+  grab:
+    poly([[24, 50], [78, 50], [78, 80], [66, 94], [34, 94], [24, 80]]) +   // palm
+    bar(31, 54, 31, 22, 12) + bar(45, 54, 45, 12, 12) +                   // fingers
+    bar(59, 54, 59, 14, 12) + bar(72, 56, 72, 26, 11) +
+    bar(28, 72, 10, 52, 12),                                              // thumb
+
   // The cut gem lying on the platforms — flat table, two shoulders, a point.
   gem: poly([[22, 20], [78, 20], [98, 45], [50, 94], [2, 45]]),
 

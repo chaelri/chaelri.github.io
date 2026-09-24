@@ -14,7 +14,7 @@
 import * as sim from "../js/sim.js";
 
 const seen = [];
-sim.configure({
+sim.configure({ round: { mode: "smash", mod: null },
   authority: true,
   fx: {
     sfx: () => {}, music: () => {}, note: () => {},

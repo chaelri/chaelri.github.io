@@ -48,7 +48,7 @@ let allOk = true;
 for (const char of CHARS) {
   // A client, because that is the side that replays: authority off, and only
   // this body moves.
-  sim.configure({ authority: false, role: "p1", fx: quiet });
+  sim.configure({ round: { mode: "smash", mod: null }, authority: false, role: "p1", fx: quiet });
   sim.state.newSession();
   sim.state.pads.p1.connected = true;
   sim.state.pads.p2.connected = true;

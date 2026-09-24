@@ -973,7 +973,7 @@ export const ALL_POWERS = { ...POWERUPS, ...POWERUPS_EXTRA };
  *
  * Bumped by hand on each deploy, which is the point: it can only be right.
  */
-export const BUILD = "2026-09-24-o";
+export const BUILD = "2026-09-24-p";
 
 export const SPAWN_CLEAR = {
   power: 4.5,
@@ -1152,4 +1152,80 @@ export const STACK = {
   maxFairyHeals: 6,     // three Diwatas' worth of heals queued
   maxAmmoMul: 3,        // of the base magazine
   maxHelpers: 4,        // Dudus on the field at once, wild and owned together
+};
+
+/* ------------------------------------------------------- round variety --- */
+/**
+ * Every round draws a MODE (what you are trying to do) and, most rounds, a
+ * MODIFIER (one rule bent for the round).
+ *
+ * The game had one goal, one arena shape and one rule set, and after enough
+ * matches there was nothing left to see. Charlie: "nasawa na rin kasi kami."
+ * Party games stay fun because the round you are about to play is a little
+ * different from the last one, so that is what this is.
+ *
+ * In every mode but Smash, nothing takes a HEART. A hit knocks you back
+ * instead — hard, for the weapons that used to end rounds — so the Bazooka
+ * and One Punch are still the best things to find, they just throw you off
+ * the map rather than ending it. Falling costs you in the mode's own terms.
+ */
+export const ROUND_MODES = [
+  { id: "smash",  name: "Smash",           rule: "Take all their hearts." },
+  { id: "hill",   name: "King of the Hill", rule: "Stand on the crown alone. First to 10 seconds." },
+  { id: "potato", name: "Hot Potato",      rule: "Touch them to pass the bomb. Don't be holding it." },
+  { id: "tag",    name: "Tag",             rule: "Touch them to pass IT. First to 15 seconds as IT loses." },
+  { id: "rush",   name: "Coin Rush",       rule: "Most coins in 35 seconds. Stomps steal." },
+];
+
+export const ROUND_MODS = [
+  { id: "lowgrav", name: "Low Gravity",   desc: "Floaty jumps. Stomp from the sky." },
+  { id: "ice",     name: "Ice Floor",     desc: "Slippery. Hard to stop." },
+  { id: "bouncy",  name: "Bouncy",        desc: "Every landing is a trampoline." },
+  { id: "turbo",   name: "Turbo",         desc: "Everyone is much faster." },
+  { id: "dark",    name: "Lights Out",    desc: "You can only see around yourselves." },
+  { id: "swap",    name: "Swap",          desc: "Every 10 seconds you trade places." },
+  { id: "lava",    name: "Lava Rising",   desc: "The lava climbs. Get high." },
+  { id: "bazooka", name: "Bazooka Party", desc: "You both start with a Bazooka." },
+  { id: "king",    name: "Royal Visit",   desc: "King Yhon Yhon opens the round." },
+  { id: "guns",    name: "Gunfight",      desc: "Every pickup is a Gun or Excalibur." },
+];
+
+export const ROUND = {
+  modChance: 0.8,        // most rounds bend a rule; some are played straight
+
+  hillGoal: 10,          // seconds on the crown, alone, to win
+  hillMoveMs: 12000,     // the crown moves this often
+  hillHalfW: 1.5,        // tiles either side of its centre that count
+
+  potatoFuse: [13, 22],  // seconds, rolled per round and NOT shown
+  passCooldownMs: 900,   // a pass cannot bounce straight back
+
+  tagLose: 15,           // seconds as IT and you lose
+  chaserSpeed: 1.12,     // the one with the bomb / IT is a touch quicker
+
+  rushSecs: 35,
+  rushSteal: 3,          // coins a stomp knocks out of them
+  rushCoins: 14,         // on the field at once
+
+  swapEvery: 10,
+  lavaStart: 14.4,       // world row the lava starts at (the floor is 13)
+  lavaRise: 0.085,       // rows a second
+  gunfightEveryMs: 2600,
+
+  // What a hit does when hearts are off: tiles/sec sideways, and up.
+  knock: { stomp: [9, 5], shot: [8, 5], espada: [14, 8], star: [16, 10],
+           punch: [34, 13], bazuka: [30, 16], other: [11, 7] },
+  knockMs: 380,
+};
+
+/* Grab and throw — on the power-up button, when your hands are empty. */
+export const GRAB = {
+  reachX: 1.35,          // tiles from your middle to theirs
+  reachY: 1.25,
+  holdMs: 900,           // thrown automatically after this
+  cooldownMs: 1300,
+  throwVx: 22,
+  throwVy: -11,
+  launchMs: 480,
+  carrySpeed: 0.8,       // you walk slower holding someone over your head
 };
