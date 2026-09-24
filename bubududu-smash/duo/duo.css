@@ -326,3 +326,11 @@ body.duo.result #scrim { background: rgba(8, 20, 34, 0.68); }
   #pad.duo button { width: clamp(52px, 13vh, 74px); height: clamp(52px, 13vh, 74px); }
   #pad.duo #jump { width: clamp(66px, 17vh, 92px); height: clamp(66px, 17vh, 92px); }
 }
+
+/* The build stamp. Quiet enough to ignore, legible enough to read out. */
+#duowait .build {
+  margin: 0;
+  font: 500 11px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.04em;
+  color: rgba(33,49,63,0.4);
+}

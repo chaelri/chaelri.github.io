@@ -843,6 +843,24 @@ export const ALL_POWERS = { ...POWERUPS, ...POWERUPS_EXTRA };
  * find rather than giving up, because a round with no pickups at all is
  * worse than one with a slightly close pickup.
  */
+/**
+ * Which build this is, shown in the lobby on every phone.
+ *
+ * Charlie, repeatedly and reasonably: "bat parang wala." Three times now the
+ * answer has been that the code IS there — deployed, on the wire, reachable
+ * — and his phone was serving a cached copy. GitHub Pages sends
+ * `max-age=600` and a phone will happily sit on an ES module for longer than
+ * that, so "is this the new one?" is a question neither of us could answer by
+ * looking.
+ *
+ * Now it is printed in the corner of the lobby on both phones. If the two
+ * disagree, or either disagrees with what was shipped, that is the whole
+ * diagnosis — and a hard reload is the fix rather than an afternoon.
+ *
+ * Bumped by hand on each deploy, which is the point: it can only be right.
+ */
+export const BUILD = "2026-09-24-e";
+
 export const SPAWN_CLEAR = {
   power: 4.5,
   box: 7,

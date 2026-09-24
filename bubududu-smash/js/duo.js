@@ -26,7 +26,7 @@
 
 import { createClient } from "./net.js";
 import { createPad, paintShootButton, paintSkillButton } from "./pad.js";
-import { ABILITY } from "./config.js";
+import { ABILITY, BUILD } from "./config.js";
 import { hydrate } from "./netstate.js";
 import { armAudio, onAudioState, startAudio, sfx } from "./audio.js";
 import * as HUD from "./hud.js";
@@ -67,6 +67,13 @@ for (const b of wait.querySelectorAll("[data-who]")) {
     startAudio();
     begin();
   });
+}
+
+// Stamp the build into the lobby the moment this file runs, so it is there
+// whatever else fails afterwards.
+{
+  const el = document.getElementById("build");
+  if (el) el.textContent = `build ${BUILD}`;
 }
 
 function say(msg) {
