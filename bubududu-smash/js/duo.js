@@ -112,6 +112,9 @@ async function hostSide() {
   const screen = await import("./screen.js");
   const pad = createPad({ onEdge: haptic });
   screen.feedLocalPad(pad);
+  // Paint it once now, or the button is empty until the first power
+  // message arrives — which on a quiet round is a while.
+  paintShootButton(null, 0);
   screen.onHostPower((m) => { paintShootButton(m.p, m.ammo);
     paintSkillButton(m.ab ? ABILITY[m.ab] : null, (m.cd || 0) / 100, !!m.rd, m.n || 0, m.mx || 0); });
   window.__duo = () => screen.duoStats;
@@ -139,6 +142,7 @@ async function guestSide() {
   let client = null;
   let seq = 0;
   let rematchSeq = 0;
+  let recastSeq = 0;
   let started = false;
   const got = { corrections: 0, bytes: 0, lastAt: 0, bad: 0 };
   window.__duo = () => ({
@@ -211,6 +215,8 @@ async function guestSide() {
      * power-up is taken, and every sound in the game. hud.js does the drawing
      * on both sides, so there is one copy of the markup.
      */
+    // Where the after-match vote stands. Host-owned, like everything else.
+    if (m.vt) screen.applyVotes(m.vt);
     if (m.hd) applyHud(m.hd);
     if (m.nt) for (const [id, label, colour, title, body, glyph] of m.nt)
       HUD.showNote({ id, label }, colour, title, body, glyph);
@@ -255,7 +261,7 @@ async function guestSide() {
     });
     client?.send({
       k: sessionKey, n: seq, l: p.l, r: p.r, h: p.h, d: p.d, j: p.j, s: p.s,
-      rm: rematchSeq,
+      rm: rematchSeq, rc: recastSeq,
     });
   }, 1000 / 40);
 
@@ -267,11 +273,14 @@ async function guestSide() {
   screen.onHostPower((mm) => { paintShootButton(mm.p, mm.ammo);
     paintSkillButton(mm.ab ? ABILITY[mm.ab] : null, (mm.cd || 0) / 100, !!mm.rd, mm.n || 0, mm.mx || 0); });
 
-  $("#rematch")?.addEventListener("click", () => {
-    rematchSeq++;
-    $("#rematch").classList.remove("show");
-    haptic();
-  });
+  /* Both buttons are VOTES on this side too.
+   *
+   * They used to hide themselves on the way out, which was honest when a
+   * press was an order. It is a vote now — the host tallies it and tells
+   * both phones where it stands — so the button has to stay put and say so,
+   * and pressing it again takes the vote back. See castVote in screen.js. */
+  $("#rematch")?.addEventListener("click", () => { rematchSeq++; haptic(); });
+  $("#recast")?.addEventListener("click", () => { recastSeq++; haptic(); });
 }
 
 /**

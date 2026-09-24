@@ -291,6 +291,8 @@ export const POWERUPS_EXTRA = {
     // it is a result.
     ammo: 1, colour: "#ff8a3d",
     fires: true,
+    /* One of the two OP items. See `op` on the Suntok for what that means. */
+    op: true,
     /* Fast, and it still steers.
      *
      * It was 15 — slower than a bullet, on the theory that you should see it
@@ -362,6 +364,18 @@ export const POWERUPS_EXTRA = {
     // picking up a second still stacks to two.
     punches: 1,
     fires: true,
+    /* An OP item: one input that ends a round outright.
+     *
+     * There are two — this and the Bazooka — and holding one bars you from
+     * getting the other, by pickup OR by the ten-coin reward. Charlie: "if u
+     * have op items bazooka, di mo pwede kunin or magkaron ng one punch man
+     * ... vice versa. kasi conflict e."
+     *
+     * They share the fire button, so holding both is impossible anyway; what
+     * the rule prevents is the worse thing, which is walking over one and
+     * silently LOSING the other. Health is deliberately not treated this way:
+     * more hearts never gets in the way of anything. */
+    op: true,
     windupMs: 90,     // fist pulls back before it goes out
     activeMs: 200,    // and is dangerous for this long
     reach: 2.3,       // tiles in front of the body

@@ -852,4 +852,28 @@ h1.logo::after {
   -webkit-user-select: none; user-select: none; touch-action: manipulation;
 }
 #rematch.show { opacity: 1; visibility: visible; pointer-events: auto; }
+
+/* ---- the after-match vote ----------------------------------------------
+ *
+ * On two phones these buttons are a vote rather than an order, so they have
+ * to say three things at a glance: what they do, whether YOU have asked for
+ * it, and whether the other player has. Colour carries the first two and the
+ * label carries the third — a pill that only changed colour would need
+ * explaining, and there is nobody to explain it to mid-match.
+ */
+#rematch.voted, #recast.voted {
+  /* Yours: filled in, and gently breathing while it waits for them. */
+  outline: 3px solid rgba(255,255,255,0.9);
+  outline-offset: 2px;
+  animation: voteWait 1.4s ease-in-out infinite;
+}
+#rematch.wanted, #recast.wanted {
+  /* Theirs: outlined, not filled — an invitation rather than a state. */
+  outline: 3px dashed rgba(255,255,255,0.75);
+  outline-offset: 2px;
+}
+@keyframes voteWait {
+  0%, 100% { outline-color: rgba(255,255,255,0.9); }
+  50%      { outline-color: rgba(255,255,255,0.35); }
+}
 #rematch:active { transform: scale(0.97); }

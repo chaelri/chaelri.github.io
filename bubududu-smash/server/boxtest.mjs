@@ -270,6 +270,24 @@ for (const char of ["bubu", "dudu", "yhon"]) {
   ok(`king  ...and bounces off rather than trading a body`, bounced);
 }
 
+/* ---- 7c. the two OP items never trade for each other ------------------ */
+{
+  const G = world();
+  const a = G.actors.find((q) => q.id === "p1");
+  a.power = { type: "bazuka", until: Infinity, ammo: 1 };
+  G.powers.push({ x: a.x, y: a.y - a.h / 2, type: "suntok", born: G.time });
+  for (let i = 0; i < 10; i++) sim.step(sim.TICK);
+  ok("op    a One Punch does not replace a Bazooka",
+     a.power && a.power.type === "bazuka", `holding ${a.power && a.power.type}`);
+  // ...and the other way round.
+  G.powers.length = 0;
+  a.power = { type: "suntok", until: Infinity, ammo: 1 };
+  G.powers.push({ x: a.x, y: a.y - a.h / 2, type: "bazuka", born: G.time });
+  for (let i = 0; i < 10; i++) sim.step(sim.TICK);
+  ok("op    ...nor a Bazooka a One Punch",
+     a.power && a.power.type === "suntok", `holding ${a.power && a.power.type}`);
+}
+
 /* ---- 8. his landing throws whoever is on the floor -------------------- */
 {
   const G = world();
@@ -286,6 +304,8 @@ for (const char of ["bubu", "dudu", "yhon"]) {
     }
   }
   ok("king  standing next to a landing throws you", thrown);
+  ok("king  ...and the round credits HIM for it",
+     a.kingedAt != null, `kingedAt ${a.kingedAt}`);
 }
 
 /* ---- 9. the crown makes every landing a pound ------------------------- */

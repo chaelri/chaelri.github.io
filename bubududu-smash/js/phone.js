@@ -118,6 +118,9 @@ function onMessage(m) {
   // `ab` is the character's own move, which shares this button whenever no
   // power-up has taken it. The phone does not run the rules and has never
   // seen the round, so all of this is told rather than worked out.
+  // Paint it once now, or the button is empty until the first power
+  // message arrives — which on a quiet round is a while.
+  paintShootButton(null, 0);
   paintShootButton(m.p, m.ammo);
   paintSkillButton(m.ab ? ABILITY[m.ab] : null, (m.cd || 0) / 100, !!m.rd, m.n || 0, m.mx || 0);
 }

@@ -174,6 +174,7 @@ const pendingShot = { p1: false, p2: false };
 const pendingSkill = { p1: false, p2: false };
 
 const seenRematch = { p1: 0, p2: 0 };
+const seenRecast = { p1: 0, p2: 0 };
 const lastSeq = { p1: 0, p2: 0 };
 const lastKey = { p1: null, p2: null };
 const lastHeard = { p1: 0, p2: 0 };
@@ -235,7 +236,16 @@ function applyPacket(role, p) {
     if (p.rm < seenRematch[role]) seenRematch[role] = p.rm;
     else if (p.rm > seenRematch[role]) {
       seenRematch[role] = p.rm;
-      rematch();
+      // A VOTE now, not an order — see castVote. It used to restart the match
+      // on its own, which is how one thumb decided for both people.
+      remoteVote("rematch");
+    }
+  }
+  if (Number.isFinite(p.rc)) {
+    if (p.rc < seenRecast[role]) seenRecast[role] = p.rc;
+    else if (p.rc > seenRecast[role]) {
+      seenRecast[role] = p.rc;
+      remoteVote("recast");
     }
   }
 }
@@ -464,9 +474,86 @@ function showRematch(on) {
   rematchBtn?.classList.toggle("show", !!on);
   recastBtn?.classList.toggle("show", !!on);
   $("#afterwards")?.classList.toggle("show", !!on);
+  if (!on) clearVotes();
 }
-rematchBtn?.addEventListener("click", rematch);
-recastBtn?.addEventListener("click", backToLobby);
+
+/* ------------------------------------------------------------- voting --- */
+
+/**
+ * What each player has asked for after a match, on two phones.
+ *
+ * On the big screen these two buttons sit on the laptop and one person
+ * presses them, so they do what they say immediately. In duo they are on
+ * BOTH phones, and either player could send the other back to the lobby
+ * mid-conversation — which is how you lose the character you just picked
+ * because somebody's thumb was somewhere. Charlie: "may parang voting dapat
+ * both agree."
+ *
+ * So each phone casts a vote and nothing happens until they match. The HOST
+ * owns the tally, because it owns everything else; the guest sends its wish
+ * up as a counter and renders whatever comes back down. Changing your mind
+ * is just voting again — there is no way to be locked into a choice you made
+ * by accident, which is the whole point.
+ */
+const wants = { p1: null, p2: null };
+
+function clearVotes() {
+  wants.p1 = null;
+  wants.p2 = null;
+  paintVotes();
+}
+
+function castVote(role, what) {
+  // One phone, one button, one person: no one to agree with.
+  if (!DUO) { what === "rematch" ? rematch() : backToLobby(); return; }
+  // Voting for what you already voted for takes it back, so a mis-tap is one
+  // tap to undo rather than something you have to talk your way out of.
+  wants[role] = wants[role] === what ? null : what;
+  if (wants.p1 && wants.p1 === wants.p2) {
+    const agreed = wants.p1;
+    clearVotes();
+    agreed === "rematch" ? rematch() : backToLobby();
+    return;
+  }
+  paintVotes();
+}
+
+/** Both buttons, labelled with where the vote stands. */
+function paintVotes() {
+  const me = GUEST ? "p2" : "p1";
+  const them = GUEST ? "p1" : "p2";
+  const themName = PLAYERS.find((p) => p.id === them)?.name || "them";
+  for (const [btn, what, label] of [[rematchBtn, "rematch", "Rematch"],
+                                    [recastBtn, "recast", "Change character"]]) {
+    if (!btn) continue;
+    const mine = wants[me] === what;
+    const theirs = wants[them] === what;
+    btn.classList.toggle("voted", mine);
+    btn.classList.toggle("wanted", theirs && !mine);
+    if (!DUO) { btn.textContent = label; continue; }
+    btn.textContent =
+      mine && !theirs ? `${label} \u00b7 waiting for ${themName}`
+      : theirs && !mine ? `${label} \u00b7 ${themName} is ready`
+      : label;
+  }
+}
+
+rematchBtn?.addEventListener("click", () => castVote(GUEST ? "p2" : "p1", "rematch"));
+recastBtn?.addEventListener("click", () => castVote(GUEST ? "p2" : "p1", "recast"));
+
+/** The guest's vote, arriving from the other phone. */
+export function remoteVote(what) { castVote("p2", what); }
+
+/** What the host tells the guest, so both phones draw the same tally. */
+export function voteState() { return [wants.p1, wants.p2]; }
+
+/** ...and what the guest does with it. */
+export function applyVotes(v) {
+  if (!Array.isArray(v)) return;
+  wants.p1 = v[0] || null;
+  wants.p2 = v[1] || null;
+  paintVotes();
+}
 
 function endRound(winnerId, why) {
   // The guest does not run the rules, so it does not get to call the round
@@ -564,6 +651,7 @@ function catchLostActors() {
     reviveAt(a, at.x, at.y);
     a.cause = null;
     a.thrownAt = null;
+    a.kingedAt = null;
     a.defeat = null;
     a.face = charById(a.char).spawnFace || 1;
     a.invulnUntil = G.time + FEEL.hurtInvulnMs / 1000;
@@ -592,6 +680,7 @@ function tickRules(dt) {
     reviveAt(a, at.x, at.y);
     a.cause = null;
     a.thrownAt = null;
+    a.kingedAt = null;
     a.defeat = null;
     // reviveAt keeps whatever direction you were last walking, so dying on
     // the way left brought Bubu back mirrored — paw on the wrong side for the
@@ -1069,7 +1158,17 @@ function grantReward(a) {
   a.glowFor = 0.7;
   a.glowColour = COINS.colour;
 
-  if (pick === "suntok") { givePower(a, "suntok"); return; }
+  /* Ten coins cannot hand you the OP item you are not holding.
+   *
+   * Same rule as the pickup above, and it matters more here: a reward you
+   * did not choose, arriving at the moment you banked ten coins, taking the
+   * Bazooka you were saving. You get a Dudu instead, which is the one reward
+   * that is never wasted. */
+  if (pick === "suntok") {
+    if (a.power && ALL_POWERS[a.power.type]?.op) { summonDudu(a); return; }
+    givePower(a, "suntok");
+    return;
+  }
   if (pick === "diwata") { giveFairy(a); return; }
   if (pick === "tatlo") { summonSquad(a); return; }
   summonDudu(a);
@@ -1570,6 +1669,12 @@ function deathLine(a) {
 
   // A fall shortly after Bad Dudu let go is his, not theirs.
   const thrown = a.thrownAt != null && G.time - a.thrownAt < 4;
+  /* ...and a fall shortly after the KING landed is his.
+   *
+   * It beats every other reading, including the star and the stomp, because
+   * nothing else that happens in a round is King Yhon Yhon. Charlie asked for
+   * the words. */
+  if (a.kingedAt != null && G.time - a.kingedAt < 4) return "SHOW RESPECT TO THE KING!";
 
   switch (c.how) {
     case "stomp":  return who ? `${who} finishes ${them} with a stomp` : `${them} is stomped`;
@@ -1983,6 +2088,13 @@ function kingLanded(a) {
     o.vx = dir * KING.knockback * kk;
     o.vy = -KING.upward * kk;
     o.launchFor = Math.max(o.launchFor || 0, 0.25 + (KING.launchMs / 1000) * kk);
+    /* Marked as HIS, so the round says so if the map finishes the job.
+     *
+     * He does not kill anybody directly — he throws them, and the drop does
+     * the rest, which would otherwise be reported as "falls off the map" with
+     * no mention of the three-metre pig who put them there. Same mechanism
+     * the bad Dudu's throw uses, and it lapses on the same clock. */
+    o.kingedAt = G.time;
   }
 }
 
@@ -2260,6 +2372,13 @@ function tickPowers(dt) {
          * yourself making and it is not strictly worse.
          */
         if (q.type === "baril" && hasPower(a, "bazuka")) continue;
+        /* ...and the two OP items never trade for each other.
+         *
+         * A Bazooka and a One Punch are each one input that ends a round.
+         * They share the fire button so you could never hold both anyway;
+         * what this stops is the bad half of that — walking over one and
+         * silently losing the other. Left on the field, like the Gun. */
+        if (ALL_POWERS[q.type]?.op && a.power && ALL_POWERS[a.power.type]?.op) continue;
         G.powers.splice(i, 1);
         // Contact is the payoff, so it gets its own effect rather than the
         // same small ring a bullet gets: a shockwave where it was taken, a
@@ -3708,6 +3827,9 @@ function broadcast() {
 
   const snap = snapshot(G, {
     ph: phase, sc: score, rn: roundNo, wn: G.winner || 0, sd: roundSeed,
+    // Where the after-match vote stands, so both phones draw the same
+    // buttons. See castVote.
+    vt: voteState(),
     // The host's own thumbs, and where the random stream has got to. Between
     // them these are what let the other phone run the same round rather than
     // watch this one. Input is tiny and goes every tick; the rest of the

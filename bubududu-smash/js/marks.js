@@ -109,7 +109,22 @@ export const MARKS = {
   laki: poly([[50, 9], [95, 85], [5, 85]]),
 
   // ➜ — the gun, which is the same arrow the fire button wears.
-  baril: poly([[6, 37], [57, 37], [57, 14], [96, 50], [57, 86], [57, 63], [6, 63]]),
+  /* A pistol, side on.
+   *
+   * This was an ARROW — a rightward chevron, on the orb, on the chip, on the
+   * ammo pips and on the fire button. Charlie: "yung arrow na gun instead na
+   * arrow make it like real gun." An arrow says "that way"; nothing about it
+   * says six shots.
+   *
+   * Four pieces that union into one silhouette: the slide, the grip raked
+   * back under it, a trigger guard, and a front sight — the sight is two
+   * pixels of nothing at this size and it is what stops the slide reading as
+   * a plain rectangle. */
+  baril: poly([[6, 26], [88, 26], [88, 44], [6, 44]]) +        // slide
+         poly([[86, 30], [97, 33], [97, 41], [86, 44]]) +      // muzzle
+         poly([[13, 44], [41, 44], [32, 92], [4, 92]]) +       // grip
+         poly([[41, 44], [58, 44], [58, 53], [45, 57], [41, 52]]) + // guard
+         poly([[74, 18], [81, 18], [81, 26], [74, 26]]),       // front sight
 
   bituin: star,
 
