@@ -1839,7 +1839,17 @@ function drawKing(r, ctx, g) {
   const z = r.cam.zoom;
   const px = toX(r, a.x);
   const py = toY(r, a.y);
-  const w = a.w * z, h = a.h * z;
+  /* The SAME sprite convention drawActor uses.
+   *
+   * A player's body is drawn at `a.h * z * 1.32` — the sprite is taller than
+   * the hitbox, which is where AMMO_Y, HEART_Y and the crown's own anchor all
+   * come from. The King was drawn at a flat `a.h * z`, so his head sat 32%
+   * lower than every formula written against that convention assumed, and his
+   * crown floated most of a body-height above him. "mashado malayo crown
+   * niya." Drawing him by the same rule fixes the crown, the hearts and his
+   * proportions in one go — and makes him properly bigger, which he should
+   * be anyway. */
+  const w = a.w * z, h = a.h * z * 1.32;
 
   ctx.save();
   // A shadow the size of him, so the ground says how big he is before he
@@ -1871,6 +1881,10 @@ function drawKing(r, ctx, g) {
     ctx.scale(1 + q, 1 - q * 0.9);
     ctx.translate(-px, -py);
   }
+
+  // The cape goes on FIRST — it hangs behind him and has to be occluded by
+  // his own body, or it reads as a sheet pasted over the front of him.
+  drawCape(ctx, px, py, w, h, z, a.face, g.time);
 
   // The body, outlined so he holds against the treeline.
   stampOutline(r, ctx, "rgba(255,255,255,0.95)", px, py - h / 2, w, h,
@@ -1930,13 +1944,94 @@ function drawKing(r, ctx, g) {
 
   // Same anchor correction as the player's: the sprite reaches 1.32 of the
   // body box, so `py - h` is inside his head rather than on top of it.
-  drawCrown(ctx, px, py - h * 1.3, w * 0.46, z);
+  drawCrown(ctx, px, py - h * 0.98, w * 0.46, z);
 
   // His three hearts, over the crown rather than over the head — the crown
   // is where a player's hearts would be.
   // Above the crown, which is itself above his head — that stack is the
   // whole silhouette, so nothing may overlap anything else in it.
-  drawBossHearts(r, ctx, px, py - h * 1.3 - w * 0.62, k.hp, KING.hp, z);
+  drawBossHearts(r, ctx, px, py - h * 0.98 - w * 0.62, k.hp, KING.hp, z);
+  ctx.restore();
+}
+
+/**
+ * A royal cape, hanging behind whoever is wearing the crown.
+ *
+ * Drawn BEHIND the body — it is the one part of the outfit that has to be
+ * occluded by its wearer, or it reads as a red sheet pasted over them.
+ *
+ * It trails AWAY from the direction they are facing and billows on a slow
+ * clock, because a cape that hangs perfectly still is a towel. Three things
+ * make it read as velvet rather than as a triangle: it is wider at the hem
+ * than at the shoulders, the hem is a wave rather than a line, and there is
+ * a fur collar across the top with the dark flecks ermine has.
+ */
+function drawCape(ctx, px, py, w, h, z, face, t) {
+  const back = -face;                       // it hangs on the far side
+  const sway = Math.sin(t * 2.6) * 0.12 + Math.sin(t * 4.1) * 0.05;
+  /* Wide and long enough to actually be seen.
+   *
+   * The first one was narrower than the body it hangs behind, so all that
+   * showed was a red sliver under the feet. A cape only reads if it is
+   * BIGGER than its wearer — that is the whole look. */
+  const topY = py - h * 0.72;               // at the shoulders
+  const hemY = py + h * 0.1;                // past the feet
+  const topW = w * 0.46;
+  const hemW = w * 1.24;
+
+  ctx.save();
+  // the body of it
+  ctx.beginPath();
+  ctx.moveTo(px - topW * 0.5, topY);
+  ctx.lineTo(px + topW * 0.5, topY);
+  // down the trailing edge, blown outward
+  ctx.quadraticCurveTo(px + topW * 0.5 + back * w * 0.1, py - h * 0.3,
+                       px + hemW * 0.5 + back * w * (0.3 + sway), hemY);
+  // the hem, as a wave
+  for (let i = 1; i <= 6; i++) {
+    const u = i / 6;
+    const x = px + hemW * 0.5 - hemW * u + back * w * (0.3 + sway) * (1 - u * 0.35);
+    const y = hemY + Math.sin(t * 5 + u * 7) * h * 0.05 + (u < 1 ? h * 0.03 : 0);
+    ctx.lineTo(x, y);
+  }
+  ctx.quadraticCurveTo(px - topW * 0.5 - back * w * 0.02, py - h * 0.3,
+                       px - topW * 0.5, topY);
+  ctx.closePath();
+  const velvet = ctx.createLinearGradient(0, topY, 0, hemY);
+  velvet.addColorStop(0, "#e14b63");
+  velvet.addColorStop(0.55, "#c0304f");
+  velvet.addColorStop(1, "#8d1f3a");
+  ctx.fillStyle = velvet;
+  ctx.fill();
+  ctx.lineWidth = Math.max(1.4, z * 0.035);
+  ctx.strokeStyle = "rgba(255,255,255,0.75)";
+  ctx.stroke();
+
+  // A gold hem, which is most of what makes it look expensive.
+  ctx.strokeStyle = "rgba(255,214,90,0.9)";
+  ctx.lineWidth = Math.max(1.6, z * 0.045);
+  ctx.beginPath();
+  for (let i = 0; i <= 6; i++) {
+    const u = i / 6;
+    const x = px + hemW * 0.5 - hemW * u + back * w * (0.3 + sway) * (1 - u * 0.35);
+    const y = hemY + Math.sin(t * 5 + u * 7) * h * 0.05;
+    i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+  }
+  ctx.stroke();
+
+  // The ermine collar, and its flecks.
+  ctx.fillStyle = "#fffaf0";
+  roundRect(ctx, px - topW * 0.62, topY - h * 0.05, topW * 1.24, h * 0.13, h * 0.05);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(120,110,96,0.35)";
+  ctx.lineWidth = Math.max(1, z * 0.025);
+  ctx.stroke();
+  ctx.fillStyle = "rgba(60,52,46,0.55)";
+  for (let i = -1; i <= 1; i++) {
+    ctx.beginPath();
+    ctx.ellipse(px + i * topW * 0.34, topY + h * 0.015, z * 0.022, z * 0.038, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
   ctx.restore();
 }
 
@@ -3645,7 +3740,22 @@ function drawActor(r, ctx, g, a) {
    * second rather than all at once. It exists only here — the physics never
    * sees it, and it is zero on everybody but the player holding this phone.
    * See applyServer in sim.js. */
-  const px = toX(r, a.x + (a.ox || 0)) + kick * z * 0.16;
+  /* A little shudder of the BODY when they are hit — not the camera.
+   *
+   * Charlie: "add a little shake din, subtle lang when hit yung other
+   * character ... just animation not the view." The screen no longer moves at
+   * all for a hit, which is what was asked for, but that left the blow with
+   * nothing physical to show. Half a tile of wobble on the character alone
+   * says "that landed" without touching the framing, and it decays inside a
+   * fifth of a second so it never fights the running animation.
+   *
+   * Derived from the grace deadline, which is already on the wire. */
+  const hurtAge = FEEL.hurtInvulnMs / 1000 - ((a.invulnUntil || 0) - g.time);
+  const crowned = a.power && a.power.type === "korona";
+  const shudder = (hurtAge >= 0 && hurtAge < 0.18 && !crowned)
+    ? Math.sin(hurtAge * 95) * (1 - hurtAge / 0.18) * z * 0.11
+    : 0;
+  const px = toX(r, a.x + (a.ox || 0)) + kick * z * 0.16 + shudder;
   const py = toY(r, a.y + (a.oy || 0));
 
   // contact shadow
@@ -3908,47 +4018,112 @@ function drawActor(r, ctx, g, a) {
       ctx.fill();
     }
   } else if (a.power && a.power.type === "korona") {
-    /* Crowned: the character IS the light.
+    /* Crowned: washed white-gold, and STILL THEMSELVES.
      *
-     * The first attempt kept the ordinary body and laid gold over and around
-     * it, which gave you a pink pig with a cream smear on him and a second,
-     * brighter shape inside his own outline — Charlie, looking at it: "mas ok
-     * na yung glowing nalang wala na yung pink ... dapat whole thing glowing
-     * pero wala ng pink pero size ng pink".
+     * Two wrong answers before this one. First the ordinary body with gold
+     * laid over and around it, which gave a pink pig with a cream smear on
+     * him. Then a flat silhouette, which took the face off entirely —
+     * Charlie: "nawala na ng mukha ... yung kanina glowing white tapos may
+     * mukha pa rin."
      *
-     * So the body is not drawn at all. What is drawn is its SILHOUETTE,
-     * filled with a hot gradient — white at the middle where the light is
-     * coming from, gold at the edges — at the full crowned size. A statue of
-     * you, lit from inside, for as long as you wear it.
+     * What he is describing is a TINT, not a fill: the same trick the Star
+     * already uses a few lines up. Draw the character into a buffer, then
+     * `source-atop` a colour over it — the dark features stay darker than
+     * the body they sit on, so the eyes, the snout and the ears all survive
+     * while every trace of pink goes. It is unmistakably them, lit up.
      */
-    const heat = 0.9 + 0.1 * Math.sin(g.time * 7);
-    // A wide glow first, so the light spills past the body onto the arena.
+    const need = Math.ceil(Math.max(cw, chh) * 2.2);
+    const buf = r.tintChar || (r.tintChar = document.createElement("canvas"));
+    if (buf.width < need) { buf.width = need; buf.height = need; }
+    const b2 = buf.getContext("2d");
+    b2.setTransform(1, 0, 0, 1, 0, 0);
+    b2.clearRect(0, 0, buf.width, buf.height);
+    const bx = buf.width / 2;
+    const by = buf.height * 0.86;
+    charById(a.char).draw(b2, bx, by, cw, chh, poseOf(a));
+    b2.save();
+    b2.globalCompositeOperation = "source-atop";
+    // Warm white, strong enough that nothing of the old colour reads as
+    // colour, weak enough that the features keep their contrast.
+    b2.globalAlpha = 0.82;
+    b2.fillStyle = "#fff6cf";
+    b2.fillRect(0, 0, buf.width, buf.height);
+    // ...and a gold gradient down the body, so it is lit rather than bleached.
+    b2.globalAlpha = 0.5;
+    const warm = b2.createLinearGradient(0, by - chh, 0, by);
+    warm.addColorStop(0, "rgba(255,246,207,0)");
+    warm.addColorStop(1, "rgba(255,196,60,0.9)");
+    b2.fillStyle = warm;
+    b2.fillRect(0, 0, buf.width, buf.height);
+    b2.restore();
+
+    // The cape, behind everything of theirs.
+    drawCape(ctx, px, py, cw, chh, z, a.face, g.time);
+
+    // A wide glow underneath it first, so the light spills onto the arena.
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
-    drawSilhouette(r, ctx, "#ffb43a", 0.5, px, py, cw * 1.16, chh * 1.1,
-      (b, bx, by) => charById(a.char).draw(b, bx, by, cw * 1.16, chh * 1.1, poseOf(a)));
+    ctx.globalAlpha = 0.45 + 0.1 * Math.sin(g.time * 7);
+    ctx.drawImage(buf, px - bx * 1.14, py - by * 1.14, buf.width * 1.14, buf.height * 1.14);
     ctx.restore();
-
-    // Then the figure itself, opaque, so nothing of the old colour shows.
-    drawSilhouette(r, ctx, "#ffd24a", 1, px, py, cw, chh,
-      (b, bx, by) => charById(a.char).draw(b, bx, by, cw, chh, poseOf(a)));
-    // ...with a white core THROUGH it — brightest in the middle of the body,
-    // which is what makes it read as lit from inside rather than as painted
-    // gold. Clipped to the silhouette by being painted into it.
-    drawSilhouette(r, ctx, (b, padX, padY, w, h) => {
-      const gx = padX + w / 2, gy = padY + h * 0.55;
-      const core = b.createRadialGradient(gx, gy, 0, gx, gy, w * 0.8);
-      core.addColorStop(0, `rgba(255,255,244,${0.95 * heat})`);
-      core.addColorStop(0.5, `rgba(255,240,180,${0.5 * heat})`);
-      core.addColorStop(1, "rgba(255,214,90,0)");
-      b.fillStyle = core;
-      b.fillRect(0, 0, padX * 2 + w, padY * 2 + h);
-    }, 1, px, py, cw, chh,
-      (b, bx, by) => charById(a.char).draw(b, bx, by, cw, chh, poseOf(a)));
+    ctx.drawImage(buf, px - bx, py - by);
   } else {
     charById(a.char).draw(ctx, px, py, cw, chh, poseOf(a));
   }
   ctx.restore();
+
+  /* Just hit: white-hot for two frames, then deep red.
+   *
+   * The same treatment King Yhon Yhon gets, for the same reason — Charlie:
+   * "when hit atleast add red eme like king yhon". A hit stops the world for
+   * nothing now and does not move you at all, which is what was asked for,
+   * but it left the blow itself with almost nothing to show: the bar went
+   * down and the grace bubble came up, and a bubble is a defensive state, not
+   * an impact. This is the impact.
+   *
+   * Timed off `invulnUntil`, which is already on the wire, so nothing extra
+   * travels. Skipped while crowned — the crown sets the same field for twelve
+   * seconds and the player is not hurt, they are winning. */
+  const hurtLeft = (a.invulnUntil || 0) - g.time;
+  if (hurtLeft > 0 && !crowned && !a.dead) {
+    /* A FIXED flash, not a fraction of the grace.
+     *
+     * The grace is 1.6 seconds — long, because it has to be long enough to
+     * get away. Scaling the flash to it meant the red pulsed for nearly a
+     * second, which is a status effect rather than an impact. 420ms is the
+     * hit; the rest of the window is just the bubble. */
+    const HIT_FLASH = 0.42;
+    const hitAge = FEEL.hurtInvulnMs / 1000 - hurtLeft;
+    const hitT = hitAge / HIT_FLASH;
+    if (hitT >= 0 && hitT < 1) {
+      const cw = a.w * z * 1.25, chh = a.h * z * 1.32;
+      const paint = (b, bx, by) => charById(a.char).draw(b, bx, by, cw, chh, poseOf(a));
+      // The bang: pure white, gone almost at once.
+      if (hitT < 0.22) {
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+        drawSilhouette(r, ctx, "#ffffff", 1 - hitT / 0.22, px, py, cw, chh, paint);
+        ctx.restore();
+      }
+      // ...then the red, pulsing out over the rest of it.
+      drawSilhouette(r, ctx, "#d81f3e",
+        (1 - hitT) * (0.6 + 0.3 * Math.abs(Math.sin(g.time * 26))),
+        px, py, cw, chh, paint);
+      // A ring off the body on the first frames, so the hit has a size.
+      if (hitT < 0.6) {
+        const e = hitT / 0.6;
+        ctx.save();
+        ctx.globalAlpha = (1 - e) * 0.75;
+        ctx.strokeStyle = "#fff0b0";
+        ctx.lineWidth = Math.max(2, z * 0.08 * (1 - e));
+        ctx.beginPath();
+        ctx.ellipse(px, py - chh * 0.5, cw * (0.45 + e * 1.0), chh * (0.45 + e * 0.85),
+                    0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+  }
 
   // Frozen: encased, with the ice fading as it thaws.
   if (a.frozenUntil && g.time < a.frozenUntil) {
@@ -4141,7 +4316,6 @@ function drawActor(r, ctx, g, a) {
   // Hearts over the head, and nothing else. The name lives in the panel at
   // the bottom now — two labels for one character is one too many.
   // Lifted clear when there is a crown in the way.
-  const crowned = a.power && a.power.type === "korona";
   // A crown reaches 1.30 of the body plus its own height, which is taller
   // than HEART_Y on its own.
   const heartY = py - a.h * z * HEART_Y - (crowned ? a.w * z * 0.5 : 0);

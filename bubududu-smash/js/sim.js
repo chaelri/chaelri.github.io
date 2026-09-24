@@ -749,8 +749,14 @@ function tickCoins(dt) {
 
       // A kick that grows through the run: barely there on the first coin,
       // unmistakable on the tenth. Ten identical thumps would be seasickness.
+      /* No screen shake for a coin.
+       *
+       * It grew with the count, so the tenth one threw the camera about — and
+       * you pick up coins constantly, which made the most routine thing in
+       * the game one of the most disruptive. The zoom kick stays, because it
+       * reads as a little pop rather than as a jolt, and the rising pitch is
+       * what actually tells you the count is climbing. */
       fx.punch(0.012 + a.coins * 0.004);
-      fx.shake(2 + a.coins * 0.8);
 
       // Each coin in the run is a semitone above the last, so ten of them
       // climb a scale and the reward lands on top of it. Resets with the

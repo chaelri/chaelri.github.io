@@ -20,7 +20,7 @@
 import { createRenderer, draw, resize } from "./js/render.js";
 import { makeArena, solidGrid } from "./js/levels.js";
 import { makeActor } from "./js/physics.js";
-import { BOX, KING, POWERUPS } from "./js/config.js";
+import { BOX, FEEL, KING, POWERUPS } from "./js/config.js";
 
 const CW = 300, CH = 210;
 function world() {
@@ -72,6 +72,24 @@ cell(boxes, "two at once", (g, fy) => {
   g.boxes.push({ x: 22, y: fy - 3, hits: 3, bumpAt: -9 });
   g.boxes.push({ x: 27, y: fy - 4, hits: 1, bumpAt: -9 });
 });
+
+// A player taking a hit, frame by frame — the flash is under half a second
+// and the game no longer stops for it at all.
+const hits = document.createElement("div");
+hits.className = "row";
+const hhh = document.createElement("h1");
+hhh.textContent = "a character taking a hit";
+document.body.append(hhh, hits);
+for (const ms of [20, 80, 200, 400, 700]) {
+  cell(hits, `${ms}ms ago`, (g, fy) => {
+    const a = g.actors[0];
+    a.char = "yhon"; a.x = 24; a.y = fy; a.hp = 2; a.grounded = true;
+    // world() builds ONE actor; there is no second to move aside.
+    // The grace is FEEL.hurtInvulnMs long and the flash is timed from its
+    // start, so wind the deadline back by however long ago the hit was.
+    a.invulnUntil = g.time + FEEL.hurtInvulnMs / 1000 - ms / 1000;
+  }, 90);
+}
 
 // The shell in flight, at a few headings — it steers, so it must look right
 // pointing anywhere, not just left and right.
