@@ -1765,6 +1765,220 @@ const PINATA_BANDS = ["#ff8fb1", "#ffd24a", "#7fd4ff", "#ff8fb1", "#a8e26a", "#f
  * face goes from a smile to a wince. You can read how many hits are left
  * from across the arena without counting anything.
  */
+/* The pinata itself, drawn at the origin of whatever context it is handed.
+ *
+ * Pulled out of drawBoxes so it can be drawn TWICE: once into stampOutline's
+ * scratch buffer, which flattens it to a silhouette for the white rim, and
+ * once for real on top. Before this the rim was a single ellipse stroked
+ * round the dome, so the ears, the pom and every paper tab — the parts that
+ * ARE its outline — had no edge at all. Charlie, holding it up next to the
+ * fairy: "lagyan natin white outline yung pinata just like outline ni fairy
+ * yhon here."
+ */
+function pinataArt(c, s, gone, z) {
+  /* The body: one clean pastel dome, and the face lives on it.
+   *
+   * The first one wrapped the WHOLE body in rows of coloured paper tabs,
+   * which buried the face in confetti and read as a beach ball — "ang
+   * panget ng itsura". The paper is a skirt and a collar now: the middle
+   * of the face is left alone, because the face is the reason you want to
+   * hit it.
+   */
+  const bodyGrd = c.createLinearGradient(0, -s * 0.4, 0, s * 0.4);
+  bodyGrd.addColorStop(0, "#ffe3ef");
+  bodyGrd.addColorStop(1, "#ffb9d4");
+  c.fillStyle = bodyGrd;
+  c.beginPath();
+  c.ellipse(0, 0, s * 0.42, s * 0.4, 0, 0, Math.PI * 2);
+  c.fill();
+
+  /* The skirt: bands of paper tabs hanging off the BOTTOM only. Each hit
+   * tears the top surviving band away, so the silhouette loses a layer
+   * every time and the damage is something that happened rather than a
+   * scratch drawn on. */
+  const bands = 3;
+  const alive = Math.max(0, bands - gone);
+  for (let i = 0; i < alive; i++) {
+    const fy = s * (0.06 + i * 0.13);
+    const halfW = s * 0.42 * Math.cos((fy / (s * 0.46)) * 1.1);
+    c.fillStyle = PINATA_BANDS[i % PINATA_BANDS.length];
+    const tabs = Math.max(5, Math.round(halfW / (s * 0.06)));
+    for (let k = 0; k < tabs; k++) {
+      const tx = -halfW + (k + 0.5) * (halfW * 2 / tabs);
+      const tw = (halfW * 2 / tabs) * 0.6;
+      c.beginPath();
+      c.moveTo(tx - tw, fy);
+      c.lineTo(tx + tw, fy);
+      c.lineTo(tx, fy + s * 0.14);
+      c.closePath();
+      c.fill();
+    }
+  }
+
+  // A collar of the same paper under the chin, which ties the skirt to the
+  // head and gives the face something to sit above.
+  c.fillStyle = PINATA_BANDS[(alive + 1) % PINATA_BANDS.length];
+  c.beginPath();
+  c.ellipse(0, -s * 0.02, s * 0.3, s * 0.07, 0, 0, Math.PI * 2);
+  c.fill();
+
+  // Ears, so it is a creature rather than a pot.
+  c.fillStyle = "#ffd24a";
+  for (const side of [-1, 1]) {
+    c.beginPath();
+    c.moveTo(side * s * 0.16, -s * 0.34);
+    c.lineTo(side * s * 0.3, -s * 0.58);
+    c.lineTo(side * s * 0.36, -s * 0.28);
+    c.closePath();
+    c.fill();
+    // a paler inner ear, or they read as horns
+    c.fillStyle = "#ffeeb5";
+    c.beginPath();
+    c.moveTo(side * s * 0.21, -s * 0.34);
+    c.lineTo(side * s * 0.29, -s * 0.5);
+    c.lineTo(side * s * 0.31, -s * 0.3);
+    c.closePath();
+    c.fill();
+    c.fillStyle = "#ffd24a";
+  }
+
+  // A pom on top where the cord ties on — the piece that makes it a party
+  // object rather than a bag.
+  c.fillStyle = "#7fd4ff";
+  c.beginPath();
+  c.arc(0, -s * 0.44, s * 0.1, 0, Math.PI * 2);
+  c.fill();
+  c.strokeStyle = "rgba(255,255,255,0.85)";
+  c.lineWidth = Math.max(1.2, z * 0.03);
+  c.stroke();
+
+  // Blush. Two dots of warmth and the thing is suddenly worth hitting.
+  c.fillStyle = "rgba(255,138,170,0.55)";
+  for (const side of [-1, 1]) {
+    c.beginPath();
+    c.ellipse(side * s * 0.26, -s * 0.09, s * 0.075, s * 0.05, 0, 0, Math.PI * 2);
+    c.fill();
+  }
+
+  /* The face. THE reason you want to hit it, and the clearest read on how
+   * close it is to bursting: a smile, then a wince, then dizzy. */
+  c.fillStyle = "#3b2a2f";
+  const eye = s * 0.045;
+  if (gone === 0) {
+    for (const side of [-1, 1]) {
+      c.beginPath();
+      c.arc(side * s * 0.14, -s * 0.16, eye, 0, Math.PI * 2);
+      c.fill();
+    }
+    c.strokeStyle = "#3b2a2f";
+    c.lineWidth = Math.max(1.2, z * 0.03);
+    c.beginPath();
+    c.arc(0, -s * 0.1, s * 0.1, 0.2 * Math.PI, 0.8 * Math.PI);
+    c.stroke();
+  } else if (gone === 1) {
+    // squeezed shut
+    c.strokeStyle = "#3b2a2f";
+    c.lineWidth = Math.max(1.4, z * 0.032);
+    for (const side of [-1, 1]) {
+      c.beginPath();
+      c.moveTo(side * s * 0.2, -s * 0.06);
+      c.lineTo(side * s * 0.07, -s * 0.02);
+      c.stroke();
+    }
+    c.beginPath();
+    c.arc(0, s * 0.14, s * 0.08, 1.15 * Math.PI, 1.85 * Math.PI);
+    c.stroke();
+  } else {
+    // dizzy — one more and it is confetti
+    c.strokeStyle = "#3b2a2f";
+    c.lineWidth = Math.max(1.4, z * 0.032);
+    for (const side of [-1, 1]) {
+      c.beginPath();
+      c.moveTo(side * s * 0.2, -s * 0.12);
+      c.lineTo(side * s * 0.06, s * 0.0);
+      c.moveTo(side * s * 0.06, -s * 0.12);
+      c.lineTo(side * s * 0.2, s * 0.0);
+      c.stroke();
+    }
+    c.beginPath();
+    c.ellipse(0, s * 0.16, s * 0.07, s * 0.05, 0, 0, Math.PI * 2);
+    c.stroke();
+  }
+}
+
+/* Whoever is holding the string.
+ *
+ * The pinata hung from a cord that went up and stopped — Charlie: "nakasabit
+ * to out of nowhere which doesnt make sense, lets make a small golden fairy
+ * yhon hold the pinata." So a Fairy Yhon carries it in, gold rather than the
+ * pink one who heals you, because they do different things and the two should
+ * not be confused across a room: the pink one is following a player, the gold
+ * one is holding the thing you are about to hit.
+ *
+ * She is drawn from nothing but the clock and the box's own x, so both
+ * screens show the same flutter without a byte on the wire.
+ */
+function drawPinataFairy(r, ctx, x, y, z, t, seed) {
+  const beat = Math.sin(t * 20 + seed) * 0.4 + 0.75;
+  const bob = Math.sin(t * 2.6 + seed) * z * 0.07;
+  const fy = y + bob;
+
+  ctx.save();
+
+  // Gold light off her, so she reads as the source of the whole arrangement.
+  const glow = ctx.createRadialGradient(x, fy, 0, x, fy, z * 1.25);
+  glow.addColorStop(0, "rgba(255,214,110,0.72)");
+  glow.addColorStop(0.5, "rgba(255,196,80,0.3)");
+  glow.addColorStop(1, "rgba(255,196,80,0)");
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(x, fy, z * 1.25, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Wings, beating fast, behind her.
+  ctx.save();
+  ctx.translate(x, fy - z * 0.2);
+  ctx.globalAlpha = 0.75;
+  ctx.fillStyle = "#fff6d8";
+  for (const side of [-1, 1]) {
+    ctx.save();
+    ctx.scale(side, 1);
+    ctx.rotate(-0.5);
+    ctx.beginPath();
+    ctx.ellipse(z * 0.24, 0, z * 0.3 * beat, z * 0.15, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+  ctx.restore();
+
+  const size = z * 0.56;
+  const pose = { face: 1, run: 0, air: -1, rise: 0.4, squash: -0.1,
+                 t, walk: 0, stride: 1 };
+  // Gold rim rather than the white one the pink fairy wears — same shape,
+  // different job, and the rim is the cheapest way to say so.
+  stampOutline(r, ctx, "#ffdc7a", x, fy + size * 0.5, size, size, z * 0.06,
+    (b, bx, by) => charById("yhon").draw(b, bx, by, size, size, pose));
+  charById("yhon").draw(ctx, x, fy + size * 0.5, size, size, pose);
+  /* ...and a wash of gold OVER her, because a rim alone leaves a pink pig
+   * inside a yellow ring. Half strength, so the face survives it — the face
+   * is why she is a fairy carrying something rather than a light. */
+  drawSilhouette(r, ctx, "#ffca4d", 0.42, x, fy + size * 0.5, size, size,
+    (b, bx, by) => charById("yhon").draw(b, bx, by, size, size, pose));
+
+  // A few grains of gold dust falling off her.
+  for (let i = 0; i < 4; i++) {
+    const k = (t * 0.6 + i / 4 + seed * 0.13) % 1;
+    ctx.globalAlpha = (1 - k) * 0.7;
+    ctx.fillStyle = i % 2 ? "#fff3c4" : "#ffcf5c";
+    ctx.beginPath();
+    ctx.arc(x + Math.sin(k * 5 + i) * z * 0.3, fy + k * z * 0.7,
+            z * 0.04 * (1 - k), 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
 function drawBoxes(r, ctx, g) {
   if (!g.boxes || !g.boxes.length) return;
   const z = r.cam.zoom;
@@ -1797,10 +2011,13 @@ function drawBoxes(r, ctx, g) {
     ctx.lineWidth = Math.max(1.5, z * 0.045);
     ctx.lineCap = "round";
     ctx.beginPath();
-    ctx.moveTo(anchorX, anchorY);
+    ctx.moveTo(anchorX, anchorY + z * 0.16);
     ctx.quadraticCurveTo(anchorX + Math.sin(lean) * cord * 0.45, anchorY + cord * 0.5,
                          px, py - s * 0.42);
     ctx.stroke();
+
+    // ...and the fairy holding the other end of it. See drawPinataFairy.
+    drawPinataFairy(r, ctx, anchorX, anchorY, z, g.time, b.x);
 
     ctx.translate(px, py);
     ctx.rotate(lean * 0.5);
@@ -1822,15 +2039,17 @@ function drawBoxes(r, ctx, g) {
      */
     const pulse = 0.5 + 0.5 * Math.sin(g.time * 3.2 + b.x * 1.7);
     const flare = struck ? (1 - hitT) * (1 - hitT) : 0;
-    const lift = 0.26 + 0.12 * pulse + flare * 0.55;
-    const halo = ctx.createRadialGradient(0, -s * 0.06, s * 0.16,
-                                          0, -s * 0.06, s * (0.95 + flare * 0.35));
-    halo.addColorStop(0, `rgba(255,228,150,${(0.55 + flare * 0.45).toFixed(3)})`);
-    halo.addColorStop(0.42, `rgba(255,186,214,${lift.toFixed(3)})`);
+    // Wider and warmer than the first pass at it — "increase natin".
+    const lift = 0.4 + 0.16 * pulse + flare * 0.6;
+    const rad = s * (1.28 + pulse * 0.06 + flare * 0.4);
+    const halo = ctx.createRadialGradient(0, -s * 0.06, s * 0.18,
+                                          0, -s * 0.06, rad);
+    halo.addColorStop(0, `rgba(255,232,163,${(0.7 + flare * 0.3).toFixed(3)})`);
+    halo.addColorStop(0.38, `rgba(255,186,214,${lift.toFixed(3)})`);
     halo.addColorStop(1, "rgba(255,186,214,0)");
     ctx.fillStyle = halo;
     ctx.beginPath();
-    ctx.arc(0, -s * 0.06, s * (0.95 + flare * 0.35), 0, Math.PI * 2);
+    ctx.arc(0, -s * 0.06, rad, 0, Math.PI * 2);
     ctx.fill();
 
     /* Four motes turning around it, because a still glow reads as a blur and
@@ -1849,141 +2068,18 @@ function drawBoxes(r, ctx, g) {
     }
     ctx.globalAlpha = 1;
 
-    /* The body: one clean pastel dome, and the face lives on it.
-     *
-     * The first one wrapped the WHOLE body in rows of coloured paper tabs,
-     * which buried the face in confetti and read as a beach ball — "ang
-     * panget ng itsura". The paper is a skirt and a collar now: the middle
-     * of the face is left alone, because the face is the reason you want to
-     * hit it.
-     */
-    const bodyGrd = ctx.createLinearGradient(0, -s * 0.4, 0, s * 0.4);
-    bodyGrd.addColorStop(0, "#ffe3ef");
-    bodyGrd.addColorStop(1, "#ffb9d4");
-    ctx.fillStyle = bodyGrd;
-    ctx.beginPath();
-    ctx.ellipse(0, 0, s * 0.42, s * 0.4, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    /* The skirt: bands of paper tabs hanging off the BOTTOM only. Each hit
-     * tears the top surviving band away, so the silhouette loses a layer
-     * every time and the damage is something that happened rather than a
-     * scratch drawn on. */
-    const bands = 3;
-    const alive = Math.max(0, bands - gone);
-    for (let i = 0; i < alive; i++) {
-      const fy = s * (0.06 + i * 0.13);
-      const halfW = s * 0.42 * Math.cos((fy / (s * 0.46)) * 1.1);
-      ctx.fillStyle = PINATA_BANDS[i % PINATA_BANDS.length];
-      const tabs = Math.max(5, Math.round(halfW / (s * 0.06)));
-      for (let k = 0; k < tabs; k++) {
-        const tx = -halfW + (k + 0.5) * (halfW * 2 / tabs);
-        const tw = (halfW * 2 / tabs) * 0.6;
-        ctx.beginPath();
-        ctx.moveTo(tx - tw, fy);
-        ctx.lineTo(tx + tw, fy);
-        ctx.lineTo(tx, fy + s * 0.14);
-        ctx.closePath();
-        ctx.fill();
-      }
-    }
-
-    // A collar of the same paper under the chin, which ties the skirt to the
-    // head and gives the face something to sit above.
-    ctx.fillStyle = PINATA_BANDS[(alive + 1) % PINATA_BANDS.length];
-    ctx.beginPath();
-    ctx.ellipse(0, -s * 0.02, s * 0.3, s * 0.07, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Ears, so it is a creature rather than a pot.
-    ctx.fillStyle = "#ffd24a";
-    for (const side of [-1, 1]) {
-      ctx.beginPath();
-      ctx.moveTo(side * s * 0.16, -s * 0.34);
-      ctx.lineTo(side * s * 0.3, -s * 0.58);
-      ctx.lineTo(side * s * 0.36, -s * 0.28);
-      ctx.closePath();
-      ctx.fill();
-      // a paler inner ear, or they read as horns
-      ctx.fillStyle = "#ffeeb5";
-      ctx.beginPath();
-      ctx.moveTo(side * s * 0.21, -s * 0.34);
-      ctx.lineTo(side * s * 0.29, -s * 0.5);
-      ctx.lineTo(side * s * 0.31, -s * 0.3);
-      ctx.closePath();
-      ctx.fill();
-      ctx.fillStyle = "#ffd24a";
-    }
-
-    // A pom on top where the cord ties on — the piece that makes it a party
-    // object rather than a bag.
-    ctx.fillStyle = "#7fd4ff";
-    ctx.beginPath();
-    ctx.arc(0, -s * 0.44, s * 0.1, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = "rgba(255,255,255,0.85)";
-    ctx.lineWidth = Math.max(1.2, z * 0.03);
-    ctx.stroke();
-
-    // Blush. Two dots of warmth and the thing is suddenly worth hitting.
-    ctx.fillStyle = "rgba(255,138,170,0.55)";
-    for (const side of [-1, 1]) {
-      ctx.beginPath();
-      ctx.ellipse(side * s * 0.26, -s * 0.09, s * 0.075, s * 0.05, 0, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    /* The face. THE reason you want to hit it, and the clearest read on how
-     * close it is to bursting: a smile, then a wince, then dizzy. */
-    ctx.fillStyle = "#3b2a2f";
-    const eye = s * 0.045;
-    if (gone === 0) {
-      for (const side of [-1, 1]) {
-        ctx.beginPath();
-        ctx.arc(side * s * 0.14, -s * 0.16, eye, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      ctx.strokeStyle = "#3b2a2f";
-      ctx.lineWidth = Math.max(1.2, z * 0.03);
-      ctx.beginPath();
-      ctx.arc(0, -s * 0.1, s * 0.1, 0.2 * Math.PI, 0.8 * Math.PI);
-      ctx.stroke();
-    } else if (gone === 1) {
-      // squeezed shut
-      ctx.strokeStyle = "#3b2a2f";
-      ctx.lineWidth = Math.max(1.4, z * 0.032);
-      for (const side of [-1, 1]) {
-        ctx.beginPath();
-        ctx.moveTo(side * s * 0.2, -s * 0.06);
-        ctx.lineTo(side * s * 0.07, -s * 0.02);
-        ctx.stroke();
-      }
-      ctx.beginPath();
-      ctx.arc(0, s * 0.14, s * 0.08, 1.15 * Math.PI, 1.85 * Math.PI);
-      ctx.stroke();
-    } else {
-      // dizzy — one more and it is confetti
-      ctx.strokeStyle = "#3b2a2f";
-      ctx.lineWidth = Math.max(1.4, z * 0.032);
-      for (const side of [-1, 1]) {
-        ctx.beginPath();
-        ctx.moveTo(side * s * 0.2, -s * 0.12);
-        ctx.lineTo(side * s * 0.06, s * 0.0);
-        ctx.moveTo(side * s * 0.06, -s * 0.12);
-        ctx.lineTo(side * s * 0.2, s * 0.0);
-        ctx.stroke();
-      }
-      ctx.beginPath();
-      ctx.ellipse(0, s * 0.16, s * 0.07, s * 0.05, 0, 0, Math.PI * 2);
-      ctx.stroke();
-    }
-
-    // A white rim, so it holds against the treeline like every other pickup.
-    ctx.strokeStyle = "rgba(255,255,255,0.8)";
-    ctx.lineWidth = Math.max(1.4, z * 0.035);
-    ctx.beginPath();
-    ctx.ellipse(0, 0, s * 0.42, s * 0.38, 0, 0, Math.PI * 2);
-    ctx.stroke();
+    /* The rim, and it is a real outline now — see pinataArt. The shape is
+     * drawn once into a buffer, flattened, and stamped round itself, so the
+     * ears and every paper tab get an edge instead of only the dome. */
+    stampOutline(r, ctx, "rgba(255,255,255,0.95)", 0, s * 0.4, s, s,
+                 Math.max(2, z * 0.05),
+                 (b2, bx, by) => {
+                   b2.save();
+                   b2.translate(bx, by - s * 0.4);
+                   pinataArt(b2, s, gone, z);
+                   b2.restore();
+                 });
+    pinataArt(ctx, s, gone, z);
 
     // Struck this frame: it flashes, and paper scatters.
     if (hitT < 0.3) {
@@ -2057,14 +2153,101 @@ function drawKing(r, ctx, g) {
     ctx.translate(-px, -py);
   }
 
+  /* The aura, under everything he wears.
+   *
+   * He arrives out of a box in the middle of a bright valley and was, in
+   * colour terms, a large yellow pig — the same gold as his own crown and as
+   * the crown he hands over, in a game where every other palette is already
+   * spoken for. Charlie: "si king yhon dapat may dark violet aura pala."
+   *
+   * Three parts, and they do different jobs: a dark body of colour that
+   * separates him from the sky, a brighter core that says it is LIGHT rather
+   * than a stain, and a pool on the ground so the aura is standing somewhere
+   * instead of floating. It breathes slowly, and it FLARES when he is hit —
+   * which is the same trick the pinata's glow uses, and for the same reason:
+   * the clearest way to say a blow landed is for the light to move.
+   */
+  {
+    const breathe = 0.5 + 0.5 * Math.sin(g.time * 1.9);
+    const flare = hurt ? (1 - hitT) * (1 - hitT) : 0;
+    const cy = py - h * 0.5;
+    const rad = h * (0.92 + breathe * 0.05 + flare * 0.28);
+
+    // The pool first, so the body of the aura sits over its near edge.
+    const pool = ctx.createRadialGradient(px, py, 0, px, py, w * 1.15);
+    pool.addColorStop(0, fade(KING.aura, 0.5 + flare * 0.3));
+    pool.addColorStop(1, fade(KING.aura, 0));
+    ctx.save();
+    ctx.translate(px, py);
+    ctx.scale(1, 0.26);                       // an ellipse, lying on the floor
+    ctx.translate(-px, -py);
+    ctx.fillStyle = pool;
+    ctx.beginPath();
+    ctx.arc(px, py, w * 1.15, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    /* Two passes. The soft one alone was a bruise on the sky at any alpha
+     * that did not also swallow him — a radial gradient has no edge, so the
+     * eye reads it as haze rather than as something he is standing in. The
+     * RING is what makes it an aura: a defined boundary, breathing, with the
+     * soft body of colour filling it. */
+    const air = ctx.createRadialGradient(px, cy, rad * 0.18, px, cy, rad);
+    air.addColorStop(0, fade(KING.auraGlow, 0.5 + flare * 0.4));
+    air.addColorStop(0.5, fade(KING.aura, 0.52 + flare * 0.3));
+    air.addColorStop(0.85, fade(KING.aura, 0.3));
+    air.addColorStop(1, fade(KING.aura, 0));
+    ctx.fillStyle = air;
+    ctx.beginPath();
+    ctx.arc(px, cy, rad, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = fade(KING.auraGlow, 0.5 + flare * 0.45);
+    ctx.lineWidth = Math.max(2, z * (0.05 + flare * 0.06));
+    ctx.beginPath();
+    ctx.arc(px, cy, rad * 0.82, 0, Math.PI * 2);
+    ctx.stroke();
+    // A second, fainter ring turning the other way out of phase, so the
+    // boundary is never a single hard circle sitting still.
+    ctx.strokeStyle = fade(KING.aura, 0.34);
+    ctx.lineWidth = Math.max(1.5, z * 0.03);
+    ctx.beginPath();
+    ctx.arc(px, cy, rad * (0.92 - breathe * 0.06), 0, Math.PI * 2);
+    ctx.stroke();
+
+    /* Embers climbing out of it.
+     *
+     * A still gradient reads as a blur on the lens; something rising out of
+     * it reads as the thing giving it off. Derived from `g.time` and his own
+     * x, so both screens draw the same ones without a byte on the wire. */
+    for (let i = 0; i < 7; i++) {
+      const t = (g.time * 0.45 + i * 0.1428 + a.x * 0.07) % 1;
+      const ex = px + Math.sin(t * 6.1 + i * 2.1) * w * 0.42;
+      const ey = py - t * h * 1.05;
+      ctx.globalAlpha = Math.sin(t * Math.PI) * (0.5 + flare * 0.4);
+      ctx.fillStyle = i % 3 ? KING.auraGlow : "#e6c7ff";
+      ctx.beginPath();
+      ctx.arc(ex, ey, z * (0.07 + 0.04 * Math.sin(t * 9 + i)), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
   // The cape goes on FIRST — it hangs behind him and has to be occluded by
   // his own body, or it reads as a sheet pasted over the front of him.
   drawCape(ctx, px, py, w, h, z, a.face, g.time);
 
   // The body, outlined so he holds against the treeline.
-  stampOutline(r, ctx, "rgba(255,255,255,0.95)", px, py - h / 2, w, h,
-               Math.max(2, z * 0.07), (cx, cy, cw, chh) => {
-    charById("yhon").draw(ctx, cx, cy + chh / 2, cw, chh, {
+  /* The outline callback is handed (buffer, x, bottomY) — three arguments.
+   *
+   * This one declared four and used them as if they were (x, y, w, h), so it
+   * drew into the PAGE's context at a coordinate that was itself a context
+   * object: every number downstream came out NaN, canvas discards NaN draws
+   * without complaint, and the King has been walking around with no outline
+   * at all. Nothing threw, so nothing said so. */
+  stampOutline(r, ctx, "rgba(255,255,255,0.95)", px, py, w, h,
+               Math.max(2, z * 0.07), (b2, bx, by) => {
+    charById("yhon").draw(b2, bx, by, w, h, {
       face: a.face, run: 0, air: a.grounded ? 0 : (a.vy < 0 ? -1 : 1),
       squash: 0, t: g.time, walk: 0, stride: 0.78,
     });
@@ -2437,6 +2620,9 @@ function mix(hex, target, t, alpha = 1) {
   const o = c.map((v, i) => Math.round(v + (target[i] - v) * t));
   return `rgba(${o[0]},${o[1]},${o[2]},${alpha})`;
 }
+/** The same colour, at an alpha. `mix` with t = 0 changes nothing but the
+ *  fourth channel, which is all a gradient stop usually wants. */
+const fade = (hex, a) => mix(hex, [0, 0, 0], 0, a);
 const lighten = (hex, t, a = 1) => mix(hex, [255, 255, 255], t, a);
 const darken = (hex, t, a = 1) => mix(hex, [16, 24, 40], t, a);
 
@@ -4097,10 +4283,21 @@ function drawActor(r, ctx, g, a) {
     const def = POWERUPS.kalasag;
     const left = Math.max(0, a.power.until - g.time);
     const frac = Math.max(0, Math.min(1, left / (def.ms / 1000)));
-    const cx = px, cy = py - a.h * z * 0.55;
-    const rx = a.w * z * 1.15, ry = a.h * z * 0.86;
+    /* A CIRCLE, and a wide one.
+     *
+     * It was an ellipse derived from the body — 1.15 of the width by 0.86 of
+     * the height — so it came out a tall oblong shrink-wrapped to the
+     * character, which is a costume rather than a field. Charlie: "lets
+     * increase the aura circle sakop of shield.. and make sure its fully
+     * circle not oblong covering the body."
+     *
+     * One radius, taken from whichever of the two the body is bigger in, so
+     * it stays round on every character and at every size — including a
+     * crowned one, who is two and a half times the ordinary body. */
+    const cx = px, cy = py - a.h * z * 0.5;
+    const rad = Math.max(a.w * z, a.h * z * 0.9) * 1.32;
     const beat = 1 + 0.035 * Math.sin(g.time * 4.5);
-    const RX = rx * beat, RY = ry * beat;
+    const RX = rad * beat, RY = rad * beat;
 
     ctx.save();
     // Blinks over the last second, like every other timer in the game.

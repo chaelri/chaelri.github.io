@@ -108,10 +108,21 @@ export const FEEL = {
   // to be one hit and out, which made a single unlucky bounce end the round
   // before either of you had done anything.
   hp: 3,
-  // Lunas can take you PAST the three you start with, up to five. The extra
-  // hearts are drawn gold and only exist once you have earned them, so a full
-  // bar still reads as full rather than as "you are missing two".
-  hpMax: 5,      // the ordinary ceiling; the Big Heart goes past it
+  /* Three to start with, nine at the very most, and ONE ceiling for
+   * everything that heals.
+   *
+   * There used to be three of them — five for a Heal off the floor, six for
+   * the fairy, nine for the Big Heart — on the reasoning that a rarer source
+   * should reach higher. In play that is not a difficulty curve, it is three
+   * different answers to "why did that stop": the fairy sitting beside you
+   * doing nothing at six, a Heal under your feet doing nothing at five, and
+   * no way to tell either from a bug. Charlie: "lets make fairy yhon no heart
+   * limit anymore. Basta 9 yung max health ng character. tapos 3 hearts yung
+   * normal."
+   *
+   * The hearts past the third are drawn gold and only exist once earned, so
+   * a full bar still reads as full rather than as "you are missing six". */
+  hpMax: 9,
   hurtInvulnMs: 1600,
 };
 
@@ -413,10 +424,19 @@ export const POWERUPS_EXTRA = {
   },
   yelo: {
     id: "yelo", name: "Freeze", desc: "You froze them solid.", en: "freeze",
-    // Acts on the OTHER player, so it ends the moment it is picked up.
-    // 1.7s was long enough to notice and too short to use — by the time you
-    // had crossed to them it had thawed. Three and a bit is a real window.
-    ms: 0, colour: "#a9e8ff", freezeMs: 3200,
+    /* Acts on the OTHER player, so it ends the moment it is picked up.
+     *
+     * 1.7s was long enough to notice and too short to use — by the time you
+     * had crossed to them it had thawed. 3.2 was a real window and still
+     * short of what it is for: the arena is thirty tiles wide, so crossing it
+     * to reach someone is most of the freeze, and whatever you were going to
+     * do when you arrived had a fraction of a second left to do it in.
+     * Charlie: "medyo tagalan pa natin yung effect nung frozen power up."
+     *
+     * Four and a half seconds is a crossing AND a swing. It is still the
+     * shortest way anyone loses a heart, because a frozen player can be
+     * stomped and a stomp is instant. */
+    ms: 0, colour: "#a9e8ff", freezeMs: 4500,
   },
 
   baliktad: {
@@ -640,10 +660,9 @@ export const DIWATA = {
   colour: "#ffc2dd",
   heals: 2,
   everyMs: 3000,
-  // She goes one past what Lunas can reach. Lunas is lying on the floor for
-  // anyone to walk over; she is one of four things ten coins might buy, so
-  // she is allowed to leave you somewhere a pickup cannot.
-  hpMax: 6,
+  // No ceiling of her own any more — see FEEL.hpMax, which is now the only
+  // one in the game.
+  hpMax: 9,
   firstMs: 1200,      // the first one comes a little sooner than the rest
   leaveMs: 1100,      // flutter up and fade after the last heal
   scale: 0.46,        // of a normal character
@@ -777,6 +796,16 @@ export const KING = {
   hp: 3,
   colour: "#ffd24a",
   crown: "#ffe27a",
+  /* The aura he stands in. Dark violet, at Charlie's word: "si king yhon
+   * dapat may dark violet aura pala."
+   *
+   * It is the one colour on the field that belongs to nothing else — the
+   * gold is his own crown and the crown he hands over, the pinks and blues
+   * are the two players, and amber is Dudu's dash. A boss needs a colour
+   * that means only "boss", and it has to be dark, because everything in
+   * this game is pastel and a pale aura on a pale sky is not an aura. */
+  aura: "#4b1d86",
+  auraGlow: "#b06bff",
   scale: 2.9,              // times a normal body
   jumpEveryMs: 1500,       // how often he leaves the floor
   jumpVel: 17,             // tiles a second, up
@@ -859,7 +888,7 @@ export const ALL_POWERS = { ...POWERUPS, ...POWERUPS_EXTRA };
  *
  * Bumped by hand on each deploy, which is the point: it can only be right.
  */
-export const BUILD = "2026-09-24-i";
+export const BUILD = "2026-09-24-j";
 
 export const SPAWN_CLEAR = {
   power: 4.5,

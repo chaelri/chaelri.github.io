@@ -152,6 +152,8 @@ let host = null;
 let phase = "lobby"; // lobby | countdown | play | roundover | matchover
 let G = null;
 let countdown = 0;
+/** When the GO card comes down, a beat INTO the round. See the countdown. */
+let cardUntil = 0;
 let lastCount = -1;
 
 const score = { p1: 0, p2: 0 };
@@ -433,6 +435,10 @@ function startRound(withSeed) {
   // frames and the count read as DUDU, SMASH, title.
   countdown = 3;
   lastCount = -1;
+  // A round can end before the GO card has come down; G.time restarts at
+  // zero, so a leftover deadline would take the NEXT round's card off
+  // somewhere in the middle of it.
+  cardUntil = 0;
   startMusic(138);
   /* Just the round number.
    *
@@ -982,24 +988,24 @@ function givePower(a, type) {
   // Two of them do their whole job to the OTHER player and are spent at once,
   // so they never become a state you are "holding".
   if (type === "lunas" || type === "puso") {
-    /* The Big Heart is allowed past the ordinary ceiling.
+    /* The Big Heart SETS you to nine, which is now simply the ceiling; a Heal
+     * adds one towards it.
      *
-     * FEEL.hpMax is 5, and a three-heart pickup handed to a player on three
-     * would have given two — the box would open, the fanfare would play, and
-     * the bar would move by less than a Heal lying on the floor. It gets the
-     * Diwata's ceiling instead, which is the highest anything in the game
-     * goes. */
-    // The Big Heart SETS you to nine; a Heal adds one up to the ordinary cap.
+     * Setting rather than adding is still the right shape for it: it is the
+     * rarest thing in a box, and "+3" handed to a player on seven would open
+     * the box, play the fanfare and move the bar by less than a Heal lying on
+     * the floor. */
     if (def.set) a.hp = def.set;
     /* A heal can never LOWER you.
      *
-     * This was a flat `Math.min(FEEL.hpMax, hp + heal)`, and FEEL.hpMax is
-     * five. Take the Big Heart out of a box, stand on nine, pick up an
-     * ordinary Heal off the floor — and it clamps you to five. Charlie:
-     * "9 healths tapos kumuha ng heart bumaba ... yung limit naging 5".
+     * When the ceilings disagreed this was load-bearing: take the Big Heart
+     * out of a box, stand on nine, walk over an ordinary Heal — and the flat
+     * `Math.min(5, hp + 1)` it used to be clamped you to five. Charlie: "9
+     * healths tapos kumuha ng heart bumaba ... yung limit naging 5".
      *
-     * The cap belongs to what the pickup can ADD, not to what you already
-     * have: nothing that says "heal" is allowed to take four hearts off you.
+     * There is one ceiling now and it cannot happen, and it is still written
+     * this way on purpose: the cap belongs to what a pickup may ADD, never to
+     * what you already have, so the next ceiling change cannot bring it back.
      * Past the cap it simply does nothing. */
     else a.hp = Math.max(a.hp, Math.min(FEEL.hpMax, a.hp + def.heal));
     G.flash = { type, at: G.time };
@@ -1011,7 +1017,7 @@ function givePower(a, type) {
   if (type === "yelo" || type === "baliktad") {
     for (const o of G.actors) {
       if (o === a || o.dead) continue;
-      if (isWarded(o)) continue;
+      if (untouchableNow(o)) continue;
       if (type === "yelo") o.frozenUntil = G.time + def.freezeMs / 1000;
       else o.reversedUntil = G.time + def.reverseMs / 1000;
     }
@@ -1354,8 +1360,10 @@ function tickFairies(dt) {
 
     // She will not spend one on someone already full — the clock simply
     // waits, so she is never wasted on a heal that does nothing. Her ceiling
-    // is one above everything else's.
-    if (a.hp >= DIWATA.hpMax) {
+    // IS everything else's now; she used to stop one short of the Big Heart's
+    // and one above the floor Heal's, which is three different answers to
+    // "why has it stopped".
+    if (a.hp >= FEEL.hpMax) {
       f.next = Math.max(f.next, G.time + 0.4);
       continue;
     }
@@ -1364,7 +1372,7 @@ function tickFairies(dt) {
     // Same rule as the Heal above: cap the addition, never the total. The
     // guard a few lines up already skips a full player, but a heal that CAN
     // subtract is a bug waiting for the next ceiling change.
-    a.hp = Math.max(a.hp, Math.min(DIWATA.hpMax, a.hp + 1));
+    a.hp = Math.max(a.hp, Math.min(FEEL.hpMax, a.hp + 1));
     f.left--;
     f.healAt = G.time;
     f.next = G.time + DIWATA.everyMs / 1000;
@@ -1726,12 +1734,13 @@ function handleDeath(a) {
   // The match is already being won; nothing that happens during the slow
   // motion gets to change who won it or end the round a second time.
   if (G.finishAt) return;
-  clearPower(a, true);
-  // ...and the crown, which nothing else takes. Being untouchable, the
-  // only way a king reaches this line is by falling off the map, which is
-  // exactly the one way it is meant to be lost.
-  a.crowned = false;
-  restat(a);
+  /* Did they LEAVE THE BOARD, or just lose a heart?
+   *
+   * kill() in physics.js sets `dead` before it calls us, and a hit never
+   * does — killPlayer comes straight here. That one bit is the difference
+   * between falling off the map and being stomped, and everything below that
+   * is "you lose what you were holding" hangs on it. */
+  const fell = !!a.dead;
   // A fist in mid-air when you die does not get to land afterwards.
   a.punch = null;
   /* ...and neither effect follows you out of the grave.
@@ -1785,6 +1794,24 @@ function handleDeath(a) {
     a.vy = 0;
   }
   const gone = a.dead || a.hp <= 0;
+
+  /* The power-up survives a HIT. It does not survive a fall.
+   *
+   * clearPower used to run at the top of this function, so every stomp,
+   * bullet and mini Bubu took whatever you were holding — a Bazooka you had
+   * crossed the arena for, gone to a half-heart graze. That is the same
+   * complaint as the respawn-on-hit one and it has the same answer: a hit
+   * costs a heart and nothing else. Charlie: "Pag na hit, di dapat narereset
+   * yung hawak na skill, unless bumagsak sa stage."
+   *
+   * The crown goes with it, on the same condition and for the same reason —
+   * and since a crowned player cannot be touched at all, a fall is the only
+   * way either of them ever reaches this line. */
+  if (fell || gone) {
+    clearPower(a, true);
+    a.crowned = false;
+    restat(a);
+  }
   /* Everything stops for a beat, then resumes in slow motion — except the
    * blow that takes the match, which is set up below and never stops at all.
    *
@@ -2180,7 +2207,15 @@ function kingLanded(a) {
   renderer.punch = Math.max(renderer.punch || 0, 0.08);
   sfx.suntok();
   for (const o of G.actors) {
-    if (o.dead || isWarded(o)) continue;
+    /* Nobody who cannot be touched is thrown either — and that INCLUDES the
+     * grace after coming back.
+     *
+     * He lands every second and a half across seven and a half tiles, so a
+     * player who respawns anywhere near him is picked straight back up and
+     * put over the edge with no frame in between to answer with. Charlie:
+     * "star and shield (even from death respawn) should also be immune to
+     * king yhon ground pound." untouchableNow is the one definition of it. */
+    if (o.dead || untouchableNow(o)) continue;
     const d = Math.hypot(o.x - a.x, o.y - a.y);
     if (d > KING.blast) continue;
     const kk = 1 - d / KING.blast;
@@ -2287,7 +2322,7 @@ function crownLanded(a) {
   renderer.punch = Math.max(renderer.punch || 0, 0.06);
   sfx.suntok();
   for (const o of G.actors) {
-    if (o === a || o.dead || isWarded(o)) continue;
+    if (o === a || o.dead || untouchableNow(o)) continue;
     const d = Math.hypot(o.x - a.x, o.y - a.y);
     if (d > R.poundBlast) continue;
     const k = 1 - d / R.poundBlast;
@@ -2903,8 +2938,8 @@ function poundLanded(a) {
   }
   while (G.quakes.length > 6) G.quakes.shift();
   for (const o of G.actors) {
-    // Warded players are not thrown either — see isWarded.
-    if (o === a || o.dead || isWarded(o)) continue;
+    // Nor is anyone untouchable — a ward, or the grace after coming back.
+    if (o === a || o.dead || untouchableNow(o)) continue;
     const d = Math.hypot(o.x - a.x, o.y - a.y);
     if (d > reach) continue;
     // Away and up, hardest at the centre. It does not hurt them — the kill is
@@ -3016,9 +3051,9 @@ function bazookaBoom(x, y, ownerId) {
   for (const o of G.actors) {
     if (o.dead) continue;
     if (Math.hypot(o.x - x, (o.y - o.h / 2) - y) > def.blast) continue;
-    // A Star or a Shield shrugs off the whole thing — the heart, the throw and
-    // the mark that says an explosion moved you. See isWarded.
-    if (isWarded(o)) continue;
+    // A ward, or the grace after coming back, shrugs off the whole thing —
+    // the heart, the throw and the mark that says an explosion moved you.
+    if (untouchableNow(o)) continue;
     // Armed only if it can actually land — see canHit. Arming it on someone
     // who is untouchable leaves it on their body for the NEXT hit they take,
     // which then costs them the whole bar instead of a heart.
@@ -3176,10 +3211,10 @@ function tickPunches() {
       const forward = (o.x - a.x) * a.punch.face;
       if (forward < -def.blastBehind || forward > def.reachX) continue;
       if (Math.abs((o.y - o.h / 2) - fy) > def.reachY + o.h / 2) continue;
-      // Warded: the fist passes straight through. It used to throw them
+      // Untouchable: the fist passes straight through. It used to throw them
       // anyway — "a star turns the damage aside but not the shove" — and a
       // shove out over a chasm is a kill by another name.
-      if (isWarded(o)) continue;
+      if (untouchableNow(o)) continue;
       a.punch.hit = true;
       a.punch.blastAt = G.time;
       // One punch. Not one heart — everything, spare hearts included. That is
@@ -3835,11 +3870,32 @@ function advance(dt) {
       n > 1 ? sfx.count() : sfx.go();
       setCount(n);
     }
-    if (countdown <= 0) {
+      /* SMASH! is the GO, so the round starts ON it.
+       *
+       * The three cards were BUBU, DUDU, SMASH! at one second each and play
+       * began a second AFTER the last one — so the noise that says go went
+       * off while you still could not move, and the card you were meant to
+       * react to had already been on screen for a beat by the time the round
+       * did anything. Charlie: "di tama yung timing sa intro ng sound."
+       *
+       * Now the third card, its sound, its flash and the first frame you can
+       * move on all land together, and the card rides the first second of
+       * the round the way a GO card is supposed to. */
+    if (countdown <= 1) {
       phase = "play";
+      // ...and the card comes down a beat into the round rather than at the
+      // moment it starts, which is what makes it read as GO and not as 1.
+      cardUntil = G.time + 0.7;
       duckMusic(false);
       hideBanner();
     }
+  }
+
+  // The GO card, taken down a beat into the round. It used to come off when
+  // the countdown reached zero, and the countdown no longer gets that far.
+  if (cardUntil && G && G.time >= cardUntil) {
+    cardUntil = 0;
+    clearCount();
   }
 
   // "matchover" belongs in this list. Leaving it out stopped drawing, the
@@ -4412,7 +4468,22 @@ function paintPick(id) {
       });
     }
     // Tapping the figure itself moves it on, which is what anyone tries first.
-    el.querySelector(".hero").addEventListener("click", () => stepCast(id, 1));
+    /* Tapping the figure moves it on — but TOWARDS THE ONE TAPPED.
+     *
+     * It always stepped forward, whichever side was clicked, so clicking the
+     * character peeking in on the left brought in the one on the right and
+     * the character you asked for slid further away. Charlie, with a picture
+     * of it: "when pressing the character on left ... it always navigates 1
+     * to the right instead of going left."
+     *
+     * The middle third is the one you are already holding, so it does
+     * nothing: a no-op is the honest answer to "select the selected one". */
+    el.querySelector(".hero").addEventListener("click", (e) => {
+      const box = e.currentTarget.getBoundingClientRect();
+      const at = (e.clientX - box.left) / box.width;
+      if (at < 0.35) stepCast(id, -1);
+      else if (at > 0.65) stepCast(id, 1);
+    });
   }
 
   const def = charById(pads[id].char);

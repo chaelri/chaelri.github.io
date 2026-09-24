@@ -142,7 +142,7 @@ function bump(G, a, b) {
 }
 function ABILITYSPEED() { return 27; }
 
-/* ---- 4. the Big Heart is worth three, past the ordinary ceiling --------- */
+/* ---- 4. the Big Heart fills the bar, from wherever you were ------------- */
 {
   const G = world();
   const a = G.actors.find((q) => q.id === "p1");
@@ -150,7 +150,12 @@ function ABILITYSPEED() { return 27; }
   G.powers.push({ x: a.x, y: a.y - a.h / 2, type: "puso", born: G.time });
   for (let i = 0; i < 6 && G.powers.length; i++) sim.step(sim.TICK);
   ok("drop  Big Heart puts you on nine", a.hp === POWERUPS.puso.set, `hp ${a.hp}`);
-  ok("drop  ...from wherever you were, not +3", a.hp > FEEL.hpMax);
+  // It SETS rather than adds: from three, +3 would be six.
+  ok("drop  ...from wherever you were, not +3", a.hp !== 6, `hp ${a.hp}`);
+  // ...and nine IS the ceiling now — one number for every source of hearts,
+  // where there used to be three (5 for a Heal, 6 for the fairy, 9 for this).
+  ok("drop  ...and nine is the one ceiling", FEEL.hpMax === POWERUPS.puso.set,
+     `hpMax ${FEEL.hpMax}`);
 }
 /* ...and from one heart it is still nine, because it SETS rather than adds. */
 {
@@ -160,6 +165,17 @@ function ABILITYSPEED() { return 27; }
   G.powers.push({ x: a.x, y: a.y - a.h / 2, type: "puso", born: G.time });
   for (let i = 0; i < 6 && G.powers.length; i++) sim.step(sim.TICK);
   ok("drop  ...even from one heart", a.hp === POWERUPS.puso.set, `hp ${a.hp}`);
+}
+
+/* ...and the fairy heals all the way to it now, rather than stopping at six.
+ * "lets make fairy yhon no heart limit anymore. Basta 9 yung max health." */
+{
+  const G = world();
+  const a = G.actors.find((q) => q.id === "p1");
+  a.hp = 6;
+  a.fairy = { left: 3, next: G.time, healAt: -1, leaving: false, wave: 0, phase: 0 };
+  for (let i = 0; i < 60 * 12 && a.hp < 9; i++) sim.step(sim.TICK);
+  ok("fairy heals past six", a.hp > 6, `hp ${a.hp}`);
 }
 
 /* ---- 5. the bazooka steers, and it ends it ----------------------------- */
