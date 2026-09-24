@@ -399,6 +399,17 @@ h1 { margin: 0; font: inherit; }
   color: var(--ah-red);
 }
 .adx-rank-page .charttimer { color: var(--ah-faint); }
+.charttimer[data-adx-tint="wait"] { color: var(--ah-muted); }
+.charttimer[data-adx-tint="done"] { color: #5ee8a4; }
+.charttimer[data-adx-tint="done"]::before {
+  content: "";
+  width: 11px;
+  height: 11px;
+  flex: none;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12.5 4.5 4.5L19 7.5'/%3E%3C/svg%3E") center / contain no-repeat;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12.5 4.5 4.5L19 7.5'/%3E%3C/svg%3E") center / contain no-repeat;
+}
 .popi { display: inline-flex; align-items: center; background: transparent; }
 .popi img { width: 10px; height: 10px; opacity: 0.7; }
 
@@ -1097,3 +1108,37 @@ h1 { margin: 0; font: inherit; }
   letter-spacing: 0.5px;
 }
 .adx-eps-cards { padding-top: 8px; }
+
+/* ── roomier grids: 3 per row, bigger cards ───────────────────────── */
+/* 5–6 per row read as crowded; three large cards per row on a laptop. */
+.boldtext:has(> .chart),
+.info3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 36px 24px;
+}
+.chartimg,
+.similarimg .p1 { border-radius: 14px; }
+.chartinfo,
+.similarname { padding-top: 14px; }
+.charttitle,
+.similarname { font-size: 16.5px; line-height: 1.35; letter-spacing: -0.1px; }
+.charttitlejp { margin-top: 4px; font-size: 13px; }
+.charttimer { margin-top: 8px; font-size: 13px; }
+.charttimer[data-adx-tint="done"]::before { width: 13px; height: 13px; }
+.chartepm,
+.adx-ep { left: 12px; bottom: 12px; padding: 4px 10px; font-size: 12.5px; }
+.book { top: 12px; right: 12px; width: 34px; height: 34px; }
+.book img { width: 16px; height: 16px; }
+.adx-genre-row { gap: 6px; padding-top: 12px; }
+.adx-genre-chip,
+.adx-status { font-size: 11px; padding: 4px 9px; }
+.adx-status.is-done::before { width: 10px; height: 10px; }
+
+@media (max-width: 1000px) {
+  .boldtext:has(> .chart),
+  .info3 { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 30px 20px; }
+}
+@media (max-width: 560px) {
+  .boldtext:has(> .chart),
+  .info3 { grid-template-columns: minmax(0, 1fr); }
+}

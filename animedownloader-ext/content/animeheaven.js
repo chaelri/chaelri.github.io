@@ -132,8 +132,12 @@
     if (card.matches(".popularbox2") || card.querySelector(".adx-genre-row")) return;
     const row = document.createElement("div");
     row.className = "adx-genre-row";
-    const pill = statusPill(info.status);
-    if (pill) {
+    // Older shows' pages have no status strip; all episodes out = finished.
+    const done = +info.latest > 0 && +info.latest >= +info.total;
+    const pill = statusPill(info.status || (done ? "Finished airing" : ""));
+    // Schedule cards already print the status on their timer line.
+    const timerSaysIt = /finished|airing/i.test(card.querySelector(".charttimer")?.textContent || "");
+    if (pill && !timerSaysIt) {
       const el = document.createElement("span");
       el.className = "adx-status " + pill[1];
       el.textContent = pill[0];
@@ -250,6 +254,8 @@
 
   const injectFilterBar = () => {
     if (document.getElementById("adx-filter")) return;
+    // The anime page's Related / Similar rows are a handful of shows.
+    if (location.pathname === "/anime.php") return;
     const grid = document.querySelector(".boldtext:has(> .chart), .info3:has(> .similarimg)");
     if (!grid) return;
     const bar = document.createElement("div");
@@ -329,7 +335,17 @@
     { rootMargin: "800px 0px" }
   );
 
+  // The schedule's own status line: green when finished, red when a new
+  // episode just dropped, neutral for the countdown.
+  const tintTimers = () => {
+    document.querySelectorAll(".charttimer:not([data-adx-tint])").forEach((t) => {
+      const txt = t.textContent;
+      t.dataset.adxTint = /finished/i.test(txt) ? "done" : /released/i.test(txt) ? "new" : "wait";
+    });
+  };
+
   const scan = () => {
+    tintTimers();
     document.querySelectorAll(CARD_SEL).forEach((card) => {
       if (card.dataset.adxSeen) return;
       card.dataset.adxSeen = "1";
