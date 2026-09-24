@@ -192,7 +192,13 @@ export const HIT = {
   flashMs: 440,       // red bloom around the edges
   // How long the camera abandons its framing rule to sit on the body. Must
   // outlast the slow motion, or normal speed returns to a close-up.
-  killCamMs: 1300,
+  /* Longer than `roundBannerMs` below, and that ordering is load-bearing.
+   *
+   * The camera holds on the body for this long and then lets go in a single
+   * frame. If it let go FIRST, you would watch it pull back to a wide shot of
+   * the arena and only then get the banner — which is what Charlie saw and
+   * what "dapat zoom in lang then freeze" is about. */
+  killCamMs: 1750,
   /* How long the board is left alone before the banner arrives.
    *
    * Charlie: "sa death ng kalaban wag auto ipakita yung charlie wins or any
@@ -282,6 +288,51 @@ export const POWERUPS = {
 };
 
 export const POWERUPS_EXTRA = {
+  /* ------------------------------------------------------------ Excalibur ---
+   *
+   * A sword, and the only weapon in the game that does not run out.
+   *
+   * Everything else you can hold is a COUNT — six bullets, one shell, one
+   * punch — so every weapon is a decision about when to spend it, and once
+   * spent your hands are empty again. This one is a state you are in: you are
+   * the player with the sword until somebody hands you something else or the
+   * map takes you. Charlie: "its unlimited in the hand unless u pick up a gun
+   * or bazooka, or one punch man. this excalibur can be lost when tossed out
+   * of the map."
+   *
+   * What keeps it from simply being the best thing in the game is RANGE. The
+   * gun reaches across the arena, the shell finds you wherever you are, the
+   * fist is a corridor to the far wall — the sword is three tiles. You have
+   * to be standing next to someone, repeatedly, while they are also holding
+   * something.
+   *
+   * It is deliberately NOT an `op` item. The two OP items refuse to trade for
+   * each other because losing one to the other by walking over it is the bad
+   * kind of surprise; this one is meant to be traded away — that is the whole
+   * of how you stop holding it.
+   */
+  espada: {
+    id: "espada", name: "Excalibur", desc: "Two hearts a swing, and it never runs out.",
+    en: "sword",
+    ms: 0, colour: "#7fe3ff",
+    fires: true,
+    /* Never spends. `ammo` stays at nought, so every rule that drops a weapon
+     * when the magazine is empty has to be told about this one — see
+     * `endless` where each of them reads it. */
+    endless: true,
+    hearts: 2,           // off a player, off the King, off a pinata
+    windupMs: 60,        // the blade goes up
+    activeMs: 170,       // ...and is dangerous coming down
+    /* Fast enough to mash. 330 was "a rhythm"; what anyone actually does with
+     * a sword is hit the button as fast as their thumb goes, and a cooldown
+     * you can feel turns that into a weapon that keeps refusing you. Charlie:
+     * "make excalibur spammable pa." The windup plus the active part is
+     * 230ms, so 150 means the next swing starts as the last one finishes. */
+    cooldownMs: 150,
+    reach: 3.1,          // tiles in front of the body
+    reachY: 1.7,         // and how far off the waist it still bites
+    behind: 0.7,         // the arc starts behind you and comes over the top
+  },
   lunas: {
     // Red, like a heart. It was green — the colour every other game uses for
     // healing — and the result was an orb, a toast and a chip that all said
@@ -289,6 +340,9 @@ export const POWERUPS_EXTRA = {
     // one colour.
     id: "lunas", name: "Heal", desc: "One heart back — or a spare, past three.", en: "heal",
     ms: 0, colour: "#ff4d6d", heal: 1,
+    // Spent the instant it lands; it is never something you are HOLDING, so
+    // nothing that guards the weapon slot has an opinion about it.
+    slotless: true,
   },
   /* Only ever out of a box, both of these — they are NOT in POWER_ORDER, so
    * the ordinary spawner will never offer them. A box is a thing you have to
@@ -308,6 +362,7 @@ export const POWERUPS_EXTRA = {
      * Nine is three rows of three, which is why the heart bars had to learn
      * to wrap at all; see drawHearts and the card. */
     set: 9,
+    slotless: true,
   },
   bazuka: {
     id: "bazuka", name: "Bazooka", desc: "One shell. It finds them, and it ends it.",
@@ -417,6 +472,10 @@ export const POWERUPS_EXTRA = {
     en: "shield",
     ms: 5500, colour: "#7fd4ff",
     shield: true,
+    // It has a slot of its own (see givePower), so it never trades with a
+    // weapon in either direction — you can be holding a Bazooka and be
+    // behind glass at the same time.
+    slotless: true,
   },
   bilis: {
     id: "bilis", name: "Speed", desc: "Much quicker on your feet.", en: "speed",
@@ -437,11 +496,13 @@ export const POWERUPS_EXTRA = {
      * shortest way anyone loses a heart, because a frozen player can be
      * stomped and a stomp is instant. */
     ms: 0, colour: "#a9e8ff", freezeMs: 4500,
+    slotless: true,
   },
 
   baliktad: {
     id: "baliktad", name: "Reverse", desc: "Their left and right are swapped.", en: "reversed",
     ms: 0, colour: "#ff9c3f", reverseMs: 5000,
+    slotless: true,
   },
   // Melee. Rides the same fire control as the gun, so it needs no new button
   // and no new key — what changes is the range and the fact that you have to
@@ -690,8 +751,9 @@ export const DIWATA = {
 // reaches them first takes them. A pickup orb made them feel like an item,
 // and they are meant to feel like three more characters arriving.
 export const SQUAD = {
-  everyMs: 21000,
-  firstMs: 13000,
+  // Rarer, for the same reason Dudu is — see HELPER above.
+  everyMs: 42000,
+  firstMs: 24000,
   /* Two, not three.
    *
    * Half a heart each was already a nerf from a whole one, and it was still
@@ -771,6 +833,13 @@ export const BOX = {
     { id: "puso",   weight: 4 },
     { id: "bazuka", weight: 3 },
     { id: "hari",   weight: 2 },
+    /* THREE things, and Excalibur is not one of them.
+     *
+     * It was a fourth for a while. A box is worth three jumps and it is meant
+     * to be a moment — a Big Heart, a Bazooka, or the King himself — and a
+     * fourth outcome that is "a weapon you can also find lying on the floor"
+     * dilutes all three. Charlie: "HIndi dapat nakukuha si excalibur sa box,
+     * 3 pa rin dapat yung big heart, bazooka and king yhon yhon." */
   ],
 };
 
@@ -888,7 +957,7 @@ export const ALL_POWERS = { ...POWERUPS, ...POWERUPS_EXTRA };
  *
  * Bumped by hand on each deploy, which is the point: it can only be right.
  */
-export const BUILD = "2026-09-24-j";
+export const BUILD = "2026-09-24-k";
 
 export const SPAWN_CLEAR = {
   power: 4.5,
@@ -898,7 +967,7 @@ export const SPAWN_CLEAR = {
 
 export const POWER_ORDER = [
   "laki", "baril", "bituin", "bilis", "yelo", "baliktad", "lunas",
-  "suntok", "kalasag",
+  "suntok", "kalasag", "espada",
 ];
 
 /* ------------------------------------------------------------- helper --- */
@@ -906,8 +975,17 @@ export const POWER_ORDER = [
 // need most. He is not a player — he is the thing that stops a bad round
 // being unrecoverable.
 export const HELPER = {
-  everyMs: 15000,
-  firstMs: 9000,
+  /* Rarer than he was, and so is the squad below.
+   *
+   * Dudu and the mini Bubus are both "the round resolves itself" buttons —
+   * one hunts for you and the other three swarm — and at one Dudu every
+   * fifteen seconds a three-round match was mostly them. Charlie: "make mini
+   * bubu and dudu less likely to appear. bilis kasi matapos laro dahil sa
+   * dalawang yon HAHHA just less probability."
+   *
+   * Nothing about either of them changed except how often you meet one. */
+  everyMs: 34000,
+  firstMs: 18000,
   // Before anyone has reached him he pootles about at a fraction of his real
   // speed, stopping now and then to look lost. Once he is on your side he
   // moves at full pace — the slowness is only there to say "not yet".
@@ -1023,7 +1101,22 @@ export const POWER_FIRST_MS = 3000;   // first one, after the countdown
 
 export const SHOT_SPEED = 24;
 export const SHOT_LIFE = 1.5;
-export const SHOT_COOLDOWN_MS = 240;
+/* No delay at all between shots.
+ *
+ * It was 240ms, which on a phone is most of a tap — so a player hammering
+ * the button got about half the shots they pressed for and the six-shooter
+ * felt like it was refusing them. The magazine is the limit and it always
+ * was: six shots is six shots however fast you spend them, and spending them
+ * all in half a second is a decision with its own consequence. Charlie: "yung
+ * baril, may parang delay siya sa every shot, dapat walang delay so kung
+ * inispam ni user yung g lan dapat."
+ *
+ * Firing is edge-triggered off a counter on the input packet, not a held
+ * flag, so zero here means "one shot per press" and not "sixty a second".
+ * The Bazooka keeps a cooldown of its own — see tryBazooka. */
+export const SHOT_COOLDOWN_MS = 0;
+/** ...but a shell is not a bullet. One in the tube, and a beat to aim it. */
+export const SHELL_COOLDOWN_MS = 240;
 export const SHOT_RADIUS = 0.22;
 
 /* --------------------------------------------------------------- stacks --- */

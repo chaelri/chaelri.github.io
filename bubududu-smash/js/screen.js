@@ -7,7 +7,7 @@
 import {
   MODES, PLAYERS, ROUNDS_TO_WIN, FEEL, HELPER, BAD_HELPER, SQUAD, DIWATA, COINS, HIT,
   POWERUPS, POWER_ORDER, POWER_SPAWN_MS, POWER_FIRST_MS,
-  SHOT_SPEED, SHOT_LIFE, SHOT_COOLDOWN_MS, SHOT_RADIUS, INPUT_HZ, STACK, ABILITY, BOX, KING, ALL_POWERS, SPAWN_CLEAR,
+  SHOT_SPEED, SHOT_LIFE, SHOT_COOLDOWN_MS, SHELL_COOLDOWN_MS, SHOT_RADIUS, INPUT_HZ, STACK, ABILITY, BOX, KING, ALL_POWERS, SPAWN_CLEAR,
   GRAVITY, JUMP_VELOCITY,
 } from "./config.js";
 import { makeArena, readLevel, solidGrid } from "./levels.js";
@@ -894,7 +894,9 @@ function showPickup(a, type) {
    * description and no instruction at all. "how is bazooka even activated"
    * was a fair question and the toast should have answered it. */
   let body = def.desc || "";
-  if (def.fires && type !== "suntok") {
+  // Endless: there is no number to report, so it says how to use it instead.
+  if (def.endless) body = `${def.desc} ${shootPrompt(a.id)}`;
+  else if (def.fires && type !== "suntok") {
     const n = a.power ? a.power.ammo : def.ammo;
     body = `${n === 1 ? "One shot" : `${n} shots`}. ${shootPrompt(a.id)}`;
   }
@@ -1011,6 +1013,31 @@ function givePower(a, type) {
     G.flash = { type, at: G.time };
     showPickup(a, type);
     sfx.lunas();
+    return;
+  }
+
+  /* The Shield does not go in the weapon slot.
+   *
+   * It used to, so walking over one took the Bazooka off you — the rarest
+   * thing in the game, spent on a defensive buff you did not choose to trade
+   * for it. Charlie: "nakita ko naman nareplace yung bazooka ng shield tbh
+   * dapat pwede yon sabay." They are different KINDS of thing: one is what
+   * your fire button does, the other is whether anything can touch you, and
+   * nothing about holding a gun says you cannot also be behind glass.
+   *
+   * Its own field, so the two never meet. Picking a second one up extends
+   * the first rather than restarting it, the same as every stacking rule
+   * here. */
+  if (type === "kalasag") {
+    const base = def.ms / 1000;
+    const had = (a.shieldUntil || 0) > G.time;
+    a.shieldUntil = had
+      ? Math.min(G.time + base * STACK.maxDurationMul, a.shieldUntil + base)
+      : G.time + base;
+    G.flash = { type, at: G.time };
+    if (had) showStack(a, def.colour, def.name, "longer", type);
+    else showPickup(a, type);
+    fx.sfx(type);
     return;
   }
 
@@ -1643,7 +1670,9 @@ const isStar = (a) => !!(a && (a.crowned || (a.power && ALL_POWERS[a.power.type]
  * attacker, a Shield just refuses it. Somebody running into a shielded player
  * should bounce off and carry on, not lose the round.
  */
-const isShielded = (a) => !!(a && a.power && ALL_POWERS[a.power.type]?.shield);
+// Its own field, not the power slot — see givePower. A shield and a weapon
+// are different kinds of thing and you may hold both.
+const isShielded = (a) => !!(a && a.shieldUntil && G.time < a.shieldUntil);
 
 /* A Star or a Shield turns aside the SHOVE as well as the damage.
  *
@@ -1721,6 +1750,11 @@ function deathLine(a) {
     case "bazuka": return who ? `${who} puts a shell through ${them}` : `${them} takes a shell`;
     case "shot":   return who ? `${who} shoots ${them}` : `a bullet finds ${them}`;
     case "punch":  return who ? `${who} ends ${them} with one punch` : `one punch ends ${them}`;
+    // The sword had no line at all, so a death by Excalibur read as "out of
+    // health" — the most anonymous sentence in the list, for the loudest
+    // weapon in the game. "lagyan mo description when kill by excalibur."
+    case "espada": return who ? `${who} cuts ${them} down with Excalibur`
+                              : `Excalibur cuts ${them} down`;
     case "dudu":   return who ? `Dudu finishes ${them} for ${who}` : `Dudu finishes ${them}`;
     case "bubus":  return who ? `${who}'s mini Bubus swarm ${them}` : `the mini Bubus swarm ${them}`;
     case "strayBubu": return `a stray mini Bubu lands on ${them}`;
@@ -1741,8 +1775,10 @@ function handleDeath(a) {
    * between falling off the map and being stomped, and everything below that
    * is "you lose what you were holding" hangs on it. */
   const fell = !!a.dead;
-  // A fist in mid-air when you die does not get to land afterwards.
+  // A fist in mid-air when you die does not get to land afterwards, and
+  // neither does a sword.
   a.punch = null;
+  a.swing = null;
   /* ...and neither effect follows you out of the grave.
    *
    * Charlie: "kapag namamatay dapat mawaala rin yung reverse effect sa
@@ -1810,6 +1846,7 @@ function handleDeath(a) {
   if (fell || gone) {
     clearPower(a, true);
     a.crowned = false;
+    a.shieldUntil = 0;
     restat(a);
   }
   /* Everything stops for a beat, then resumes in slow motion — except the
@@ -1949,15 +1986,24 @@ function handleDeath(a) {
  * Charlie: "the bazooka and one punch man overrides damage null when a person
  * just respawn."
  */
-function canHit(victim, by) {
+function canHit(victim, by, thrown = false) {
   if (!victim || victim.dead) return false;
   // The grace after being hit, and the grace after coming back.
   if (victim.invulnUntil && G.time < victim.invulnUntil) return false;
   /* ...and an ATTACKER who has it cannot swing either. It is defensive and
    * nothing else sets it, so someone with it just respawned — and landing on
    * whoever happens to be standing at the spawn point while being untouchable
-   * yourself is the worst version of this. */
-  if (by && by.invulnUntil && G.time < by.invulnUntil) return false;
+   * yourself is the worst version of this.
+   *
+   * It applies to CONTACT only. A bullet or a shell left your hand before any
+   * of this was true, and it is in the world on its own account from then on:
+   * Charlie fired a Bazooka, dropped off the map, and watched the shell reach
+   * its target and do nothing — because by the time it landed he had
+   * respawned, and his own respawn grace was being read as "the attacker
+   * cannot swing". "Nung nagland yung bazooka sa enemy bat wala damage dapat
+   * patay siya e." He is right: the shot was fired by someone who was alive,
+   * aimed, and paid for. */
+  if (!thrown && by && by.invulnUntil && G.time < by.invulnUntil) return false;
   // A Star, and the crown, kill on contact and cannot be touched back.
   if (isStar(victim)) return false;
   /* ...and the Shield refuses everything for as long as it lasts.
@@ -1971,8 +2017,10 @@ function canHit(victim, by) {
 }
 
 function killPlayer(victim, by, how = "stomp", damage = 1) {
-  // Every reason a blow bounces off, in one place. See canHit.
-  if (!canHit(victim, by)) return;
+  // Every reason a blow bounces off, in one place. See canHit. A bullet and a
+  // shell are THROWN: they are in the world on their own account and do not
+  // care what has happened to whoever fired them since.
+  if (!canHit(victim, by, how === "shot" || how === "bazuka")) return;
   // Recorded on the victim rather than passed down, because `kill()` in
   // physics.js is also the one that fires for a pit and it has no idea who
   // was involved. handleDeath reads whichever of the two got there.
@@ -2307,7 +2355,17 @@ function tickKingContact(dt) {
      * Detected the same way the King's own landing is — airborne last tick,
      * grounded this one. It is the King's move, handed to whoever took it
      * off him, which is why the reward is worth chasing a boss for. */
-    if (a.crowned && a.grounded && a.wasAirborne) crownLanded(a);
+    /* Anything HEAVY shakes the floor when it lands — the crown, and now Big.
+     *
+     * Charlie: "isip ko yung big power up, nakakaground pound sha." It is
+     * the right instinct and it costs nothing to give: the power-up already
+     * makes you a head taller and opens a pinata in one bump, so a landing
+     * that throws people is what the size was already promising. It is not
+     * Yhon's Ground Pound — there is no dive and no aiming it, you simply
+     * weigh something now — and it lasts as long as the power-up does. */
+    if ((a.crowned || hasPower(a, "laki")) && a.grounded && a.wasAirborne) {
+      crownLanded(a);
+    }
     a.wasAirborne = !a.grounded;
   }
   void dt;
@@ -2409,7 +2467,7 @@ function hitBox(b, by, n) {
   b.bumpAt = G.time;
   b.by = by ? by.id : null;
   if (b.hits > 0) {
-    sfx.land();
+    sfx.pinata();
     renderer.shake = Math.max(renderer.shake || 0, 4);
   }
 }
@@ -2512,7 +2570,34 @@ function tickPowers(dt) {
          * the Star included, because taking a Star is a choice you can see
          * yourself making and it is not strictly worse.
          */
-        if (!q.fromBox && q.type === "baril" && hasPower(a, "bazuka")) continue;
+        /* NOTHING off the floor takes a Bazooka off you.
+         *
+         * It began as "a Gun does not replace a Bazooka", which covered the
+         * case anyone hits first and left every other one open — a Grow, a
+         * Star, a Speed, all of them silently spending the one shell that
+         * ends a round. Charlie: "Dapat talaga hindi narereplace yung
+         * bazooka, best gun na yun sa laro plss."
+         *
+         * The orb is LEFT on the field rather than consumed, so the other
+         * player can still have it. A box still overrides — that is the
+         * deliberate exception and it is the only way to trade one away. */
+        if (!q.fromBox && hasPower(a, "bazuka") && !ALL_POWERS[q.type]?.slotless) {
+          continue;
+        }
+        /* ...and Excalibur is only ever traded for another WEAPON.
+         *
+         * A Star or a Grow lying in your path used to take the sword off you,
+         * which is the same complaint as the Bazooka's in a smaller hat:
+         * something you chose and crossed the arena for, spent by walking.
+         * Charlie: "yung iba di narereplace si excalibur ng star or shield."
+         *
+         * A gun, a shell or a fist still takes it — that is the deal the
+         * sword was given when it was made endless, and it is the only way to
+         * put it down. */
+        if (!q.fromBox && hasPower(a, "espada")
+            && !ALL_POWERS[q.type]?.slotless && !ALL_POWERS[q.type]?.fires) {
+          continue;
+        }
         /* ...and the two OP items never trade for each other.
          *
          * A Bazooka and a One Punch are each one input that ends a round.
@@ -2565,9 +2650,14 @@ function tickPowers(dt) {
      * for the rest of the round: a dead fire button and a chip claiming a
      * weapon you no longer had. `fires` is the flag; see config.js. */
     if (a.power && ALL_POWERS[a.power.type]?.fires && a.power.ammo <= 0
-        && a.power.type !== "suntok") {
-      // The fist is the exception — its last swing has to be allowed to land,
-      // and givePower already sets an expiry for exactly that.
+        && a.power.type !== "suntok" && !ALL_POWERS[a.power.type].endless) {
+      /* The fist is the exception — its last swing has to be allowed to land,
+       * and givePower already sets an expiry for exactly that.
+       *
+       * Excalibur is the other one, and a different kind: it has no magazine
+       * at all, so `ammo <= 0` is its resting state rather than the end of
+       * it. Without `endless` here it would be taken off you on the very
+       * frame it was picked up. */
       clearPower(a);
     }
   }
@@ -2705,7 +2795,7 @@ function tickPowers(dt) {
         // A shell does not merely hit them — it goes off, and the blast is
         // what does the work. See bazookaBoom.
         if (b.homing) { bazookaBoom(b.x, b.y, b.owner); break; }
-        if (b.lethal && canHit(o, G.actors.find((q) => q.id === b.owner) || null)) { o.lethal = true; renderer.shake = Math.max(renderer.shake || 0, 18); G.flash = { type: "hit", at: G.time }; }
+        if (b.lethal && canHit(o, G.actors.find((q) => q.id === b.owner) || null, true)) { o.lethal = true; renderer.shake = Math.max(renderer.shake || 0, 18); G.flash = { type: "hit", at: G.time }; }
         killPlayer(o, G.actors.find((q) => q.id === b.owner) || null, b.lethal ? "bazuka" : "shot");
         break;
       }
@@ -2967,6 +3057,7 @@ function poundLanded(a) {
 function tryShoot(a) {
   if (hasPower(a, "suntok")) return tryPunch(a);
   if (hasPower(a, "bazuka")) return tryBazooka(a);
+  if (hasPower(a, "espada")) return trySwing(a);
   if (!hasPower(a, "baril") || a.power.ammo <= 0) return;
   if (G.time * 1000 - a.shotAt < SHOT_COOLDOWN_MS) return;
   a.shotAt = G.time * 1000;
@@ -3053,11 +3144,13 @@ function bazookaBoom(x, y, ownerId) {
     if (Math.hypot(o.x - x, (o.y - o.h / 2) - y) > def.blast) continue;
     // A ward, or the grace after coming back, shrugs off the whole thing —
     // the heart, the throw and the mark that says an explosion moved you.
+    // This is the VICTIM's state and it still counts; it is the SHOOTER's
+    // that a shell in flight has stopped caring about. See canHit.
     if (untouchableNow(o)) continue;
     // Armed only if it can actually land — see canHit. Arming it on someone
     // who is untouchable leaves it on their body for the NEXT hit they take,
     // which then costs them the whole bar instead of a heart.
-    if (canHit(o, o.id === ownerId ? null : by)) o.lethal = true;
+    if (canHit(o, o.id === ownerId ? null : by, true)) o.lethal = true;
     /* Thrown FROM THE BLAST, not from the shooter.
      *
      * handleDeath works out which way to throw a body from `cause.by` — the
@@ -3100,7 +3193,7 @@ function bazookaBoom(x, y, ownerId) {
 
 function tryBazooka(a) {
   if (!a.power || a.power.ammo <= 0) return;
-  if (G.time * 1000 - a.shotAt < SHOT_COOLDOWN_MS) return;
+  if (G.time * 1000 - a.shotAt < SHELL_COOLDOWN_MS) return;
   const def = POWERUPS.bazuka;
   a.shotAt = G.time * 1000;
   a.power.ammo--;
@@ -3144,6 +3237,104 @@ function punchPhase(a) {
   if (t < def.windupMs + def.activeMs)
     return { state: "out", t: (t - def.windupMs) / def.activeMs };
   return null;
+}
+
+/* ------------------------------------------------------------ Excalibur --- */
+
+/** Where a swing is in its arc, or null if there is not one happening. */
+function swingPhase(a) {
+  if (!a.swing) return null;
+  const def = POWERUPS.espada;
+  const t = (G.time - a.swing.at) * 1000;
+  if (t < def.windupMs) return { state: "wind", t: t / def.windupMs };
+  if (t < def.windupMs + def.activeMs)
+    return { state: "out", t: (t - def.windupMs) / def.activeMs };
+  return null;
+}
+
+/** Swing it. Costs nothing and can be done again a third of a second later. */
+function trySwing(a) {
+  const def = POWERUPS.espada;
+  if (!a.power) return;
+  if (a.swing && G.time - a.swing.at < def.cooldownMs / 1000) return;
+  /* The arc ALTERNATES, over and then under.
+   *
+   * Two identical swings in a row read as one animation stuttering; a
+   * downstroke followed by an upstroke reads as someone working. It is one
+   * bit and it rides on the wire with the rest of the swing. */
+  a.swingN = ((a.swingN || 0) + 1) % 2;
+  a.swing = { at: G.time, face: a.face, hit: false, up: a.swingN === 1 };
+  sfx.espada();
+  tellPad(a);
+}
+
+/* The blade, while it is coming down.
+ *
+ * An ARC, and everything in it at once — a pinata AND the King AND whoever is
+ * standing there all take it from one swing, which is what "AOE" means here
+ * and is the trade for three tiles of reach. The fist is a corridor to the
+ * far wall and spends itself on the first thing it meets; this is a short
+ * sweep that does not care how many things are in it.
+ */
+function tickSwings() {
+  const def = POWERUPS.espada;
+  for (const a of G.actors) {
+    const ph = swingPhase(a);
+    if (!ph || ph.state !== "out" || a.swing.hit || a.dead) continue;
+    const face = a.swing.face;
+    const midY = a.y - a.h * 0.55;
+    /* Does this thing lie inside the sweep?
+     *
+     * Ahead of the body out to `reach`, a little behind it — the arc starts
+     * over the shoulder — and within `reachY` of the waist. Measured from the
+     * EDGE of the target rather than its middle, so a box the size of a
+     * player is not judged by one pixel at its centre. */
+    const inArc = (x, y, halfW, halfH) => {
+      const ahead = (x - a.x) * face;
+      if (ahead < -def.behind - halfW || ahead > def.reach + halfW) return false;
+      return Math.abs(y - midY) <= def.reachY + halfH;
+    };
+
+    let landed = false;
+
+    // Pinatas. Two of its three bands in one swing, so two swings open it.
+    for (let k = G.boxes.length - 1; k >= 0; k--) {
+      const bx = G.boxes[k];
+      if (!inArc(bx.x, bx.y, BOX.w / 2, BOX.h / 2)) continue;
+      landed = true;
+      hitBox(bx, a, def.hearts);
+      if (bx.hits <= 0) openBox(bx, k);
+    }
+
+    // The King, who takes two of his three.
+    if (G.king && !G.king.leaving) {
+      const kb = G.king.actor;
+      if (inArc(kb.x, kb.y - kb.h * 0.5, kb.w / 2, kb.h / 2)) {
+        if (hurtKing(a, def.hearts)) landed = true;
+      }
+    }
+
+    // ...and whoever is standing in it, for two hearts.
+    for (const o of G.actors) {
+      if (o === a || o.dead) continue;
+      if (!inArc(o.x, o.y - o.h * 0.5, o.w / 2, o.h / 2)) continue;
+      if (!canHit(o, a)) continue;
+      landed = true;
+      killPlayer(o, a, "espada", def.hearts);
+    }
+
+    if (landed) {
+      a.swing.hit = true;
+      a.swing.landAt = G.time;
+      sfx.espadaHit();
+      renderer.shake = Math.max(renderer.shake || 0, 14);
+      renderer.punch = Math.max(renderer.punch || 0, 0.045);
+      G.bursts.push({
+        x: a.x + face * def.reach * 0.5, y: midY,
+        at: G.time, colour: def.colour, big: true,
+      });
+    }
+  }
 }
 
 function tickPunches() {
@@ -3949,6 +4140,7 @@ function advance(dt) {
       tickHelper(sim);
       tickMinis(sim);
       tickPunches();
+      tickSwings();
       tickRules(sim);
     }
     G.time += sim;
@@ -4239,8 +4431,10 @@ export function applyCorrection(view, rngAt, hostPhase) {
     a.respawn = t.respawn;
     a.coins = t.coins;
     // The crown is the host's to give, like a heart is — and it is a flag on
-    // the player now rather than the power-up they happen to be holding.
+    // the player now rather than the power-up they happen to be holding. The
+    // shield is the same shape of thing.
     a.crowned = t.crowned;
+    a.shieldUntil = t.shieldUntil;
 
     /* Position is different, and YOUR OWN body is different again.
      *

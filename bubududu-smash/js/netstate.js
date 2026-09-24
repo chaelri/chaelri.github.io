@@ -25,7 +25,7 @@ const bit = (v) => (v ? 1 : 0);
 //  coins, fairy, punch, glowUntil, glowFor, glowColour,
 //  coyote, buffer, jumpHeld, launchFor,
 //  abilityAgo, skillN, skillAgo, hops, dashLeft, dashVx, pounding, lockLeft,
-//  crowned]
+//  crowned, shieldLeft, swing]
 
 function packActor(a, now) {
   return [
@@ -99,8 +99,19 @@ function packActor(a, now) {
      * holding, and it has to be on the wire or the other phone draws an
      * ordinary character where a king is standing. */
     bit(a.crowned),
+    // The Shield, which is no longer in the power slot and so needs its own
+    // number. Time REMAINING, like every other deadline here.
+    r2(Math.max(0, (a.shieldUntil || 0) - now)),
+    /* The sword's swing, the same shape the fist's takes: how long ago, which
+     * way, whether it has bitten yet — plus which way round the arc goes, so
+     * the alternating over/under stroke is the same on both screens. */
+    a.swing ? [r2(G_NOW_MS(now, a.swing.at)), a.swing.face, bit(a.swing.hit),
+               bit(a.swing.up)] : 0,
   ];
 }
+
+/** Milliseconds since a moment, which is how every deadline here travels. */
+function G_NOW_MS(now, at) { return Math.max(0, Math.round((now - at) * 1000)); }
 
 function unpackActor(v, now) {
   const [id, char, x, y, vx, vy, face, walk, squash, t, grounded, hp, dead,
@@ -108,7 +119,7 @@ function unpackActor(v, now) {
     fairy, punch, glowLeft, glowFor, glowColour,
     coyote, buffer, jumpHeld, launchFor,
     abilityAgo, skillN, skillAgo, hops, dashLeft, dashVx, pounding, lockLeft,
-    crowned] = v;
+    crowned, shieldLeft, swing] = v;
   const p = PLAYERS.find((q) => q.id === id);
   return {
     id, char, x, y, vx, vy, face, walk, squash, t,
@@ -136,6 +147,10 @@ function unpackActor(v, now) {
           blastAt: punch[3] != null && punch[3] >= 0 ? now - punch[3] : null }
       : null,
     crowned: !!crowned,
+    shieldUntil: shieldLeft > 0 ? now + shieldLeft : 0,
+    swing: swing
+      ? { at: now - swing[0] / 1000, face: swing[1], hit: !!swing[2], up: !!swing[3] }
+      : null,
     glowUntil: glowLeft > 0 ? now + glowLeft : 0,
     glowFor: glowFor || 0,
     glowColour: glowColour || null,

@@ -146,13 +146,22 @@ function updateCamera(r, level, actors, dt) {
       killPull = Math.min(1, p / 0.35);
       r.kill.creep = Math.min(1, (r.kill.creep || 0) + dt * 0.22);
     } else {
-      // An ordinary death: snap in, then STAY there for most of the window
-      // before letting go. It used to start releasing a fifth of the way in,
-      // so the camera was already retreating while the body was still being
-      // thrown — you never got a clear look at what had just happened to you.
-      killPull = p < 0.12 ? p / 0.12
-               : p < 0.78 ? 1
-               : Math.pow(1 - (p - 0.78) / 0.22, 1.7);
+      /* An ordinary death: drive in, and then DO NOT COME BACK OUT.
+       *
+       * It used to ease out over the last fifth of the window, which put a
+       * visible retreat between the kill and the banner — the camera pulled
+       * back to the whole arena for a moment and then the words appeared, so
+       * the last thing you saw was not the thing that happened. Charlie, on
+       * the Bazooka first and then generally: "may konti time pa na bumalik
+       * sa pagkakazoom out, dapat zoom in lang then freeze ... actually to any
+       * deaths."
+       *
+       * So it holds at full pull for the whole window and lets go in one
+       * frame at the end — by which time a round-ending death is already
+       * behind its banner, and a mid-round one has the player back on their
+       * feet. `killCamMs` is longer than `roundBannerMs` on purpose, so the
+       * release can never happen before the banner. */
+      killPull = p < 0.12 ? p / 0.12 : 1;
     }
     r.cam.tx += (r.kill.x - r.cam.tx) * killPull * 0.92;
     r.cam.ty += (r.kill.y - r.cam.ty) * killPull * 0.92;
@@ -794,10 +803,19 @@ const drawFaults = new Map();
 export const faults = () => [...drawFaults.entries()].map(([name, err]) => `${name}: ${err}`);
 export const clearFaults = () => drawFaults.clear();
 
+/* Per-layer timing, off unless somebody asks for it.
+ *
+ * "The frame got slower" is a useless sentence on its own — there are thirty
+ * layers and the answer has twice been a drawing nobody suspected. Setting
+ * `window.__drawProfile = {}` makes every layer add its milliseconds to it,
+ * and the cost when it is off is one property read. */
 function layer(name, ctx, fn) {
+  const prof = typeof window !== "undefined" && window.__drawProfile;
+  const t0 = prof ? performance.now() : 0;
   ctx.save();
   try {
     fn();
+    if (prof) prof[name] = (prof[name] || 0) + (performance.now() - t0);
   } catch (err) {
     if (!drawFaults.has(name)) {
       drawFaults.set(name, (err && err.message) || String(err));
@@ -846,6 +864,8 @@ export function draw(r, g, dt) {
   for (const a of g.actors) layer(`actor:${a.char}`, ctx, () => drawActor(r, ctx, g, a));
   for (const a of g.actors) layer("fairy", ctx, () => drawFairy(r, ctx, g, a));
   for (const a of g.actors) layer("punch", ctx, () => drawPunch(r, ctx, g, a));
+  for (const a of g.actors) layer("sword", ctx, () => drawSword(r, ctx, g, a));
+  for (const a of g.actors) layer("gloves", ctx, () => drawGloves(r, ctx, g, a));
   layer("shots", ctx, () => drawShots(r, ctx, g));
   layer("bursts", ctx, () => drawBursts(r, ctx, g));
   layer("quakes", ctx, () => drawQuakes(r, ctx, g));
@@ -970,9 +990,13 @@ function drawLostHearts(r, ctx, g) {
   }
 }
 
+/* How long a column of dead floor spends falling out of the world. */
+const FALL_SEC = 1.15;
+
 function drawTiles(r, ctx, g) {
   const z = r.cam.zoom;
   const art = tileArt(r);
+  trackFallingFloor(r, g);
   const x0 = Math.max(0, Math.floor(r.cam.x - r.w / 2 / z) - 1);
   const x1 = Math.min(g.level.w - 1, Math.ceil(r.cam.x + r.w / 2 / z) + 1);
   const y0 = Math.max(0, Math.floor(r.cam.y - r.h / 2 / z) - 1);
@@ -1027,7 +1051,101 @@ function drawTiles(r, ctx, g) {
     }
   }
 
+  drawFallingFloor(r, ctx, g, art);
+
   // doors, drawn from the live list so they can animate open
+}
+
+/* The arena eats itself from both ends, and the columns it takes have to GO
+ * somewhere.
+ *
+ * They used to be there on one frame and not on the next, which is a jump cut
+ * in the middle of the one thing in the game that can kill you without anyone
+ * doing anything. The tremble warned you it was coming; this is what happens
+ * when it arrives. Charlie: "dapat di lang siya bigla nawawala, add animation
+ * that it really falls down para pwede pa makatalon last moment ang
+ * character."
+ *
+ * Nothing about it is on the wire. Both screens know `shrink`, so both work
+ * out the same columns at the same moment — and because it is purely a
+ * drawing, a slab that is still visibly falling is already out of the grid
+ * and holds nobody up. The window you can jump in is the tremble; this is
+ * what makes the tremble mean something.
+ */
+function trackFallingFloor(r, g) {
+  const eaten = Math.floor(g.shrink || 0);
+  if (!r.falling) { r.falling = []; r.doomSnap = {}; r.lastEaten = eaten; }
+  // A new round: the arena is whole again and nothing is on its way down.
+  if (eaten < r.lastEaten) { r.falling.length = 0; r.doomSnap = {}; }
+
+  /* The two columns nearest the edges are photographed every frame, because
+   * once the rules take them there is nothing left to draw them from. Two
+   * columns of about fifteen tiles is nothing. */
+  for (const tx of [eaten, g.level.w - 1 - eaten]) {
+    if (tx < 0 || tx >= g.level.w) continue;
+    const col = [];
+    for (let ty = 0; ty < g.level.h; ty++) {
+      const c = g.grid.rows[ty][tx];
+      if (c !== "#" && c !== "=" && c !== "^") continue;
+      /* The KIND is worked out here and not when it is drawn, because it
+       * depends on the tile above — and by the time this slab is falling,
+       * the tile above it is gone. Get it wrong and the grass turns to soil
+       * on the frame the column dies. */
+      col.push([ty,
+        c === "=" ? "plat" :
+        c === "^" ? "spike" :
+        (ty === 0 || g.grid.rows[ty - 1][tx] !== "#") ? "grass" : "soil"]);
+    }
+    r.doomSnap[tx] = col;
+  }
+
+  for (let e = r.lastEaten; e < eaten; e++) {
+    for (const tx of [e, g.level.w - 1 - e]) {
+      const col = r.doomSnap[tx];
+      if (!col || !col.length) continue;
+      // It tips AWAY from the middle, which is the direction the ground has
+      // just stopped being under it.
+      r.falling.push({ tx, col, at: g.time, tip: tx < g.level.w / 2 ? -1 : 1 });
+      delete r.doomSnap[tx];
+    }
+  }
+  r.lastEaten = eaten;
+  if (r.falling.length) {
+    r.falling = r.falling.filter((f) => g.time - f.at < FALL_SEC);
+  }
+}
+
+function drawFallingFloor(r, ctx, g, art) {
+  if (!r.falling || !r.falling.length) return;
+  const z = r.cam.zoom;
+  const cell = z * (art.cell / art.key) + 1;
+  const pad = (art.pad / art.key) * z;
+
+  for (const f of r.falling) {
+    const t = (g.time - f.at) / FALL_SEC;
+    if (t < 0 || t >= 1) continue;
+    // Gravity, not a slide: it hangs for a beat and then goes.
+    const drop = t * t * z * 22;
+    const tilt = f.tip * t * t * 0.55;
+    const alpha = t < 0.6 ? 1 : 1 - (t - 0.6) / 0.4;
+
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, alpha);
+    const ox = toX(r, f.tx + 0.5);
+    const oy = toY(r, g.level.h * 0.5);
+    ctx.translate(ox, oy);
+    ctx.rotate(tilt);
+    ctx.translate(-ox, -oy);
+
+    for (const [ty, kind] of f.col) {
+      const px = toX(r, f.tx);
+      const py = toY(r, ty) + drop;
+      ctx.drawImage(art.canvas, art.index[kind] * art.cell, 0, art.cell, art.cell,
+                    px - pad, py - pad, cell, cell);
+    }
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1;
 }
 
 
@@ -1123,14 +1241,33 @@ function markSprite(type, glowC) {
   stampMark(x, type, cx, cy, size, mix(glowC, [255, 255, 255], 0.4, 0.3), rad * 0.25);
   stampMark(x, type, cx, cy, size, "rgba(255,255,255,0.96)", rad * 0.11);
   drawMark(x, type, cx, cy, size, glowC);
-  // One highlight along the top, so it reads as an object with a lit side
-  // rather than as a flat symbol.
-  x.save();
-  x.beginPath();
-  x.rect(cx - size, cy - size, size * 2, size * 0.72);
-  x.clip();
-  drawMark(x, type, cx, cy, size, lighten(glowC, 0.55));
-  x.restore();
+  /* One highlight along the top — and it has to FADE.
+   *
+   * It used to be the lighter colour redrawn inside a rectangular clip, which
+   * leaves a dead-straight horizontal line across the symbol. On a heart and
+   * on a shield, which are exactly the shapes a game fills from the bottom,
+   * that line reads as a LEVEL: Charlie, on the Heal orb, "tagal ko na pansin
+   * tong heart parang 90% full lang itsura neto", and then the same about the
+   * Shield. It was meant to be a lit side and it was being read as a gauge.
+   *
+   * A gradient clipped to the symbol's own outline says "light falling on it"
+   * and cannot be read as a measurement, because there is no edge to measure
+   * to. */
+  const path = markPath(type);
+  if (path) {
+    x.save();
+    x.translate(cx, cy);
+    x.scale(size / 100, size / 100);
+    x.translate(-50, -50);
+    x.clip(path, "nonzero");
+    const sheen = x.createLinearGradient(0, 4, 0, 78);
+    sheen.addColorStop(0, "rgba(255,255,255,0.5)");
+    sheen.addColorStop(0.55, "rgba(255,255,255,0.14)");
+    sheen.addColorStop(1, "rgba(255,255,255,0)");
+    x.fillStyle = sheen;
+    x.fillRect(0, 0, 100, 100);
+    x.restore();
+  }
 
   markCache.set(key, c);
   return c;
@@ -1925,14 +2062,22 @@ function drawPinataFairy(r, ctx, x, y, z, t, seed) {
 
   ctx.save();
 
-  // Gold light off her, so she reads as the source of the whole arrangement.
-  const glow = ctx.createRadialGradient(x, fy, 0, x, fy, z * 1.25);
-  glow.addColorStop(0, "rgba(255,214,110,0.72)");
-  glow.addColorStop(0.5, "rgba(255,196,80,0.3)");
-  glow.addColorStop(1, "rgba(255,196,80,0)");
+  /* WHITE light, not gold.
+   *
+   * Gold was the first answer to "golden fairy" and it was the wrong one in
+   * practice: the halo is the biggest thing in that corner of the screen, and
+   * a warm yellow one sat on a pale sky as a smudge with a yellowish pig in
+   * the middle of it — she disappeared into her own light. White separates
+   * from everything the valley is made of, and the gold survives where it
+   * belongs, on her. Charlie: "dapat pala white glow yung fairy na nagbubuhat
+   * white outline din." */
+  const glow = ctx.createRadialGradient(x, fy, 0, x, fy, z * 1.1);
+  glow.addColorStop(0, "rgba(255,255,255,0.8)");
+  glow.addColorStop(0.45, "rgba(255,252,240,0.34)");
+  glow.addColorStop(1, "rgba(255,252,240,0)");
   ctx.fillStyle = glow;
   ctx.beginPath();
-  ctx.arc(x, fy, z * 1.25, 0, Math.PI * 2);
+  ctx.arc(x, fy, z * 1.1, 0, Math.PI * 2);
   ctx.fill();
 
   // Wings, beating fast, behind her.
@@ -1954,15 +2099,17 @@ function drawPinataFairy(r, ctx, x, y, z, t, seed) {
   const size = z * 0.56;
   const pose = { face: 1, run: 0, air: -1, rise: 0.4, squash: -0.1,
                  t, walk: 0, stride: 1 };
-  // Gold rim rather than the white one the pink fairy wears — same shape,
-  // different job, and the rim is the cheapest way to say so.
-  stampOutline(r, ctx, "#ffdc7a", x, fy + size * 0.5, size, size, z * 0.06,
+  // A white rim, the same one every small thing in this game wears so it
+  // holds against sky, hill or treeline.
+  stampOutline(r, ctx, "rgba(255,255,255,0.95)", x, fy + size * 0.5, size, size,
+    z * 0.06,
     (b, bx, by) => charById("yhon").draw(b, bx, by, size, size, pose));
   charById("yhon").draw(ctx, x, fy + size * 0.5, size, size, pose);
-  /* ...and a wash of gold OVER her, because a rim alone leaves a pink pig
-   * inside a yellow ring. Half strength, so the face survives it — the face
-   * is why she is a fairy carrying something rather than a light. */
-  drawSilhouette(r, ctx, "#ffca4d", 0.42, x, fy + size * 0.5, size, size,
+  /* ...and the gold goes ON HER rather than round her: a light wash over the
+   * body, which is what makes her the golden one without turning the air
+   * around her yellow. Weak enough that the face survives it, because the
+   * face is why she is a fairy carrying something and not a lamp. */
+  drawSilhouette(r, ctx, "#ffca4d", 0.3, x, fy + size * 0.5, size, size,
     (b, bx, by) => charById("yhon").draw(b, bx, by, size, size, pose));
 
   // A few grains of gold dust falling off her.
@@ -2156,78 +2303,88 @@ function drawKing(r, ctx, g) {
   /* The aura, under everything he wears.
    *
    * He arrives out of a box in the middle of a bright valley and was, in
-   * colour terms, a large yellow pig — the same gold as his own crown and as
-   * the crown he hands over, in a game where every other palette is already
-   * spoken for. Charlie: "si king yhon dapat may dark violet aura pala."
+   * colour terms, a large yellow pig. Charlie asked for dark violet — and
+   * then, seeing the first pass: "di dapat bilog e pero parang aura tala na
+   * masmoky vibe, hindi bilog na bilog yung dark purple aura pero smoky eme
+   * parang enemy sha. Lagyan din natin siya ng red highlight."
    *
-   * Three parts, and they do different jobs: a dark body of colour that
-   * separates him from the sky, a brighter core that says it is LIGHT rather
-   * than a stain, and a pool on the ground so the aura is standing somewhere
-   * instead of floating. It breathes slowly, and it FLARES when he is hit —
-   * which is the same trick the pinata's glow uses, and for the same reason:
-   * the clearest way to say a blow landed is for the light to move.
+   * He is right, and the reason is worth writing down: a circle is a
+   * CONTAINER. A perfectly round glow says "here is a boundary, and he is
+   * inside it" — which is what a shield says, and a shield is a friendly
+   * thing. Smoke has no boundary; it says the thing in the middle is giving
+   * something off. Same colour, opposite sentence.
+   *
+   * So the shape is a closed path whose radius wanders with three sines at
+   * different rates, drawn three times over at different sizes and speeds so
+   * no two frames have the same silhouette, and the red rides in it as a
+   * separate, smaller, faster lobe — a heat inside the smoke rather than a
+   * second ring around it.
    */
   {
-    const breathe = 0.5 + 0.5 * Math.sin(g.time * 1.9);
     const flare = hurt ? (1 - hitT) * (1 - hitT) : 0;
     const cy = py - h * 0.5;
-    const rad = h * (0.92 + breathe * 0.05 + flare * 0.28);
+    const base = h * (0.82 + flare * 0.22);
 
-    // The pool first, so the body of the aura sits over its near edge.
-    const pool = ctx.createRadialGradient(px, py, 0, px, py, w * 1.15);
-    pool.addColorStop(0, fade(KING.aura, 0.5 + flare * 0.3));
-    pool.addColorStop(1, fade(KING.aura, 0));
-    ctx.save();
-    ctx.translate(px, py);
-    ctx.scale(1, 0.26);                       // an ellipse, lying on the floor
-    ctx.translate(-px, -py);
-    ctx.fillStyle = pool;
-    ctx.beginPath();
-    ctx.arc(px, py, w * 1.15, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-
-    /* Two passes. The soft one alone was a bruise on the sky at any alpha
-     * that did not also swallow him — a radial gradient has no edge, so the
-     * eye reads it as haze rather than as something he is standing in. The
-     * RING is what makes it an aura: a defined boundary, breathing, with the
-     * soft body of colour filling it. */
-    const air = ctx.createRadialGradient(px, cy, rad * 0.18, px, cy, rad);
-    air.addColorStop(0, fade(KING.auraGlow, 0.5 + flare * 0.4));
-    air.addColorStop(0.5, fade(KING.aura, 0.52 + flare * 0.3));
-    air.addColorStop(0.85, fade(KING.aura, 0.3));
-    air.addColorStop(1, fade(KING.aura, 0));
-    ctx.fillStyle = air;
-    ctx.beginPath();
-    ctx.arc(px, cy, rad, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.strokeStyle = fade(KING.auraGlow, 0.5 + flare * 0.45);
-    ctx.lineWidth = Math.max(2, z * (0.05 + flare * 0.06));
-    ctx.beginPath();
-    ctx.arc(px, cy, rad * 0.82, 0, Math.PI * 2);
-    ctx.stroke();
-    // A second, fainter ring turning the other way out of phase, so the
-    // boundary is never a single hard circle sitting still.
-    ctx.strokeStyle = fade(KING.aura, 0.34);
-    ctx.lineWidth = Math.max(1.5, z * 0.03);
-    ctx.beginPath();
-    ctx.arc(px, cy, rad * (0.92 - breathe * 0.06), 0, Math.PI * 2);
-    ctx.stroke();
-
-    /* Embers climbing out of it.
-     *
-     * A still gradient reads as a blur on the lens; something rising out of
-     * it reads as the thing giving it off. Derived from `g.time` and his own
-     * x, so both screens draw the same ones without a byte on the wire. */
-    for (let i = 0; i < 7; i++) {
-      const t = (g.time * 0.45 + i * 0.1428 + a.x * 0.07) % 1;
-      const ex = px + Math.sin(t * 6.1 + i * 2.1) * w * 0.42;
-      const ey = py - t * h * 1.05;
-      ctx.globalAlpha = Math.sin(t * Math.PI) * (0.5 + flare * 0.4);
-      ctx.fillStyle = i % 3 ? KING.auraGlow : "#e6c7ff";
+    /* One wandering blob. `wob` is how far from round it is allowed to get,
+     * `sp` how fast it churns, `seed` keeps the three layers out of step. */
+    const smoke = (cxx, cyy, rad, wob, sp, seed) => {
+      const N = 46;
       ctx.beginPath();
-      ctx.arc(ex, ey, z * (0.07 + 0.04 * Math.sin(t * 9 + i)), 0, Math.PI * 2);
+      for (let i = 0; i <= N; i++) {
+        const th = (i / N) * Math.PI * 2;
+        const wig =
+          Math.sin(th * 3 + g.time * sp + seed) * 0.52 +
+          Math.sin(th * 5 - g.time * sp * 0.7 + seed * 2.3) * 0.31 +
+          Math.sin(th * 2 + g.time * sp * 0.41 + seed * 3.7) * 0.22;
+        const rr = rad * (1 + wob * wig);
+        const x = cxx + Math.cos(th) * rr;
+        const y = cyy + Math.sin(th) * rr * 0.94;
+        if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y);
+      }
+      ctx.closePath();
+    };
+
+    // Three violet layers: wide and faint, middle, and a denser core.
+    const layers = [
+      [1.22, 0.38, 0.55, 0.0, 0.34],
+      [0.98, 0.3, 0.85, 2.1, 0.52],
+      [0.72, 0.22, 1.25, 4.4, 0.66],
+    ];
+    for (const [k, wob, sp, seed, alpha] of layers) {
+      const rad = base * k;
+      const grd = ctx.createRadialGradient(px, cy, rad * 0.15, px, cy, rad);
+      grd.addColorStop(0, fade(KING.auraGlow, (alpha + flare * 0.3) * 0.9));
+      grd.addColorStop(0.55, fade(KING.aura, alpha + flare * 0.25));
+      grd.addColorStop(1, fade(KING.aura, 0));
+      ctx.fillStyle = grd;
+      smoke(px, cy, rad, wob, sp, seed);
+      ctx.fill();
+    }
+
+    /* The red. Low and behind him, churning faster than the violet — it is
+     * the part that says "enemy" rather than "magic", and it only ever shows
+     * through the smoke rather than outlining it. */
+    const rr = base * (0.62 + flare * 0.3);
+    const ry = cy + h * 0.12;
+    const red = ctx.createRadialGradient(px, ry, rr * 0.1, px, ry, rr);
+    red.addColorStop(0, `rgba(255,74,74,${(0.42 + flare * 0.45).toFixed(3)})`);
+    red.addColorStop(0.5, `rgba(198,26,46,${(0.26 + flare * 0.3).toFixed(3)})`);
+    red.addColorStop(1, "rgba(198,26,46,0)");
+    ctx.fillStyle = red;
+    smoke(px, ry, rr, 0.34, 1.9, 1.3);
+    ctx.fill();
+
+    /* Wisps lifting off the top of it, which is what makes it smoke and not
+     * a stain. Derived from his own x so both screens draw the same ones. */
+    for (let i = 0; i < 9; i++) {
+      const t = (g.time * 0.42 + i * 0.111 + a.x * 0.07) % 1;
+      const drift = Math.sin(t * 5.2 + i * 2.1) * w * 0.5;
+      const ex = px + drift;
+      const ey = py - t * h * 1.3;
+      const grow = 0.6 + t * 1.6;
+      ctx.globalAlpha = Math.sin(t * Math.PI) * (0.52 + flare * 0.3);
+      ctx.fillStyle = i % 4 === 0 ? "#ff5a6e" : KING.aura;
+      smoke(ex, ey, z * 0.2 * grow, 0.45, 2.4, i * 1.7);
       ctx.fill();
     }
     ctx.globalAlpha = 1;
@@ -2541,23 +2698,84 @@ function drawRoyalty(r, ctx, g, a, px, py, left) {
 }
 
 /** A boss health bar: big pips, not the player's small hearts. */
+/* The boss's own bar. Same language as the players' — see drawHearts — and
+ * deliberately louder than theirs.
+ *
+ * It stays over his head rather than becoming a banner at the top of the
+ * screen: the thing you are judging is how close HE is to going down while
+ * you decide whether to stand next to him, and that judgement belongs where
+ * he is. Charlie: "actually yung hp sa taas niya na rin pero emphasize natin
+ * since diba babaguhin nanatin yung hp."
+ *
+ * What makes it his and not a player's: a name over it, a red frame, three
+ * fat segments instead of nine thin ones, and a pulse that gets faster as it
+ * empties.
+ */
 function drawBossHearts(r, ctx, cx, cy, hp, max, z) {
-  // Half again the size of a player's. He is the only thing on screen with a
-  // health bar that matters to both of them at once, and it has to be
-  // readable from wherever either of them happens to be standing.
-  const s = z * 0.26;
-  const gap = s * 2.5;
-  const total = (max - 1) * gap;
+  const W = z * 3.4;
+  const H = z * 0.34;
+  const skew = H * 0.55;
+  const gap = Math.max(2, W * 0.016);
+  const seg = (W - gap * (max - 1)) / max;
+  const x0 = cx - W / 2;
+  const top = cy - H / 2;
+
+  const path = (i, frac) => {
+    const L = x0 + i * (seg + gap);
+    const R = L + seg * Math.max(0, Math.min(1, frac));
+    ctx.beginPath();
+    ctx.moveTo(L + skew, top);
+    ctx.lineTo(R + skew, top);
+    ctx.lineTo(R, top + H);
+    ctx.lineTo(L, top + H);
+    ctx.closePath();
+  };
+
+  ctx.save();
+  // The name, small and spaced, so there is no doubt whose bar this is.
+  ctx.font = `700 ${Math.max(8, z * 0.19).toFixed(1)}px "Nunito", system-ui, sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "bottom";
+  ctx.lineWidth = Math.max(2, z * 0.05);
+  ctx.strokeStyle = "rgba(255,255,255,0.95)";
+  ctx.strokeText("KING YHON YHON", cx, top - z * 0.1);
+  ctx.fillStyle = "#3a1050";
+  ctx.fillText("KING YHON YHON", cx, top - z * 0.1);
+
   for (let i = 0; i < max; i++) {
-    const x = cx - total / 2 + i * gap;
-    const full = i < hp;
-    heartPath(ctx, x, cy, s);
-    ctx.fillStyle = full ? "#ff4d6d" : "rgba(255,255,255,0.45)";
+    path(i, 1);
+    ctx.fillStyle = "rgba(38,12,54,0.55)";
     ctx.fill();
-    ctx.lineWidth = Math.max(1.4, z * 0.04);
-    ctx.strokeStyle = full ? "rgba(255,255,255,0.95)" : "rgba(92,128,158,0.7)";
+    ctx.lineWidth = Math.max(1.4, z * 0.03);
+    ctx.strokeStyle = "rgba(255,255,255,0.95)";
     ctx.stroke();
+
+    if (i >= hp) continue;
+    ctx.save();
+    path(i, 1);
+    ctx.clip();
+    const grd = ctx.createLinearGradient(0, top, 0, top + H);
+    grd.addColorStop(0, "#ff7a6a");
+    grd.addColorStop(0.55, "#e01f3d");
+    grd.addColorStop(1, "#8a0b33");
+    ctx.fillStyle = grd;
+    ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,0.28)";
+    ctx.fillRect(x0 - W, top, W * 3, H * 0.3);
+    ctx.restore();
   }
+
+  // Down to his last: the whole frame pulses red, faster the lower it gets.
+  if (hp > 0 && hp <= 1) {
+    const beat = 0.5 + 0.5 * Math.sin(r.cam.t0 ? 0 : performance.now() / 90);
+    ctx.globalAlpha = 0.25 + beat * 0.45;
+    ctx.strokeStyle = "#ff3355";
+    ctx.lineWidth = Math.max(2, z * 0.06);
+    path(0, 1);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+  ctx.restore();
 }
 
 function drawPops(r, ctx, g) {
@@ -3071,6 +3289,265 @@ function drawMinis(r, ctx, g) {
   }
 }
 
+/** One glove. Its own function because the punch THROWS one — see drawPunch. */
+function gloveArt(ctx, gx, gy, rad, face, z) {
+  const def = POWERUPS.suntok;
+  // A mitt, a white cuff, and a knuckle line so it is not just a ball.
+  ctx.fillStyle = def.colour;
+  ctx.strokeStyle = "rgba(255,255,255,0.92)";
+  ctx.lineWidth = Math.max(1.4, z * 0.03);
+  ctx.beginPath();
+  ctx.ellipse(gx, gy, rad * 1.05, rad, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = "rgba(255,255,255,0.9)";
+  ctx.beginPath();
+  ctx.ellipse(gx - face * rad * 0.7, gy + rad * 0.2, rad * 0.4, rad * 0.55,
+              0, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = "rgba(120,30,20,0.5)";
+  ctx.lineWidth = Math.max(1, z * 0.018);
+  ctx.beginPath();
+  ctx.moveTo(gx + face * rad * 0.15, gy - rad * 0.5);
+  ctx.lineTo(gx + face * rad * 0.15, gy + rad * 0.5);
+  ctx.stroke();
+}
+
+/**
+ * The gloves, worn for as long as you are holding a One Punch.
+ *
+ * You could not tell by looking. The fist is the single most decisive thing
+ * anyone can be carrying — one input and the round is over — and until it was
+ * thrown the player holding it looked exactly like the player who was not, so
+ * the other one had no reason to change what they were doing. That is a
+ * warning the game owed them. Charlie: "dapat may hawak na gloves yung
+ * character pag may one punch man sha. Para nakikita na hala meron pala siya,
+ * and its glowing para nakakatakot."
+ *
+ * Two of them, riding the walk out of phase with each other, with the light
+ * pulsing — it is meant to be read across the arena, not admired up close.
+ */
+function drawGloves(r, ctx, g, a) {
+  if (a.dead || !a.power || a.power.type !== "suntok") return;
+  // Mid-punch the fist has its own drawing, and two of them fighting over the
+  // same hand is worse than neither.
+  if (a.punch && punchPhaseAt(g.time, a.punch)) return;
+
+  const def = POWERUPS.suntok;
+  const z = r.cam.zoom;
+  const px = toX(r, a.x);
+  const py = toY(r, a.y);
+  const face = a.face || 1;
+  const beat = 0.5 + 0.5 * Math.sin(g.time * 5.2);
+  const swing = Math.sin((a.walk || 0) * 2) * a.w * z * 0.16;
+
+  ctx.save();
+  for (const side of [-1, 1]) {
+    // Front hand leads, back hand trails: the same offset the legs use.
+    const gx = px + face * a.w * z * 1.25 * 0.4 * side + (side > 0 ? swing : -swing);
+    // Hand height, the same as every other thing anyone holds — off the
+    // sprite, not the hitbox.
+    const gy = py - a.h * z * 1.32 * (0.3 + (side > 0 ? 0.03 : -0.015))
+               + Math.sin(g.time * 3 + side) * z * 0.02;
+    const rad = z * 0.115;
+
+    // The light first, and it is the loud part.
+    const glow = ctx.createRadialGradient(gx, gy, 0, gx, gy, rad * (3.1 + beat * 0.7));
+    glow.addColorStop(0, `rgba(255,140,110,${(0.6 + beat * 0.3).toFixed(3)})`);
+    glow.addColorStop(0.45, `rgba(255,90,70,${(0.26 + beat * 0.14).toFixed(3)})`);
+    glow.addColorStop(1, "rgba(255,90,70,0)");
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(gx, gy, rad * (3.1 + beat * 0.7), 0, Math.PI * 2);
+    ctx.fill();
+
+    gloveArt(ctx, gx, gy, rad, face, z);
+
+    // An ember or two lifting off, because a still glow is a sticker.
+    const k = (g.time * 0.8 + (side > 0 ? 0 : 0.5)) % 1;
+    ctx.globalAlpha = Math.sin(k * Math.PI) * 0.75;
+    ctx.fillStyle = "#ffd27a";
+    ctx.beginPath();
+    ctx.arc(gx + Math.sin(k * 6 + side) * rad * 0.9, gy - k * z * 0.5,
+            z * 0.035 * (1 - k), 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+}
+
+/** punchPhase, for the renderer — it has no G to read the clock from. */
+function punchPhaseAt(now, punch) {
+  const def = POWERUPS.suntok;
+  const t = (now - punch.at) * 1000;
+  if (t < def.windupMs + def.activeMs) return true;
+  return false;
+}
+
+/**
+ * Excalibur — held, and swung.
+ *
+ * Two jobs and they matter differently. The HELD sword is what tells the
+ * other player what you are carrying from across the arena, before anything
+ * has happened; the SWING is a shape that has to be read in a sixth of a
+ * second, so it is one bright crescent rather than a picture of a blade in
+ * motion. A drawn sword rotating accurately through an arc is, at forty
+ * pixels, a grey smear — the crescent is the arc itself, which is the part
+ * you are meant to judge distance against.
+ */
+function drawSword(r, ctx, g, a) {
+  if (a.dead) return;
+  const holding = a.power && a.power.type === "espada";
+  const ph = a.swing ? swingPhaseAt(g.time, a.swing) : null;
+  if (!holding && !ph) return;
+
+  const def = POWERUPS.espada;
+  const z = r.cam.zoom;
+  const px = toX(r, a.x);
+  const py = toY(r, a.y);
+  const midY = py - a.h * z * 0.55;
+
+  if (ph && ph.state === "out") {
+    const face = a.swing.face;
+    const k = ph.t;                      // 0..1 through the dangerous part
+    const fade = 1 - k;
+    // Over the top, or up from below — trySwing alternates them.
+    const from = a.swing.up ? 1.15 : -1.15;
+    const to = a.swing.up ? -0.95 : 0.95;
+    const ang = from + (to - from) * k;
+    const R = def.reach * z * 0.92;
+
+    ctx.save();
+    ctx.translate(px, midY);
+    ctx.scale(face, 1);
+
+    /* The sweep: a filled wedge between where the blade was and where it is,
+     * which is the only honest way to draw "everything in here was cut". */
+    const back = from + (to - from) * Math.max(0, k - 0.42);
+    const grd = ctx.createRadialGradient(0, 0, R * 0.25, 0, 0, R);
+    grd.addColorStop(0, `rgba(255,255,255,${(0.05 * fade).toFixed(3)})`);
+    grd.addColorStop(0.72, `rgba(127,227,255,${(0.34 * fade).toFixed(3)})`);
+    grd.addColorStop(1, `rgba(233,250,255,${(0.8 * fade).toFixed(3)})`);
+    ctx.fillStyle = grd;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.arc(0, 0, R, Math.min(ang, back), Math.max(ang, back));
+    ctx.closePath();
+    ctx.fill();
+
+    // The leading edge, white-hot — and it is the thing you actually read the
+    // swing by, so it is a band rather than a line. "yung range ok na yung
+    // itsura lang pati slash mas mukhang makapal pls."
+    ctx.strokeStyle = `rgba(255,255,255,${(0.95 * fade).toFixed(3)})`;
+    ctx.lineWidth = Math.max(4, z * 0.17);
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.arc(0, 0, R * 0.96, ang - 0.2, ang + 0.2);
+    ctx.stroke();
+    ctx.strokeStyle = `rgba(127,227,255,${(0.6 * fade).toFixed(3)})`;
+    ctx.lineWidth = Math.max(6, z * 0.28);
+    ctx.beginPath();
+    ctx.arc(0, 0, R * 0.9, ang - 0.34, ang + 0.34);
+    ctx.stroke();
+
+    // ...and the blade itself, on that edge, so there is a sword in the sweep
+    // rather than only a light.
+    ctx.save();
+    ctx.rotate(ang);
+    ctx.fillStyle = "#eaf9ff";
+    ctx.strokeStyle = "rgba(90,150,180,0.75)";
+    ctx.lineWidth = Math.max(1, z * 0.018);
+    // A broad blade. At z*0.055 it was a needle — "ang nipis ng excalibur".
+    ctx.beginPath();
+    ctx.moveTo(R * 0.2, -z * 0.14);
+    ctx.lineTo(R * 0.92, -z * 0.085);
+    ctx.lineTo(R, 0);
+    ctx.lineTo(R * 0.92, z * 0.085);
+    ctx.lineTo(R * 0.2, z * 0.14);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = "#ffd86b";
+    ctx.fillRect(R * 0.1, -z * 0.2, z * 0.075, z * 0.4);      // crossguard
+    ctx.restore();
+    ctx.restore();
+
+    // It BIT something: a clean flash at the point of contact.
+    if (a.swing.hit && a.swing.landAt != null) {
+      const bt = (g.time - a.swing.landAt) / 0.22;
+      if (bt >= 0 && bt < 1) {
+        ctx.save();
+        ctx.globalAlpha = 1 - bt;
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = Math.max(2, z * 0.06 * (1 - bt));
+        const hx = px + face * def.reach * z * 0.5;
+        for (const d of [-1, 1]) {
+          ctx.beginPath();
+          ctx.moveTo(hx - face * z * 0.5, midY + d * z * 0.5 * (1 + bt));
+          ctx.lineTo(hx + face * z * 0.5, midY - d * z * 0.5 * (1 + bt));
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+    }
+    return;
+  }
+
+  /* Resting: carried point-up beside the shoulder, bobbing with the walk.
+   * This is the half that does the work between swings — a player holding a
+   * sword has to look like one from the other side of the arena. */
+  const s = z * 0.34;
+  // The same hand the gun is in — see the weapon block in drawActor, and the
+  // same sprite-derived numbers.
+  const hx = px + (a.face || 1) * a.w * z * 1.25 * 0.4;
+  const hy = py - a.h * z * 1.32 * 0.3 + Math.sin(g.time * 2.4 + a.x) * z * 0.03;
+  ctx.save();
+  ctx.translate(hx, hy);
+  ctx.rotate((a.face || 1) * -0.25);
+  // A little light off it, so it reads as Excalibur rather than a stick.
+  const glow = ctx.createRadialGradient(0, -s * 0.6, 0, 0, -s * 0.6, s * 1.5);
+  glow.addColorStop(0, "rgba(127,227,255,0.45)");
+  glow.addColorStop(1, "rgba(127,227,255,0)");
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(0, -s * 0.6, s * 1.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = "#eaf9ff";
+  ctx.strokeStyle = "rgba(90,150,180,0.8)";
+  ctx.lineWidth = Math.max(1, z * 0.016);
+  ctx.beginPath();
+  ctx.moveTo(0, -s * 1.5);
+  ctx.lineTo(s * 0.3, -s * 1.12);
+  ctx.lineTo(s * 0.3, -s * 0.2);
+  ctx.lineTo(-s * 0.3, -s * 0.2);
+  ctx.lineTo(-s * 0.3, -s * 1.12);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = "#ffd86b";
+  ctx.fillRect(-s * 0.56, -s * 0.26, s * 1.12, s * 0.17);     // crossguard
+  ctx.fillStyle = "#b9752f";
+  ctx.fillRect(-s * 0.12, -s * 0.12, s * 0.24, s * 0.4);      // grip
+  ctx.fillStyle = "#ffd86b";
+  ctx.beginPath();
+  ctx.arc(0, s * 0.34, s * 0.15, 0, Math.PI * 2);             // pommel
+  ctx.fill();
+  ctx.restore();
+}
+
+/** The rules' own swingPhase, for the renderer — it has no G to read. */
+function swingPhaseAt(now, swing) {
+  const def = POWERUPS.espada;
+  const t = (now - swing.at) * 1000;
+  if (t < def.windupMs) return { state: "wind", t: t / def.windupMs };
+  if (t < def.windupMs + def.activeMs)
+    return { state: "out", t: (t - def.windupMs) / def.activeMs };
+  return null;
+}
+
 /**
  * The fist.
  *
@@ -3102,29 +3579,59 @@ function drawPunch(r, ctx, g, a) {
 
   ctx.save();
 
-  // The blast the fist actually carries. Drawn while the punch is live so you
-  // can SEE the reach you are aiming with — the hitbox used to be invisible
-  // and the size of a fist, so a miss never explained itself.
-  if (live) {
-    const t = Math.min(1, (ms - def.windupMs) / def.activeMs);
-    const rad = z * def.blastRadius * (0.45 + t * 0.55);
-    ctx.save();
-    ctx.globalAlpha = (1 - t) * 0.3;
-    const wave = ctx.createRadialGradient(px, py, rad * 0.35, px, py, rad);
-    wave.addColorStop(0, "rgba(255,255,255,0)");
-    wave.addColorStop(0.72, `${def.colour}`);
-    wave.addColorStop(1, "rgba(255,120,80,0)");
-    ctx.fillStyle = wave;
-    ctx.beginPath();
-    ctx.arc(px, py, rad, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.globalAlpha = (1 - t) * 0.85;
-    ctx.strokeStyle = "rgba(255,240,220,0.9)";
-    ctx.lineWidth = Math.max(1.5, z * 0.045 * (1 - t));
-    ctx.beginPath();
-    ctx.arc(px, py, rad, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.restore();
+  /* The punch itself is a GLOVE thrown down the lane.
+   *
+   * It was a red ring swelling outward, which had a job — the hitbox is
+   * invisible and the size of a fist, so a miss never explained itself — and
+   * did it by putting an abstract shape on screen that belonged to nothing.
+   * The glove does the same job and is a thing: you can see it leave, you
+   * can see how far it went, and on a miss you watch it sail past and drop.
+   * Charlie: "when one punch man miss, and didnt hit, can we instead of the
+   * circle red that goes to the missed direction, the gloves being thrown at."
+   *
+   * On a MISS it keeps going past the end of the swing and falls away, which
+   * is the whole of the feedback: the reach was real and it was short.
+   */
+  {
+    const face = a.punch.face;
+    const t = (ms - def.windupMs) / def.activeMs;     // 1 at the end of reach
+    const missing = !a.punch.hit;
+    // Past 1 it is only drawn on a miss, and only for a moment.
+    const show = live || (missing && t >= 0 && t < 2.1);
+    if (show && t >= 0) {
+      const flight = Math.min(t, 1) + Math.max(0, t - 1) * 0.55;
+      const gx = toX(r, a.x + face * (a.w / 2 + 0.2 + def.reach * flight * 0.95));
+      const gy = py + Math.max(0, t - 1) * Math.max(0, t - 1) * z * 1.5;  // it drops
+      const fade = t <= 1 ? 1 : Math.max(0, 1 - (t - 1) / 1.1);
+      const rad = z * 0.135;
+
+      ctx.save();
+      ctx.globalAlpha = fade;
+      // Three ghosts behind it, which is the reach drawn as a path.
+      for (let i = 3; i >= 1; i--) {
+        const back = Math.max(0, flight - i * 0.16);
+        const bxp = toX(r, a.x + face * (a.w / 2 + 0.2 + def.reach * back * 0.95));
+        ctx.globalAlpha = fade * (0.1 + (3 - i) * 0.09);
+        gloveArt(ctx, bxp, py, rad * (0.7 + i * 0.05), face, z);
+      }
+      ctx.globalAlpha = fade;
+      // Heat off it, so it is plainly the dangerous thing in the air.
+      const heat = ctx.createRadialGradient(gx, gy, 0, gx, gy, rad * 2.6);
+      heat.addColorStop(0, "rgba(255,150,110,0.55)");
+      heat.addColorStop(1, "rgba(255,110,80,0)");
+      ctx.fillStyle = heat;
+      ctx.beginPath();
+      ctx.arc(gx, gy, rad * 2.6, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.save();
+      ctx.translate(gx, gy);
+      // It tumbles once it is past the end of the arm.
+      ctx.rotate(Math.max(0, t - 0.9) * face * 7);
+      gloveArt(ctx, 0, 0, rad, face, z);
+      ctx.restore();
+      ctx.restore();
+    }
   }
 
   // The bigger ring that fires on a CONNECTION, outliving the swing itself.
@@ -3975,95 +4482,185 @@ function heartPath(ctx, x, y, s) {
  * where you are looking — your eyes are on your own character. Here it costs
  * nothing to read, and you can see the other one's health at the same time.
  */
+/* The health bar over a character's head.
+ *
+ * It was a row of hearts, wrapping to three rows once the Big Heart could put
+ * you on nine — which is a lot of small red shapes over a small animal, and
+ * at nine it was a wall of them. Charlie: "lets make it a progress bar with
+ * cut diagonally. di na heart. tapos pag nababawasan, alam mo yung idea na
+ * magwwhite muna yung nabawasan na part tapos magiign transparent."
+ *
+ * So: one bar, cut into slanted segments, one per heart. The diagonal is not
+ * decoration — it is what lets nine segments sit in the width of a character
+ * and still be countable, because a slanted gap reads as a division at a size
+ * where a vertical one reads as an artefact.
+ *
+ * WHAT WAS JUST LOST goes white and then fades out of it, which is the part
+ * that carries the hit: a bar that simply gets shorter tells you the number
+ * afterwards, and a bar that flashes the piece it lost tells you what
+ * happened. The memory of it is kept here rather than sent — every screen
+ * watches the same hp fall, so every screen can see the same piece go.
+ */
 function drawHearts(r, ctx, g, a, cx, cy) {
   const z = r.cam.zoom;
-  // The bar grows only when you are carrying spares. Drawing all five slots
-  // all the time would mean a healthy player permanently looks two down.
+  // Only as many slots as you have earned: a healthy player should not look
+  // permanently six down because nine is possible.
   const max = Math.max(FEEL.hp, Math.ceil(a.hp));
-  const s = z * 0.19;
-  const gap = s * 2.65;
-  // Just hit: the hearts jump so the loss is noticed.
-  const hurt = a.invulnUntil && g.time < a.invulnUntil;
-  const kick = hurt ? 1 + 0.22 * Math.abs(Math.sin(g.time * 18)) : 1;
 
-  /* Two rows: the three you start with, and the spares UNDER them.
-   *
-   * One row that simply grew put a five-heart bar wider than the character it
-   * belongs to, hanging off one side — and with the fairy riding the other
-   * shoulder there was nowhere for it to go. Rows of three stay the width of
-   * the body however well the round is going, and the gold ones read as
-   * something extra rather than as more of the same. The card in the panel
-   * does exactly this, for the same reason. */
-  /* Rows of three, however many there are.
-   *
-   * This was hardcoded as exactly two — the three you start with and every
-   * spare in one row under them. That held while the ceiling was six. The
-   * Big Heart puts you on NINE, and six hearts in one row is a bar wider than
-   * the arena is tall, hanging off both sides of a character who is two
-   * tiles across. Three per row, as many rows as it takes. */
-  const rows = [];
-  for (let left = max; left > 0; left -= FEEL.hp) rows.push(Math.min(FEEL.hp, left));
-  const rowGap = s * 2.5;
-  /* The whole block is LIFTED when there are two rows, so the bottom one
-   * stays where the single row always sat. Growing downward instead would
-   * walk the gold hearts straight onto the character's head — which is the
-   * one thing over-head hearts must never do, because the head is what you
-   * are actually looking at. */
-  const lift = (rows.length - 1) * rowGap;
-  for (let row = 0, i = 0; row < rows.length; row++) {
-    const n = rows[row];
-    if (!n) continue;
-    const total = (n - 1) * gap;
-    const y = cy - lift + row * rowGap;
-    for (let k = 0; k < n; k++, i++) drawOneHeart(i, cx - total / 2 + k * gap, y);
-  }
+  /* The ghost of the last hit. Renderer-local, per actor. */
+  const mem = (r.hpMem || (r.hpMem = {}));
+  const was = mem[a.id];
+  if (!was || was.hp === undefined) mem[a.id] = { hp: a.hp, lostFrom: 0, lostTo: 0, at: -9 };
+  else if (a.hp < was.hp) mem[a.id] = { hp: a.hp, lostFrom: a.hp, lostTo: was.hp, at: g.time };
+  else if (a.hp > was.hp) mem[a.id] = { hp: a.hp, lostFrom: 0, lostTo: 0, at: -9 };
+  const m = mem[a.id];
+  /* The white HOLDS, then goes. A straight fade from the first frame means
+   * the brightest moment is one frame long and the eye misses it; this one is
+   * fully white for the first 45% of the window and only then transparent. */
+  const GHOST = 0.72;
+  const ghostAge = g.time - m.at;
+  const raw = ghostAge >= 0 && ghostAge < GHOST ? 1 - ghostAge / GHOST : 0;
+  const ghosting = raw <= 0 ? 0 : Math.min(1, raw / 0.55);
 
-  function drawOneHeart(i, x, cy) {
-    /* How much of THIS heart is left, 0 to 1.
-     *
-     * It used to be the boolean `i < a.hp`, which was right while damage
-     * came in whole hearts. The mini squad takes half now, and under the old
-     * test 2.5 health drew as three full hearts — the hit simply did not
-     * appear, which is the worst possible way for a nerf to land. */
-    const fill = Math.max(0, Math.min(1, a.hp - i));
-    const full = fill >= 1;
-    // Anything past the three you start with is a spare, and is gold — so a
-    // glance says "she has one in hand" rather than just "she is fine".
-    const bonus = i >= FEEL.hp;
-    const sz = s * (full ? kick : 1);
-    ctx.save();
-    if (bonus) {
-      ctx.shadowColor = "rgba(255,196,60,0.9)";
-      ctx.shadowBlur = z * 0.22;
-    }
-    // The empty shell first, then however much of it is still there clipped
-    // over the top — a half heart is the left half coloured in, the way every
-    // game that has ever had one draws it.
-    heartPath(ctx, x, cy, sz);
-    ctx.fillStyle = "rgba(255,255,255,0.5)";
+  // Bigger than the first pass at it — "lets make character hp larger" — and
+  // still tied to the body it belongs to.
+  const W = Math.max(z * 1.15, a.w * z * 1.6);
+  const H = z * 0.24;
+  const skew = H * 0.62;                     // how far the cut leans
+  const gap = Math.max(1.5, W * 0.016);
+  const seg = (W - gap * (max - 1)) / max;
+  const x0 = cx - W / 2;
+  const top = cy - H / 2;
+
+  /* Just hit: the bar SWELLS and settles.
+   *
+   * Not a vibration — a single clean grow-and-return, on the same clock as
+   * the white flash, so the three beats read in order: it gets bigger, the
+   * piece you lost is unmistakably white, then that piece goes. Charlie:
+   * "medyo empasize mo pag hit yung hp bar, parang lalaki siya animation, it
+   * will be bigger for a bit tapos kitang kita yung white for a sec tapos
+   * magdidisappear magiging transparent." */
+  const swell = ghosting > 0 ? Math.sin(Math.min(1, ghostAge / GHOST) * Math.PI) : 0;
+  const kick = 1 + swell * 0.34;
+
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(kick, kick);
+  ctx.translate(-cx, -cy);
+
+  /* One segment, as a path — slanted in the middle, SQUARE at the two ends.
+   *
+   * The whole bar is a rectangle and only the divisions between the hearts
+   * lean: "tbh i want it rectangle pa rin pero diagonal cuts yung pagkakahati
+   * ng hp's." That is the right call and it is not the same shape at all — a
+   * bar made of parallelograms has two sloping ends and reads as a torn strip
+   * of paper, where a rectangle cut diagonally reads as a gauge that somebody
+   * divided up.
+   *
+   * So the lean is dropped on whichever edge is the outside of the bar. */
+  const seg_path = (i, frac) => {
+    const f = Math.max(0, Math.min(1, frac));
+    const L = x0 + i * (seg + gap);
+    const R = L + seg * f;
+    const lLean = i === 0 ? 0 : skew;                    // flat left end
+    const rLean = i === max - 1 && f >= 1 ? 0 : skew;    // flat right end
+    ctx.beginPath();
+    ctx.moveTo(L + lLean, top);
+    ctx.lineTo(R + rLean, top);
+    ctx.lineTo(R, top + H);
+    ctx.lineTo(L, top + H);
+    ctx.closePath();
+  };
+
+  /* One white frame round the WHOLE bar, under the segments.
+   *
+   * Stroking each segment gave it an edge everywhere including down the
+   * middle, which at speed reads as a fence rather than as a bar. This is the
+   * outline: a single rounded rectangle, fat, so the thing holds against sky,
+   * hill and treeline the way every other small object in this game does.
+   * "lets make character hp larger and have a white outline." */
+  ctx.beginPath();
+  const pad = Math.max(2.5, z * 0.042);
+  ctx.roundRect(x0 - pad, top - pad, W + pad * 2, H + pad * 2, (H + pad * 2) * 0.28);
+  ctx.strokeStyle = "rgba(255,255,255,0.96)";
+  ctx.lineWidth = pad * 2;
+  ctx.stroke();
+  ctx.fillStyle = "rgba(26,38,52,0.38)";
+  ctx.fill();
+
+  for (let i = 0; i < max; i++) {
+    // The empty channel, so the bar has a length to read against.
+    seg_path(i, 1);
+    ctx.fillStyle = "rgba(26,38,52,0.3)";
     ctx.fill();
-    if (fill > 0) {
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(x - sz * 1.6, cy - sz * 1.6, sz * 3.2 * fill, sz * 3.2);
-      ctx.clip();
-      heartPath(ctx, x, cy, sz);
-      // Flat fill, thin white edge. A gradient and a shine on something this
-      // small just reads as noise, and a dark outline turns it muddy.
-      ctx.fillStyle = bonus ? "#ffc43c" : "#ff4d6d";
-      ctx.fill();
-      ctx.restore();
+
+    /* The piece that has just gone: white first, then out.
+     *
+     * Drawn under the live fill so a half-heart loss shows the half that
+     * went beside the half that is left, rather than over it. */
+    if (ghosting > 0) {
+      const gf = Math.max(0, Math.min(1, m.lostTo - i));
+      const lf = Math.max(0, Math.min(1, m.lostFrom - i));
+      if (gf > lf) {
+        ctx.save();
+        seg_path(i, gf);
+        ctx.clip();
+        seg_path(i, 1);
+        ctx.fillStyle = `rgba(255,255,255,${(0.95 * ghosting).toFixed(3)})`;
+        ctx.fill();
+        ctx.restore();
+      }
     }
-    heartPath(ctx, x, cy, sz);
-    ctx.lineWidth = Math.max(1.2, z * 0.035);
-    // An empty heart outlined in white disappears the moment it drifts over a
-    // cloud, so it gets a cool edge instead; a full one is red enough to keep
-    // the white.
-    ctx.strokeStyle = fill > 0 ? "rgba(255,255,255,0.9)" : "rgba(92,128,158,0.65)";
-    ctx.shadowBlur = 0;
-    ctx.stroke();
+
+    const fill = Math.max(0, Math.min(1, a.hp - i));
+    if (fill <= 0) continue;
+    /* The three you start with are red; everything past them is gold.
+     *
+     * Same rule the hearts had, and it is worth keeping: a spare heart is a
+     * thing you went and got, and it should not look like the ones you were
+     * given. */
+    const spare = i >= FEEL.hp;
+    ctx.save();
+    seg_path(i, fill);
+    ctx.clip();
+    seg_path(i, 1);
+    const grd = ctx.createLinearGradient(0, top, 0, top + H);
+    if (spare) {
+      grd.addColorStop(0, "#ffe9a8");
+      grd.addColorStop(1, "#f5b43a");
+    } else {
+      grd.addColorStop(0, "#ff8fa6");
+      grd.addColorStop(1, "#e8324f");
+    }
+    ctx.fillStyle = grd;
+    ctx.fill();
+    // A sheen along the top, so it reads as a bar and not a sticker.
+    ctx.fillStyle = "rgba(255,255,255,0.3)";
+    ctx.fillRect(x0 - W, top, W * 3, H * 0.34);
     ctx.restore();
   }
+
+  /* The cuts, in white, drawn LAST.
+   *
+   * The divisions used to be the dark channel showing between segments, which
+   * reads as a gap in the bar rather than as a division of it — and inside a
+   * white frame it looked like the bar had holes punched in it. Charlie:
+   * "even yung hp diagonal cuts should be white outline."
+   *
+   * After the fills, not before: a line drawn first is simply painted over by
+   * the segment beside it. */
+  ctx.beginPath();
+  for (let i = 1; i < max; i++) {
+    const L = x0 + i * (seg + gap) - gap * 0.5;
+    ctx.moveTo(L + skew, top);
+    ctx.lineTo(L, top + H);
+  }
+  ctx.strokeStyle = "rgba(255,255,255,0.96)";
+  ctx.lineWidth = Math.max(2.5, gap * 2.6);
+  ctx.lineCap = "butt";
+  ctx.stroke();
+
+  ctx.restore();
 }
 
 /* How long the knocked-out body stays on screen, in game seconds.
@@ -4265,7 +4862,7 @@ function drawActor(r, ctx, g, a) {
    * the power-up is that the other player can see exactly how long they have
    * to stay away, and a bubble with no clock on it is just a bubble.
    */
-  if (a.power && a.power.type === "kalasag") {
+  if (a.shieldUntil && g.time < a.shieldUntil) {
     /* An energy shield, and it has to SHOUT.
      *
      * The first one was a pale glass bubble with a thin ring on it, and at
@@ -4281,7 +4878,7 @@ function drawActor(r, ctx, g, a) {
      * rather than a hairline. It also breathes.
      */
     const def = POWERUPS.kalasag;
-    const left = Math.max(0, a.power.until - g.time);
+    const left = Math.max(0, a.shieldUntil - g.time);
     const frac = Math.max(0, Math.min(1, left / (def.ms / 1000)));
     /* A CIRCLE, and a wide one.
      *
@@ -4591,11 +5188,12 @@ function drawActor(r, ctx, g, a) {
     // still had to read, which way they were facing, went with it.
     const rev = a.reversedUntil && g.time < a.reversedUntil;
     let colour = mine;
-    // Thicker than it began. At the distance the two of them actually sit
-    // from the screen a four-hundredth-of-a-tile rim reads as an anti-alias
-    // artefact rather than as "this one is mine". Charlie, twice, with a
-    // close-up of each character: "medyo kapalan pa outline ng onti."
-    let thick = z * 0.062;
+    // Thicker than it began, twice over. At the distance the two of them
+    // actually sit from the screen a hairline rim reads as an anti-alias
+    // artefact rather than as "this one is mine". Charlie, three times now,
+    // each with a close-up: "medyo kapalan pa outline ng onti", then
+    // "kapalan pa natin ng konti yung outline sa characters"."
+    let thick = z * 0.082;
     if (rev) {
       const left = a.reversedUntil - g.time;
       if (left < 1.4) {
@@ -4618,7 +5216,10 @@ function drawActor(r, ctx, g, a) {
 
   if (starred) {
     // Cycle the whole character through the spectrum, faster as it runs out.
-    const left = a.power.until - g.time;
+    // `?? Infinity` because `starred` is true for the CROWN too, and the
+    // crown is not in the power slot — see drawRoyalPool below for what
+    // reading it there cost.
+    const left = (a.power ? a.power.until : Infinity) - g.time;
     const speed = left < 2.5 ? 900 : 480;
     const hue = (g.time * speed) % 360;
 
@@ -4694,17 +5295,37 @@ function drawActor(r, ctx, g, a) {
      * still looks like the player. */
     drawCape(ctx, px, py, cw, chh, z, a.face, g.time);
     // The pool on the floor goes here, under everything of theirs.
-    drawRoyalPool(ctx, px, py, cw, chh,
-      (a.power.until === Infinity ? 99 : a.power.until - g.time) < 1.5
-        ? 0.35 + 0.35 * Math.abs(Math.sin(g.time * 16)) : 1);
+    /* Full strength, always.
+     *
+     * This read `a.power.until` to fade the pool out in the crown's last
+     * second — and the crown moved OUT of the power slot, so a crowned player
+     * holding nothing has `a.power === null` and this threw a TypeError on
+     * every frame. `layer()` swallows it, which means everything after this
+     * line was skipped: the character itself was never drawn, and what was
+     * left on screen was the owner's colour rim with a cape and a crown and
+     * nothing inside it. Charlie: "ano to bug, bat naging ganto si king
+     * yhon."
+     *
+     * There is no deadline left to fade towards — the crown lasts until you
+     * fall off the map — so the argument is simply 1. */
+    drawRoyalPool(ctx, px, py, cw, chh, 1);
 
     // The glow, behind: the same silhouette a size up, added to whatever is
     // there, so the light spills onto the arena rather than onto the sprite.
+    /* The glow, behind: the same silhouette a size up, added to whatever is
+     * there, so the light spills onto the arena rather than onto the sprite.
+     *
+     * Two passes, and it went back to two after a one-pass version: the
+     * single gradient pass saved 0.2ms — which was nothing — and came out a
+     * pale cream fog a size and a half bigger than the character, with the
+     * ears showing through it. "ang weird ng king yhon character for some
+     * reason... di siya maganda tignan." A rim of gold and a rim of pale
+     * gold, tight to the body, is what this is supposed to be. */
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
     const pulse = 0.42 + 0.12 * Math.sin(g.time * 6);
-    for (const [grow, alpha, col] of [[1.26, pulse * 0.55, "#ffb43a"],
-                                      [1.1, pulse, "#ffe9a8"]]) {
+    for (const [grow, alpha, col] of [[1.16, pulse * 0.5, "#ffb43a"],
+                                      [1.06, pulse * 0.8, "#ffe9a8"]]) {
       drawSilhouette(r, ctx, col, alpha, px, py, cw * grow, chh * grow,
         (b2, bx, by) => charById(a.char).draw(b2, bx, by, cw * grow, chh * grow, poseOf(a)));
     }
@@ -4996,8 +5617,30 @@ function drawActor(r, ctx, g, a) {
      * tell from across the arena who is carrying the thing that ends rounds.
      */
     const size = a.h * z * (big ? 1.15 : 0.4);
-    const hx = px + a.face * (a.w * z * (big ? 0.42 : 0.42) - kick * z * (big ? 0.7 : 0.5));
-    const hy = py - a.h * z * (big ? 0.78 : 0.5);
+    /* At the HAND, not across the face.
+     *
+     * The pistol sat at 0.42 of the body width out and half the hitbox
+     * height up — which on a character whose sprite is a third taller than
+     * its hitbox and mostly head lands squarely on the snout. Charlie, with a
+     * picture of a pig holding a gun in its mouth: "lets fix positioning nung
+     * gun, dapat nasa kamay mismo ni yhon, left and right pati nung other
+     * characters."
+     *
+     * All three are drawn in the same box with their paws in the same place,
+     * so one offset serves all of them, and it is mirrored with `face` — so
+     * "left and right" is the same fix, not two.
+     *
+     * The Bazooka is the exception and stays high: it is a tube you put on
+     * your SHOULDER, and a shoulder is not a hand. */
+    /* Measured off the SPRITE, not the hitbox.
+     *
+     * The body is drawn at 1.25 of the hitbox wide and 1.32 of it tall, so a
+     * hand placed at a fraction of `a.w`/`a.h` lands well inside the drawing
+     * — on the snout of a crowned player, who is two and a half times
+     * everyone else. Same numbers drawActor uses for the sprite itself. */
+    const sw = a.w * z * 1.25, sh = a.h * z * 1.32;
+    const hx = px + a.face * (sw * (big ? 0.36 : 0.42) - kick * z * (big ? 0.7 : 0.5));
+    const hy = py - sh * (big ? 0.62 : 0.3);
     ctx.save();
     ctx.translate(hx, hy);
     if (a.face < 0) ctx.scale(-1, 1);
@@ -5010,23 +5653,42 @@ function drawActor(r, ctx, g, a) {
     ctx.restore();
   }
 
-  // Ammo pips, so you know how many shots are left without a HUD readout.
+  /* Ammo, in the same language as the health above it.
+   *
+   * It was a row of rounded capsules floating at its own height, which is a
+   * second visual idea for the same kind of information — how much of
+   * something you have left. Now it is the health bar's little brother:
+   * directly under it, the same diagonal cuts, green, and smaller. Charlie:
+   * "ifix mo yung placement nung bullets sa baba lang din nung diagonal hp,
+   * diagonal din green nga lang pero masmaliit."
+   */
   if (a.power && a.power.type === "baril") {
     const n = a.power.ammo;
-    const w = z * 0.17;
-    const h = z * 0.11;
-    const y = py - a.h * z * AMMO_Y;
+    const full = POWERUPS.baril.ammo || n;
+    const W = Math.max(z * 0.7, a.w * z);
+    const H = z * 0.085;
+    const skew = H * 0.9;
+    const gap = Math.max(1, W * 0.02);
+    const seg = (W - gap * (full - 1)) / full;
+    const x0 = px - W / 2;
+    // Tucked under the health bar rather than on a height of its own.
+    const top = py - a.h * z * HEART_Y + z * 0.14;
     ctx.save();
-    // Outlined capsules rather than bare rectangles — a flat green tick on a
-    // pale sky was hard to see and harder to count.
-    ctx.lineWidth = Math.max(1, z * 0.028);
-    ctx.strokeStyle = "rgba(255,255,255,0.9)";
-    for (let i = 0; i < n; i++) {
-      const x = px - (n * w) / 2 + i * w + w * 0.14;
-      ctx.fillStyle = POWERUPS.baril.colour;
+    ctx.lineWidth = Math.max(1, z * 0.016);
+    for (let i = 0; i < full; i++) {
+      const L = x0 + i * (seg + gap);
+      const R = L + seg;
+      const lLean = i === 0 ? 0 : skew;
+      const rLean = i === full - 1 ? 0 : skew;
       ctx.beginPath();
-      ctx.roundRect(x, y, w * 0.72, h, h / 2);
+      ctx.moveTo(L + lLean, top);
+      ctx.lineTo(R + rLean, top);
+      ctx.lineTo(R, top + H);
+      ctx.lineTo(L, top + H);
+      ctx.closePath();
+      ctx.fillStyle = i < n ? POWERUPS.baril.colour : "rgba(26,38,52,0.3)";
       ctx.fill();
+      ctx.strokeStyle = "rgba(255,255,255,0.85)";
       ctx.stroke();
     }
     ctx.restore();

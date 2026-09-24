@@ -121,54 +121,32 @@ export function paintPanels(actors, chips, dt, now, pads) {
       stride: 1,
     });
 
+    /* The bar, the same one that floats over the character's head.
+     *
+     * It was a row (then rows) of little heart SVGs, which is a second way of
+     * saying the one thing the bar above their head already says — and at
+     * nine hearts it was three rows of them filling the card. Charlie:
+     * "update the 3 hearts here to be bar na rin."
+     *
+     * Built out of DOM rather than canvas because the card is DOM, and each
+     * segment is a skewed div so the diagonal cut is the same shape as the
+     * one in the arena. The two ends are squared off by the bar's own
+     * overflow, which is what keeps the whole thing a rectangle.
+     */
     const hearts = card.querySelector(".phearts");
-    // Only ever as many slots as you start with, plus however many spares you
-    // are actually carrying — five empty slots would read as five lost hearts.
-    // Rounded UP, or a half heart has no slot to be drawn in.
     const slots = Math.max(FEEL.hp, Math.ceil(a.hp));
     const want = Array.from({ length: slots },
                             (_, i) => Math.max(0, Math.min(1, a.hp - i))).join(",");
     if (hearts.dataset.state !== want) {
       hearts.dataset.state = want;
-      /* Two rows: the three you start with, and the spares UNDER them.
-       *
-       * They were one row that simply grew, so carrying two spares pushed a
-       * five-heart bar out past the name and off the side of the card. Rows
-       * of three keep the card the same width however well the round is
-       * going, and put the gold ones somewhere they read as extra rather
-       * than as more of the same.
-       */
-      /* A heart is now a FRACTION, not a flag — the mini squad takes half.
-       *
-       * The colour is a clip rectangle over the same path rather than a
-       * second half-heart shape, so there is still exactly one heart outline
-       * in the file and a half is unmistakably half of the whole one beside
-       * it. `--f` is how much of it is left. */
-      const heart = (i) => {
-        const f = Math.max(0, Math.min(1, a.hp - i));
-        if (f > 0 && f < 1) {
-          // Two copies of the same path stacked, the top one clipped to `--f`.
-          // The top copy keeps its row's colour — half of a SPARE is half a
-          // gold heart, and drawing it red said she had lost a red one.
-          const top = i >= FEEL.hp ? '<svg class="bonus"' : "<svg";
-          return `<span class="half" style="--f:${f}">` +
-                 HEART_SVG.replace("<svg", '<svg class="off"') +
-                 HEART_SVG.replace("<svg", top) + "</span>";
-        }
-        const cls = i >= FEEL.hp ? "bonus" : f >= 1 ? "" : "off";
-        return HEART_SVG.replace("<svg", `<svg class="${cls}"`);
-      };
-      /* Rows of three, however many there are — see drawHearts for why.
-       * Two rows was fine to a ceiling of six; the Big Heart puts you on
-       * nine, and a row of six runs off the side of the card. */
-      let html = "";
-      for (let from = 0; from < slots; from += FEEL.hp) {
-        const n = Math.min(FEEL.hp, slots - from);
-        html += `<div class="hrow">` +
-          Array.from({ length: n }, (_, i) => heart(from + i)).join("") +
-          `</div>`;
-      }
-      hearts.innerHTML = html;
+      hearts.innerHTML =
+        `<div class="hbar" style="--n:${slots}">` +
+        Array.from({ length: slots }, (_, i) => {
+          const f = Math.max(0, Math.min(1, a.hp - i));
+          const cls = i >= FEEL.hp ? "hseg bonus" : "hseg";
+          return `<i class="${cls}" style="--f:${f}"></i>`;
+        }).join("") +
+        `</div>`;
     }
 
     paintSkill(card, p.id, a, now, pads);
@@ -243,6 +221,20 @@ export function chipsFor(a, G, pads) {
     });
   }
 
+  /* The Shield has its own chip because it has its own slot — you can be
+   * holding a Bazooka AND be behind glass, and one chip cannot say both. */
+  if (a.shieldUntil && G.time < a.shieldUntil) {
+    const def = POWERUPS.kalasag;
+    const left = a.shieldUntil - G.time;
+    out.push({
+      mark: "kalasag",
+      label: def.name,
+      colour: def.colour,
+      pct: Math.max(0, Math.min(100, (left / (def.ms / 1000)) * 100)),
+      bad: false,
+    });
+  }
+
   if (a.power) {
     const def = POWERUPS[a.power.type];
     const dur = def.ms ? def.ms / 1000 : 0;
@@ -255,7 +247,9 @@ export function chipsFor(a, G, pads) {
       // Show the key only to a player who is actually on the keyboard; on a
       // phone there is a button for it.
       const key = pads[a.id] && !pads[a.id].connected ? ` <em>${SHOOT_KEY[a.id]}</em>` : "";
-      label = `${a.power.ammo}${key}`;
+      // An endless weapon has no count to show, so the chip says its name
+      // the way a timed power-up does.
+      label = def.endless ? def.name : `${a.power.ammo}${key}`;
     } else {
       label = def.name;
     }

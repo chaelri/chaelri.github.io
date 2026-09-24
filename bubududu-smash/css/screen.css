@@ -353,7 +353,20 @@ h1.logo::after {
 .slot {
   display: grid; justify-items: center; gap: clamp(4px, 0.9vh, 10px);
   align-content: start;
-  min-width: clamp(210px, 25vw, 320px);
+  /* A DEFINITE width, not a minimum — and this is a bug fix, not a taste.
+   *
+   * The carousel canvas is sized from its own clientWidth every frame, and it
+   * sat in a grid track that was sized from its content. So the canvas set
+   * its intrinsic width from the track, the track grew to fit the intrinsic
+   * width, the canvas read the bigger track... and the cards crept wider on
+   * every reload, a few pixels at a time. Charlie: "bat dahan dahan lumalaki
+   * yung width neto pag nagrerefresh ako, okay na may max width lang per
+   * selections."
+   *
+   * A definite width cuts the loop at the source: the track no longer asks
+   * the canvas how big it wants to be. */
+  width: clamp(210px, 25vw, 320px);
+  max-width: 100%;
   padding: clamp(14px, 2vh, 22px) clamp(14px, 1.6vw, 24px);
   border-radius: 26px;
   background: rgba(255,255,255,0.93); border: 3px solid rgba(33,49,63,0.08);
@@ -374,7 +387,10 @@ h1.logo::after {
 /* The carousel. See paintPick / spinCarousels in js/screen.js — everything
    inside .hero is drawn, so all this does is give it a box and put the two
    arrows on top of it. */
-.pick { display: grid; justify-items: center; gap: clamp(3px, 0.7vh, 8px); width: 100%; }
+/* `min-width: 0` so a grid item cannot be forced wider than its track by its
+   own contents — the other half of the creeping-width fix above. */
+.pick { display: grid; justify-items: center; gap: clamp(3px, 0.7vh, 8px);
+        width: 100%; min-width: 0; }
 .pick canvas.hero {
   display: block; width: 100%;
   height: clamp(150px, 23vh, 260px);
@@ -592,7 +608,11 @@ h1.logo::after {
   width: clamp(58px, 9.6vh, 96px); height: clamp(58px, 9.6vh, 96px);
   flex: none;
 }
-.pinfo { display: grid; gap: 5px; }
+/* Room to breathe. Five pixels between four different objects — a name, a
+   health bar, a skill badge and a coin chip — had them touching, and the
+   skill badge's own key bubble overlapped the bar above it. Charlie: "lets
+   make this not crowded." */
+.pinfo { display: grid; gap: clamp(7px, 1.2vh, 12px); }
 .pcard.right .pinfo { justify-items: end; }
 
 .pname {
@@ -611,28 +631,42 @@ h1.logo::after {
   100% { transform: scale(1) rotate(0deg); }
 }
 
-/* Rows of three — see paintPanels. The card stays one width however
-   many spare hearts are being carried. */
-.phearts { display: grid; gap: 4px; justify-items: start; }
-.pcard.right .phearts { justify-items: end; }
-.phearts .hrow { display: flex; gap: 5px; }
-.phearts svg { width: clamp(17px, 2.4vh, 24px); height: auto; display: block; }
-.phearts svg path { fill: #ff4d6d; }
-.phearts svg.off path { fill: rgba(33,49,63,0.16); stroke: rgba(33,49,63,0.3); stroke-width: 1.4; }
-/* A part-full heart: the empty shell, with the left `--f` of it coloured in.
-   Two copies of the SAME path, the second clipped — so a half is visibly half
-   of the whole one next to it rather than a second, different shape. */
-.phearts .half { position: relative; display: block; }
-.phearts .half > svg:last-child {
-  position: absolute; inset: 0; width: 100%;
-  clip-path: inset(0 calc(100% - var(--f, 1) * 100%) 0 0);
+/* The health bar on the card — the same object that floats over the
+   character's head, in DOM. See paintPanels.
+   It was rows of little heart SVGs, which is a second way of saying what the
+   bar in the arena already says, and at nine it filled the card. */
+.phearts { display: block; }
+.phearts .hbar {
+  display: flex; overflow: hidden;          /* squares off both ends */
+  width: clamp(80px, 12vh, 130px);
+  height: clamp(13px, 1.9vh, 20px);
+  /* Barely rounded. A pill reads as a lozenge; this is a gauge, and Charlie
+     asked for it square: "wag mo lagyan border radius or babaan medyo
+     rectangle." */
+  border-radius: 3px;
+  background: rgba(33,49,63,0.18);
+  box-shadow: 0 0 0 3px #fff, 0 2px 6px -2px rgba(33,49,63,0.5);
 }
-.phearts .half > svg:last-child path { fill: #ff4d6d; stroke: none; }
-.phearts .half > svg.bonus:last-child path { fill: #ffc43c; }
-/* A spare heart, earned past the three you start with. Gold, so it reads as
-   something extra rather than as one of the originals. */
-.phearts svg.bonus path { fill: #ffc43c; }
-.phearts svg.bonus { filter: drop-shadow(0 0 3px rgba(255,196,60,0.85)); }
+.pcard.right .phearts .hbar { margin-left: auto; }
+/* Each segment is skewed, so the CUT between two of them is diagonal while
+   the bar itself stays a rectangle — the ends are clipped by the overflow
+   above. The white cut is this element's own left border. */
+.phearts .hseg {
+  flex: 1 1 0; min-width: 0; position: relative;
+  transform: skewX(-18deg);
+  border-left: 2px solid #fff;
+  background: rgba(33,49,63,0.12);
+}
+.phearts .hseg:first-child { border-left: 0; }
+/* ...and the fill inside it, which is how a half heart is half a segment. */
+.phearts .hseg::after {
+  content: ""; position: absolute; inset: 0;
+  width: calc(var(--f, 1) * 100%);
+  background: linear-gradient(#ff8fa6, #e8324f);
+}
+.phearts .hseg.bonus::after { background: linear-gradient(#ffe9a8, #f5b43a); }
+/* Wider than the bar so the skew cannot leave a sliver of sky at the edges. */
+.phearts .hbar { padding: 0; }
 
 /* Whether that player's move is up.
  *

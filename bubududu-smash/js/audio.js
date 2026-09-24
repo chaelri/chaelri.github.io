@@ -307,6 +307,31 @@ const synth = {
     noise({ peak: 0.1, decay: 0.07, band: 700, q: 0.7 });
     tone(150, { type: "square", peak: 0.08, attack: 0.002, decay: 0.1, to: 60 });
   },
+  /* Excalibur, swung and landed.
+   *
+   * The swing is AIR — a short band of noise sliding down, which is what a
+   * blade moving fast actually sounds like — and the hit is metal: two close
+   * tones an octave and a fifth apart ringing out together, which is a bell
+   * rather than a thud. They are separate cues because the sword swings far
+   * more often than it connects, and a weapon that makes its landing noise
+   * every time you wave it stops telling you anything. */
+  /* A pinata taking one. Paper and clay, not the "land" thud it was borrowing
+   * — which is the sound of a character's feet and said nothing about what
+   * had been struck. Charlie: "lagyan mo ng hit sound kapag binabasag yung
+   * pinata." */
+  pinata: () => {
+    noise({ peak: 0.13, decay: 0.09, band: 1500, q: 0.7 });
+    tone(300, { type: "triangle", peak: 0.08, attack: 0.002, decay: 0.13, to: 170 });
+  },
+  espada: () => {
+    noise({ peak: 0.085, decay: 0.09, band: 2600, q: 1.6 });
+    tone(880, { type: "triangle", peak: 0.05, attack: 0.002, decay: 0.1, to: 420 });
+  },
+  espadaHit: () => {
+    tone(1568, { type: "triangle", peak: 0.1, attack: 0.001, decay: 0.34, to: 1400 });
+    tone(2349, { type: "sine", peak: 0.06, attack: 0.001, decay: 0.26, to: 2100 });
+    noise({ peak: 0.12, decay: 0.08, band: 1800, q: 0.9 });
+  },
   tatlo: () => arp([523, 659, 784], 0.05, { type: "triangle", peak: 0.08, decay: 0.22 }),
   // Bad Dudu arrives on a falling phrase, loads up on a rising one, and lands
   // like something much heavier than he looks.

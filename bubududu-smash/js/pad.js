@@ -145,16 +145,20 @@ export function paintShootButton(power, ammo) {
    * while the laptop key worked fine because that path asks the rules. See
    * `fires` in config.js. */
   const def = ALL_POWERS[power];
-  const armed = !!(def && def.fires) && ammo > 0;
+  // `endless` is armed with no magazine at all — see Excalibur in config.js.
+  // Without it the one weapon that never runs out reads as the one weapon
+  // that is always empty.
+  const armed = !!(def && def.fires) && (ammo > 0 || !!def.endless);
   b.classList.toggle("armed", armed);
-  b.classList.toggle("melee", armed && power === "suntok");
-  const key = `${armed ? power : "-"}|${armed ? ammo : ""}`;
+  b.classList.toggle("melee", armed && (power === "suntok" || power === "espada"));
+  const count = armed && !def.endless ? String(ammo) : "";
+  const key = `${armed ? power : "-"}|${count}`;
   if (b.dataset.key !== key) {
     b.dataset.key = key;
     // Its own mark, whatever it is — a Bazooka drawn as a six-shooter is a
     // lie about how many shots you have.
     b.innerHTML = markSVG(armed ? power : "baril", "mk") +
-      (armed ? `<i>${ammo}</i>` : "");
+      (count ? `<i>${count}</i>` : "");
   }
 }
 

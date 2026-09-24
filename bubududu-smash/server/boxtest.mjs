@@ -523,11 +523,16 @@ for (const char of ["bubu", "dudu", "yhon"]) {
      `holding ${a.power && a.power.type}`);
   ok("bazuka ...and the Gun is left for the other player", G.powers.length === 1,
      `powers ${G.powers.length}`);
-  // ...but a Star still does.
+  /* ...and NOR does a Star, which is the change.
+   *
+   * It used to, on the reasoning that taking a Star is a choice you can see
+   * yourself making. In play it is a choice you make by walking, and the
+   * thing it spends is the rarest in the game. Charlie: "Dapat talaga hindi
+   * narereplace yung bazooka, best gun na yun sa laro plss." */
   G.powers.length = 0;
   G.powers.push({ x: a.x, y: a.y - a.h / 2, type: "bituin", born: G.time });
   for (let i = 0; i < 10 && G.powers.length; i++) sim.step(sim.TICK);
-  ok("bazuka ...but a Star still takes it", a.power && a.power.type === "bituin",
+  ok("bazuka ...nor does a Star", a.power && a.power.type === "bazuka",
      `holding ${a.power && a.power.type}`);
 }
 
@@ -536,7 +541,7 @@ for (const char of ["bubu", "dudu", "yhon"]) {
   const G = world();
   const a = G.actors.find((q) => q.id === "p1");
   const o = G.actors.find((q) => q.id === "p2");
-  a.power = { type: "kalasag", until: G.time + 5, ammo: 0 };
+  a.shieldUntil = G.time + 5;   // its own field now, not the power slot
   const hpWas = a.hp;
   killPlayerViaStomp(G, o, a);
   ok("shield a stomp does nothing to you", a.hp === hpWas, `hp ${hpWas} -> ${a.hp}`);
@@ -550,7 +555,7 @@ for (const char of ["bubu", "dudu", "yhon"]) {
 {
   const G = world();
   const a = G.actors.find((q) => q.id === "p1");
-  a.power = { type: "kalasag", until: G.time + 5, ammo: 0 };
+  a.shieldUntil = G.time + 5;   // its own field now, not the power slot
   const hpWas = a.hp;
   bazookaAt(G, a.x, a.y - a.h / 2, "p2");
   ok("shield ...nor a shell", a.hp === hpWas && !a.dead, `hp ${a.hp}`);
@@ -560,7 +565,7 @@ for (const char of ["bubu", "dudu", "yhon"]) {
 {
   const G = world();
   const a = G.actors.find((q) => q.id === "p1");
-  a.power = { type: "kalasag", until: G.time + 5, ammo: 0 };
+  a.shieldUntil = G.time + 5;   // its own field now, not the power slot
   const hpWas = a.hp;
   a.y = G.level.h + 4;
   for (let i = 0; i < 20 && !a.dead; i++) sim.step(sim.TICK);
@@ -577,6 +582,7 @@ for (const char of ["bubu", "dudu", "yhon"]) {
   for (let n = 0; n < 60; n++) {
     a.power = null;
     a.fairy = null;
+    a.shieldUntil = 0;
     a.hp = 2;                       // so a Big Heart is visible as a jump
     a.coins = COINS.perReward - 1;
     G.coins.push({ x: a.x, y: a.y - a.h / 2, at: G.time, taken: 0 });
@@ -584,6 +590,7 @@ for (const char of ["bubu", "dudu", "yhon"]) {
     // The Big Heart is spent the instant it lands — it is never HELD — so it
     // shows up in the hearts rather than in `power`.
     if (a.hp >= POWERUPS.puso.set) got.add("puso");
+    else if (a.shieldUntil > G.time) got.add("kalasag");   // its own field now
     else if (a.power) got.add(a.power.type);
     else if (a.fairy) got.add("diwata");
   }
@@ -684,7 +691,8 @@ for (const ward of ["kalasag", "bituin"]) {
   const G = world();
   const a = G.actors.find((q) => q.id === "p1");
   const o = G.actors.find((q) => q.id === "p2");
-  o.power = { type: ward, until: G.time + 99, ammo: 0 };
+  if (ward === "kalasag") o.shieldUntil = G.time + 99;
+  else o.power = { type: ward, until: G.time + 99, ammo: 0 };
   o.x = a.x + 1; o.y = a.y; o.vx = 0; o.vy = 0;
   const hpWas = o.hp;
   // A bazooka going off on top of him.
@@ -719,6 +727,186 @@ for (const ward of ["kalasag", "bituin"]) {
   o.invulnUntil = 0;
   killPlayerViaStomp(G, a, o);
   ok("punch ...so the next stomp costs one heart", o.hp === 2, `hp ${o.hp}`);
+}
+
+
+/* ---- 14. Excalibur ---------------------------------------------------- */
+/*
+ * "an excalibur sword, it has really AOE damage, it takes 2 hearts to enemy,
+ * pinata or king yhon. and its unlimited in the hand unless u pick up a gun
+ * or bazooka, or one punch man. this excalibur can be lost when tossed out of
+ * the map. and this weapon is a melee sword so may range lang din, it can
+ * slice slice used by the character."
+ *
+ * Six promises, and each one is a line below.
+ */
+{
+  const G = world();
+  const a = G.actors.find((q) => q.id === "p1");
+  const o = G.actors.find((q) => q.id === "p2");
+  a.power = { type: "espada", until: Infinity, ammo: 0 };
+  a.face = 1;
+
+  // It survives the tick that drops every OTHER empty weapon.
+  for (let i = 0; i < 30; i++) sim.step(sim.TICK);
+  ok("sword still in hand with no ammo", a.power && a.power.type === "espada",
+     `holding ${a.power && a.power.type}`);
+
+  // Two hearts off a player, from arm's length.
+  o.x = a.x + 1.6; o.y = a.y;
+  const hpWas = o.hp;
+  sim.applyPacket("p1", { n: 1, s: 1 });
+  for (let i = 0; i < 25 && o.hp === hpWas; i++) {
+    o.x = a.x + 1.6; o.y = a.y;
+    sim.step(sim.TICK);
+  }
+  ok("sword takes two hearts", o.hp === hpWas - 2, `hp ${hpWas} -> ${o.hp}`);
+  ok("sword ...and is still held afterwards", a.power && a.power.type === "espada");
+}
+{
+  // It has RANGE, and the range has an end — six tiles is not a sword.
+  const G = world();
+  const a = G.actors.find((q) => q.id === "p1");
+  const o = G.actors.find((q) => q.id === "p2");
+  a.power = { type: "espada", until: Infinity, ammo: 0 };
+  a.face = 1;
+  o.x = a.x + 6; o.y = a.y;
+  const hpWas = o.hp;
+  sim.applyPacket("p1", { n: 1, s: 1 });
+  for (let i = 0; i < 25; i++) { o.x = a.x + 6; o.y = a.y; sim.step(sim.TICK); }
+  ok("sword does not reach six tiles", o.hp === hpWas, `hp ${o.hp}`);
+}
+{
+  // Two swings open a pinata: three bands, two a swing.
+  const G = world();
+  const a = G.actors.find((q) => q.id === "p1");
+  a.power = { type: "espada", until: Infinity, ammo: 0 };
+  a.face = 1;
+  const b = { x: a.x + 1.4, y: a.y - 0.6, hits: BOX.hits, born: G.time,
+              bumpAt: -9, drop: "puso" };
+  G.boxes.push(b);
+  let n = 0;
+  for (let i = 0; i < 90 && G.boxes.length; i++) {
+    sim.applyPacket("p1", { n: ++n, s: n });
+    sim.step(sim.TICK);
+  }
+  ok("sword opens a pinata", G.boxes.length === 0, `boxes ${G.boxes.length}`);
+}
+{
+  // Two of the King's three hearts in one swing.
+  const G = world();
+  const a = G.actors.find((q) => q.id === "p1");
+  G.boxes.push({ x: a.x, y: a.y - 3, hits: 0, born: G.time, bumpAt: G.time, drop: "hari" });
+  for (let i = 0; i < 4 && !G.king; i++) sim.step(sim.TICK);
+  const k = G.king;
+  if (!k) { ok("sword king setup", false); }
+  else {
+    a.power = { type: "espada", until: Infinity, ammo: 0 };
+    a.x = k.actor.x - 1.4; a.face = 1;
+    sim.applyPacket("p1", { n: 1, s: 1 });
+    for (let i = 0; i < 25 && k.hp === KING.hp; i++) {
+      a.x = k.actor.x - 1.4;
+      sim.step(sim.TICK);
+    }
+    ok("sword takes two of the King's hearts", k.hp === KING.hp - 2, `hp ${k.hp}`);
+  }
+}
+{
+  // A gun DOES replace it — that is the whole of how you stop holding it.
+  const G = world();
+  const a = G.actors.find((q) => q.id === "p1");
+  a.power = { type: "espada", until: Infinity, ammo: 0 };
+  const orb = { x: a.x, y: a.y - a.h / 2, type: "baril", born: G.time };
+  G.powers.push(orb);
+  for (let i = 0; i < 12 && G.powers.length; i++) {
+    orb.x = a.x; orb.y = a.y - a.h / 2;
+    sim.step(sim.TICK);
+  }
+  ok("sword a gun takes it off you", a.power && a.power.type === "baril",
+     `holding ${a.power && a.power.type}`);
+}
+{
+  // ...and a fall takes it, which is the only other way to lose it.
+  const G = world();
+  const a = G.actors.find((q) => q.id === "p1");
+  a.power = { type: "espada", until: Infinity, ammo: 0 };
+  a.y = G.level.h + 4;                      // off the bottom of the world
+  for (let i = 0; i < 20 && a.power; i++) sim.step(sim.TICK);
+  ok("sword the map takes it", !a.power, `holding ${a.power && a.power.type}`);
+}
+
+
+/* ---- 15. a Bazooka and a Shield at the same time ---------------------- */
+/*
+ * "Kasi nakita ko naman nareplace yung bazooka ng shield tbh dapat pwede yon
+ * sabay." Two different kinds of thing: what your fire button does, and
+ * whether anything can touch you.
+ */
+{
+  const G = world();
+  const a = G.actors.find((q) => q.id === "p1");
+  a.power = { type: "bazuka", until: Infinity, ammo: 1 };
+  const orb = { x: a.x, y: a.y - a.h / 2, type: "kalasag", born: G.time };
+  G.powers.push(orb);
+  for (let i = 0; i < 12 && G.powers.length; i++) {
+    orb.x = a.x; orb.y = a.y - a.h / 2;
+    sim.step(sim.TICK);
+  }
+  ok("both  the Shield is taken", a.shieldUntil > G.time, `until ${a.shieldUntil}`);
+  ok("both  ...and the Bazooka is still in hand",
+     a.power && a.power.type === "bazuka", `holding ${a.power && a.power.type}`);
+}
+/* ...and the crown sits alongside both, which is the third thing in that
+ * sentence: "can be equipped at the same time wing king status". */
+{
+  const G = world();
+  const a = G.actors.find((q) => q.id === "p1");
+  a.crowned = true;
+  a.power = { type: "bazuka", until: Infinity, ammo: 1 };
+  a.shieldUntil = G.time + 5;
+  for (let i = 0; i < 20; i++) sim.step(sim.TICK);
+  ok("both  crown, Bazooka and Shield together",
+     a.crowned && a.power && a.power.type === "bazuka" && a.shieldUntil > G.time,
+     `crowned ${a.crowned} holding ${a.power && a.power.type}`);
+}
+
+
+/* ---- 16. a shell outlives the man who fired it ------------------------ */
+/*
+ * "nagbazooka ako tapos nagpahulog ako edi namatay ako. Nung nagland yung
+ * bazooka sa enemy bat wala damage dapat patay siya e."
+ *
+ * The shooter died, respawned, and his respawn grace was then read as "this
+ * attacker cannot swing" — so his own shell, already halfway across the
+ * arena, arrived and did nothing.
+ */
+{
+  const G = world();
+  const a = G.actors.find((q) => q.id === "p1");
+  const o = G.actors.find((q) => q.id === "p2");
+  o.x = a.x + 6; o.y = a.y;
+  const hpWas = o.hp;
+  // A shell in the air, and a shooter who is already gone and back.
+  G.shots.push({ x: o.x - 0.3, y: o.y - o.h / 2, vx: 6, vy: 0, owner: "p1",
+                 life: 1, born: G.time, homing: true, lethal: true, fuse: 0 });
+  a.invulnUntil = G.time + 2;            // exactly what a respawn leaves behind
+  for (let i = 0; i < 20 && G.shots.length; i++) {
+    o.x = a.x + 6; o.y = a.y;
+    sim.step(sim.TICK);
+  }
+  ok("shell lands even though the shooter just respawned", o.hp < hpWas,
+     `hp ${hpWas} -> ${o.hp}`);
+}
+/* ...and a STOMP by someone who just respawned still does not, which is the
+ * rule that check was there for in the first place. */
+{
+  const G = world();
+  const a = G.actors.find((q) => q.id === "p1");
+  const o = G.actors.find((q) => q.id === "p2");
+  a.invulnUntil = G.time + 2;
+  const hpWas = o.hp;
+  killPlayerViaStomp(G, a, o);
+  ok("stomp ...but a stomp from one still does not", o.hp === hpWas, `hp ${o.hp}`);
 }
 
 /** Land `by` on `victim`'s head, which is the ordinary way anyone loses one. */

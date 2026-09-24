@@ -147,6 +147,19 @@ export const MARKS = {
 
   suntok: fist,
 
+  /* Excalibur — a blade, a crossguard, a grip and a pommel.
+   *
+   * Drawn point-up and leaning slightly, because a sword standing perfectly
+   * vertical reads as a cross and a sword lying flat reads as the gun that
+   * is two entries above it. The fuller — the groove down the middle — is
+   * one reversed bar, which is how a solid path gets a hole in it. */
+  espada:
+    poly([[50, 2], [61, 22], [61, 62], [39, 62], [39, 22]]) +   // blade
+    bar(50, 24, 50, 56, 5, true) +                              // the fuller
+    poly([[20, 62], [80, 62], [80, 73], [20, 73]]) +            // crossguard
+    poly([[44, 73], [56, 73], [56, 90], [44, 90]]) +            // grip
+    circle(50, 93, 7),                                          // pommel
+
   /* Not a power-up: the coin count, the fairy, the squad, the grace window
    * and Dudu all wear a mark in the panel too, and they were all type. */
 

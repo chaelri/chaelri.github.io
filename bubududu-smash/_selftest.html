@@ -120,7 +120,23 @@ try {
   g.actors[0].glowUntil = 99; g.actors[0].glowColour = COINS.colour;
   g.actors[1].power = { type:'suntok', until: Infinity, ammo: 3 };
   g.actors[1].punch = { at: 0, face: 1, hit: false };
+  /* CROWNED, HOLDING NOTHING, and shielded — the three states that stopped
+   * living in the power slot.
+   *
+   * This exact combination shipped broken: the crowned branch still read
+   * `a.power.until` to fade its floor pool, `a.power` is null for a king who
+   * is carrying nothing, and the TypeError was swallowed by the layer — so
+   * the character was never drawn and what reached the screen was an empty
+   * coloured outline wearing a cape. "ano to bug, bat naging ganto si king
+   * yhon." A crowned actor with no power-up is now part of the fixture, so
+   * the same mistake cannot pass quietly again. */
+  const Q = new URLSearchParams(location.search);
+  g.actors[0].crowned = !Q.has('nocrown');
+  g.actors[0].power = null;
+  g.actors[0].shieldUntil = Q.has('noshield') ? 0 : 99;
 
+  // ?profile=1 prints where the frame went, layer by layer. See layer().
+  if (Q.has('profile')) window.__drawProfile = {};
   for (let i=0;i<600;i++) {
     for (const a of g.actors) {
       const dir = Math.sin(i/40 + (a.id==='p2'?2:0));
@@ -142,10 +158,33 @@ try {
     // Drop the first 20 — the atlas, the gradients and the sprite decode all
     // happen once, and none of them is a per-frame cost.
     const warm = times.slice(20).sort((x,y)=>x-y);
+    const p25 = warm[Math.floor(warm.length*0.25)];
     const med = warm[Math.floor(warm.length/2)];
     const p95 = warm[Math.floor(warm.length*0.95)];
-    log.push(`draw      median ${med.toFixed(2)}ms  p95 ${p95.toFixed(2)}ms  worst ${warm[warm.length-1].toFixed(2)}ms over ${times.length} frames`);
-    if (med > 6) fail('draw', `median frame ${med.toFixed(2)}ms — too slow for a phone`);
+    log.push(`draw      p25 ${p25.toFixed(2)}ms  median ${med.toFixed(2)}ms  p95 ${p95.toFixed(2)}ms  worst ${warm[warm.length-1].toFixed(2)}ms over ${times.length} frames`);
+    /* Gated on the 25th percentile, NOT the median — and that is the whole
+     * lesson of an afternoon nearly spent optimising nothing.
+     *
+     * The same code on the same laptop measured 1.5ms and 6.8ms minutes
+     * apart, because the second run had a container build and three node
+     * suites running beside it. A median is halfway up that noise. Contention
+     * only ever makes a frame SLOWER, so the low quartile is the closest
+     * thing to the real cost that a shared machine can give you: it barely
+     * moves between a quiet box and a busy one.
+     *
+     * The fixture is deliberately worse than any real frame — every power-up
+     * on the field, two Dudus, the squad, two fairies, a punch in the air,
+     * and a player who is crowned, shielded and carrying nothing, which is
+     * the exact combination that shipped a crash. `?profile=1` prints where
+     * the frame went, layer by layer, which is what an actual regression
+     * shows up in. */
+    if (p25 > 6) fail('draw', `p25 frame ${p25.toFixed(2)}ms — too slow for a phone`);
+    if (window.__drawProfile) {
+      const rows = Object.entries(window.__drawProfile)
+        .sort((x, y) => y[1] - x[1]).slice(0, 12)
+        .map(([k, v]) => `${k} ${(v / times.length).toFixed(2)}ms`);
+      log.push(`profile   ${rows.join('  ')}`);
+    }
   }
 
   /* -------------------------------------------------------- the lobby too --- */
@@ -226,12 +265,14 @@ try {
      { ...rich, id: 'p2', char: 'yhon', hp: 2, abilityAt: 0, hops: 0, skillN: 3, skillAt: 0 }],
     { p1: back, p2: [] }, 1/60, 99);
   const drawn = document.querySelectorAll('#players [data-p="p1"] .chip').length;
-  const hearts = document.querySelectorAll('#players [data-p="p1"] .phearts svg').length;
+  // Segments of the health bar, not heart SVGs — the card carries the same
+  // diagonal-cut bar the arena does now. See paintPanels.
+  const hearts = document.querySelectorAll('#players [data-p="p1"] .phearts .hseg').length;
   /* Captured HERE, beside the others, and not queried further down — the
      skill check below repaints the card with a three-heart actor, so a live
      query at that point is asking about a different fixture. Which is what
      it did, and it failed on a card that was perfectly correct. */
-  const heartRows = document.querySelectorAll('#players [data-p="p1"] .phearts .hrow').length;
+  const heartRows = document.querySelectorAll('#players [data-p="p1"] .phearts .hbar').length;
   const pulsing = document.querySelectorAll('#players [data-p="p1"] .chip.bad').length;
   // ...and the symbol on each chip actually reached the DOM. It is an inline
   // <svg> now, and markSVG() of an id it does not know is an empty string —
@@ -260,12 +301,16 @@ try {
   }
   if (drawn !== made.length) fail('panel', `painted ${drawn} chips, expected ${made.length}`);
   else if (hearts !== 5) fail('panel', `painted ${hearts} heart slots for hp 5, expected 5`);
-  // ...across TWO rows: three you start with, spares beneath. One row that
-  // simply grew pushed a five-heart bar off the side of the card.
-  else if (heartRows !== 2)
-    fail('panel', `five hearts made ${heartRows} row(s), expected 2 — spares belong under, not trailing right`);
+  /* ...in ONE bar, however many hearts there are.
+   *
+   * It used to be rows of heart glyphs that wrapped at three, and the check
+   * was that five hearts made two rows. The card carries the same bar the
+   * arena does now — one rectangle, divided — so the thing to assert is that
+   * there is exactly one of it and it never grows a second. */
+  else if (heartRows !== 1)
+    fail('panel', `five hearts made ${heartRows} bar(s), expected 1`);
   else if (pulsing !== 1) fail('panel', `${pulsing} chips marked bad, expected 1`);
-  else log.push(`panel     ok — ${drawn} chips + ${hearts} hearts, round-tripped through the wire`);
+  else log.push(`panel     ok — ${drawn} chips + a ${hearts}-segment bar, round-tripped through the wire`);
 
   /* ------------------------------------------------------------ the wire --- */
   // The guest phone sees ONLY what survives snapshot() -> hydrate(). Nothing
