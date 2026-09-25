@@ -597,7 +597,7 @@
     // the player box takes the video's real shape (see .videodiv)
     const vid = document.querySelector("video.videodiv");
     const fitVideo = () => {
-      if (vid.videoWidth && vid.videoHeight) vid.style.setProperty("--adx-ar", String(vid.videoWidth / vid.videoHeight));
+      if (vid.videoWidth && vid.videoHeight) document.documentElement.style.setProperty("--adx-ar", String(vid.videoWidth / vid.videoHeight));
     };
     if (vid) { vid.addEventListener("loadedmetadata", fitVideo); fitVideo(); }
     // sk is the page's own "which episode is this" variable.

@@ -660,23 +660,22 @@ h1 { margin: 0; font: inherit; }
 .linetitle2:has(> a > .boxitem) .boxitem { margin: 0; }
 .info2:has(> video) {
   position: relative !important;
-  width: fit-content;
-  max-width: 100%;
-  margin-left: auto;
-  margin-right: auto;
   padding: 0;
   overflow: hidden;
   background: #000;
   border-radius: 14px;
 }
-/* The height cap works through the width, so the box always keeps the
-   video's own shape: capping the height of a full-width box letterboxed
-   every episode with black side bars on a short window. --adx-ar is the
-   video's real width/height, set by animeheaven.js once it is known. */
+/* The height cap works through the width, so the player keeps the video's
+   own shape: capping the height of a full-width box letterboxed every
+   episode with black side bars on a short window. The cap is on the whole
+   watch column (title, player, Episodes panel), so their edges stay in line.
+   --adx-ar is the video's real width/height, set by animeheaven.js. */
+.boldtext:has(> .info2 > video.videodiv) {
+  max-width: min(var(--ah-max), (100vh - 200px) * var(--adx-ar, 1.7778));
+}
 .videodiv {
   display: block;
-  width: min(100vw - 2 * var(--ah-gutter), var(--ah-max), (100vh - 200px) * var(--adx-ar, 1.7778));
-  max-width: 100%;
+  width: 100%;
   aspect-ratio: var(--adx-ar, 1.7778);
   height: auto;
   background: #000;
