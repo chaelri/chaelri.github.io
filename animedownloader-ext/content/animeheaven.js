@@ -63,6 +63,19 @@
   };
 
   const isNsfw = (genres) => genres.some(([name]) => NSFW_RE.test(name));
+  // An old show animeheaven only just uploaded (every episode within a few
+  // days, premiered in an earlier year than the upload), e.g. Season 1
+  // added because Season 2 is airing. Not new, so the Latest feed skips it.
+  // Weekly shows spread their uploads out; a new all-at-once release is
+  // from this year; a one-episode movie has too few episodes to tell.
+  const isBackfill = (g) => {
+    if (!g || !g.eps || g.eps.length < 3 || !g.year) return false;
+    const ts = g.eps.map((e) => e[2]).filter(Boolean);
+    if (ts.length < 3) return false;
+    const newest = Math.max(...ts);
+    return newest - Math.min(...ts) < 3 * 1440 && +g.year < new Date(newest * 6e4).getFullYear();
+  };
+  const skipInFeed = (g) => !!g && (isNsfw(g.genres) || isBackfill(g));
 
   // Tags come alphabetically and mix genres with themes ("Child
   // Protagonists", "Based On A Webtoon"). Chips show real genres first.
@@ -983,6 +996,7 @@
       return id && {
         id,
         title: (c.querySelector(".charttitle a, .similarname a")?.textContent || img?.alt || "").trim(),
+        romaji: (c.querySelector(".charttitlejp")?.textContent || "").trim(),
         cover: img?.getAttribute("src") || "",
         latest: c.querySelector(".chartepm")?.textContent.trim() || "",
         age: ageMs(c.querySelector(".charttimer")?.textContent || ""),
@@ -990,7 +1004,7 @@
     }).filter(Boolean);
     const addShow = (c) => { if (!shows.has(c.id)) shows.set(c.id, { title: c.title, cover: c.cover }); };
     const addEps = (id, g) => {
-      if (!g || !g.eps || isNsfw(g.genres)) return;
+      if (!g || !g.eps || skipInFeed(g)) return;
       for (const [key, num, ts] of g.eps) if (ts) eps.set(id + ":" + num, { id, num, key, ts });
     };
 
@@ -1102,7 +1116,7 @@
         .sort((a, b) => b.ts - a.ts || (a.id < b.id ? -1 : 1))
         .filter((e) => !seen.has(e.id) && seen.add(e.id))
         .filter((e) => e.ts * 6e4 >= horizon && e.ts <= lastTs && !shown.has(e.id) &&
-          !(cached(e.id) && isNsfw(cached(e.id).genres)));
+          !skipInFeed(cached(e.id)));
     };
     const render = () => {
       if (!ready) return;
@@ -1127,53 +1141,163 @@
       if (!loading) setStatus(exhausted && !more ? "That's every episode animeheaven lists." : "", 0, 0);
       // Older stages cost the site a request per show, so they only load on a tap.
       moreBtn.hidden = loading || exhausted || more;
-      if (!moreBtn.hidden) moreBtn.textContent = "Load older episodes · " + stages[0].label;
+      if (!moreBtn.hidden) moreBtn.textContent = "Load older episodes · " + nextLabel();
       requestAnimationFrame(needMoreIfClose);
     };
 
-    // ── stages ──
+    // ── older episodes: six weeks per tap ──
+    // Which shows had their last episode in a stretch of time is not on any
+    // list page, only on each show's own page. Reading them all (~380 for
+    // the schedule alone) took minutes, so AniList places them instead: one
+    // request looks up 40 shows' end dates, saved for 60 days, and only the
+    // shows whose end date falls in the window get their animeheaven page
+    // read. A show AniList can't place (no match, or an episode count that
+    // disagrees with the card) falls back to its page.
+    const WINDOW_MS = 42 * 864e5;
     const SEASONS = ["winter", "spring", "summer", "fall"];
     const seasonStart = (y, i) => new Date(y, i * 3, 1).getTime();
     const newest = Array.from(document.querySelectorAll('a[href$=".php"]'))
       .map((a) => a.getAttribute("href").match(/^\/?(\d{4})(winter|spring|summer|fall)\.php$/))
       .find(Boolean);
     let season = newest ? { y: +newest[1], i: SEASONS.indexOf(newest[2]) } : { y: 2025, i: 3 };
-    const nextOf = ({ y, i }) => (i === 3 ? { y: y + 1, i: 0 } : { y, i: i + 1 });
     const prevOf = ({ y, i }) => (i === 0 ? { y: y - 1, i: 3 } : { y, i: i - 1 });
-    const after = nextOf(season);
-    const stages = [{ label: "back to " + MONTHS[after.i * 3] + " " + after.y, url: "/?schedule", horizon: seasonStart(after.y, after.i) }];
-    const nameOf = ({ y, i }) => y + " " + SEASONS[i][0].toUpperCase() + SEASONS[i].slice(1);
-    const pushSeason = () => {
-      stages.push({ label: "back to " + nameOf(season), url: "/" + season.y + SEASONS[season.i] + ".php", horizon: seasonStart(season.y, season.i) });
-      season = prevOf(season);
+    // list pages still to read, newest first; each one covers shows back to its `from`
+    const lists = [{ url: "/?schedule", from: seasonStart(season.y, season.i) + 92 * 864e5 }];
+    const pool = new Map(); // id -> card, every show any list page has shown
+    let listsDone = false;
+    const readList = (li) =>
+      fetch(li.url, { credentials: "same-origin" })
+        .then((res) => (res.ok ? res.text() : Promise.reject(res.status)))
+        .then((html) => {
+          const cards = cardsOf(new DOMParser().parseFromString(html, "text/html"));
+          if (!cards.length) return Promise.reject(404);
+          cards.forEach((c) => { addShow(c); if (!pool.has(c.id)) pool.set(c.id, c); });
+        });
+    // read list pages until one reaches back past `lo`
+    const readListsTo = (lo) => {
+      if (listsDone) return Promise.resolve();
+      const covered = lists.coveredTo ?? Infinity;
+      if (covered <= lo) return Promise.resolve();
+      const li = lists.shift() || (() => {
+        const sp = { url: "/" + season.y + SEASONS[season.i] + ".php", from: seasonStart(season.y, season.i) };
+        season = prevOf(season);
+        return sp;
+      })();
+      return readList(li).then(
+        () => { lists.coveredTo = li.from; return readListsTo(lo); },
+        (err) => { if (err === 404) { listsDone = true; lists.coveredTo = -Infinity; } else return Promise.reject(err); }
+      );
     };
-    pushSeason();
+
+    // AniList end dates: { [showId]: { ts: minutes | null, t } }
+    const ENDS_KEY = "adx.heaven.ends.v1";
+    let ends = {};
+    try { ends = JSON.parse(localStorage.getItem(ENDS_KEY) || "{}"); } catch (e) {}
+    const saveEnds = () => {
+      const nowT = Date.now();
+      for (const k of Object.keys(ends)) if (nowT - ends[k].t > AIRED_TTL_DONE) delete ends[k];
+      try { localStorage.setItem(ENDS_KEY, JSON.stringify(ends)); } catch (e) {}
+    };
+    // best known "newest episode" time for a show: its page if read, else AniList
+    const estOf = (id) => {
+      const g = cached(id);
+      if (g && g.eps && g.eps.length) return Math.max(...g.eps.map((e) => e[2]));
+      const e = ends[id];
+      // undefined: not asked yet; null: AniList can't place it; -1: not aired yet (nothing to show)
+      return e && Date.now() - e.t < (e.ts === -1 ? AIRED_TTL_AIRING : AIRED_TTL_DONE) ? e.ts : undefined;
+    };
+    // AniList caps a query at 500 complexity; one Page(perPage: 3) search
+    // costs 8, so 60 searches: 30 shows at two searches each.
+    const ENDS_BATCH = 30;
+    const askEnds = (cards, onBatch) => {
+      const todo = cards.filter((c) => estOf(c.id) === undefined);
+      const batches = [];
+      for (let k = 0; k < todo.length; k += ENDS_BATCH) batches.push(todo.slice(k, k + ENDS_BATCH));
+      let chain = Promise.resolve();
+      batches.forEach((batch, n) => {
+        chain = chain.then(() => new Promise((res) => setTimeout(res, Math.max(n ? ANILIST_GAP_MS : 0, anilistPausedUntil - Date.now()))))
+          .then(() => {
+            const vars = {};
+            const defs = [];
+            // romaji (its first name only: the site joins alternates with ", ")
+            // and the English title, since AniList's search misses on either
+            const searchesOf = (c) => [...new Set([
+              c.romaji && c.romaji !== "-" ? c.romaji.split(/,\s+(?=[A-Z])/)[0] : "",
+              c.title,
+            ].filter(Boolean))];
+            const fields = [];
+            batch.forEach((c, k) => searchesOf(c).forEach((q, w) => {
+              const v = "s" + k + "_" + w;
+              vars[v] = q;
+              defs.push("$" + v + ": String");
+              fields.push("a" + k + "_" + w + ": Page(perPage: 3) { media(search: $" + v + ", type: ANIME) { episodes status endDate { year month day } } }");
+            }));
+            return fetch("https://graphql.anilist.co", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Accept: "application/json" },
+              body: JSON.stringify({ query: "query(" + defs.join(", ") + ") {" + fields.join(" ") + "}", variables: vars }),
+            }).then((res) => {
+              if (res.status === 429) anilistPausedUntil = Date.now() + 15e3;
+              return res.ok ? res.json() : Promise.reject(res.status);
+            }).then((body) => {
+              batch.forEach((c, k) => {
+                const list = [0, 1].flatMap((w) => body.data?.["a" + k + "_" + w]?.media || []);
+                const n = /^\d+$/.test(c.latest) ? c.latest : "";
+                // the card's episode count picks the right season, and a
+                // disagreeing count means the match can't be trusted
+                const m = (n && list.find((x) => String(x.episodes) === n)) || (!n && list[0]);
+                const d = m && m.status === "FINISHED" && m.endDate && m.endDate.year ? m.endDate : null;
+                // not aired yet: no episode to put in the feed, no page to read
+                const soon = !m && list[0] && list[0].status === "NOT_YET_RELEASED";
+                ends[c.id] = { ts: d ? Math.round(new Date(d.year, (d.month || 12) - 1, d.day || 28, 20).getTime() / 6e4) : soon ? -1 : null, t: Date.now() };
+              });
+              saveEnds();
+            }, () => {}); // a failed batch: those shows fall back to their pages
+          })
+          .then(() => onBatch(n + 1, batches.length));
+      });
+      return chain;
+    };
+
+    const dateLabel = (ms) => {
+      const d = new Date(ms);
+      return MONTHS[d.getMonth()] + " " + d.getDate() + (d.getFullYear() !== new Date().getFullYear() ? ", " + d.getFullYear() : "");
+    };
+    const nextLabel = () => "back to " + dateLabel(horizon - WINDOW_MS);
 
     const loadStage = () => {
-      const st = stages.shift();
-      if (!st) { exhausted = true; horizon = -Infinity; return render(); }
+      if (exhausted) return;
+      const hi = horizon;
+      const lo = hi - WINDOW_MS;
       loading = true;
       moreBtn.hidden = true;
-      setStatus("Finding older episodes " + st.label + "…", 0, 1);
+      setStatus("Finding older episodes " + nextLabel() + "…", 0, 1);
       let sorter = null;
-      fetch(st.url, { credentials: "same-origin" })
-        .then((r) => (r.ok ? r.text() : Promise.reject(r.status)))
-        .then((html) => {
-          const list = cardsOf(new DOMParser().parseFromString(html, "text/html"));
-          if (!list.length) return Promise.reject(404);
-          list.forEach(addShow);
+      readListsTo(lo)
+        .then(() => askEnds(Array.from(pool.values()), (n, of) =>
+          setStatus("Checking dates on AniList · " + n + " / " + of, n, of)))
+        .then(() => {
+          // shows to read: placed in (or just before) the window, or not placeable
+          const want = Array.from(pool.values()).filter((c) => {
+            if (shown.has(c.id)) return false;
+            const g = cached(c.id);
+            if (g && g.eps) return false; // already read: its episodes are in
+            const est = estOf(c.id);
+            if (est === -1) return false;
+            return est === null || est === undefined || (est * 6e4 >= lo - 7 * 864e5 && est * 6e4 < hi + 7 * 864e5);
+          });
           setStatus("", 0, 0);
-          sorter = makeSorter(list, "Sorting older episodes, " + st.label);
-          return Promise.all(list.map((c) => lookup(c.id, true).then((g) => { addEps(c.id, g); sorter.place(c.id, g); })));
+          sorter = makeSorter(want, "Sorting older episodes " + nextLabel());
+          return Promise.all(want.map((c) => lookup(c.id, true).then((g) => { addEps(c.id, g); sorter.place(c.id, g); })));
         })
         .then(() => {
-          horizon = st.horizon;
-          if (st.url.includes("20")) pushSeason();
-        }, (err) => {
-          // the first missing season page is the end of the catalogue
-          if (err === 404) { exhausted = true; horizon = -Infinity; }
-          else stages.unshift(st); // a network hiccup: try this stage again on the next scroll
-        })
+          // every show the list pages know is read or placed before `lo`: the
+          // window is complete. Past the last list page, nothing older is left.
+          pool.forEach((c) => addEps(c.id, cached(c.id)));
+          horizon = lo;
+          const older = Array.from(pool.values()).some((c) => { const e = estOf(c.id); return e != null && e > 0 && e * 6e4 < lo; });
+          if (listsDone && !older && !eligible().length) { exhausted = true; horizon = -Infinity; }
+        }, () => {}) // a network hiccup: the same window is offered again
         .finally(() => {
           const done = () => { loading = false; limit += PAGE; render(); };
           if (sorter) sorter.finish(done);
@@ -1205,7 +1329,7 @@
       const tiles = new Map(); // show id -> { el, ts }
       cards.forEach((c, i) => {
         const g = cached(c.id);
-        if ((g && isNsfw(g.genres)) || tiles.has(c.id)) return;
+        if (skipInFeed(g) || tiles.has(c.id)) return;
         const el = document.createElement("div");
         el.className = "adx-sort-tile";
         el.style.setProperty("--i", i % 40);
@@ -1253,7 +1377,7 @@
           count();
           const t = tiles.get(id);
           if (!t) return;
-          if (g && isNsfw(g.genres)) { t.el.remove(); tiles.delete(id); return; }
+          if (skipInFeed(g)) { t.el.remove(); tiles.delete(id); return; }
           t.ts = g && g.eps && g.eps.length ? Math.max(...g.eps.map((e) => e[2])) : 0;
           t.el.classList.add("is-in");
           if (!queued) { queued = true; requestAnimationFrame(resort); }
