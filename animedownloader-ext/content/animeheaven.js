@@ -602,7 +602,9 @@
     // The flag only stops an immediate reload loop (e.g. a key the server no
     // longer accepts), not a later restore of the same episode.
     const lastTry = +sessionStorage.getItem("adx.restored." + wanted) || 0;
-    if (wanted && current && wanted !== current && Date.now() - lastTry > 10000) {
+    // No current episode at all (no key cookie yet, so the site shows its
+    // 404) counts as "another episode" too: a feed link opened in a new tab.
+    if (wanted && wanted !== current && Date.now() - lastTry > 10000) {
       // Opened from a link/history entry for another episode: reload onto it.
       sessionStorage.setItem("adx.restored." + wanted, String(Date.now()));
       setKey(wanted);
@@ -611,6 +613,10 @@
     }
     const title = document.querySelector(".linetitle3");
     const epNum = (title?.textContent.match(/Episode\s+(\d+(?:\.\d+)?)\s*$/) || [])[1];
+    // Tab title: what is playing, episode first so a narrow tab keeps it.
+    const showName = title?.querySelector('a[href*="anime.php"]')?.textContent.trim() ||
+      title?.textContent.replace(/\s*Episode\s+\S+\s*$/, "").trim();
+    if (showName) document.title = (epNum ? "Ep " + epNum + " · " : "") + showName;
     if (current) {
       history.replaceState(null, "", "/gate.php#" + (epNum ? "ep=" + epNum + "&" : "") + "k=" + current);
     }
