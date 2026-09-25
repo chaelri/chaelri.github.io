@@ -610,20 +610,59 @@ h1 { margin: 0; font: inherit; }
 }
 .linetitle3 a { color: var(--ah-text); font-weight: 700; }
 .linetitle3 a:hover { color: var(--ah-red); }
+/* watch page: Prev / Next episode, top right of the title row */
+.linetitle3.adx-has-epnav { display: flex; align-items: center; gap: 16px; }
+.adx-epnav { display: flex; gap: 8px; margin-left: auto; flex: none; }
+.linetitle3 .adx-epnav a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--ah-line-strong);
+  background: var(--ah-surface);
+  color: var(--ah-text);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.linetitle3 .adx-epnav a:hover { border-color: var(--ah-red); color: var(--ah-text); }
+.linetitle3 .adx-epnav a.adx-epnav-next { background: var(--ah-red); border-color: var(--ah-red); color: #fff; }
+.linetitle3 .adx-epnav a.adx-epnav-next:hover { background: var(--ah-red-hover); }
+.adx-epnav-prev::before,
+.adx-epnav-next::after {
+  content: "";
+  width: 12px;
+  height: 12px;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 5 7 7-7 7'/%3E%3C/svg%3E") center / contain no-repeat;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 5 7 7-7 7'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+.adx-epnav-prev::before { transform: scaleX(-1); }
 .linetitle2:has(> a > .boxitem) { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .linetitle2:has(> a > .boxitem) .boxitem { margin: 0; }
 .info2:has(> video) {
   position: relative !important;
+  width: fit-content;
+  max-width: 100%;
+  margin-left: auto;
+  margin-right: auto;
   padding: 0;
   overflow: hidden;
   background: #000;
   border-radius: 14px;
 }
+/* The height cap works through the width, so the box always keeps the
+   video's own shape: capping the height of a full-width box letterboxed
+   every episode with black side bars on a short window. --adx-ar is the
+   video's real width/height, set by animeheaven.js once it is known. */
 .videodiv {
   display: block;
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  max-height: calc(100vh - 200px);
+  width: min(100vw - 2 * var(--ah-gutter), var(--ah-max), (100vh - 200px) * var(--adx-ar, 1.7778));
+  max-width: 100%;
+  aspect-ratio: var(--adx-ar, 1.7778);
+  height: auto;
   background: #000;
 }
 .unmute { position: absolute; inset: 10px; pointer-events: none; }

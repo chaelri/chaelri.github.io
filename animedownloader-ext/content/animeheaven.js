@@ -594,6 +594,12 @@
   const keyFromHash = () => new URLSearchParams(location.hash.slice(1)).get("k");
 
   if (location.pathname === "/gate.php") {
+    // the player box takes the video's real shape (see .videodiv)
+    const vid = document.querySelector("video.videodiv");
+    const fitVideo = () => {
+      if (vid.videoWidth && vid.videoHeight) vid.style.setProperty("--adx-ar", String(vid.videoWidth / vid.videoHeight));
+    };
+    if (vid) { vid.addEventListener("loadedmetadata", fitVideo); fitVideo(); }
     // sk is the page's own "which episode is this" variable.
     const current = (Array.from(document.scripts)
       .map((s) => s.textContent.match(/var\s+sk\s*=\s*"([0-9a-f]{32})"/))
@@ -637,6 +643,41 @@
             .reverse(); // the site lists newest first
           if (eps.length < 2) return;
           const visited = localStorage.getItem("visited") || "";
+
+          // Prev / Next at the top right of the title row; a button with no
+          // episode that way (first / latest) is not shown at all.
+          const goTo = (ep) => {
+            setKey(ep.key);
+            location.href = "/gate.php#ep=" + ep.num + "&k=" + ep.key;
+            location.reload();
+          };
+          const at = eps.findIndex((ep) => ep.key === current);
+          if (at !== -1 && title) {
+            const nav = document.createElement("div");
+            nav.className = "adx-epnav";
+            [["Prev", eps[at - 1]], ["Next", eps[at + 1]]].forEach(([label, ep]) => {
+              if (!ep) return;
+              const a = document.createElement("a");
+              a.className = "adx-epnav-" + label.toLowerCase();
+              a.href = "/gate.php#ep=" + ep.num + "&k=" + ep.key;
+              a.title = "Episode " + ep.num;
+              a.innerHTML = "<span></span>";
+              a.firstChild.textContent = label + " · Ep " + ep.num;
+              a.addEventListener("click", (e) => {
+                if (e.metaKey || e.ctrlKey || e.shiftKey) return; // new tab: the hash restores it
+                e.preventDefault();
+                goTo(ep);
+              });
+              nav.appendChild(a);
+            });
+            if (nav.children.length) {
+              // keep "<show> Episode N" as one flex item next to the buttons
+              const text = document.createElement("span");
+              text.append(...title.childNodes);
+              title.classList.add("adx-has-epnav");
+              title.append(text, nav);
+            }
+          }
 
           const panel = document.createElement("section");
           panel.className = "adx-eps";
