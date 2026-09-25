@@ -22,10 +22,15 @@
 
   // animeheaven tags explicitly ("Explicit Sex", "Nudity", …), not just by genre.
   const NSFW_RE = /\b(ecchi|erotica|hentai|nudity|explicit|sexual|sex)\b/i;
-  const CACHE_KEY = "adx.heaven.shows.v4";
-  const TTL_MS = 14 * 24 * 60 * 60 * 1000;
+  const CACHE_KEY = "adx.heaven.shows.v5";
+  // a finished show's page never changes
+  const TTL_MS = 60 * 24 * 60 * 60 * 1000;
   const MAX_CHIPS = 3;
-  const CONCURRENCY = 3;
+  // Be a polite visitor: at most two show pages in flight, ~3 a second, and
+  // everything stops for a minute if the site says 429.
+  const CONCURRENCY = 2;
+  const MIN_GAP_MS = 350;
+  const RATE_PAUSE_MS = 60 * 1000;
   const RETRY_DELAYS_MS = [3000, 8000];
   const CARD_SEL = ".chart, .similarimg, .popularbox2";
 
@@ -41,9 +46,20 @@
       try { localStorage.setItem(CACHE_KEY, JSON.stringify(cache)); } catch (e) {}
     }, 250);
   };
+  // A show still airing gains episodes, so its entry goes stale sooner.
+  const AIRING_TTL_MS = 3 * 24 * 60 * 60 * 1000;
   const cached = (id) => {
     const hit = cache[id];
-    return hit && Date.now() - hit.t < TTL_MS ? hit.g : null;
+    if (!hit) return null;
+    const ttl = /finished/i.test(hit.g.status) ? TTL_MS : AIRING_TTL_MS;
+    return Date.now() - hit.t < ttl ? hit.g : null;
+  };
+
+  // "29 min ago" / "5 h ago" / "370 d ago" -> milliseconds
+  const AGE_UNIT_MS = { sec: 1e3, s: 1e3, min: 6e4, m: 6e4, h: 36e5, d: 864e5, w: 6048e5, mo: 2592e6, y: 31536e6 };
+  const ageMs = (txt) => {
+    const m = String(txt).match(/(\d+)\s*(sec|min|mo|s|m|h|d|w|y)\b/i);
+    return m ? +m[1] * AGE_UNIT_MS[m[2].toLowerCase()] : null;
   };
 
   const isNsfw = (genres) => genres.some(([name]) => NSFW_RE.test(name));
@@ -83,16 +99,31 @@
   // ── fetch queue ──
   const inflight = new Map();
   const queue = [];
+  const bgQueue = []; // the Latest feed's older stages wait behind visible cards
   let active = 0;
+  let nextStart = 0;
+  let pumpTimer = null;
   const pump = () => {
-    while (active < CONCURRENCY && queue.length) {
-      const job = queue.shift();
+    while (active < CONCURRENCY && (queue.length || bgQueue.length)) {
+      const wait = nextStart - Date.now();
+      if (wait > 0) {
+        if (!pumpTimer) pumpTimer = setTimeout(() => { pumpTimer = null; pump(); }, wait);
+        return;
+      }
+      nextStart = Date.now() + MIN_GAP_MS;
+      const job = queue.shift() || bgQueue.shift();
       active++;
       fetch("/anime.php?" + job.id, { credentials: "same-origin" })
         .then((r) => (r.ok ? r.text() : Promise.reject(r.status)))
         .then((html) => {
           const doc = new DOMParser().parseFromString(html, "text/html");
+          const now = Date.now();
           return {
+            // every episode as [gate key, number, aired at (minutes since epoch)]
+            eps: Array.from(doc.querySelectorAll('.linetitle2 a[id][onclick*="gate"]')).map((a) => {
+              const age = ageMs(Array.from(a.querySelectorAll(".watch1")).pop()?.textContent || "");
+              return [a.id, a.querySelector(".watch2")?.textContent.trim() || "?", age == null ? 0 : Math.round((now - age) / 6e4)];
+            }),
             genres: Array.from(doc.querySelectorAll(".infotags a")).map((a) => [
               a.textContent.trim(),
               a.getAttribute("href"),
@@ -111,9 +142,12 @@
         })
         .then(job.resolve, (status) => {
           const tries = job.tries || 0;
-          if (status >= 500 && tries < RETRY_DELAYS_MS.length) {
+          if (status === 429) {
+            nextStart = Date.now() + RATE_PAUSE_MS;
+            (job.bg ? bgQueue : queue).unshift(job);
+          } else if (status >= 500 && tries < RETRY_DELAYS_MS.length) {
             job.tries = tries + 1;
-            setTimeout(() => { queue.push(job); pump(); }, RETRY_DELAYS_MS[tries]);
+            setTimeout(() => { (job.bg ? bgQueue : queue).push(job); pump(); }, RETRY_DELAYS_MS[tries]);
           } else {
             job.resolve(null); // unverifiable — reveal, don't cache
           }
@@ -121,11 +155,11 @@
         .finally(() => { active--; pump(); });
     }
   };
-  const lookup = (id) => {
+  const lookup = (id, bg = false) => {
     const hit = cached(id);
     if (hit) return Promise.resolve(hit);
     if (inflight.has(id)) return inflight.get(id);
-    const p = new Promise((resolve) => { queue.push({ id, resolve }); pump(); })
+    const p = new Promise((resolve) => { (bg ? bgQueue : queue).push({ id, resolve, bg }); pump(); })
       .then((g) => {
         if (g) { cache[id] = { g, t: Date.now() }; saveCache(); }
         return g;
@@ -301,7 +335,7 @@
   };
 
   const apply = (card, info) => {
-    if (info && isNsfw(info.genres)) return card.classList.add("adx-nsfw");
+    //if (info && isNsfw(info.genres)) return card.classList.add("adx-nsfw");
     if (info) renderChips(card, info);
     if (info && !card.matches(".popularbox2")) {
       lookupAired(showIdOf(card.querySelector('a[href*="anime.php"]')?.href), info).then((d) => {
@@ -450,7 +484,8 @@
     empty.hidden = true;
 
     // Sit above the grid: before the first card, after the section title.
-    const first = grid.querySelector(":scope > .chart, :scope > .similarimg");
+    // the Latest feed starts at its anchor, above its first day heading
+    const first = grid.querySelector(":scope > .adx-feed-anchor, :scope > .chart, :scope > .similarimg");
     grid.insertBefore(bar, first);
     grid.insertBefore(empty, first);
 
@@ -702,6 +737,241 @@
   const strip = document.querySelector(".info2 > .inline.c2");
   const stripPill = strip && statusPill(strip.textContent);
   if (stripPill) strip.className = "inline adx-status " + stripPill[1];
+
+  // ── Latest (new.php): every episode, newest first, grouped by day ──
+  // new.php stops at ~11 days and has no pages, so older episodes come from
+  // each show's own episode list ("370 d ago"). Shows are found in stages,
+  // each loaded only when the reader scrolls to the end of the one before:
+  // new.php itself, the schedule (every show since the last season page),
+  // then the season pages newest to oldest. Each stage completes a stretch
+  // of time (its horizon); nothing older than the horizon is shown yet, so
+  // the feed never shows a gap that later fills in.
+  const buildFeed = () => {
+    const grid = document.querySelector(".boldtext:has(> .chart)");
+    if (!grid) return;
+    const title = grid.querySelector(":scope > .linetitle");
+    if (title?.firstChild?.nodeType === 3) title.firstChild.textContent = "Latest episodes";
+
+    const shows = new Map(); // id -> { title, cover }
+    const eps = new Map(); // "id:num" -> { id, num, key, ts }
+    const cardsOf = (root) => Array.from(root.querySelectorAll(".chart, .similarimg")).map((c) => {
+      const a = c.querySelector('a[href*="anime.php?"]');
+      const id = showIdOf(a?.getAttribute("href"));
+      const img = c.querySelector("img.coverimg");
+      return id && {
+        id,
+        title: (c.querySelector(".charttitle a, .similarname a")?.textContent || img?.alt || "").trim(),
+        cover: img?.getAttribute("src") || "",
+        latest: c.querySelector(".chartepm")?.textContent.trim() || "",
+        age: ageMs(c.querySelector(".charttimer")?.textContent || ""),
+      };
+    }).filter(Boolean);
+    const addShow = (c) => { if (!shows.has(c.id)) shows.set(c.id, { title: c.title, cover: c.cover }); };
+    const addEps = (id, g) => {
+      if (!g || !g.eps || isNsfw(g.genres)) return;
+      for (const [key, num, ts] of g.eps) if (ts) eps.set(id + ":" + num, { id, num, key, ts });
+    };
+
+    // stage 0: the page's own cards, shown at once with what the card says
+    const own = cardsOf(grid);
+    const now = Date.now();
+    let horizon = now - Math.max(...own.map((c) => c.age || 0)) - 864e5;
+    for (const c of own) {
+      addShow(c);
+      if (c.latest) eps.set(c.id + ":" + c.latest, { id: c.id, num: c.latest, key: null, ts: Math.round((now - (c.age || 0)) / 6e4) });
+    }
+    grid.querySelectorAll(":scope > .chart, :scope > a:has(> .boxitem2)").forEach((el) => el.remove());
+
+    const anchor = document.createElement("div");
+    anchor.className = "adx-feed-anchor";
+    const foot = document.createElement("div");
+    foot.className = "adx-feed-foot";
+    foot.innerHTML = "<span></span><i><b></b></i><button type='button' hidden>Load older episodes</button>";
+    const moreBtn = foot.querySelector("button");
+    grid.append(anchor, foot);
+    const setStatus = (text, done, total) => {
+      foot.firstChild.textContent = text;
+      foot.classList.toggle("is-busy", total > 0);
+      foot.querySelector("b").style.width = total ? Math.round((done / total) * 100) + "%" : "0";
+    };
+
+    const PAGE = 36;
+    let limit = PAGE;
+    const nodes = new Map();
+    const visited = localStorage.getItem("visited") || "";
+    const MONTHS_LONG = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    const dayOf = (ms) => { const d = new Date(ms); d.setHours(0, 0, 0, 0); return d.getTime(); };
+    const dayLabel = (day) => {
+      const diff = Math.round((dayOf(Date.now()) - day) / 864e5);
+      const d = new Date(day);
+      if (diff === 0) return "Today";
+      if (diff === 1) return "Yesterday";
+      const date = MONTHS_LONG[d.getMonth()] + " " + d.getDate();
+      if (diff < 7) return DAYS[d.getDay()] + ", " + date;
+      return date + (d.getFullYear() !== new Date().getFullYear() ? ", " + d.getFullYear() : "");
+    };
+    const whenLabel = (ts) => {
+      const m = Math.max(0, Date.now() - ts * 6e4);
+      return m < 36e5 ? Math.max(1, Math.round(m / 6e4)) + " min ago"
+        : m < 864e5 ? Math.floor(m / 36e5) + " h ago"
+        : Math.floor(m / 864e5) + " d ago";
+    };
+    const cardFor = (e) => {
+      const k = e.id + ":" + e.num;
+      let c = nodes.get(k);
+      if (!c) {
+        const show = shows.get(e.id) || {};
+        c = document.createElement("div");
+        c.className = "chart bc1 adx-feed-card";
+        c.innerHTML =
+          "<div class='chartimg'><a class='adx-feed-play'><img class='coverimg' loading='lazy' alt=''>" +
+          "<div class='chartepm bc2 c1'></div></a></div>" +
+          "<div class='chartinfo'><div class='charttitle c'><a class='c'></a></div><div class='charttimer c2'></div></div>";
+        const img = c.querySelector("img");
+        img.src = show.cover || "";
+        img.alt = show.title || "";
+        c.querySelector(".chartepm").textContent = e.num;
+        const t = c.querySelector(".charttitle a");
+        t.href = "anime.php?" + e.id;
+        t.textContent = show.title || "";
+        c.querySelector(".adx-feed-play").addEventListener("click", (ev) => {
+          const key = c.dataset.key;
+          if (!key || ev.metaKey || ev.ctrlKey || ev.shiftKey) return; // new tab: the hash restores it
+          ev.preventDefault();
+          setKey(key);
+          location.href = c.querySelector(".adx-feed-play").href;
+        });
+        nodes.set(k, c);
+      }
+      const play = c.querySelector(".adx-feed-play");
+      if (e.key && c.dataset.key !== e.key) {
+        c.dataset.key = e.key;
+        play.href = "/gate.php#ep=" + e.num + "&k=" + e.key;
+        c.classList.toggle("is-watched", visited.includes(e.key));
+      } else if (!e.key) {
+        play.href = "anime.php?" + e.id;
+      }
+      c.querySelector(".charttimer").textContent = whenLabel(e.ts);
+      return c;
+    };
+
+    let loading = false;
+    let exhausted = false;
+    const render = () => {
+      const list = Array.from(eps.values())
+        .filter((e) => e.ts * 6e4 >= horizon && !(cached(e.id) && isNsfw(cached(e.id).genres)))
+        .sort((a, b) => b.ts - a.ts || (a.id < b.id ? -1 : 1))
+        .slice(0, limit);
+      const want = [];
+      let lastDay = null;
+      for (const e of list) {
+        const day = dayOf(e.ts * 6e4);
+        if (day !== lastDay) {
+          lastDay = day;
+          let h = nodes.get("day:" + day);
+          if (!h) {
+            h = document.createElement("div");
+            h.className = "adx-day";
+            h.textContent = dayLabel(day);
+            nodes.set("day:" + day, h);
+          }
+          want.push(h);
+        }
+        want.push(cardFor(e));
+      }
+      const keep = new Set(want);
+      for (const n of nodes.values()) if (n.isConnected && !keep.has(n)) n.remove();
+      let prev = anchor;
+      for (const n of want) {
+        if (prev.nextSibling !== n) prev.after(n);
+        prev = n;
+      }
+      const more = eps.size && list.length === limit;
+      if (!loading) setStatus(exhausted && !more ? "That's every episode animeheaven lists." : "", 0, 0);
+      // Older stages cost the site a request per show, so they only load on a tap.
+      moreBtn.hidden = loading || exhausted || more;
+      if (!moreBtn.hidden) moreBtn.textContent = "Load older episodes · " + stages[0].label;
+      requestAnimationFrame(needMoreIfClose);
+    };
+
+    // ── stages ──
+    const SEASONS = ["winter", "spring", "summer", "fall"];
+    const seasonStart = (y, i) => new Date(y, i * 3, 1).getTime();
+    const newest = Array.from(document.querySelectorAll('a[href$=".php"]'))
+      .map((a) => a.getAttribute("href").match(/^\/?(\d{4})(winter|spring|summer|fall)\.php$/))
+      .find(Boolean);
+    let season = newest ? { y: +newest[1], i: SEASONS.indexOf(newest[2]) } : { y: 2025, i: 3 };
+    const nextOf = ({ y, i }) => (i === 3 ? { y: y + 1, i: 0 } : { y, i: i + 1 });
+    const prevOf = ({ y, i }) => (i === 0 ? { y: y - 1, i: 3 } : { y, i: i - 1 });
+    const after = nextOf(season);
+    const stages = [{ label: "back to " + MONTHS[after.i * 3] + " " + after.y, url: "/?schedule", horizon: seasonStart(after.y, after.i) }];
+    const nameOf = ({ y, i }) => y + " " + SEASONS[i][0].toUpperCase() + SEASONS[i].slice(1);
+    const pushSeason = () => {
+      stages.push({ label: "back to " + nameOf(season), url: "/" + season.y + SEASONS[season.i] + ".php", horizon: seasonStart(season.y, season.i) });
+      season = prevOf(season);
+    };
+    pushSeason();
+
+    const loadStage = () => {
+      const st = stages.shift();
+      if (!st) { exhausted = true; horizon = -Infinity; return render(); }
+      loading = true;
+      moreBtn.hidden = true;
+      setStatus("Finding older episodes " + st.label + "…", 0, 1);
+      fetch(st.url, { credentials: "same-origin" })
+        .then((r) => (r.ok ? r.text() : Promise.reject(r.status)))
+        .then((html) => {
+          const list = cardsOf(new DOMParser().parseFromString(html, "text/html"));
+          if (!list.length) return Promise.reject(404);
+          list.forEach(addShow);
+          let done = 0;
+          const tick = () => setStatus("Finding older episodes " + st.label + " · " + done + " / " + list.length, done, list.length);
+          tick();
+          return Promise.all(list.map((c) => lookup(c.id, true).then((g) => { addEps(c.id, g); done++; tick(); })));
+        })
+        .then(() => {
+          horizon = st.horizon;
+          if (st.url.includes("20")) pushSeason();
+        }, (err) => {
+          // the first missing season page is the end of the catalogue
+          if (err === 404) { exhausted = true; horizon = -Infinity; }
+          else stages.unshift(st); // a network hiccup: try this stage again on the next scroll
+        })
+        .finally(() => { loading = false; limit += PAGE; render(); });
+    };
+
+    function needMoreIfClose() {
+      if (loading || !foot.isConnected) return;
+      if (foot.getBoundingClientRect().top > innerHeight + 1200) return;
+      const avail = Array.from(eps.values()).filter((e) => e.ts * 6e4 >= horizon).length;
+      if (avail > limit) { limit += PAGE; render(); }
+    }
+    moreBtn.addEventListener("click", loadStage);
+    addEventListener("scroll", () => requestAnimationFrame(needMoreIfClose), { passive: true });
+
+    // Stage 0's shows: refetch any whose cached page predates its new episode.
+    for (const c of own) {
+      const hit = cached(c.id);
+      if (hit && c.latest && !hit.eps.some(([, n]) => n === c.latest)) delete cache[c.id];
+      lookup(c.id).then((g) => { addEps(c.id, g); render(); });
+    }
+    render();
+  };
+
+  // The site's nav: "New" is now Latest (and home); the old home is Schedule.
+  document.querySelectorAll('a[href="new.php"]').forEach((a) => {
+    const label = a.querySelector(".headeritem, .burgeritem2");
+    if (!label) return;
+    label.textContent = "Latest";
+    const sched = a.cloneNode(true);
+    sched.href = "/?schedule";
+    sched.title = "Schedule";
+    sched.querySelector(".headeritem, .burgeritem2").textContent = "Schedule";
+    a.after(sched);
+  });
+  document.querySelectorAll('a[href="/"]').forEach((a) => a.setAttribute("href", "/new.php"));
+  if (location.pathname === "/new.php") buildFeed();
 
   scan();
   injectFilterBar();

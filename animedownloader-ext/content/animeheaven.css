@@ -260,51 +260,8 @@ h1 { margin: 0; font: inherit; }
 .circleb:hover { background: var(--ah-red-soft); border-color: var(--ah-red); }
 .circleb img { display: block; width: 16px; height: 16px; }
 
-/* ── hero banner ──────────────────────────────────────────────────── */
-/* Slides stack vertically; the site's JS swaps .slideN on #slide, which
-   shifts it up by (N-1) slide heights. One variable drives both. */
-.banner {
-  --ah-bh: clamp(150px, 18vw, 250px);
-  position: relative;
-  width: calc(100% - 2 * var(--ah-gutter));
-  max-width: var(--ah-max);
-  height: var(--ah-bh);
-  margin: 20px auto 0;
-  border-radius: 14px;
-  overflow: hidden;
-  background: var(--ah-surface);
-  border: 1px solid var(--ah-line);
-}
-#slide > a { display: block; height: var(--ah-bh); }
-.bannerimg { display: block; width: 100%; height: var(--ah-bh); object-fit: cover; }
-.slide1 { margin-top: 0; }
-.slide2 { margin-top: calc(var(--ah-bh) * -1); }
-.slide3 { margin-top: calc(var(--ah-bh) * -2); }
-.slide4 { margin-top: calc(var(--ah-bh) * -3); }
-.slide5 { margin-top: calc(var(--ah-bh) * -4); }
-.ani { transition: margin-top 0.9s var(--ah-ease); }
-.slidenav { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
-.slidep,
-.sliden {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 36px;
-  height: 36px;
-  padding: 9px;
-  box-sizing: border-box;
-  border-radius: 999px;
-  background: rgba(11, 11, 13, 0.55);
-  backdrop-filter: blur(6px);
-  cursor: pointer;
-  pointer-events: auto;
-  opacity: 0.75;
-  transition: opacity 0.15s ease, background 0.15s ease;
-}
-.slidep { left: 14px; }
-.sliden { right: 14px; }
-.slidep:hover,
-.sliden:hover { opacity: 1; background: var(--ah-red); }
+/* ── hero banner: gone ───────────────────────────────────────────── */
+.banner { display: none !important; }
 
 /* ── show grids: schedule / new / popular (.chart) ────────────────── */
 .boldtext:has(> .chart) {
@@ -1190,6 +1147,46 @@ h1 { margin: 0; font: inherit; }
           mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3.5' y='5' width='17' height='15.5' rx='2.5'/%3E%3Cpath d='M3.5 10h17M8 3v4M16 3v4'/%3E%3C/svg%3E") center / contain no-repeat;
 }
 .adx-aired + .adx-genre-row { padding-top: 10px; }
+
+/* ── Latest feed (new.php) ────────────────────────────────────────── */
+.adx-day {
+  grid-column: 1 / -1;
+  margin: 18px 0 -14px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ah-text);
+}
+.adx-feed-anchor + .adx-day { margin-top: 0; }
+.adx-filtering .adx-day { display: none; }
+.adx-feed-anchor { display: none; }
+.adx-feed-card.is-watched .coverimg { filter: grayscale(0.7) brightness(0.55); }
+.adx-feed-card.is-watched .chartepm { background: var(--ah-surface-3); color: var(--ah-muted); }
+.adx-feed-card.is-watched .charttitle a { color: var(--ah-muted); }
+.adx-feed-foot {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0 28px;
+  font-size: 13px;
+  color: var(--ah-muted);
+}
+.adx-feed-foot span:empty { display: none; }
+.adx-feed-foot i { display: none; width: min(320px, 70%); height: 4px; border-radius: 999px; background: var(--ah-surface-3); overflow: hidden; }
+.adx-feed-foot.is-busy i { display: block; }
+.adx-feed-foot button {
+  padding: 9px 18px;
+  border-radius: 999px;
+  border: 1px solid var(--ah-line-strong);
+  background: var(--ah-surface);
+  color: var(--ah-text);
+  font: 600 13px var(--ah-font);
+  cursor: pointer;
+}
+.adx-feed-foot button:hover { border-color: var(--ah-red); }
+.adx-feed-foot button[hidden] { display: none; }
+.adx-feed-foot b { display: block; height: 100%; background: var(--ah-red); transition: width 0.2s ease; }
 
 /* status switch in the filter bar: All / Finished / Not finished */
 .adx-seg {

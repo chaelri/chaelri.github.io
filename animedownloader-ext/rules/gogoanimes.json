@@ -115,5 +115,21 @@
         "stylesheet"
       ]
     }
+  },
+  {
+    "id": 6,
+    "priority": 2,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "url": "https://animeheaven.me/new.php"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://(www\\.)?animeheaven\\.me/(index\\.php)?$",
+      "resourceTypes": [
+        "main_frame"
+      ]
+    }
   }
 ]
