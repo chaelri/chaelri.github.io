@@ -869,17 +869,26 @@
     // Append-only: what is on screen never moves. New episodes only ever go
     // below the last one shown; anything a later stage finds that would sort
     // above it is left out rather than pushed into the middle.
-    const shown = new Set();
+    //
+    // One card per show, at its newest episode: a weekly show would otherwise
+    // repeat down the feed once per episode. Episodes are sorted newest
+    // first, so the first one kept for a show is its latest.
+    const shown = new Set(); // show ids
     let lastTs = Infinity;
     let lastDay = null;
-    const eligible = () => Array.from(eps.values())
-      .filter((e) => e.ts * 6e4 >= horizon && e.ts <= lastTs && !shown.has(e.id + ":" + e.num) &&
-        !(cached(e.id) && isNsfw(cached(e.id).genres)));
+    const eligible = () => {
+      const seen = new Set();
+      // newest per show first, THEN the horizon / below-the-last-card rules,
+      // so a show whose newest episode can't be placed is skipped outright
+      return Array.from(eps.values())
+        .sort((a, b) => b.ts - a.ts || (a.id < b.id ? -1 : 1))
+        .filter((e) => !seen.has(e.id) && seen.add(e.id))
+        .filter((e) => e.ts * 6e4 >= horizon && e.ts <= lastTs && !shown.has(e.id) &&
+          !(cached(e.id) && isNsfw(cached(e.id).genres)));
+    };
     const render = () => {
       if (!ready) return;
-      const add = eligible()
-        .sort((a, b) => b.ts - a.ts || (a.id < b.id ? -1 : 1))
-        .slice(0, Math.max(0, limit - shown.size));
+      const add = eligible().slice(0, Math.max(0, limit - shown.size));
       const frag = document.createDocumentFragment();
       for (const e of add) {
         const day = dayOf(e.ts * 6e4);
@@ -891,7 +900,7 @@
           frag.appendChild(h);
         }
         frag.appendChild(cardFor(e));
-        shown.add(e.id + ":" + e.num);
+        shown.add(e.id);
         lastTs = e.ts;
       }
       foot.before(frag);
