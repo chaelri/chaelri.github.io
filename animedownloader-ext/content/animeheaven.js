@@ -932,15 +932,31 @@
     }
     return pill.textContent ? pill : null;
   };
-  // Anime page: the strip moves into the info box, under Episodes / Year / Score.
+  // Anime page, minimal (same look as the watch page): the status strip
+  // becomes the last item of the Episodes / Year / Score line, and the
+  // synopsis + tags move under the episode list so the episodes come first.
   if (location.pathname === "/anime.php") {
+    document.documentElement.classList.add("adx-showpage");
     const strip = document.querySelector(".boldtext > .info2:has(> .inline)");
     const pill = airPill(strip);
     const infoYear = document.querySelector(".infoyear");
     if (pill && infoYear) {
-      infoYear.after(pill);
+      const st = document.createElement("span");
+      st.className = "adx-wm-status " + (pill.classList.contains("is-done") ? "is-done" : pill.classList.contains("is-next") ? "is-next" : "");
+      st.textContent = pill.classList.contains("is-next")
+        ? "Next: " + Array.from(pill.children).map((c) => c.textContent).join(" · ")
+        : pill.textContent;
+      infoYear.appendChild(st);
       strip.remove();
     }
+    const eps = document.querySelector(".adx-eps-page");
+    const about = document.createElement("section");
+    about.className = "adx-watch-about";
+    const des = document.querySelector(".info .infodes");
+    const tags = document.querySelector(".info .infotags");
+    if (des) about.appendChild(des);
+    if (tags) about.appendChild(tags);
+    if (about.children.length) (eps || document.querySelector(".info")).after(about);
   }
 
   // ── Latest (new.php): every episode, newest first, grouped by day ──
@@ -955,7 +971,8 @@
     const grid = document.querySelector(".boldtext:has(> .chart)");
     if (!grid) return;
     const title = grid.querySelector(":scope > .linetitle");
-    if (title?.firstChild?.nodeType === 3) title.firstChild.textContent = "Latest episodes";
+    // Home needs no heading: the filter bar sits right under the header.
+    title?.remove();
 
     const shows = new Map(); // id -> { title, cover }
     const eps = new Map(); // "id:num" -> { id, num, key, ts }

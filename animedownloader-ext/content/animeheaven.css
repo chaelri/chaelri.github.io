@@ -794,6 +794,95 @@ h1 { margin: 0; font: inherit; }
   font-weight: 700;
 }
 
+/* ── show page (anime.php), minimal like the watch page ──────────── */
+.adx-showpage .info {
+  grid-template-columns: 132px minmax(0, 1fr);
+  gap: 26px;
+  margin-top: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+.adx-showpage .posterimg { border-radius: 8px; box-shadow: 0 0 0 1px var(--ah-line); }
+.adx-showpage .infotitle { font-size: 30px; }
+.adx-showpage .infotitlejp { margin-top: 6px; font-size: 13px; line-height: 1.4; }
+.adx-showpage .infoyear { margin-top: 10px; gap: 4px 0; font-size: 13.5px; color: var(--ah-muted); }
+.adx-showpage .infoyear > .inline { margin: 0 0 0 5px; color: var(--ah-text); font-weight: 500; }
+/* "Episodes: 12 Year: 2026 Score: ?" reads as one line split by dots */
+.adx-showpage .infoyear > .inline:not(:last-of-type)::after,
+.adx-showpage .infoyear > .inline:last-of-type:not(:last-child)::after { content: "·"; margin: 0 10px; color: var(--ah-faint); font-weight: 400; }
+.adx-showpage .infobook { gap: 22px; margin-top: 16px; }
+.adx-showpage .book3,
+.adx-showpage .book3 + .book3 {
+  height: auto;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--ah-muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+}
+.adx-showpage .book3:hover,
+.adx-showpage .book3 + .book3:hover { background: none; color: var(--ah-text); }
+.adx-showpage .book2 { min-width: 0; height: auto; font-size: 12px; letter-spacing: 0; }
+.adx-showpage .book2 img { width: 11px; height: 11px; filter: invert(0.65); }
+.adx-showpage .book3:hover .book2 img { filter: invert(0.93); }
+.adx-showpage .book2.bc3 { color: var(--ah-red); }
+
+.adx-showpage .adx-eps-page {
+  margin-top: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+.adx-showpage .adx-eps-head {
+  margin-bottom: 12px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: var(--ah-faint);
+}
+.adx-showpage .adx-eps-head span { font-size: 11.5px; color: var(--ah-faint); }
+.adx-showpage .adx-eps-sort {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--ah-muted);
+}
+.adx-showpage .adx-eps-sort:hover { color: var(--ah-text); }
+.adx-showpage .adx-eps-cards {
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  gap: 6px;
+  max-height: none;
+  padding-top: 6px;
+}
+.adx-showpage .adx-ep-card {
+  height: 50px;
+  border-radius: 6px;
+  background: none;
+  border: 1px solid var(--ah-line-strong);
+}
+.adx-showpage .adx-ep-card b { font-size: 15px; font-weight: 600; }
+.adx-showpage .adx-eps-cards > a:hover .adx-ep-card { background: none; border-color: var(--ah-red); transform: none; }
+.adx-showpage .adx-ep-card.is-watched { border-color: var(--ah-line); }
+.adx-showpage .adx-ep-card.is-new { border-color: var(--ah-red); }
+.adx-showpage .adx-ep-card.is-new b { color: var(--ah-red); }
+.adx-showpage .adx-watch-about .infodes { margin: 0; max-width: 72ch; font-size: 14px; line-height: 1.7; color: var(--ah-muted); }
+.adx-showpage .adx-watch-about .infotags { margin-top: 16px; }
+.adx-showpage .adx-watch-about .infotags .boxitem { background: none; }
+.adx-showpage .boldtext:has(> .adx-watch-about) { padding-bottom: 56px; }
+
 /* synopsis + tags */
 .adx-watch-about { margin-top: 30px; }
 .adx-watch-about p {
@@ -1375,6 +1464,11 @@ h1 { margin: 0; font: inherit; }
 .adx-feed-anchor + .adx-day { margin-top: 0; }
 .adx-filtering .adx-day { display: none; }
 .adx-feed-anchor { display: none; }
+/* home has no heading, so the filter bar gets its own room above and below */
+.adx-filter:has(~ .adx-feed-anchor) {
+  margin-top: 14px;
+  margin-bottom: calc(-1 * var(--adx-row-gap, 24px) + 22px);
+}
 .adx-feed-card.is-watched .coverimg { filter: grayscale(0.7) brightness(0.55); }
 .adx-feed-card.is-watched .chartepm { background: var(--ah-surface-3); color: var(--ah-muted); }
 .adx-feed-card.is-watched .charttitle a { color: var(--ah-muted); }
