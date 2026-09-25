@@ -290,6 +290,24 @@ h1 { margin: 0; font: inherit; }
 }
 .chart:hover .coverimg,
 .similarimg:hover .coverimg { transform: scale(1.04); }
+/* YouTube-style hover: a solid panel behind the whole card, reaching past
+   its edges so nothing shifts, which shows which card the pointer is on */
+.chart,
+.similarimg { position: relative; isolation: isolate; cursor: pointer; }
+.chart::after,
+.similarimg::after {
+  content: "";
+  position: absolute;
+  inset: -12px -12px -14px;
+  z-index: -1;
+  border-radius: 20px;
+  background: var(--ah-surface-2);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  pointer-events: none;
+}
+.chart:hover::after,
+.similarimg:hover::after { opacity: 1; }
 .chartep { display: none; }
 .chartepm {
   position: absolute;
@@ -1155,17 +1173,88 @@ h1 { margin: 0; font: inherit; }
 /* ── Latest feed (new.php) ────────────────────────────────────────── */
 .adx-day {
   grid-column: 1 / -1;
-  margin: 18px 0 -14px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 26px 0 -8px;
   font-size: 15px;
   font-weight: 700;
   color: var(--ah-text);
+  white-space: nowrap;
 }
+/* a full-width rule after the label: each day reads as its own section */
+.adx-day i { flex: 1; height: 1px; background: var(--ah-line-strong); }
 .adx-feed-anchor + .adx-day { margin-top: 0; }
 .adx-filtering .adx-day { display: none; }
 .adx-feed-anchor { display: none; }
 .adx-feed-card.is-watched .coverimg { filter: grayscale(0.7) brightness(0.55); }
 .adx-feed-card.is-watched .chartepm { background: var(--ah-surface-3); color: var(--ah-muted); }
 .adx-feed-card.is-watched .charttitle a { color: var(--ah-muted); }
+/* first load: covers sort themselves into feed order */
+.adx-sort {
+  grid-column: 1 / -1;
+  padding: 28px 0 8px;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.adx-sort.is-done { opacity: 0; transform: translateY(-6px); }
+.adx-sort-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 18px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ah-text);
+}
+.adx-sort-head em {
+  font-style: normal;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ah-muted);
+  font-variant-numeric: tabular-nums;
+}
+.adx-sort-tiles {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  max-width: 860px;
+  margin: 0 auto;
+}
+.adx-sort-tile {
+  width: 72px;
+  aspect-ratio: 16 / 9;
+  border-radius: 7px;
+  overflow: hidden;
+  background: var(--ah-surface-2);
+  box-shadow: 0 0 0 1px var(--ah-line);
+}
+.adx-sort-tile img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.35;
+  filter: blur(3px) grayscale(1);
+  animation: adx-sort-wait 1.4s ease-in-out infinite;
+  animation-delay: calc(var(--i) * -70ms);
+  transition: opacity 0.35s ease, filter 0.35s ease;
+}
+.adx-sort-tile.is-in { box-shadow: 0 0 0 1px var(--ah-line-strong); }
+.adx-sort-tile.is-in img { opacity: 1; filter: none; animation: none; }
+@keyframes adx-sort-wait {
+  0%, 100% { opacity: 0.22; }
+  50% { opacity: 0.45; }
+}
+.adx-feed-foot.is-sorting { display: none; }
+/* a stage of hundreds of shows: smaller covers so the block stays compact */
+.adx-sort.is-many .adx-sort-tiles { gap: 6px; max-width: 900px; }
+.adx-sort.is-many .adx-sort-tile { width: 46px; border-radius: 5px; }
+@media (prefers-reduced-motion: reduce) {
+  .adx-sort-tile img { animation: none; }
+}
+
 .adx-feed-foot {
   grid-column: 1 / -1;
   display: flex;

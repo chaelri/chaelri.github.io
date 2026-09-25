@@ -26,10 +26,10 @@
   // a finished show's page never changes
   const TTL_MS = 60 * 24 * 60 * 60 * 1000;
   const MAX_CHIPS = 3;
-  // Be a polite visitor: at most two show pages in flight, ~3 a second, and
-  // everything stops for a minute if the site says 429.
-  const CONCURRENCY = 2;
-  const MIN_GAP_MS = 350;
+  // Be a polite visitor: at most three show pages in flight, 4 a second at
+  // most, and everything stops for a minute if the site says 429.
+  const CONCURRENCY = 3;
+  const MIN_GAP_MS = 250;
   const RATE_PAUSE_MS = 60 * 1000;
   const RETRY_DELAYS_MS = [3000, 8000];
   const CARD_SEL = ".chart, .similarimg, .popularbox2";
@@ -896,7 +896,8 @@
           lastDay = day;
           const h = document.createElement("div");
           h.className = "adx-day";
-          h.textContent = dayLabel(day);
+          h.innerHTML = "<span></span><i></i>";
+          h.firstChild.textContent = dayLabel(day);
           frag.appendChild(h);
         }
         frag.appendChild(cardFor(e));
@@ -921,10 +922,11 @@
     let season = newest ? { y: +newest[1], i: SEASONS.indexOf(newest[2]) } : { y: 2025, i: 3 };
     const nextOf = ({ y, i }) => (i === 3 ? { y: y + 1, i: 0 } : { y, i: i + 1 });
     const prevOf = ({ y, i }) => (i === 0 ? { y: y - 1, i: 3 } : { y, i: i - 1 });
-    const stages = [{ label: "the schedule", url: "/?schedule", horizon: seasonStart(nextOf(season).y, nextOf(season).i) }];
+    const after = nextOf(season);
+    const stages = [{ label: "back to " + MONTHS[after.i * 3] + " " + after.y, url: "/?schedule", horizon: seasonStart(after.y, after.i) }];
     const nameOf = ({ y, i }) => y + " " + SEASONS[i][0].toUpperCase() + SEASONS[i].slice(1);
     const pushSeason = () => {
-      stages.push({ label: nameOf(season), url: "/" + season.y + SEASONS[season.i] + ".php", horizon: seasonStart(season.y, season.i) });
+      stages.push({ label: "back to " + nameOf(season), url: "/" + season.y + SEASONS[season.i] + ".php", horizon: seasonStart(season.y, season.i) });
       season = prevOf(season);
     };
     pushSeason();
@@ -934,17 +936,17 @@
       if (!st) { exhausted = true; horizon = -Infinity; return render(); }
       loading = true;
       moreBtn.hidden = true;
-      setStatus("Finding older episodes: " + st.label + "…", 0, 1);
+      setStatus("Finding older episodes " + st.label + "…", 0, 1);
+      let sorter = null;
       fetch(st.url, { credentials: "same-origin" })
         .then((r) => (r.ok ? r.text() : Promise.reject(r.status)))
         .then((html) => {
           const list = cardsOf(new DOMParser().parseFromString(html, "text/html"));
           if (!list.length) return Promise.reject(404);
           list.forEach(addShow);
-          let done = 0;
-          const tick = () => setStatus("Finding older episodes: " + st.label + " · " + done + " / " + list.length, done, list.length);
-          tick();
-          return Promise.all(list.map((c) => lookup(c.id, true).then((g) => { addEps(c.id, g); done++; tick(); })));
+          setStatus("", 0, 0);
+          sorter = makeSorter(list, "Sorting older episodes, " + st.label);
+          return Promise.all(list.map((c) => lookup(c.id, true).then((g) => { addEps(c.id, g); sorter.place(c.id, g); })));
         })
         .then(() => {
           horizon = st.horizon;
@@ -954,7 +956,11 @@
           if (err === 404) { exhausted = true; horizon = -Infinity; }
           else stages.unshift(st); // a network hiccup: try this stage again on the next scroll
         })
-        .finally(() => { loading = false; limit += PAGE; render(); });
+        .finally(() => {
+          const done = () => { loading = false; limit += PAGE; render(); };
+          if (sorter) sorter.finish(done);
+          else done();
+        });
     };
 
     function needMoreIfClose() {
@@ -965,10 +971,87 @@
     moreBtn.addEventListener("click", loadStage);
     addEventListener("scroll", () => requestAnimationFrame(needMoreIfClose), { passive: true });
 
+    // ── waiting: the shows' covers sort themselves while their pages come in ──
+    // Each cover starts dim, lights up when its show is read and glides
+    // (FLIP) to its place by newest episode; when all are in, the tiles fade
+    // and the feed continues in that same order. A warm cache finishes
+    // before the delay, so the sorter never flashes.
+    const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const makeSorter = (cards, title) => {
+      const box = document.createElement("div");
+      box.className = "adx-sort" + (cards.length > 120 ? " is-many" : "");
+      box.innerHTML = "<div class='adx-sort-head'><span></span><em></em></div><div class='adx-sort-tiles'></div>";
+      box.querySelector("span").textContent = title;
+      const tilesBox = box.querySelector(".adx-sort-tiles");
+      const counter = box.querySelector("em");
+      const tiles = new Map(); // show id -> { el, ts }
+      cards.forEach((c, i) => {
+        const g = cached(c.id);
+        if ((g && isNsfw(g.genres)) || tiles.has(c.id)) return;
+        const el = document.createElement("div");
+        el.className = "adx-sort-tile";
+        el.style.setProperty("--i", i % 40);
+        const img = document.createElement("img");
+        img.src = c.cover;
+        img.alt = "";
+        el.appendChild(img);
+        tilesBox.appendChild(el);
+        tiles.set(c.id, { el, ts: null });
+      });
+      let got = 0;
+      const started = Date.now();
+      const count = () => {
+        const left = cards.length - got;
+        // time left from the pace so far, once there is a pace to go on
+        const eta = got >= 6 && left ? ((Date.now() - started) / got) * left : 0;
+        counter.textContent = got + " / " + cards.length +
+          (eta > 90e3 ? " · ~" + Math.round(eta / 6e4) + " min left" : eta > 8e3 ? " · ~" + Math.round(eta / 5e3) * 5 + " s left" : "");
+      };
+      count();
+      let queued = false;
+      const resort = () => {
+        queued = false;
+        if (!box.isConnected) return;
+        const list = Array.from(tiles.values());
+        const before = new Map(list.map((t) => [t.el, t.el.getBoundingClientRect()]));
+        const done = list.filter((t) => t.ts != null).sort((a, b) => b.ts - a.ts);
+        const waiting = list.filter((t) => t.ts == null);
+        tilesBox.append(...done.map((t) => t.el), ...waiting.map((t) => t.el));
+        if (reduceMotion) return;
+        for (const t of list) {
+          const a = before.get(t.el);
+          const b = t.el.getBoundingClientRect();
+          const dx = a.left - b.left;
+          const dy = a.top - b.top;
+          if (!dx && !dy) continue;
+          t.el.animate([{ transform: "translate(" + dx + "px," + dy + "px)" }, { transform: "none" }],
+            { duration: 520, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" });
+        }
+      };
+      const timer = setTimeout(() => { foot.before(box); foot.classList.add("is-sorting"); }, 180);
+      return {
+        place(id, g) {
+          got++;
+          count();
+          const t = tiles.get(id);
+          if (!t) return;
+          if (g && isNsfw(g.genres)) { t.el.remove(); tiles.delete(id); return; }
+          t.ts = g && g.eps && g.eps.length ? Math.max(...g.eps.map((e) => e[2])) : 0;
+          t.el.classList.add("is-in");
+          if (!queued) { queued = true; requestAnimationFrame(resort); }
+        },
+        finish(then) {
+          clearTimeout(timer);
+          const end = () => { box.remove(); foot.classList.remove("is-sorting"); then(); };
+          if (!box.isConnected || reduceMotion) return end();
+          // let the last tile land, then fade the sorter out
+          setTimeout(() => { box.classList.add("is-done"); setTimeout(end, 320); }, 560);
+        },
+      };
+    };
+
     // Stage 0's shows: refetch any whose cached page predates its new episode.
-    let got = 0;
-    const tick0 = () => setStatus("Loading the latest episodes · " + got + " / " + own.length, got, own.length);
-    tick0();
+    const first = makeSorter(own, "Sorting the latest episodes");
     Promise.all(own.map((c) => {
       const hit = cached(c.id);
       if (hit && c.latest && !(hit.eps || []).some(([, n]) => n === c.latest)) delete cache[c.id];
@@ -976,14 +1059,9 @@
         if (g && g.eps && g.eps.length) addEps(c.id, g);
         // the show's page could not be read: fall back to what the card says
         else if (c.latest) eps.set(c.id + ":" + c.latest, { id: c.id, num: c.latest, key: null, ts: Math.round((now - (c.age || 0)) / 6e4) });
-        got++;
-        tick0();
+        first.place(c.id, g);
       });
-    })).then(() => {
-      ready = true;
-      setStatus("", 0, 0);
-      render();
-    });
+    })).then(() => first.finish(() => { ready = true; render(); }));
   };
 
   // The site's nav: "New" is now Latest (and home); the old home is Schedule.
@@ -999,6 +1077,16 @@
   });
   document.querySelectorAll('a[href="/"]').forEach((a) => a.setAttribute("href", "/new.php"));
   if (location.pathname === "/new.php") buildFeed();
+
+  // The whole card is the click target, as on YouTube: a click anywhere
+  // that isn't already a link or button follows the card's main link
+  // (the episode on the Latest feed, the show elsewhere).
+  document.addEventListener("click", (e) => {
+    if (e.button !== 0 || e.target.closest("a, button, input, label, .book")) return;
+    const card = e.target.closest(".chart, .similarimg");
+    const link = card && card.querySelector(".adx-feed-play, .chartimg a, .p1 a, a[href*='anime.php']");
+    if (link) link.click();
+  });
 
   scan();
   injectFilterBar();
