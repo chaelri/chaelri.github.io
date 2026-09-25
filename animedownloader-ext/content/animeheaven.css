@@ -901,6 +901,8 @@ h1 { margin: 0; font: inherit; }
   color: var(--ah-muted);
 }
 .adx-wm-tags a:hover { border-color: var(--ah-red); color: var(--ah-text); }
+/* the site's "Mark As Watched" list under a bookmarked show: gone */
+#track { display: none !important; }
 /* site footer (Discord / Twitter / theme toggle): gone */
 .footer { display: none !important; }
 /* the sound comes on with the first click or key press (animeheaven.js) */
@@ -1688,3 +1690,68 @@ h1 { margin: 0; font: inherit; }
 .adx-seg button.is-on { background: var(--ah-surface-3); color: var(--ah-text); }
 .adx-seg button[data-s="done"].is-on { background: #1f9d5c; color: #fff; }
 .adx-seg button[data-s="airing"].is-on { background: var(--ah-red-soft); color: var(--ah-red); }
+
+/* ── phones: cards become compact rows with a small portrait poster ── */
+@media (max-width: 640px) {
+  .boldtext:has(> .chart, > .adx-feed-anchor),
+  .info3 { grid-template-columns: minmax(0, 1fr); gap: 16px; --adx-row-gap: 16px; }
+  .chart { flex-direction: row; align-items: flex-start; gap: 12px; }
+  .chart .chartimg,
+  .similarimg .p1 > a:has(> .coverimg) {
+    flex: none;
+    width: 78px;
+    aspect-ratio: 2 / 3;
+    border-radius: 8px;
+  }
+  .chartimg .coverimg,
+  .similarimg .coverimg { object-fit: cover; }
+  .chart .chartinfo { flex: 1; min-width: 0; padding-top: 2px; }
+  /* rows hug the top; the last one takes the rest of the poster's height */
+  .similarimg { display: grid; grid-template-columns: 78px minmax(0, 1fr); grid-template-rows: auto auto auto 1fr; column-gap: 12px; align-items: start; }
+  .similarimg .p1 { display: contents; }
+  .similarimg .p1 > a:has(> .coverimg) { grid-row: 1 / span 4; }
+  .similarimg .similarname,
+  .similarimg .adx-aired,
+  .similarimg .adx-genre-row { grid-column: 2; }
+  .charttitle,
+  .similarname {
+    padding-top: 0;
+    font-size: 14.5px;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .charttitlejp { display: none; }
+  .charttimer { margin-top: 4px; font-size: 12px; }
+  .adx-aired { min-height: 22px; padding-top: 4px; font-size: 12px; line-height: 18px; }
+  .adx-aired::before { width: 12px; height: 12px; }
+  .adx-genre-row { gap: 4px; padding-top: 6px; }
+  .adx-genre-chip,
+  .adx-status { font-size: 9.5px; padding: 3px 6px; letter-spacing: 0.4px; }
+  .adx-genre-row > .adx-status.is-done { width: 18px; height: 18px; }
+  .adx-genre-row > .adx-status.is-done::before { width: 10px; height: 10px; }
+  .chartepm,
+  .adx-ep { left: 4px; bottom: 4px; padding: 2px 6px; font-size: 10.5px; }
+  .book { display: none; }
+  .chart::after,
+  .similarimg::after { inset: -6px -8px; border-radius: 12px; }
+  .adx-day { margin: 14px 0 -4px; font-size: 14px; }
+  /* the filter bar scrolls away instead of sticking (it was half the
+     screen), and the genre shortcuts are one row you swipe */
+  .adx-filter { position: static; gap: 8px; margin-top: 4px; padding-top: 8px; padding-bottom: 8px; }
+  .adx-filter-field { flex: 1 1 100%; height: 38px; }
+  .adx-seg button { padding: 6px 12px; font-size: 12px; }
+  .adx-filter-quick {
+    flex: 1 1 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    margin: 0 calc(-1 * var(--ah-gutter));
+    padding: 0 var(--ah-gutter);
+  }
+  .adx-filter-quick::-webkit-scrollbar { display: none; }
+  .adx-quick { flex: none; padding: 5px 11px; font-size: 12px; }
+}
+

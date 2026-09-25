@@ -151,6 +151,8 @@
             year: (doc.querySelector(".infoyear .inline:nth-of-type(2)")?.textContent.match(/\d{4}/) || [""])[0],
             title: doc.querySelector(".infotitle")?.textContent.trim() || "",
             romaji: doc.querySelector(".infotitlejp")?.textContent.trim() || "",
+            // portrait poster: phones show cards as rows with a small poster
+            poster: doc.querySelector(".posterimg")?.getAttribute("src") || "",
           };
         })
         .then(job.resolve, (status) => {
@@ -347,9 +349,19 @@
     }
   };
 
+  // Phones: cards are compact rows with a portrait poster (see the 640px
+  // block in animeheaven.css). A show read before posters were kept has
+  // none yet; its 16:9 cover is cropped to portrait until it is re-read.
+  const PHONE = matchMedia("(max-width: 640px)");
+  const usePoster = (card, info) => {
+    if (!PHONE.matches || !info || !info.poster) return;
+    const im = card.querySelector(".chartimg img.coverimg, .p1 img.coverimg");
+    if (im && !im.dataset.adxPoster) { im.dataset.adxPoster = "1"; im.src = info.poster; }
+  };
   const apply = (card, info) => {
     if (info && isNsfw(info.genres)) return card.classList.add("adx-nsfw");
     if (info) renderChips(card, info);
+    usePoster(card, info);
     if (info && !card.matches(".popularbox2")) {
       // The line is laid out now and filled when AniList answers, so the
       // card never grows under the reader.
