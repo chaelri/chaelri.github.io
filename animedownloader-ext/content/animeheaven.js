@@ -246,11 +246,8 @@
   const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   const fmtDay = ([y, m, d], withYear = true) =>
     !m ? String(y) : MONTHS[m - 1] + (d ? " " + d : "") + (withYear ? (d ? ", " : " ") + y : "");
-  const fmtAired = ({ s, e }) => {
-    if (!e) return (s.length > 1 ? "Since " : "") + fmtDay(s);
-    if (e.join() === s.join()) return fmtDay(s);
-    return fmtDay(s, s[0] !== e[0]) + " – " + fmtDay(e);
-  };
+  // Only the premiere matters, not when it ended.
+  const fmtAired = ({ s }) => fmtDay(s);
 
   // ── card treatment ──
   const markSafe = (el) => el.setAttribute("data-adx-safe", "");
@@ -312,7 +309,7 @@
         const el = document.createElement("div");
         el.className = "adx-aired";
         el.textContent = fmtAired(d);
-        el.title = d.s.length > 1 ? "Aired (AniList)" : "Year (animeheaven)";
+        el.title = d.s.length > 1 ? "Released (AniList)" : "Release year (animeheaven)";
         const row = card.querySelector(".adx-genre-row");
         if (row) row.before(el);
         else (card.querySelector(".chartinfo") || card).appendChild(el);
