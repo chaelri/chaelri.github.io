@@ -1097,18 +1097,20 @@
     })).then(() => first.finish(() => { ready = true; render(); }));
   };
 
-  // The site's nav: "New" is now Latest (and home); the old home is Schedule.
+  // The site's nav: home (the logo) IS the Latest feed now, so the "New"
+  // link would just repeat it; that slot becomes Schedule, the old home.
   document.querySelectorAll('a[href="new.php"]').forEach((a) => {
     const label = a.querySelector(".headeritem, .burgeritem2");
-    if (!label) return;
-    label.textContent = "Latest";
-    const sched = a.cloneNode(true);
-    sched.href = "/?schedule";
-    sched.title = "Schedule";
-    sched.querySelector(".headeritem, .burgeritem2").textContent = "Schedule";
-    a.after(sched);
+    if (label) {
+      label.textContent = "Schedule";
+      a.href = "/?schedule";
+      a.title = "Schedule";
+    } else {
+      a.closest(".navitem")?.remove(); // mobile bar: its home icon already goes there
+    }
   });
   document.querySelectorAll('a[href="/"]').forEach((a) => a.setAttribute("href", "/new.php"));
+  if (location.pathname === "/new.php") document.title = "AnimeHeaven";
   if (location.pathname === "/new.php") buildFeed();
 
   // The whole card is the click target, as on YouTube: a click anywhere
