@@ -600,6 +600,20 @@
       if (vid.videoWidth && vid.videoHeight) document.documentElement.style.setProperty("--adx-ar", String(vid.videoWidth / vid.videoHeight));
     };
     if (vid) { vid.addEventListener("loadedmetadata", fitVideo); fitVideo(); }
+
+    // No "Tap to Unmute". When the browser won't autoplay with sound (no
+    // click on the site yet, e.g. an episode opened in a new tab), the site
+    // plays muted and shows that button. The button is hidden (CSS) and the
+    // sound comes on with the first click or key press anywhere on the page
+    // instead, which the browser accepts as the go-ahead.
+    if (vid) {
+      const unmute = () => {
+        if (vid.muted) vid.muted = false;
+        document.getElementById("und")?.remove();
+      };
+      addEventListener("pointerdown", unmute, { capture: true, once: true });
+      addEventListener("keydown", unmute, { capture: true, once: true });
+    }
     // sk is the page's own "which episode is this" variable.
     const current = (Array.from(document.scripts)
       .map((s) => s.textContent.match(/var\s+sk\s*=\s*"([0-9a-f]{32})"/))
