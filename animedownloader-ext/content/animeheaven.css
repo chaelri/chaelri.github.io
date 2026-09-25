@@ -668,10 +668,12 @@ h1 { margin: 0; font: inherit; }
 /* The height cap works through the width, so the player keeps the video's
    own shape: capping the height of a full-width box letterboxed every
    episode with black side bars on a short window. The cap is on the whole
-   watch column (title, player, Episodes panel), so their edges stay in line.
+   watch column (title, player, panels), so their edges stay in line.
    --adx-ar is the video's real width/height, set by animeheaven.js. */
-.boldtext:has(> .info2 > video.videodiv) {
-  max-width: min(var(--ah-max), (100vh - 200px) * var(--adx-ar, 1.7778));
+/* It is the page width itself (--ah-max) that shrinks, so the header's logo
+   and bookmark line up with the title and player too. */
+:root:has(video.videodiv) {
+  --ah-max: min(1160px, (100vh - 200px) * var(--adx-ar, 1.7778));
 }
 .videodiv {
   display: block;
@@ -680,6 +682,11 @@ h1 { margin: 0; font: inherit; }
   height: auto;
   background: #000;
 }
+/* watch page: the show's details box under the episodes */
+.adx-show-info { margin-top: 16px; }
+.adx-show-link { text-decoration: none; }
+/* site footer (Discord / Twitter / theme toggle): gone */
+.footer { display: none !important; }
 /* the sound comes on with the first click or key press (animeheaven.js) */
 .unmute { display: none !important; }
 /* prev/next episode chips: the Episodes panel replaces them */

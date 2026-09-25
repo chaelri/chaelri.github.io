@@ -613,6 +613,24 @@
       };
       addEventListener("pointerdown", unmute, { capture: true, once: true });
       addEventListener("keydown", unmute, { capture: true, once: true });
+
+      // Leaving the tab or the window pauses the episode; coming back plays
+      // it again, but only if it was playing when you left (a video you
+      // paused yourself stays paused). Fullscreen / picture-in-picture don't count.
+      let pausedByUs = false;
+      const away = () => {
+        if (document.pictureInPictureElement === vid) return;
+        if (!vid.paused && !vid.ended) { pausedByUs = true; vid.pause(); }
+      };
+      const back = () => {
+        if (!pausedByUs || document.hidden || !document.hasFocus()) return;
+        pausedByUs = false;
+        vid.play().catch(() => {});
+      };
+      document.addEventListener("visibilitychange", () => (document.hidden ? away() : back()));
+      addEventListener("blur", () => { if (!document.fullscreenElement) away(); });
+      addEventListener("focus", back);
+      vid.addEventListener("play", () => { pausedByUs = false; });
     }
     // sk is the page's own "which episode is this" variable.
     const current = (Array.from(document.scripts)
@@ -738,6 +756,46 @@
           }
           panel.append(head, grid);
           tools.after(panel);
+
+          // The show's details (same box as its own page) under the episodes.
+          // The page's Bookmark / Rate call functions that only exist on the
+          // show page, so Bookmark is redone here on the same localStorage
+          // list ("id|ep*"), and Rate becomes a link to the show page.
+          const info = doc.querySelector(".info");
+          if (info) {
+            const box = document.importNode(info, true);
+            box.classList.add("adx-show-info");
+            const pill = airPill(doc.querySelector(".boldtext > .info2:has(> .inline)"));
+            if (pill) box.querySelector(".infoyear")?.after(pill);
+            const tools2 = box.querySelector(".infobook");
+            if (tools2) {
+              const marked = () => (localStorage.getItem("bookmark") || "").split("*").some((x) => x.split("|")[0] === showId);
+              const book = document.createElement("div");
+              book.className = "book3 bc2 c1";
+              book.innerHTML = "Bookmark<div class='bc2 c1 book2'><img alt></div>";
+              const paint = () => {
+                const on = marked();
+                book.firstChild.textContent = on ? "Bookmarked" : "Bookmark";
+                book.lastChild.className = (on ? "bc3" : "bc2") + " c1 book2";
+                book.querySelector("img").src = on ? "close.svg" : "add.svg";
+              };
+              book.addEventListener("click", () => {
+                const list = (localStorage.getItem("bookmark") || "").split("*").filter(Boolean);
+                const next = marked()
+                  ? list.filter((x) => x.split("|")[0] !== showId)
+                  : list.concat(showId + "|0");
+                localStorage.setItem("bookmark", next.map((x) => x + "*").join(""));
+                paint();
+              });
+              paint();
+              const page = document.createElement("a");
+              page.className = "book3 bc2 c1 adx-show-link";
+              page.href = "anime.php?" + showId;
+              page.textContent = "Show page";
+              tools2.replaceChildren(book, page);
+            }
+            panel.after(box);
+          }
           if (currentTile) grid.scrollTop = currentTile.offsetTop - grid.clientHeight / 2;
         })
         .catch(() => {});
@@ -798,13 +856,11 @@
     sort.addEventListener("click", () => { asc = !asc; render(asc); });
   }
 
-  // Anime page: the site's full-width status strip ("Finished airing" /
-  // "Countdown to Episode 3 : 6 Days 23 Hours 28 Min") becomes one pill in
-  // the info box, under Episodes / Year / Score. A countdown is turned into
-  // the actual day and time, with the time left beside it.
-  const strip = location.pathname === "/anime.php" && document.querySelector(".boldtext > .info2:has(> .inline)");
-  const infoYear = document.querySelector(".infoyear");
-  if (strip && infoYear) {
+  // The site's full-width status strip ("Finished airing" / "Countdown to
+  // Episode 3 : 6 Days 23 Hours 28 Min") as one pill for the info box. A
+  // countdown is turned into the actual day and time, with the time left.
+  const airPill = (strip) => {
+    if (!strip) return null;
     const parts = strip.querySelectorAll(":scope > .inline");
     const label = parts[0]?.textContent.replace(/\s*:\s*$/, "").trim() || "";
     const value = parts[1]?.textContent.trim() || "";
@@ -830,7 +886,14 @@
       if (/finished/i.test(text)) pill.classList.add("is-done");
       pill.textContent = text;
     }
-    if (pill.textContent) {
+    return pill.textContent ? pill : null;
+  };
+  // Anime page: the strip moves into the info box, under Episodes / Year / Score.
+  if (location.pathname === "/anime.php") {
+    const strip = document.querySelector(".boldtext > .info2:has(> .inline)");
+    const pill = airPill(strip);
+    const infoYear = document.querySelector(".infoyear");
+    if (pill && infoYear) {
       infoYear.after(pill);
       strip.remove();
     }
