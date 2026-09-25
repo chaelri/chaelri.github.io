@@ -1473,17 +1473,17 @@
   // Home: continue watching, in the empty space at the right of the filter bar.
   const addContinue = () => {
     const bar = document.getElementById("adx-filter");
-    const items = readWatching().filter((w) => !w.done && w.key).slice(0, 2);
+    const items = readWatching().filter((w) => !w.done && w.key).slice(0, 1);
     if (!bar || !items.length) return;
     const box = document.createElement("div");
     box.className = "adx-continue";
-    box.innerHTML = "<div class='adx-continue-head'>Continue watching</div>";
+    box.innerHTML = "";
     for (const w of items) {
       const a = document.createElement("a");
       a.className = "adx-continue-item";
       a.href = "/gate.php#ep=" + w.ep + "&k=" + w.key;
       a.title = w.title + " · Episode " + w.ep;
-      a.innerHTML = "<img alt=''><span><b></b><small></small><i><u></u></i></span>";
+      a.innerHTML = "<img alt=''><span><em>Continue watching</em><b></b><small></small><i><u></u></i></span><s aria-hidden='true'></s>";
       if (w.poster) a.querySelector("img").src = w.poster;
       a.querySelector("b").textContent = w.title;
       const left = w.dur ? Math.max(1, Math.round((w.dur - w.pos) / 60)) : 0;
