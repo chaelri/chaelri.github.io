@@ -1170,6 +1170,27 @@ h1 { margin: 0; font: inherit; }
   .info3 { grid-template-columns: minmax(0, 1fr); }
 }
 
+/* air date from AniList, above the genre chips */
+.adx-aired {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-top: 8px;
+  font-size: 13px;
+  color: var(--ah-muted);
+  font-variant-numeric: tabular-nums;
+}
+.adx-aired::before {
+  content: "";
+  flex: none;
+  width: 13px;
+  height: 13px;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3.5' y='5' width='17' height='15.5' rx='2.5'/%3E%3Cpath d='M3.5 10h17M8 3v4M16 3v4'/%3E%3C/svg%3E") center / contain no-repeat;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3.5' y='5' width='17' height='15.5' rx='2.5'/%3E%3Cpath d='M3.5 10h17M8 3v4M16 3v4'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+.adx-aired + .adx-genre-row { padding-top: 10px; }
+
 /* status switch in the filter bar: All / Finished / Not finished */
 .adx-seg {
   display: inline-flex;

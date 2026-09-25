@@ -10,6 +10,11 @@
 // cards, so lookups are lazy: a card is only fetched once it comes within
 // ~800 px of the viewport, and results are cached per show id.
 // animeheaven.css keeps each poster blurred until its verdict is in.
+//
+// Air dates come from AniList (graphql.anilist.co, CORS-open, no key),
+// searched by the show page's romaji title inside its Year, ten shows per
+// request because the limit is 30 requests a minute. No match falls back to
+// the site's own year.
 (function () {
   "use strict";
   if (window.__adxHeavenGenres) return;
@@ -17,7 +22,7 @@
 
   // animeheaven tags explicitly ("Explicit Sex", "Nudity", …), not just by genre.
   const NSFW_RE = /\b(ecchi|erotica|hentai|nudity|explicit|sexual|sex)\b/i;
-  const CACHE_KEY = "adx.heaven.shows.v3";
+  const CACHE_KEY = "adx.heaven.shows.v4";
   const TTL_MS = 14 * 24 * 60 * 60 * 1000;
   const MAX_CHIPS = 3;
   const CONCURRENCY = 3;
@@ -98,6 +103,10 @@
             latest: doc.querySelector(".linetitle2 .watch2")?.textContent.trim() || "",
             // "Episodes: 12 Year: 2026 …" — the first .inline is the planned total
             total: doc.querySelector(".infoyear .inline")?.textContent.trim() || "",
+            // "2022" or "2022-2023": the premiere year is what matters
+            year: (doc.querySelector(".infoyear .inline:nth-of-type(2)")?.textContent.match(/\d{4}/) || [""])[0],
+            title: doc.querySelector(".infotitle")?.textContent.trim() || "",
+            romaji: doc.querySelector(".infotitlejp")?.textContent.trim() || "",
           };
         })
         .then(job.resolve, (status) => {
@@ -123,6 +132,124 @@
       });
     inflight.set(id, p);
     return p;
+  };
+
+  // ── air dates (AniList) ──
+  // { [showId]: { d: { s: [y, m, d], e: [y, m, d] | null } | null, t } }
+  const AIRED_KEY = "adx.heaven.aired.v1";
+  const AIRED_TTL_DONE = 60 * 24 * 60 * 60 * 1000;
+  const AIRED_TTL_AIRING = 2 * 24 * 60 * 60 * 1000; // the end date is still coming
+  const ANILIST_BATCH = 10;
+  let aired = {};
+  try { aired = JSON.parse(localStorage.getItem(AIRED_KEY) || "{}"); } catch (e) {}
+  let airedSaveTimer = null;
+  const saveAired = () => {
+    clearTimeout(airedSaveTimer);
+    airedSaveTimer = setTimeout(() => {
+      const now = Date.now();
+      for (const k of Object.keys(aired)) if (now - aired[k].t > AIRED_TTL_DONE) delete aired[k];
+      try { localStorage.setItem(AIRED_KEY, JSON.stringify(aired)); } catch (e) {}
+    }, 250);
+  };
+  const airedQueue = [];
+  const airedInflight = new Map();
+  let airedTimer = null;
+  let airedBusy = false;
+  // AniList 429s a burst even under the per-minute limit, so one request at
+  // a time, spaced to stay under 30 a minute.
+  const ANILIST_GAP_MS = 2100;
+  let anilistPausedUntil = 0;
+  const kickAired = (delay) => {
+    if (airedBusy || airedTimer || !airedQueue.length) return;
+    airedTimer = setTimeout(flushAired, Math.max(delay, anilistPausedUntil - Date.now()));
+  };
+  const ymd = (d) => (d && d.year ? [d.year, d.month, d.day].filter(Boolean) : null);
+  const flushAired = () => {
+    airedTimer = null;
+    const wait = anilistPausedUntil - Date.now();
+    if (wait > 0) { airedTimer = setTimeout(flushAired, wait); return; }
+    const jobs = airedQueue.splice(0, ANILIST_BATCH);
+    if (!jobs.length) return;
+    airedBusy = true;
+    const vars = {};
+    const defs = [];
+    // Each show is searched by romaji, English title, and the English title
+    // up to its first ":" / " - ", all in one request: AniList search is
+    // strict ("Kan Colle" never finds "KanColle"), and the year window plus
+    // episode count keep the short form from landing on the wrong season.
+    const fields = [];
+    jobs.forEach((job, i) => {
+      const y = +job.year;
+      // a Winter show can premiere in the December before its Year
+      const range = y ? ", startDate_greater: " + ((y - 1) * 10000 + 1200) + ", startDate_lesser: " + (y * 10000 + 1232) : "";
+      job.searches.forEach((q, k) => {
+        const v = "s" + i + "_" + k;
+        vars[v] = q;
+        defs.push("$" + v + ": String");
+        fields.push("a" + i + "_" + k + ": Page(perPage: 3) { media(search: $" + v + ", type: ANIME" + range +
+          ") { episodes status startDate { year month day } endDate { year month day } } }");
+      });
+    });
+    fetch("https://graphql.anilist.co", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ query: "query(" + defs.join(", ") + ") {" + fields.join(" ") + "}", variables: vars }),
+    })
+      .then((res) => {
+        if (res.status === 429) {
+          anilistPausedUntil = Date.now() + (+res.headers.get("Retry-After") || 15) * 1000;
+          return Promise.reject("rate");
+        }
+        return res.ok ? res.json() : Promise.reject(res.status);
+      })
+      .then((body) => {
+        jobs.forEach((job, i) => {
+          // searches are in order of trust; the first one that finds anything decides
+          const list = job.searches.map((q, k) => body.data?.["a" + i + "_" + k]?.media || [])
+            .find((l) => l.length) || [];
+          // the same search also finds the movie / recap; the episode count picks the series
+          const m = list.find((x) => x.episodes && String(x.episodes) === job.total) || list[0];
+          job.resolve(m && ymd(m.startDate)
+            ? { s: ymd(m.startDate), e: m.status === "FINISHED" ? ymd(m.endDate) : null }
+            : job.year ? { s: [+job.year], e: null } : null);
+        });
+      })
+      .catch((err) => {
+        if (err === "rate") airedQueue.unshift(...jobs);
+        else jobs.forEach((job) => job.resolve(job.year ? { s: [+job.year], e: null, soft: true } : null));
+      })
+      .finally(() => {
+        airedBusy = false;
+        anilistPausedUntil = Math.max(anilistPausedUntil, Date.now() + ANILIST_GAP_MS);
+        kickAired(0);
+      });
+  };
+  const lookupAired = (id, info) => {
+    const hit = aired[id];
+    if (hit && Date.now() - hit.t < (hit.d?.e ? AIRED_TTL_DONE : AIRED_TTL_AIRING)) return Promise.resolve(hit.d);
+    if (airedInflight.has(id)) return airedInflight.get(id);
+    const short = (info.title || "").split(/:| - /)[0].trim();
+    const searches = [...new Set([info.romaji, info.title, short].filter((t) => t && t !== "-"))];
+    if (!searches.length) return Promise.resolve(info.year ? { s: [+info.year], e: null } : null);
+    const p = new Promise((resolve) => {
+      airedQueue.push({ searches, year: info.year, total: info.total, resolve });
+      kickAired(150); // gather the cards that come into view together
+    }).then((d) => {
+      // a network failure is not worth remembering
+      if (!d?.soft) { aired[id] = { d, t: Date.now() }; saveAired(); }
+      airedInflight.delete(id);
+      return d;
+    });
+    airedInflight.set(id, p);
+    return p;
+  };
+  const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const fmtDay = ([y, m, d], withYear = true) =>
+    !m ? String(y) : MONTHS[m - 1] + (d ? " " + d : "") + (withYear ? (d ? ", " : " ") + y : "");
+  const fmtAired = ({ s, e }) => {
+    if (!e) return (s.length > 1 ? "Since " : "") + fmtDay(s);
+    if (e.join() === s.join()) return fmtDay(s);
+    return fmtDay(s, s[0] !== e[0]) + " – " + fmtDay(e);
   };
 
   // ── card treatment ──
@@ -179,6 +306,18 @@
   const apply = (card, info) => {
     if (info && isNsfw(info.genres)) return card.classList.add("adx-nsfw");
     if (info) renderChips(card, info);
+    if (info && !card.matches(".popularbox2")) {
+      lookupAired(showIdOf(card.querySelector('a[href*="anime.php"]')?.href), info).then((d) => {
+        if (!d || card.querySelector(".adx-aired")) return;
+        const el = document.createElement("div");
+        el.className = "adx-aired";
+        el.textContent = fmtAired(d);
+        el.title = d.s.length > 1 ? "Aired (AniList)" : "Year (animeheaven)";
+        const row = card.querySelector(".adx-genre-row");
+        if (row) row.before(el);
+        else (card.querySelector(".chartinfo") || card).appendChild(el);
+      });
+    }
     // Every tag, not just the chips shown, is what the genre filter matches.
     card.dataset.adxTags = info ? info.genres.map(([n]) => n.toLowerCase()).join(" | ") : "";
     // Status for the All / Finished / Not finished switch. A schedule

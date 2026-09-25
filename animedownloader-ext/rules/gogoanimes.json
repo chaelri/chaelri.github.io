@@ -89,7 +89,8 @@
       ],
       "excludedRequestDomains": [
         "animeheaven.me",
-        "challenges.cloudflare.com"
+        "challenges.cloudflare.com",
+        "graphql.anilist.co"
       ],
       "resourceTypes": [
         "script",
