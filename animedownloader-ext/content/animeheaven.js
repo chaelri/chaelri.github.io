@@ -335,18 +335,22 @@
   };
 
   const apply = (card, info) => {
-    //if (info && isNsfw(info.genres)) return card.classList.add("adx-nsfw");
+    if (info && isNsfw(info.genres)) return card.classList.add("adx-nsfw");
     if (info) renderChips(card, info);
     if (info && !card.matches(".popularbox2")) {
-      lookupAired(showIdOf(card.querySelector('a[href*="anime.php"]')?.href), info).then((d) => {
-        if (!d || card.querySelector(".adx-aired")) return;
-        const el = document.createElement("div");
+      // The line is laid out now and filled when AniList answers, so the
+      // card never grows under the reader.
+      const el = card.querySelector(".adx-aired") || document.createElement("div");
+      if (!el.isConnected) {
         el.className = "adx-aired";
-        el.textContent = fmtAired(d);
-        el.title = d.s.length > 1 ? "Released (AniList)" : "Release year (animeheaven)";
         const row = card.querySelector(".adx-genre-row");
         if (row) row.before(el);
         else (card.querySelector(".chartinfo") || card).appendChild(el);
+      }
+      lookupAired(showIdOf(card.querySelector('a[href*="anime.php"]')?.href), info).then((d) => {
+        if (!d || el.textContent) return;
+        el.textContent = fmtAired(d);
+        el.title = d.s.length > 1 ? "Released (AniList)" : "Release year (animeheaven)";
       });
     }
     // Every tag, not just the chips shown, is what the genre filter matches.
@@ -450,7 +454,7 @@
     if (document.getElementById("adx-filter")) return;
     // The anime page's Related / Similar rows are a handful of shows.
     if (location.pathname === "/anime.php") return;
-    const grid = document.querySelector(".boldtext:has(> .chart), .info3:has(> .similarimg)");
+    const grid = document.querySelector(".boldtext:has(> .chart, > .adx-feed-anchor), .info3:has(> .similarimg)");
     if (!grid) return;
     const bar = document.createElement("div");
     bar.id = "adx-filter";
@@ -772,14 +776,12 @@
       for (const [key, num, ts] of g.eps) if (ts) eps.set(id + ":" + num, { id, num, key, ts });
     };
 
-    // stage 0: the page's own cards, shown at once with what the card says
+    // stage 0: the page's own cards. Nothing is drawn until every one of
+    // their shows is in, so the first screen is already in its final order.
     const own = cardsOf(grid);
     const now = Date.now();
     let horizon = now - Math.max(...own.map((c) => c.age || 0)) - 864e5;
-    for (const c of own) {
-      addShow(c);
-      if (c.latest) eps.set(c.id + ":" + c.latest, { id: c.id, num: c.latest, key: null, ts: Math.round((now - (c.age || 0)) / 6e4) });
-    }
+    own.forEach(addShow);
     grid.querySelectorAll(":scope > .chart, :scope > a:has(> .boxitem2)").forEach((el) => el.remove());
 
     const anchor = document.createElement("div");
@@ -845,49 +847,55 @@
         nodes.set(k, c);
       }
       const play = c.querySelector(".adx-feed-play");
-      if (e.key && c.dataset.key !== e.key) {
+      if (e.key) {
         c.dataset.key = e.key;
         play.href = "/gate.php#ep=" + e.num + "&k=" + e.key;
         c.classList.toggle("is-watched", visited.includes(e.key));
-      } else if (!e.key) {
-        play.href = "anime.php?" + e.id;
+      } else {
+        play.href = "anime.php?" + e.id; // the show's page could not be read
       }
       c.querySelector(".charttimer").textContent = whenLabel(e.ts);
+      // chips and the release-date line go in before the card is shown
+      c.dataset.adxSeen = "1";
+      const g = cached(e.id);
+      if (g) apply(c, g);
+      else io.observe(c);
       return c;
     };
 
     let loading = false;
     let exhausted = false;
+    let ready = false;
+    // Append-only: what is on screen never moves. New episodes only ever go
+    // below the last one shown; anything a later stage finds that would sort
+    // above it is left out rather than pushed into the middle.
+    const shown = new Set();
+    let lastTs = Infinity;
+    let lastDay = null;
+    const eligible = () => Array.from(eps.values())
+      .filter((e) => e.ts * 6e4 >= horizon && e.ts <= lastTs && !shown.has(e.id + ":" + e.num) &&
+        !(cached(e.id) && isNsfw(cached(e.id).genres)));
     const render = () => {
-      const list = Array.from(eps.values())
-        .filter((e) => e.ts * 6e4 >= horizon && !(cached(e.id) && isNsfw(cached(e.id).genres)))
+      if (!ready) return;
+      const add = eligible()
         .sort((a, b) => b.ts - a.ts || (a.id < b.id ? -1 : 1))
-        .slice(0, limit);
-      const want = [];
-      let lastDay = null;
-      for (const e of list) {
+        .slice(0, Math.max(0, limit - shown.size));
+      const frag = document.createDocumentFragment();
+      for (const e of add) {
         const day = dayOf(e.ts * 6e4);
         if (day !== lastDay) {
           lastDay = day;
-          let h = nodes.get("day:" + day);
-          if (!h) {
-            h = document.createElement("div");
-            h.className = "adx-day";
-            h.textContent = dayLabel(day);
-            nodes.set("day:" + day, h);
-          }
-          want.push(h);
+          const h = document.createElement("div");
+          h.className = "adx-day";
+          h.textContent = dayLabel(day);
+          frag.appendChild(h);
         }
-        want.push(cardFor(e));
+        frag.appendChild(cardFor(e));
+        shown.add(e.id + ":" + e.num);
+        lastTs = e.ts;
       }
-      const keep = new Set(want);
-      for (const n of nodes.values()) if (n.isConnected && !keep.has(n)) n.remove();
-      let prev = anchor;
-      for (const n of want) {
-        if (prev.nextSibling !== n) prev.after(n);
-        prev = n;
-      }
-      const more = eps.size && list.length === limit;
+      foot.before(frag);
+      const more = eligible().length > 0;
       if (!loading) setStatus(exhausted && !more ? "That's every episode animeheaven lists." : "", 0, 0);
       // Older stages cost the site a request per show, so they only load on a tap.
       moreBtn.hidden = loading || exhausted || more;
@@ -904,11 +912,10 @@
     let season = newest ? { y: +newest[1], i: SEASONS.indexOf(newest[2]) } : { y: 2025, i: 3 };
     const nextOf = ({ y, i }) => (i === 3 ? { y: y + 1, i: 0 } : { y, i: i + 1 });
     const prevOf = ({ y, i }) => (i === 0 ? { y: y - 1, i: 3 } : { y, i: i - 1 });
-    const after = nextOf(season);
-    const stages = [{ label: "back to " + MONTHS[after.i * 3] + " " + after.y, url: "/?schedule", horizon: seasonStart(after.y, after.i) }];
+    const stages = [{ label: "the schedule", url: "/?schedule", horizon: seasonStart(nextOf(season).y, nextOf(season).i) }];
     const nameOf = ({ y, i }) => y + " " + SEASONS[i][0].toUpperCase() + SEASONS[i].slice(1);
     const pushSeason = () => {
-      stages.push({ label: "back to " + nameOf(season), url: "/" + season.y + SEASONS[season.i] + ".php", horizon: seasonStart(season.y, season.i) });
+      stages.push({ label: nameOf(season), url: "/" + season.y + SEASONS[season.i] + ".php", horizon: seasonStart(season.y, season.i) });
       season = prevOf(season);
     };
     pushSeason();
@@ -918,7 +925,7 @@
       if (!st) { exhausted = true; horizon = -Infinity; return render(); }
       loading = true;
       moreBtn.hidden = true;
-      setStatus("Finding older episodes " + st.label + "…", 0, 1);
+      setStatus("Finding older episodes: " + st.label + "…", 0, 1);
       fetch(st.url, { credentials: "same-origin" })
         .then((r) => (r.ok ? r.text() : Promise.reject(r.status)))
         .then((html) => {
@@ -926,7 +933,7 @@
           if (!list.length) return Promise.reject(404);
           list.forEach(addShow);
           let done = 0;
-          const tick = () => setStatus("Finding older episodes " + st.label + " · " + done + " / " + list.length, done, list.length);
+          const tick = () => setStatus("Finding older episodes: " + st.label + " · " + done + " / " + list.length, done, list.length);
           tick();
           return Promise.all(list.map((c) => lookup(c.id, true).then((g) => { addEps(c.id, g); done++; tick(); })));
         })
@@ -944,19 +951,30 @@
     function needMoreIfClose() {
       if (loading || !foot.isConnected) return;
       if (foot.getBoundingClientRect().top > innerHeight + 1200) return;
-      const avail = Array.from(eps.values()).filter((e) => e.ts * 6e4 >= horizon).length;
-      if (avail > limit) { limit += PAGE; render(); }
+      if (ready && eligible().length) { limit += PAGE; render(); }
     }
     moreBtn.addEventListener("click", loadStage);
     addEventListener("scroll", () => requestAnimationFrame(needMoreIfClose), { passive: true });
 
     // Stage 0's shows: refetch any whose cached page predates its new episode.
-    for (const c of own) {
+    let got = 0;
+    const tick0 = () => setStatus("Loading the latest episodes · " + got + " / " + own.length, got, own.length);
+    tick0();
+    Promise.all(own.map((c) => {
       const hit = cached(c.id);
-      if (hit && c.latest && !hit.eps.some(([, n]) => n === c.latest)) delete cache[c.id];
-      lookup(c.id).then((g) => { addEps(c.id, g); render(); });
-    }
-    render();
+      if (hit && c.latest && !(hit.eps || []).some(([, n]) => n === c.latest)) delete cache[c.id];
+      return lookup(c.id).then((g) => {
+        if (g && g.eps && g.eps.length) addEps(c.id, g);
+        // the show's page could not be read: fall back to what the card says
+        else if (c.latest) eps.set(c.id + ":" + c.latest, { id: c.id, num: c.latest, key: null, ts: Math.round((now - (c.age || 0)) / 6e4) });
+        got++;
+        tick0();
+      });
+    })).then(() => {
+      ready = true;
+      setStatus("", 0, 0);
+      render();
+    });
   };
 
   // The site's nav: "New" is now Latest (and home); the old home is Schedule.
