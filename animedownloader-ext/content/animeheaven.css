@@ -130,6 +130,22 @@ h1 { margin: 0; font: inherit; }
 }
 .headeritem:hover { background: var(--ah-surface-2); color: var(--ah-text); }
 .burger { display: none; width: 36px; height: 36px; margin-left: auto; cursor: pointer; }
+/* the header keeps only My Bookmarks, as an icon at the far right */
+.adx-bookmarks {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin-left: auto;
+  border-radius: 999px;
+  color: var(--ah-muted);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.adx-bookmarks:hover { background: var(--ah-surface-2); color: var(--ah-text); }
+.adx-bookmarks svg { width: 22px; height: 22px; }
+.burger,
+.burgermenu { display: none !important; }
 .burgermenu { padding: 8px var(--ah-pad); border-bottom: 1px solid var(--ah-line); }
 .burgeritem2 {
   display: block;

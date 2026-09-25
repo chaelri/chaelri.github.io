@@ -1144,18 +1144,19 @@
     })).then(() => first.finish(() => { ready = true; render(); }));
   };
 
-  // The site's nav: home (the logo) IS the Latest feed now, so the "New"
-  // link would just repeat it; that slot becomes Schedule, the old home.
-  document.querySelectorAll('a[href="new.php"]').forEach((a) => {
-    const label = a.querySelector(".headeritem, .burgeritem2");
-    if (label) {
-      label.textContent = "Schedule";
-      a.href = "/?schedule";
-      a.title = "Schedule";
-    } else {
-      a.closest(".navitem")?.remove(); // mobile bar: its home icon already goes there
-    }
+  // The site's nav: the logo is home (the Latest feed) and the only other
+  // item kept is My Bookmarks, as an icon at the top right. Schedule,
+  // Popular, the season page and Random are dropped, and with them the
+  // burger menu that only repeated them. (/?schedule still opens the old home.)
+  document.querySelectorAll(".header a:has(> .headeritem)").forEach((a) => {
+    if (!/bookmarks\.php/.test(a.getAttribute("href") || "")) return a.remove();
+    a.className = "adx-bookmarks";
+    a.title = "My Bookmarks";
+    a.setAttribute("aria-label", "My Bookmarks");
+    a.innerHTML = "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linejoin='round' aria-hidden='true'><path d='M6.5 3.5h11a1 1 0 0 1 1 1v16l-6.5-4.2-6.5 4.2v-16a1 1 0 0 1 1-1z'/></svg>";
   });
+  // mobile bar: its home icon already goes to the feed
+  document.querySelectorAll('.navitem a[href="new.php"]').forEach((a) => a.closest(".navitem").remove());
   document.querySelectorAll('a[href="/"]').forEach((a) => a.setAttribute("href", "/new.php"));
   if (location.pathname === "/new.php") document.title = "AnimeHeaven";
   if (location.pathname === "/new.php") buildFeed();
