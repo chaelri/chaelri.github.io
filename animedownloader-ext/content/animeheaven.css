@@ -1603,16 +1603,19 @@ h1 { margin: 0; font: inherit; }
 /* home: continue watching, one card at the right of the filter bar */
 .adx-continue {
   position: absolute;
+  /* the filter bar's own padding: the card is exactly as tall as the two
+     filter rows, so it never hangs out of the bar once that is stuck */
   top: 12px;
+  bottom: 12px;
   right: var(--ah-gutter);
   width: 350px;
 }
 .adx-continue-item {
   display: flex;
   align-items: center;
-  gap: 14px;
-  height: 100px;
-  padding: 10px 14px 10px 10px;
+  gap: 12px;
+  height: 100%;
+  padding: 7px 12px 7px 7px;
   box-sizing: border-box;
   border-radius: 14px;
   background: var(--ah-surface);
@@ -1623,13 +1626,13 @@ h1 { margin: 0; font: inherit; }
 .adx-continue-item:hover { border-color: var(--ah-red); background: var(--ah-surface-2); }
 .adx-continue-item img {
   flex: none;
-  width: 54px;
-  height: 80px;
+  height: 100%;
+  aspect-ratio: 2 / 3;
   object-fit: cover;
-  border-radius: 8px;
+  border-radius: 7px;
   background: var(--ah-surface-3);
 }
-.adx-continue-item span { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1; }
+.adx-continue-item span { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
 .adx-continue-item em {
   font-style: normal;
   font-size: 10.5px;
@@ -1638,15 +1641,15 @@ h1 { margin: 0; font: inherit; }
   text-transform: uppercase;
   color: var(--ah-red);
 }
-.adx-continue-item b { overflow: hidden; font-size: 15px; font-weight: 700; line-height: 1.25; white-space: nowrap; text-overflow: ellipsis; }
+.adx-continue-item b { overflow: hidden; font-size: 14px; font-weight: 700; line-height: 1.25; white-space: nowrap; text-overflow: ellipsis; }
 .adx-continue-item small { font-size: 12.5px; color: var(--ah-muted); }
 .adx-continue-item i { display: block; height: 3px; margin-top: 2px; border-radius: 999px; background: var(--ah-surface-3); overflow: hidden; }
 .adx-continue-item u { display: block; height: 100%; background: var(--ah-red); }
 /* play button */
 .adx-continue-item s {
   flex: none;
-  width: 38px;
-  height: 38px;
+  width: 34px;
+  height: 34px;
   border-radius: 999px;
   background: var(--ah-red);
   position: relative;
