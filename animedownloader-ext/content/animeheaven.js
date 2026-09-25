@@ -737,10 +737,43 @@
     sort.addEventListener("click", () => { asc = !asc; render(asc); });
   }
 
-  // Anime page: colour its own "Finished airing" strip like the card pills.
-  const strip = document.querySelector(".info2 > .inline.c2");
-  const stripPill = strip && statusPill(strip.textContent);
-  if (stripPill) strip.className = "inline adx-status " + stripPill[1];
+  // Anime page: the site's full-width status strip ("Finished airing" /
+  // "Countdown to Episode 3 : 6 Days 23 Hours 28 Min") becomes one pill in
+  // the info box, under Episodes / Year / Score. A countdown is turned into
+  // the actual day and time, with the time left beside it.
+  const strip = location.pathname === "/anime.php" && document.querySelector(".boldtext > .info2:has(> .inline)");
+  const infoYear = document.querySelector(".infoyear");
+  if (strip && infoYear) {
+    const parts = strip.querySelectorAll(":scope > .inline");
+    const label = parts[0]?.textContent.replace(/\s*:\s*$/, "").trim() || "";
+    const value = parts[1]?.textContent.trim() || "";
+    const pill = document.createElement("div");
+    pill.className = "adx-airstate";
+    const count = label.match(/countdown to episode\s+(\S+)/i);
+    const left = value.match(/(?:(\d+)\s*days?)?\s*(?:(\d+)\s*hours?)?\s*(?:(\d+)\s*min)?/i);
+    const ms = left ? ((+left[1] || 0) * 1440 + (+left[2] || 0) * 60 + (+left[3] || 0)) * 6e4 : 0;
+    if (count && ms) {
+      const at = new Date(Date.now() + ms);
+      const day = at.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+      const time = at.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+      const d = Math.floor(ms / 864e5);
+      const h = Math.floor((ms % 864e5) / 36e5);
+      const m = Math.round((ms % 36e5) / 6e4);
+      pill.classList.add("is-next");
+      pill.innerHTML = "<b></b><span></span><em></em>";
+      pill.children[0].textContent = "Episode " + count[1];
+      pill.children[1].textContent = day + ", " + time;
+      pill.children[2].textContent = "in " + (d ? d + "d " + h + "h" : h ? h + "h " + m + "m" : m + "m");
+    } else {
+      const text = /finished/i.test(value + label) ? "Finished airing" : value || label;
+      if (/finished/i.test(text)) pill.classList.add("is-done");
+      pill.textContent = text;
+    }
+    if (pill.textContent) {
+      infoYear.after(pill);
+      strip.remove();
+    }
+  }
 
   // ── Latest (new.php): every episode, newest first, grouped by day ──
   // new.php stops at ~11 days and has no pages, so older episodes come from
