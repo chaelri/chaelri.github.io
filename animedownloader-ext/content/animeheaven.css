@@ -682,9 +682,136 @@ h1 { margin: 0; font: inherit; }
   height: auto;
   background: #000;
 }
-/* watch page: the show's details box under the episodes */
-.adx-show-info { margin-top: 16px; }
-.adx-show-link { text-decoration: none; }
+/* ── watch page below the player: minimal, no boxes ──────────────── */
+:root:has(video.videodiv) .boldtext:has(> .info2 > video) { padding-bottom: 72px; }
+.adx-watch-meta {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  margin-top: 28px;
+}
+.adx-wm-poster { flex: none; display: block; width: 84px; }
+.adx-wm-poster img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+  border-radius: 8px;
+  box-shadow: 0 0 0 1px var(--ah-line);
+}
+.adx-wm-body { min-width: 0; }
+.adx-wm-title {
+  display: block;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.3px;
+  color: var(--ah-text);
+}
+.adx-wm-title:hover { color: var(--ah-red); }
+.adx-wm-alt { margin-top: 4px; font-size: 13px; color: var(--ah-faint); line-height: 1.4; }
+.adx-wm-line {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  font-size: 13.5px;
+  color: var(--ah-muted);
+}
+.adx-wm-line > span + span::before { content: "·"; margin: 0 8px; color: var(--ah-faint); }
+.adx-wm-status.is-done { color: #5ee8a4; }
+.adx-wm-status.is-next { color: var(--ah-text); }
+.adx-wm-actions { display: flex; gap: 22px; margin-top: 14px; }
+.adx-wm-actions > * {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: 700 12px var(--ah-font);
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--ah-muted);
+  cursor: pointer;
+}
+.adx-wm-actions > *:hover { color: var(--ah-text); }
+.adx-wm-actions > button::after { content: " +"; }
+.adx-wm-actions > button.is-on { color: var(--ah-red); }
+.adx-wm-actions > button.is-on::after { content: " ✓"; }
+.adx-wm-actions > a::after { content: " →"; }
+
+/* the Episodes panel loses its box: a small label row and outline tiles */
+:root:has(video.videodiv) .adx-eps {
+  margin-top: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+:root:has(video.videodiv) .adx-eps-head {
+  margin-bottom: 12px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: var(--ah-faint);
+}
+:root:has(video.videodiv) .adx-eps-head span { font-size: 11.5px; color: var(--ah-faint); }
+:root:has(video.videodiv) .adx-eps-dl .boxitem {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--ah-muted);
+}
+:root:has(video.videodiv) .adx-eps-dl .boxitem:hover { color: var(--ah-text); }
+:root:has(video.videodiv) .adx-eps-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: none;
+  overflow: visible;
+  padding: 0;
+}
+:root:has(video.videodiv) .adx-ep-tile {
+  min-width: 36px;
+  height: 36px;
+  padding: 0 8px;
+  box-sizing: border-box;
+  border-radius: 6px;
+  background: none;
+  border: 1px solid var(--ah-line-strong);
+  color: var(--ah-muted);
+  font-size: 13px;
+  font-weight: 500;
+}
+:root:has(video.videodiv) .adx-ep-tile:hover { background: none; border-color: var(--ah-red); color: var(--ah-text); }
+:root:has(video.videodiv) .adx-ep-tile.is-watched { color: var(--ah-faint); border-color: var(--ah-line); }
+:root:has(video.videodiv) .adx-ep-tile.is-current {
+  background: none;
+  border-color: var(--ah-red);
+  color: var(--ah-red);
+  font-weight: 700;
+}
+
+/* synopsis + tags */
+.adx-watch-about { margin-top: 30px; }
+.adx-watch-about p {
+  max-width: 72ch;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--ah-muted);
+}
+.adx-wm-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 16px; }
+.adx-wm-tags a {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--ah-line-strong);
+  font-size: 12px;
+  color: var(--ah-muted);
+}
+.adx-wm-tags a:hover { border-color: var(--ah-red); color: var(--ah-text); }
 /* site footer (Discord / Twitter / theme toggle): gone */
 .footer { display: none !important; }
 /* the sound comes on with the first click or key press (animeheaven.js) */

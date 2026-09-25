@@ -757,44 +757,88 @@
           panel.append(head, grid);
           tools.after(panel);
 
-          // The show's details (same box as its own page) under the episodes.
-          // The page's Bookmark / Rate call functions that only exist on the
-          // show page, so Bookmark is redone here on the same localStorage
-          // list ("id|ep*"), and Rate becomes a link to the show page.
+          // The show's details, minimal: a small poster, the title, one meta
+          // line (episodes · year · score · status) and two text actions,
+          // then the synopsis and tags under the episodes. The page's own
+          // Bookmark / Rate call functions that only exist on the show page,
+          // so Bookmark is redone on the same localStorage list ("id|ep*")
+          // and Rate becomes the link to the show page.
           const info = doc.querySelector(".info");
           if (info) {
-            const box = document.importNode(info, true);
-            box.classList.add("adx-show-info");
+            const txt = (q) => info.querySelector(q)?.textContent.trim() || "";
+            const yearBits = Array.from(info.querySelectorAll(".infoyear .inline")).map((x) => x.textContent.trim());
+            const box = document.createElement("section");
+            box.className = "adx-watch-meta";
+            box.innerHTML =
+              "<a class='adx-wm-poster'><img alt=''></a>" +
+              "<div class='adx-wm-body'><a class='adx-wm-title'></a><div class='adx-wm-alt'></div>" +
+              "<div class='adx-wm-line'></div><div class='adx-wm-actions'></div></div>";
+            box.querySelector(".adx-wm-poster").href = "anime.php?" + showId;
+            box.querySelector("img").src = info.querySelector(".posterimg")?.getAttribute("src") || "";
+            const tl = box.querySelector(".adx-wm-title");
+            tl.href = "anime.php?" + showId;
+            tl.textContent = txt(".infotitle");
+            const alt = txt(".infotitlejp");
+            if (alt && alt !== "-") box.querySelector(".adx-wm-alt").textContent = alt;
+            else box.querySelector(".adx-wm-alt").remove();
+            const line = box.querySelector(".adx-wm-line");
+            const bits = [];
+            if (yearBits[0] && yearBits[0] !== "?") bits.push(yearBits[0] + (yearBits[0] === "1" ? " episode" : " episodes"));
+            if (yearBits[1] && yearBits[1] !== "?") bits.push(yearBits[1]);
+            if (yearBits[2] && yearBits[2] !== "?") bits.push("★ " + yearBits[2]);
+            bits.forEach((b) => { const sp = document.createElement("span"); sp.textContent = b; line.appendChild(sp); });
             const pill = airPill(doc.querySelector(".boldtext > .info2:has(> .inline)"));
-            if (pill) box.querySelector(".infoyear")?.after(pill);
-            const tools2 = box.querySelector(".infobook");
-            if (tools2) {
-              const marked = () => (localStorage.getItem("bookmark") || "").split("*").some((x) => x.split("|")[0] === showId);
-              const book = document.createElement("div");
-              book.className = "book3 bc2 c1";
-              book.innerHTML = "Bookmark<div class='bc2 c1 book2'><img alt></div>";
-              const paint = () => {
-                const on = marked();
-                book.firstChild.textContent = on ? "Bookmarked" : "Bookmark";
-                book.lastChild.className = (on ? "bc3" : "bc2") + " c1 book2";
-                book.querySelector("img").src = on ? "close.svg" : "add.svg";
-              };
-              book.addEventListener("click", () => {
-                const list = (localStorage.getItem("bookmark") || "").split("*").filter(Boolean);
-                const next = marked()
-                  ? list.filter((x) => x.split("|")[0] !== showId)
-                  : list.concat(showId + "|0");
-                localStorage.setItem("bookmark", next.map((x) => x + "*").join(""));
-                paint();
-              });
-              paint();
-              const page = document.createElement("a");
-              page.className = "book3 bc2 c1 adx-show-link";
-              page.href = "anime.php?" + showId;
-              page.textContent = "Show page";
-              tools2.replaceChildren(book, page);
+            if (pill) {
+              const st = document.createElement("span");
+              st.className = "adx-wm-status " + (pill.classList.contains("is-done") ? "is-done" : pill.classList.contains("is-next") ? "is-next" : "");
+              st.textContent = pill.classList.contains("is-next")
+                ? "Next: " + pill.children[0].textContent + " · " + pill.children[1].textContent
+                : pill.textContent;
+              line.appendChild(st);
             }
-            panel.after(box);
+
+            const actions = box.querySelector(".adx-wm-actions");
+            const marked = () => (localStorage.getItem("bookmark") || "").split("*").some((x) => x.split("|")[0] === showId);
+            const book = document.createElement("button");
+            book.type = "button";
+            const paint = () => {
+              const on = marked();
+              book.textContent = on ? "Bookmarked" : "Bookmark";
+              book.classList.toggle("is-on", on);
+            };
+            book.addEventListener("click", () => {
+              const list = (localStorage.getItem("bookmark") || "").split("*").filter(Boolean);
+              const next = marked()
+                ? list.filter((x) => x.split("|")[0] !== showId)
+                : list.concat(showId + "|0");
+              localStorage.setItem("bookmark", next.map((x) => x + "*").join(""));
+              paint();
+            });
+            paint();
+            const page = document.createElement("a");
+            page.href = "anime.php?" + showId;
+            page.textContent = "Show page";
+            actions.append(book, page);
+
+            // synopsis + tags go under the episode list
+            const about = document.createElement("section");
+            about.className = "adx-watch-about";
+            const des = txt(".infodes");
+            if (des) { const p = document.createElement("p"); p.textContent = des; about.appendChild(p); }
+            const tags = Array.from(info.querySelectorAll(".infotags a"));
+            if (tags.length) {
+              const row = document.createElement("div");
+              row.className = "adx-wm-tags";
+              tags.forEach((a) => {
+                const t = document.createElement("a");
+                t.href = a.getAttribute("href");
+                t.textContent = a.textContent.trim();
+                row.appendChild(t);
+              });
+              about.appendChild(row);
+            }
+            panel.before(box);
+            if (about.children.length) panel.after(about);
           }
           if (currentTile) grid.scrollTop = currentTile.offsetTop - grid.clientHeight / 2;
         })
