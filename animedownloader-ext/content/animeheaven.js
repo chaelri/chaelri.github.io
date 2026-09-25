@@ -606,6 +606,20 @@
   };
   const keyFromHash = () => new URLSearchParams(location.hash.slice(1)).get("k");
 
+  // ── continue watching ──
+  // The site only remembers one "resume" episode, so the watch page keeps
+  // its own short history: one entry per show, newest first, with where you
+  // are in the episode. Close to the end, the entry moves on to the next one.
+  const WATCH_KEY = "adx.heaven.watching";
+  const readWatching = () => {
+    try { return JSON.parse(localStorage.getItem(WATCH_KEY) || "[]"); } catch (e) { return []; }
+  };
+  const saveWatching = (entry) => {
+    const list = readWatching().filter((w) => w.id !== entry.id);
+    list.unshift(entry);
+    try { localStorage.setItem(WATCH_KEY, JSON.stringify(list.slice(0, 12))); } catch (e) {}
+  };
+
   if (location.pathname === "/gate.php") {
     // the player box takes the video's real shape (see .videodiv)
     const vid = document.querySelector("video.videodiv");
@@ -674,6 +688,24 @@
 
     const showId = showIdOf(title?.querySelector('a[href*="anime.php"]')?.href);
     const tools = document.querySelector(".info2.right");
+
+    // continue watching: record this episode every few seconds while it plays
+    let watchPoster = (readWatching().find((w) => w.id === showId) || {}).poster || "";
+    let nextEp = null;
+    const recordWatch = () => {
+      if (!vid || !showId || !current || !vid.duration) return;
+      const nearEnd = vid.duration - vid.currentTime < 60;
+      const base = { id: showId, title: showName, poster: watchPoster, at: Date.now() };
+      if (nearEnd && nextEp) saveWatching({ ...base, ep: nextEp.num, key: nextEp.key, pos: 0, dur: 0 });
+      else saveWatching({ ...base, ep: epNum, key: current, pos: Math.floor(vid.currentTime), dur: Math.floor(vid.duration), done: nearEnd });
+    };
+    let lastRecord = 0;
+    vid?.addEventListener("timeupdate", () => {
+      if (Date.now() - lastRecord < 5000 || vid.currentTime < 5) return;
+      lastRecord = Date.now();
+      recordWatch();
+    });
+    vid?.addEventListener("pause", () => { if (vid.currentTime >= 5) recordWatch(); });
     if (showId && tools) {
       fetch("/anime.php?" + showId, { credentials: "same-origin" })
         .then((r) => (r.ok ? r.text() : Promise.reject(r.status)))
@@ -697,6 +729,8 @@
             location.reload();
           };
           const at = eps.findIndex((ep) => ep.key === current);
+          nextEp = at !== -1 ? eps[at + 1] || null : null;
+          watchPoster = doc.querySelector(".posterimg")?.getAttribute("src") || watchPoster;
           if (at !== -1 && title) {
             const nav = document.createElement("div");
             nav.className = "adx-epnav";
@@ -1435,6 +1469,39 @@
 
   scan();
   injectFilterBar();
+
+  // Home: continue watching, in the empty space at the right of the filter bar.
+  const addContinue = () => {
+    const bar = document.getElementById("adx-filter");
+    const items = readWatching().filter((w) => !w.done && w.key).slice(0, 2);
+    if (!bar || !items.length) return;
+    const box = document.createElement("div");
+    box.className = "adx-continue";
+    box.innerHTML = "<div class='adx-continue-head'>Continue watching</div>";
+    for (const w of items) {
+      const a = document.createElement("a");
+      a.className = "adx-continue-item";
+      a.href = "/gate.php#ep=" + w.ep + "&k=" + w.key;
+      a.title = w.title + " · Episode " + w.ep;
+      a.innerHTML = "<img alt=''><span><b></b><small></small><i><u></u></i></span>";
+      if (w.poster) a.querySelector("img").src = w.poster;
+      a.querySelector("b").textContent = w.title;
+      const left = w.dur ? Math.max(1, Math.round((w.dur - w.pos) / 60)) : 0;
+      a.querySelector("small").textContent = "Ep " + w.ep + (w.pos ? " · " + left + " min left" : " · up next");
+      a.querySelector("u").style.width = w.dur ? Math.min(100, (w.pos / w.dur) * 100) + "%" : "0";
+      a.addEventListener("click", (e) => {
+        if (e.metaKey || e.ctrlKey || e.shiftKey) return; // new tab: the hash restores it
+        e.preventDefault();
+        // the site's own resume slot: "<episode key>|<seconds>"
+        if (w.pos) localStorage.setItem("resume", w.key + "|" + w.pos);
+        setKey(w.key);
+        location.href = a.href;
+      });
+      box.appendChild(a);
+    }
+    bar.appendChild(box);
+  };
+  if (location.pathname === "/new.php") addContinue();
   let scanTimer = null;
   new MutationObserver(() => {
     clearTimeout(scanTimer);
