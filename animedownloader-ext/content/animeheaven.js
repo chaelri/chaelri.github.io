@@ -170,8 +170,9 @@
         .finally(() => { active--; pump(); });
     }
   };
-  const lookup = (id, bg = false) => {
-    const hit = cached(id);
+  // force: re-read a cached show (one read before posters were kept)
+  const lookup = (id, bg = false, force = false) => {
+    const hit = !force && cached(id);
     if (hit) return Promise.resolve(hit);
     if (inflight.has(id)) return inflight.get(id);
     const p = new Promise((resolve) => { (bg ? bgQueue : queue).push({ id, resolve, bg }); pump(); })
@@ -349,15 +350,68 @@
     }
   };
 
-  // Phones: cards are compact rows with a portrait poster (see the 640px
-  // block in animeheaven.css). A show read before posters were kept has
-  // none yet; its 16:9 cover is cropped to portrait until it is re-read.
+  // Posters: phones always show cards as rows with the show's portrait
+  // poster (the 640px block in animeheaven.css); wider screens can switch
+  // the grid to posters with the filter bar's layout toggle. The poster is
+  // the show page's own 2:3 image, never the 16:9 cover cropped: until it
+  // is in, the frame stays empty. A show read before posters were kept is
+  // re-read for it once its card nears the screen.
   const PHONE = matchMedia("(max-width: 640px)");
+  const LAYOUT_KEY = "adx.heaven.layout";
+  let portrait = false;
+  try { portrait = localStorage.getItem(LAYOUT_KEY) === "portrait"; } catch (e) {}
+  const posterMode = () => PHONE.matches || portrait;
+  const syncPosterClass = () => document.documentElement.classList.toggle("adx-posters", posterMode());
+  syncPosterClass();
+  const coverImg = (card) => card.querySelector(".chartimg img.coverimg, .p1 img.coverimg");
+  const posterIO = new IntersectionObserver(
+    (entries) => {
+      for (const e of entries) {
+        if (!e.isIntersecting) continue;
+        posterIO.unobserve(e.target);
+        const id = showIdOf(e.target.querySelector('a[href*="anime.php"]')?.href);
+        if (id) lookup(id, false, true).then((g) => usePoster(e.target, g));
+      }
+    },
+    { rootMargin: "800px 0px" }
+  );
   const usePoster = (card, info) => {
-    if (!PHONE.matches || !info || !info.poster) return;
-    const im = card.querySelector(".chartimg img.coverimg, .p1 img.coverimg");
-    if (im && !im.dataset.adxPoster) { im.dataset.adxPoster = "1"; im.src = info.poster; }
+    const im = coverImg(card);
+    if (!im) return;
+    const state = im.dataset.adxPoster;
+    if (!posterMode()) {
+      if (im.dataset.adxCover !== undefined) im.src = im.dataset.adxCover;
+      delete im.dataset.adxCover;
+      delete im.dataset.adxPoster;
+      return;
+    }
+    if (state === "1" || state === "wait") return;
+    if (info && !("poster" in info)) return posterIO.observe(card);
+    // no poster to be had: the cover, cropped, beats an empty frame
+    if (!info || !info.poster) { im.dataset.adxPoster = "none"; return; }
+    im.dataset.adxCover = im.getAttribute("src") || "";
+    im.dataset.adxPoster = "wait";
+    const done = (ok) => {
+      if (im.dataset.adxPoster !== "wait") return;
+      if (!ok) im.src = im.dataset.adxCover;
+      im.dataset.adxPoster = ok ? "1" : "none";
+    };
+    im.addEventListener("load", () => done(true), { once: true });
+    im.addEventListener("error", () => done(false), { once: true });
+    im.src = info.poster;
   };
+  // every card already treated, after the layout or the screen width changes
+  const repaintPosters = () => {
+    syncPosterClass();
+    document.querySelectorAll(CARD_SEL).forEach((card) => {
+      if (!card.dataset.adxSeen || card.classList.contains("adx-nsfw")) return;
+      const id = showIdOf(card.querySelector('a[href*="anime.php"]')?.href);
+      const g = id && cached(id);
+      // not looked up yet: apply() will do it
+      if (g || card.dataset.adxStatus !== undefined) usePoster(card, g || null);
+    });
+  };
+  PHONE.addEventListener("change", repaintPosters);
   const apply = (card, info) => {
     if (info && isNsfw(info.genres)) return card.classList.add("adx-nsfw");
     if (info) renderChips(card, info);
@@ -395,6 +449,7 @@
     card.dataset.adxReq = "1";
     const id = showIdOf(card.querySelector('a[href*="anime.php"]')?.href);
     if (!id) {
+      usePoster(card, null);
       card.dataset.adxTags = "";
       if (card.dataset.adxStatus === undefined) card.dataset.adxStatus = "";
       markSafe(card);
@@ -402,6 +457,7 @@
     }
     lookup(id).then((info) => {
       apply(card, info);
+      if (!info) usePoster(card, null);
       // unverifiable: still settle it so the filter stops waiting on it
       if (card.dataset.adxStatus === undefined) card.dataset.adxStatus = "";
     });
@@ -461,7 +517,7 @@
       : shown + " / " + cards.length;
     bar.querySelectorAll(".adx-quick").forEach((b) =>
       b.classList.toggle("is-on", tokens.includes(b.dataset.q)));
-    bar.querySelectorAll(".adx-seg button").forEach((b) =>
+    bar.querySelectorAll(".adx-seg button[data-s]").forEach((b) =>
       b.classList.toggle("is-on", b.dataset.s === statusMode));
     const empty = document.getElementById("adx-filter-empty");
     if (empty) empty.hidden = !(active && !pending && !shown);
@@ -495,6 +551,12 @@
         '<button type="button" data-s="all">All</button>' +
         '<button type="button" data-s="done">Finished</button>' +
         '<button type="button" data-s="airing">Not finished</button>' +
+      "</div>" +
+      '<div class="adx-seg adx-layout" role="group" aria-label="Layout">' +
+        '<button type="button" data-l="landscape" title="Covers" aria-label="Covers">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="6.5" width="18" height="11" rx="2"/></svg></button>' +
+        '<button type="button" data-l="portrait" title="Posters" aria-label="Posters">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="7" y="3" width="10" height="18" rx="2"/></svg></button>' +
       "</div>" +
       '<div class="adx-filter-quick"></div>';
     const quick = bar.querySelector(".adx-filter-quick");
@@ -544,6 +606,19 @@
         : words.concat(b.dataset.q);
       input.value = next.join(", ");
       setFilter(input.value);
+    });
+
+    const layout = bar.querySelector(".adx-layout");
+    const markLayout = () => layout.querySelectorAll("button").forEach((b) =>
+      b.classList.toggle("is-on", (b.dataset.l === "portrait") === portrait));
+    markLayout();
+    layout.addEventListener("click", (e) => {
+      const b = e.target.closest("button[data-l]");
+      if (!b || (b.dataset.l === "portrait") === portrait) return;
+      portrait = b.dataset.l === "portrait";
+      try { localStorage.setItem(LAYOUT_KEY, portrait ? "portrait" : "landscape"); } catch (e) {}
+      markLayout();
+      repaintPosters();
     });
 
     bar.querySelector(".adx-seg").addEventListener("click", (e) => {

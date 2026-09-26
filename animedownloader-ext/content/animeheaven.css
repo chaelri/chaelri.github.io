@@ -1755,3 +1755,56 @@ h1 { margin: 0; font: inherit; }
   .adx-quick { flex: none; padding: 5px 11px; font-size: 12px; }
 }
 
+
+/* ── posters (animeheaven.js): the show's own 2:3 poster, never the 16:9
+   cover cropped. Until the poster is in, the frame stays empty. ── */
+html.adx-posters .chartimg .coverimg:not([data-adx-poster="1"]):not([data-adx-poster="none"]),
+html.adx-posters .similarimg .coverimg:not([data-adx-poster="1"]):not([data-adx-poster="none"]) { opacity: 0; }
+.chartimg .coverimg,
+.similarimg .coverimg {
+  transition: transform 0.35s var(--ah-ease), filter 0.35s var(--ah-ease), opacity 0.3s ease;
+}
+
+/* layout toggle in the filter bar: covers / posters */
+.adx-layout button { display: grid; place-items: center; padding: 6px 10px; }
+.adx-layout svg { width: 17px; height: 17px; }
+
+/* poster grid on wider screens: more shows to a row */
+@media (min-width: 641px) {
+  html.adx-posters .boldtext:has(> .chart, > .adx-feed-anchor),
+  html.adx-posters .info3 {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 26px 16px;
+    --adx-row-gap: 26px;
+  }
+  html.adx-posters .chartimg,
+  html.adx-posters .similarimg .p1 > a:has(> .coverimg) { aspect-ratio: 2 / 3; border-radius: 10px; }
+  html.adx-posters .chartinfo,
+  html.adx-posters .similarname { padding-top: 10px; }
+  html.adx-posters .charttitle,
+  html.adx-posters .similarname {
+    font-size: 14px;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  html.adx-posters .charttitlejp { display: none; }
+  html.adx-posters .charttimer { margin-top: 4px; font-size: 12px; }
+  html.adx-posters .adx-aired { min-height: 22px; padding-top: 4px; font-size: 12px; }
+  html.adx-posters .adx-aired::before { width: 12px; height: 12px; }
+  /* one row of chips: the status and two genres */
+  html.adx-posters .adx-genre-row { flex-wrap: nowrap; overflow: hidden; gap: 4px; padding-top: 6px; }
+  html.adx-posters .adx-genre-row > a.adx-genre-chip:nth-of-type(n+3) { display: none; }
+  html.adx-posters .adx-genre-chip,
+  html.adx-posters .adx-status { flex: none; font-size: 9.5px; padding: 3px 6px; letter-spacing: 0.4px; }
+  html.adx-posters .adx-genre-row > .adx-status.is-done { width: 20px; height: 20px; padding: 0; }
+  html.adx-posters .adx-genre-row > .adx-status.is-done::before { width: 11px; height: 11px; }
+  html.adx-posters .chartepm,
+  html.adx-posters .adx-ep { left: 8px; bottom: 8px; padding: 3px 8px; font-size: 11px; }
+  html.adx-posters .book { top: 8px; right: 8px; width: 28px; height: 28px; }
+  html.adx-posters .book img { width: 14px; height: 14px; }
+}
+/* phones are always posters, so the toggle has nothing to do there */
+@media (max-width: 640px) { .adx-layout { display: none; } }
