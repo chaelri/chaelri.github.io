@@ -1667,6 +1667,11 @@ h1 { margin: 0; font: inherit; }
 .adx-continue-item:hover s { background: var(--ah-red-hover); }
 /* no room beside the filters on a narrow window */
 @media (max-width: 1280px) { .adx-continue { display: none; } }
+/* the filters keep clear of the card: they shrink and wrap before it */
+@media (min-width: 1281px) {
+  .adx-filter:has(> .adx-continue) { padding-right: calc(var(--ah-gutter) + 350px + 20px); }
+  .adx-filter:has(> .adx-continue) .adx-filter-field { flex: 1 1 260px; max-width: 460px; }
+}
 
 /* status switch in the filter bar: All / Finished / Not finished */
 .adx-seg {
