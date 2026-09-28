@@ -682,6 +682,9 @@ h1 { margin: 0; font: inherit; }
   height: auto;
   background: #000;
 }
+/* no focus ring round the player after a click to play/pause */
+.videodiv:focus,
+.videodiv:focus-visible { outline: none; }
 /* ── watch page below the player: minimal, no boxes ──────────────── */
 :root:has(video.videodiv) .boldtext:has(> .info2 > video) { padding-bottom: 72px; }
 .adx-watch-meta {
