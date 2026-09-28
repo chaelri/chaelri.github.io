@@ -1837,34 +1837,10 @@ html.adx-posters .similarimg .coverimg:not([data-adx-poster="1"]):not([data-adx-
 }
 .adx-a4k.is-live { opacity: 1; }
 .adx-a4k-ctl .adx-a4k { --adx-a4k-fade: 48px; }
-.adx-a4k-bar {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  z-index: 2;
-  display: flex;
-  gap: 6px;
-  opacity: 0;
-  transition: opacity 0.2s ease;
-}
-.adx-a4k-ctl .adx-a4k-bar { opacity: 1; }
-.adx-a4k-chip {
-  height: 28px;
-  padding: 0 11px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 999px;
-  background: rgba(0, 0, 0, 0.55);
-  color: rgba(255, 255, 255, 0.72);
-  font: 600 11.5px var(--ah-font);
-  letter-spacing: 0.3px;
-  cursor: pointer;
-}
-.adx-a4k-chip:hover { color: #fff; border-color: rgba(255, 255, 255, 0.4); }
-.adx-a4k-chip:focus { outline: none; }
-.adx-a4k-chip:focus-visible { outline: 2px solid rgba(255, 255, 255, 0.6); outline-offset: 2px; }
 /* Exactly over Chrome's own fullscreen button (centre 72px from the right,
-   48px up, lined up on screen; the controls are anchored to the right edge at any width). It only
-   takes clicks while the controls are showing; otherwise that spot is video. */
+   48px up, lined up on screen; the controls are anchored to the right edge
+   at any width). It only takes clicks while the controls are showing;
+   otherwise that spot is video. */
 .adx-a4k-fshit {
   position: absolute;
   right: 54px;
@@ -1884,8 +1860,6 @@ html.adx-posters .similarimg .coverimg:not([data-adx-poster="1"]):not([data-adx-
 /* the cover hides the native hover circle, so it draws its own */
 .adx-a4k-fshit:hover { background: rgba(255, 255, 255, 0.12); }
 .adx-a4k-fshit:focus { outline: none; }
-.adx-a4k-chip.is-on { color: #fff; border-color: var(--ah-red); }
-.adx-a4k-chip:disabled { cursor: default; }
 /* fullscreen is on the player box, so the video has to fill it */
 .info2:has(> video):fullscreen { border-radius: 0; }
 .info2:has(> video):fullscreen > video {

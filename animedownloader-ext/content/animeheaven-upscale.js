@@ -4,7 +4,10 @@
 // animeheaven only serves 720p (the download button is the same file; its
 // "1080p" is the original release's name), which a Retina screen stretches
 // ~2.4x. Anime4K (WebGPU compute shaders) redraws each frame onto a canvas
-// laid over the video, upscaled to the player's real pixel size.
+// laid over the video, upscaled to the player's real pixel size. Always Mode
+// B, the soft restore, which is kinder to the smearing a ~1 Mbps encode
+// leaves behind than Mode A; there is no switch. Without WebGPU the page is
+// left exactly as the site made it.
 //
 // The canvas takes no pointer events, so clicks, double-clicks, keys and the
 // native controls still belong to the <video>. While the controls are up, the
@@ -25,22 +28,10 @@
   const box = vid && vid.parentElement;
   if (!A4K || !vid || !box || !navigator.gpu) return;
 
-  const MODE_KEY = "adx.heaven.a4k";
-  // Mode A: restore + x2, for sharp-ish sources. Mode B: the soft restore,
-  // kinder to the smearing a ~1 Mbps encode leaves behind.
-  const MODES = ["A", "B", "off"];
-  const LABEL = { A: "Anime4K · A", B: "Anime4K · B", off: "Anime4K · off" };
   const CONTROLS_IDLE_MS = 2600; // Chrome hides its controls after ~2.5 s still
-  let mode = localStorage.getItem(MODE_KEY);
-  if (!MODES.includes(mode)) mode = "A";
 
   const canvas = document.createElement("canvas");
   canvas.className = "adx-a4k";
-  const bar = document.createElement("div");
-  bar.className = "adx-a4k-bar";
-  const chip = document.createElement("button");
-  chip.type = "button";
-  chip.className = "adx-a4k-chip";
   // Chrome never tells the page about clicks on its own controls, so its
   // fullscreen button can only take the bare <video> fullscreen, leaving the
   // canvas behind. A transparent button sits exactly over it and catches the
@@ -49,19 +40,12 @@
   fsHit.type = "button";
   fsHit.className = "adx-a4k-fshit";
   fsHit.setAttribute("aria-label", "Fullscreen");
-  bar.append(chip);
-  box.append(canvas, bar, fsHit);
+  box.append(canvas, fsHit);
 
   let broken = false;
-  const enhancing = () => mode !== "off" && !broken;
-  const paintChip = (note) => {
-    chip.textContent = note || LABEL[mode];
-    chip.classList.toggle("is-on", mode !== "off" && !note);
-    fsHit.hidden = !enhancing();
-  };
-  paintChip();
+  const enhancing = () => !broken;
 
-  // ── GPU state; rebuilt whole (device and all) on any size or mode change ──
+  // ── GPU state; rebuilt whole (device and all) on any size change ──
   let device = null;
   let ctx = null;
   let gen = 0; // bumps on every rebuild, so an old frame loop stops itself
@@ -93,8 +77,7 @@
     console.warn("[adx a4k]", why, err || "");
     broken = true;
     stop();
-    paintChip("Anime4K · unavailable");
-    chip.disabled = true;
+    fsHit.hidden = true; // the native fullscreen button is fine for plain video
   };
 
   const draw = (my) => {
@@ -138,7 +121,7 @@
   const build = async () => {
     stop();
     const my = gen;
-    if (mode === "off" || broken) return;
+    if (broken) return;
     const vw = vid.videoWidth;
     const vh = vid.videoHeight;
     if (!vw || !vh) return; // loadedmetadata calls again
@@ -186,7 +169,7 @@
       format: "rgba16float",
       usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
     });
-    const preset = new A4K["Mode" + mode]({
+    const preset = new A4K.ModeB({
       device,
       inputTexture: input,
       nativeDimensions: { width: vw, height: vh },
@@ -223,16 +206,7 @@
   // a seek while paused presents one frame; make sure it is drawn
   vid.addEventListener("seeked", () => draw(gen));
 
-  chip.addEventListener("click", (e) => {
-    e.stopPropagation();
-    chip.blur();
-    mode = MODES[(MODES.indexOf(mode) + 1) % MODES.length];
-    try { localStorage.setItem(MODE_KEY, mode); } catch (err) {}
-    paintChip();
-    rebuildSoon(0);
-  });
-
-  // ── the native controls: cut the canvas away while they are showing ──
+  // ── the native controls: fade the canvas away while they are showing ──
   let idleTimer = 0;
   const setControls = (on) => box.classList.toggle("adx-a4k-ctl", on);
   const poke = () => {
