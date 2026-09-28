@@ -136,8 +136,16 @@ button.ghost { background: rgba(255,255,255,.75); }
 
 /* ---- over the 3D ---- */
 #overlay { position: fixed; inset: 0; pointer-events: none; z-index: 3; }
-.hp { position: fixed; left: 0; top: 0; width: 46px; height: 9px; margin: -4px 0 0 -23px; border: 2px solid var(--ink); border-radius: 6px; background: rgba(255,255,255,.85); overflow: hidden; }
-.hp i { display: block; height: 100%; width: 100%; transition: width .15s; }
+.hp { position: fixed; left: 0; top: 0; width: 48px; margin: -6px 0 0 -24px; border: 2px solid var(--ink); border-radius: 6px; background: rgba(255,255,255,.85); overflow: hidden; }
+.hp i { display: block; height: 8px; width: 100%; transition: width .15s; }
+.hp em { display: block; height: 5px; width: 0; background: #ffc928; border-top: 1.5px solid var(--ink); transition: width .2s; }
+.hp.full { box-shadow: 0 0 0 2px #ffe14d, 0 0 10px 3px #ffc928; animation: ultReady .5s infinite alternate; }
+@keyframes ultReady { to { box-shadow: 0 0 0 2px #fff6a8, 0 0 16px 6px #ffc928; } }
+.ultToast { position: absolute; top: calc(92px + var(--safe-t)); left: 50%; translate: -50% 0; text-align: center; pointer-events: none; z-index: 3;
+  font: 400 15px "Lilita One", sans-serif; color: #fff; background: var(--ink); border-radius: 14px; padding: 5px 14px 7px; box-shadow: 0 4px 0 rgba(0,0,0,.25); animation: toast 1.5s forwards; }
+.ultToast b { display: block; font-weight: 400; font-size: 24px; color: #ffc928; }
+.ultToast.s1 { border: 3px solid #ff5fa2; } .ultToast.s0 { border: 3px solid #2fb8ff; }
+@keyframes toast { 0% { transform: scale(.4); opacity: 0; } 12% { transform: scale(1.12); opacity: 1; } 22% { transform: scale(1); } 80% { opacity: 1; } 100% { opacity: 0; transform: translateY(-10px); } }
 .hp.s0 i { background: #2fb8ff; }
 .hp.s1 i { background: #ff5fa2; }
 .pop { position: fixed; left: 0; top: 0; font: 400 18px "Lilita One", sans-serif; -webkit-text-stroke: 4px var(--ink); paint-order: stroke fill; translate: -50% -50%; animation: pop .8s forwards; }

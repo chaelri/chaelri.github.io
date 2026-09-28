@@ -51,22 +51,36 @@ export const TUNE = {
 export const CRITTERS = {
   yhon: {
     name: "Yhon Yhon", role: "Tank", blurb: "Big HP. Every third hit is a SLAM that hits everyone around him.",
-    hp: 340, atk: 21, range: 1.15, cd: 1.15, speed: 1.4, slam: { every: 3, radius: 1.9, mult: 1.0 },
+    hp: 380, atk: 21, range: 1.15, cd: 1.15, speed: 1.4, slam: { every: 3, radius: 1.9, mult: 1.0 },
   },
   hedgehog: {
     name: "Hedgehog", role: "Striker", blurb: "Fast and sharp. Always goes for whoever is weakest.",
-    hp: 200, atk: 24, range: 1.05, cd: 0.75, speed: 2.5,
+    hp: 240, atk: 24, range: 1.05, cd: 0.75, speed: 2.5,
   },
   axolotl: {
     name: "Axolotl", role: "Shooter", blurb: "Stays back and spits water balls from far away.",
-    hp: 135, atk: 19, range: 4.2, cd: 1.05, speed: 1.3, shot: 9,
+    hp: 170, atk: 19, range: 4.2, cd: 1.05, speed: 1.3, shot: 9,
   },
   capybara: {
     name: "Capybara", role: "Healer", blurb: "Keeps the squad alive — heals whoever is hurt most.",
-    hp: 190, atk: 10, range: 1.1, cd: 1.2, speed: 1.3, heal: { amount: 26, range: 4, cd: 1.8 },
+    hp: 215, atk: 10, range: 1.1, cd: 1.2, speed: 1.3, heal: { amount: 26, range: 4, cd: 1.8 },
   },
 };
 export const CRITTER_IDS = Object.keys(CRITTERS);
+
+// The ultimate gauge. Every critter fills its own by dealing damage, taking
+// it, or healing; at 100 the ultimate fires by itself (the healer holds it
+// until someone is actually hurt). Charlie asked for them automatic.
+export const ULT = {
+  full: 100,
+  dealt: 0.4,           // gauge per point of damage dealt
+  taken: 0.25,          // ...per point taken
+  healed: 0.45,         // ...per point healed
+  yhon: { name: "Belly Flop", radius: 2.3, dmg: 40, stun: 0.8 },
+  hedgehog: { name: "Spike Storm", dmg: 46 },
+  axolotl: { name: "Tidal Wave", dmg: 40, push: 1.3 },
+  capybara: { name: "Hot Spring", heal: 45, shield: 2.5 }, // shield halves damage taken
+};
 
 // Unlocks. You start with the first two; trophies open the rest.
 export const UNLOCKS = [

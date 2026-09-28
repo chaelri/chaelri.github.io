@@ -9,7 +9,7 @@
 // number of critters: a bot matches yours, and online it is the smaller of
 // the two squads.
 
-import { TUNE, CRITTERS, CRITTER_IDS, UNLOCKS, TROPHIES, SNAP_HZ, MODELS } from "./config.js";
+import { TUNE, CRITTERS, CRITTER_IDS, UNLOCKS, TROPHIES, SNAP_HZ, MODELS, ULT } from "./config.js";
 import { newMatch, step, place, setPlacement, setReady, snapshot, autoPlace, SIDES } from "./sim.js";
 import { newBrain, botStep, botSquad } from "./bots.js";
 import { createRenderer } from "./render.js";
@@ -207,9 +207,9 @@ function onHostMessage(m) {
   Object.assign(g, { phase: m.ph, phaseT: m.pt, round: m.rd, wins: m.w, ready: m.rdy, seats });
   if (m.u) {
     const old = g.units;
-    g.units = m.u.map(([seat, idi, x, z, hp, max, face], i) => {
+    g.units = m.u.map(([seat, idi, x, z, hp, max, face, ult, stun, shield], i) => {
       const o = old[i] && old[i].id === CRITTER_IDS[idi] && old[i].seat === seat ? old[i] : { x, z };
-      return Object.assign(o, { seat, id: CRITTER_IDS[idi], tx: x, tz: z, hp, max, face, alive: hp > 0 });
+      return Object.assign(o, { seat, id: CRITTER_IDS[idi], tx: x, tz: z, hp, max, face, alive: hp > 0, ult, stun, shield });
     });
   } else g.units = [];
   g.shots = m.sh.map(([x, z, seat]) => ({ x, z, seat }));
@@ -292,6 +292,17 @@ function onEvent(e) {
     case "shoot": sfx.dive(); break;
     case "heal": sfx.float(); break;
     case "ko": sfx.fall(); if (u && u.seat === mySeat) buzz(40); break;
+    case "ult": {
+      ({ yhon: sfx.pound, hedgehog: sfx.roll, axolotl: sfx.dive, capybara: sfx.float })[e.id]?.();
+      if (e.id === "capybara") sfx.win();
+      buzz(u && u.seat === mySeat ? 45 : 20);
+      const t = document.createElement("div");
+      t.className = `ultToast s${u ? u.seat === mySeat ? 0 : 1 : 0}`;
+      t.innerHTML = `${CRITTERS[e.id].name}<b>${ULT[e.id].name}!</b>`;
+      $("hud").append(t);
+      setTimeout(() => t.remove(), 1500);
+      break;
+    }
     case "roundEnd": {
       const w = e.winner;
       if (w === null) banner("DRAW!", 2400);

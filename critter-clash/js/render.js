@@ -8,7 +8,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { OutlineEffect } from "three/addons/effects/OutlineEffect.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
-import { BOARD, MODELS, CRITTER_IDS, SIDE_COLOURS, CRITTERS } from "./config.js";
+import { BOARD, MODELS, CRITTER_IDS, SIDE_COLOURS, ULT } from "./config.js";
 import { SIDES, CELLS, cellPos } from "./sim.js";
 
 const MODEL_SCALE = 1.3 / 56; // GLBs are in mm, ~56 mm tall
@@ -124,9 +124,22 @@ export async function createRenderer(canvas, overlay) {
     scene.add(root);
     const bar = document.createElement("div");
     bar.className = `hp s${seat}`;
-    bar.innerHTML = "<i></i>";
+    bar.innerHTML = "<i></i><em></em>";
     overlay.append(bar);
-    a = { key, id, seat, locked, root, body, model, bar, fill: bar.firstChild, x: 0, z: 0, px: 0, pz: 0, speed: 0, walk: 0, squash: 0, lunge: 0, hop: 0, flash: 0, ko: -1, seen: true };
+    // shield bubble (Hot Spring) and dizzy stars (Belly Flop), hidden until needed
+    const bubble = new THREE.Mesh(bubbleGeo, bubbleMat);
+    bubble.position.y = 0.65;
+    bubble.visible = false;
+    const stars = new THREE.Group();
+    for (let k = 0; k < 3; k++) {
+      const st = new THREE.Mesh(sparkGeo, spark("#ffe14d"));
+      st.position.set(Math.cos((k / 3) * Math.PI * 2) * 0.4, 0, Math.sin((k / 3) * Math.PI * 2) * 0.4);
+      stars.add(st);
+    }
+    stars.position.y = 1.55;
+    stars.visible = false;
+    root.add(bubble, stars);
+    a = { key, id, seat, locked, root, body, model, bar, fill: bar.firstChild, ultFill: bar.lastChild, bubble, stars, x: 0, z: 0, px: 0, pz: 0, speed: 0, walk: 0, squash: 0, lunge: 0, hop: 0, flash: 0, ko: -1, seen: true };
     actors.set(key, a);
     return a;
   }
@@ -137,6 +150,9 @@ export async function createRenderer(canvas, overlay) {
     a.bar.remove();
     actors.delete(key);
   }
+
+  const bubbleGeo = new THREE.SphereGeometry(0.85, 24, 16);
+  const bubbleMat = noOutline(new THREE.MeshStandardMaterial({ color: "#8dffb0", transparent: true, opacity: 0.28, roughness: 0.1, depthWrite: false }));
 
   /* ------------------------------------------------------------- shots --- */
   const shotGeo = new THREE.SphereGeometry(0.18, 12, 10);
@@ -181,6 +197,14 @@ export async function createRenderer(canvas, overlay) {
     d.style.transform = `translate(${(v.x * 0.5 + 0.5) * innerWidth}px, ${(-v.y * 0.5 + 0.5) * innerHeight}px)`;
     setTimeout(() => d.remove(), 800);
   }
+  // something that flies from A to B and bursts on arrival (Spike Storm)
+  const spikeGeo = new THREE.ConeGeometry(0.1, 0.45, 6);
+  function bolt(from, to, color, delay) {
+    const m = new THREE.Mesh(spikeGeo, spark(color));
+    m.visible = false;
+    scene.add(m);
+    fxs.push({ m, bolt: true, from, to, t: -delay, dur: 0.28, color, life: 1 });
+  }
   let shake = 0;
   let units = [];
   function fx(e) {
@@ -200,12 +224,43 @@ export async function createRenderer(canvas, overlay) {
       if (ta) { rise(ta.x, 0.6, ta.z, 8, "#6dff8a"); popText(ta.x, 1.9, ta.z, `+${e.amount}`, "heal"); }
       if (a) a.squash = 0.2;
     }
+    if (e.type === "ult" && a) {
+      const at = (i) => { const o = units[i]; return o && { x: o.x, z: o.z }; };
+      if (e.id === "yhon") {
+        a.hop = 1; a.bigHop = 1;
+        shock(e.x, e.z, ULT.yhon.radius, "#ffd0dd"); shock(e.x, e.z, ULT.yhon.radius * 0.6, "#ffffff");
+        burst(e.x, 0.2, e.z, 20, "#ffffff", 6, 3);
+        shake = 0.45;
+      } else if (e.id === "hedgehog") {
+        (e.targets || []).forEach((ti, k) => { const p = at(ti); if (p) bolt({ x: a.x, z: a.z }, p, "#8b5a35", k * 0.06); });
+        a.squash = 0.4;
+        shake = 0.2;
+      } else if (e.id === "axolotl") {
+        shock(e.x, e.z, 7, "#6fd3ff"); shock(e.x, e.z, 5, "#bdf0ff");
+        for (const o of units) if (o.alive && o.seat !== a.seat) burst(o.x, 0.4, o.z, 8, "#6fd3ff", 3, 4);
+        shake = 0.3;
+      } else if (e.id === "capybara") {
+        (e.targets || []).forEach((ti) => { const p = at(ti); if (p) { rise(p.x, 0.4, p.z, 12, "#6dff8a"); shock(p.x, p.z, 0.9, "#6dff8a"); } });
+        a.squash = 0.3;
+      }
+    }
     if (e.type === "ko" && a) { a.ko = 0; burst(a.x, 0.8, a.z, 16, "#ffffff", 4, 4); shake = Math.max(shake, 0.25); }
   }
   function stepFx(dt) {
     for (let i = fxs.length - 1; i >= 0; i--) {
       const f = fxs[i];
       f.life -= dt;
+      if (f.bolt) {
+        f.t += 1 / 60;
+        if (f.t < 0) continue;
+        const k = Math.min(1, f.t / f.dur);
+        f.m.visible = true;
+        f.m.position.set(f.from.x + (f.to.x - f.from.x) * k, 0.8 + Math.sin(k * Math.PI) * 0.8, f.from.z + (f.to.z - f.from.z) * k);
+        f.m.lookAt(f.to.x, 0.8, f.to.z);
+        f.m.rotateX(Math.PI / 2);
+        if (k >= 1) { burst(f.to.x, 0.8, f.to.z, 7, f.color, 3); scene.remove(f.m); fxs.splice(i, 1); }
+        continue;
+      }
       if (f.ring) {
         const k = 1 - f.life / f.max;
         f.m.scale.setScalar(0.5 + k * f.ring * 2.4);
@@ -320,7 +375,8 @@ export async function createRenderer(canvas, overlay) {
 
       let y = 0;
       if (a.speed > 0.3) y += Math.abs(Math.sin(a.walk)) * 0.14;
-      if (a.hop > 0) y += Math.sin(a.hop * Math.PI) * 0.9;
+      if (a.hop > 0) y += Math.sin(a.hop * Math.PI) * (a.bigHop ? 2.6 : 0.9);
+      else a.bigHop = 0;
       if (u.lifted) y += 0.5 + Math.sin(t * 8) * 0.05;
       const fwd = Math.sin(a.lunge * Math.PI) * 0.35;
       a.root.position.set(u.x + Math.sin(u.face) * fwd, y, u.z + Math.cos(u.face) * fwd);
@@ -345,7 +401,13 @@ export async function createRenderer(canvas, overlay) {
       if (showBar) {
         a.bar.style.transform = `translate(${(proj.x * 0.5 + 0.5) * innerWidth}px, ${(-proj.y * 0.5 + 0.5) * innerHeight}px)`;
         a.fill.style.width = `${Math.max(0, (u.hp / u.max) * 100)}%`;
+        const ult = Math.min(1, (u.ult || 0) / ULT.full);
+        a.ultFill.style.width = `${ult * 100}%`;
+        a.bar.classList.toggle("full", ult >= 1);
       }
+      a.bubble.visible = !!u.shield && u.alive;
+      a.stars.visible = !!u.stun && u.alive;
+      if (a.stars.visible) a.stars.rotation.y = t * 6;
     }
     for (const [key, a] of actors) if (!a.seen) drop(key);
 

@@ -42,3 +42,4 @@ export function botStep(s, seat, b, dt) {
   setReady(s, seat);
   b.done = true;
 }
+

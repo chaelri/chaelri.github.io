@@ -8,7 +8,7 @@
 //          tank slams, striker hunts the weakest, shooter spits from range,
 //          healer keeps whoever is hurt most alive.
 
-import { TUNE, BOARD, CRITTERS, CRITTER_IDS } from "./config.js";
+import { TUNE, BOARD, CRITTERS, CRITTER_IDS, ULT } from "./config.js";
 
 export const SIDES = [1, -1]; // seat 0 = host half at +z, seat 1 = the other at -z
 export const CELLS = BOARD.cols * BOARD.rows;
@@ -88,6 +88,7 @@ function spawn(s) {
       s.units.push({
         seat: si, id, x: p.x, z: p.z, hp: c.hp, max: c.hp, alive: true,
         cd: 0.3 + Math.random() * 0.4, healCd: 0.5, hits: 0, target: -1, retarget: 0,
+        ult: 0, stun: 0, shield: 0,
         face: SIDES[si] > 0 ? Math.PI : 0, rush: id === "hedgehog" ? 1.0 : 0,
       });
     }
@@ -97,9 +98,14 @@ function spawn(s) {
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const jitter = () => 1 + (Math.random() * 2 - 1) * TUNE.jitter;
 
+const charge = (u, n) => { if (u && u.alive) u.ult = Math.min(ULT.full, u.ult + n); };
+
 function hurt(s, u, amount, by) {
   if (!u.alive) return;
+  if (u.shield > 0) amount *= 0.5;
   u.hp -= amount;
+  charge(u, amount * ULT.taken);
+  charge(by, amount * ULT.dealt);
   const idx = s.units.indexOf(u);
   s.events.push({ type: "hit", u: idx, by: s.units.indexOf(by), amount: Math.round(amount) });
   if (u.hp <= 0) {
@@ -124,6 +130,8 @@ function act(s, u, dt) {
   u.cd -= dt;
   u.healCd -= dt;
   u.rush = Math.max(0, u.rush - dt);
+  u.shield = Math.max(0, u.shield - dt);
+  if (u.stun > 0) { u.stun -= dt; return; } // dizzy from a belly flop
   const allies = s.units.filter((o) => o.alive && o.seat === u.seat && o !== u);
   const foes = s.units.filter((o) => o.alive && o.seat !== u.seat);
   if (!foes.length) return;
@@ -138,6 +146,7 @@ function act(s, u, dt) {
         u.healCd = c.heal.cd;
         const amt = Math.min(patient.max - patient.hp, c.heal.amount * jitter());
         patient.hp += amt;
+        charge(u, amt * ULT.healed);
         s.events.push({ type: "heal", u: s.units.indexOf(u), to: s.units.indexOf(patient), amount: Math.round(amt) });
       }
       if (patient !== u) u.face = Math.atan2(patient.x - u.x, patient.z - u.z);
@@ -211,6 +220,54 @@ function flyShots(s, dt) {
   }
 }
 
+/* ------------------------------------------------------------ ultimates --- */
+/** Fire critter `id`'s ultimate for `seat`, if its gauge is full (autoUlts calls this). */
+export function ultimate(s, seat, id) {
+  if (s.phase !== "fight") return false;
+  const u = s.units.find((o) => o.seat === seat && o.id === id && o.alive);
+  if (!u || u.ult < ULT.full) return false;
+  u.ult = 0;
+  const ui = s.units.indexOf(u);
+  const foes = s.units.filter((o) => o.alive && o.seat !== seat);
+  const allies = s.units.filter((o) => o.alive && o.seat === seat);
+  const U = ULT[id];
+  if (id === "yhon") {
+    // leap onto whichever enemy has the most friends around it
+    const spot = foes.reduce((best, f) => {
+      const n = foes.filter((o) => dist(o, f) < U.radius).length;
+      return !best || n > best.n ? { f, n } : best;
+    }, null);
+    if (spot) {
+      const from = { x: u.x, z: u.z };
+      u.x = spot.f.x + (u.x > spot.f.x ? 0.6 : -0.6);
+      u.z = spot.f.z + (u.z > spot.f.z ? 0.6 : -0.6);
+      s.events.push({ type: "ult", u: ui, id, x: u.x, z: u.z, fx: from.x, fz: from.z });
+      for (const f of foes) if (dist(u, f) < U.radius) { hurt(s, f, U.dmg * jitter(), u); f.stun = U.stun; }
+    }
+  } else if (id === "hedgehog") {
+    s.events.push({ type: "ult", u: ui, id, targets: foes.map((f) => s.units.indexOf(f)) });
+    for (const f of foes) hurt(s, f, U.dmg * jitter(), u);
+  } else if (id === "axolotl") {
+    s.events.push({ type: "ult", u: ui, id, x: u.x, z: u.z });
+    const back = -Math.sign(SIDES[seat]); // toward the enemy's own end
+    for (const f of foes) { hurt(s, f, U.dmg * jitter(), u); f.z += back * U.push; }
+  } else if (id === "capybara") {
+    s.events.push({ type: "ult", u: ui, id, targets: allies.map((a) => s.units.indexOf(a)) });
+    for (const a of allies) { a.hp = Math.min(a.max, a.hp + U.heal); a.shield = U.shield; }
+  }
+  return true;
+}
+
+// Full gauges fire on their own. The healer holds hers until a teammate is
+// below 55% — a full-HP squad healing itself would waste it.
+function autoUlts(s) {
+  for (const u of s.units) {
+    if (!u.alive || u.ult < ULT.full) continue;
+    if (u.id === "capybara" && !s.units.some((o) => o.alive && o.seat === u.seat && o.hp / o.max < 0.55)) continue;
+    ultimate(s, u.seat, u.id);
+  }
+}
+
 /* ------------------------------------------------------------------ step --- */
 export function step(s, dt) {
   if (s.phase === "matchEnd") return;
@@ -228,6 +285,7 @@ export function step(s, dt) {
     s.fightT += dt;
     s.phaseT -= dt;
     for (const u of s.units) if (u.alive) act(s, u, dt);
+    autoUlts(s);
     separate(s);
     flyShots(s, dt);
     const left = [0, 1].map((si) => s.units.filter((u) => u.alive && u.seat === si).length);
@@ -271,7 +329,7 @@ export function snapshot(s) {
   return {
     k: "s", ph: s.phase, pt: r2(s.phaseT), rd: s.round, w: s.wins, rdy: s.ready, rw: s.roundWinner, mw: s.matchWinner,
     seats: s.seats.map((x) => [x.name, x.kind, x.squad]),
-    u: s.phase === "prep" ? null : s.units.map((u) => [u.seat, CRITTER_IDS.indexOf(u.id), r2(u.x), r2(u.z), Math.round(u.hp), u.max, r2(u.face)]),
+    u: s.phase === "prep" ? null : s.units.map((u) => [u.seat, CRITTER_IDS.indexOf(u.id), r2(u.x), r2(u.z), Math.round(u.hp), u.max, r2(u.face), Math.floor(u.ult), u.stun > 0 ? 1 : 0, u.shield > 0 ? 1 : 0]),
     sh: s.shots.map((sh) => [r2(sh.x), r2(sh.z), sh.seat]),
   };
 }
