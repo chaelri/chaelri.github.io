@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Yhon Yhon 3D</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800;900&display=swap" rel="stylesheet">
+<style>
+  :root { --bg1: #fff4f6; --bg2: #fbd9df; --ink: #5a2f3a; --muted: #a5707c; --chip: rgba(255,255,255,.7); }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg1: #2a1a20; --bg2: #140c10; --ink: #ffd9e0; --muted: #c59aa5; --chip: rgba(255,255,255,.08); }
+  }
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  body {
+    background: radial-gradient(120% 90% at 50% 30%, var(--bg1), var(--bg2));
+    color: var(--ink); font-family: Nunito, system-ui, sans-serif;
+  }
+  canvas { display: block; touch-action: none; }
+  header { position: fixed; top: 16px; left: 16px; right: 16px; display: flex; align-items: center; gap: 10px; pointer-events: none; }
+  h1 { margin: 0; font-size: 20px; font-weight: 900; letter-spacing: .01em; }
+  .row { position: fixed; bottom: calc(16px + env(safe-area-inset-bottom)); left: 16px; right: 16px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .row a, .row button {
+    font: 800 14px Nunito, system-ui, sans-serif; color: var(--ink); text-decoration: none;
+    background: var(--chip); border: 0; border-radius: 999px; padding: 9px 16px; cursor: pointer;
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  }
+  .row button[aria-pressed="true"] { background: #f7bcc6; color: #5a2f3a; }
+  small { color: var(--muted); font-weight: 600; font-size: 13px; }
+</style>
+</head>
+<body>
+<header><h1>Yhon Yhon</h1><small>drag to turn · pinch to zoom</small></header>
+<div class="row">
+  <button id="spin" aria-pressed="true">Spin</button>
+  <button id="alive" aria-pressed="true">Idle</button>
+  <button id="hop">Hop</button>
+  <a href="yhon_print.stl" download>Printable STL</a>
+</div>
+
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+               "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/" } }
+</script>
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.NeutralToneMapping;
+renderer.toneMappingExposure = 0.95;
+document.body.prepend(renderer.domElement);
+
+const scene = new THREE.Scene();
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+const cam = new THREE.PerspectiveCamera(32, innerWidth / innerHeight, 1, 2000);
+// Back the camera off on a tall screen so he fits the width, not just the height.
+const fit = () => {
+  const off = cam.position.clone().sub(ctl.target).setLength(215 / Math.min(1, cam.aspect * 1.15));
+  cam.position.copy(ctl.target).add(off);
+};
+cam.position.set(60, 60, 190);
+const ctl = new OrbitControls(cam, renderer.domElement);
+ctl.enableDamping = true;
+ctl.target.set(0, 30, 0);
+ctl.minDistance = 90; ctl.maxDistance = 600;
+ctl.maxPolarAngle = Math.PI * 0.53;
+fit();
+ctl.autoRotate = true; ctl.autoRotateSpeed = 1.4;
+
+const sun = new THREE.DirectionalLight(0xffffff, 1.6);
+sun.position.set(60, 140, 90);
+sun.castShadow = true;
+sun.shadow.mapSize.set(1024, 1024);
+Object.assign(sun.shadow.camera, { left: -70, right: 70, top: 70, bottom: -70, near: 10, far: 400 });
+sun.shadow.radius = 6;
+scene.add(sun, new THREE.HemisphereLight(0xfff0f3, 0xf2b0bc, 0.6));
+
+const floor = new THREE.Mesh(new THREE.CircleGeometry(90, 64), new THREE.ShadowMaterial({ opacity: 0.16 }));
+floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true;
+scene.add(floor);
+
+// Every GLB mesh is baked in model space. Re-centre each on its own middle so
+// the idle animation can scale and turn a part about itself, the way the
+// canvas version does with ctx.translate/rotate per part.
+const rig = new THREE.Group();   // squash/stretch pivot at his feet
+scene.add(rig);
+const P = {};
+new GLTFLoader().load("yhon.glb", (g) => {
+  g.scene.updateMatrixWorld(true);
+  const meshes = [];
+  g.scene.traverse((o) => { if (o.isMesh) meshes.push(o); });
+  for (const o of meshes) {
+    const geo = o.geometry.clone().applyMatrix4(o.matrixWorld);
+    geo.computeBoundingBox();
+    const c = geo.boundingBox.getCenter(new THREE.Vector3());
+    geo.translate(-c.x, -c.y, -c.z);
+    geo.computeVertexNormals();
+    const mat = o.material;
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.copy(c); mesh.castShadow = true; mesh.receiveShadow = true;
+    rig.add(mesh);
+    P[o.name] = mesh;
+  }
+  // The inner ear rides on the ear, so it turns about the ear's middle rather than its own.
+  for (const tag of ["L", "R"]) {
+    const ear = P["ear" + tag], inner = P["innerEar" + tag];
+    if (ear && inner) { inner.position.sub(ear.position); ear.add(inner); }
+  }
+});
+
+const flag = (id) => { const b = document.getElementById(id); b.onclick = () => b.setAttribute("aria-pressed", b.getAttribute("aria-pressed") !== "true"); return () => b.getAttribute("aria-pressed") === "true"; };
+const spinning = flag("spin"), idle = flag("alive");
+let hopAt = -9;
+document.getElementById("hop").onclick = () => { hopAt = clock.elapsedTime; };
+
+const clock = new THREE.Clock();
+function frame() {
+  const t = clock.getElapsedTime();
+  ctl.autoRotate = spinning();
+  if (P.body) {
+    const on = idle();
+    // The hop: a squash on take-off, a stretch through the arc, a squash on landing.
+    const h = (t - hopAt) / 0.7;
+    let lift = 0, sq = on ? Math.sin(t * 2.2) * 0.025 : 0, rise = 0;
+    if (h >= 0 && h < 1) {
+      lift = Math.sin(h * Math.PI) * 38;
+      rise = Math.cos(h * Math.PI);
+      sq = h < 0.08 ? 0.18 * (1 - h / 0.08) : h > 0.92 ? 0.2 * ((h - 0.92) / 0.08) : -Math.abs(rise) * 0.14;
+    } else if (h >= 1 && h < 1.35) {
+      sq = 0.2 * (1 - (h - 1) / 0.35);
+    }
+    const k = 1 - sq;
+    rig.scale.set(1 / Math.sqrt(k), k, 1 / Math.sqrt(k));
+    rig.position.y = lift;
+
+    // Ears trail the jump, arms sweep up and down with it, the eyes blink on
+    // his own 3.7 s clock — same numbers as drawYhon.
+    for (const [s, tag] of [[-1, "L"], [1, "R"]]) {
+      const ear = -s * (on ? Math.sin(t * 2.2 + 0.6) * 0.05 : 0) + s * rise * 0.35;
+      if (P["ear" + tag]) P["ear" + tag].rotation.z = ear;
+      if (P["arm" + tag]) P["arm" + tag].rotation.z = s * (rise * 0.8 + (on ? Math.sin(t * 2.2) * 0.08 : 0));
+      const c = (t % 3.7) / 3.7;
+      const blink = on && c > 0.965 ? 1 - Math.abs(c - 0.982) / 0.017 : 0;
+      if (P["eye" + tag]) P["eye" + tag].scale.y = 1 - blink * 0.88;
+    }
+  }
+  ctl.update();
+  renderer.render(scene, cam);
+  requestAnimationFrame(frame);
+}
+frame();
+
+addEventListener("resize", () => {
+  cam.aspect = innerWidth / innerHeight; cam.updateProjectionMatrix(); fit();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
