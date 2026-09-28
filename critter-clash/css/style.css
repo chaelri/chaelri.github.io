@@ -92,12 +92,41 @@ button.ghost { background: rgba(255,255,255,.75); }
 .banner.on { transform: scale(1) rotate(-4deg); }
 .banner small { display: block; font-size: 24px; -webkit-text-stroke: 6px var(--ink); margin-top: 8px; }
 #touch { position: absolute; inset: 0; }
-.prepBar { position: absolute; left: 12px; right: 12px; bottom: calc(14px + var(--safe-b)); z-index: 2; }
-.prepBar { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; }
-.prepBar .left { background: #fff; border: 3px solid var(--ink); border-radius: 16px; padding: 10px 12px; box-shadow: 0 4px 0 var(--ink); font: 400 17px "Lilita One", sans-serif; }
-.prepBar .left b { font-size: 22px; }
-.prepBar button { padding: 12px 16px; font-size: 19px; }
-.prepBar.waiting .left::after { content: " · waiting…"; opacity: .6; }
+.life { font: 400 22px "Lilita One", sans-serif; color: #ff3b5c; -webkit-text-stroke: 1.5px var(--ink); paint-order: stroke fill; }
+.life.hit { animation: lifeHit .6s; }
+@keyframes lifeHit { 30% { transform: scale(1.4); color: #fff; } }
+.ruleChip { position: absolute; top: calc(84px + var(--safe-t)); left: 50%; translate: -50% 0; max-width: 80%; text-align: center; font: 700 12px Nunito, sans-serif; background: #fff; border: 3px solid var(--ink); border-radius: 12px; padding: 3px 10px 4px; box-shadow: 0 3px 0 var(--ink); }
+.ruleChip b { font: 400 15px "Lilita One", sans-serif; margin-right: 4px; }
+.stakeChip { position: absolute; top: calc(122px + var(--safe-t)); left: 50%; translate: -50% 0; font: 400 18px "Lilita One", sans-serif; color: #fff; background: #ff3b5c; border: 3px solid var(--ink); border-radius: 12px; padding: 2px 12px 4px; box-shadow: 0 3px 0 var(--ink); animation: ultReady .5s infinite alternate; }
+#hud.frenzy::after { content: "FRENZY!"; position: absolute; top: calc(122px + var(--safe-t)); left: 50%; translate: -50% 0; font: 400 24px "Lilita One", sans-serif; color: #ffe14d; -webkit-text-stroke: 6px var(--ink); paint-order: stroke fill; animation: ultReady .3s infinite alternate; pointer-events: none; }
+
+.shopSheet { position: absolute; left: 8px; right: 8px; bottom: calc(8px + var(--safe-b)); z-index: 2; background: rgba(255,255,255,.95); border: 3px solid var(--ink); border-radius: 20px; box-shadow: 0 5px 0 var(--ink); padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+.shopTop, .shopBottom { display: flex; gap: 8px; align-items: center; }
+.coins { display: flex; align-items: center; gap: 6px; font: 400 26px "Lilita One", sans-serif; margin-right: auto; }
+.coins i { width: 22px; height: 22px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #fff3a8, #ffc928 55%, #d99a00); border: 3px solid var(--ink); }
+.shopTop button { padding: 7px 12px; font-size: 16px; }
+.shopTop button small { font-size: 12px; opacity: .7; }
+button.pusta { background: #ff3b5c; color: #fff; }
+button.pusta.on { background: var(--ink); color: #ff8aa0; }
+.offers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+.offer { position: relative; border: 3px solid var(--ink); border-radius: 14px; padding: 7px 5px 6px; text-align: center; background: #fff7df; box-shadow: 0 4px 0 var(--ink); font-family: Nunito, sans-serif; cursor: pointer; }
+.offer.critter { background: #e6f5ff; }
+.offer.snack { background: #fff0d6; }
+.offer.merge { background: #fff2a8; }
+.offer b { display: block; font: 400 16px "Lilita One", sans-serif; line-height: 1.1; }
+.offer span { display: block; font-weight: 700; font-size: 10.5px; line-height: 1.2; min-height: 26px; opacity: .8; margin-top: 2px; }
+.offer .price { position: absolute; top: -9px; right: -7px; font: 400 14px "Lilita One", sans-serif; background: #ffc928; border: 2px solid var(--ink); border-radius: 10px; padding: 0 6px; }
+.offer.sold { opacity: .25; pointer-events: none; }
+.offer.cant { opacity: .55; }
+.offer:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
+.shopBottom .hint { flex: 1; font: 700 13px Nunito, sans-serif; }
+.shopBottom button { padding: 10px 18px; font-size: 19px; }
+.shopSheet.held .hint { color: #d6336c; }
+.shopSheet.waiting .offers, .shopSheet.waiting .shopTop button { opacity: .4; pointer-events: none; }
+.hp .st { position: absolute; left: 50%; top: -15px; translate: -50% 0; font: 400 12px "Lilita One", sans-serif; color: #ffc928; -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; white-space: nowrap; }
+.hp { overflow: visible; }
+.hp i { border-radius: 4px 4px 0 0; }
+.snackTag { display: inline-block; }
 .howto { margin: 10px 0 2px; font-weight: 700; font-size: 14px; text-align: center; line-height: 1.45; }
 .howto b { font-family: "Lilita One", sans-serif; font-weight: 400; }
 
@@ -156,3 +185,4 @@ button.ghost { background: rgba(255,255,255,.75); }
 #confetti i { position: absolute; top: -20px; width: 10px; height: 16px; border: 2px solid var(--ink); border-radius: 3px; animation: fall linear forwards; }
 @keyframes fall { to { transform: translateY(110vh) rotate(720deg); } }
 #unlock .card { margin-bottom: 6px; }
+.pop.merge { color: #ffc928; font-size: 22px; }

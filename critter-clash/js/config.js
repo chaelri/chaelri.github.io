@@ -1,8 +1,9 @@
 // Every number that decides how CRITTER CLASH feels.
 //
-// PREP: drag your critters onto your half of the board. FIGHT: they battle on
-// their own. First to 3 rounds. You start with two critters and unlock the
-// other two with trophies.
+// PREP: spend coins in the shop (buy critters, merge duplicates up to 3
+// stars, feed snacks), place your squad, maybe PUSTA!. FIGHT: they battle on
+// their own, ultimates fire by themselves. Losing a round costs HP; first to
+// 0 loses. You start with two critters and unlock the other two with trophies.
 //
 // World: the host's half is +z (bottom of the host's screen), the other half
 // -z. "side" is +1 for seat 0 and -1 for seat 1.
@@ -39,12 +40,49 @@ export const BOARD = {
 };
 
 export const TUNE = {
-  prepTime: 15,
-  fightTime: 30,        // then the side with more HP left (as a share) takes it
-  roundEndPause: 3,
-  winsNeeded: 3,
+  prepTime: 25,         // shop + snacks + placement
+  fightTime: 28,
+  frenzy: 8,            // the last seconds of a fight: everyone attacks twice as fast
+  roundEndPause: 3.2,
+  hp: 20,               // each player's life; a lost round costs 1 + the winner's surviving stars
+  maxRounds: 12,        // safety cap: the leader on HP wins
   radius: 0.55,         // how close two critters may stand
   jitter: 0.1,          // +/- share of random spread on every hit
+};
+
+// The shop, Merge Tactics style: small income, three offers, a reroll. Buying
+// a critter you already have merges it up a star instead of adding another.
+export const SHOP = {
+  start: 6,             // coins in round 1
+  income: 5,            // added every later round (unspent coins carry over)
+  maxCoins: 12,
+  critter: 3, snack: 2, reroll: 1,
+  offers: 3,
+  critterChance: 0.6,
+  slots: [2, 3, 4],     // critters allowed on the board in rounds 1, 2, 3+
+};
+// Stars multiply HP and attack; 3 is the top.
+export const STAR = { mult: [1, 1.7, 2.6], size: [1, 1.14, 1.28] };
+
+// Filipino merienda. Feed one to a critter and it keeps it for the match.
+// Feeding the same snack twice stacks.
+export const SNACKS = {
+  turon: { name: "Turon", blurb: "+35% attack" },
+  halohalo: { name: "Halo-halo", blurb: "+40% HP" },
+  taho: { name: "Taho", blurb: "ultimate charges 60% faster" },
+  calamansi: { name: "Calamansi", blurb: "first 2 hits crit for triple" },
+  balut: { name: "Balut", blurb: "gets back up once at 40% HP" },
+};
+export const SNACK_IDS = Object.keys(SNACKS);
+
+// One random rule per round, shown the moment prep opens.
+export const RULES = {
+  ulan: { name: "Ulan", blurb: "Rain! Axolotl hits 50% harder" },
+  fiesta: { name: "Fiesta", blurb: "Ultimates charge twice as fast" },
+  brownout: { name: "Brownout", blurb: "Shooters see only half as far" },
+  traffic: { name: "Traffic", blurb: "Everyone crawls for the first 4 s" },
+  sale: { name: "Sale!", blurb: "Everything in the shop costs 1 less" },
+  merienda: { name: "Merienda", blurb: "Everyone ate well: +25% HP this round" },
 };
 
 // One job each. `range` is in world units; melee is ~1.
@@ -90,6 +128,10 @@ export const UNLOCKS = [
   { id: "capybara", at: 10 },
 ];
 export const TROPHIES = { win: 3, loss: 1 };
+
+// PUSTA!: during prep either player can stake the round — the HP it costs
+// the loser doubles (both staking: x4). Once per player per round.
+export const PUSTA = 2;
 
 export const SIDE_COLOURS = { 1: "#2fb8ff", "-1": "#ff5fa2" };
 

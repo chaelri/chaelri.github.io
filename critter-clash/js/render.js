@@ -8,7 +8,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { OutlineEffect } from "three/addons/effects/OutlineEffect.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
-import { BOARD, MODELS, CRITTER_IDS, SIDE_COLOURS, ULT } from "./config.js";
+import { BOARD, MODELS, CRITTER_IDS, SIDE_COLOURS, ULT, STAR } from "./config.js";
 import { SIDES, CELLS, cellPos } from "./sim.js";
 
 const MODEL_SCALE = 1.3 / 56; // GLBs are in mm, ~56 mm tall
@@ -124,7 +124,7 @@ export async function createRenderer(canvas, overlay) {
     scene.add(root);
     const bar = document.createElement("div");
     bar.className = `hp s${seat}`;
-    bar.innerHTML = "<i></i><em></em>";
+    bar.innerHTML = "<span class=st></span><i></i><em></em>";
     overlay.append(bar);
     // shield bubble (Hot Spring) and dizzy stars (Belly Flop), hidden until needed
     const bubble = new THREE.Mesh(bubbleGeo, bubbleMat);
@@ -139,7 +139,7 @@ export async function createRenderer(canvas, overlay) {
     stars.position.y = 1.55;
     stars.visible = false;
     root.add(bubble, stars);
-    a = { key, id, seat, locked, root, body, model, bar, fill: bar.firstChild, ultFill: bar.lastChild, bubble, stars, x: 0, z: 0, px: 0, pz: 0, speed: 0, walk: 0, squash: 0, lunge: 0, hop: 0, flash: 0, ko: -1, seen: true };
+    a = { key, id, seat, locked, root, body, model, bar, fill: bar.children[1], ultFill: bar.lastChild, starTag: bar.firstChild, bubble, stars, drop: 0, x: 0, z: 0, px: 0, pz: 0, speed: 0, walk: 0, squash: 0, lunge: 0, hop: 0, flash: 0, ko: -1, seen: true };
     actors.set(key, a);
     return a;
   }
@@ -153,6 +153,15 @@ export async function createRenderer(canvas, overlay) {
 
   const bubbleGeo = new THREE.SphereGeometry(0.85, 24, 16);
   const bubbleMat = noOutline(new THREE.MeshStandardMaterial({ color: "#8dffb0", transparent: true, opacity: 0.28, roughness: 0.1, depthWrite: false }));
+
+  // rain streaks for the Ulan rule
+  const rainGeo = new THREE.BufferGeometry();
+  const drops = new Float32Array(400 * 3);
+  for (let i = 0; i < 400; i++) { drops[i * 3] = (Math.random() - 0.5) * 12; drops[i * 3 + 1] = Math.random() * 12; drops[i * 3 + 2] = (Math.random() - 0.5) * 16; }
+  rainGeo.setAttribute("position", new THREE.BufferAttribute(drops, 3));
+  const rain = new THREE.Points(rainGeo, noOutline(new THREE.PointsMaterial({ color: 0xbfe8ff, size: 0.09, transparent: true, opacity: 0.8 })));
+  rain.visible = false;
+  scene.add(rain);
 
   /* ------------------------------------------------------------- shots --- */
   const shotGeo = new THREE.SphereGeometry(0.18, 12, 10);
@@ -224,6 +233,13 @@ export async function createRenderer(canvas, overlay) {
       if (ta) { rise(ta.x, 0.6, ta.z, 8, "#6dff8a"); popText(ta.x, 1.9, ta.z, `+${e.amount}`, "heal"); }
       if (a) a.squash = 0.2;
     }
+    // prep: shopping happens to YOUR critters, keyed by seat and id
+    const pa = e.id && actors.get(`${e.seat}:${e.id}`);
+    if (e.type === "merge" && pa) { pa.hop = 1; pa.squash = 0.4; burst(pa.x, 1, pa.z, 18, "#ffc928", 3.5, 4); rise(pa.x, 0.5, pa.z, 10, "#fff3a8"); popText(pa.x, 2.1, pa.z, "★".repeat(e.star), "merge"); }
+    if (e.type === "bought" && pa) pa.drop = 1;
+    if (e.type === "fed" && pa) { pa.squash = 0.35; rise(pa.x, 0.5, pa.z, 10, "#6dff8a"); }
+    if (e.type === "revive" && a) { a.hop = 1; rise(a.x, 0.4, a.z, 14, "#fff3a8"); popText(a.x, 2.1, a.z, "BALUT!", "heal"); }
+    if (e.type === "crit" && a) popText(a.x, 2.4, a.z, "CRIT!", "merge");
     if (e.type === "ult" && a) {
       const at = (i) => { const o = units[i]; return o && { x: o.x, z: o.z }; };
       if (e.id === "yhon") {
@@ -293,6 +309,11 @@ export async function createRenderer(canvas, overlay) {
     } else if (mode === "reveal") {
       cam.position.set(0, 2.6, s * 7.4);
       cam.lookAt(0, 0.2, s * 0.2);
+    } else if (mode === "prep") {
+      // Their half is hidden during prep anyway: frame YOUR half, high on the
+      // screen, clear of the shop panel.
+      cam.position.set(0, 16.5 * k, s * (11.2 * k));
+      cam.lookAt(0, 0, s * 4.4);
     } else {
       cam.position.set(0, 16.5 * k, s * (11.2 * k));
       cam.lookAt(0, 0, -s * 0.2);
@@ -350,11 +371,11 @@ export async function createRenderer(canvas, overlay) {
     if (view.phase === "menu" || view.phase === "reveal") {
       for (const r of view.roster || []) list.push({ seat: mySeat, id: r.id, x: r.x, z: r.z, hp: 1, max: 1, alive: true, face: r.face, locked: r.locked, nobar: true });
     } else if (prep) {
-      // your placement (or a critter being dragged), and nothing of theirs
-      for (const [id, cell] of Object.entries(view.place || {})) {
+      // your squad (or a critter being dragged), and nothing of theirs
+      for (const [id, b] of Object.entries(view.board || {})) {
         const drag = view.drag && view.drag.id === id ? view.drag : null;
-        const p = drag || cellPos(SIDES[mySeat], cell);
-        list.push({ seat: mySeat, id, x: p.x, z: p.z, hp: 1, max: 1, alive: true, face: SIDES[mySeat] > 0 ? Math.PI : 0, nobar: true, lifted: !!drag });
+        const p = drag || cellPos(SIDES[mySeat], b.cell);
+        list.push({ seat: mySeat, id, x: p.x, z: p.z, hp: 1, max: 1, alive: true, star: b.star, face: SIDES[mySeat] > 0 ? Math.PI : 0, lifted: !!drag || id === view.feedPick });
       }
     } else {
       for (const u of units) list.push(u);
@@ -378,12 +399,14 @@ export async function createRenderer(canvas, overlay) {
       if (a.hop > 0) y += Math.sin(a.hop * Math.PI) * (a.bigHop ? 2.6 : 0.9);
       else a.bigHop = 0;
       if (u.lifted) y += 0.5 + Math.sin(t * 8) * 0.05;
+      if (a.drop > 0) { a.drop = Math.max(0, a.drop - dt * 2.2); y += a.drop * a.drop * 6; }
       const fwd = Math.sin(a.lunge * Math.PI) * 0.35;
       a.root.position.set(u.x + Math.sin(u.face) * fwd, y, u.z + Math.cos(u.face) * fwd);
       a.root.rotation.set(0, u.face, 0);
       const breathe = Math.sin(t * 2.2 + u.x) * 0.025;
       const sq = a.squash - (a.hop > 0.5 ? 0.15 : 0);
-      a.body.scale.set(1 + sq * 0.5 - breathe, 1 - sq + breathe, 1 + sq * 0.5 - breathe);
+      const big = STAR.size[(u.star || 1) - 1];
+      a.body.scale.set(big * (1 + sq * 0.5 - breathe), big * (1 - sq + breathe), big * (1 + sq * 0.5 - breathe));
       a.body.rotation.z = a.flash > 0 ? Math.sin(t * 40) * 0.12 * a.flash : 0;
 
       if (!u.alive) {
@@ -396,11 +419,12 @@ export async function createRenderer(canvas, overlay) {
       } else a.ko = -1;
 
       proj.set(a.root.position.x, 1.75, a.root.position.z).project(cam);
-      const showBar = !u.nobar && u.alive;
+      const showBar = !u.nobar && u.alive && !u.locked;
       a.bar.style.display = showBar ? "" : "none";
       if (showBar) {
         a.bar.style.transform = `translate(${(proj.x * 0.5 + 0.5) * innerWidth}px, ${(-proj.y * 0.5 + 0.5) * innerHeight}px)`;
         a.fill.style.width = `${Math.max(0, (u.hp / u.max) * 100)}%`;
+        a.starTag.textContent = "★".repeat(u.star || 1);
         const ult = Math.min(1, (u.ult || 0) / ULT.full);
         a.ultFill.style.width = `${ult * 100}%`;
         a.bar.classList.toggle("full", ult >= 1);
@@ -419,7 +443,23 @@ export async function createRenderer(canvas, overlay) {
       if (m.visible) m.position.set(shots[i].x, 0.8 + Math.sin(t * 20 + i) * 0.05, shots[i].z);
     });
 
-    placeCamera(view.phase === "menu" ? "menu" : view.phase === "reveal" ? "reveal" : "play");
+    // the round's rule, where it shows: rain for Ulan, the lights down for Brownout
+    const rainy = view.rule === "ulan" && (prep || view.phase === "fight");
+    rain.visible = rainy;
+    if (rainy) {
+      const pos = rain.geometry.attributes.position;
+      for (let i = 0; i < pos.count; i++) {
+        let y = pos.getY(i) - dt * 14;
+        if (y < 0) y += 12;
+        pos.setY(i, y);
+      }
+      pos.needsUpdate = true;
+    }
+    const dim = view.rule === "brownout" && (prep || view.phase === "fight") ? 0.35 : 1;
+    sun.intensity += (2.4 * dim - sun.intensity) * Math.min(1, dt * 3);
+    scene.environmentIntensity = 0.45 * (0.5 + dim / 2);
+
+    placeCamera(view.phase === "menu" ? "menu" : view.phase === "reveal" ? "reveal" : prep ? "prep" : "play");
     stepFx(dt);
     effect.render(scene, cam);
   }

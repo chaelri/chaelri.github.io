@@ -67,16 +67,26 @@
 <!-- HUD ------------------------------------------------------------------->
 <section id="hud" class="hidden">
   <div class="score">
-    <div class="side me"><div class="nm">YOU</div><div class="pips" id="pipsMe"></div></div>
-    <div class="clock"><div id="phaseName">PREP</div><div id="phaseT">15</div></div>
-    <div class="side them"><div class="nm" id="themName">BOT</div><div class="pips" id="pipsThem"></div></div>
+    <div class="side me"><div class="nm">YOU</div><div class="life" id="hpMe">♥ 20</div></div>
+    <div class="clock"><div id="phaseName">PREP</div><div id="phaseT">25</div></div>
+    <div class="side them"><div class="nm" id="themName">BOT</div><div class="life" id="hpThem">♥ 20</div></div>
   </div>
+  <div class="ruleChip" id="ruleChip"></div>
+  <div class="stakeChip hidden" id="stakeChip"></div>
   <div class="net hidden" id="netPill"></div>
   <div class="banner" id="banner"></div>
   <div id="touch"></div>
-  <div class="prepBar" id="prepBar">
-    <div class="left" id="prepHint">Drag your critters into place</div>
-    <button class="go" id="readyBtn">Ready!</button>
+  <div class="shopSheet" id="shopSheet">
+    <div class="shopTop">
+      <div class="coins"><i></i><b id="coins">6</b></div>
+      <button id="rerollBtn">Reroll <small>1</small></button>
+      <button class="pusta" id="pustaBtn">PUSTA! <small>x2</small></button>
+    </div>
+    <div class="offers" id="offers"></div>
+    <div class="shopBottom">
+      <div class="hint" id="prepHint">Buy critters, then drag them into place</div>
+      <button class="go" id="readyBtn">Ready!</button>
+    </div>
   </div>
 </section>
 
