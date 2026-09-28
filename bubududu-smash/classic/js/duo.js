@@ -1,0 +1,379 @@
+// Two phones, no laptop, any network.
+//
+// BOTH phones run the whole game. Same rules, same Dudu, same arena — each
+// from the same seed, so neither has to be told what the other's world looks
+// like. Each applies its own thumbs the instant they move and the other
+// player's as they arrive, and the host sends where everything actually is a
+// few times a second so the two can never quietly tell different stories.
+//
+// It used to be one-sided: the host played the live game and the guest drew
+// pictures of it, interpolated sixty milliseconds late at whatever rate they
+// turned up. That makes the two experiences different BY CONSTRUCTION — the
+// delay is the design, not a bug in it — and it is why one phone always felt
+// worse than the other however much was tuned.
+//
+// Why Charlie still hosts: somebody has to own the truth and mint the seed,
+// and electing by who arrived first needs a negotiation that can tie badly
+// (both hosting, neither finding the other). For two named people a fixed
+// answer is simply better. It buys him no advantage now — he waits on the
+// same corrections she does.
+//
+// Across two mobile networks WebRTC usually cannot connect directly (carrier
+// NAT), so net.js falls back to relaying through Firebase. That works and it
+// is slower; the status pill says which one you are on. Running the round on
+// both phones is what makes the relay lane playable at all: it now carries
+// corrections rather than every frame of the picture.
+
+import { createClient } from "./net.js";
+import { createPad, paintShootButton, paintSkillButton } from "./pad.js";
+import { ABILITY, BUILD } from "./config.js";
+import { hydrate } from "./netstate.js";
+import { armAudio, onAudioState, startAudio, sfx } from "./audio.js";
+import * as HUD from "./hud.js";
+
+const $ = (s) => document.querySelector(s);
+const params = new URLSearchParams(location.search);
+const ROOM = (params.get("r") || "BUBUDUDU").toUpperCase();
+const WHO_KEY = "bubududu-smash.who";
+
+/* Wake the server while you are still deciding who you are.
+ *
+ * It is on Cloud Run's free tier, which means when nobody has played for a
+ * few minutes there is no container at all and the first person in waits
+ * eight to twelve seconds for one to start. Nothing about that is fixable
+ * for free — but it does not have to be spent WAITING. A bare GET the moment
+ * the page opens starts the container booting behind the two taps it takes
+ * to pick a name, and by the time the socket is opened it is up. Nothing
+ * depends on the answer, so a failure here costs nothing either.
+ */
+if (params.get("net") !== "p2p") {
+  import("./netclient.js")
+    .then(({ SERVER }) => fetch(SERVER.replace(/^ws/, "http") + "/health", { mode: "no-cors" }))
+    .catch(() => {});
+}
+
+const wait = $("#duowait");
+const padEl = $("#pad");
+const statusEl = wait.querySelector(".status");
+
+/* ----------------------------------------------------------- who are you --- */
+
+let role = params.get("role") || localStorage.getItem(WHO_KEY) || null;
+
+for (const b of wait.querySelectorAll("[data-who]")) {
+  b.addEventListener("click", () => {
+    role = b.dataset.who;
+    try { localStorage.setItem(WHO_KEY, role); } catch {}
+    startAudio();
+    begin();
+  });
+}
+
+/* The lobby scene, running behind the waiting screen.
+ *
+ * The big screen gets this for free: screen.js owns the page there and draws
+ * it whenever the phase is "lobby". On two phones the relay path never loads
+ * screen.js until a role is picked, so the canvas sat there doing nothing and
+ * duo had a flat blue page where the shared screen has a valley with the
+ * three of them wandering about in it. Charlie: "update yung background na to
+ * in duo like the one in this."
+ *
+ * So this drives it directly, and stops the moment the waiting screen goes —
+ * there is no reason to animate a lobby nobody is looking at, and the round
+ * needs the frame budget.
+ */
+async function runLobbyScene() {
+  const cv = document.getElementById("scene");
+  if (!cv) return;
+  const { createScene, drawScene, resizeScene } = await import("./render.js");
+  const sc = createScene(cv);
+  const fit = () => resizeScene(sc, cv.clientWidth, cv.clientHeight);
+  fit();
+  addEventListener("resize", fit);
+  let last = performance.now();
+  const frame = (now) => {
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    // Gone means the round has it — stop drawing a screen nobody can see.
+    if (wait.classList.contains("gone")) return void closeScene();
+    try { drawScene(sc, dt); } catch { /* one bad frame is not worth the lobby */ }
+    requestAnimationFrame(frame);
+  };
+  requestAnimationFrame(frame);
+}
+
+/* ...and TAKE IT AWAY again, which is the half that was missing.
+ *
+ * On the big screen screen.js owns the page and puts `.gone` on this canvas
+ * itself when the round starts. The server build does not load screen.js at
+ * all — netclient.js has its own renderer and never touches it — so the
+ * canvas, which this page had just unhidden and spread across the whole
+ * screen at z-index 1, stayed exactly where it was: a frozen photograph of
+ * the lobby laid over the arena, with the pad on top of that. The game was
+ * running perfectly underneath and could not be seen. Charlie, with a picture
+ * of it: "anyare sa duo parang sira".
+ *
+ * It is done on a class change rather than only from the frame loop because a
+ * phone that backgrounds the tab gets no frames to notice in.
+ */
+function closeScene() {
+  document.getElementById("scene")?.classList.add("gone");
+}
+new MutationObserver(() => {
+  if (wait.classList.contains("gone")) closeScene();
+}).observe(wait, { attributes: true, attributeFilter: ["class"] });
+runLobbyScene();
+
+// Stamp the build into the lobby the moment this file runs, so it is there
+// whatever else fails afterwards.
+{
+  const el = document.getElementById("build");
+  if (el) el.textContent = `build ${BUILD}`;
+}
+
+function say(msg) {
+  statusEl.textContent = msg;
+}
+
+/* ------------------------------------------------------------------ go --- */
+
+function begin() {
+  document.body.dataset.role = role;
+
+  /* The server build, and it is the DEFAULT now.
+   *
+   * Both phones are equal clients of a real authoritative server; nobody
+   * hosts. It was behind `?net=server` while it was being proved out, which
+   * turned out to be the whole of a morning's confusion: every fix to the
+   * netcode was landing on a build nobody was opening. The plain URL is the
+   * one that gets typed, so the plain URL has to be the good one.
+   *
+   * `?net=p2p` still opts back into the old peer-to-peer path, which is kept
+   * as something that works if the server is ever down — but on it one player
+   * watches the live game and the other watches a copy of it, and that gap is
+   * in the shape of the design, not in the tuning of it.
+   */
+  if (params.get("net") !== "p2p") {
+    wait.querySelector(".who").classList.add("gone");
+    import("./netclient.js").then((net) => net.connect({ role, say }));
+    return;
+  }
+
+  wait.querySelector(".who").classList.add("gone");
+  say(role === "p1" ? "old build · opening the room…" : "old build · looking for Charlie…");
+  armAudio();
+  onAudioState((st) => $("#sound")?.classList.toggle("show", st !== "on"));
+  if (role === "p1") hostSide();
+  else guestSide();
+}
+
+/** Charlie. Loads the real game and lets it run the show. */
+async function hostSide() {
+  // screen.js boots itself on import and takes the page over. That is the
+  // point: the host is not a special build of the game, it IS the game.
+  const screen = await import("./screen.js");
+  const pad = createPad({ onEdge: haptic });
+  screen.feedLocalPad(pad);
+  // Paint it once now, or the button is empty until the first power
+  // message arrives — which on a quiet round is a while.
+  paintShootButton(null, 0);
+  screen.onHostPower((m) => { paintShootButton(m.p, m.ammo);
+    paintSkillButton(m.ab ? ABILITY[m.ab] : null, (m.cd || 0) / 100, !!m.rd, m.n || 0, m.mx || 0); });
+  window.__duo = () => screen.duoStats;
+
+  padEl.classList.remove("hidden");
+
+  // Held on the waiting screen until she is actually in. Dropping straight
+  // into an empty arena gives no clue whether anything is happening.
+  const watch = setInterval(() => {
+    if (!screen.guestIn()) return say("waiting for Karla…");
+    clearInterval(watch);
+    wait.classList.add("gone");
+  }, 600);
+}
+
+/** Karla. Sends buttons, draws whatever comes back. */
+/** Karla. Runs the same round Charlie is running, and shows it live. */
+async function guestSide() {
+  // screen.js boots itself on import and takes the page over — the same as it
+  // does for the host. In ?role=p2 it knows not to open a room or broadcast;
+  // everything else about it is identical, which is the point.
+  const screen = await import("./screen.js");
+  const pad = createPad({ onEdge: haptic });
+
+  let client = null;
+  let seq = 0;
+  let rematchSeq = 0;
+  let recastSeq = 0;
+  let started = false;
+  const got = { corrections: 0, bytes: 0, lastAt: 0, bad: 0 };
+  window.__duo = () => ({
+    ...got,
+    since: got.lastAt ? Math.round(performance.now() - got.lastAt) : -1,
+    mode: client && client.mode,
+  });
+  const sessionKey = Math.random().toString(36).slice(2, 8);
+
+  function onMessage(m) {
+    if (!m) return;
+
+    // A power hint for the fire button, not a round message.
+    if (m.p !== undefined && m.a === undefined && m.rs === undefined) {
+      paintShootButton(m.p, m.ammo);
+      return paintSkillButton(m.ab ? ABILITY[m.ab] : null, (m.cd || 0) / 100, !!m.rd, m.n || 0, m.mx || 0);
+    }
+
+    // The host has started a round. Start the same one, from its seed.
+    if (m.rs !== undefined) {
+      started = true;
+      wait.classList.add("gone");
+      padEl.classList.remove("hidden");
+      screen.beginRoundAs(m.rs, m.rn, m.sc);
+      return;
+    }
+
+    if (!m.a) return;
+    got.corrections++;
+    got.lastAt = performance.now();
+    got.bytes = JSON.stringify(m).length;
+
+    // Charlie's thumbs, applied to our copy of him. This is what makes him
+    // move here at all — nothing about his position is trusted between
+    // corrections, it is simulated from what he is pressing.
+    if (m.i1) {
+      screen.feedRemoteInput("p1", {
+        k: "host", n: ++hostSeq,
+        l: !!m.i1[0], r: !!m.i1[1], h: !!m.i1[2], d: !!m.i1[3],
+        j: m.i1[4], s: m.i1[5],
+      });
+    }
+
+    // A round already in progress when we joined.
+    if (!started && m.sd !== undefined) {
+      started = true;
+      wait.classList.add("gone");
+      padEl.classList.remove("hidden");
+      screen.beginRoundAs(m.sd, m.rn, m.sc);
+    }
+
+    // ...and the truth, to ease onto.
+    let view;
+    try {
+      view = hydrate(m);
+    } catch (err) {
+      got.bad++;
+      got.lastError = String(err && err.message ? err.message : err);
+      console.warn("[bubu-dudu-smash] unreadable correction, skipped", err);
+      return;
+    }
+    view.score = m.sc;
+    view.roundNo = m.rn;
+    screen.applyCorrection(view, m.rs2, m.ph);
+
+    /* Everything the rules would have said, said for us.
+     *
+     * We run none of them, so none of this happens here by itself — the
+     * banner, the countdown card, the scrim behind them, the toast when a
+     * power-up is taken, and every sound in the game. hud.js does the drawing
+     * on both sides, so there is one copy of the markup.
+     */
+    // Where the after-match vote stands. Host-owned, like everything else.
+    if (m.vt) screen.applyVotes(m.vt);
+    if (m.hd) applyHud(m.hd);
+    if (m.nt) for (const [id, label, colour, title, body, glyph] of m.nt)
+      HUD.showNote({ id, label }, colour, title, body, glyph);
+    // Anything unknown is ignored rather than throwing: the two phones can be
+    // a version apart in the middle of a match.
+    if (m.sx) for (const key of m.sx) { try { sfx[key]?.(); } catch {} }
+  }
+  let hostSeq = 0;
+
+  function paintState(mode) {
+    const el = $("#state");
+    if (el) {
+      el.textContent =
+        mode === "p2p" ? "direct" : mode === "relay" ? "relay" :
+        mode === "lost" ? "reconnecting…" : mode === "offline" ? "offline" : "connecting…";
+      el.dataset.mode = mode;
+    }
+    if (!started) {
+      say(mode === "p2p" || mode === "relay"
+        ? "found him — waiting for the round to start"
+        : mode === "lost" ? "lost him, trying again…"
+        : "looking for Charlie…");
+    }
+  }
+
+  async function connect() {
+    try { client?.destroy(); } catch {}
+    client = await createClient({
+      code: ROOM, role: "p2", name: "Karla", onState: paintState, onMessage,
+    });
+    paintState(client.mode);
+  }
+
+  connect().catch(() => say("could not reach the room — is Charlie's phone open?"));
+
+  // Our own thumbs go straight into our own simulation, with no wait at all,
+  // and up the wire for his.
+  setInterval(() => {
+    const p = pad.state;
+    screen.feedRemoteInput("p2", {
+      k: "local", n: ++seq, l: p.l, r: p.r, h: p.h, d: p.d, j: p.j, s: p.s,
+    });
+    client?.send({
+      k: sessionKey, n: seq, l: p.l, r: p.r, h: p.h, d: p.d, j: p.j, s: p.s,
+      rm: rematchSeq, rc: recastSeq,
+    });
+  }, 1000 / 40);
+
+  // Rejoin on its own, the same way the controller page does.
+  setInterval(async () => {
+    if (client && !client.healthy) { paintState("lost"); await connect().catch(() => {}); }
+  }, 1800);
+
+  screen.onHostPower((mm) => { paintShootButton(mm.p, mm.ammo);
+    paintSkillButton(mm.ab ? ABILITY[mm.ab] : null, (mm.cd || 0) / 100, !!mm.rd, mm.n || 0, mm.mx || 0); });
+
+  /* Both buttons are VOTES on this side too.
+   *
+   * They used to hide themselves on the way out, which was honest when a
+   * press was an order. It is a vote now — the host tallies it and tells
+   * both phones where it stands — so the button has to stay put and say so,
+   * and pressing it again takes the vote back. See castVote in screen.js. */
+  $("#rematch")?.addEventListener("click", () => { rematchSeq++; haptic(); });
+  $("#recast")?.addEventListener("click", () => { recastSeq++; haptic(); });
+}
+
+/**
+ * The overlay, applied only when it actually changes.
+ *
+ * setBanner and setCount both REPLACE their element, which is what restarts
+ * the CSS animation — calling them every correction would retrigger the pop
+ * thirty times a second and the text would sit there vibrating.
+ */
+let hudWas = "";
+function applyHud(hd) {
+  const key = JSON.stringify(hd);
+  if (key === hudWas) return;
+  hudWas = key;
+  if (hd.banner) HUD.setBanner(hd.banner[0], hd.banner[1], hd.banner[2]);
+  else HUD.hideBanner();
+  if (hd.count != null) HUD.setCount(hd.count);
+  else HUD.clearCount();
+  HUD.setResult(hd.result);
+}
+
+/* ----------------------------------------------------------------- hud --- */
+
+function haptic() {
+  const h = $("#haptic");
+  if (h) h.checked = !h.checked;
+  try { navigator.vibrate?.(8); } catch {}
+}
+
+/* --------------------------------------------------------------- start --- */
+
+document.addEventListener("gesturestart", (e) => e.preventDefault());
+if (role) begin();
+else say("pick who you are");

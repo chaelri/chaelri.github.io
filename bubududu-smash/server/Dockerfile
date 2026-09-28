@@ -8,6 +8,7 @@ RUN cd server && npm install --omit=dev --no-audit --no-fund
 
 # The shared simulation, beside the server, at the relative path it expects.
 COPY js/ ./js/
+COPY classic/js/ ./classic/js/
 COPY server/ ./server/
 
 WORKDIR /app/server

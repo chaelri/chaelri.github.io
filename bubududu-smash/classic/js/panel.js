@@ -1,0 +1,345 @@
+// The Smash-style cards along the bottom: your face, your hearts, and every
+// effect currently running on you.
+//
+// This lives on its own because BOTH phones have to draw it and only one of
+// them is simulating. The host builds the chip list from the live round; the
+// guest is handed the same list over the wire and draws it with this exact
+// code. Two implementations would have drifted the first time a chip changed.
+
+import { PLAYERS, FEEL, COINS, DIWATA, POWERUPS, SQUAD, HELPER } from "./config.js";
+import { charById } from "./characters.js";
+import { markSVG } from "./marks.js";
+import { abilityLook } from "./ability.js";
+
+const HEART_SVG =
+  '<svg viewBox="0 0 24 22"><path d="M12 21.3C2.6 14.6 1 11.2 1 7.9 1 4.1 3.9 1.4 7.2 1.4c2.1 0 3.8 1 4.8 2.6 1-1.6 2.7-2.6 4.8-2.6C20.1 1.4 23 4.1 23 7.9c0 3.3-1.6 6.7-11 13.4z"/></svg>';
+
+const $ = (s) => document.querySelector(s);
+
+let bar = null;
+let cards = null;
+let pose = 0;
+
+function grab() {
+  if (cards) return cards;
+  bar = $("#players");
+  if (!bar) return null;
+  cards = {
+    p1: bar.querySelector('[data-p="p1"]'),
+    p2: bar.querySelector('[data-p="p2"]'),
+  };
+  return cards;
+}
+
+/* Whether each player's move is up, drawn on their card.
+ *
+ * On a phone the pad button says this, and says it well. On a laptop there is
+ * no button at all — the move is a key — so the card is the only place it can
+ * be said, and without it the only signal you ever got was a chip appearing
+ * AFTER you had already used it.
+ *
+ * Both cards carry one, which turns out to be the better half of the idea:
+ * knowing whether THEIR dash is up is worth as much as knowing about yours,
+ * and on a shared screen you can see it.
+ */
+const skillWas = { p1: false, p2: false };
+const skillTimer = { p1: null, p2: null };
+
+function paintSkill(card, id, a, now, pads) {
+  const el = card.querySelector(".pskill");
+  if (!el) return;
+  const look = a && now !== undefined ? abilityLook(a, now) : null;
+  if (!look) { el.innerHTML = ""; el.className = "pskill"; return; }
+
+  /* The key to press, for a player who is actually on the keyboard.
+   *
+   * Same rule the power-up chip has always used: a phone has a button with
+   * the symbol on it, so telling that player about a key would be telling
+   * them about a keyboard they are not holding. On a laptop it is the only
+   * way to know which key this is. */
+  const key = pads && pads[id] && !pads[id].connected ? SKILL_KEY[id] : "";
+  const want = `${look.ability.mark}|${key}|${look.charges}/${look.max}`;
+  if (el.dataset.mark !== want) {
+    el.dataset.mark = want;
+    // Pips for how many are in hand — three of something reads without
+    // counting, where "3" has to be read. The ring is the wait for the next.
+    const pips = look.max > 1
+      ? `<u>${Array.from({ length: look.max },
+          (_, i) => `<i class="${i < look.charges ? "on" : ""}"></i>`).join("")}</u>`
+      : "";
+    el.innerHTML = markSVG(look.ability.mark, "mk") + pips + (key ? `<em>${key}</em>` : "");
+  }
+  el.style.setProperty("--ac", look.ability.colour);
+  el.style.setProperty("--cd", `${Math.round(look.cd * 100)}%`);
+  el.classList.toggle("ready", look.ready);
+  el.classList.toggle("out", !!a.dead);
+
+  // ...and the moment it comes back, once. Same reasoning as the pad button:
+  // a state you have to notice changing is a state you notice too late.
+  if (look.ready && !skillWas[id]) {
+    el.classList.remove("pop");
+    void el.offsetWidth;
+    el.classList.add("pop");
+    clearTimeout(skillTimer[id]);
+    skillTimer[id] = setTimeout(() => el.classList.remove("pop"), 560);
+  }
+  if (!look.ready) { el.classList.remove("pop"); clearTimeout(skillTimer[id]); }
+  skillWas[id] = look.ready;
+}
+
+/**
+ * @param actors  whatever we have of both players this frame
+ * @param chips   { p1: [{label, colour, pct, bad, bump}], p2: [...] }
+ * @param dt      seconds, for the idle breath on the portraits
+ * @param now     the world clock in seconds, for the skill badges
+ * @param pads    so a keyboard player is told which key their move is on
+ */
+export function paintPanels(actors, chips, dt, now, pads) {
+  const c = grab();
+  if (!c) return;
+  bar.classList.add("on");
+  pose += dt;
+
+  for (const p of PLAYERS) {
+    const card = c[p.id];
+    const a = actors.find((x) => x.id === p.id);
+    if (!card || !a) continue;
+    card.style.setProperty("--pc", p.colour);
+    card.classList.toggle("out", a.hp <= 0);
+
+    // portrait, drawn with the same routine the game uses
+    const cv = card.querySelector(".face");
+    const ctx = cv.getContext("2d");
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    charById(a.char).draw(ctx, cv.width / 2, cv.height * 0.96, cv.width * 0.72, cv.height * 0.8, {
+      face: 1,
+      run: 0,
+      air: 0,
+      squash: Math.sin(pose * 2.2) * 0.05,
+      t: pose,
+      walk: 0,
+      stride: 1,
+    });
+
+    /* The bar, the same one that floats over the character's head.
+     *
+     * It was a row (then rows) of little heart SVGs, which is a second way of
+     * saying the one thing the bar above their head already says — and at
+     * nine hearts it was three rows of them filling the card. Charlie:
+     * "update the 3 hearts here to be bar na rin."
+     *
+     * Built out of DOM rather than canvas because the card is DOM, and each
+     * segment is a skewed div so the diagonal cut is the same shape as the
+     * one in the arena. The two ends are squared off by the bar's own
+     * overflow, which is what keeps the whole thing a rectangle.
+     */
+    /* Who they are HOLDING, which the card never said.
+     *
+     * The seat's name is on it — Charlie, Karla — and they both know which
+     * one they are; what changes round to round is the character, and that
+     * was only ever readable from the portrait. Charlie: "dapat nadidisplay
+     * din kung sino character say like Bubu, dudu or yhon." */
+    const who = card.querySelector(".pchar");
+    if (who) {
+      const label = charById(a.char).name;
+      if (who.textContent !== label) who.textContent = label;
+    }
+
+    const hearts = card.querySelector(".phearts");
+    const slots = Math.max(FEEL.hp, Math.ceil(a.hp));
+    const want = Array.from({ length: slots },
+                            (_, i) => Math.max(0, Math.min(1, a.hp - i))).join(",");
+    if (hearts.dataset.state !== want) {
+      hearts.dataset.state = want;
+      hearts.innerHTML =
+        `<div class="hbar" style="--n:${slots}">` +
+        Array.from({ length: slots }, (_, i) => {
+          const f = Math.max(0, Math.min(1, a.hp - i));
+          const cls = i >= FEEL.hp ? "hseg bonus" : "hseg";
+          return `<i class="${cls}" style="--f:${f}"></i>`;
+        }).join("") +
+        // The number, ON the bar. A segmented bar says "some of it is gone";
+        // a number says how much, and every game that has both puts them in
+        // the same place.
+        `<b class="hnum">${a.hp % 1 ? a.hp.toFixed(1) : a.hp}</b>` +
+        `</div>`;
+    }
+
+    paintSkill(card, p.id, a, now, pads);
+
+    const list = (chips && chips[p.id]) || [];
+    const key = list
+      .map((q) => (q.mark || "") + q.label + Math.round(q.pct / 6) + (q.bump ? "!" : ""))
+      .join("|");
+    const el = card.querySelector(".pchips");
+    if (el.dataset.key !== key) {
+      el.dataset.key = key;
+      el.innerHTML = list
+        .map(
+          (q) =>
+            `<span class="chip${q.bad ? " bad" : ""}${q.bump ? " bump" : ""}" style="--cc:${q.colour};--sweep:${q.pct}%">` +
+            markSVG(q.mark) + q.label + `</span>`
+        )
+        .join("");
+    }
+  }
+}
+
+/* ------------------------------------------------------------- the wire --- */
+// Chips are sent to the guest as arrays, for the same reason everything else
+// in netstate.js is: on the Firebase relay lane this rides the public internet
+// on every tick it changes.
+
+export const packChips = (list) =>
+  list.map((q) => [q.label, q.colour, Math.round(q.pct), q.bad ? 1 : 0, q.bump ? 1 : 0, q.mark || ""]);
+
+export const unpackChips = (list) =>
+  (list || []).map(([label, colour, pct, bad, bump, mark]) => ({
+    label, colour, pct, bad: !!bad, bump: !!bump, mark: mark || "",
+  }));
+
+
+/* ------------------------------------------------------------- the chips --- */
+
+/* Only shown to a player on a keyboard; a phone has a button for it.
+ * These are the first spelling of each key — see SHOOT_KEYS and SKILL_KEYS
+ * in screen.js, which is where the game actually reads them. */
+const SHOOT_KEY = { p1: "F", p2: "/" };
+const SKILL_KEY = { p1: "Q", p2: "." };
+
+export function chipsFor(a, G, pads) {
+  const out = [];
+  if (!a) return out;
+
+  // Progress toward the next reward, always first so it sits in one place.
+  // `bump` makes the chip jump on the frame the count changes — the number
+  // alone is too quiet to notice while you are looking at your character.
+  out.push({
+    // The same cut gem that is lying on the platforms, drawn — it was the ◆
+    // character, which is a rhombus in most fonts and nothing like the thing
+    // you are picking up.
+    mark: "gem",
+    label: `${a.coins || 0}/${COINS.perReward}`,
+    colour: COINS.colour,
+    pct: ((a.coins || 0) / COINS.perReward) * 100,
+    bad: false,
+    bump: a.glowUntil && G.time < a.glowUntil && a.glowColour === COINS.colour,
+  });
+
+  if (a.fairy && !a.fairy.leaving) {
+    const wait = Math.max(0, a.fairy.next - G.time);
+    out.push({
+      mark: "plus",
+      label: `${a.fairy.left}`,
+      colour: DIWATA.colour,
+      pct: 100 - (wait / (DIWATA.everyMs / 1000)) * 100,
+      bad: false,
+    });
+  }
+
+  /* The Shield has its own chip because it has its own slot — you can be
+   * holding a Bazooka AND be behind glass, and one chip cannot say both. */
+  if (a.shieldUntil && G.time < a.shieldUntil) {
+    const def = POWERUPS.kalasag;
+    const left = a.shieldUntil - G.time;
+    out.push({
+      mark: "kalasag",
+      label: def.name,
+      colour: def.colour,
+      pct: Math.max(0, Math.min(100, (left / (def.ms / 1000)) * 100)),
+      bad: false,
+    });
+  }
+
+  if (a.power) {
+    const def = POWERUPS[a.power.type];
+    const dur = def.ms ? def.ms / 1000 : 0;
+    const left = a.power.until === Infinity ? 1 : Math.max(0, a.power.until - G.time);
+    const pct = dur ? Math.max(0, Math.min(100, (left / dur) * 100)) : 100;
+    let label;
+    // Ask the definition, do not recite names — same reason as the pad's fire
+    // button, which was dead for the Bazooka because it recited them.
+    if (def.fires) {
+      // Show the key only to a player who is actually on the keyboard; on a
+      // phone there is a button for it.
+      const key = pads[a.id] && !pads[a.id].connected ? ` <em>${SHOOT_KEY[a.id]}</em>` : "";
+      // An endless weapon has no count to show, so the chip says its name
+      // the way a timed power-up does.
+      label = def.endless ? def.name : `${a.power.ammo}${key}`;
+    } else {
+      label = def.name;
+    }
+    out.push({ mark: a.power.type, label, colour: def.colour, pct, bad: false });
+  }
+  /* No chip for the ability any more — the badge above the chips carries it.
+   *
+   * It was a chip because there was nowhere else to say it: on a laptop the
+   * move is a key, so there was no button to light. Now that both cards have
+   * a badge, the chip said exactly the same thing a centimetre lower, with a
+   * word next to it, permanently. One of them had to go and it was not the
+   * one that also says READY. */
+
+  if (a.frozenUntil && G.time < a.frozenUntil) {
+    const left = a.frozenUntil - G.time;
+    out.push({
+      mark: "yelo",
+      label: "frozen",
+      colour: POWERUPS.yelo.colour,
+      pct: (left / (POWERUPS.yelo.freezeMs / 1000)) * 100,
+      bad: true,
+    });
+  }
+  if (a.reversedUntil && G.time < a.reversedUntil) {
+    const left = a.reversedUntil - G.time;
+    out.push({
+      mark: "baliktad",
+      label: "reversed",
+      colour: POWERUPS.baliktad.colour,
+      pct: (left / (POWERUPS.baliktad.reverseMs / 1000)) * 100,
+      bad: true,
+    });
+  }
+
+  // Things that are yours but are not held IN your hands. They were doing
+  // real work on the field with nothing in the panel to say so.
+  const squad = G.minis.filter((m) => m.owner === a.id && !m.leaving).length;
+  if (squad) {
+    out.push({
+      mark: "squad",
+      label: `${squad}`,
+      colour: SQUAD.colour,
+      pct: 100,
+      bad: false,
+    });
+  }
+
+  const mine = G.helpers.filter((h) => h.ally === a.id && !h.bad && !h.leaving);
+  if (mine.length) {
+    // The longest-lived one drives the bar; the count says how many are out,
+    // because two Dudus hunting is very different from one and the panel is
+    // the only place that can say so.
+    const left = Math.max(...mine.map((h) => Math.max(0, h.until - G.time)));
+    out.push({
+      mark: "dudu",
+      label: mine.length > 1 ? `Dudu \u00d7${mine.length}` : "Dudu",
+      colour: "#ffb84d",
+      pct: Math.min(100, (left / (HELPER.huntMs / 1000)) * 100),
+      bad: false,
+    });
+  }
+
+  // The grace after a hit. Knowing you cannot be touched for another second
+  // is the difference between backing off and going straight back in.
+  if (a.invulnUntil && G.time < a.invulnUntil) {
+    const left = a.invulnUntil - G.time;
+    out.push({
+      mark: "safe",
+      label: "safe",
+      colour: "#9fd8ff",
+      pct: Math.min(100, (left / (FEEL.hurtInvulnMs / 1000)) * 100),
+      bad: false,
+    });
+  }
+
+  return out;
+}

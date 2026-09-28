@@ -22,9 +22,14 @@ import { WebSocketTransport } from "@colyseus/ws-transport";
 import { Room } from "@colyseus/core";
 
 import { shouldStart } from "./gate.mjs";
-import * as sim from "../js/sim.js";
-import { CHARACTERS } from "../js/characters.js";
-import { snapshot } from "../js/netstate.js";
+import * as latestSim from "../js/sim.js";
+import { CHARACTERS as latestCast } from "../js/characters.js";
+import { snapshot as latestSnapshot } from "../js/netstate.js";
+// Classic: the rules frozen at 51bd3f5c, before the mode wheel. Its own
+// modules, so its own module-level simulation — the two rooms never share one.
+import * as classicSim from "../classic/js/sim.js";
+import { CHARACTERS as classicCast } from "../classic/js/characters.js";
+import { snapshot as classicSnapshot } from "../classic/js/netstate.js";
 
 const TICK_HZ = 60;        // how often the rules advance
 const TICK = 1 / TICK_HZ;
@@ -71,7 +76,7 @@ const BUFFER_MAX = 8;
  * is always Charlie coming back, so he takes the seat off whoever was in it
  * rather than being turned away.
  */
-class SmashRoom extends Room {
+const roomFor = (sim, CHARACTERS, snapshot) => class SmashRoom extends Room {
   maxClients = 4;
 
   onCreate() {
@@ -369,7 +374,7 @@ class SmashRoom extends Room {
 
     this.broadcast("s", snap);
   }
-}
+};
 
 const app = express();
 app.get("/health", (_, res) => res.json({ ok: true }));
@@ -377,7 +382,8 @@ app.get("/health", (_, res) => res.json({ ok: true }));
 const server = new Server({
   transport: new WebSocketTransport({ server: createServer(app) }),
 });
-server.define("smash", SmashRoom);
+server.define("smash", roomFor(latestSim, latestCast, latestSnapshot));
+server.define("smash-classic", roomFor(classicSim, classicCast, classicSnapshot));
 
 const PORT = Number(process.env.PORT) || 2567;
 server.listen(PORT).then(() => console.log(`[smash] listening on ${PORT}`));
