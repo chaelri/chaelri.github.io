@@ -64,6 +64,8 @@ export const sfx = {
   win: () => [523, 659, 784, 1046].forEach((f, i) => tone("triangle", f, f, 0.22, 0.2, i * 0.11)),
   lose: () => [440, 370, 311].forEach((f, i) => tone("triangle", f, f * 0.98, 0.28, 0.16, i * 0.16)),
   tap: () => tone("sine", 700, 500, 0.06, 0.12),
+  place: () => { tone("triangle", 260, 160, 0.09, 0.3); noise(0.05, 0.15, 1800, 900); },
+  fling: () => { noise(0.22, 0.3, 700, 2800); tone("sine", 320, 620, 0.16, 0.12); },
 };
 
 // Haptics. Android gets navigator.vibrate. iOS Safari has no vibrate API, but

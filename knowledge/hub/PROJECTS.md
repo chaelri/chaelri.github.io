@@ -90,22 +90,18 @@ Photo-first food log for Charlie & Karla — snap the plate, Gemini reads it, an
   - **`_selftest.html`** steps all three levels 420 frames each and prints errors + per-phase timings; title reads `SELFTEST OK`/`FAIL` so it greps from headless Chrome. The real game cannot be screenshotted headlessly — its rAF loop never lets `--virtual-time-budget` expire, which is why the harness exists.
 - **Full docs:** See `knowledge/ilaw/SUMMARY.md` and `ilaw/README.md`.
 
-### tulak/  🟢
+### critter-clash/  🟢
 
-**TULAK!** — portrait mobile 3D party brawler using the bubududu-smash/3d critters (Yhon Yhon, axolotl, capybara, hedgehog). Bump Arena: four critters on a floating hex island that crumbles ring by ring from the outside in; knock the others off, last one standing takes the round, first to 3 wins the match. Built 2026-09-28.
+**CRITTER CLASH** — portrait mobile 3D 1v1 mini auto-battler using the bubududu-smash/3d critters, with unlocks. Built 2026-09-28 after two rejected designs the same day: `tulak/` (4-player bump arena — "name and mechanics suck") and Fort Fling (build + slingshot, never shipped). What Charlie asked for: few mechanics, a PREP stage then a FIGHT stage, "nagagamit yung 4 na character same player", and the feeling of "uy naunlock ko na si ganto".
 
-- **Tech:** vanilla ES modules (no build), three.js 0.169 via jsDelivr import map (+ `OutlineEffect`, `GLTFLoader`), hand-written CSS (Lilita One + Nunito), WebAudio synth sfx, Firebase RTDB for signalling only.
-- **Entry:** `index.html`, `js/sim.js` (the whole game, pure — no DOM/three), `js/bots.js`, `js/render.js`, `js/input.js` (floating stick + DASH + ability), `js/main.js` (screens, solo/host/guest loops), `js/net.js` (copied from bubududu-smash), `js/config.js` (all tuning), `_selftest.mjs`.
-- **Deploy:** GitHub Pages at `/tulak/`. Not linked from the root hub page. Models load from `../bubududu-smash/3d/*.glb` and `critters.json` — one source, not copies.
-- **Modes:** solo (you + 3 bots); host (this phone runs the sim, streams snapshots at 20 Hz to one guest over a WebRTC data channel; empty seats and a guest silent for 3 s are bots); guest (runs no sim — sends stick at 30 Hz, eases toward snapshots). `?join=CODE` (the lobby QR) opens straight into join. RTDB path `tulak/rooms/<CODE>`.
-- **Abilities:** Yhon Ground Pound (jump + shockwave), axolotl Dive (long, un-knockable) + fastest dash recharge, capybara Swim Ring (floats over holes; a COUNTER that reflects hits — it was a touch-bounce weapon first and out-killed every other move), hedgehog Spike Roll + passive prickly bounce.
-- **Pacing is measured, not guessed:** `node tulak/_selftest.mjs 40` plays bot-only matches headless and prints avg/min/max match length, round length, and per-critter wins. Tuned to ~28 s rounds, ~3.1 min matches, max ~5.2; round wins 19–29% per critter. `matchCap` 270 s: last 30 s crumble twice as fast, past the cap the leader wins (KOs break ties).
-- **Quirks:**
-  - **A power hit REPLACES the plain collision impulse** — stacking both turned a dash into ~18 u/s of knockback and rounds lasted 4 s.
-  - **A roll or dive ends on impact** like a dash; ploughing on carried the hedgehog/axolotl to the edge after every hit and they lost 3 rounds in 4.
-  - **OutlineEffect skips InstancedMesh**, so tiles get an inverted-hull ink twin instead.
-  - **Headless Chrome pauses rAF in background tabs** — the two-tab net test has to alternate `Page.bringToFront`. A CDP driver (node's built-in WebSocket) is what makes gameplay testable; `--screenshot --timeout` was unreliable with the CDN + GLB loads.
-  - Guest has no client-side prediction yet — fine on the same WiFi, noticeable on relay.
+- **The game:** PREP (15 s) — drag (or tap-then-tap) your squad onto your 4×3 half; the other placement stays hidden. FIGHT (≤30 s) — they battle on their own. First to 3 rounds; at time-out the side with more HP share wins. Each critter has one job: Yhon Yhon tank (every 3rd hit a SLAM), Hedgehog striker (hunts the weakest), Axolotl shooter (water balls, range 4.2), Capybara healer (heals the most-hurt).
+- **Unlocks:** start with Yhon Yhon + Hedgehog; Axolotl at 4 🏆, Capybara at 10 (`UNLOCKS` in config). Win +3, loss +1. Trophies in `localStorage["critterclash.trophies"]` (per device). Locked critters are dark silhouettes in the menu; an unlock plays a NEW CRITTER! reveal with confetti. Both sides always field the same count: a bot matches your squad size (`botSquad`, always with a frontliner), online it is the smaller of the two squads.
+- **Tech:** vanilla ES modules, three.js 0.169 (import map; `OutlineEffect`, `GLTFLoader`), no physics engine, hand-written CSS (Lilita One + Nunito), WebAudio synth sfx.
+- **Entry:** `index.html`, `js/sim.js` (placement + battle, pure — no DOM/three), `js/bots.js`, `js/render.js`, `js/main.js`, `js/net.js` (from bubududu-smash), `js/config.js` (stats, unlocks, tuning), `_selftest.mjs` (`node critter-clash/_selftest.mjs 60` — fight length, human-paced match length, survival/damage per critter).
+- **Deploy:** GitHub Pages at `/critter-clash/`. Not linked from the root hub page. Models + `critters.json` load from `../bubududu-smash/3d/`.
+- **Modes:** solo vs a bot; host (runs the sim, 15 Hz snapshots to one guest over WebRTC; a bot places for a guest silent for 4 s); guest (no sim — sends `{k:"prep", round, place, ready}` every 700 ms since the channel doesn't retransmit). The host's placement is left out of prep snapshots. RTDB `critterclash/rooms/<CODE>`.
+- **Balance (from the self-test):** ~25 s fights, ~3 min human-paced matches, ~1% draws. Pair win rates vs other pairs 46–69% for any pair with a frontliner; Axolotl + Capybara (no frontliner) wins ~16%, which is why bots never field it. The starter pair was 32% before Yhon's atk 17→21 and Hedgehog's hp 175→200.
+- Headless testing uses a node CDP driver with alternating `Page.bringToFront` (background tabs pause rAF).
 
 ### bubududu-smash/  🟢
 
@@ -555,7 +551,7 @@ Simple side-scrolling platformer (Bubu & Dudu) — canvas-based game.
 
 | Project | Hosting | Auto-deploy on push? |
 |---|---|---|
-| tulak, bubududu-smash, ilaw, kain, sherill (also on Vercel as `drive-with-sherill`), driving, devo, monthsary, tayo, sns-dq, weddingtest, towa-no-yuugure, autoclicker, aircon, pocket-remote, mac-toggle, collaterals, flux, pray, echoes, wedding100, weddingtimeline, horizon, money, anohana, bubududu | GitHub Pages subpath | ✅ |
+| critter-clash, bubududu-smash, ilaw, kain, sherill (also on Vercel as `drive-with-sherill`), driving, devo, monthsary, tayo, sns-dq, weddingtest, towa-no-yuugure, autoclicker, aircon, pocket-remote, mac-toggle, collaterals, flux, pray, echoes, wedding100, weddingtimeline, horizon, money, anohana, bubududu | GitHub Pages subpath | ✅ |
 | mac-toggle (Mac agent) | root LaunchDaemon `com.chaelri.mactoggle` via `agent/install.sh` | Manual |
 | mac-toggle (menu bar) | per-user LaunchAgent `com.chaelri.mactoggle.menubar` via `menubar/install-menubar.sh` | Manual |
 | claude-usage | per-user LaunchAgent `com.chaelri.claudeusage` via `install.sh` | Manual |
