@@ -1855,6 +1855,9 @@ html.adx-posters .similarimg .coverimg:not([data-adx-poster="1"]):not([data-adx-
   cursor: pointer;
   pointer-events: none;
 }
+/* fullscreen draws the controls larger and further apart: the button moves
+   to 113px from the right, 57px up (measured the same way) */
+.info2:has(> video):fullscreen .adx-a4k-fshit { right: 95px; bottom: 39px; }
 .adx-a4k-fshit[hidden] { display: none; }
 .adx-a4k-ctl .adx-a4k-fshit { pointer-events: auto; }
 /* the cover hides the native hover circle, so it draws its own */
