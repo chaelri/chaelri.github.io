@@ -1,0 +1,127 @@
+/* TULAK! — sunburst + chunky ink UI, the same look as bubududu-smash/3d. */
+:root {
+  --c1: #ff8a1f; --c2: #ffc94a; --deep: #6b2a00; --ink: #2a1420; --go: #ffd23f;
+  --safe-b: env(safe-area-inset-bottom); --safe-t: env(safe-area-inset-top);
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; overflow: hidden; overscroll-behavior: none; }
+body {
+  background: var(--c1); color: var(--ink); font-family: Nunito, system-ui, sans-serif;
+  user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: none;
+}
+#burst {
+  position: fixed; left: 50%; top: 45%; width: 220vmax; height: 220vmax; margin: -110vmax 0 0 -110vmax;
+  background: repeating-conic-gradient(from 0deg, var(--c1) 0deg 9deg, var(--c2) 9deg 18deg);
+  animation: turn 90s linear infinite; transition: background .5s;
+}
+#vignette { position: fixed; inset: 0; background: radial-gradient(circle at 50% 45%, transparent 25%, color-mix(in srgb, var(--deep) 70%, transparent) 100%); }
+@keyframes turn { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { #burst { animation: none; } }
+canvas#gl { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+.hidden { display: none !important; }
+
+/* ---- type + buttons ---- */
+.logo {
+  margin: 0; font: 400 72px/0.9 "Lilita One", system-ui, sans-serif; color: #fff; text-align: center;
+  -webkit-text-stroke: 12px var(--ink); paint-order: stroke fill; text-shadow: 0 8px 0 var(--ink);
+  transform: rotate(-4deg); letter-spacing: .02em;
+}
+.logo.small { font-size: 52px; }
+h2 { margin: 0; font: 400 34px "Lilita One", sans-serif; color: #fff; text-align: center; -webkit-text-stroke: 7px var(--ink); paint-order: stroke fill; text-shadow: 0 5px 0 var(--ink); }
+.sub { margin: 10px 0 0; text-align: center; font: 400 17px "Lilita One", sans-serif; color: var(--ink); }
+button {
+  font: 400 18px "Lilita One", system-ui, sans-serif; letter-spacing: .02em; color: var(--ink);
+  background: #fff; border: 3px solid var(--ink); border-radius: 16px; padding: 10px 16px; cursor: pointer;
+  box-shadow: 0 5px 0 var(--ink); transition: transform .06s, box-shadow .06s; touch-action: manipulation;
+}
+button:active, button.down { transform: translateY(4px); box-shadow: 0 1px 0 var(--ink); }
+button:disabled { opacity: .5; }
+button.big { width: 100%; font-size: 24px; padding: 13px; border-radius: 20px; }
+button.go { background: var(--go); }
+button.ghost { background: rgba(255,255,255,.75); }
+
+/* ---- screens ---- */
+.screen {
+  position: fixed; inset: 0; display: flex; flex-direction: column; gap: 14px; z-index: 5;
+  padding: calc(28px + var(--safe-t)) 18px calc(20px + var(--safe-b)); max-width: 460px; margin: 0 auto;
+  overflow-y: auto; touch-action: pan-y;
+}
+.spacer { flex: 1; min-height: 120px; }
+.card { background: rgba(255,255,255,.92); border: 3px solid var(--ink); border-radius: 22px; padding: 14px 16px; box-shadow: 0 6px 0 var(--ink); }
+.card.center { text-align: center; }
+.menuBtns { display: flex; flex-direction: column; gap: 12px; }
+.pickRow { display: flex; align-items: center; gap: 10px; }
+.pickName { flex: 1; text-align: center; font: 400 28px "Lilita One", sans-serif; line-height: 1; }
+.pickAbility { font: 400 15px "Lilita One", sans-serif; color: #fff; background: var(--ink); display: inline-block; padding: 3px 10px 4px; border-radius: 8px; margin-top: 6px; }
+.arrow { width: 48px; height: 48px; padding: 0; font-size: 30px; line-height: 1; border-radius: 50%; }
+#pickBlurb { margin: 10px 0 8px; font-weight: 700; font-size: 15px; text-align: center; }
+.stats { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; align-items: center; font: 400 13px "Lilita One", sans-serif; }
+.bar { height: 10px; border: 2px solid var(--ink); border-radius: 6px; background: #fff; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--c1); }
+.nameRow { display: flex; align-items: center; gap: 10px; font: 400 18px "Lilita One", sans-serif; color: #fff; -webkit-text-stroke: 4px var(--ink); paint-order: stroke fill; }
+.nameRow input { flex: 1; font: 700 18px Nunito, sans-serif; padding: 9px 12px; border: 3px solid var(--ink); border-radius: 14px; -webkit-text-stroke: 0; color: var(--ink); user-select: text; -webkit-user-select: text; }
+.code { font: 400 64px "Lilita One", sans-serif; letter-spacing: .18em; }
+#qr { display: grid; place-items: center; margin: 6px 0; }
+#qr svg { width: 180px; height: 180px; }
+.hint { margin: 6px 0 0; font-weight: 700; font-size: 14px; }
+.codeInput { width: 100%; font: 400 56px "Lilita One", sans-serif; letter-spacing: .25em; text-align: center; text-transform: uppercase; border: 3px solid var(--ink); border-radius: 16px; padding: 6px; user-select: text; -webkit-user-select: text; }
+.seats { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.seats li { display: flex; align-items: center; gap: 10px; font: 400 18px "Lilita One", sans-serif; }
+.dot { width: 18px; height: 18px; border-radius: 50%; border: 3px solid var(--ink); background: var(--seat); flex: none; }
+.seats small { margin-left: auto; font: 700 13px Nunito, sans-serif; opacity: .75; }
+
+/* ---- HUD ---- */
+#hud { position: fixed; inset: 0; z-index: 4; }
+.chips { position: absolute; top: calc(10px + var(--safe-t)); left: 10px; right: 10px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.chip { background: #fff; border: 3px solid var(--ink); border-radius: 14px; padding: 4px 6px 5px; box-shadow: 0 3px 0 var(--ink); text-align: center; position: relative; }
+.chip.out { opacity: .45; filter: grayscale(.6); }
+.chip .nm { font: 400 13px "Lilita One", sans-serif; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-bottom: 4px solid var(--seat); padding-bottom: 1px; }
+.chip .pips { font-size: 13px; letter-spacing: 1px; color: var(--ink); }
+.chip .pips b { color: #ffb400; -webkit-text-stroke: 1px var(--ink); }
+.chip.me { background: #fff6cf; }
+.roundInfo { position: absolute; top: calc(68px + var(--safe-t)); left: 0; right: 0; text-align: center; font: 400 16px "Lilita One", sans-serif; color: #fff; -webkit-text-stroke: 4px var(--ink); paint-order: stroke fill; }
+.net { position: absolute; top: calc(92px + var(--safe-t)); left: 50%; transform: translateX(-50%); font: 700 11px Nunito, sans-serif; background: var(--ink); color: #fff; border-radius: 99px; padding: 2px 9px; }
+.banner {
+  position: absolute; top: 34%; left: 0; right: 0; text-align: center; pointer-events: none;
+  font: 400 60px/1 "Lilita One", sans-serif; color: #fff; -webkit-text-stroke: 10px var(--ink); paint-order: stroke fill; text-shadow: 0 6px 0 var(--ink);
+  transform: scale(0) rotate(-4deg); transition: transform .18s cubic-bezier(.3,1.6,.5,1);
+}
+.banner.on { transform: scale(1) rotate(-4deg); }
+.banner small { display: block; font-size: 26px; -webkit-text-stroke: 6px var(--ink); margin-top: 8px; }
+.feed { position: absolute; top: calc(118px + var(--safe-t)); left: 0; right: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; pointer-events: none; }
+.feed div { font: 400 15px "Lilita One", sans-serif; background: var(--ink); color: #fff; border-radius: 10px; padding: 3px 10px; animation: feed 2.4s forwards; }
+@keyframes feed { 0% { opacity: 0; transform: translateY(-6px); } 10%, 80% { opacity: 1; transform: none; } 100% { opacity: 0; } }
+
+#stickZone { position: absolute; left: 0; right: 0; top: 30%; bottom: 0; }
+#stickBase {
+  position: absolute; left: -60px; top: -60px; width: 120px; height: 120px; border-radius: 50%; pointer-events: none;
+  background: rgba(255,255,255,.28); border: 4px solid rgba(42,20,32,.6); opacity: 0; transition: opacity .1s;
+}
+#stickKnob { position: absolute; left: 30px; top: 30px; width: 52px; height: 52px; border-radius: 50%; background: #fff; border: 4px solid var(--ink); box-shadow: 0 3px 0 var(--ink); }
+.pad {
+  position: absolute; border-radius: 50%; padding: 0; display: grid; place-items: center; z-index: 2;
+  --cd: 0; background: conic-gradient(rgba(42,20,32,.55) calc(var(--cd) * 360deg), transparent 0), var(--padc);
+}
+.pad span { font: 400 20px "Lilita One", sans-serif; color: #fff; -webkit-text-stroke: 4px var(--ink); paint-order: stroke fill; }
+.pad.dash { --padc: #ff4f6d; width: 104px; height: 104px; right: 18px; bottom: calc(26px + var(--safe-b)); }
+.pad.abil { --padc: #41b6ff; width: 78px; height: 78px; right: 126px; bottom: calc(36px + var(--safe-b)); }
+.pad.abil span { font-size: 15px; }
+.pad.ready { animation: ready .35s; }
+@keyframes ready { 50% { transform: scale(1.12); } }
+
+.label {
+  position: fixed; left: 0; top: 0; pointer-events: none; z-index: 3; margin: -12px 0 0 0;
+  font: 400 13px "Lilita One", sans-serif; color: #fff; -webkit-text-stroke: 4px var(--ink); paint-order: stroke fill;
+  white-space: nowrap; translate: -50% 0;
+}
+.label::after { content: ""; display: block; width: 0; height: 0; margin: 0 auto; border: 6px solid transparent; border-top-color: var(--seat); }
+.label.me { font-size: 16px; color: var(--go); }
+
+.podium { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.podium li { display: flex; align-items: center; gap: 10px; background: #fff; border: 3px solid var(--ink); border-radius: 18px; padding: 10px 14px; box-shadow: 0 5px 0 var(--ink); font: 400 20px "Lilita One", sans-serif; }
+.podium li:first-child { background: var(--go); font-size: 24px; }
+.podium .pl { width: 30px; }
+.podium small { margin-left: auto; font: 700 13px Nunito, sans-serif; text-align: right; }
+
+#loading { position: fixed; inset: 0; display: grid; place-items: center; z-index: 10; background: var(--c1); font: 400 30px "Lilita One", sans-serif; color: #fff; -webkit-text-stroke: 7px var(--ink); paint-order: stroke fill; }
+#labels { position: fixed; inset: 0; pointer-events: none; z-index: 3; }

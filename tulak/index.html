@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#ff8a1f">
+<title>TULAK!</title>
+<link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="burst"></div>
+<div id="vignette"></div>
+<canvas id="gl"></canvas>
+<div id="labels"></div>
+
+<!-- MENU ------------------------------------------------------------------>
+<section id="menu" class="screen">
+  <h1 class="logo">TULAK!</h1>
+  <p class="sub">Push them off the island.</p>
+  <div class="spacer"></div>
+  <div class="card" id="pick">
+    <div class="pickRow">
+      <button class="arrow" id="prev" aria-label="Previous critter">‹</button>
+      <div class="pickName"><div id="pickName">Yhon Yhon</div><div class="pickAbility" id="pickAbility"></div></div>
+      <button class="arrow" id="next" aria-label="Next critter">›</button>
+    </div>
+    <p id="pickBlurb"></p>
+    <div class="stats" id="pickStats"></div>
+  </div>
+  <label class="nameRow">Name <input id="name" maxlength="12" autocomplete="off" spellcheck="false"></label>
+  <div class="menuBtns">
+    <button class="big go" id="solo">Play vs bots</button>
+    <button class="big" id="host">Play with a friend</button>
+    <button class="big ghost" id="join">Join a game</button>
+  </div>
+</section>
+
+<!-- HOST LOBBY ------------------------------------------------------------>
+<section id="lobby" class="screen hidden">
+  <h2>Your room</h2>
+  <div class="card center">
+    <div class="code" id="lobbyCode">····</div>
+    <div id="qr"></div>
+    <p class="hint">On the other phone: scan this, or open TULAK! and tap <b>Join a game</b>.</p>
+  </div>
+  <div class="card">
+    <ol class="seats" id="lobbySeats"></ol>
+  </div>
+  <div class="menuBtns">
+    <button class="big go" id="lobbyStart">Start</button>
+    <button class="big ghost" id="lobbyBack">Back</button>
+  </div>
+</section>
+
+<!-- JOIN ------------------------------------------------------------------>
+<section id="joinScreen" class="screen hidden">
+  <h2>Join a game</h2>
+  <div class="card center">
+    <input id="joinCode" class="codeInput" maxlength="4" placeholder="CODE" autocomplete="off" autocapitalize="characters" spellcheck="false">
+    <p class="hint" id="joinStatus">Type the code on the host's phone.</p>
+  </div>
+  <div class="menuBtns">
+    <button class="big go" id="joinGo">Join</button>
+    <button class="big ghost" id="joinBack">Back</button>
+  </div>
+</section>
+
+<!-- HUD ------------------------------------------------------------------->
+<section id="hud" class="hidden">
+  <div class="chips" id="chips"></div>
+  <div class="roundInfo" id="roundInfo"></div>
+  <div class="net hidden" id="netPill"></div>
+  <div class="banner" id="banner"></div>
+  <div class="feed" id="feed"></div>
+  <div id="stickZone"></div>
+  <div id="stickBase"><div id="stickKnob"></div></div>
+  <button class="pad abil" id="abilBtn"><span id="abilLabel">POW</span></button>
+  <button class="pad dash" id="dashBtn"><span>DASH</span></button>
+</section>
+
+<!-- RESULTS --------------------------------------------------------------->
+<section id="over" class="screen hidden">
+  <h1 class="logo small" id="overTitle">YOU WIN!</h1>
+  <ol class="podium" id="podium"></ol>
+  <div class="menuBtns">
+    <button class="big go" id="again">Rematch</button>
+    <button class="big ghost" id="toMenu">Menu</button>
+  </div>
+</section>
+
+<div id="loading">Loading…</div>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+               "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/" } }
+</script>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

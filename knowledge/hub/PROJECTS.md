@@ -90,6 +90,23 @@ Photo-first food log for Charlie & Karla — snap the plate, Gemini reads it, an
   - **`_selftest.html`** steps all three levels 420 frames each and prints errors + per-phase timings; title reads `SELFTEST OK`/`FAIL` so it greps from headless Chrome. The real game cannot be screenshotted headlessly — its rAF loop never lets `--virtual-time-budget` expire, which is why the harness exists.
 - **Full docs:** See `knowledge/ilaw/SUMMARY.md` and `ilaw/README.md`.
 
+### tulak/  🟢
+
+**TULAK!** — portrait mobile 3D party brawler using the bubududu-smash/3d critters (Yhon Yhon, axolotl, capybara, hedgehog). Bump Arena: four critters on a floating hex island that crumbles ring by ring from the outside in; knock the others off, last one standing takes the round, first to 3 wins the match. Built 2026-09-28.
+
+- **Tech:** vanilla ES modules (no build), three.js 0.169 via jsDelivr import map (+ `OutlineEffect`, `GLTFLoader`), hand-written CSS (Lilita One + Nunito), WebAudio synth sfx, Firebase RTDB for signalling only.
+- **Entry:** `index.html`, `js/sim.js` (the whole game, pure — no DOM/three), `js/bots.js`, `js/render.js`, `js/input.js` (floating stick + DASH + ability), `js/main.js` (screens, solo/host/guest loops), `js/net.js` (copied from bubududu-smash), `js/config.js` (all tuning), `_selftest.mjs`.
+- **Deploy:** GitHub Pages at `/tulak/`. Not linked from the root hub page. Models load from `../bubududu-smash/3d/*.glb` and `critters.json` — one source, not copies.
+- **Modes:** solo (you + 3 bots); host (this phone runs the sim, streams snapshots at 20 Hz to one guest over a WebRTC data channel; empty seats and a guest silent for 3 s are bots); guest (runs no sim — sends stick at 30 Hz, eases toward snapshots). `?join=CODE` (the lobby QR) opens straight into join. RTDB path `tulak/rooms/<CODE>`.
+- **Abilities:** Yhon Ground Pound (jump + shockwave), axolotl Dive (long, un-knockable) + fastest dash recharge, capybara Swim Ring (floats over holes; a COUNTER that reflects hits — it was a touch-bounce weapon first and out-killed every other move), hedgehog Spike Roll + passive prickly bounce.
+- **Pacing is measured, not guessed:** `node tulak/_selftest.mjs 40` plays bot-only matches headless and prints avg/min/max match length, round length, and per-critter wins. Tuned to ~28 s rounds, ~3.1 min matches, max ~5.2; round wins 19–29% per critter. `matchCap` 270 s: last 30 s crumble twice as fast, past the cap the leader wins (KOs break ties).
+- **Quirks:**
+  - **A power hit REPLACES the plain collision impulse** — stacking both turned a dash into ~18 u/s of knockback and rounds lasted 4 s.
+  - **A roll or dive ends on impact** like a dash; ploughing on carried the hedgehog/axolotl to the edge after every hit and they lost 3 rounds in 4.
+  - **OutlineEffect skips InstancedMesh**, so tiles get an inverted-hull ink twin instead.
+  - **Headless Chrome pauses rAF in background tabs** — the two-tab net test has to alternate `Page.bringToFront`. A CDP driver (node's built-in WebSocket) is what makes gameplay testable; `--screenshot --timeout` was unreliable with the CDN + GLB loads.
+  - Guest has no client-side prediction yet — fine on the same WiFi, noticeable on relay.
+
 ### bubududu-smash/  🟢
 
 **BUBU DUDU SMASH** — local-WiFi versus platformer for Charlie + Karla. The MacBook is the shared screen and owns the whole simulation; the two iPhones are controllers. One shrinking arena, land on their head before they land on yours, first to 3 rounds. Built 2026-09-22.
@@ -538,7 +555,7 @@ Simple side-scrolling platformer (Bubu & Dudu) — canvas-based game.
 
 | Project | Hosting | Auto-deploy on push? |
 |---|---|---|
-| bubududu-smash, ilaw, kain, sherill (also on Vercel as `drive-with-sherill`), driving, devo, monthsary, tayo, sns-dq, weddingtest, towa-no-yuugure, autoclicker, aircon, pocket-remote, mac-toggle, collaterals, flux, pray, echoes, wedding100, weddingtimeline, horizon, money, anohana, bubududu | GitHub Pages subpath | ✅ |
+| tulak, bubududu-smash, ilaw, kain, sherill (also on Vercel as `drive-with-sherill`), driving, devo, monthsary, tayo, sns-dq, weddingtest, towa-no-yuugure, autoclicker, aircon, pocket-remote, mac-toggle, collaterals, flux, pray, echoes, wedding100, weddingtimeline, horizon, money, anohana, bubududu | GitHub Pages subpath | ✅ |
 | mac-toggle (Mac agent) | root LaunchDaemon `com.chaelri.mactoggle` via `agent/install.sh` | Manual |
 | mac-toggle (menu bar) | per-user LaunchAgent `com.chaelri.mactoggle.menubar` via `menubar/install-menubar.sh` | Manual |
 | claude-usage | per-user LaunchAgent `com.chaelri.claudeusage` via `install.sh` | Manual |
