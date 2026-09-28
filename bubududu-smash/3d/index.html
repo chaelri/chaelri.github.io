@@ -3,39 +3,58 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Yhon Yhon 3D</title>
+<title>Critters 3D</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800;900&display=swap" rel="stylesheet">
 <style>
-  :root { --bg1: #fff4f6; --bg2: #fbd9df; --ink: #5a2f3a; --muted: #a5707c; --chip: rgba(255,255,255,.7); }
+  :root { --bg1: #fff4f6; --bg2: #fbd9df; --ink: #5a2f3a; --muted: #a5707c; --chip: rgba(255,255,255,.7); --on: #f7bcc6; --onInk: #5a2f3a; --shadow: rgba(90,40,55,.14); }
   @media (prefers-color-scheme: dark) {
-    :root { --bg1: #2a1a20; --bg2: #140c10; --ink: #ffd9e0; --muted: #c59aa5; --chip: rgba(255,255,255,.08); }
+    :root:not([data-theme="light"]) { --bg1: #2a1a20; --bg2: #140c10; --ink: #ffd9e0; --muted: #c59aa5; --chip: rgba(255,255,255,.08); --shadow: rgba(0,0,0,.35); }
   }
   html, body { margin: 0; height: 100%; overflow: hidden; }
   body {
     background: radial-gradient(120% 90% at 50% 30%, var(--bg1), var(--bg2));
     color: var(--ink); font-family: Nunito, system-ui, sans-serif;
   }
-  canvas { display: block; touch-action: none; }
-  header { position: fixed; top: 16px; left: 16px; right: 16px; display: flex; align-items: center; gap: 10px; pointer-events: none; }
-  h1 { margin: 0; font-size: 20px; font-weight: 900; letter-spacing: .01em; }
-  .row { position: fixed; bottom: calc(16px + env(safe-area-inset-bottom)); left: 16px; right: 16px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
-  .row a, .row button {
+  canvas { display: block; touch-action: none; position: fixed; inset: 0; width: 100%; height: 100%; }
+  #flat { display: none; }
+  body.flat #flat { display: block; }
+  body.flat #gl { display: none; }
+  body.flat .only3d, body:not(.flat) .only2d { display: none; }
+  header { position: fixed; top: 16px; left: 16px; right: 16px; display: flex; flex-direction: column; gap: 10px; z-index: 1; }
+  .top { display: flex; align-items: baseline; gap: 10px; }
+  h1 { margin: 0; font-size: 20px; font-weight: 900; }
+  small { color: var(--muted); font-weight: 600; font-size: 13px; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .bottom { position: fixed; bottom: calc(16px + env(safe-area-inset-bottom)); left: 16px; right: 16px; justify-content: center; z-index: 1; }
+  button, a.btn {
     font: 800 14px Nunito, system-ui, sans-serif; color: var(--ink); text-decoration: none;
     background: var(--chip); border: 0; border-radius: 999px; padding: 9px 16px; cursor: pointer;
     backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
   }
-  .row button[aria-pressed="true"] { background: #f7bcc6; color: #5a2f3a; }
-  small { color: var(--muted); font-weight: 600; font-size: 13px; }
+  button[aria-pressed="true"] { background: var(--on); color: var(--onInk); }
+  .seg { display: inline-flex; background: var(--chip); border-radius: 999px; padding: 3px; }
+  .seg button { background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; padding: 6px 14px; }
+  .seg button[aria-pressed="true"] { background: var(--on); }
+  #status { position: fixed; inset: 0; display: grid; place-items: center; color: var(--muted); font-weight: 800; pointer-events: none; }
 </style>
 </head>
 <body>
-<header><h1>Yhon Yhon</h1><small>drag to turn · pinch to zoom</small></header>
-<div class="row">
-  <button id="spin" aria-pressed="true">Spin</button>
+<canvas id="gl"></canvas>
+<canvas id="flat"></canvas>
+<div id="status"></div>
+
+<header>
+  <div class="top"><h1 id="title">Yhon Yhon</h1><small class="only3d">drag to turn · pinch to zoom</small></div>
+  <div class="row" id="who"></div>
+  <div><span class="seg" id="mode"><button data-mode="3d">3D</button><button data-mode="2d">2D</button></span></div>
+</header>
+<div class="row bottom">
+  <button id="spin" class="only3d" aria-pressed="true">Spin</button>
+  <button id="walk" class="only2d" aria-pressed="false">Walk</button>
   <button id="alive" aria-pressed="true">Idle</button>
   <button id="hop">Hop</button>
-  <a href="yhon_print.stl" download>Printable STL</a>
+  <a id="stl" class="btn only3d" download>Printable STL</a>
 </div>
 
 <script type="importmap">
@@ -47,122 +66,216 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+import { charById } from "../js/characters.js";
+import { FLAT } from "./flat.js";
 
-const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+// Yhon Yhon's 2D is the game's own drawing; the other three come from flat.js.
+const CRITTERS = {
+  yhon: { name: "Yhon Yhon", draw: charById("yhon").draw, stride: 0.78 },
+  axolotl: { ...FLAT.axolotl, stride: 0.9 },
+  capybara: { ...FLAT.capybara, stride: 1.1 },
+  hedgehog: { ...FLAT.hedgehog, stride: 0.7 },
+};
+
+// ------------------------------------------------------------ state + UI ---
+const [hashWho, hashMode] = location.hash.slice(1).split("/");
+const state = { who: CRITTERS[hashWho] ? hashWho : "yhon", mode: hashMode === "2d" ? "2d" : "3d" };
+
+const who = document.getElementById("who");
+for (const id in CRITTERS) {
+  const b = document.createElement("button");
+  b.textContent = CRITTERS[id].name;
+  b.dataset.id = id;
+  b.onclick = () => { state.who = id; apply(); };
+  who.append(b);
+}
+document.querySelectorAll("#mode button").forEach((b) => (b.onclick = () => { state.mode = b.dataset.mode; apply(); }));
+
+const toggle = (id) => {
+  const b = document.getElementById(id);
+  b.onclick = () => b.setAttribute("aria-pressed", b.getAttribute("aria-pressed") !== "true");
+  return () => b.getAttribute("aria-pressed") === "true";
+};
+const spinning = toggle("spin"), walking = toggle("walk"), idle = toggle("alive");
+let hopAt = -9;
+document.getElementById("hop").onclick = () => { hopAt = clock.getElapsedTime(); };
+
+function apply() {
+  history.replaceState(null, "", `#${state.who}/${state.mode}`);
+  document.getElementById("title").textContent = CRITTERS[state.who].name;
+  document.body.classList.toggle("flat", state.mode === "2d");
+  who.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.id === state.who));
+  document.querySelectorAll("#mode button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.mode === state.mode));
+  document.getElementById("stl").href = `${state.who}_print.stl`;
+  if (state.mode === "3d") show3d(state.who);
+}
+
+// The hop, shared by both views: `rise` runs +1 at take-off, 0 at the top,
+// -1 on landing, and `squash` is a stretch going up and a squash coming down.
+function hop(t) {
+  const h = (t - hopAt) / 0.7;
+  if (h >= 0 && h < 1) {
+    const rise = Math.cos(h * Math.PI);
+    return { air: 1, rise, lift: Math.sin(h * Math.PI), squash: h < 0.12 ? -0.15 * (1 - h / 0.12) : 0 };
+  }
+  if (h >= 1 && h < 1.5) return { air: 0, rise: 0, lift: 0, squash: 0.2 * (1 - (h - 1) / 0.5) };
+  return { air: 0, rise: 0, lift: 0, squash: 0 };
+}
+
+// ------------------------------------------------------------------- 3D ---
+const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById("gl"), antialias: true, alpha: true, preserveDrawingBuffer: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-renderer.setSize(innerWidth, innerHeight);
+renderer.setSize(innerWidth, innerHeight, false);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.NeutralToneMapping;
 renderer.toneMappingExposure = 0.95;
-document.body.prepend(renderer.domElement);
 
 const scene = new THREE.Scene();
-const pmrem = new THREE.PMREMGenerator(renderer);
-scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-
+scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
 const cam = new THREE.PerspectiveCamera(32, innerWidth / innerHeight, 1, 2000);
-// Back the camera off on a tall screen so he fits the width, not just the height.
-const fit = () => {
-  const off = cam.position.clone().sub(ctl.target).setLength(215 / Math.min(1, cam.aspect * 1.15));
-  cam.position.copy(ctl.target).add(off);
-};
 cam.position.set(60, 60, 190);
 const ctl = new OrbitControls(cam, renderer.domElement);
 ctl.enableDamping = true;
-ctl.target.set(0, 30, 0);
+ctl.target.set(0, 32, 0);
 ctl.minDistance = 90; ctl.maxDistance = 600;
 ctl.maxPolarAngle = Math.PI * 0.53;
+ctl.autoRotateSpeed = 1.4;
+// Back the camera off on a tall screen so he fits the width, not just the height.
+const fit = () => {
+  const off = cam.position.clone().sub(ctl.target).setLength(240 / Math.min(1, cam.aspect * 1.15));
+  cam.position.copy(ctl.target).add(off);
+};
 fit();
-ctl.autoRotate = true; ctl.autoRotateSpeed = 1.4;
 
 const sun = new THREE.DirectionalLight(0xffffff, 1.6);
 sun.position.set(60, 140, 90);
 sun.castShadow = true;
 sun.shadow.mapSize.set(1024, 1024);
-Object.assign(sun.shadow.camera, { left: -70, right: 70, top: 70, bottom: -70, near: 10, far: 400 });
+Object.assign(sun.shadow.camera, { left: -80, right: 80, top: 80, bottom: -80, near: 10, far: 400 });
 sun.shadow.radius = 6;
 scene.add(sun, new THREE.HemisphereLight(0xfff0f3, 0xf2b0bc, 0.6));
-
-const floor = new THREE.Mesh(new THREE.CircleGeometry(90, 64), new THREE.ShadowMaterial({ opacity: 0.16 }));
+const floor = new THREE.Mesh(new THREE.CircleGeometry(100, 64), new THREE.ShadowMaterial({ opacity: 0.16 }));
 floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true;
 scene.add(floor);
 
-// Every GLB mesh is baked in model space. Re-centre each on its own middle so
-// the idle animation can scale and turn a part about itself, the way the
+// Each GLB mesh is baked in model space. Re-centre every part on its own
+// middle so the idle animation can turn a part about itself, the way the
 // canvas version does with ctx.translate/rotate per part.
-const rig = new THREE.Group();   // squash/stretch pivot at his feet
-scene.add(rig);
-const P = {};
-new GLTFLoader().load("yhon.glb", (g) => {
-  g.scene.updateMatrixWorld(true);
-  const meshes = [];
-  g.scene.traverse((o) => { if (o.isMesh) meshes.push(o); });
-  for (const o of meshes) {
-    const geo = o.geometry.clone().applyMatrix4(o.matrixWorld);
-    geo.computeBoundingBox();
-    const c = geo.boundingBox.getCenter(new THREE.Vector3());
-    geo.translate(-c.x, -c.y, -c.z);
-    geo.computeVertexNormals();
-    const mat = o.material;
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.position.copy(c); mesh.castShadow = true; mesh.receiveShadow = true;
-    rig.add(mesh);
-    P[o.name] = mesh;
-  }
-  // The inner ear rides on the ear, so it turns about the ear's middle rather than its own.
-  for (const tag of ["L", "R"]) {
-    const ear = P["ear" + tag], inner = P["innerEar" + tag];
-    if (ear && inner) { inner.position.sub(ear.position); ear.add(inner); }
-  }
-});
-
-const flag = (id) => { const b = document.getElementById(id); b.onclick = () => b.setAttribute("aria-pressed", b.getAttribute("aria-pressed") !== "true"); return () => b.getAttribute("aria-pressed") === "true"; };
-const spinning = flag("spin"), idle = flag("alive");
-let hopAt = -9;
-document.getElementById("hop").onclick = () => { hopAt = clock.elapsedTime; };
-
-const clock = new THREE.Clock();
-function frame() {
-  const t = clock.getElapsedTime();
-  ctl.autoRotate = spinning();
-  if (P.body) {
-    const on = idle();
-    // The hop: a squash on take-off, a stretch through the arc, a squash on landing.
-    const h = (t - hopAt) / 0.7;
-    let lift = 0, sq = on ? Math.sin(t * 2.2) * 0.025 : 0, rise = 0;
-    if (h >= 0 && h < 1) {
-      lift = Math.sin(h * Math.PI) * 38;
-      rise = Math.cos(h * Math.PI);
-      sq = h < 0.08 ? 0.18 * (1 - h / 0.08) : h > 0.92 ? 0.2 * ((h - 0.92) / 0.08) : -Math.abs(rise) * 0.14;
-    } else if (h >= 1 && h < 1.35) {
-      sq = 0.2 * (1 - (h - 1) / 0.35);
+const rigs = {};
+const loader = new GLTFLoader();
+let rig = null;
+const status = document.getElementById("status");
+function show3d(id) {
+  if (rig) scene.remove(rig);
+  rig = rigs[id] || null;
+  if (rig) { scene.add(rig); return; }
+  status.textContent = "loading…";
+  loader.load(`${id}.glb`, (g) => {
+    const group = new THREE.Group();
+    group.userData.P = {};
+    g.scene.updateMatrixWorld(true);
+    const meshes = [];
+    g.scene.traverse((o) => { if (o.isMesh) meshes.push(o); });
+    for (const o of meshes) {
+      const geo = o.geometry.clone().applyMatrix4(o.matrixWorld);
+      geo.computeBoundingBox();
+      const c = geo.boundingBox.getCenter(new THREE.Vector3());
+      geo.translate(-c.x, -c.y, -c.z);
+      geo.computeVertexNormals();
+      const mesh = new THREE.Mesh(geo, o.material);
+      mesh.position.copy(c);
+      mesh.userData.rest = c.clone();
+      mesh.castShadow = mesh.receiveShadow = true;
+      group.add(mesh);
+      group.userData.P[o.name] = mesh;
     }
+    // Inner ears and gill tips ride on their parent, so they turn together.
+    const P = group.userData.P;
+    for (const name in P) {
+      const parent = name.startsWith("innerEar") ? P["ear" + name.slice(8)] : name.startsWith("gillTip") ? P["gill" + name.slice(7)] : null;
+      if (parent) { P[name].position.sub(parent.position); parent.add(P[name]); }
+    }
+    rigs[id] = group;
+    status.textContent = "";
+    if (state.mode === "3d" && state.who === id) { if (rig) scene.remove(rig); rig = group; scene.add(group); }
+  }, undefined, () => { status.textContent = `could not load ${id}.glb`; });
+}
+
+function animate3d(t) {
+  ctl.autoRotate = spinning();
+  if (rig) {
+    const on = idle();
+    const j = hop(t);
+    const sq = j.air ? -Math.abs(j.rise) * 0.14 + j.squash : j.squash + (on ? Math.sin(t * 2.2) * 0.025 : 0);
     const k = 1 - sq;
     rig.scale.set(1 / Math.sqrt(k), k, 1 / Math.sqrt(k));
-    rig.position.y = lift;
-
-    // Ears trail the jump, arms sweep up and down with it, the eyes blink on
-    // his own 3.7 s clock — same numbers as drawYhon.
-    for (const [s, tag] of [[-1, "L"], [1, "R"]]) {
-      const ear = -s * (on ? Math.sin(t * 2.2 + 0.6) * 0.05 : 0) + s * rise * 0.35;
-      if (P["ear" + tag]) P["ear" + tag].rotation.z = ear;
-      if (P["arm" + tag]) P["arm" + tag].rotation.z = s * (rise * 0.8 + (on ? Math.sin(t * 2.2) * 0.08 : 0));
-      const c = (t % 3.7) / 3.7;
-      const blink = on && c > 0.965 ? 1 - Math.abs(c - 0.982) / 0.017 : 0;
-      if (P["eye" + tag]) P["eye" + tag].scale.y = 1 - blink * 0.88;
+    rig.position.y = j.lift * 38;
+    const cycle = (t % 3.7) / 3.7;
+    const blink = on && cycle > 0.965 ? 1 - Math.abs(cycle - 0.982) / 0.017 : 0;
+    const P = rig.userData.P;
+    for (const name in P) {
+      const m = P[name], sx = Math.sign(m.userData.rest.x) || 1;
+      if (name.startsWith("eye") && state.who !== "capybara") m.scale.y = 1 - blink * 0.88;
+      else if (/^ear[LR]$/.test(name)) m.rotation.z = sx * (j.rise * 0.35 + (on ? Math.sin(t * 2.2 + 0.6) * 0.05 : 0));
+      else if (/^arm[LR]$/.test(name)) {
+        m.position.y = m.userData.rest.y + j.rise * 4;
+        m.rotation.z = sx * (j.rise * 0.6 + (on ? Math.sin(t * 2.2) * 0.08 : 0));
+      } else if (/^gill[LR]\d$/.test(name)) {
+        m.rotation.z = sx * ((on ? Math.sin(t * 2.6 + +name.slice(5) * 1.3) * 0.08 : 0) + j.rise * 0.3);
+      }
     }
   }
   ctl.update();
   renderer.render(scene, cam);
+}
+
+// ------------------------------------------------------------------- 2D ---
+const flat = document.getElementById("flat");
+const fx = flat.getContext("2d");
+let walkDist = 0, still = 0, last = 0;
+function animate2d(t) {
+  const dpr = Math.min(devicePixelRatio, 2);
+  const W = innerWidth, H = innerHeight;
+  if (flat.width !== Math.round(W * dpr) || flat.height !== Math.round(H * dpr)) {
+    flat.width = Math.round(W * dpr); flat.height = Math.round(H * dpr);
+  }
+  fx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  fx.clearRect(0, 0, W, H);
+  const dt = Math.min(0.05, t - last);
+  const on = idle();
+  if (on) still += dt;
+  const c = CRITTERS[state.who];
+  const size = Math.min(W / 2.3, H / 3.2);
+  const run = walking() ? 1 : 0;
+  walkDist += run * dt * 2.2;
+  const j = hop(t);
+  const gx = W / 2, gy = H * 0.64;
+  // ground shadow, shrinking as he rises
+  fx.fillStyle = getComputedStyle(document.body).getPropertyValue("--shadow");
+  fx.beginPath();
+  fx.ellipse(gx, gy + 2, size * 0.55 * (1 - j.lift * 0.35), size * 0.08 * (1 - j.lift * 0.35), 0, 0, Math.PI * 2);
+  fx.fill();
+  c.draw(fx, gx, gy - j.lift * size * 0.75, size, size, {
+    face: 1, run, air: j.air, squash: j.squash, rise: j.rise, t: on ? still : 0,
+    walk: walkDist, stride: c.stride,
+  });
+}
+
+// ----------------------------------------------------------------- loop ---
+const clock = new THREE.Clock();
+function frame() {
+  const t = clock.getElapsedTime();
+  if (state.mode === "3d") animate3d(t); else animate2d(t);
+  last = t;
   requestAnimationFrame(frame);
 }
-frame();
-
 addEventListener("resize", () => {
   cam.aspect = innerWidth / innerHeight; cam.updateProjectionMatrix(); fit();
-  renderer.setSize(innerWidth, innerHeight);
+  renderer.setSize(innerWidth, innerHeight, false);
 });
+apply();
+frame();
 </script>
 </body>
 </html>

@@ -1,0 +1,61 @@
+{
+  "_": "Proportions for the new critters, read by BOTH build.py (3D) and flat.js (2D). Horizontal numbers are fractions of body WIDTH, vertical ones of body HEIGHT, from the body centre with y pointing DOWN (canvas). Sizes are full width/height, not radii. Yhon Yhon's own table stays in js/characters.js.",
+
+  "axolotl": {
+    "name": "Axolotl",
+    "col": {
+      "body": "#d9c9f6", "gill": "#ee86b6", "gillTip": "#f7aecf", "mouth": "#5d3f78",
+      "eye": "#1d1426", "blush": "#f3aacb", "foot": "#cbb8f0", "belly": "#e8def9", "tail": "#cdbaf2"
+    },
+    "aspect": 1.18,
+    "eyeAt": 0.25, "eyeY": -0.03, "eyeR": 0.036,
+    "smile": { "w": 0.2, "y": 0.12, "sag": 0.055, "thick": 0.02 },
+    "gills": [
+      { "x": 0.36, "y": -0.3, "angle": -1.05, "len": 0.23, "thick": 0.085 },
+      { "x": 0.43, "y": -0.18, "angle": -0.5, "len": 0.25, "thick": 0.09 },
+      { "x": 0.47, "y": -0.04, "angle": 0.02, "len": 0.22, "thick": 0.085 }
+    ],
+    "belly": { "y": 0.24, "size": [0.52, 0.34] },
+    "blushAt": 0.33, "blushY": 0.08, "blushSize": [0.12, 0.075],
+    "armAt": 0.46, "armY": 0.2, "armSize": [0.1, 0.13],
+    "footAt": 0.21, "footY": 0.47, "footSize": [0.15, 0.09],
+    "tail": { "len": 0.45, "h": 0.3 }
+  },
+
+  "capybara": {
+    "name": "Capybara",
+    "col": {
+      "body": "#c49468", "muzzle": "#b07f55", "nose": "#4a3222", "ear": "#a97a4f",
+      "innerEar": "#855a39", "foot": "#9f7049", "eye": "#2b1d14", "blush": "#dfa084",
+      "orange": "#f59a2c", "leaf": "#6fae4b"
+    },
+    "aspect": 1.22,
+    "earAt": 0.3, "earTop": -0.4, "earSize": [0.12, 0.11], "innerEarSize": [0.06, 0.055],
+    "eyeAt": 0.2, "eyeY": -0.1, "eyeW": 0.1, "eyeThick": 0.022,
+    "muzzle": { "y": 0.16, "size": [0.52, 0.34] },
+    "nostrilAt": 0.07, "nostrilY": 0.07, "nostrilSize": [0.035, 0.07],
+    "blushAt": 0.36, "blushY": 0.05, "blushSize": [0.12, 0.07],
+    "armAt": 0.5, "armY": 0.2, "armSize": [0.1, 0.14],
+    "footAt": 0.25, "footY": 0.47, "footSize": [0.17, 0.09],
+    "orange": { "x": 0.08, "r": 0.1 }
+  },
+
+  "hedgehog": {
+    "name": "Hedgehog",
+    "col": {
+      "spikes": "#8b6a4f", "spikeTip": "#b79778", "face": "#f4dfc4", "nose": "#2d2019",
+      "snout": "#f8e8d3", "ear": "#e7c9a6", "innerEar": "#d6a487", "foot": "#d9b48f",
+      "eye": "#1c140f", "blush": "#f1a99b"
+    },
+    "aspect": 1.1,
+    "spikes": { "count": 26, "len": 0.2, "from": -2.55, "to": 2.55 },
+    "face": { "y": 0.1, "size": [0.76, 0.72] },
+    "earAt": 0.27, "earY": -0.28, "earSize": [0.13, 0.11], "innerEarSize": [0.065, 0.055],
+    "eyeAt": 0.15, "eyeY": -0.02, "eyeR": 0.036,
+    "snout": { "y": 0.15, "size": [0.24, 0.15] },
+    "noseY": 0.14, "noseSize": [0.1, 0.075],
+    "blushAt": 0.27, "blushY": 0.13, "blushSize": [0.11, 0.065],
+    "armAt": 0.38, "armY": 0.26, "armSize": [0.1, 0.12],
+    "footAt": 0.2, "footY": 0.47, "footSize": [0.15, 0.09]
+  }
+}
