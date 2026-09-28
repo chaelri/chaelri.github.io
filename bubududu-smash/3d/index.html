@@ -5,47 +5,62 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Critters 3D</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@700;900&display=swap" rel="stylesheet">
 <style>
-  :root { --bg1: #fff4f6; --bg2: #fbd9df; --ink: #5a2f3a; --muted: #a5707c; --chip: rgba(255,255,255,.7); --on: #f7bcc6; --onInk: #5a2f3a; --shadow: rgba(90,40,55,.14); }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) { --bg1: #2a1a20; --bg2: #140c10; --ink: #ffd9e0; --muted: #c59aa5; --chip: rgba(255,255,255,.08); --shadow: rgba(0,0,0,.35); }
-  }
+  /* Each critter sets --c1/--c2/--deep from its theme in critters.json. */
+  :root { --c1: #ff5c8a; --c2: #ff9ab3; --deep: #7a1638; --ink: #2a1420; }
   html, body { margin: 0; height: 100%; overflow: hidden; }
-  body {
-    background: radial-gradient(120% 90% at 50% 30%, var(--bg1), var(--bg2));
-    color: var(--ink); font-family: Nunito, system-ui, sans-serif;
+  body { background: var(--c1); color: #fff; font-family: Nunito, system-ui, sans-serif; }
+  /* The sunburst: two theme colours in alternating rays, turning slowly, with
+     a dark vignette so the critter in the middle is the brightest thing. */
+  #burst {
+    position: fixed; left: 50%; top: 56%; width: 220vmax; height: 220vmax; margin: -110vmax 0 0 -110vmax;
+    background: repeating-conic-gradient(from 0deg, var(--c1) 0deg 9deg, var(--c2) 9deg 18deg);
+    animation: turn 90s linear infinite; transition: background .4s;
   }
+  #vignette { position: fixed; inset: 0; background: radial-gradient(circle at 50% 56%, transparent 22%, color-mix(in srgb, var(--deep) 75%, transparent) 95%); }
+  @keyframes turn { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { #burst { animation: none; } }
   canvas { display: block; touch-action: none; position: fixed; inset: 0; width: 100%; height: 100%; }
   #flat { display: none; }
   body.flat #flat { display: block; }
   body.flat #gl { display: none; }
   body.flat .only3d, body:not(.flat) .only2d { display: none; }
-  header { position: fixed; top: 16px; left: 16px; right: 16px; display: flex; flex-direction: column; gap: 10px; z-index: 1; }
-  .top { display: flex; align-items: baseline; gap: 10px; }
-  h1 { margin: 0; font-size: 20px; font-weight: 900; }
-  small { color: var(--muted); font-weight: 600; font-size: 13px; }
+  header { position: fixed; top: 16px; left: 16px; right: 16px; display: flex; flex-direction: column; gap: 12px; z-index: 1; }
+  .top { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  h1 {
+    margin: 0; font: 400 34px/1 "Lilita One", system-ui, sans-serif; letter-spacing: .01em; color: #fff;
+    -webkit-text-stroke: 7px var(--ink); paint-order: stroke fill; text-shadow: 0 5px 0 var(--ink);
+    transform: rotate(-2deg); transform-origin: left;
+  }
+  .tag {
+    font: 400 15px "Lilita One", system-ui, sans-serif; background: var(--ink); color: var(--c2);
+    padding: 3px 10px 4px; border-radius: 8px; transform: rotate(-2deg);
+  }
   .row { display: flex; flex-wrap: wrap; gap: 8px; }
   .bottom { position: fixed; bottom: calc(16px + env(safe-area-inset-bottom)); left: 16px; right: 16px; justify-content: center; z-index: 1; }
+  /* Chunky game buttons: thick ink border and a hard drop shadow that the
+     button sinks into when pressed. */
   button, a.btn {
-    font: 800 14px Nunito, system-ui, sans-serif; color: var(--ink); text-decoration: none;
-    background: var(--chip); border: 0; border-radius: 999px; padding: 9px 16px; cursor: pointer;
-    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    font: 400 16px "Lilita One", system-ui, sans-serif; letter-spacing: .02em; color: var(--ink); text-decoration: none;
+    background: #fff; border: 3px solid var(--ink); border-radius: 14px; padding: 7px 14px; cursor: pointer;
+    box-shadow: 0 4px 0 var(--ink); transition: transform .06s, box-shadow .06s;
   }
-  button[aria-pressed="true"] { background: var(--on); color: var(--onInk); }
-  .seg { display: inline-flex; background: var(--chip); border-radius: 999px; padding: 3px; }
-  .seg button { background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; padding: 6px 14px; }
-  .seg button[aria-pressed="true"] { background: var(--on); }
-  #status { position: fixed; inset: 0; display: grid; place-items: center; color: var(--muted); font-weight: 800; pointer-events: none; }
+  button:active, a.btn:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
+  button[aria-pressed="true"] { background: #ffd23f; }
+  .seg { display: inline-flex; gap: 6px; }
+  #status { position: fixed; inset: 0; display: grid; place-items: center; color: #fff; font: 400 20px "Lilita One", sans-serif; pointer-events: none; -webkit-text-stroke: 4px var(--ink); paint-order: stroke fill; }
 </style>
 </head>
 <body>
+<div id="burst"></div>
+<div id="vignette"></div>
 <canvas id="gl"></canvas>
 <canvas id="flat"></canvas>
 <div id="status"></div>
 
 <header>
-  <div class="top"><h1 id="title">Yhon Yhon</h1><small class="only3d">drag to turn · pinch to zoom</small></div>
+  <div class="top"><h1 id="title">Yhon Yhon</h1><span class="tag" id="tag"></span></div>
   <div class="row" id="who"></div>
   <div><span class="seg" id="mode"><button data-mode="3d">3D</button><button data-mode="2d">2D</button></span></div>
 </header>
@@ -53,8 +68,8 @@
   <button id="spin" class="only3d" aria-pressed="true">Spin</button>
   <button id="walk" class="only2d" aria-pressed="false">Walk</button>
   <button id="alive" aria-pressed="true">Idle</button>
-  <button id="hop">Hop</button>
-  <a id="stl" class="btn only3d" download>Printable STL</a>
+  <button id="hop">Hop!</button>
+  <a id="stl" class="btn only3d" download>STL</a>
 </div>
 
 <script type="importmap">
@@ -66,12 +81,13 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
-import { charById } from "../js/characters.js";
+import { OutlineEffect } from "three/addons/effects/OutlineEffect.js";
 import { FLAT } from "./flat.js";
 
-// Yhon Yhon's 2D is the game's own drawing; the other three come from flat.js.
+// All four 2D drawings come from flat.js. Yhon Yhon's there is a styled
+// cousin of the game's drawYhon; the game's own is untouched.
 const CRITTERS = {
-  yhon: { name: "Yhon Yhon", draw: charById("yhon").draw, stride: 0.78 },
+  yhon: { ...FLAT.yhon, stride: 0.78 },
   axolotl: { ...FLAT.axolotl, stride: 0.9 },
   capybara: { ...FLAT.capybara, stride: 1.1 },
   hedgehog: { ...FLAT.hedgehog, stride: 0.7 },
@@ -102,7 +118,11 @@ document.getElementById("hop").onclick = () => { hopAt = clock.getElapsedTime();
 
 function apply() {
   history.replaceState(null, "", `#${state.who}/${state.mode}`);
-  document.getElementById("title").textContent = CRITTERS[state.who].name;
+  const c = CRITTERS[state.who];
+  document.getElementById("title").textContent = c.name;
+  document.getElementById("tag").textContent = c.tag;
+  const root = document.documentElement.style;
+  [["--c1", 0], ["--c2", 1], ["--deep", 2]].forEach(([k, i]) => root.setProperty(k, c.theme[i]));
   document.body.classList.toggle("flat", state.mode === "2d");
   who.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.id === state.who));
   document.querySelectorAll("#mode button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.mode === state.mode));
@@ -129,10 +149,15 @@ renderer.setSize(innerWidth, innerHeight, false);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.NeutralToneMapping;
-renderer.toneMappingExposure = 0.95;
+renderer.toneMappingExposure = 1.0;
+// Cartoon ink lines round every part — the one change that most moves it
+// from "plastic toy render" toward game art.
+const effect = new OutlineEffect(renderer, { defaultThickness: 0.006, defaultColor: [0.16, 0.08, 0.12] });
+const NO_OUTLINE = new Set(["blush", "belly", "glint", "tongue", "lens"]);
 
 const scene = new THREE.Scene();
 scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.45; // less grey fill, so the colours stay saturated
 const cam = new THREE.PerspectiveCamera(32, innerWidth / innerHeight, 1, 2000);
 cam.position.set(60, 60, 190);
 const ctl = new OrbitControls(cam, renderer.domElement);
@@ -148,15 +173,20 @@ const fit = () => {
 };
 fit();
 
-const sun = new THREE.DirectionalLight(0xffffff, 1.6);
+const sun = new THREE.DirectionalLight(0xfff2e0, 2.3);
 sun.position.set(60, 140, 90);
 sun.castShadow = true;
 sun.shadow.mapSize.set(1024, 1024);
 Object.assign(sun.shadow.camera, { left: -80, right: 80, top: 80, bottom: -80, near: 10, far: 400 });
 sun.shadow.radius = 6;
-scene.add(sun, new THREE.HemisphereLight(0xfff0f3, 0xf2b0bc, 0.6));
+// A cool rim light from behind picks the silhouette out of the busy background.
+const rim = new THREE.DirectionalLight(0xdff4ff, 2.2);
+rim.position.set(-80, 90, -140);
+scene.add(sun, rim, new THREE.HemisphereLight(0xffffff, 0x886070, 0.9));
 const floor = new THREE.Mesh(new THREE.CircleGeometry(100, 64), new THREE.ShadowMaterial({ opacity: 0.16 }));
 floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true;
+floor.material.userData.outlineParameters = { visible: false };
+floor.material.opacity = 0.28;
 scene.add(floor);
 
 // Each GLB mesh is baked in model space. Re-centre every part on its own
@@ -183,6 +213,7 @@ function show3d(id) {
       const c = geo.boundingBox.getCenter(new THREE.Vector3());
       geo.translate(-c.x, -c.y, -c.z);
       geo.computeVertexNormals();
+      if (NO_OUTLINE.has(o.material.name)) o.material.userData.outlineParameters = { visible: false };
       const mesh = new THREE.Mesh(geo, o.material);
       mesh.position.copy(c);
       mesh.userData.rest = c.clone();
@@ -216,7 +247,7 @@ function animate3d(t) {
     const P = rig.userData.P;
     for (const name in P) {
       const m = P[name], sx = Math.sign(m.userData.rest.x) || 1;
-      if (name.startsWith("eye") && state.who !== "capybara") m.scale.y = 1 - blink * 0.88;
+      if ((name.startsWith("eye") || name.startsWith("glint")) && state.who !== "capybara") m.scale.y = 1 - blink * 0.88;
       else if (/^ear[LR]$/.test(name)) m.rotation.z = sx * (j.rise * 0.35 + (on ? Math.sin(t * 2.2 + 0.6) * 0.05 : 0));
       else if (/^arm[LR]$/.test(name)) {
         m.position.y = m.userData.rest.y + j.rise * 4;
@@ -227,7 +258,7 @@ function animate3d(t) {
     }
   }
   ctl.update();
-  renderer.render(scene, cam);
+  effect.render(scene, cam);
 }
 
 // ------------------------------------------------------------------- 2D ---
@@ -252,7 +283,7 @@ function animate2d(t) {
   const j = hop(t);
   const gx = W / 2, gy = H * 0.64;
   // ground shadow, shrinking as he rises
-  fx.fillStyle = getComputedStyle(document.body).getPropertyValue("--shadow");
+  fx.fillStyle = "rgba(42, 20, 32, 0.3)";
   fx.beginPath();
   fx.ellipse(gx, gy + 2, size * 0.55 * (1 - j.lift * 0.35), size * 0.08 * (1 - j.lift * 0.35), 0, 0, Math.PI * 2);
   fx.fill();
