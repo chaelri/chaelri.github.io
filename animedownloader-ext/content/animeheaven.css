@@ -1813,3 +1813,77 @@ html.adx-posters .similarimg .coverimg:not([data-adx-poster="1"]):not([data-adx-
 }
 /* phones are always posters, so the toggle has nothing to do there */
 @media (max-width: 640px) { .adx-layout { display: none; } }
+
+/* ── Anime4K layer over the player (animeheaven-upscale.js) ───────── */
+/* It takes no pointer events: the <video> underneath keeps every click. */
+/* While the native controls are up, the canvas fades out toward the bottom
+   rather than stopping at a hard line, so the controls' own gradient (drawn
+   on the <video> underneath) shows through and the burned-in subtitles have
+   no seam. Registered so the fade can animate with the controls. */
+@property --adx-a4k-fade {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+.adx-a4k {
+  position: absolute;
+  display: block;
+  pointer-events: none;
+  opacity: 0;
+  --adx-a4k-fade: 0px;
+  -webkit-mask-image: linear-gradient(to top, transparent var(--adx-a4k-fade), #000 calc(var(--adx-a4k-fade) * 2.8));
+  mask-image: linear-gradient(to top, transparent var(--adx-a4k-fade), #000 calc(var(--adx-a4k-fade) * 2.8));
+  transition: --adx-a4k-fade 0.3s ease;
+}
+.adx-a4k.is-live { opacity: 1; }
+.adx-a4k-ctl .adx-a4k { --adx-a4k-fade: 48px; }
+.adx-a4k-bar {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+  display: flex;
+  gap: 6px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.adx-a4k-ctl .adx-a4k-bar { opacity: 1; }
+.adx-a4k-chip,
+.adx-a4k-fs {
+  height: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.55);
+  color: rgba(255, 255, 255, 0.72);
+  cursor: pointer;
+}
+.adx-a4k-chip {
+  padding: 0 11px;
+  font: 600 11.5px var(--ah-font);
+  letter-spacing: 0.3px;
+}
+.adx-a4k-fs[hidden] { display: none; }
+.adx-a4k-fs {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  padding: 0;
+}
+.adx-a4k-fs svg { display: block; width: 14px; height: 14px; }
+.adx-a4k-chip:focus,
+.adx-a4k-fs:focus { outline: none; }
+.adx-a4k-chip:focus-visible,
+.adx-a4k-fs:focus-visible { outline: 2px solid rgba(255, 255, 255, 0.6); outline-offset: 2px; }
+.adx-a4k-fs:hover,
+.adx-a4k-chip:hover { color: #fff; border-color: rgba(255, 255, 255, 0.4); }
+.adx-a4k-chip.is-on { color: #fff; border-color: var(--ah-red); }
+.adx-a4k-chip:disabled { cursor: default; }
+/* fullscreen is on the player box, so the video has to fill it */
+.info2:has(> video):fullscreen { border-radius: 0; }
+.info2:has(> video):fullscreen > video {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  object-fit: contain;
+}

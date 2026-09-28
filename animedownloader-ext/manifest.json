@@ -92,6 +92,11 @@
       "run_at": "document_end"
     },
     {
+      "matches": ["*://animeheaven.me/gate.php*", "*://*.animeheaven.me/gate.php*"],
+      "js": ["vendor/anime4k-webgpu.js", "content/animeheaven-upscale.js"],
+      "run_at": "document_end"
+    },
+    {
       "matches": ["*://*.livechart.me/*"],
       "js": ["content/livechart.js"],
       "run_at": "document_idle"
