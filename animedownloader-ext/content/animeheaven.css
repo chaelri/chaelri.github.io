@@ -1848,35 +1848,42 @@ html.adx-posters .similarimg .coverimg:not([data-adx-poster="1"]):not([data-adx-
   transition: opacity 0.2s ease;
 }
 .adx-a4k-ctl .adx-a4k-bar { opacity: 1; }
-.adx-a4k-chip,
-.adx-a4k-fs {
+.adx-a4k-chip {
   height: 28px;
+  padding: 0 11px;
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 999px;
   background: rgba(0, 0, 0, 0.55);
   color: rgba(255, 255, 255, 0.72);
-  cursor: pointer;
-}
-.adx-a4k-chip {
-  padding: 0 11px;
   font: 600 11.5px var(--ah-font);
   letter-spacing: 0.3px;
+  cursor: pointer;
 }
-.adx-a4k-fs[hidden] { display: none; }
-.adx-a4k-fs {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  padding: 0;
-}
-.adx-a4k-fs svg { display: block; width: 14px; height: 14px; }
-.adx-a4k-chip:focus,
-.adx-a4k-fs:focus { outline: none; }
-.adx-a4k-chip:focus-visible,
-.adx-a4k-fs:focus-visible { outline: 2px solid rgba(255, 255, 255, 0.6); outline-offset: 2px; }
-.adx-a4k-fs:hover,
 .adx-a4k-chip:hover { color: #fff; border-color: rgba(255, 255, 255, 0.4); }
+.adx-a4k-chip:focus { outline: none; }
+.adx-a4k-chip:focus-visible { outline: 2px solid rgba(255, 255, 255, 0.6); outline-offset: 2px; }
+/* Exactly over Chrome's own fullscreen button (centre 72px from the right,
+   48px up, lined up on screen; the controls are anchored to the right edge at any width). It only
+   takes clicks while the controls are showing; otherwise that spot is video. */
+.adx-a4k-fshit {
+  position: absolute;
+  right: 54px;
+  bottom: 30px;
+  z-index: 2;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  cursor: pointer;
+  pointer-events: none;
+}
+.adx-a4k-fshit[hidden] { display: none; }
+.adx-a4k-ctl .adx-a4k-fshit { pointer-events: auto; }
+/* the cover hides the native hover circle, so it draws its own */
+.adx-a4k-fshit:hover { background: rgba(255, 255, 255, 0.12); }
+.adx-a4k-fshit:focus { outline: none; }
 .adx-a4k-chip.is-on { color: #fff; border-color: var(--ah-red); }
 .adx-a4k-chip:disabled { cursor: default; }
 /* fullscreen is on the player box, so the video has to fill it */

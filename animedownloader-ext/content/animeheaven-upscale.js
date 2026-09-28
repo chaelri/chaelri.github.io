@@ -9,8 +9,8 @@
 // The canvas takes no pointer events, so clicks, double-clicks, keys and the
 // native controls still belong to the <video>. While the controls are up, the
 // canvas fades out toward the bottom so they show through. Fullscreen has to
-// take the video's box, or the canvas would be left behind, so while
-// enhancing the native fullscreen button gives way to one of ours (plus
+// take the video's box, or the canvas would be left behind, so a transparent
+// button over the native fullscreen button takes its clicks (plus
 // double-click and F).
 //
 // Reading the frames needs CORS: the <video> is crossOrigin='anonymous' and
@@ -41,28 +41,23 @@
   const chip = document.createElement("button");
   chip.type = "button";
   chip.className = "adx-a4k-chip";
-  const fsBtn = document.createElement("button");
-  fsBtn.type = "button";
-  fsBtn.className = "adx-a4k-fs";
-  fsBtn.title = "Fullscreen (F)";
-  // four frame corners, the usual fullscreen glyph (the page has no icon font)
-  fsBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
-    '<path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg>';
-  fsBtn.setAttribute("aria-label", "Fullscreen");
-  bar.append(chip, fsBtn);
-  box.append(canvas, bar);
+  // Chrome never tells the page about clicks on its own controls, so its
+  // fullscreen button can only take the bare <video> fullscreen, leaving the
+  // canvas behind. A transparent button sits exactly over it and catches the
+  // click first: the native one stays where it is, but the click is ours.
+  const fsHit = document.createElement("button");
+  fsHit.type = "button";
+  fsHit.className = "adx-a4k-fshit";
+  fsHit.setAttribute("aria-label", "Fullscreen");
+  bar.append(chip);
+  box.append(canvas, bar, fsHit);
 
   let broken = false;
   const enhancing = () => mode !== "off" && !broken;
   const paintChip = (note) => {
     chip.textContent = note || LABEL[mode];
     chip.classList.toggle("is-on", mode !== "off" && !note);
-    // Chrome never tells the page about clicks on its own controls, so the
-    // native fullscreen button can only take the bare <video> fullscreen,
-    // leaving the canvas behind. While enhancing, it is swapped for ours.
-    if (enhancing()) vid.setAttribute("controlslist", "nofullscreen");
-    else vid.removeAttribute("controlslist");
-    fsBtn.hidden = !enhancing();
+    fsHit.hidden = !enhancing();
   };
   paintChip();
 
@@ -257,15 +252,15 @@
   setControls(vid.paused);
 
   // ── fullscreen belongs to the box, so the canvas goes with the video ──
-  // Our button, double-click and F are all real page events, so they carry
-  // the user activation a fullscreen request needs.
+  // The cover button, double-click and F are all real page events, so they
+  // carry the user activation a fullscreen request needs.
   const toggleFullscreen = () => {
     if (document.fullscreenElement) document.exitFullscreen();
     else box.requestFullscreen().catch((e) => console.warn("[adx a4k] fullscreen", e));
   };
-  fsBtn.addEventListener("click", (e) => {
+  fsHit.addEventListener("click", (e) => {
     e.stopPropagation();
-    fsBtn.blur(); // Space and the arrows go back to the video
+    fsHit.blur(); // Space and the arrows go back to the video
     toggleFullscreen();
   });
   // double-click: take it before the <video>'s own default handler
