@@ -90,6 +90,17 @@ Photo-first food log for Charlie & Karla — snap the plate, Gemini reads it, an
   - **`_selftest.html`** steps all three levels 420 frames each and prints errors + per-phase timings; title reads `SELFTEST OK`/`FAIL` so it greps from headless Chrome. The real game cannot be screenshotted headlessly — its rAF loop never lets `--virtual-time-budget` expire, which is why the harness exists.
 - **Full docs:** See `knowledge/ilaw/SUMMARY.md` and `ilaw/README.md`.
 
+### critter-heist/  🟢
+
+**CRITTER HEIST** — portrait mobile 3D 1v1 "steal-and-collect" game, built 2026-09-29 after Charlie called Critter Clash's mechanics dull and asked to restart from what's trending (Roblox "Steal a ___" games — Steal An Egg ~1.3M concurrent; Grow a Garden mutations; How to Fish chaos; unboxing). Design doc (read-only artifact): https://claude.ai/artifact/Ug4rigcVZysVqBm73pkLwF
+
+- **The game:** one island; your walled base at the bottom, theirs at the top, a parade of critters walking across the middle with prices. Buy critters, carry them home, put them on your 6 pedestals where they earn coins every second; walk into their base and steal theirs; touch a thief carrying your critter to send it home and daze them; LOCK your door (15 s, 45 s recharge — keeps them out, never traps a thief inside). Placing on an occupied pedestal swaps it and sells the old one for half. 4-minute match; richest base (coins + critter worth) wins. Two surprises per match: Golden Hour, Brownout, Mystery Box, Ulan.
+- **Critters:** species are looks + one quirk (Yhon can't be grabbed 3 s after placing, Hedgehog slows his carrier, Axolotl slips free after 7 s, Capybara +20% to neighbours); rarity Common/Rare/Epic/Legendary + a Rainbow mutation (x3 price, x5 income). **Critterdex** 4 species x 5 = 20 entries in `localStorage["critterheist.dex"]`, NEW! toast the first time you place one.
+- **Tech:** vanilla ES modules, three.js 0.169 import map + `OutlineEffect`, critter GLBs from `../bubududu-smash/3d/`, players are procedural beans in seat colours (blue vs ORANGE — pink blended with Yhon), WebRTC via `js/net.js`, WebAudio sfx.
+- **Entry:** `js/sim.js` (pure; walls as boxes, door box solid only for the other player while locked and only from outside), `js/bots.js`, `js/render.js`, `js/input.js` (floating stick + context button + Lock, from tulak), `js/main.js`, `js/config.js`, `_selftest.mjs`. `?autobot=1` lets a bot play your side for headless demos.
+- **Deploy:** GitHub Pages `/critter-heist/`. Not linked from the root hub. RTDB `critterheist/rooms/<CODE>`.
+- **Found by the self-test:** a full base (6 pedestals) left nothing to do — fixed with swap-and-sell; bots pressing "place" beside the wrong pedestal sold their best critters (~58 sales/match) — they now only place on the pedestal they came for; instant-reacting bot defence caught 9 thieves in 10 — bots now take a moment to notice. Guest stick must be flipped (its camera looks from the other end).
+
 ### critter-clash/  🟢
 
 **CRITTER CLASH** — portrait mobile 3D 1v1 mini auto-battler using the bubududu-smash/3d critters, with unlocks. Built 2026-09-28 after two rejected designs the same day: `tulak/` (4-player bump arena — "name and mechanics suck") and Fort Fling (build + slingshot, never shipped). What Charlie asked for: few mechanics, a PREP stage then a FIGHT stage, "nagagamit yung 4 na character same player", and the feeling of "uy naunlock ko na si ganto".
@@ -553,7 +564,7 @@ Simple side-scrolling platformer (Bubu & Dudu) — canvas-based game.
 
 | Project | Hosting | Auto-deploy on push? |
 |---|---|---|
-| critter-clash, bubududu-smash, ilaw, kain, sherill (also on Vercel as `drive-with-sherill`), driving, devo, monthsary, tayo, sns-dq, weddingtest, towa-no-yuugure, autoclicker, aircon, pocket-remote, mac-toggle, collaterals, flux, pray, echoes, wedding100, weddingtimeline, horizon, money, anohana, bubududu | GitHub Pages subpath | ✅ |
+| critter-heist, critter-clash, bubududu-smash, ilaw, kain, sherill (also on Vercel as `drive-with-sherill`), driving, devo, monthsary, tayo, sns-dq, weddingtest, towa-no-yuugure, autoclicker, aircon, pocket-remote, mac-toggle, collaterals, flux, pray, echoes, wedding100, weddingtimeline, horizon, money, anohana, bubududu | GitHub Pages subpath | ✅ |
 | mac-toggle (Mac agent) | root LaunchDaemon `com.chaelri.mactoggle` via `agent/install.sh` | Manual |
 | mac-toggle (menu bar) | per-user LaunchAgent `com.chaelri.mactoggle.menubar` via `menubar/install-menubar.sh` | Manual |
 | claude-usage | per-user LaunchAgent `com.chaelri.claudeusage` via `install.sh` | Manual |

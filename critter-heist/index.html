@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#b77cff">
+<title>CRITTER HEIST</title>
+<link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<style>:root { --c1: #9a6bff; --c2: #c3a4ff; --deep: #2b1266; }</style>
+</head>
+<body>
+<div id="burst"></div>
+<div id="vignette"></div>
+<canvas id="gl"></canvas>
+<div id="overlay"></div>
+
+<!-- MENU ------------------------------------------------------------------>
+<section id="menu" class="screen">
+  <h1 class="logo">CRITTER<br>HEIST</h1>
+  <p class="sub">Collect critters. Steal theirs.</p>
+  <div class="spacer"></div>
+  <div class="card">
+    <div class="dexHead">Critterdex <small id="dexCount">0 / 20</small></div>
+    <div class="dex" id="dex"></div>
+  </div>
+  <label class="nameRow">Name <input id="name" maxlength="12" autocomplete="off" spellcheck="false"></label>
+  <div class="menuBtns">
+    <button class="big go" id="solo">Play vs bot</button>
+    <button class="big" id="host">Play with a friend</button>
+    <button class="big ghost" id="join">Join a game</button>
+  </div>
+</section>
+
+<!-- HOST LOBBY ------------------------------------------------------------>
+<section id="lobby" class="screen hidden">
+  <h2>Your room</h2>
+  <div class="card center">
+    <div class="code" id="lobbyCode">····</div>
+    <div id="qr"></div>
+    <p class="hint">On the other phone: scan this, or open CRITTER HEIST and tap <b>Join a game</b>.</p>
+  </div>
+  <div class="card"><ol class="seats" id="lobbySeats"></ol></div>
+  <div class="menuBtns">
+    <button class="big go" id="lobbyStart">Start</button>
+    <button class="big ghost" id="lobbyBack">Back</button>
+  </div>
+</section>
+
+<!-- JOIN ------------------------------------------------------------------>
+<section id="joinScreen" class="screen hidden">
+  <h2>Join a game</h2>
+  <div class="card center">
+    <input id="joinCode" class="codeInput" maxlength="4" placeholder="CODE" autocomplete="off" autocapitalize="characters" spellcheck="false">
+    <p class="hint" id="joinStatus">Type the code on the host's phone.</p>
+  </div>
+  <div class="menuBtns">
+    <button class="big go" id="joinGo">Join</button>
+    <button class="big ghost" id="joinBack">Back</button>
+  </div>
+</section>
+
+<!-- HUD ------------------------------------------------------------------->
+<section id="hud" class="hidden">
+  <div class="topbar">
+    <div class="wallet"><span class="coin"></span><span id="coins">30</span></div>
+    <div class="clock" id="clock"><small>TIME</small><span id="time">4:00</span></div>
+    <div class="worth">
+      <div class="lbl"><b id="worthMe">0</b><span>WORTH</span><b id="worthThem">0</b></div>
+      <div class="meter"><i id="meter" style="width:50%"></i></div>
+    </div>
+  </div>
+  <div class="eventChip hidden" id="eventChip"></div>
+  <div class="net hidden" id="netPill"></div>
+  <div class="banner" id="banner"></div>
+  <div id="stickZone"></div>
+  <div id="stickBase"><div id="stickKnob"></div></div>
+  <button class="pad lock" id="lockBtn"><span>LOCK</span></button>
+  <button class="pad act off" id="actBtn"><span id="actLabel">—</span></button>
+</section>
+
+<!-- RESULTS --------------------------------------------------------------->
+<section id="over" class="screen hidden">
+  <h1 class="logo small" id="overTitle">YOU WIN!</h1>
+  <ol class="podium" id="podium"></ol>
+  <div class="card center" id="overStats"></div>
+  <div class="menuBtns">
+    <button class="big go" id="again">Rematch</button>
+    <button class="big ghost" id="toMenu">Menu</button>
+  </div>
+</section>
+
+<div id="loading">Loading…</div>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+               "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/" } }
+</script>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

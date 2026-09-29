@@ -1,0 +1,9 @@
+{
+  "name": "CRITTER HEIST",
+  "short_name": "HEIST",
+  "start_url": "./",
+  "display": "fullscreen",
+  "orientation": "portrait",
+  "background_color": "#9a6bff",
+  "theme_color": "#9a6bff"
+}
