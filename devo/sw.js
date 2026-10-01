@@ -1,6 +1,6 @@
 // sw.js — AGGRESSIVE cache refresh on new deployments (GitHub-safe)
 
-const DEPLOYMENT_ID = "v1.52.0-" + Date.now(); // Date.now() ensures a new cache on every SW update
+const DEPLOYMENT_ID = "v1.53.0-" + Date.now(); // Date.now() ensures a new cache on every SW update
 const CACHE_NAME = "dudu-devotion-" + DEPLOYMENT_ID;
 
 // Core app shell files (always refreshed). script.js was split into ordered
@@ -26,6 +26,9 @@ const CORE_ASSETS = [
   "./js/11-boot.js",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
+  "./icons/icon-maskable-512.png",
+  "./icons/apple-touch-icon.png",
+  "./icons/favicon-64.png",
 ];
 
 // INSTALL: force new SW immediately + fetch fresh assets
