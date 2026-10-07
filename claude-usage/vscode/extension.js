@@ -55,8 +55,26 @@ let sessionWatchTimer = null;
 // every id on every write would be pure churn.
 const sessionTitles = new Map();
 
+function tokenFrom(json) {
+    return (json.claudeAiOauth && json.claudeAiOauth.accessToken) || json.accessToken || null;
+}
+
 /** Claude Code rotates the token, so re-read the keychain every refresh. */
 function accessToken() {
+    // Off macOS there's no keychain: Claude Code keeps the same JSON in
+    // ~/.claude/.credentials.json instead.
+    if (process.platform !== 'darwin') {
+        return new Promise((resolve) => {
+            fs.readFile(path.join(os.homedir(), '.claude', '.credentials.json'), 'utf8', (err, text) => {
+                if (err) return resolve(null);
+                try {
+                    resolve(tokenFrom(JSON.parse(text)));
+                } catch (_) {
+                    resolve(null);
+                }
+            });
+        });
+    }
     return new Promise((resolve) => {
         execFile(
             '/usr/bin/security',
@@ -66,7 +84,7 @@ function accessToken() {
                 if (err) return resolve(null);
                 try {
                     const json = JSON.parse(String(stdout).trim());
-                    resolve((json.claudeAiOauth && json.claudeAiOauth.accessToken) || json.accessToken || null);
+                    resolve(tokenFrom(json));
                 } catch (_) {
                     resolve(null);
                 }
