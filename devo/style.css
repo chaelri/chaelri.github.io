@@ -10751,17 +10751,17 @@ body.tts-canvas-active .cm-listen-bar {
   -webkit-user-select: none;
 }
 
-/* Desktop: 2-column grid. Left column (head + summary panel) is capped at
-   320px wide; right column (Q&A thread) fills remaining width. The thread
-   sits next to the panel — i.e. in row 2 — so it aligns under the head pill
-   the same way a chat panel sits next to a sidebar. */
+/* Desktop: head + summary panel stay a 320px column, but the Q&A thread spans
+   the full width UNDER them. It used to sit in the leftover right column,
+   which squeezed long answers into a narrow strip off to the side. */
 @media (min-width: 768px) {
   .cm-context {
     display: grid;
     grid-template-columns: 320px minmax(0, 1fr);
     grid-template-areas:
-      "head    thread"
-      "panel   thread";
+      "head    ."
+      "panel   ."
+      "thread  thread";
     column-gap: 18px;
     row-gap: 0;
     align-items: start;
@@ -10770,14 +10770,9 @@ body.tts-canvas-active .cm-listen-bar {
   .cm-ctx-panel { grid-area: panel; }
   .cm-ctx-thread {
     grid-area: thread;
-    /* Override the mobile `margin-top: 10px` — the thread no longer sits
-       under the ask form on desktop; it sits next to it. */
-    margin-top: 0;
-    align-self: stretch;
+    margin-top: 12px;
     min-width: 0;
   }
-  /* Mirror the panel-inner card style on the thread so the right column
-     visually balances the left and reads as a single chat panel. */
   .cm-ctx-thread:not(:empty) {
     padding: 12px 14px;
     background: rgba(255, 255, 255, 0.55);
@@ -11067,9 +11062,10 @@ body.tts-canvas-active .cm-listen-bar {
 .cm-ctx-a-inner {
   min-height: 0;
   overflow: hidden;
-  font-size: 13px;
-  line-height: 1.5;
-  color: rgba(26, 26, 46, 0.85);
+  font-size: 15px;
+  line-height: 1.7;
+  color: rgba(26, 26, 46, 0.88);
+  max-width: 68ch;
 }
 .cm-ctx-qa-collapsed .cm-ctx-a {
   grid-template-rows: 0fr;
@@ -11077,8 +11073,20 @@ body.tts-canvas-active .cm-listen-bar {
   margin: 0;
 }
 .cm-ctx-qa-collapsed { padding-bottom: 6px; }
-.cm-ctx-a p { margin: 0 0 4px; }
-.cm-ctx-a p:last-child { margin-bottom: 0; }
+.cm-ctx-qa:not(.cm-ctx-qa-collapsed) { padding: 12px 14px; gap: 10px; }
+.cm-ctx-q { font-size: 14px; }
+.cm-ctx-a p,
+.cm-ctx-a ul,
+.cm-ctx-a ol { margin: 0 0 12px; }
+.cm-ctx-a ul,
+.cm-ctx-a ol { padding-left: 1.3em; }
+.cm-ctx-a li { margin-bottom: 6px; }
+.cm-ctx-a h1,
+.cm-ctx-a h2,
+.cm-ctx-a h3,
+.cm-ctx-a h4 { font-size: 15.5px; margin: 16px 0 6px; line-height: 1.4; }
+.cm-ctx-a-inner > :first-child { margin-top: 0; }
+.cm-ctx-a-inner > :last-child { margin-bottom: 0; }
 .cm-ctx-a strong { color: #c83086; font-weight: 700; }
 .cm-verse { margin-bottom: 14px; }
 .cm-verse-num {
