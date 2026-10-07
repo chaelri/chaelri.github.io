@@ -1,0 +1,39 @@
+{
+  "name": "claude-terminal",
+  "displayName": "Claude Terminal",
+  "description": "Turns the Claude.code-workspace window into a terminal-only claude app.",
+  "publisher": "chaelri",
+  "version": "1.0.0",
+  "engines": { "vscode": "^1.90.0" },
+  "main": "./extension.js",
+  "activationEvents": ["*"],
+  "contributes": {
+    "commands": [
+      {
+        "command": "claudeTerminal.toggleTheme",
+        "title": "Toggle Light / Dark",
+        "category": "Claude Terminal",
+        "icon": "$(color-mode)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "claudeTerminal.toggleTheme",
+          "when": "view == terminal && claudeTerminal.active",
+          "group": "navigation@0"
+        }
+      ],
+      "commandPalette": [
+        { "command": "claudeTerminal.toggleTheme", "when": "claudeTerminal.active" }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "claudeTerminal.toggleTheme",
+        "key": "ctrl+alt+t",
+        "when": "claudeTerminal.active"
+      }
+    ]
+  }
+}

@@ -1,6 +1,6 @@
 # Hub Project Index for chaelri.github.io
 
-**Last updated:** 2026-09-22
+**Last updated:** 2026-10-07
 **Scope:** Complete mapping of top-level directories + root files, with tech stack, deployment, status, and key entry points.
 
 ## Status Legend
@@ -198,6 +198,19 @@ Battery-powered hand-held WiFi remote for **both** `autoclicker/` and `aircon/`.
   - **`Wire.setPins(5, 6)` must run BEFORE `oled.begin()`** — U8g2 starts I²C on default pins otherwise and the OLED stays blank.
   - **Color palette is amber + emerald** (distinct from autoclicker's indigo/purple and aircon's sky/cyan).
 - **Full docs:** See `knowledge/pocket-remote/SUMMARY.md`, `ARCHITECTURE.md`, `KEY_FILES.md`.
+
+### claude-terminal/  🟢
+
+The **Claude** taskbar app on Windows — one click opens a small centred window that is only a terminal running `claude --dangerously-skip-permissions` in this repo; quitting claude closes it. Built 2026-10-07.
+
+- **Tech:** a stripped-down VS Code window (`Claude.code-workspace.template` hides all chrome, pins the title to `Claude`) + a tiny local extension (`extension/`) that only acts in that workspace. PowerShell installer.
+- **Entry:** `install.ps1`, `extension/extension.js`.
+- **Deploy:** Local only. `install.ps1` writes `%USERPROFILE%\ClaudeTerminal\Claude.code-workspace` (kept if present — the theme toggle saves into it), junctions the extension into `~/.vscode/extensions/chaelri.claude-terminal-1.0.0`, and makes Desktop + Start Menu shortcuts. Taskbar pin is manual.
+- **Quirks:**
+  - **VS Code has no window-size API** — the extension spawns a hidden PowerShell that finds the window titled `Claude` and `MoveWindow`s it to 1100x720 centred, re-applying for ~2 s because VS Code restores its remembered bounds after activation.
+  - **claude is the terminal's process, not typed into a shell** — starts faster, and its exit closes the window. `CLAUDE_*` env markers are scrubbed so the transcript is saved (same as claude-usage's terminal button).
+  - **Junction, not symlink** — `mklink /J` needs no admin or Developer Mode. The installer removes an old link with `rmdir`, which never touches the target.
+  - Light/dark toggle: `Ctrl+Alt+T` or the terminal title-bar button; written to the workspace file so it only affects this window.
 
 ### claude-usage/  🟢
 
@@ -567,6 +580,7 @@ Simple side-scrolling platformer (Bubu & Dudu) — canvas-based game.
 | critter-heist, critter-clash, bubududu-smash, ilaw, kain, sherill (also on Vercel as `drive-with-sherill`), driving, devo, monthsary, tayo, sns-dq, weddingtest, towa-no-yuugure, autoclicker, aircon, pocket-remote, mac-toggle, collaterals, flux, pray, echoes, wedding100, weddingtimeline, horizon, money, anohana, bubududu | GitHub Pages subpath | ✅ |
 | mac-toggle (Mac agent) | root LaunchDaemon `com.chaelri.mactoggle` via `agent/install.sh` | Manual |
 | mac-toggle (menu bar) | per-user LaunchAgent `com.chaelri.mactoggle.menubar` via `menubar/install-menubar.sh` | Manual |
+| claude-terminal | Local only (Windows, `install.ps1`) | Manual |
 | claude-usage | per-user LaunchAgent `com.chaelri.claudeusage` via `install.sh` | Manual |
 | diskscope | Local only (`python3 serve.py`) | Manual |
 | guard-exit-interview | GitHub Pages — **DUAL-REPO** (also push to `guard-exit-tracker`) | ✅ |
