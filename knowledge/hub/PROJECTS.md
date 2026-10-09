@@ -213,6 +213,18 @@ The **Claude** taskbar app on Windows — one click opens a small centred window
   - Light/dark toggle: `Ctrl+Alt+T` or the terminal title-bar button; written to the workspace file so it only affects this window.
 
 
+### phone-drop/  🟢
+
+iPhone → Mac file receiver, AirDrop-ish with a QR. `python3 receive.py` opens a QR page on the Mac; scan it, pick files on the phone, and they stream into `~/Downloads/From iPhone` until Ctrl-C. Built 2026-10-09.
+
+- **Tech:** stdlib `/usr/bin/python3` `ThreadingHTTPServer` + two plain HTML pages (`mac.html` QR + live received list, `phone.html` picker with per-file XHR progress). `qrcode.js` (qrcode-generator 1.4.4) is vendored, so it runs with **no internet**.
+- **Entry:** `receive.py`, `mac.html`, `phone.html`, `README.md`.
+- **Deploy:** Local only, run by hand. Not a LaunchAgent: TCC blocks launchd-run python from `~/Downloads`, and it's meant to be on only while sending.
+- **Quirks:**
+  - **Charlie rejected iCloud Drive (paid storage) and Tailscale (needs internet).** With no router, the link is the iPhone's Personal Hotspot with the Mac joined; it works with mobile data off. `local_ips()` re-reads `ifconfig` every poll, puts `172.20.10.x` first, and the QR follows.
+  - Raw `PUT /s/<token>/up?name=` with Content-Length, not multipart (`cgi` is gone in 3.13). Streamed to `.<id>.part`, then renamed under a lock to a unique name.
+  - The QR page + `/api/*` are localhost-only by client IP **and** Host header (DNS rebinding). The phone route is gated by a per-run token.
+
 ### claude-usage/  🟢
 
 Menu bar indicator showing Claude plan usage as a live percentage — built because the Claude desktop app's own menu item needs a right click before it shows anything. The number IS the title; clicking opens session / weekly / scoped rows with absolute reset times and a manual Refresh. **Spike alerts (2026-08-06)** warn when the session percentage climbs fast.
@@ -584,6 +596,7 @@ Simple side-scrolling platformer (Bubu & Dudu) — canvas-based game.
 | claude-terminal | Local only (Windows, `install.ps1`) | Manual |
 | claude-usage | per-user LaunchAgent `com.chaelri.claudeusage` via `install.sh` | Manual |
 | diskscope | Local only (`python3 serve.py`) | Manual |
+| phone-drop | Local only (`python3 receive.py`) | Manual |
 | guard-exit-interview | GitHub Pages — **DUAL-REPO** (also push to `guard-exit-tracker`) | ✅ |
 | vm-management | GitHub Pages `/vm-management/` | ✅ |
 | weddingbar | Firebase Hosting (root via `firebase.json`) — also GH Pages `/weddingbar/` | `firebase deploy` |

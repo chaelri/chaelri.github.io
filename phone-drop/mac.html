@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phone Drop</title>
+<script src="/qrcode.js"></script>
+<style>
+  :root {
+    --bg: #f5f5f7; --card: #fff; --ink: #1d1d1f; --mute: #6e6e73; --line: #e5e5ea;
+    --accent: #0a84ff; --ok: #30a46c; --bar: #e8e8ed;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #000; --card: #1c1c1e; --ink: #f5f5f7; --mute: #98989d; --line: #2c2c2e; --bar: #2c2c2e; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 15px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif; }
+  main { max-width: 920px; margin: 0 auto; padding: 32px 20px; display: grid;
+         grid-template-columns: 340px 1fr; gap: 20px; align-items: start; }
+  @media (max-width: 760px) { main { grid-template-columns: 1fr; } }
+  .card { background: var(--card); border-radius: 16px; padding: 20px; }
+  h1 { font-size: 15px; margin: 0 0 14px; font-weight: 600; }
+  #qr { background: #fff; border-radius: 12px; padding: 14px; display: grid; place-items: center; }
+  #qr img, #qr svg { width: 100%; height: auto; display: block; }
+  .nets { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 14px; }
+  .nets button { border: 1px solid var(--line); background: none; color: var(--ink); border-radius: 999px;
+                 padding: 5px 12px; font: inherit; font-size: 13px; cursor: pointer; }
+  .nets button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .url { font: 12px ui-monospace, Menlo, monospace; color: var(--mute); word-break: break-all; margin-top: 10px; }
+  .none { color: var(--mute); padding: 24px 6px; text-align: center; }
+  .row { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+  .row:first-of-type { border-top: 0; }
+  .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .meta { color: var(--mute); font-size: 13px; text-align: right; white-space: nowrap; }
+  .bar { grid-column: 1 / -1; height: 6px; background: var(--bar); border-radius: 3px; overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--accent); }
+  .done .meta { color: var(--ok); }
+  .head { display: flex; justify-content: space-between; align-items: baseline; }
+  .head button { border: 0; background: none; color: var(--accent); font: inherit; cursor: pointer; padding: 0; }
+  .total { color: var(--mute); font-size: 13px; margin: -8px 0 10px; }
+</style>
+</head>
+<body>
+<main>
+  <section class="card">
+    <h1>Scan with the iPhone camera</h1>
+    <div id="qr"></div>
+    <div class="nets" id="nets"></div>
+    <div class="url" id="url"></div>
+  </section>
+  <section class="card">
+    <div class="head"><h1>Received</h1><button id="open">Open folder</button></div>
+    <div class="total" id="total"></div>
+    <div id="list"></div>
+  </section>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+let pick = null, lastUrl = "";
+
+const human = (n) => {
+  for (const u of ["B", "KB", "MB", "GB"]) {
+    if (n < 1000 || u === "GB") return u === "B" ? `${n} B` : `${n.toFixed(1)} ${u}`;
+    n /= 1000;
+  }
+};
+const dur = (s) => s < 60 ? `${Math.max(1, Math.round(s))}s` : `${Math.floor(s / 60)}m ${Math.round(s % 60)}s`;
+const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+function drawQR(url) {
+  if (url === lastUrl) return;
+  lastUrl = url;
+  if (!url) {
+    $("qr").innerHTML = `<div class="none" style="color:#666">No network yet.<br>Join WiFi or turn on the iPhone's Personal Hotspot and join it from the Mac.</div>`;
+    $("url").textContent = "";
+    return;
+  }
+  const q = qrcode(0, "M");
+  q.addData(url);
+  q.make();
+  $("qr").innerHTML = q.createSvgTag({ cellSize: 6, margin: 0, scalable: true });
+  $("url").textContent = url;
+}
+
+function render(s) {
+  const ips = s.ips;
+  if (!ips.find((n) => n.ip === pick)) pick = ips[0]?.ip ?? null;
+  $("nets").innerHTML = ips.length > 1 ? ips.map((n) =>
+    `<button data-ip="${n.ip}" class="${n.ip === pick ? "on" : ""}">${esc(n.label)}</button>`).join("") : "";
+  drawQR(pick ? `http://${pick}:${s.port}/s/${s.token}` : "");
+
+  const now = Date.now() / 1000;
+  const active = s.active.map((a) => {
+    const pct = a.total ? a.got / a.total : 0;
+    const el = now - a.started, rate = a.got / Math.max(el, 0.1);
+    const eta = rate > 0 ? (a.total - a.got) / rate : 0;
+    return `<div class="row"><div class="name">${esc(a.name)}</div>
+      <div class="meta">${Math.floor(pct * 100)}% · ${human(rate)}/s · ${a.got ? dur(eta) + " left" : "starting"}</div>
+      <div class="bar"><i style="width:${pct * 100}%"></i></div></div>`;
+  });
+  const done = s.received.slice().reverse().map((r) =>
+    `<div class="row done"><div class="name">${esc(r.name)}</div>
+      <div class="meta">${human(r.size)} · ${new Date(r.at * 1000).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</div></div>`);
+  $("list").innerHTML = active.concat(done).join("") ||
+    `<div class="none">Nothing yet. Files you send from the phone show up here.</div>`;
+  const bytes = s.received.reduce((t, r) => t + r.size, 0);
+  $("total").textContent = s.received.length ? `${s.received.length} file${s.received.length > 1 ? "s" : ""} · ${human(bytes)} · saved to ${s.out}` : `Saving to ${s.out}`;
+}
+
+$("nets").addEventListener("click", (e) => {
+  const b = e.target.closest("button");
+  if (b) { pick = b.dataset.ip; tick(); }
+});
+$("open").onclick = () => fetch("/api/open", { method: "POST" });
+
+async function tick() {
+  try { render(await (await fetch("/api/state")).json()); }
+  catch { $("list").innerHTML = `<div class="none">Receiver stopped. Run <code>python3 receive.py</code> again.</div>`; }
+}
+tick();
+setInterval(tick, 700);
+</script>
+</body>
+</html>

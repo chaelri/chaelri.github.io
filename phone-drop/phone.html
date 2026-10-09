@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Send to Mac</title>
+<style>
+  :root {
+    --bg: #f5f5f7; --card: #fff; --ink: #1d1d1f; --mute: #6e6e73; --line: #e5e5ea;
+    --accent: #0a84ff; --ok: #30a46c; --err: #e5484d; --bar: #e8e8ed;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #000; --card: #1c1c1e; --ink: #f5f5f7; --mute: #98989d; --line: #2c2c2e; --bar: #2c2c2e; }
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 16px/1.4 -apple-system, BlinkMacSystemFont, sans-serif;
+         padding: max(20px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom)); }
+  main { max-width: 520px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 6px 0 16px; }
+  label.pick { display: block; text-align: center; background: var(--accent); color: #fff; font-weight: 600;
+               border-radius: 14px; padding: 16px; font-size: 17px; }
+  label.pick.busy { opacity: .5; pointer-events: none; }
+  input[type=file] { display: none; }
+  .sum { color: var(--mute); font-size: 14px; margin: 14px 2px 8px; display: flex; justify-content: space-between; }
+  .all { height: 8px; background: var(--bar); border-radius: 4px; overflow: hidden; margin-bottom: 14px; }
+  .all i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+  .card { background: var(--card); border-radius: 14px; padding: 4px 14px; }
+  .card:empty { display: none; }
+  .row { padding: 11px 0; border-top: 1px solid var(--line); display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; }
+  .row:first-child { border-top: 0; }
+  .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; }
+  .st { color: var(--mute); font-size: 13px; white-space: nowrap; }
+  .ok .st { color: var(--ok); }
+  .err .st { color: var(--err); }
+  .bar { grid-column: 1 / -1; height: 4px; background: var(--bar); border-radius: 2px; overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; background: var(--accent); }
+  .ok .bar, .err .bar { display: none; }
+  .note { color: var(--mute); font-size: 13px; text-align: center; margin-top: 14px; }
+  button.retry { margin-top: 12px; width: 100%; border: 0; border-radius: 12px; padding: 12px; font: inherit;
+                 background: var(--card); color: var(--accent); font-weight: 600; display: none; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Send to Mac</h1>
+  <label class="pick" id="pickL">Choose files<input type="file" id="pick" multiple></label>
+  <div id="prog" hidden>
+    <div class="sum"><span id="sumL"></span><span id="sumR"></span></div>
+    <div class="all"><i id="allBar"></i></div>
+  </div>
+  <div class="card" id="list"></div>
+  <button class="retry" id="retry">Retry failed</button>
+  <p class="note" id="note">Keep this page open while it sends.</p>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const upURL = location.pathname.replace(/\/$/, "") + "/up";
+const queue = [];   // {file, row, state: wait|send|ok|err, sent}
+let running = false, wake = null;
+
+const human = (n) => {
+  for (const u of ["B", "KB", "MB", "GB"]) {
+    if (n < 1000 || u === "GB") return u === "B" ? `${n} B` : `${n.toFixed(1)} ${u}`;
+    n /= 1000;
+  }
+};
+const dur = (s) => s < 60 ? `${Math.max(1, Math.round(s))}s` : `${Math.floor(s / 60)}m ${Math.round(s % 60)}s`;
+
+function addFiles(files) {
+  for (const file of files) {
+    const row = document.createElement("div");
+    row.className = "row";
+    row.innerHTML = `<div class="name"></div><div class="st">waiting</div><div class="bar"><i></i></div>`;
+    row.querySelector(".name").textContent = file.name;
+    $("list").appendChild(row);
+    queue.push({ file, row, state: "wait", sent: 0 });
+  }
+  run();
+}
+
+function summary(rate) {
+  const total = queue.reduce((t, q) => t + q.file.size, 0);
+  const sent = queue.reduce((t, q) => t + (q.state === "ok" ? q.file.size : q.sent), 0);
+  const ok = queue.filter((q) => q.state === "ok").length;
+  $("prog").hidden = false;
+  $("allBar").style.width = `${total ? (sent / total) * 100 : 0}%`;
+  $("sumL").textContent = `${ok} of ${queue.length} sent`;
+  $("sumR").textContent = rate ? `${human(rate)}/s · ${dur((total - sent) / rate)} left` : `${human(sent)} of ${human(total)}`;
+  $("retry").style.display = queue.some((q) => q.state === "err") && !running ? "block" : "none";
+}
+
+function send(q) {
+  return new Promise((resolve) => {
+    const st = q.row.querySelector(".st"), bar = q.row.querySelector(".bar i");
+    const xhr = new XMLHttpRequest();
+    const t0 = performance.now();
+    q.state = "send";
+    q.row.className = "row";
+    xhr.open("PUT", `${upURL}?name=${encodeURIComponent(q.file.name)}`);
+    xhr.upload.onprogress = (e) => {
+      q.sent = e.loaded;
+      const pct = e.total ? e.loaded / e.total : 0;
+      bar.style.width = `${pct * 100}%`;
+      st.textContent = `${Math.floor(pct * 100)}%`;
+      summary(e.loaded / ((performance.now() - t0) / 1000));
+    };
+    xhr.onload = () => {
+      let r = {};
+      try { r = JSON.parse(xhr.responseText); } catch {}
+      if (xhr.status === 200 && r.ok) {
+        q.state = "ok"; q.row.className = "row ok"; st.textContent = "sent";
+      } else {
+        q.state = "err"; q.row.className = "row err";
+        st.textContent = xhr.status === 403 ? "old QR, rescan" : "failed";
+      }
+      resolve();
+    };
+    xhr.onerror = () => { q.state = "err"; q.sent = 0; q.row.className = "row err"; st.textContent = "can't reach Mac"; resolve(); };
+    xhr.send(q.file);
+  });
+}
+
+async function run() {
+  if (running) return;
+  running = true;
+  $("pickL").classList.add("busy");
+  try { wake = await navigator.wakeLock?.request("screen"); } catch {}
+  let q;
+  while ((q = queue.find((x) => x.state === "wait"))) await send(q);
+  running = false;
+  $("pickL").classList.remove("busy");
+  $("pickL").firstChild.textContent = "Send more";
+  try { await wake?.release(); } catch {}
+  summary();
+  if (navigator.vibrate) navigator.vibrate(30);
+}
+
+$("pick").onchange = (e) => { addFiles([...e.target.files]); e.target.value = ""; };
+$("retry").onclick = () => {
+  for (const q of queue) if (q.state === "err") { q.state = "wait"; q.sent = 0; q.row.querySelector(".st").textContent = "waiting"; }
+  run();
+};
+</script>
+</body>
+</html>
