@@ -240,17 +240,17 @@ Gaussian-splat viewer + subject-isolation script. Built 2026-10-09 for the first
 
 ### lakad/  🟢
 
-Chibi Karla in a pastel playground: WASD walk, Shift sprint, Space jump, an 18-bone skeleton with procedural idle/walk/sprint/jump. Her face is rendered from her scan (`splat/scans/Karla.ply`). Built 2026-10-09.
+Anime-chibi Karla in a pastel playground: WASD walk, Shift sprint, Space jump, an 18-bone skeleton with procedural idle/walk/sprint/jump, and blinking. Built 2026-10-09.
 
-- **Tech:** vanilla ES modules, three.js 0.186 from `../splat/vendor/` (offline), no binary assets except the gitignored face texture. `tools/face_photo.py` is numpy/scipy/PIL (`~/Desktop/enclosure/.venv/bin/python`).
-- **Entry:** `index.html`, `js/main.js` (input, physics, camera), `js/character.js` (bones, body, hair, poses), `js/world.js`, `play.py`.
-- **Deploy:** works on GitHub Pages `/lakad/` with a drawn fallback face; the real face (`assets/`) stays on the Mac.
+- **Tech:** vanilla ES modules, three.js 0.186 from `../splat/vendor/` (offline). No binary assets: the face, tee print and hair mask are canvas-painted, and all geometry is generated.
+- **Entry:** `index.html`, `js/main.js` (input, physics, camera), `js/character.js` (bones, body, hair, glasses, painted face, poses), `js/style.js` (toon ramp, inverted-hull outlines, strand geometry, front-mapped sphere), `js/world.js`, `play.py`.
+- **Deploy:** GitHub Pages `/lakad/` is the full game. `assets/` (gitignored) only holds the old photo-face output and a local style reference.
 - **Quirks:**
-  - **The scan only has her front, seated, cut at the lap**, so the body is built, not scanned. Charlie asked for chibi so the face carries the likeness.
-  - **Face = a rendered photo, not a mesh.** Marching cubes kept the hair and lost the face, and a depth-relief mask smeared off-axis. A splat render mapped onto a sphere with planar UVs is what held up.
-  - **`--straighten 0.6`**: she was scanned ~39° turned and 20° down. Fully frontal exposes the uncaptured far cheek as blotches.
-  - The hair face-opening is an `alphaMap` + `alphaTest` in the same planar UVs as the face, so the two always line up.
-  - Headless checks drive `window.__lakad.hold(code)`; the CDP screenshot needs real-time sleeps.
+  - **Style target is a low-poly hand-painted chibi Charlie supplied** (a fan model of a game character, so it's not committed). The approach: toon ramp + ink hull + painted eyes + pointed strands.
+  - **The photo face from the scan was rejected ("ang panget")**: recognisable but uncanny. The likeness now comes from features: centre-part curtain bangs, round glasses, her tee print, her colours.
+  - **Strand winding matters:** inward-wound strands let the BackSide ink hull draw over them, and the hair rendered solid black.
+  - **Toon + `vertexColors` multiplies the base colour**, so hair materials use white as the base and the gradient carries the colour.
+  - **`frontMappedSphere` seam:** the back maps to the top row with u continuous. Corner or edge-column mappings tore a see-through stripe through the alpha-masked hair cap.
 
 ### claude-usage/  🟢
 

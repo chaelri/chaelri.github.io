@@ -26,8 +26,6 @@ const { sun, clouds } = buildWorld(scene);
 
 const karla = new Character();
 scene.add(karla.root, karla.helper);
-karla.loadFace("assets/face")
-  .catch(() => { $("note").hidden = false; });
 
 // blob shadow under her so height reads clearly mid-jump
 const blob = new THREE.Mesh(new THREE.CircleGeometry(0.22, 24),
