@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Splat Viewer</title>
+<style>
+  :root { --bg: #0b0b0d; --ink: #f5f5f7; --mute: #98989d; --chip: rgba(28,28,30,.82); --line: rgba(255,255,255,.08); --accent: #0a84ff; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); overflow: hidden;
+               font: 14px/1.4 -apple-system, BlinkMacSystemFont, sans-serif; }
+  body.light { --bg: #f2f2f4; }
+  canvas { display: block; width: 100vw; height: 100vh; touch-action: none; }
+  .bar { position: fixed; left: 50%; transform: translateX(-50%); bottom: max(16px, env(safe-area-inset-bottom));
+         display: flex; gap: 4px; padding: 5px; border-radius: 14px; background: var(--chip);
+         backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid var(--line); }
+  .bar button, .bar label { border: 0; background: none; color: var(--ink); font: inherit; padding: 8px 12px;
+         border-radius: 10px; cursor: pointer; white-space: nowrap; }
+  .bar button:hover, .bar label:hover { background: rgba(255,255,255,.08); }
+  .bar button.on { background: var(--accent); }
+  .info { position: fixed; top: max(14px, env(safe-area-inset-top)); left: 16px; color: var(--mute); font-size: 13px;
+          background: var(--chip); padding: 6px 10px; border-radius: 10px; border: 1px solid var(--line); }
+  .info b { color: var(--ink); font-weight: 600; }
+  #drop { position: fixed; inset: 0; display: grid; place-items: center; text-align: center; color: var(--mute);
+          pointer-events: none; }
+  #drop.over { background: rgba(10,132,255,.12); outline: 2px dashed var(--accent); outline-offset: -16px; }
+  #prog { position: fixed; top: 0; left: 0; height: 3px; width: 0; background: var(--accent); transition: width .15s; }
+  input[type=file], [hidden] { display: none !important; }
+</style>
+<script type="importmap">
+  { "imports": {
+      "three": "./vendor/three/three.module.js",
+      "three/addons/": "./vendor/three/addons/",
+      "@sparkjsdev/spark": "./vendor/spark.module.min.js"
+  } }
+</script>
+</head>
+<body>
+<div id="prog"></div>
+<div class="info" id="info" hidden></div>
+<div id="drop"><div>Drop a .ply / .spz / .splat here<br>or use Open below</div></div>
+<div class="bar">
+  <label>Open<input type="file" id="file" accept=".ply,.spz,.splat,.ksplat,.sog"></label>
+  <button id="reset">Reset view</button>
+  <button id="spin">Turntable</button>
+  <button id="bg">Light bg</button>
+</div>
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { SparkRenderer, SplatMesh } from "@sparkjsdev/spark";
+
+const $ = (id) => document.getElementById(id);
+const renderer = new THREE.WebGLRenderer({ antialias: false, preserveDrawingBuffer: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+document.body.prepend(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0b0b0d);
+const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.01, 1000);
+scene.add(new SparkRenderer({ renderer }));
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.autoRotateSpeed = 1.2;
+
+let mesh = null, home = null;
+
+// Phone/3DGS exports are y-down, z-forward (OpenCV camera frame); flip to three's y-up.
+const FLIP = new THREE.Quaternion(1, 0, 0, 0);
+
+async function show(opts, label) {
+  if (mesh) { scene.remove(mesh); mesh.dispose?.(); }
+  $("drop").hidden = true;
+  $("prog").style.width = "30%";
+  mesh = new SplatMesh(opts);
+  mesh.quaternion.copy(FLIP);
+  scene.add(mesh);
+  await mesh.initialized;
+  $("prog").style.width = "100%";
+  setTimeout(() => ($("prog").style.width = "0"), 300);
+
+  // frame the subject: robust box from the splat centres, in world space
+  const box = mesh.getBoundingBox(true).clone().applyMatrix4(mesh.matrixWorld);
+  const c = box.getCenter(new THREE.Vector3()), size = box.getSize(new THREE.Vector3());
+  const r = Math.max(size.x, size.y, size.z) * 0.62;
+  const dist = r / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+  // the scan was taken from -z in file space, which is +z after the flip
+  home = { target: c.clone(), pos: c.clone().add(new THREE.Vector3(0, size.y * 0.05, dist)) };
+  reset();
+  camera.near = r / 200; camera.far = r * 200; camera.updateProjectionMatrix();
+  $("info").hidden = false;
+  $("info").innerHTML = `<b>${label}</b> · ${(mesh.numSplats ?? mesh.packedSplats?.numSplats ?? 0).toLocaleString()} splats`;
+  document.title = label;
+}
+
+function reset() {
+  if (!home) return;
+  controls.target.copy(home.target);
+  camera.position.copy(home.pos);
+  controls.update();
+}
+
+async function openFile(file) {
+  show({ fileBytes: await file.arrayBuffer(), fileName: file.name }, file.name);
+}
+
+$("file").onchange = (e) => e.target.files[0] && openFile(e.target.files[0]);
+$("reset").onclick = reset;
+$("spin").onclick = (e) => { controls.autoRotate = !controls.autoRotate; e.target.classList.toggle("on", controls.autoRotate); };
+$("bg").onclick = (e) => {
+  const light = document.body.classList.toggle("light");
+  scene.background.set(light ? 0xf2f2f4 : 0x0b0b0d);
+  e.target.textContent = light ? "Dark bg" : "Light bg";
+};
+addEventListener("dragover", (e) => { e.preventDefault(); $("drop").hidden = false; $("drop").classList.add("over"); });
+addEventListener("dragleave", () => { $("drop").classList.remove("over"); if (mesh) $("drop").hidden = true; });
+addEventListener("drop", (e) => {
+  e.preventDefault(); $("drop").classList.remove("over");
+  const f = e.dataTransfer.files[0];
+  if (f) openFile(f);
+});
+addEventListener("resize", () => {
+  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// ?src=<url> opens a file straight away (view.py passes the scan this way)
+const src = new URLSearchParams(location.search).get("src");
+if (src) show({ url: src }, decodeURIComponent(src.split("/").pop()));
+if (new URLSearchParams(location.search).has("spin")) $("spin").click();
+
+renderer.setAnimationLoop(() => { controls.update(); renderer.render(scene, camera); });
+window.__viewer = { camera, controls, scene, get mesh() { return mesh; } };
+</script>
+</body>
+</html>

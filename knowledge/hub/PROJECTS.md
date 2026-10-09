@@ -225,6 +225,19 @@ iPhone → Mac file receiver, AirDrop-ish with a QR. `python3 receive.py` opens 
   - Raw `PUT /s/<token>/up?name=` with Content-Length, not multipart (`cgi` is gone in 3.13). Streamed to `.<id>.part`, then renamed under a lock to a unique name.
   - The QR page + `/api/*` are localhost-only by client IP **and** Host header (DNS rebinding). The phone route is gated by a per-run token.
 
+### splat/  🟢
+
+Gaussian-splat viewer + subject-isolation script. Built 2026-10-09 for the first scan sent through `phone-drop/` ("Barangay V.ply", Karla seated).
+
+- **Tech:** vanilla ES modules, three.js 0.186.1 + Spark 2.3.1 (World Labs) **vendored** in `vendor/` so it runs offline; `refine.py` is numpy + scipy (run with `~/Desktop/enclosure/.venv/bin/python`).
+- **Entry:** `index.html` (viewer: open/drag-drop, `?src=`, turntable, bg toggle), `view.py` (stdlib server on 127.0.0.1:8790+), `refine.py`.
+- **Deploy:** works on GitHub Pages `/splat/` as an empty drag-drop viewer. `scans/` is gitignored, so scans of people never get pushed.
+- **Quirks:**
+  - **Phone 3DGS exports are y-down, z-forward** (OpenCV camera frame). The viewer applies `quaternion(1,0,0,0)`; `refine.py --box` takes raw file coords, so y runs head → feet.
+  - Scaniverse-style files carry a **sky dome**: ~10 k splats at r ≈ 240 m, scale e², opacity 0.99. Any crop drops it.
+  - `display: grid` beat the `hidden` attribute on the drop overlay; `[hidden] { display:none !important }` is load-bearing.
+  - Headless screenshots need real time (CDP driver with sleeps): Spark decodes in a worker and `--virtual-time-budget` stalls it at "loading".
+
 ### claude-usage/  🟢
 
 Menu bar indicator showing Claude plan usage as a live percentage — built because the Claude desktop app's own menu item needs a right click before it shows anything. The number IS the title; clicking opens session / weekly / scoped rows with absolute reset times and a manual Refresh. **Spike alerts (2026-08-06)** warn when the session percentage climbs fast.
