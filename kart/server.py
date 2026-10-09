@@ -366,15 +366,25 @@ class Handler(BaseHTTPRequestHandler):
 
 class Server(ThreadingHTTPServer):
     daemon_threads = True
-    allow_reuse_address = False   # HTTPServer turns it on; we'd silently share a busy port
+
+
+def busy(port):
+    """Something already answering here? With SO_REUSEADDR (needed so a restart can
+    rebind right away) macOS would otherwise let us share a port that another
+    process holds on 127.0.0.1, and the board would talk to the wrong server."""
+    with socket.socket() as s:
+        s.settimeout(0.3)
+        return s.connect_ex(("127.0.0.1", port)) == 0
 
 
 def bind(port):
     for _ in range(20):
-        try:
-            return Server(("0.0.0.0", port), Handler), port
-        except OSError:
-            port += 2
+        if not busy(port):
+            try:
+                return Server(("0.0.0.0", port), Handler), port
+            except OSError:
+                pass
+        port += 2
     sys.exit("no free port near %d" % port)
 
 

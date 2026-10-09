@@ -476,7 +476,7 @@ export async function createWorld(T, canvas) {
     uniforms: { scale: { value: 500 } },
     vertexShader: `attribute float size; attribute float alpha; attribute vec3 color; varying vec3 vC; varying float vA;
       uniform float scale; void main(){ vC = color; vA = alpha; vec4 mv = modelViewMatrix * vec4(position,1.);
-      gl_PointSize = size * scale / -mv.z; gl_Position = projectionMatrix * mv; }`,
+      gl_PointSize = min(size * scale / -mv.z, 48.0); gl_Position = projectionMatrix * mv; }`,
     fragmentShader: `varying vec3 vC; varying float vA; void main(){ vec2 d = gl_PointCoord - .5; float r = length(d);
       if (r > .5) discard; gl_FragColor = vec4(vC, vA * smoothstep(.5, .1, r)); }`,
   });
@@ -659,7 +659,7 @@ export async function createWorld(T, canvas) {
     u.pos.lerp(v3, Math.min(1, dt * 10));
     cam.position.copy(u.pos);
     cam.lookAt(k.x + Math.sin(u.h) * 4, k.y + 1.25 * sh, k.z + Math.cos(u.h) * 4);
-    const fov = 68 + (k.boost > 0 ? 10 : 0) + Math.min(6, Math.max(0, k.speed - 20) * 0.5);
+    const fov = 68 + (u.fovAdd || 0) + (k.boost > 0 ? 10 : 0) + Math.min(6, Math.max(0, k.speed - 20) * 0.5);
     cam.fov += (fov - cam.fov) * Math.min(1, dt * 4);
     cam.updateProjectionMatrix();
   }

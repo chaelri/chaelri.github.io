@@ -22,7 +22,7 @@ const sound = new Sound();
 // ---------------- players ----------------
 let players = [];        // {pid, name, char, color, slot, input, online, kb, lastSeen}
 let phase = "lobby";     // lobby | race | results
-let settings = { cpus: 3, laps: 3 };
+let settings = { cpus: 0, laps: 3 };
 let race = null, demo = null, cams = {}, resultsAt = 0;
 
 function freeSlot() {
@@ -177,6 +177,7 @@ function layout() {
   let rects;
   if (n === 1) rects = [[0, 0, W, H]];
   else if (n === 2) rects = [[0, 0, W, H / 2], [0, H / 2, W, H / 2]];
+  else if (n === 3) rects = [[0, 0, W / 3, H], [W / 3, 0, W / 3, H], [2 * W / 3, 0, W / 3, H]];   // three columns
   else rects = [[0, 0, W / 2, H / 2], [W / 2, 0, W / 2, H / 2], [0, H / 2, W / 2, H / 2], [W / 2, H / 2, W / 2, H / 2]];
   hs.forEach((k, i) => {
     const [x, y, w, h] = rects[i].map(Math.round);
@@ -188,15 +189,19 @@ function layout() {
       <div class="itembox"><div class="ic"></div></div><div class="coins">${ICON.coin}<span></span></div>
       <div class="msg"></div><div class="drift"></div>`;
     $("huds").appendChild(el);
+    // tall narrow columns: widen the lens so corners stay visible
+    cams[k.id].userData.fovAdd = w / h < 1 ? Math.min(24, (1 - w / h) * 48) : 0;
     views.push({ k, x, y, w, h, el, cam: cams[k.id], own: k.id, last: {} });
   });
-  // the 4th quadrant (3 players) is the map; otherwise a corner overlay
+  // the 4th quadrant (4 players) is the map; otherwise a small overlay in a free corner
   const m = $("map");
-  m.style.display = n === 3 ? "flex" : "block";
-  if (n === 3) Object.assign(m.style, { left: Math.round(W / 2) + "px", top: Math.round(H / 2) + "px", width: Math.round(W / 2) + "px", height: Math.round(H / 2) + "px" });
+  const quad = n === 4;
+  m.style.display = quad ? "flex" : "block";
+  if (quad) Object.assign(m.style, { left: Math.round(W / 2) + "px", top: Math.round(H / 2) + "px", width: Math.round(W / 2) + "px", height: Math.round(H / 2) + "px" });
+  else if (n === 3) Object.assign(m.style, { left: Math.round(W / 3 + 10) + "px", top: (H - 210) + "px", width: "230px", height: "190px" });
   else Object.assign(m.style, { left: "10px", top: (n === 2 ? H / 2 - 215 : H - 250) + "px", width: "270px", height: "210px" });
-  m.classList.toggle("quad", n === 3);
-  m.classList.toggle("small", n !== 3);
+  m.classList.toggle("quad", quad);
+  m.classList.toggle("small", !quad);
 }
 addEventListener("resize", layout);
 
