@@ -168,7 +168,6 @@ export class Character {
     }
     panel(Math.PI, 1.38, R * 0.44, 0.06);
   }
-  }
 
   // big round lenses in thin clear/silver frames, as in the scan, with glare
   buildGlasses(H) {
