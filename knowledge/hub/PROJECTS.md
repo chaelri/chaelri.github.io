@@ -213,6 +213,15 @@ The **Claude** taskbar app on Windows — one click opens a small centred window
   - Light/dark toggle: `Ctrl+Alt+T` or the terminal title-bar button; written to the workspace file so it only affects this window.
 
 
+### arena/ (Rambulan)  🟢
+
+Offline 3D island brawl royale: one shared camera on the Mac frames everyone, phones are twin-stick controllers. Loot chests with rarity beams, 7 weapons + 4 items, a shrinking storm, ghosts (multo) for knocked-out players, first to 3 rounds. Critter fighters. Built 2026-10-09.
+
+- **Tech:** same stdlib relay as kart (port 8830), three.js + assets served from `../kart/`, pure-JS sim with a bot self-test.
+- **Entry:** `server.py`, `index.html` + `js/main.js`, `js/sim.js`, `js/map.js`, `js/render.js`, `phone.html`.
+- **Deploy:** Local only (`python3 arena/server.py`).
+- **Full docs:** See `knowledge/arena/SUMMARY.md` and `arena/README.md`.
+
 ### kart/ (Karera)  🟢
 
 Offline Mario Kart-style racer: the Mac is the split-screen display (up to 3 players + CPU racers), each phone is a steering wheel (joystick or tilt) with drift, items and brake. Critter drivers from bubududu-smash/3d, coins, ? boxes, 7 items, drift mini-turbos, rocket starts. Built 2026-10-09.
@@ -644,6 +653,7 @@ Simple side-scrolling platformer (Bubu & Dudu) — canvas-based game.
 | phone-drop | Local only (`python3 receive.py`) | Manual |
 | monopoly | Local only (`python3 monopoly/server.py`) | Manual |
 | kart (Karera) | Local only (`python3 kart/server.py`) | Manual |
+| arena (Rambulan) | Local only (`python3 arena/server.py`, needs `kart/`) | Manual |
 | guard-exit-interview | GitHub Pages — **DUAL-REPO** (also push to `guard-exit-tracker`) | ✅ |
 | vm-management | GitHub Pages `/vm-management/` | ✅ |
 | weddingbar | Firebase Hosting (root via `firebase.json`) — also GH Pages `/weddingbar/` | `firebase deploy` |

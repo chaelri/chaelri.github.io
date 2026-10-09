@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#16121f">
+<title>Rambulan Controller</title>
+<style>
+:root { --c: #e8312b; --gold: #ffd21f; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #16121f; color: #fff; font-family: -apple-system, "Avenir Next", sans-serif; overscroll-behavior: none; }
+button { font: inherit; border: 0; color: inherit; cursor: pointer; }
+.hide { display: none !important; }
+svg { display: block; width: 100%; height: 100%; }
+.screen { position: fixed; inset: 0; padding: calc(16px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) calc(16px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left)); overflow-y: auto; }
+.title { font: 900 40px/1 "Arial Black", sans-serif; color: var(--gold); -webkit-text-stroke: 2px #6b0d09; font-style: italic; text-shadow: 0 5px 0 #6b0d09; }
+.sub { color: #b9b3d9; font-size: 15px; margin: 8px 0 14px; line-height: 1.4; }
+input[type=text] { width: 100%; padding: 14px 16px; border-radius: 14px; border: 3px solid #3a3360; background: #241e3b; color: #fff; font: 800 20px -apple-system, sans-serif; user-select: text; -webkit-user-select: text; }
+.chars { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 14px 0; }
+.chars button { background: #241e3b; border: 3px solid #3a3360; border-radius: 16px; padding: 6px 4px 8px; display: flex; flex-direction: column; align-items: center; }
+.chars button.on { border-color: var(--gold); background: #3a2f12; }
+.chars canvas { width: 72px; height: 72px; } .chars span { font-size: 12px; font-weight: 800; }
+.big { width: 100%; padding: 16px; border-radius: 16px; font: 900 22px "Arial Black", sans-serif; background: var(--gold); color: #2a1600; box-shadow: 0 6px 0 #a87900; }
+.me { display: flex; align-items: center; gap: 14px; background: linear-gradient(90deg, var(--c), transparent); border-radius: 18px; padding: 10px 14px; margin: 10px 0 14px; }
+.me canvas { width: 80px; height: 80px; } .me b { font: 900 26px "Arial Black"; display: block; }
+.note { font-size: 13.5px; color: #b9b3d9; line-height: 1.45; }
+.err { color: #ff8a80; font-weight: 800; margin-top: 10px; }
+
+/* controller */
+#pad { padding: 0; overflow: hidden; touch-action: none; }
+.zone { position: absolute; top: 0; bottom: 0; touch-action: none; }
+#lzone { left: 0; width: 50%; } #rzone { right: 0; width: 50%; }
+.stick { position: absolute; pointer-events: none; transform: translate(-50%, -50%); }
+.stick .ring { width: 130px; height: 130px; border-radius: 50%; border: 3px solid rgba(255,255,255,.22); background: rgba(255,255,255,.06); }
+.stick .nub { position: absolute; left: 50%; top: 50%; width: 62px; height: 62px; margin: -31px 0 0 -31px; border-radius: 50%; box-shadow: 0 6px 14px rgba(0,0,0,.5); }
+#lstick .nub { background: radial-gradient(circle at 40% 35%, #fff, var(--c)); }
+#rstick .nub { background: radial-gradient(circle at 40% 35%, #fff, #ff7a3d); }
+.hint { position: absolute; bottom: calc(14px + env(safe-area-inset-bottom)); font-weight: 900; font-size: 12px; letter-spacing: .12em; color: rgba(255,255,255,.3); text-align: center; width: 50%; pointer-events: none; }
+#bar { position: absolute; left: calc(14px + env(safe-area-inset-left)); top: calc(10px + env(safe-area-inset-top)); width: 40%; z-index: 3; pointer-events: none; }
+#bar .nm { font: 900 18px "Arial Black"; display: flex; align-items: center; gap: 8px; }
+#bar .nm i { width: 14px; height: 14px; border-radius: 50%; background: var(--c); border: 2px solid #fff; }
+#bar .stars { display: flex; gap: 2px; height: 18px; } #bar .stars span { width: 18px; }
+.hpbar { position: relative; height: 14px; border-radius: 7px; background: rgba(255,255,255,.14); margin-top: 6px; overflow: hidden; }
+.hpbar .hp { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(#7dff7d, #2fb24c); }
+.hpbar .sh { position: absolute; left: 0; top: 0; height: 40%; background: #3fa9ff; }
+#btns { position: absolute; right: calc(12px + env(safe-area-inset-right)); top: calc(10px + env(safe-area-inset-top)); display: flex; gap: 10px; z-index: 3; }
+.b { width: 76px; height: 76px; border-radius: 20px; background: #2f2950; box-shadow: 0 5px 0 #120e24; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; touch-action: none; font: 900 11px "Arial Black"; }
+.b .ic { width: 42px; height: 42px; }
+.b em { position: absolute; right: 4px; bottom: 2px; font: 900 13px "Arial Black"; font-style: normal; -webkit-text-stroke: .5px #000; }
+.b.down { transform: translateY(3px); box-shadow: 0 2px 0 #120e24; }
+#loot.near { background: linear-gradient(#ffd21f, #ff9a1f); color: #2a1600; box-shadow: 0 5px 0 #a87900, 0 0 22px rgba(255,210,31,.7); animation: glow 0.8s ease-in-out infinite; }
+@keyframes glow { 50% { transform: scale(1.06); } }
+#swap { width: 120px; flex-direction: row; gap: 4px; padding: 6px; }
+#swap .sl { flex: 1; height: 100%; border-radius: 12px; background: rgba(255,255,255,.08); border: 3px solid transparent; display: flex; align-items: center; justify-content: center; position: relative; padding: 4px; }
+#swap .sl.on { border-color: #fff; background: rgba(255,255,255,.2); }
+#swap .sl em { right: -2px; bottom: -4px; font-size: 11px; }
+#use.empty, #swap.empty { opacity: .5; }
+#use.cd { opacity: .45; }
+#banner { position: absolute; left: 0; right: 0; top: 40%; text-align: center; pointer-events: none; font: 900 46px "Arial Black"; color: #fff; -webkit-text-stroke: 3px #1a1030; font-style: italic; z-index: 4; }
+#banner small { display: block; font-size: 16px; -webkit-text-stroke: 0; color: #d9d6ff; font-style: normal; margin-top: 6px; }
+#hurt { position: absolute; inset: 0; box-shadow: inset 0 0 80px 30px rgba(232,49,43,.8); opacity: 0; pointer-events: none; transition: opacity .4s; z-index: 5; }
+#hurt.on { opacity: 1; transition: none; }
+body.ghost #pad { background: radial-gradient(circle at 50% 120%, #3a2f70, #16121f 70%); }
+#rotate { position: fixed; inset: 0; background: #16121f; display: none; align-items: center; justify-content: center; flex-direction: column; gap: 16px; text-align: center; z-index: 50; }
+#rotate .ph { width: 70px; height: 120px; border: 5px solid #fff; border-radius: 16px; animation: rot 1.8s ease-in-out infinite; }
+@keyframes rot { 40%, 70% { transform: rotate(-90deg); } }
+@media (orientation: portrait) { body.playing #rotate { display: flex; } }
+#status { position: fixed; right: calc(10px + env(safe-area-inset-right)); bottom: calc(8px + env(safe-area-inset-bottom)); font-size: 12px; font-weight: 800; padding: 3px 10px; border-radius: 99px; background: rgba(255,255,255,.1); z-index: 60; pointer-events: none; }
+#status.bad { background: #e8312b; }
+body.playing #status:not(.bad) { display: none; }
+</style>
+</head>
+<body>
+<div id="status">connecting...</div>
+
+<section class="screen" id="join">
+  <div class="title">RAMBULAN</div>
+  <div class="sub">Loot, fight, survive the storm. Pick a name and a critter.</div>
+  <input type="text" id="name" maxlength="12" placeholder="Your name" autocomplete="off">
+  <div class="chars" id="chars"></div>
+  <button class="big" id="joinbtn">JOIN</button>
+  <div class="err" id="joinerr"></div>
+</section>
+
+<section class="screen hide" id="lobby">
+  <div class="title" style="font-size:32px">RAMBULAN</div>
+  <div class="me"><canvas id="mecv" width="160" height="160"></canvas><div><b id="mename"></b><span id="meslot"></span></div></div>
+  <div class="note">Change critter</div>
+  <div class="chars" id="chars2"></div>
+  <button class="big" id="startbtn">START</button>
+  <p class="note">Turn your phone sideways when it starts. <b>Left thumb</b> moves, <b>right thumb</b> aims and shoots. <b>Hold LOOT</b> at a chest, tap it on loot. <b>SWAP</b> switches weapons, <b>USE</b> drinks / throws your item.</p>
+</section>
+
+<section class="screen hide" id="wait"><div class="title" style="font-size:32px">RAMBULAN</div><p class="sub" id="waitmsg"></p></section>
+
+<section class="screen hide" id="results">
+  <div class="title" style="font-size:32px">MATCH OVER</div>
+  <p id="champ" style="font: 900 34px 'Arial Black'; color: var(--gold); font-style: italic"></p>
+  <button class="big" id="againbtn">REMATCH</button>
+</section>
+
+<section class="screen hide" id="pad">
+  <div class="zone" id="lzone"></div><div class="zone" id="rzone"></div>
+  <div class="stick hide" id="lstick"><div class="ring"></div><div class="nub"></div></div>
+  <div class="stick hide" id="rstick"><div class="ring"></div><div class="nub"></div></div>
+  <div class="hint" style="left:0">MOVE</div><div class="hint" style="right:0" id="rhint">AIM + SHOOT</div>
+  <div id="bar"><div class="nm"><i></i><span id="nm"></span><span class="stars" id="stars"></span></div><div class="hpbar"><i class="hp" id="hp"></i><i class="sh" id="sh"></i></div></div>
+  <div id="btns">
+    <div class="b" id="swap"><div class="sl" id="s0"></div><div class="sl" id="s1"></div></div>
+    <div class="b" id="use"><div class="ic" id="useic"></div><span id="uselb">USE</span><em id="usect"></em></div>
+    <div class="b" id="loot"><div class="ic" id="lootic"></div><span>LOOT</span></div>
+  </div>
+  <div id="banner"></div>
+  <div id="hurt"></div>
+</section>
+
+<div id="rotate"><div class="ph"></div><b style="font: 900 22px 'Arial Black'">Turn your phone sideways</b></div>
+
+<script type="module">
+import { ICON, NAME } from "/js/icons.js";
+import { FLAT } from "/assets/flat.js";
+
+const $ = (id) => document.getElementById(id);
+const CHARS = ["yhon", "axolotl", "capybara", "hedgehog"];
+const LS = (k, v) => { try { if (v === undefined) return localStorage.getItem("rambulan." + k); localStorage.setItem("rambulan." + k, v); } catch (e) {} };
+let pid = LS("pid");
+if (!pid) { pid = Math.random().toString(36).slice(2, 12); LS("pid", pid); }
+const me = { name: LS("name") || "", char: LS("char") || "yhon", joined: false };
+let st = {};
+const inp = { mx: 0, mz: 0, ax: 0, az: 0, l: 0, w: 0, u: 0 };
+
+let hsw = null;
+function haptic(ms = 12) {
+  try { if (navigator.vibrate && navigator.vibrate(ms)) return; } catch (e) {}
+  try {
+    if (!hsw) { const l = document.createElement("label"); l.style.cssText = "position:fixed;top:-64px;left:-64px;width:1px;height:1px;opacity:0;pointer-events:none;";
+      hsw = document.createElement("input"); hsw.type = "checkbox"; hsw.setAttribute("switch", ""); l.appendChild(hsw); document.body.appendChild(l); }
+    hsw.click();
+  } catch (e) {}
+}
+
+// ---------- connection (WebSocket, falling back to POST + SSE) ----------
+let ws = null, fallback = false, es = null, fails = 0;
+function connect() {
+  if (fallback) return startFallback();
+  const proto = location.protocol === "https:" ? "wss" : "ws";
+  let opened = false;
+  try { ws = new WebSocket(`${proto}://${location.host}/ws?pid=${pid}`); } catch (e) { fallback = true; return connect(); }
+  const t = setTimeout(() => { if (!opened) try { ws.close(); } catch (e) {} }, 4000);
+  ws.onopen = () => { opened = true; clearTimeout(t); fails = 0; link(true); hello(); };
+  ws.onmessage = (e) => onMsg(JSON.parse(e.data));
+  ws.onclose = () => { clearTimeout(t); link(false); if (!opened && ++fails >= 2) fallback = true; setTimeout(connect, 800); };
+}
+function startFallback() {
+  if (es) es.close();
+  es = new EventSource(`/out?pid=${pid}`);
+  es.onopen = () => { link(true); hello(); };
+  es.onmessage = (e) => onMsg(JSON.parse(e.data));
+  es.onerror = () => link(false);
+}
+function send(m) {
+  if (!fallback && ws && ws.readyState === 1) ws.send(JSON.stringify(m));
+  else if (fallback) fetch(`/in?pid=${pid}`, { method: "POST", body: JSON.stringify(m), keepalive: true }).catch(() => {});
+}
+function link(ok) { $("status").textContent = ok ? "connected" : "reconnecting..."; $("status").classList.toggle("bad", !ok); }
+function hello() { if (me.name) send({ t: "join", name: me.name, char: me.char }); }
+document.addEventListener("visibilitychange", () => { if (!document.hidden && !fallback && (!ws || ws.readyState !== 1)) connect(); });
+
+function onMsg(m) {
+  if (m.t === "board") hello();
+  if (m.t === "joined") { Object.assign(me, { joined: true, slot: m.slot, color: m.color, name: m.name, char: m.char }); document.documentElement.style.setProperty("--c", m.color); show(); }
+  if (m.t === "full") $("joinerr").textContent = "The island is full (4 players).";
+  if (m.t === "wait") { me.waiting = true; $("waitmsg").textContent = m.why; show("wait"); }
+  if (m.t === "st") { st = m; show(); hud(); }
+  if (m.t === "fx" && m.e === "hit") { haptic(40); $("hurt").classList.add("on"); setTimeout(() => $("hurt").classList.remove("on"), 90); }
+  if (m.t === "fx" && m.e === "ko") haptic(200);
+  if (m.t === "results") $("champ").textContent = m.me ? "You're the champion!" : m.champ ? `${m.champ} wins!` : "";
+}
+
+// ---------- screens ----------
+function show(force) {
+  let s = force;
+  if (!s) s = !me.joined ? (me.waiting ? "wait" : "join") : st.screen === "match" ? "pad" : st.screen === "results" ? "results" : "lobby";
+  for (const id of ["join", "lobby", "wait", "results", "pad"]) $(id).classList.toggle("hide", id !== s);
+  document.body.classList.toggle("playing", s === "pad");
+  if (s === "lobby") lobby();
+}
+function portrait(cv, c) {
+  const x = cv.getContext("2d"); x.clearRect(0, 0, cv.width, cv.height);
+  try { FLAT[c].draw(x, cv.width / 2, cv.height * 0.93, cv.width * 0.82, cv.height * 0.82, { t: 0, air: 0, run: 0, squash: 0, rise: 0, walk: 0, stride: 1, dir: 1, face: 1 }); } catch (e) {}
+}
+function drawChars(el, sel) {
+  el.innerHTML = CHARS.map((c) => `<button data-char="${c}" class="${c === sel ? "on" : ""}"><canvas width="144" height="144" data-cv="${c}"></canvas><span>${FLAT[c].name}</span></button>`).join("");
+  el.querySelectorAll("canvas").forEach((cv) => portrait(cv, cv.dataset.cv));
+}
+$("name").value = me.name;
+drawChars($("chars"), me.char);
+$("chars").onclick = (e) => { const b = e.target.closest("[data-char]"); if (b) { me.char = b.dataset.char; drawChars($("chars"), me.char); haptic(); } };
+$("joinbtn").onclick = () => {
+  const n = $("name").value.trim();
+  if (!n) { $("joinerr").textContent = "Type your name first."; return; }
+  me.name = n; LS("name", n); LS("char", me.char); haptic();
+  send({ t: "join", name: me.name, char: me.char });
+};
+function lobby() {
+  $("mename").textContent = me.name; $("meslot").textContent = `Player ${me.slot + 1}`;
+  portrait($("mecv"), me.char);
+  if ($("chars2").dataset.sel !== me.char) { drawChars($("chars2"), me.char); $("chars2").dataset.sel = me.char; }
+}
+$("chars2").onclick = (e) => { const b = e.target.closest("[data-char]"); if (b) { me.char = b.dataset.char; LS("char", me.char); send({ t: "char", char: me.char }); haptic(); } };
+$("startbtn").onclick = () => { haptic(); send({ t: "start" }); };
+$("againbtn").onclick = () => { haptic(); send({ t: "again" }); };
+
+// ---------- twin sticks ----------
+function stick(zoneId, stickId, onMove) {
+  const zone = $(zoneId), s = $(stickId), nub = s.querySelector(".nub");
+  let cur = null;
+  zone.addEventListener("pointerdown", (e) => {
+    if (cur) return;
+    cur = { id: e.pointerId, x0: e.clientX, y0: e.clientY };
+    try { zone.setPointerCapture(e.pointerId); } catch (err) {}
+    s.classList.remove("hide"); s.style.left = e.clientX + "px"; s.style.top = e.clientY + "px";
+    nub.style.transform = ""; e.preventDefault();
+  });
+  zone.addEventListener("pointermove", (e) => {
+    if (!cur || e.pointerId !== cur.id) return;
+    let dx = e.clientX - cur.x0, dy = e.clientY - cur.y0;
+    const d = Math.hypot(dx, dy), max = 60;
+    if (d > max) { dx *= max / d; dy *= max / d; }
+    nub.style.transform = `translate(${dx}px, ${dy}px)`;
+    onMove(dx / max, dy / max);
+    e.preventDefault();
+  });
+  const end = (e) => { if (cur && e.pointerId === cur.id) { cur = null; s.classList.add("hide"); onMove(0, 0); } };
+  zone.addEventListener("pointerup", end); zone.addEventListener("pointercancel", end);
+}
+stick("lzone", "lstick", (x, y) => { inp.mx = x; inp.mz = y; });
+stick("rzone", "rstick", (x, y) => { inp.ax = x; inp.az = y; });
+
+function press(el, fn, release) {
+  el.addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); el.classList.add("down"); haptic(10); fn(); });
+  const up = () => { el.classList.remove("down"); if (release) release(); };
+  el.addEventListener("pointerup", up); el.addEventListener("pointercancel", up); el.addEventListener("pointerleave", up);
+}
+press($("swap"), () => { inp.w++; });
+press($("use"), () => { inp.u++; });
+press($("loot"), () => { inp.l = 1; sendInput(); }, () => { inp.l = 0; sendInput(); });
+document.addEventListener("contextmenu", (e) => e.preventDefault());
+document.addEventListener("gesturestart", (e) => e.preventDefault());
+
+function sendInput() {
+  if (st.screen !== "match") return;
+  const r = (v) => Math.round(v * 1000) / 1000;
+  send({ t: "in", mx: r(inp.mx), mz: r(inp.mz), ax: r(inp.ax), az: r(inp.az), l: inp.l, w: inp.w, u: inp.u });
+}
+setInterval(sendInput, 33);
+
+// ---------- HUD ----------
+const slotHTML = (s) => s ? ICON[s.type] + (s.ammo !== null && s.ammo !== undefined ? `<em>${s.ammo}</em>` : "") : ICON.fists;
+let lastHtml = "";
+function hud() {
+  if (st.screen !== "match") return;
+  document.body.classList.toggle("ghost", !!st.ghost);
+  $("nm").textContent = me.name;
+  $("stars").innerHTML = Array.from({ length: st.wins || 0 }, () => `<span>${ICON.star}</span>`).join("");
+  $("hp").style.width = (st.hp || 0) + "%";
+  $("sh").style.width = ((st.shield || 0) / 50) * 100 + "%";
+  const sl = st.slots || [null, null];
+  const html = slotHTML(sl[0]) + "|" + slotHTML(sl[1]) + "|" + st.active + (st.item ? st.item.type + st.item.count : "") + st.ghost;
+  if (html !== lastHtml) {
+    lastHtml = html;
+    $("s0").innerHTML = slotHTML(sl[0]); $("s1").innerHTML = slotHTML(sl[1]);
+    $("s0").classList.toggle("on", st.active === 0); $("s1").classList.toggle("on", st.active === 1);
+    $("useic").innerHTML = st.ghost ? ICON.bomba : st.item ? ICON[st.item.type] : "";
+    $("usect").textContent = !st.ghost && st.item && st.item.count > 1 ? "x" + st.item.count : "";
+    $("uselb").textContent = st.ghost ? "BOMB" : st.item ? NAME[st.item.type].split(" ")[0].toUpperCase() : "USE";
+    $("lootic").innerHTML = ICON.star;
+  }
+  $("use").classList.toggle("empty", !st.ghost && !st.item);
+  $("use").classList.toggle("cd", !!st.ghost && st.ghostCd > 0);
+  $("swap").classList.toggle("hide", !!st.ghost);
+  $("loot").classList.toggle("hide", !!st.ghost);
+  $("loot").classList.toggle("near", !!st.near);
+  $("rhint").textContent = st.ghost ? "PUSH TO DROP A GHOST BOMB" : "AIM + SHOOT";
+  let b = "";
+  if (st.phase === "countdown") { const c = Math.ceil(st.cd - 0.6); b = c > 0 ? `${c}<small>Round ${st.round}</small>` : "RAMBULAN!"; }
+  else if (st.phase === "roundEnd") b = st.winner === st.me ? "You win the round!" : st.ghost ? "Round over" : "Round over";
+  else if (st.ghost) b = `<small>You're a MULTO. Haunt them: ${st.ghostCd > 0 ? "bomb ready in " + Math.ceil(st.ghostCd) + "s" : "bomb ready!"}</small>`;
+  if ($("banner").dataset.h !== b) { $("banner").innerHTML = b; $("banner").dataset.h = b; }
+}
+
+connect();
+show();
+</script>
+</body>
+</html>
