@@ -1,0 +1,514 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0f3d2e">
+<title>Monopoly Wallet</title>
+<style>
+:root { --felt: #0f3d2e; --bg: #eef2ee; --card: #fff; --ink: #1b1f1c; --muted: #6a736d; --line: #dfe5e0; --gold: #f4c542; --me: #1e88e5; --red: #d33; --green: #1f9d4c; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font-family: -apple-system, "Avenir Next", "Helvetica Neue", sans-serif; padding-bottom: calc(80px + env(safe-area-inset-bottom)); }
+button { font: inherit; border: 0; cursor: pointer; }
+input, select { font: inherit; }
+.hide { display: none !important; }
+
+/* header */
+#top { background: var(--felt); color: #fff; padding: calc(14px + env(safe-area-inset-top)) 16px 18px; position: sticky; top: 0; z-index: 5; border-bottom: 6px solid var(--me); }
+#top .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+#me { font-weight: 800; font-size: 17px; display: flex; align-items: center; gap: 8px; }
+#me i { width: 14px; height: 14px; border-radius: 50%; background: var(--me); border: 2px solid #fff; }
+#link { font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 99px; background: rgba(255,255,255,.14); }
+#link.bad { background: var(--red); }
+#cash { font-size: 46px; font-weight: 900; letter-spacing: -.01em; margin-top: 6px; font-variant-numeric: tabular-nums; }
+#sub { font-size: 13.5px; color: #b9d3c5; }
+
+main { padding: 14px 14px 0; display: flex; flex-direction: column; gap: 14px; max-width: 560px; margin: 0 auto; }
+.card { background: var(--card); border-radius: 18px; padding: 16px; box-shadow: 0 1px 0 var(--line), 0 6px 18px rgba(16, 40, 28, .06); }
+.card h2 { margin: 0 0 4px; font-size: 20px; font-weight: 900; }
+.card p { margin: 4px 0; color: var(--muted); font-size: 14.5px; line-height: 1.4; }
+.big { width: 100%; padding: 18px; border-radius: 14px; font-size: 20px; font-weight: 900; background: var(--ink); color: #fff; margin-top: 10px; }
+.big:active, .sm:active { transform: scale(.98); }
+.big.gold { background: var(--gold); color: #2a1f00; }
+.big.green { background: var(--green); }
+.big.ghost { background: #e8ece9; color: var(--ink); }
+.big.red { background: var(--red); }
+.big:disabled, .sm:disabled { opacity: .35; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.two .big { margin-top: 0; }
+.sm { padding: 9px 12px; border-radius: 10px; font-size: 14px; font-weight: 800; background: #e8ece9; color: var(--ink); }
+.sm.gold { background: var(--gold); color: #2a1f00; }
+.sm.red { background: #fde3e3; color: var(--red); }
+
+/* deed */
+.deed { border: 2px solid var(--ink); border-radius: 10px; overflow: hidden; margin-top: 10px; }
+.deed .hd { padding: 10px; text-align: center; color: #fff; font-weight: 900; font-size: 18px; text-transform: uppercase; text-shadow: 0 1px 2px rgba(0,0,0,.35); }
+.deed table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.deed td { padding: 5px 12px; } .deed td:last-child { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+.deed tr.cur td { background: #fff4c7; }
+
+/* auction */
+.hi { font-size: 40px; font-weight: 900; text-align: center; margin: 6px 0 0; }
+.hiby { text-align: center; color: var(--muted); font-weight: 700; }
+.bids { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+.bids .big { margin: 0; padding: 14px 6px; font-size: 18px; }
+.clock { text-align: center; font-weight: 800; color: var(--red); margin-top: 8px; }
+
+/* tabs */
+#tabs { position: fixed; left: 0; right: 0; bottom: 0; background: #fff; border-top: 1px solid var(--line); display: grid; grid-template-columns: repeat(4, 1fr); padding-bottom: env(safe-area-inset-bottom); z-index: 6; }
+#tabs button { background: transparent; padding: 12px 4px 14px; font-size: 13px; font-weight: 800; color: var(--muted); position: relative; }
+#tabs button.on { color: var(--ink); box-shadow: inset 0 3px 0 var(--me); }
+#tabs .badge { position: absolute; top: 6px; right: 22%; background: var(--red); color: #fff; font-size: 11px; border-radius: 99px; padding: 1px 6px; }
+
+/* property list */
+.grp { border-left: 8px solid; padding-left: 10px; margin-top: 12px; }
+.prop { display: flex; flex-direction: column; gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.prop:last-child { border-bottom: 0; }
+.prop .t { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.prop .nm { font-weight: 800; font-size: 16px; }
+.prop .rent { color: var(--muted); font-size: 13px; font-weight: 600; white-space: nowrap; }
+.prop .acts { display: flex; gap: 6px; flex-wrap: wrap; }
+.prop.mort .nm { text-decoration: line-through; color: var(--muted); }
+.blds { display: inline-flex; gap: 3px; margin-left: 6px; vertical-align: middle; }
+.blds i { width: 10px; height: 10px; background: #2e9d48; border-radius: 2px; }
+.blds i.h { width: 22px; background: #d32f2f; }
+.tag { font-size: 11px; font-weight: 800; padding: 2px 7px; border-radius: 99px; background: #eee; color: var(--muted); margin-left: 6px; vertical-align: middle; }
+
+/* join */
+#join { max-width: 460px; margin: 0 auto; padding: calc(40px + env(safe-area-inset-top)) 20px 40px; }
+#join h1 { font-size: 34px; font-weight: 900; margin: 0; }
+#join input[type=text] { width: 100%; padding: 16px; border-radius: 14px; border: 2px solid var(--line); font-size: 20px; font-weight: 700; margin-top: 18px; background: #fff; }
+.sws { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 16px; }
+.sws button { aspect-ratio: 1; border-radius: 50%; border: 4px solid #fff; box-shadow: 0 0 0 2px var(--line); }
+.sws button.on { box-shadow: 0 0 0 4px var(--ink); }
+.sws button:disabled { opacity: .18; }
+.err { color: var(--red); font-weight: 700; margin-top: 10px; min-height: 20px; }
+
+/* toasts */
+#toasts { position: fixed; left: 12px; right: 12px; top: calc(12px + env(safe-area-inset-top)); z-index: 50; display: flex; flex-direction: column; gap: 8px; pointer-events: none; align-items: center; }
+.toast { background: var(--ink); color: #fff; padding: 12px 18px; border-radius: 14px; font-weight: 800; font-size: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.25); animation: tin .3s ease-out; max-width: 520px; }
+.toast.up { background: var(--green); } .toast.down { background: var(--red); } .toast.bad { background: #5a1f1f; }
+@keyframes tin { from { transform: translateY(-20px); opacity: 0; } }
+
+/* trade */
+.pick { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.pick label { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 10px; background: #f3f6f4; font-weight: 700; font-size: 15px; }
+.pick label input { width: 20px; height: 20px; }
+.pick .sw { width: 10px; height: 22px; border-radius: 3px; }
+.money { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-weight: 700; }
+.money input { width: 120px; padding: 10px; border-radius: 10px; border: 2px solid var(--line); font-size: 16px; }
+.players { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.players button { padding: 9px 14px; border-radius: 99px; font-weight: 800; background: #eef1ef; display: flex; gap: 6px; align-items: center; }
+.players button.on { background: var(--ink); color: #fff; }
+.players i { width: 12px; height: 12px; border-radius: 50%; }
+.offer { border: 2px solid var(--gold); }
+.offer .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; font-size: 14px; }
+.offer .cols b { display: block; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px; }
+.log div { padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 14px; line-height: 1.35; }
+.log div.mine { font-weight: 700; }
+.sect { font-size: 12px; font-weight: 900; color: var(--muted); letter-spacing: .12em; text-transform: uppercase; margin: 14px 0 4px; }
+</style>
+</head>
+<body>
+<div id="toasts"></div>
+
+<section id="join" class="hide">
+  <h1>Monopoly Night</h1>
+  <p style="color:var(--muted);font-size:16px;line-height:1.45">This phone becomes your wallet. Keep it with you; the Mac is the board.</p>
+  <div id="joinform">
+    <input type="text" id="name" placeholder="Your name" maxlength="14" autocomplete="off" autocapitalize="words">
+    <div class="sws" id="sws"></div>
+    <button class="big gold" id="joinbtn" style="margin-top:22px">Join the game</button>
+  </div>
+  <div id="joinclosed" class="hide card" style="margin-top:20px">
+    <h2>Game in progress</h2>
+    <p>New players can join at the next rematch. You can still watch the board on the Mac.</p>
+  </div>
+  <div class="err" id="joinerr"></div>
+</section>
+
+<section id="app" class="hide">
+  <div id="top">
+    <div class="row"><div id="me"><i></i><span id="myname"></span></div><span id="link">live</span></div>
+    <div id="cash"></div>
+    <div id="sub"></div>
+  </div>
+  <main>
+    <div id="pane-play">
+      <div id="action"></div>
+      <div id="offers"></div>
+    </div>
+    <div id="pane-props" class="hide"></div>
+    <div id="pane-trade" class="hide"></div>
+    <div id="pane-log" class="hide"></div>
+  </main>
+  <nav id="tabs">
+    <button data-tab="play" class="on">Play</button>
+    <button data-tab="props">My stuff</button>
+    <button data-tab="trade">Trade<span class="badge hide" id="tradebadge"></span></button>
+    <button data-tab="log">Log</button>
+  </nav>
+</section>
+
+<script src="/common.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const KEY = "monopoly.secret";
+let B, S = null, ME = null, SECRET = null, tab = "play", seenLog = null, busy = false, pickColor = null;
+let trade = { to: null, give: new Set(), get: new Set(), give_cash: 0, get_cash: 0 };
+let bankruptArm = 0;
+
+function me() { return S && ME ? S.players.find((p) => p.id === ME) : null; }
+function pl(id) { return S.players.find((p) => p.id === id); }
+function sqName(i) { return M.esc(B.squares[i].name); }
+function gcolor(sq) { return sq.type === "street" ? B.groups[sq.group] : sq.type === "rail" ? "#333" : "#9aa29d"; }
+
+function toast(text, kind = "", ms = 3200) {
+  const t = document.createElement("div");
+  t.className = "toast " + kind; t.innerHTML = text;
+  $("toasts").appendChild(t);
+  setTimeout(() => t.remove(), ms);
+}
+
+async function act(action, extra) {
+  if (busy) return;
+  busy = true;
+  const r = await M.post("/api/act", Object.assign({ secret: SECRET, action }, extra || {}));
+  busy = false;
+  if (!r.ok) toast(M.esc(r.error || "Didn't work"), "bad");
+  if (r.ok === false && /not in this game/.test(r.error || "")) { localStorage.removeItem(KEY); location.reload(); }
+  return r;
+}
+
+// ---------- join ----------
+function renderJoin() {
+  $("join").classList.remove("hide");
+  $("app").classList.add("hide");
+  const open = S.phase === "lobby";
+  $("joinform").classList.toggle("hide", !open);
+  $("joinclosed").classList.toggle("hide", open);
+  const taken = new Set(S.players.map((p) => p.color));
+  if (!pickColor || taken.has(pickColor)) pickColor = B.colors.find((c) => !taken.has(c));
+  $("sws").innerHTML = B.colors.map((c) =>
+    `<button style="background:${c}" data-c="${c}" class="${c === pickColor ? "on" : ""}" ${taken.has(c) ? "disabled" : ""}></button>`).join("");
+}
+$("sws").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b && !b.disabled) { pickColor = b.dataset.c; renderJoin(); } });
+$("joinbtn").onclick = async () => {
+  M.tone(1, 0.01);
+  const r = await M.post("/api/join", { name: $("name").value, color: pickColor });
+  if (!r.ok) { $("joinerr").textContent = r.error; return; }
+  SECRET = r.secret; ME = r.id;
+  localStorage.setItem(KEY, SECRET);
+  $("joinerr").textContent = "";
+  render();
+};
+
+// ---------- main ----------
+function render() {
+  if (!S || !B) return;
+  const p = me();
+  if (!p) return renderJoin();
+  $("join").classList.add("hide");
+  $("app").classList.remove("hide");
+  document.documentElement.style.setProperty("--me", p.color);
+  $("myname").textContent = p.name;
+  $("cash").textContent = M.peso(p.cash);
+  const n = Object.values(S.props).filter((o) => o.owner === p.id).length;
+  $("sub").textContent = S.phase === "lobby" ? "Waiting for the host to start"
+    : p.out ? "Bankrupt. Thanks for playing!"
+    : `${n} propert${n === 1 ? "y" : "ies"} · worth ${M.peso(p.worth)} · ${p.jailed ? "in jail" : "on " + B.squares[p.pos].name}`;
+  toasts(p);
+  renderAction(p);
+  renderOffers(p);
+  if (tab === "props") renderProps(p);
+  if (tab === "trade") renderTrade(p);
+  if (tab === "log") renderLog(p);
+  const inc = S.trades.filter((t) => t.to === p.id).length;
+  $("tradebadge").textContent = inc; $("tradebadge").classList.toggle("hide", !inc);
+}
+
+function toasts(p) {
+  const last = S.log.length ? S.log[S.log.length - 1].id : 0;
+  if (seenLog === null) { seenLog = last; return; }
+  let buzz = false;
+  for (const l of S.log) {
+    if (l.id <= seenLog) continue;
+    const d = (l.d || {})[p.id];
+    if (d) {
+      toast(`${d > 0 ? "+" : "−"}${M.peso(Math.abs(d))} <span style="font-weight:600;opacity:.9">${M.money(l.text)}</span>`, d > 0 ? "up" : "down", 4500);
+      buzz = true;
+      d > 0 ? M.sfx.coin() : M.sfx.pay();
+    } else if (l.kind === "turn" && S.phase === "play" && S.players[S.turn].id === p.id && /turn/.test(l.text)) {
+      toast("Your turn!", "up"); buzz = true; M.sfx.turn();
+    } else if (l.kind === "trade" && l.text.includes(p.name)) {
+      toast(M.money(l.text));
+    }
+  }
+  seenLog = last;
+  if (buzz && navigator.vibrate) navigator.vibrate(120);
+}
+
+function deed(i, highlightRow) {
+  const sq = B.squares[i], o = S.props[i];
+  let rows = "";
+  if (sq.type === "street") {
+    const lab = ["Rent", "With 1 house", "With 2 houses", "With 3 houses", "With 4 houses", "With hotel"];
+    rows = sq.rent.map((r, k) => `<tr class="${highlightRow === k ? "cur" : ""}"><td>${lab[k]}</td><td>${M.peso(r)}</td></tr>`).join("")
+      + `<tr><td style="color:var(--muted)">Full colour set: rent doubles on empty lots</td><td></td></tr>`
+      + `<tr><td>Each house / hotel</td><td>${M.peso(sq.house)}</td></tr>`;
+  } else if (sq.type === "rail") {
+    rows = [25, 50, 100, 200].map((r, k) => `<tr><td>Owner has ${k + 1} line${k ? "s" : ""}</td><td>${M.peso(r)}</td></tr>`).join("");
+  } else {
+    rows = `<tr><td>Owner has 1 utility</td><td>4 × dice</td></tr><tr><td>Owner has both</td><td>10 × dice</td></tr>`;
+  }
+  rows += `<tr><td>Mortgage value</td><td>${M.peso(sq.mortgage)}</td></tr>`;
+  const owner = o ? pl(o.owner) : null;
+  return `<div class="deed"><div class="hd" style="background:${gcolor(sq)}">${M.esc(sq.name)}</div><table>
+    <tr><td>Price</td><td>${M.peso(sq.price)}</td></tr>${rows}
+    ${owner ? `<tr><td>Owner</td><td style="color:${owner.color}">${M.esc(owner.name)}</td></tr>` : ""}</table></div>`;
+}
+
+function renderAction(p) {
+  const el = $("action");
+  if (S.phase === "lobby") {
+    el.innerHTML = `<div class="card"><h2>You're in!</h2><p>Waiting for everyone to join. The host taps Start on the Mac.</p>
+      <div class="sect">Your colour</div><div class="sws">${B.colors.map((c) => {
+        const t = S.players.some((q) => q.color === c && q.id !== p.id);
+        return `<button style="background:${c}" data-color="${c}" class="${c === p.color ? "on" : ""}" ${t ? "disabled" : ""}></button>`;
+      }).join("")}</div>
+      <div class="sect">At the table</div><p>${S.players.map((q) => `<b style="color:${q.color}">${M.esc(q.name)}</b>`).join(", ")}</p></div>`;
+    return;
+  }
+  if (S.phase === "over") {
+    const w = pl(S.winner);
+    const ranked = [...S.players].sort((a, b) => (a.out - b.out) || (b.worth - a.worth));
+    el.innerHTML = `<div class="card"><h2>${w && w.id === p.id ? "You win!" : M.esc(w ? w.name : "") + " wins!"}</h2>
+      ${ranked.map((q, k) => `<p><b>${k + 1}. ${M.esc(q.name)}</b> &middot; ${M.peso(q.worth)}</p>`).join("")}
+      <p>Wait for the host to start a rematch.</p></div>`;
+    return;
+  }
+  const cur = S.players[S.turn], mine = cur.id === p.id, st = S.stage;
+  const myDebts = S.debts.filter((d) => d.from === p.id);
+  let h = "";
+
+  if (p.out) h = `<div class="card"><h2>You're bankrupt</h2><p>Stay and watch, or cheer for whoever took your stuff.</p></div>`;
+  else if (myDebts.length) {
+    const owe = myDebts.reduce((a, d) => a + d.amount, 0);
+    const to = [...new Set(myDebts.map((d) => d.to === "bank" ? "the bank" : pl(d.to).name))].join(", ");
+    h = `<div class="card" style="border:3px solid var(--red)"><h2>You owe ${M.peso(owe)}</h2>
+      <p>To ${M.esc(to)} (${M.esc(myDebts.map((d) => d.why).join(", "))}).</p>
+      <p><b>Raise ${M.peso(Math.max(0, owe - p.cash))} more</b>: sell houses or mortgage in <b>My stuff</b>, or trade. It pays automatically once you have enough.</p>
+      <button class="big ghost" data-tab-go="props">Open My stuff</button>
+      <button class="big red" id="bk">${Date.now() - bankruptArm < 4000 ? "Tap again to confirm" : "Declare bankruptcy"}</button></div>`;
+  } else if (st === "auction" && S.auction) {
+    const a = S.auction, sq = B.squares[a.sq], top = a.by ? pl(a.by) : null;
+    const passed = a.passed.includes(p.id), leading = a.by === p.id;
+    const steps = [10, 50, 100];
+    h = `<div class="card"><h2>Auction: ${M.esc(sq.name)}</h2><p>List price ${M.peso(sq.price)}. Highest bid wins.</p>
+      <div class="hi">${a.high ? M.peso(a.high) : "No bids"}</div>
+      <div class="hiby">${top ? (leading ? "You're winning" : M.esc(top.name) + " leads") : "Be the first"}</div>
+      <div class="clock" id="aclock" data-ends="${Date.now() + a.left * 1000}"></div>
+      <div class="bids">${steps.map((s) => `<button class="big gold" data-bid="${a.high + s}" ${a.high + s > p.cash ? "disabled" : ""}>+${s}<br><span style="font-size:13px">${M.peso(a.high + s)}</span></button>`).join("")}</div>
+      ${leading ? "" : `<button class="big ghost" id="apass" ${passed ? "disabled" : ""}>${passed ? "You passed" : "Pass"}</button>`}
+      ${deed(a.sq)}</div>`;
+  } else if (mine && st === "roll") {
+    if (p.jailed) {
+      h = `<div class="card"><h2>You're in jail</h2><p>Try ${3 - p.jail_tries} more time${3 - p.jail_tries === 1 ? "" : "s"} for doubles, pay ${M.peso(50)}, or use a free card.</p>
+        <button class="big gold" data-act="roll">Roll for doubles</button>
+        <div class="two" style="margin-top:10px"><button class="big ghost" data-act="jail_pay" ${p.cash < 50 ? "disabled" : ""}>Pay ${M.peso(50)}</button>
+        <button class="big ghost" data-act="jail_card" ${p.cards.length ? "" : "disabled"}>Use card${p.cards.length ? " (" + p.cards.length + ")" : ""}</button></div></div>`;
+    } else {
+      h = `<div class="card"><h2>${S.dbl ? "Doubles! Roll again" : "Your turn"}</h2><p>Roll, and the Mac moves you.</p>
+        <button class="big gold" data-act="roll" style="font-size:26px;padding:26px">Roll dice</button></div>`;
+    }
+  } else if (mine && st === "buy" && S.pending) {
+    const sq = B.squares[S.pending.sq];
+    h = `<div class="card"><h2>Buy ${M.esc(sq.name)}?</h2><p>You have ${M.peso(p.cash)}.</p>${deed(S.pending.sq)}
+      <div class="two" style="margin-top:12px"><button class="big green" data-act="buy" ${p.cash < sq.price ? "disabled" : ""}>Buy ${M.peso(sq.price)}</button>
+      <button class="big ghost" data-act="decline">${S.settings.auction !== false ? "Auction it" : "Pass"}</button></div>
+      ${p.cash < sq.price ? `<p>Not enough cash. Mortgage something in My stuff first, or auction it.</p>` : ""}</div>`;
+  } else if (mine && st === "done") {
+    h = `<div class="card"><h2>Anything else?</h2><p>Build houses, mortgage or trade now, then end your turn.</p>
+      <button class="big" data-act="end">End turn</button></div>`;
+  } else if (st === "debt") {
+    const names = [...new Set(S.debts.map((d) => pl(d.from).name))];
+    h = `<div class="card"><h2>Waiting on ${M.esc(names.join(", "))}</h2><p>They owe money and are raising cash.</p></div>`;
+  } else {
+    const news = [...S.log].reverse().find((l) => !["turn"].includes(l.kind));
+    h = `<div class="card"><h2 style="color:${cur.color}">${M.esc(cur.name)}'s turn</h2><p>${news ? M.money(news.text) : ""}</p></div>`;
+  }
+  // where I'm standing, if it's mine to look at
+  if (!p.out && !(st === "buy" && mine) && !(st === "auction") && B.squares[p.pos].price) {
+    const o = S.props[p.pos];
+    h += `<div class="card" style="margin-top:14px"><p style="margin:0">You're on</p>${deed(p.pos, o && o.owner !== p.id && !o.mortgaged ? o.houses : null)}</div>`;
+  }
+  el.innerHTML = h;
+  tickClock();
+}
+
+function renderOffers(p) {
+  const inc = S.phase === "play" ? S.trades.filter((t) => t.to === p.id) : [];
+  $("offers").innerHTML = inc.map((t) => {
+    const f = pl(t.from);
+    return `<div class="card offer" style="margin-top:14px"><h2>Offer from <span style="color:${f.color}">${M.esc(f.name)}</span></h2>
+      <div class="cols"><div><b>You get</b>${side(t.give, t.give_cash)}</div><div><b>You give</b>${side(t.get, t.get_cash)}</div></div>
+      <div class="two" style="margin-top:12px"><button class="big green" data-accept="${t.id}">Accept</button><button class="big ghost" data-decline="${t.id}">Decline</button></div></div>`;
+  }).join("");
+}
+function side(props, cash) {
+  const parts = props.map((i) => `<div><span style="display:inline-block;width:8px;height:12px;border-radius:2px;background:${gcolor(B.squares[i])}"></span> ${sqName(i)}${S.props[i] && S.props[i].mortgaged ? " (mortgaged)" : ""}</div>`);
+  if (cash) parts.push(`<div><b style="display:inline;color:var(--ink);font-size:14px">${M.peso(cash)}</b></div>`);
+  return parts.join("") || `<div style="color:var(--muted)">nothing</div>`;
+}
+
+// ---------- My stuff ----------
+function renderProps(p) {
+  const mine = Object.keys(S.props).map(Number).filter((i) => S.props[i].owner === p.id).sort((a, b) => a - b);
+  if (!mine.length) { $("pane-props").innerHTML = `<div class="card"><h2>Nothing yet</h2><p>Land on an unowned property and buy it.</p></div>`; return; }
+  const byGroup = {};
+  mine.forEach((i) => (byGroup[B.squares[i].group] = byGroup[B.squares[i].group] || []).push(i));
+  const debt = S.debts.some((d) => d.from === p.id);
+  let h = `<div class="card"><h2>My stuff</h2>${p.cards.length ? `<p>Get Out of Jail Free cards: <b>${p.cards.length}</b></p>` : ""}`;
+  const order = (g) => (g === "rail" ? 1 : g === "util" ? 2 : 0);
+  for (const [g, list] of Object.entries(byGroup).sort((x, y) => order(x[0]) - order(y[0]))) {
+    const sq0 = B.squares[list[0]];
+    const all = B.squares.filter((s) => s.group === g).length;
+    const full = list.length === all;
+    const label = g === "rail" ? "Train lines" : g === "util" ? "Utilities" : "";
+    h += `<div class="grp" style="border-color:${gcolor(sq0)}">${label ? `<div class="sect" style="margin-top:0">${label}</div>` : ""}
+      ${sq0.type === "street" ? `<div class="sect" style="margin-top:0">${list.length}/${all}${full ? " · full set, you can build" : ""}</div>` : ""}`;
+    for (const i of list) {
+      const sq = B.squares[i], o = S.props[i];
+      const rent = o.mortgaged ? "no rent" : "rent " + rentNow(i);
+      const blds = o.houses === 5 ? `<span class="blds"><i class="h"></i></span>` : o.houses ? `<span class="blds">${"<i></i>".repeat(o.houses)}</span>` : "";
+      let acts = "";
+      if (sq.type === "street" && full && !o.mortgaged) {
+        acts += `<button class="sm gold" data-build="${i}" ${debt || p.cash < sq.house || o.houses >= 5 ? "disabled" : ""}>+ ${o.houses === 4 ? "Hotel" : "House"} ${M.peso(sq.house)}</button>`;
+        if (o.houses) acts += `<button class="sm" data-sell="${i}">Sell ${o.houses === 5 ? "hotel" : "house"} +${M.peso(sq.house / 2)}</button>`;
+      }
+      if (o.mortgaged) acts += `<button class="sm" data-unmort="${i}" ${debt || p.cash < sq.unmortgage ? "disabled" : ""}>Unmortgage ${M.peso(sq.unmortgage)}</button>`;
+      else if (!B.squares.some((s, j) => s.group === g && S.props[j] && S.props[j].houses)) acts += `<button class="sm red" data-mort="${i}">Mortgage +${M.peso(sq.mortgage)}</button>`;
+      h += `<div class="prop${o.mortgaged ? " mort" : ""}"><div class="t"><span class="nm">${M.esc(sq.name)}${blds}${o.mortgaged ? '<span class="tag">mortgaged</span>' : ""}</span><span class="rent">${rent}</span></div>
+        <div class="acts">${acts}</div></div>`;
+    }
+    h += `</div>`;
+  }
+  $("pane-props").innerHTML = h + `</div>`;
+}
+function rentNow(i) {
+  const sq = B.squares[i], o = S.props[i];
+  const same = B.squares.map((s, j) => j).filter((j) => B.squares[j].group === sq.group && S.props[j] && S.props[j].owner === o.owner).length;
+  if (sq.type === "street") {
+    const all = B.squares.filter((s) => s.group === sq.group).length;
+    return M.peso(o.houses ? sq.rent[o.houses] : sq.rent[0] * (same === all ? 2 : 1));
+  }
+  if (sq.type === "rail") return M.peso(25 * 2 ** (same - 1));
+  return (same === 2 ? 10 : 4) + "× dice";
+}
+
+// ---------- Trade ----------
+function renderTrade(p) {
+  if (S.phase !== "play" || p.out) { $("pane-trade").innerHTML = `<div class="card"><p>Trading opens once the game starts.</p></div>`; return; }
+  const others = S.players.filter((q) => !q.out && q.id !== p.id);
+  if (trade.to && !others.find((q) => q.id === trade.to)) trade.to = null;
+  const tradable = (pid) => Object.keys(S.props).map(Number).filter((i) => S.props[i].owner === pid)
+    .filter((i) => !B.squares.some((s, j) => s.group === B.squares[i].group && S.props[j] && S.props[j].houses)).sort((a, b) => a - b);
+  const list = (pid, set, key) => tradable(pid).map((i) => `<label><input type="checkbox" data-${key}="${i}" ${set.has(i) ? "checked" : ""}>
+    <span class="sw" style="background:${gcolor(B.squares[i])}"></span>${sqName(i)}${S.props[i].mortgaged ? '<span class="tag">mortgaged</span>' : ""}</label>`).join("")
+    || `<p>No tradable properties (sets with houses can't be traded).</p>`;
+  let h = `<div class="card"><h2>Make an offer</h2><p>Pick who to trade with.</p>
+    <div class="players">${others.map((q) => `<button data-to="${q.id}" class="${trade.to === q.id ? "on" : ""}"><i style="background:${q.color}"></i>${M.esc(q.name)}</button>`).join("")}</div>`;
+  if (trade.to) {
+    const q = pl(trade.to);
+    h += `<div class="sect">You give</div><div class="pick">${list(p.id, trade.give, "give")}</div>
+      <div class="money">+ cash <input type="number" inputmode="numeric" min="0" step="10" id="gcash" value="${trade.give_cash || ""}" placeholder="0"></div>
+      <div class="sect">You want from ${M.esc(q.name)}</div><div class="pick">${list(q.id, trade.get, "get")}</div>
+      <div class="money">+ cash <input type="number" inputmode="numeric" min="0" step="10" id="rcash" value="${trade.get_cash || ""}" placeholder="0"></div>
+      <button class="big gold" id="send">Send offer to ${M.esc(q.name)}</button>`;
+  }
+  h += `</div>`;
+  const out = S.trades.filter((t) => t.from === p.id);
+  if (out.length) h += `<div class="card" style="margin-top:14px"><h2>Waiting for answers</h2>${out.map((t) =>
+    `<div class="offer" style="border:0;padding:8px 0"><b>To ${M.esc(pl(t.to).name)}</b><div class="cols"><div><b>You give</b>${side(t.give, t.give_cash)}</div><div><b>You get</b>${side(t.get, t.get_cash)}</div></div>
+     <button class="sm" data-cancel="${t.id}" style="margin-top:8px">Cancel offer</button></div>`).join("")}</div>`;
+  const inc = S.trades.filter((t) => t.to === p.id);
+  if (inc.length) h += `<p style="text-align:center;color:var(--muted)">You have ${inc.length} offer${inc.length > 1 ? "s" : ""} waiting on the Play tab.</p>`;
+  // keep typed cash while the page re-renders around it
+  const focus = document.activeElement && document.activeElement.id;
+  $("pane-trade").innerHTML = h;
+  if (focus && $(focus)) { const e = $(focus); e.focus(); const v = e.value; e.value = ""; e.value = v; }
+}
+
+function renderLog(p) {
+  $("pane-log").innerHTML = `<div class="card log"><h2>What happened</h2>${[...S.log].reverse().slice(0, 80).map((l) =>
+    `<div class="${(l.d || {})[p.id] || l.text.includes(p.name) ? "mine" : ""}">${M.money(l.text)}</div>`).join("")}</div>`;
+}
+
+// ---------- events ----------
+document.addEventListener("click", async (e) => {
+  const b = e.target.closest("button, input[type=checkbox]");
+  if (!b) return;
+  M.tone(1, 0.01); // unlock audio on iOS
+  const d = b.dataset;
+  if (d.act) { if (d.act === "roll") M.sfx.dice(); return act(d.act); }
+  if (d.color) return act("color", { color: d.color });
+  if (d.bid) return act("bid", { amount: +d.bid });
+  if (b.id === "apass") return act("pass");
+  if (b.id === "bk") {
+    if (Date.now() - bankruptArm < 4000) { bankruptArm = 0; return act("bankrupt"); }
+    bankruptArm = Date.now(); render(); setTimeout(render, 4100); return;
+  }
+  if (d.build) return act("build", { sq: +d.build });
+  if (d.sell) return act("sell", { sq: +d.sell });
+  if (d.mort) return act("mortgage", { sq: +d.mort });
+  if (d.unmort) return act("unmortgage", { sq: +d.unmort });
+  if (d.accept) return act("respond", { id: d.accept, accept: true });
+  if (d.decline) return act("respond", { id: d.decline, accept: false });
+  if (d.cancel) return act("cancel", { id: d.cancel });
+  if (d.tabGo) return setTab(d.tabGo);
+  if (d.tab) return setTab(d.tab);
+  if (d.to) { trade = { to: d.to, give: new Set(), get: new Set(), give_cash: 0, get_cash: 0 }; return render(); }
+  if (d.give) { trade.give.has(+d.give) ? trade.give.delete(+d.give) : trade.give.add(+d.give); return; }
+  if (d.get) { trade.get.has(+d.get) ? trade.get.delete(+d.get) : trade.get.add(+d.get); return; }
+  if (b.id === "send") {
+    const r = await act("propose", { to: trade.to, give: [...trade.give], get: [...trade.get], give_cash: trade.give_cash, get_cash: trade.get_cash });
+    if (r && r.ok) { toast("Offer sent", "up"); trade = { to: null, give: new Set(), get: new Set(), give_cash: 0, get_cash: 0 }; render(); }
+  }
+});
+document.addEventListener("input", (e) => {
+  if (e.target.id === "gcash") trade.give_cash = Math.max(0, +e.target.value || 0);
+  if (e.target.id === "rcash") trade.get_cash = Math.max(0, +e.target.value || 0);
+});
+function setTab(t) {
+  tab = t;
+  document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === t));
+  ["play", "props", "trade", "log"].forEach((k) => $("pane-" + k).classList.toggle("hide", k !== t));
+  window.scrollTo(0, 0);
+  render();
+}
+function tickClock() {
+  const c = $("aclock");
+  if (c) c.textContent = `closes in ${Math.max(0, (Number(c.dataset.ends) - Date.now()) / 1000).toFixed(0)}s`;
+}
+setInterval(tickClock, 250);
+
+(async () => {
+  B = await M.board();
+  SECRET = localStorage.getItem(KEY);
+  if (SECRET) {
+    const r = await M.post("/api/me", { secret: SECRET });
+    if (r.ok) ME = r.id; else if (r.ok === false && !r.error) { localStorage.removeItem(KEY); SECRET = null; }
+  }
+  M.live((s) => {
+    S = s;
+    // a host "New lobby" drops everyone; a "Rematch" keeps the same ids
+    if (ME && !s.players.find((p) => p.id === ME)) { ME = null; SECRET = null; localStorage.removeItem(KEY); seenLog = null; }
+    if (s.phase === "lobby") seenLog = null;
+    render();
+  }, (ok) => { $("link").textContent = ok ? "live" : "reconnecting"; $("link").classList.toggle("bad", !ok); });
+})();
+</script>
+</body>
+</html>
