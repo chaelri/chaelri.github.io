@@ -1,5 +1,5 @@
 // Board: owns the match. Phones send stick inputs and get their status back.
-import { createMatch, step, C, W } from "./sim.js";
+import { createMatch, step, C, W, ULTS } from "./sim.js";
 import { createWorld } from "./render.js";
 import { ICON, NAME, RARITY_COLOR } from "./icons.js";
 import { FLAT } from "../assets/flat.js";
@@ -42,6 +42,19 @@ function onServer(msg) {
 }
 function reply(p) { send(p.pid, { t: "joined", slot: p.slot, color: p.color, name: p.name, char: p.char }); }
 
+// Change someone's critter. In a match it takes effect at the next round
+// (straight away during the countdown, or while they're a ghost).
+function setChar(p, char) {
+  p.char = char;
+  const q = match && screen === "match" && match.players.find((x) => x.id === p.pid);
+  if (q) {
+    if (match.phase === "countdown" || q.ghost) { q.char = char; q.pendingChar = null; }
+    else q.pendingChar = char === q.char ? null : char;
+  }
+  reply(p);
+  renderLobby();
+}
+
 function onPhone(pid, m) {
   let p = player(pid);
   if (m.t === "in") { if (p) { p.input = m; p.lastSeen = performance.now(); p.online = true; } return; }
@@ -60,7 +73,7 @@ function onPhone(pid, m) {
     return;
   }
   if (!p) return;
-  if (m.t === "char" && CHARS.includes(m.char) && screen !== "match") { p.char = m.char; reply(p); renderLobby(); }
+  if (m.t === "char" && CHARS.includes(m.char)) setChar(p, m.char);
   if (m.t === "leave" && screen !== "match") { players = players.filter((q) => q !== p); renderLobby(); }
   if (m.t === "start" || (m.t === "again" && screen === "results")) startMatch();
 }
@@ -74,7 +87,7 @@ addEventListener("keydown", (e) => {
   if (e.code === "KeyM") sound.toggle();
   if (e.code === "Escape" && screen !== "lobby") toLobby();
   const kb = players.find((p) => p.kb !== undefined);
-  if (kb) { if (e.code === "KeyG") kb.input.u = (kb.input.u | 0) + 1; if (e.code === "KeyR") kb.input.w = (kb.input.w | 0) + 1; }
+  if (kb) { if (e.code === "KeyG") kb.input.u = (kb.input.u | 0) + 1; if (e.code === "KeyR") kb.input.w = (kb.input.w | 0) + 1; if (e.code === "KeyQ") kb.input.x = (kb.input.x | 0) + 1; }
 });
 addEventListener("keyup", (e) => keys.delete(e.code));
 addEventListener("pointerdown", () => sound.unlock());
@@ -139,7 +152,7 @@ function buildCards() {
   $("cards").innerHTML = match.players.map((p) => `<div class="card" id="card-${p.id}" style="--c:${p.color}">
     <canvas width="112" height="112" data-c="${p.char}"></canvas>
     <div class="cbody"><div class="cname">${esc(p.name)}<span class="wins"></span></div>
-      <div class="bars"><i class="hp"></i><i class="sh"></i></div>
+      <div class="bars"><i class="hp"></i><i class="sh"></i></div><div class="ultbar"><i></i></div>
       <div class="gear"><span class="s0"></span><span class="s1"></span><span class="it"></span></div></div></div>`).join("");
   $("cards").querySelectorAll("canvas").forEach((c) => portrait(c, c.dataset.c));
   $("tags").innerHTML = match.players.map((p) => `<div class="tag" id="tag-${p.id}" style="--c:${p.color}"><b>${esc(p.name)}</b><div class="mini"><i class="hp"></i><i class="sh"></i></div></div>`).join("");
@@ -150,9 +163,14 @@ function hud(st) {
     const c = $("card-" + p.id);
     if (!c) continue;
     c.classList.toggle("dead", !p.alive);
+    const cv = c.querySelector("canvas");
+    if (cv.dataset.c !== p.char) { cv.dataset.c = p.char; portrait(cv, p.char); }
+    c.querySelector(".ultbar i").style.width = p.ult + "%";
+    c.classList.toggle("ready", p.alive && p.ult >= 100);
     c.querySelector(".hp").style.width = (p.hp / C.hp) * 100 + "%";
     c.querySelector(".sh").style.width = (p.shield / C.shieldMax) * 100 + "%";
-    c.querySelector(".wins").innerHTML = ICON.star.repeat(p.wins);
+    const wins = (p.crown ? ICON.crown : "") + ICON.star.repeat(p.wins);
+    if (c.dataset.w !== wins) { c.querySelector(".wins").innerHTML = wins; c.dataset.w = wins; }
     const gear = p.ghost ? `<span class="ghosttag">${ICON.ghost} MULTO</span>` : slotHTML(p.slots[0], p.active === 0) + slotHTML(p.slots[1], p.active === 1)
       + (p.item ? `<span class="slot item">${ICON[p.item.type]}<em>${p.item.count > 1 ? "x" + p.item.count : ""}</em></span>` : "");
     if (c.dataset.g !== gear) { c.querySelector(".gear").innerHTML = gear; c.dataset.g = gear; }
@@ -173,10 +191,20 @@ function hud(st) {
     d.el.style.opacity = Math.max(0, 1 - d.t / 0.9);
   }
   while (dmgs.length && dmgs[0].t > 0.9) dmgs.shift().el.remove();
+  // King Yhon
+  const k = st.king;
+  $("kingbar").classList.toggle("show", !!(k && k.alive));
+  if (k && k.alive) {
+    $("kingbar").querySelector("i").style.width = (k.hp / k.max) * 100 + "%";
+    const [x, y, vis] = world.project(k.x, k.drop > 0 ? 7 + k.drop * 22 : 7, k.z);
+    $("kingtag").style.display = vis ? "" : "none";
+    $("kingtag").style.transform = `translate(${x}px, ${y}px) translate(-50%, -100%)`;
+  } else $("kingtag").style.display = "none";
   // banner + storm
   let banner = "", sub = "";
   if (st.phase === "countdown") { const c = Math.ceil(st.phaseT - 0.6); banner = c > 0 ? String(c) : "RAMBULAN!"; sub = c > 0 ? `Round ${st.round}` : ""; }
   else if (st.phase === "fight" && st.roundT < 1) banner = "RAMBULAN!";
+  else if (announce && performance.now() < announce.until) { banner = announce.b; sub = announce.s; }
   else if (st.phase === "roundEnd") {
     const w = st.players.find((p) => p.id === st.winner);
     banner = w ? `${esc(w.name)} wins!` : "Nobody survived!";
@@ -192,6 +220,8 @@ function hud(st) {
   if ($("feed").dataset.h !== html) { $("feed").innerHTML = html; $("feed").dataset.h = html; }
 }
 const dmgs = [];
+let announce = null;
+const say = (b, s, ms = 2600) => (announce = { b, s, until: performance.now() + ms });
 const feed = [];
 function name(st, id) { const p = st.players.find((q) => q.id === id); return p ? `<b style="color:${p.color}">${esc(p.name)}</b>` : ""; }
 
@@ -205,6 +235,7 @@ function onEvents(st) {
       case "swing": sound.swing(); break;
       case "hit": {
         sound.hurt();
+        if (e.king) { const el = document.createElement("div"); el.className = "dmg king"; el.textContent = e.dmg; $("dmgs").appendChild(el); dmgs.push({ el, x: e.x + (Math.random() - 0.5) * 2, z: e.z, t: 0 }); break; }
         const el = document.createElement("div");
         el.className = "dmg" + (e.shield ? " sh" : "");
         el.textContent = e.dmg;
@@ -217,11 +248,23 @@ function onEvents(st) {
       case "kill": {
         sound.ko();
         const how = e.w === "storm" ? "the storm" : e.w === "multo" ? `a ghost bomb` : NAME[e.w] || e.w;
+        if (e.w === "king") { feed.push({ at: performance.now(), html: `<b style="color:#ffd21f">King Yhon</b> <span class="ic">${ICON.crown}</span> ${name(st, e.p)}` }); send(e.p, { t: "fx", e: "ko" }); break; }
         feed.push({ at: performance.now(), html: e.by && e.by !== e.p ? `${name(st, e.by)} <span class="ic">${ICON[e.w] || ICON.bomba}</span> ${name(st, e.p)}` : `${name(st, e.p)} was taken by ${how}` });
         send(e.p, { t: "fx", e: "ko" });
         break;
       }
       case "chest": sound.chest(e.gold); break;
+      case "orb": sound.pickup(1); if (e.full) send(e.p, { t: "fx", e: "ultready" }); break;
+      case "ult": { sound.boom(); feed.push({ at: performance.now(), html: `${name(st, e.p)} <span class="ic">${ICON.ult}</span> <b>${ULTS[e.char].name}!</b>` }); break; }
+      case "king": sound.storm(); say("KING YHON!", "Last hit takes his crown and his OP loot"); feed.push({ at: performance.now(), html: `<span class="ic">${ICON.crown}</span> <b style="color:#ffd21f">King Yhon has appeared!</b>` }); break;
+      case "kingland": case "kingslam": sound.boom(); break;
+      case "kingdown": {
+        sound.win();
+        const who = st.players.find((q) => q.id === e.by);
+        say(who ? `${esc(who.name)} took the crown!` : "King Yhon is down!", "OP loot dropped");
+        feed.push({ at: performance.now(), html: `${who ? name(st, e.by) : "Someone"} <span class="ic">${ICON.crown}</span> <b style="color:#ffd21f">King Yhon</b>` });
+        break;
+      }
       case "pickup": sound.pickup(Math.max(0, e.rarity)); break;
       case "use": sound.use(e.item); break;
       case "storm": sound.storm(); feed.push({ at: performance.now(), html: `<b style="color:#d9a6ff">The storm is closing in!</b>` }); break;
@@ -247,6 +290,7 @@ function statusToPhones(now) {
       slots: q.slots.map((s) => s && { type: s.type, ammo: s.ammo === Infinity ? null : s.ammo }), active: q.active,
       item: q.item, near: q.near, wins: q.wins, ghostCd: Math.max(0, q.ghostCd), cd: match.phase === "countdown" ? match.phaseT : 0,
       winner: match.phase === "roundEnd" ? match.winner : null, me: q.id,
+      ult: Math.floor(q.ult), char: q.char, next: q.pendingChar || null, crown: !!q.crown, king: match.king.alive ? Math.ceil((match.king.hp / match.king.max) * 100) : null,
     });
     send(p.pid, m);
   }
@@ -284,8 +328,8 @@ function renderLobby() {
   const cards = [];
   for (let i = 0; i < MAX; i++) {
     const p = players.find((q) => q.slot === i);
-    cards.push(p ? `<div class="pslot on" style="--c:${p.color}"><canvas data-c="${p.char}" width="150" height="150"></canvas><div class="pn">${esc(p.name)}</div>
-      <div class="pc">${FLAT[p.char].name}${p.kb !== undefined ? " &middot; keyboard" : p.online ? "" : " &middot; reconnecting"}</div></div>`
+    cards.push(p ? `<div class="pslot on" data-pid="${p.pid}" style="--c:${p.color}" title="Click to change critter"><canvas data-c="${p.char}" width="150" height="150"></canvas><div class="pn">${esc(p.name)}</div>
+      <div class="pc">${FLAT[p.char].name} &middot; <i>${ULTS[p.char].name}</i>${p.kb !== undefined ? " &middot; keyboard" : p.online ? "" : " &middot; reconnecting"}</div><div class="swap">&#8635; click to change</div></div>`
       : `<div class="pslot" style="--c:${SLOT_COLORS[i]}"><div class="empty">P${i + 1}</div><div class="pc">Scan to join</div></div>`);
   }
   const html = cards.join("");
@@ -293,6 +337,12 @@ function renderLobby() {
   $("go").disabled = !players.length;
 }
 $("go").onclick = () => startMatch();
+$("slots").addEventListener("click", (e) => {
+  const card = e.target.closest("[data-pid]");
+  if (!card) return;
+  const p = player(card.dataset.pid);
+  if (p) { setChar(p, CHARS[(CHARS.indexOf(p.char) + 1) % CHARS.length]); sound.join(); }
+});
 $("bots").onchange = (e) => (settings.bots = +e.target.value);
 $("snd").onclick = () => { sound.unlock(); sound.toggle(); $("snd").textContent = sound.on ? "Sound on" : "Sound off"; };
 function flash(t) { $("flash").textContent = t; $("flash").classList.add("show"); setTimeout(() => $("flash").classList.remove("show"), 2600); }
@@ -320,7 +370,7 @@ function frame(now) {
       if (!q) continue;
       const stale = p.kb === undefined && (!p.online || now - (p.lastSeen || 0) > 1500);
       const i = p.input || {};
-      q.input = stale ? { mx: 0, mz: 0, ax: 0, az: 0, l: 0, w: q.input.w, u: q.input.u } : { mx: +i.mx || 0, mz: +i.mz || 0, ax: +i.ax || 0, az: +i.az || 0, l: i.l ? 1 : 0, w: i.w | 0, u: i.u | 0 };
+      q.input = stale ? { mx: 0, mz: 0, ax: 0, az: 0, l: 0, w: q.input.w, u: q.input.u, x: q.input.x } : { mx: +i.mx || 0, mz: +i.mz || 0, ax: +i.ax || 0, az: +i.az || 0, l: i.l ? 1 : 0, w: i.w | 0, u: i.u | 0, x: i.x | 0 };
     }
   }
   let n = 0;

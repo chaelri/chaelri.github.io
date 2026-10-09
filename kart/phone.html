@@ -2,14 +2,14 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#16121f">
 <title>Karera Wheel</title>
 <style>
 :root { --c: #e8312b; --ink: #16121f; --gold: #ffd21f; }
-* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+* { box-sizing: border-box; touch-action: manipulation; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 html, body { margin: 0; height: 100%; overflow: hidden; background: #16121f; color: #fff; font-family: -apple-system, "Avenir Next", sans-serif; overscroll-behavior: none; }
 button { font: inherit; border: 0; cursor: pointer; color: inherit; }
 .hide { display: none !important; }
@@ -349,7 +349,9 @@ $("item").addEventListener("pointerdown", (e) => {
   if (st.item && !st.roulette) { input.item++; haptic(20); sendInput(); }
 });
 document.addEventListener("contextmenu", (e) => e.preventDefault());
-document.addEventListener("gesturestart", (e) => e.preventDefault());
+for (const ev of ["gesturestart", "gesturechange", "dblclick"]) document.addEventListener(ev, (e) => e.preventDefault(), { passive: false });
+let lastTap = 0;   // iOS ignores user-scalable=no: eat the second tap of a double tap
+document.addEventListener("touchend", (e) => { const now = Date.now(); if (now - lastTap < 350 && !e.target.closest("input")) e.preventDefault(); lastTap = now; }, { passive: false });
 
 // ---------- input stream ----------
 function sendInput() {

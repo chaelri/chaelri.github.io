@@ -17,7 +17,8 @@ for (let m = 0; m < N; m++) {
     st.events.length = 0;
     for (const p of st.players) {
       for (const f of ["x", "z", "hp", "shield"]) if (!Number.isFinite(p[f])) throw new Error(`NaN ${f} match ${m}`);
-      if (p.alive && solidAt(p.x, p.z, -0.05)) wallInside++;
+      if (p.alive && !p.leap && solidAt(p.x, p.z, -0.05)) wallInside++;
+      if (st.king.alive && st.king.hp > st.king.max) throw new Error('king overheal');
       if (p.hp < 0 || p.hp > C.hp || p.shield > C.shieldMax) throw new Error("bad hp/shield " + p.hp + " " + p.shield);
     }
   }

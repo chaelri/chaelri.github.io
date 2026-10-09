@@ -29,6 +29,16 @@ export const C = {
   bomb: { dmg: 42, r: 3.4, fuse: 1.0, throwDist: 9 },
   stormStart: 18, stormClose: 92, stormEnd: 112, stormDps: [5, 12],
   roundsToWin: 3, countdown: 3.2, roundEndPause: 4.5,
+  ultMax: 100, orbGain: 25, orbCount: 7, orbRespawn: 8, dmgUlt: 0.3, crownBoost: 1.25,
+  king: { hp: 480, speed: 4.2, radius: 1.5, spawn: [20, 30], slamR: 3.4, slamDmg: 24, windup: 0.7, cd: 1.5, kb: 15 },
+};
+
+// One ult per critter, charged by ult orbs on the map (and a little by dealing damage).
+export const ULTS = {
+  yhon:     { name: "Belly Flop",  desc: "Leap where you aim and slam down" },
+  axolotl:  { name: "Tidal Wave",  desc: "Blast everything in front away" },
+  capybara: { name: "Hot Spring",  desc: "Full heal + shield, scald nearby" },
+  hedgehog: { name: "Spike Storm", desc: "Spikes in every direction" },
 };
 
 function rng(seed) {
@@ -43,7 +53,7 @@ export function createMatch(players, opts = {}) {
     t: 0, rand: rng(opts.seed || 1), phase: "countdown", phaseT: C.countdown, round: 1,
     players: players.map((p, i) => ({
       id: p.id, name: p.name, char: p.char, color: p.color, bot: !!p.bot, slot: i, wins: 0, kills: 0,
-      input: { mx: 0, mz: 0, ax: 0, az: 0, l: 0, w: 0, u: 0 }, edges: { w: 0, u: 0, l: 0 },
+      input: { mx: 0, mz: 0, ax: 0, az: 0, l: 0, w: 0, u: 0, x: 0 }, edges: { w: 0, u: 0, l: 0, x: 0 },
     })),
     events: [], shots: [], loot: [], chests: [], bombs: [], storm: null, nextId: 1, winner: null, champion: null,
   };
@@ -64,19 +74,36 @@ function startRound(st) {
     if (solidAt(x, z, 1)) continue;
     drop(st, x, z, R_() < 0.6 ? "tirador" : R_() < 0.5 ? "buko" : "ripple");
   }
+  st.orbs = [];
+  for (let k = 0; k < C.orbCount; k++) st.orbs.push(placeOrb(st, { id: st.nextId++, gone: 0 }));
+  st.king = { alive: false, spawned: false, spawnAt: C.king.spawn[0] + R_() * (C.king.spawn[1] - C.king.spawn[0]) };
   const cx = (R_() - 0.5) * 22, cz = (R_() - 0.5) * 22;
   st.storm = { x: 0, z: 0, r: R + 8, fx: cx, fz: cz };
   const order = st.players.map((_, i) => i).sort(() => R_() - 0.5);
   st.players.forEach((p, i) => {
+    if (p.pendingChar) { p.char = p.pendingChar; p.pendingChar = null; }   // critter picked mid-match
     const [sx, sz] = SPAWNS[order[i] % SPAWNS.length];
     Object.assign(p, {
       x: sx, z: sz, vx: 0, vz: 0, face: Math.atan2(-sx, -sz), hp: C.hp, shield: 0, alive: true, ghost: false,
       slots: [null, null], active: 0, item: null, cd: 0, fast: 0, opening: null, ghostCd: 2, hurtT: 0, moving: 0,
+      ult: 0, crown: false, leap: null, slowT: 0, regenT: 0,
     });
   });
   st.phase = "countdown";
   st.phaseT = C.countdown;
   st.roundT = 0;
+}
+
+function placeOrb(st, o) {
+  for (let tries = 0; tries < 40; tries++) {
+    const a = st.rand() * Math.PI * 2, r = 4 + st.rand() * (R - 8);
+    const x = Math.cos(a) * r, z = Math.sin(a) * r;
+    if (solidAt(x, z, 1)) continue;
+    o.x = x; o.z = z; o.gone = 0;
+    return o;
+  }
+  o.x = 0; o.z = 3; o.gone = 0;
+  return o;
 }
 
 function drop(st, x, z, type, ammo) {
@@ -114,7 +141,10 @@ export function weaponOf(p) {
 }
 
 function damage(st, p, dmg, by, w, x, z) {
-  if (!p.alive || st.phase !== "fight") return;
+  if (p.isKing) return damageKing(st, dmg, by, w);
+  if (!p.alive || st.phase !== "fight" || p.leap) return;
+  if (by && by.crown) dmg *= C.crownBoost;
+  if (by && by !== p && by.alive && !by.isKing) by.ult = Math.min(C.ultMax, by.ult + dmg * C.dmgUlt);
   let left = dmg;
   if (p.shield > 0) { const s = Math.min(p.shield, left); p.shield -= s; left -= s; }
   p.hp -= left;
@@ -126,17 +156,19 @@ function damage(st, p, dmg, by, w, x, z) {
     for (const s of p.slots) if (s) drop(st, p.x + (st.rand() - 0.5) * 2, p.z + (st.rand() - 0.5) * 2, s.type, s.ammo);
     if (p.item) for (let k = 0; k < p.item.count; k++) drop(st, p.x + (st.rand() - 0.5) * 2, p.z + (st.rand() - 0.5) * 2, p.item.type);
     p.slots = [null, null]; p.item = null;
-    if (by && by !== p) by.kills++;
+    if (by && by !== p && !by.isKing) by.kills++;
     ev(st, { t: "kill", p: p.id, by: by && by.id, w, x: p.x, z: p.z });
   }
 }
 
 function knock(p, fx, fz, kb) { p.vx += fx * kb; p.vz += fz * kb; }
 
-function explode(st, x, z, r, dmg, by, w, kb = 10) {
+function explode(st, x, z, r, dmg, by, w, kb = 10, exclude = null) {
   ev(st, { t: "boom", x, z, r });
+  const k = st.king;
+  if (k.alive && !(by && by.isKing) && Math.hypot(k.x - x, k.z - z) < r + C.king.radius) damageKing(st, dmg, by, w);
   for (const q of st.players) {
-    if (!q.alive) continue;
+    if (!q.alive || q === exclude) continue;
     const d = Math.hypot(q.x - x, q.z - z);
     if (d > r) continue;
     const f = 1 - (d / r) * 0.6;
@@ -168,6 +200,8 @@ export function step(st, dt) {
 
   st.roundT += dt;
   storm(st, dt);
+  kingStep(st, dt);
+  for (const o of st.orbs) if (o.gone > 0 && (o.gone -= dt) <= 0) placeOrb(st, o);
   for (const p of st.players) {
     if (p.bot) think(st, p, dt);
     movePlayer(st, p, dt, false);
@@ -212,8 +246,8 @@ function storm(st, dt) {
 
 function readEdges(p) {
   const i = p.input, e = p.edges;
-  const out = { swap: (i.w | 0) !== e.w, use: (i.u | 0) !== e.u, loot: !e.l && !!i.l };   // loot: press only, not release
-  e.w = i.w | 0; e.u = i.u | 0; e.l = i.l | 0;
+  const out = { swap: (i.w | 0) !== e.w, use: (i.u | 0) !== e.u, ult: (i.x | 0) !== (e.x | 0), loot: !e.l && !!i.l };   // loot: press only, not release
+  e.w = i.w | 0; e.u = i.u | 0; e.l = i.l | 0; e.x = i.x | 0;
   return out;
 }
 
@@ -240,7 +274,10 @@ function movePlayer(st, p, dt, frozen) {
     return;
   }
   if (!p.alive) return;
-  const speed = C.speed * (p.fast > 0 ? 1.35 : 1) * (p.opening ? 0.35 : 1);
+  if (p.leap) { leapStep(st, p, dt); return; }
+  if (p.regenT > 0) { p.regenT -= dt; p.hp = Math.min(C.hp, p.hp + 12 * dt); }
+  p.slowT = Math.max(0, p.slowT - dt);
+  const speed = C.speed * (p.fast > 0 ? 1.35 : 1) * (p.opening ? 0.35 : 1) * (p.slowT > 0 ? 0.55 : 1);
   p.x += (mx * speed + p.vx) * dt;
   p.z += (mz * speed + p.vz) * dt;
   const decay = Math.exp(-dt * 7);
@@ -275,6 +312,13 @@ function movePlayer(st, p, dt, frozen) {
     ev(st, { t: "swap", p: p.id });
   }
   if (edge.use && p.item) useItem(st, p);
+  if (edge.ult && p.ult >= C.ultMax && st.phase === "fight") ult(st, p);
+  for (const o of st.orbs) {
+    if (o.gone > 0 || Math.hypot(o.x - p.x, o.z - p.z) > 1.3) continue;
+    o.gone = C.orbRespawn;
+    p.ult = Math.min(C.ultMax, p.ult + C.orbGain);
+    ev(st, { t: "orb", p: p.id, x: o.x, z: o.z, full: p.ult >= C.ultMax });
+  }
 
   // loot: hold near a chest to open it; tap near loot to grab it
   let chest = null;
@@ -306,6 +350,11 @@ function fire(st, p) {
       damage(st, q, spec.dmg, p, w.type);
       knock(q, dx / (d || 1), dz / (d || 1), spec.kb);
     }
+    const k = st.king;
+    if (k.alive) {
+      const dx = k.x - p.x, dz = k.z - p.z, d = Math.hypot(dx, dz);
+      if (d < spec.range + C.king.radius && (Math.abs(wrap(Math.atan2(dx, dz) - p.face)) < spec.arc / 2 + 0.4 || d < 2)) damageKing(st, spec.dmg, p, w.type);
+    }
     return;
   }
   const n = spec.pellets || 1;
@@ -317,6 +366,115 @@ function fire(st, p) {
   ev(st, { t: "shoot", p: p.id, w: w.type });
   w.ammo--;
   if (w.ammo <= 0) { p.slots[p.active] = null; ev(st, { t: "empty", p: p.id, w: w.type }); }
+}
+
+// ---------------- ults ----------------
+function ult(st, p) {
+  p.ult = 0;
+  const fx = Math.sin(p.face), fz = Math.cos(p.face);
+  ev(st, { t: "ult", p: p.id, char: p.char, x: p.x, z: p.z, face: p.face });
+  if (p.char === "yhon") {
+    p.leap = { sx: p.x, sz: p.z, tx: p.x + fx * 9, tz: p.z + fz * 9, t: 0, dur: 0.6 };
+  } else if (p.char === "axolotl") {
+    const hitOne = (q, dx, dz, d) => {
+      damage(st, q, 30, p, "wave");
+      if (!q.isKing) { knock(q, dx / (d || 1), dz / (d || 1), 24); q.slowT = 2; }
+    };
+    for (const q of [...st.players, st.king]) {
+      if (q === p || !q.alive) continue;
+      const dx = q.x - p.x, dz = q.z - p.z, d = Math.hypot(dx, dz);
+      if (d < 10 && Math.abs(wrap(Math.atan2(dx, dz) - p.face)) < 0.75) hitOne(q, dx, dz, d);
+    }
+  } else if (p.char === "capybara") {
+    p.hp = C.hp; p.shield = C.shieldMax; p.regenT = 4;
+    for (const q of [...st.players, st.king]) {
+      if (q === p || !q.alive) continue;
+      if (Math.hypot(q.x - p.x, q.z - p.z) < 6) { damage(st, q, 14, p, "spring"); if (!q.isKing) q.slowT = 3; }
+    }
+  } else {
+    for (let wave = 0; wave < 2; wave++) {
+      for (let k = 0; k < 14; k++) {
+        const a = (k / 14) * Math.PI * 2 + wave * 0.22;
+        st.shots.push({ x: p.x + Math.sin(a) * 0.9, z: p.z + Math.cos(a) * 0.9, vx: Math.sin(a) * (30 - wave * 6), vz: Math.cos(a) * (30 - wave * 6),
+          life: 0.7, dmg: 16, owner: p.id, w: "spike", splash: 0, kb: 5, id: st.nextId++ });
+      }
+    }
+  }
+}
+
+function leapStep(st, p, dt) {
+  const L = p.leap;
+  L.t += dt;
+  const f = Math.min(1, L.t / L.dur);
+  p.x = L.sx + (L.tx - L.sx) * f; p.z = L.sz + (L.tz - L.sz) * f;
+  p.y = Math.sin(f * Math.PI) * 4;
+  if (f >= 1) {
+    p.leap = null; p.y = 0;
+    collide(p, C.radius);
+    explode(st, p.x, p.z, 4.2, 46, p, "slam", 18, p);
+    ev(st, { t: "slam", p: p.id, x: p.x, z: p.z });
+  }
+}
+
+// ---------------- King Yhon ----------------
+function kingStep(st, dt) {
+  const k = st.king;
+  if (!k.spawned) {
+    if (st.roundT >= k.spawnAt && st.players.filter((p) => p.alive).length >= 1) {
+      Object.assign(k, { spawned: true, alive: true, isKing: true, x: 0, z: 0, hp: C.king.hp, max: C.king.hp, face: 0, cd: 2, windup: 0, drop: 1.2, hurtT: 0, lastBy: null });
+      ev(st, { t: "king" });
+    }
+    return;
+  }
+  if (!k.alive) return;
+  k.hurtT = Math.max(0, k.hurtT - dt);
+  if (k.drop > 0) { k.drop -= dt; if (k.drop <= 0) { ev(st, { t: "kingland", x: k.x, z: k.z }); explode(st, k.x, k.z, 3, 10, null, "king", 12); } return; }
+  const alive = st.players.filter((p) => p.alive && !p.leap);
+  const tgt = alive.sort((a, b) => Math.hypot(a.x - k.x, a.z - k.z) - Math.hypot(b.x - k.x, b.z - k.z))[0];
+  k.cd -= dt;
+  if (k.windup > 0) {
+    k.windup -= dt;
+    if (k.windup <= 0) {
+      explode(st, k.x, k.z, C.king.slamR, C.king.slamDmg, k, "king", C.king.kb);
+      ev(st, { t: "kingslam", x: k.x, z: k.z });
+      k.cd = C.king.cd;
+    }
+    return;
+  }
+  if (!tgt) return;
+  const dx = tgt.x - k.x, dz = tgt.z - k.z, d = Math.hypot(dx, dz);
+  k.face = Math.atan2(dx, dz);
+  if (d < C.king.slamR - 0.6 && k.cd <= 0) { k.windup = C.king.windup; ev(st, { t: "kingwind", x: k.x, z: k.z }); return; }
+  k.x += (dx / d) * C.king.speed * dt; k.z += (dz / d) * C.king.speed * dt;
+  collide(k, C.king.radius);
+}
+
+function damageKing(st, dmg, by, w) {
+  const k = st.king;
+  if (!k.alive || k.drop > 0 || st.phase !== "fight") return;
+  if (by && by.crown) dmg *= C.crownBoost;
+  k.hp -= dmg;
+  k.hurtT = 0.2;
+  if (by && !by.isKing) { k.lastBy = by.id; if (by.alive) by.ult = Math.min(C.ultMax, by.ult + dmg * C.dmgUlt); }
+  ev(st, { t: "hit", p: "king", by: by && by.id, dmg: Math.round(dmg), x: k.x, z: k.z, king: true });
+  if (k.hp <= 0) {
+    k.hp = 0; k.alive = false;
+    const slayer = st.players.find((p) => p.id === (by && !by.isKing ? by.id : k.lastBy));
+    if (slayer && slayer.alive) slayer.crown = true;
+    // the OP loot
+    const prize = ["bazooka", "paltik", "kalasag", "shoes", "buko"];
+    prize.forEach((t, i) => {
+      const it = drop(st, k.x, k.z, t);
+      const a = (i / prize.length) * Math.PI * 2;
+      it.vx = Math.cos(a) * 7; it.vz = Math.sin(a) * 7;
+    });
+    for (let i = 0; i < 3; i++) {
+      const a = (i / 3) * Math.PI * 2 + 0.5;
+      const o = { id: st.nextId++, gone: 0, x: k.x + Math.cos(a) * 3, z: k.z + Math.sin(a) * 3 };
+      if (!solidAt(o.x, o.z, 0.5)) st.orbs.push(o);
+    }
+    ev(st, { t: "kingdown", by: slayer && slayer.id, x: k.x, z: k.z });
+  }
 }
 
 function useItem(st, p) {
@@ -399,6 +557,13 @@ function tickWorld(st, dt) {
     for (let k = 0; k < n && s.life > 0; k++) {
       s.x += (s.vx * dt) / n; s.z += (s.vz * dt) / n;
       if (solidAt(s.x, s.z) || Math.hypot(s.x, s.z) > R + 6) { s.life = 0; impact(st, s); break; }
+      const kg = st.king;
+      if (kg.alive && (kg.x - s.x) ** 2 + (kg.z - s.z) ** 2 < (C.king.radius + 0.25) ** 2) {
+        s.life = 0;
+        if (s.splash) impact(st, s);
+        else damageKing(st, s.dmg, st.players.find((o) => o.id === s.owner), s.w);
+        break;
+      }
       for (const q of st.players) {
         if (q.id === s.owner || !q.alive) continue;
         if ((q.x - s.x) ** 2 + (q.z - s.z) ** 2 < (C.radius + 0.25) ** 2) {
@@ -454,7 +619,12 @@ function think(st, p, dt) {
   if (p.item && ((p.item.type === "buko" && p.hp < 55) || (p.item.type === "kalasag" && p.shield < 10) || p.item.type === "shoes")) inp.u = (inp.u | 0) + 1;
   // stay out of the storm
   if (Math.hypot(p.x - s.x, p.z - s.z) > s.r - 3) { goTo(s.x, s.z); }
+  if (p.ult >= C.ultMax) {
+    const near = st.players.some((q) => q !== p && q.alive && Math.hypot(q.x - p.x, q.z - p.z) < (p.char === "yhon" ? 9 : 7)) || (st.king.alive && Math.hypot(st.king.x - p.x, st.king.z - p.z) < 7);
+    if (near || p.char === "capybara" && p.hp < 50) inp.x = (inp.x | 0) + 1;
+  }
   const foes = st.players.filter((q) => q !== p && q.alive);
+  if (st.king.alive && st.king.drop <= 0) foes.push(st.king);
   const foe = foes.sort((a, b) => Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z))[0];
   const fd = foe ? Math.hypot(foe.x - p.x, foe.z - p.z) : Infinity;
   const w = W[weaponOf(p).type];

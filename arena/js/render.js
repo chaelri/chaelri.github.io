@@ -203,7 +203,8 @@ export async function createWorld(canvas) {
   const fighters = new Map();
   function fighter(p) {
     let f = fighters.get(p.id);
-    if (f) return f;
+    if (f && f.char === p.char) return f;
+    if (f) { scene.remove(f.root); fighters.delete(p.id); }
     const root = new THREE.Group(), body = new THREE.Group();
     root.add(body);
     const model = models[p.char] ? models[p.char].clone() : new THREE.Mesh(new THREE.SphereGeometry(0.6), new THREE.MeshStandardMaterial({ color: p.color }));
@@ -222,7 +223,14 @@ export async function createWorld(canvas) {
     hand.scale.setScalar(1.35);
     body.add(hand);
     scene.add(root);
-    f = { root, body, model, ghost, ring, hand, held: null, bob: 0, squash: 0 };
+    const myCrown = crown(0.85);
+    myCrown.position.y = 2.25;
+    myCrown.visible = false;
+    body.add(myCrown);
+    const aura = new THREE.Mesh(new THREE.RingGeometry(1.35, 1.75, 40).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xffd21f, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false }));
+    aura.position.y = 0.07;
+    root.add(aura);
+    f = { root, body, model, ghost, ring, hand, held: null, bob: 0, squash: 0, crown: myCrown, aura, char: p.char };
     fighters.set(p.id, f);
     return f;
   }
@@ -280,7 +288,7 @@ export async function createWorld(canvas) {
   const rocketGeo = new THREE.CylinderGeometry(0.16, 0.16, 0.8, 8).rotateX(Math.PI / 2);
   const shotMat = {
     tirador: new THREE.MeshBasicMaterial({ color: 0x8a6a4a }), ripple: new THREE.MeshBasicMaterial({ color: 0xfff3a0 }),
-    boga: new THREE.MeshBasicMaterial({ color: 0xffd08a }), paltik: new THREE.MeshBasicMaterial({ color: 0xe0b0ff }),
+    boga: new THREE.MeshBasicMaterial({ color: 0xffd08a }), paltik: new THREE.MeshBasicMaterial({ color: 0xe0b0ff }), spike: new THREE.MeshBasicMaterial({ color: 0x8a4b1f }),
     bazooka: new THREE.MeshStandardMaterial({ color: 0x4f7a2f }),
   };
   const shotMeshes = new Map();
@@ -349,6 +357,57 @@ export async function createWorld(canvas) {
     flashes.push({ m, light, t: 0, r });
   }
 
+  // ---------------- crowns, ult orbs, King Yhon ----------------
+  const gold = new THREE.MeshStandardMaterial({ color: 0xffc928, metalness: 0.85, roughness: 0.25, emissive: 0x5a3c00, emissiveIntensity: 0.5, side: THREE.DoubleSide });
+  const gem = new THREE.MeshStandardMaterial({ color: 0xe8312b, roughness: 0.2, emissive: 0x500000 });
+  function crown(scale = 1) {
+    const g = new THREE.Group();
+    g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.55, 0.32, 14, 1, true), gold));
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2;
+      const spike = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.38, 6), gold);
+      spike.position.set(Math.cos(a) * 0.48, 0.32, Math.sin(a) * 0.48);
+      const ball = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), gold);
+      ball.position.set(Math.cos(a) * 0.48, 0.52, Math.sin(a) * 0.48);
+      g.add(spike, ball);
+    }
+    const jewel = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), gem);
+    jewel.position.set(0, 0.02, 0.55);
+    g.add(jewel);
+    g.scale.setScalar(scale);
+    return g;
+  }
+  const orbMat = new THREE.MeshStandardMaterial({ color: 0x7af0ff, emissive: 0x2a8cff, emissiveIntensity: 1.4, roughness: 0.2, flatShading: true });
+  const orbGeo = new THREE.IcosahedronGeometry(0.42, 0);
+  const orbBeamMat = new THREE.MeshBasicMaterial({ color: 0x7af0ff, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false });
+  const orbMeshes = new Map();
+  let king = null;
+  function kingMesh() {
+    if (king) return king;
+    const root = new THREE.Group(), body = new THREE.Group();
+    root.add(body);
+    const m = models.yhon ? models.yhon.clone() : new THREE.Mesh(new THREE.SphereGeometry(1.6), new THREE.MeshStandardMaterial({ color: 0xff9fb5 }));
+    m.scale.setScalar(models.yhon ? 0.031 * 2.4 : 1);
+    body.add(m);
+    const c = crown(2.1);
+    c.position.y = 4.6;
+    body.add(c);
+    const cape = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 2.0, 2.6, 16, 1, true, Math.PI * 0.6, Math.PI * 0.8), new THREE.MeshStandardMaterial({ color: 0xb3001b, side: THREE.DoubleSide, roughness: 0.6 }));
+    cape.position.y = 1.7;
+    cape.rotation.y = Math.PI;
+    body.add(cape);
+    const warn = new THREE.Mesh(new THREE.CircleGeometry(1, 48).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xff2a2a, transparent: true, opacity: 0.35, depthWrite: false }));
+    warn.position.y = 0.12;
+    root.add(warn);
+    const shadow = new THREE.Mesh(new THREE.CircleGeometry(1.8, 32).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.3, depthWrite: false }));
+    shadow.position.y = 0.08;
+    root.add(shadow);
+    body.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+    scene.add(root);
+    king = { root, body, warn, shadow };
+    return king;
+  }
+
   // ---------------- camera ----------------
   const cam = new THREE.PerspectiveCamera(40, 1, 0.5, 900);
   const camT = new THREE.Vector3(0, 0, 0);
@@ -356,6 +415,7 @@ export async function createWorld(canvas) {
   const TILT = 0.95;   // ~54 degrees down
   function frame(st, dt, focus) {
     const pts = focus || st.players.filter((p) => p.alive);
+    if (!focus && st.king && st.king.alive) pts.push(st.king);
     const use = pts.length ? pts : st.players;
     let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
     for (const p of use) { x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); z0 = Math.min(z0, p.z); z1 = Math.max(z1, p.z); }
@@ -396,7 +456,12 @@ export async function createWorld(canvas) {
       f.ghost.visible = ghost;
       f.ring.visible = !ghost;
       f.hand.visible = !ghost;
-      f.root.position.set(p.x, ghost ? 1.6 + Math.sin(time * 3 + p.slot) * 0.3 : 0, p.z);
+      f.root.position.set(p.x, ghost ? 1.6 + Math.sin(time * 3 + p.slot) * 0.3 : p.y || 0, p.z);
+      f.crown.visible = !!p.crown && !ghost;
+      const ready = p.alive && p.ult >= 100;
+      f.aura.visible = ready;
+      if (ready) { f.aura.rotation.y = time * 2; f.aura.material.opacity = 0.45 + Math.sin(time * 8) * 0.3; if (Math.random() < 0.25) emit(p.x + (Math.random() - 0.5) * 2, 0.3, p.z + (Math.random() - 0.5) * 2, 0, 2.5, 0, 0xffd21f, 0.3, 0.6); }
+      if (p.leap) emit(p.x, (p.y || 0) + 0.5, p.z, 0, 0, 0, 0xffffff, 0.6, 0.3);
       f.root.rotation.y = p.face;
       f.bob += dt * (p.moving ? 14 : 3);
       const hop = p.moving ? Math.abs(Math.sin(f.bob)) * 0.22 : Math.sin(f.bob) * 0.03;
@@ -436,6 +501,45 @@ export async function createWorld(canvas) {
       m.g.position.set(it.x, heightAt(it.x, it.z), it.z);
       m.icon.position.y = 1.15 + Math.sin(time * 2.5 + it.id) * 0.15;
     }
+
+    // ult orbs
+    const liveOrbs = new Set((st.orbs || []).map((o) => o.id));
+    for (const [id, m] of orbMeshes) if (!liveOrbs.has(id)) { scene.remove(m); orbMeshes.delete(id); }
+    for (const o of st.orbs || []) {
+      let m = orbMeshes.get(o.id);
+      if (!m) {
+        m = new THREE.Group();
+        const g2 = new THREE.Mesh(orbGeo, orbMat);
+        g2.castShadow = true;
+        const beam = new THREE.Mesh(beamGeo, orbBeamMat);
+        beam.scale.set(0.8, 0.6, 0.8);
+        m.add(g2, beam);
+        m.userData.gem = g2;
+        scene.add(m);
+        orbMeshes.set(o.id, m);
+      }
+      m.visible = !(o.gone > 0);
+      m.position.set(o.x, heightAt(o.x, o.z), o.z);
+      m.userData.gem.position.y = 1 + Math.sin(time * 3 + o.id) * 0.2;
+      m.userData.gem.rotation.set(time * 1.3, time * 2, 0);
+    }
+    // King Yhon
+    const kg = st.king;
+    if (kg && kg.spawned) {
+      const K = kingMesh();
+      K.root.visible = kg.alive;
+      K.root.position.set(kg.x, kg.drop > 0 ? kg.drop * 22 : 0, kg.z);
+      K.root.rotation.y = kg.face;
+      K.shadow.scale.setScalar(kg.drop > 0 ? 0.4 + (1.2 - kg.drop) * 0.5 : 1);
+      K.shadow.position.y = 0.08 - K.root.position.y;
+      const wind = kg.windup > 0 ? 1 - kg.windup / 0.7 : 0;
+      K.body.scale.set(1 + wind * 0.25 + kg.hurtT, 1 - wind * 0.3 - kg.hurtT, 1 + wind * 0.25 + kg.hurtT);
+      K.body.position.y = kg.windup <= 0 && kg.drop <= 0 ? Math.abs(Math.sin(time * 6)) * 0.25 : 0;
+      K.warn.visible = kg.windup > 0;
+      K.warn.scale.setScalar(3.4 * (0.3 + wind * 0.7));
+      K.warn.material.opacity = 0.25 + wind * 0.35;
+      K.warn.position.y = 0.12 - K.root.position.y;
+    } else if (king) king.root.visible = false;
 
     // shots
     const liveShots = new Set(st.shots.map((s) => s.id));
@@ -505,6 +609,18 @@ export async function createWorld(canvas) {
 
   function fx(e, st) {
     const p = e.p && st.players.find((q) => q.id === e.p);
+    if (e.t === "orb") burst(e.x, 1, e.z, 20, [0x7af0ff, 0xffffff, 0x2a8cff], 6, 0.4, 0.6);
+    if (e.t === "ult") {
+      flash(e.x, e.z, 3, 0xffd21f);
+      if (e.char === "axolotl") for (let i = 0; i < 90; i++) { const a = e.face + (Math.random() - 0.5) * 1.5, sp = 10 + Math.random() * 10; emit(e.x, 0.6 + Math.random(), e.z, Math.sin(a) * sp, 1 + Math.random() * 3, Math.cos(a) * sp, Math.random() < 0.6 ? 0x3fc4ff : 0xffffff, 0.7, 0.7, -8); }
+      if (e.char === "capybara") for (let i = 0; i < 70; i++) { const a = Math.random() * 6.28, r = Math.random() * 6; emit(e.x + Math.cos(a) * r, 0.3, e.z + Math.sin(a) * r, 0, 2 + Math.random() * 2, 0, Math.random() < 0.5 ? 0xffffff : 0x5ee35e, 0.8, 1.1, 0); }
+      if (e.char === "hedgehog") burst(e.x, 1, e.z, 30, [0x8a4b1f, 0xffd21f], 10, 0.4, 0.5);
+      shake = Math.min(1.6, shake + 0.4);
+    }
+    if (e.t === "slam") { burst(e.x, 0.5, e.z, 60, [0xff9fb5, 0xffffff, 0xffd21f], 12, 0.6, 0.8); shake = Math.min(2, shake + 1.2); }
+    if (e.t === "king") flash(0, 0, 6, 0xffd21f);
+    if (e.t === "kingland" || e.t === "kingslam") { burst(e.x, 0.4, e.z, 50, [0xc9a46a, 0xffffff, 0xff9fb5], 11, 0.8, 0.8); shake = Math.min(2.2, shake + 1.4); }
+    if (e.t === "kingdown") { flash(e.x, e.z, 7, 0xffd21f); for (let i = 0; i < 3; i++) burst(e.x, 2 + i, e.z, 60, [0xffd21f, 0xfff1a0, 0xffb703, 0xffffff], 14, 0.6, 1.4, -6); shake = 2.2; }
     if (e.t === "boom") { flash(e.x, e.z, e.r, 0xffa040); burst(e.x, 0.8, e.z, 46, [0xffd21f, 0xff7a1a, 0xe8312b, 0x555555], 12, 0.7, 0.8); shake = Math.min(1.6, shake + 0.9); }
     if (e.t === "hit") burst(e.x, 1.1, e.z, 8, e.shield ? [0x3fa9ff, 0xffffff] : [0xff4d4d, 0xffffff], 6, 0.3, 0.35);
     if (e.t === "spark") burst(e.x, 1, e.z, 5, [0xfff3a0, 0xffffff], 4, 0.25, 0.25);

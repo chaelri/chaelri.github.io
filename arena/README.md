@@ -15,13 +15,16 @@ Needs the `kart/` folder next to it: three.js, the glTF loader and the critter m
 - Walk over ammo for a gun you hold, or onto an empty slot. Tap LOOT on top of something to swap it into your hands.
 - The storm starts shrinking after 18 s and closes over about 90 s. Last one standing wins the round; first to 3 rounds wins the match.
 - Knocked out players become a **multo**: float around and drop a ghost bomb every 5 s.
+- **Ults:** blue orbs around the island (and dealing damage) fill your ULT. Yhon Yhon = Belly Flop (leap + slam), Axolotl = Tidal Wave (cone blast + slow), Capybara = Hot Spring (full heal + shield, scald nearby), Hedgehog = Spike Storm (spikes all around).
+- **King Yhon** drops into the courtyard 20-30 s into a round. Whoever lands the last hit wears his crown (+25% damage for the round) and he bursts into Bazooka, Paltik, Kalasag, Rubber Shoes, Buko and ult orbs.
+- Change critter any time: from the phone's CRITTER button (applies next round if you're mid-fight) or by clicking a player card in the Mac lobby.
 - Whatever a knocked-out player carried spills on the ground.
 
 ## Phone (sideways)
 
 Left thumb anywhere = move. Right thumb anywhere = aim, and it fires while pushed (with light aim assist). SWAP, USE and LOOT are top right.
 
-Keyboard at the Mac (testing): K adds a keyboard player, WASD move, arrows aim + fire, F loot, G use, R swap. Enter starts, Esc lobby, M mute.
+Keyboard at the Mac (testing): K adds a keyboard player, WASD move, arrows aim + fire, F loot, G use, R swap, Q ult. Enter starts, Esc lobby, M mute.
 
 ## Files
 

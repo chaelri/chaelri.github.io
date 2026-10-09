@@ -2,71 +2,128 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#16121f">
+<meta name="theme-color" content="#120e24">
 <title>Rambulan Controller</title>
 <style>
-:root { --c: #e8312b; --gold: #ffd21f; }
-* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
-html, body { margin: 0; height: 100%; overflow: hidden; background: #16121f; color: #fff; font-family: -apple-system, "Avenir Next", sans-serif; overscroll-behavior: none; }
+:root { --c: #e8312b; --gold: #ffd21f; --ink: #120e24; --panel: rgba(255,255,255,.07); }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: manipulation; }
+/* the page itself never moves: no scroll, no bounce, no pinch, no double-tap zoom */
+html, body { position: fixed; inset: 0; margin: 0; overflow: hidden; overscroll-behavior: none; background: var(--ink); color: #fff;
+  font-family: -apple-system, "Avenir Next", sans-serif; -webkit-text-size-adjust: 100%; }
 button { font: inherit; border: 0; color: inherit; cursor: pointer; }
 .hide { display: none !important; }
 svg { display: block; width: 100%; height: 100%; }
-.screen { position: fixed; inset: 0; padding: calc(16px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) calc(16px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left)); overflow-y: auto; }
+.display { font-family: "Arial Black", "Avenir Next", sans-serif; font-weight: 900; }
+
+/* ---------- menus (join / lobby / results) ---------- */
+.screen { position: absolute; inset: 0; padding: calc(14px + env(safe-area-inset-top)) calc(18px + env(safe-area-inset-right)) calc(14px + env(safe-area-inset-bottom)) calc(18px + env(safe-area-inset-left));
+  overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
+  background: radial-gradient(120% 90% at 50% -10%, color-mix(in srgb, var(--c) 45%, #2a1f5c), var(--ink) 70%); }
 .title { font: 900 40px/1 "Arial Black", sans-serif; color: var(--gold); -webkit-text-stroke: 2px #6b0d09; font-style: italic; text-shadow: 0 5px 0 #6b0d09; }
-.sub { color: #b9b3d9; font-size: 15px; margin: 8px 0 14px; line-height: 1.4; }
-input[type=text] { width: 100%; padding: 14px 16px; border-radius: 14px; border: 3px solid #3a3360; background: #241e3b; color: #fff; font: 800 20px -apple-system, sans-serif; user-select: text; -webkit-user-select: text; }
+.sub { color: #c9c3ea; font-size: 15px; margin: 8px 0 14px; line-height: 1.4; }
+input[type=text] { width: 100%; padding: 14px 16px; border-radius: 16px; border: 3px solid #3a3360; background: #1f1940; color: #fff; font: 800 20px -apple-system, sans-serif;
+  user-select: text; -webkit-user-select: text; touch-action: auto; }
 .chars { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 14px 0; }
-.chars button { background: #241e3b; border: 3px solid #3a3360; border-radius: 16px; padding: 6px 4px 8px; display: flex; flex-direction: column; align-items: center; }
-.chars button.on { border-color: var(--gold); background: #3a2f12; }
-.chars canvas { width: 72px; height: 72px; } .chars span { font-size: 12px; font-weight: 800; }
-.big { width: 100%; padding: 16px; border-radius: 16px; font: 900 22px "Arial Black", sans-serif; background: var(--gold); color: #2a1600; box-shadow: 0 6px 0 #a87900; }
-.me { display: flex; align-items: center; gap: 14px; background: linear-gradient(90deg, var(--c), transparent); border-radius: 18px; padding: 10px 14px; margin: 10px 0 14px; }
-.me canvas { width: 80px; height: 80px; } .me b { font: 900 26px "Arial Black"; display: block; }
-.note { font-size: 13.5px; color: #b9b3d9; line-height: 1.45; }
+.chars button { background: #1f1940; border: 3px solid #3a3360; border-radius: 18px; padding: 6px 4px 8px; display: flex; flex-direction: column; align-items: center; gap: 1px; transition: transform .12s; }
+.chars button:active { transform: scale(.95); }
+.chars button.on { border-color: var(--gold); background: linear-gradient(#4a3a12, #2a2008); box-shadow: 0 0 18px rgba(255,210,31,.35); }
+.chars canvas { width: 70px; height: 70px; }
+.chars b { font-size: 13px; } .chars small { font-size: 10.5px; color: #ffe27a; font-weight: 800; }
+.big { width: 100%; padding: 16px; border-radius: 18px; font: 900 22px "Arial Black", sans-serif; background: linear-gradient(#ffe14a, #ffb703); color: #2a1600; box-shadow: 0 6px 0 #a87900; }
+.big:active { transform: translateY(4px); box-shadow: 0 2px 0 #a87900; }
+.me { display: flex; align-items: center; gap: 14px; background: linear-gradient(90deg, var(--c), transparent); border-radius: 20px; padding: 8px 14px; margin: 10px 0 12px; }
+.me canvas { width: 76px; height: 76px; } .me b { font: 900 24px "Arial Black"; display: block; } .me span { font-size: 13px; opacity: .85; }
+.note { font-size: 13.5px; color: #c9c3ea; line-height: 1.45; }
 .err { color: #ff8a80; font-weight: 800; margin-top: 10px; }
 
-/* controller */
-#pad { padding: 0; overflow: hidden; touch-action: none; }
-.zone { position: absolute; top: 0; bottom: 0; touch-action: none; }
-#lzone { left: 0; width: 50%; } #rzone { right: 0; width: 50%; }
-.stick { position: absolute; pointer-events: none; transform: translate(-50%, -50%); }
-.stick .ring { width: 130px; height: 130px; border-radius: 50%; border: 3px solid rgba(255,255,255,.22); background: rgba(255,255,255,.06); }
-.stick .nub { position: absolute; left: 50%; top: 50%; width: 62px; height: 62px; margin: -31px 0 0 -31px; border-radius: 50%; box-shadow: 0 6px 14px rgba(0,0,0,.5); }
-#lstick .nub { background: radial-gradient(circle at 40% 35%, #fff, var(--c)); }
-#rstick .nub { background: radial-gradient(circle at 40% 35%, #fff, #ff7a3d); }
-.hint { position: absolute; bottom: calc(14px + env(safe-area-inset-bottom)); font-weight: 900; font-size: 12px; letter-spacing: .12em; color: rgba(255,255,255,.3); text-align: center; width: 50%; pointer-events: none; }
-#bar { position: absolute; left: calc(14px + env(safe-area-inset-left)); top: calc(10px + env(safe-area-inset-top)); width: 40%; z-index: 3; pointer-events: none; }
-#bar .nm { font: 900 18px "Arial Black"; display: flex; align-items: center; gap: 8px; }
-#bar .nm i { width: 14px; height: 14px; border-radius: 50%; background: var(--c); border: 2px solid #fff; }
-#bar .stars { display: flex; gap: 2px; height: 18px; } #bar .stars span { width: 18px; }
-.hpbar { position: relative; height: 14px; border-radius: 7px; background: rgba(255,255,255,.14); margin-top: 6px; overflow: hidden; }
-.hpbar .hp { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(#7dff7d, #2fb24c); }
-.hpbar .sh { position: absolute; left: 0; top: 0; height: 40%; background: #3fa9ff; }
-#btns { position: absolute; right: calc(12px + env(safe-area-inset-right)); top: calc(10px + env(safe-area-inset-top)); display: flex; gap: 10px; z-index: 3; }
-.b { width: 76px; height: 76px; border-radius: 20px; background: #2f2950; box-shadow: 0 5px 0 #120e24; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; touch-action: none; font: 900 11px "Arial Black"; }
-.b .ic { width: 42px; height: 42px; }
-.b em { position: absolute; right: 4px; bottom: 2px; font: 900 13px "Arial Black"; font-style: normal; -webkit-text-stroke: .5px #000; }
-.b.down { transform: translateY(3px); box-shadow: 0 2px 0 #120e24; }
-#loot.near { background: linear-gradient(#ffd21f, #ff9a1f); color: #2a1600; box-shadow: 0 5px 0 #a87900, 0 0 22px rgba(255,210,31,.7); animation: glow 0.8s ease-in-out infinite; }
-@keyframes glow { 50% { transform: scale(1.06); } }
-#swap { width: 120px; flex-direction: row; gap: 4px; padding: 6px; }
-#swap .sl { flex: 1; height: 100%; border-radius: 12px; background: rgba(255,255,255,.08); border: 3px solid transparent; display: flex; align-items: center; justify-content: center; position: relative; padding: 4px; }
-#swap .sl.on { border-color: #fff; background: rgba(255,255,255,.2); }
-#swap .sl em { right: -2px; bottom: -4px; font-size: 11px; }
-#use.empty, #swap.empty { opacity: .5; }
-#use.cd { opacity: .45; }
-#banner { position: absolute; left: 0; right: 0; top: 40%; text-align: center; pointer-events: none; font: 900 46px "Arial Black"; color: #fff; -webkit-text-stroke: 3px #1a1030; font-style: italic; z-index: 4; }
-#banner small { display: block; font-size: 16px; -webkit-text-stroke: 0; color: #d9d6ff; font-style: normal; margin-top: 6px; }
-#hurt { position: absolute; inset: 0; box-shadow: inset 0 0 80px 30px rgba(232,49,43,.8); opacity: 0; pointer-events: none; transition: opacity .4s; z-index: 5; }
+/* ---------- controller ---------- */
+#pad { position: absolute; inset: 0; touch-action: none; overflow: hidden;
+  background: radial-gradient(70% 90% at 0% 100%, color-mix(in srgb, var(--c) 30%, transparent), transparent 60%),
+              radial-gradient(70% 90% at 100% 100%, rgba(255,140,40,.18), transparent 60%), #120e24; }
+#pad * { touch-action: none; }
+.zone { position: absolute; top: 56px; bottom: 0; }
+#lzone { left: 0; width: 46%; } #rzone { right: 0; width: 54%; }
+.stick { position: absolute; width: 132px; height: 132px; margin: -66px 0 0 -66px; pointer-events: none; transition: left .12s, top .12s, opacity .2s; }
+.stick.held { transition: none; }
+.stick .ring { position: absolute; inset: 0; border-radius: 50%; background: radial-gradient(circle, rgba(255,255,255,.04), rgba(255,255,255,.1)); border: 3px solid rgba(255,255,255,.22); }
+.stick .nub { position: absolute; left: 50%; top: 50%; width: 60px; height: 60px; margin: -30px 0 0 -30px; border-radius: 50%; box-shadow: 0 6px 14px rgba(0,0,0,.5), inset 0 -4px 0 rgba(0,0,0,.15); }
+#lstick .nub { background: radial-gradient(circle at 38% 32%, #fff, var(--c) 70%); }
+#rstick .nub { background: radial-gradient(circle at 38% 32%, #fff, #ff7a3d 70%); }
+.stick .lb { position: absolute; left: 0; right: 0; bottom: -22px; text-align: center; font: 900 11px "Arial Black"; letter-spacing: .14em; color: rgba(255,255,255,.35); }
+.stick.held .lb { opacity: 0; }
+#rstick.firing .ring { border-color: #ff7a3d; box-shadow: 0 0 22px rgba(255,122,61,.5); }
+
+/* top HUD */
+#top { position: absolute; left: 0; right: 0; top: 0; height: 56px; display: flex; align-items: center; gap: 10px;
+  padding: env(safe-area-inset-top) calc(10px + env(safe-area-inset-right)) 0 calc(10px + env(safe-area-inset-left)); pointer-events: none; z-index: 3; }
+#me2 { display: flex; align-items: center; gap: 8px; background: var(--panel); border: 2px solid color-mix(in srgb, var(--c) 70%, transparent); border-radius: 16px; padding: 4px 10px 4px 4px; min-width: 240px; }
+#me2 canvas { width: 40px; height: 40px; border-radius: 10px; background: color-mix(in srgb, var(--c) 40%, transparent); }
+#me2 .col { flex: 1; }
+#me2 .nm { font: 900 14px "Arial Black"; display: flex; align-items: center; gap: 6px; }
+#me2 .nm .crown { width: 18px; height: 18px; }
+.hpbar { position: relative; height: 11px; border-radius: 6px; background: rgba(0,0,0,.4); margin-top: 3px; overflow: hidden; }
+.hpbar .hp { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(#8dff8d, #2fb24c); transition: width .15s; }
+.hpbar .sh { position: absolute; left: 0; top: 0; height: 40%; background: #4fb3ff; transition: width .15s; }
+.hpbar::after { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, transparent 0 19%, rgba(0,0,0,.35) 19% 20%); }
+#mid { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+#round { font: 900 13px "Arial Black"; letter-spacing: .08em; color: #c9c3ea; display: flex; align-items: center; gap: 6px; }
+#stars { display: flex; gap: 2px; } #stars span { width: 16px; height: 16px; }
+#kingmini { display: flex; align-items: center; gap: 6px; font: 900 11px "Arial Black"; color: var(--gold); }
+#kingmini div { width: 120px; height: 7px; border-radius: 4px; background: rgba(0,0,0,.5); overflow: hidden; border: 1px solid var(--gold); }
+#kingmini i { display: block; height: 100%; background: #e8312b; }
+#critbtn { pointer-events: auto; display: flex; align-items: center; gap: 6px; background: var(--panel); border: 2px solid rgba(255,255,255,.15); border-radius: 14px; padding: 4px 10px 4px 4px; font: 900 11px "Arial Black"; }
+#critbtn canvas { width: 34px; height: 34px; }
+#critbtn em { font-style: normal; color: var(--gold); }
+
+/* action buttons, arranged around the aim stick */
+.act { position: absolute; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 4;
+  font: 900 10px "Arial Black"; letter-spacing: .04em; color: #fff; transition: transform .08s, opacity .2s;
+  background: linear-gradient(#3d3570, #2a2350); box-shadow: 0 5px 0 #0d0a1d, inset 0 2px 0 rgba(255,255,255,.18); }
+.act.down { transform: translateY(3px) scale(.96); box-shadow: 0 2px 0 #0d0a1d; }
+.act .ic { width: 52%; height: 52%; }
+.act em { position: absolute; right: 2px; bottom: 0; font: 900 12px "Arial Black"; font-style: normal; -webkit-text-stroke: .6px #000; }
+.act.dim { opacity: .4; }
+#ult { width: 92px; height: 92px; right: calc(206px + env(safe-area-inset-right)); bottom: 22px; background: conic-gradient(#ffd21f calc(var(--u, 0) * 1%), #2a2350 0); padding: 7px; box-shadow: 0 5px 0 #0d0a1d; }
+#ult .face { width: 100%; height: 100%; border-radius: 50%; background: linear-gradient(#3d3570, #2a2350); display: flex; flex-direction: column; align-items: center; justify-content: center; }
+#ult .face .ic { width: 46%; height: 46%; opacity: .55; }
+#ult .face span { font: 900 12px "Arial Black"; }
+#ult .face small { font: 800 9px -apple-system; opacity: .8; max-width: 70px; text-align: center; line-height: 1.1; }
+#ult.ready .face { background: radial-gradient(circle at 50% 35%, #fff1a0, #ffb703 70%); color: #3a1f00; animation: ultpulse .7s ease-in-out infinite alternate; }
+#ult.ready .face .ic { opacity: 1; }
+#ult.ready { box-shadow: 0 5px 0 #a87900, 0 0 26px 6px rgba(255,210,31,.6); }
+@keyframes ultpulse { to { transform: scale(1.06); } }
+#loot { width: 70px; height: 70px; right: calc(214px + env(safe-area-inset-right)); bottom: 132px; }
+#loot.near { background: linear-gradient(#ffe14a, #ff9a1f); color: #2a1600; box-shadow: 0 5px 0 #a87900, 0 0 20px rgba(255,210,31,.7); animation: ultpulse .5s ease-in-out infinite alternate; }
+#use { width: 66px; height: 66px; right: calc(124px + env(safe-area-inset-right)); bottom: 196px; }
+#swap { width: 104px; height: 56px; border-radius: 18px; right: calc(12px + env(safe-area-inset-right)); bottom: 201px; flex-direction: row; gap: 4px; padding: 5px; }
+#swap .sl { flex: 1; height: 100%; border-radius: 12px; background: rgba(0,0,0,.25); border: 2px solid transparent; display: flex; align-items: center; justify-content: center; position: relative; padding: 4px; }
+#swap .sl.on { border-color: #fff; background: rgba(255,255,255,.15); }
+#swap .sl em { right: -3px; bottom: -5px; font-size: 10px; }
+body.ghost #ult, body.ghost #loot, body.ghost #swap { display: none; }
+body.ghost #use { width: 92px; height: 92px; right: calc(206px + env(safe-area-inset-right)); bottom: 22px; background: linear-gradient(#b06bff, #6b2fd0); box-shadow: 0 5px 0 #34106e; }
+body.ghost #pad { background: radial-gradient(80% 100% at 50% 110%, #4a2f9a, #120e24 70%); }
+
+#banner { position: absolute; left: 0; right: 0; top: 34%; text-align: center; pointer-events: none; z-index: 5; font: 900 44px "Arial Black"; color: #fff; -webkit-text-stroke: 3px #1a1030; font-style: italic; }
+#banner small { display: block; font: 800 15px -apple-system; -webkit-text-stroke: 0; color: #e0dbff; font-style: normal; margin-top: 6px; }
+#toast { position: absolute; left: 50%; top: 64px; transform: translateX(-50%); background: rgba(0,0,0,.6); border-radius: 99px; padding: 6px 14px; font: 900 13px "Arial Black"; z-index: 6; pointer-events: none; opacity: 0; transition: opacity .25s; }
+#toast.on { opacity: 1; }
+#hurt { position: absolute; inset: 0; box-shadow: inset 0 0 90px 30px rgba(232,49,43,.85); opacity: 0; pointer-events: none; transition: opacity .4s; z-index: 7; }
 #hurt.on { opacity: 1; transition: none; }
-body.ghost #pad { background: radial-gradient(circle at 50% 120%, #3a2f70, #16121f 70%); }
-#rotate { position: fixed; inset: 0; background: #16121f; display: none; align-items: center; justify-content: center; flex-direction: column; gap: 16px; text-align: center; z-index: 50; }
+
+/* critter picker sheet */
+#sheet { position: absolute; inset: 0; z-index: 20; background: rgba(10,8,25,.92); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 16px calc(24px + env(safe-area-inset-right)) 16px calc(24px + env(safe-area-inset-left)); }
+#sheet .chars { width: min(640px, 100%); margin: 4px 0; }
+#sheet .note { text-align: center; }
+#sheet .close { padding: 10px 26px; border-radius: 14px; background: #2f2950; font: 900 15px "Arial Black"; }
+
+#rotate { position: fixed; inset: 0; background: var(--ink); display: none; align-items: center; justify-content: center; flex-direction: column; gap: 16px; text-align: center; z-index: 50; }
 #rotate .ph { width: 70px; height: 120px; border: 5px solid #fff; border-radius: 16px; animation: rot 1.8s ease-in-out infinite; }
 @keyframes rot { 40%, 70% { transform: rotate(-90deg); } }
 @media (orientation: portrait) { body.playing #rotate { display: flex; } }
+@media (max-height: 340px) { .act, #ult { transform: scale(.88); transform-origin: bottom right; } }
 #status { position: fixed; right: calc(10px + env(safe-area-inset-right)); bottom: calc(8px + env(safe-area-inset-bottom)); font-size: 12px; font-weight: 800; padding: 3px 10px; border-radius: 99px; background: rgba(255,255,255,.1); z-index: 60; pointer-events: none; }
 #status.bad { background: #e8312b; }
 body.playing #status:not(.bad) { display: none; }
@@ -78,7 +135,7 @@ body.playing #status:not(.bad) { display: none; }
 <section class="screen" id="join">
   <div class="title">RAMBULAN</div>
   <div class="sub">Loot, fight, survive the storm. Pick a name and a critter.</div>
-  <input type="text" id="name" maxlength="12" placeholder="Your name" autocomplete="off">
+  <input type="text" id="name" maxlength="12" placeholder="Your name" autocomplete="off" enterkeyhint="done">
   <div class="chars" id="chars"></div>
   <button class="big" id="joinbtn">JOIN</button>
   <div class="err" id="joinerr"></div>
@@ -87,39 +144,50 @@ body.playing #status:not(.bad) { display: none; }
 <section class="screen hide" id="lobby">
   <div class="title" style="font-size:32px">RAMBULAN</div>
   <div class="me"><canvas id="mecv" width="160" height="160"></canvas><div><b id="mename"></b><span id="meslot"></span></div></div>
-  <div class="note">Change critter</div>
   <div class="chars" id="chars2"></div>
   <button class="big" id="startbtn">START</button>
-  <p class="note">Turn your phone sideways when it starts. <b>Left thumb</b> moves, <b>right thumb</b> aims and shoots. <b>Hold LOOT</b> at a chest, tap it on loot. <b>SWAP</b> switches weapons, <b>USE</b> drinks / throws your item.</p>
+  <p class="note">Turn your phone sideways. <b>Left thumb</b> moves, <b>right thumb</b> aims and shoots. <b>Hold LOOT</b> at chests. Grab <b>blue orbs</b> to fill your <b>ULT</b>. Kill <b>King Yhon</b> for his crown and OP loot.</p>
 </section>
 
 <section class="screen hide" id="wait"><div class="title" style="font-size:32px">RAMBULAN</div><p class="sub" id="waitmsg"></p></section>
 
 <section class="screen hide" id="results">
   <div class="title" style="font-size:32px">MATCH OVER</div>
-  <p id="champ" style="font: 900 34px 'Arial Black'; color: var(--gold); font-style: italic"></p>
+  <p id="champ" class="display" style="font-size: 34px; color: var(--gold); font-style: italic; margin: 12px 0"></p>
   <button class="big" id="againbtn">REMATCH</button>
 </section>
 
-<section class="screen hide" id="pad">
+<section class="hide" id="pad">
   <div class="zone" id="lzone"></div><div class="zone" id="rzone"></div>
-  <div class="stick hide" id="lstick"><div class="ring"></div><div class="nub"></div></div>
-  <div class="stick hide" id="rstick"><div class="ring"></div><div class="nub"></div></div>
-  <div class="hint" style="left:0">MOVE</div><div class="hint" style="right:0" id="rhint">AIM + SHOOT</div>
-  <div id="bar"><div class="nm"><i></i><span id="nm"></span><span class="stars" id="stars"></span></div><div class="hpbar"><i class="hp" id="hp"></i><i class="sh" id="sh"></i></div></div>
-  <div id="btns">
-    <div class="b" id="swap"><div class="sl" id="s0"></div><div class="sl" id="s1"></div></div>
-    <div class="b" id="use"><div class="ic" id="useic"></div><span id="uselb">USE</span><em id="usect"></em></div>
-    <div class="b" id="loot"><div class="ic" id="lootic"></div><span>LOOT</span></div>
+  <div class="stick" id="lstick"><div class="ring"></div><div class="nub"></div><div class="lb">MOVE</div></div>
+  <div class="stick" id="rstick"><div class="ring"></div><div class="nub"></div><div class="lb">AIM + FIRE</div></div>
+  <div id="top">
+    <div id="me2"><canvas id="mecv2" width="96" height="96"></canvas><div class="col"><div class="nm"><span id="nm"></span><span class="crown hide" id="crownic"></span></div>
+      <div class="hpbar"><i class="hp" id="hp"></i><i class="sh" id="sh"></i></div></div></div>
+    <div id="mid"><div id="round"><span id="roundtx"></span><span id="stars"></span></div><div id="kingmini" class="hide">KING <div><i id="kinghp"></i></div></div></div>
+    <button id="critbtn"><canvas id="critcv" width="80" height="80"></canvas><span>CRITTER<br><em id="critnext"></em></span></button>
   </div>
+  <div class="act" id="swap"><div class="sl" id="s0"></div><div class="sl" id="s1"></div></div>
+  <div class="act" id="use"><div class="ic" id="useic"></div><span id="uselb">USE</span><em id="usect"></em></div>
+  <div class="act" id="loot"><div class="ic" id="lootic"></div><span>LOOT</span></div>
+  <div class="act" id="ult"><div class="face"><div class="ic" id="ultic"></div><span>ULT</span><small id="ultname"></small></div></div>
   <div id="banner"></div>
+  <div id="toast"></div>
   <div id="hurt"></div>
 </section>
 
-<div id="rotate"><div class="ph"></div><b style="font: 900 22px 'Arial Black'">Turn your phone sideways</b></div>
+<div id="sheet" class="hide">
+  <div class="display" style="font-size:22px">Pick your critter</div>
+  <div class="chars" id="chars3"></div>
+  <div class="note" id="sheetnote"></div>
+  <button class="close" id="sheetclose">DONE</button>
+</div>
+
+<div id="rotate"><div class="ph"></div><b class="display" style="font-size:22px">Turn your phone sideways</b></div>
 
 <script type="module">
 import { ICON, NAME } from "/js/icons.js";
+import { ULTS } from "/js/sim.js";
 import { FLAT } from "/assets/flat.js";
 
 const $ = (id) => document.getElementById(id);
@@ -129,7 +197,17 @@ let pid = LS("pid");
 if (!pid) { pid = Math.random().toString(36).slice(2, 12); LS("pid", pid); }
 const me = { name: LS("name") || "", char: LS("char") || "yhon", joined: false };
 let st = {};
-const inp = { mx: 0, mz: 0, ax: 0, az: 0, l: 0, w: 0, u: 0 };
+const inp = { mx: 0, mz: 0, ax: 0, az: 0, l: 0, w: 0, u: 0, x: 0 };
+
+// ---------- never zoom, never scroll ----------
+for (const ev of ["gesturestart", "gesturechange", "gestureend", "dblclick", "contextmenu"]) document.addEventListener(ev, (e) => e.preventDefault(), { passive: false });
+let lastTap = 0;
+document.addEventListener("touchend", (e) => {   // iOS ignores user-scalable=no; eat the 2nd tap of a double tap
+  const now = Date.now();
+  if (now - lastTap < 350 && !e.target.closest("input")) e.preventDefault();
+  lastTap = now;
+}, { passive: false });
+document.addEventListener("touchmove", (e) => { if (e.touches.length > 1 || !e.target.closest(".screen")) e.preventDefault(); }, { passive: false });
 
 let hsw = null;
 function haptic(ms = 12) {
@@ -140,6 +218,8 @@ function haptic(ms = 12) {
     hsw.click();
   } catch (e) {}
 }
+let toastT = 0;
+function toast(t) { $("toast").textContent = t; $("toast").classList.add("on"); clearTimeout(toastT); toastT = setTimeout(() => $("toast").classList.remove("on"), 1800); }
 
 // ---------- connection (WebSocket, falling back to POST + SSE) ----------
 let ws = null, fallback = false, es = null, fails = 0;
@@ -170,16 +250,24 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden && !f
 
 function onMsg(m) {
   if (m.t === "board") hello();
-  if (m.t === "joined") { Object.assign(me, { joined: true, slot: m.slot, color: m.color, name: m.name, char: m.char }); document.documentElement.style.setProperty("--c", m.color); show(); }
+  if (m.t === "joined") {
+    const changed = me.joined && m.char !== me.char;
+    Object.assign(me, { joined: true, slot: m.slot, color: m.color, name: m.name, char: m.char });
+    LS("char", me.char);
+    document.documentElement.style.setProperty("--c", m.color);
+    if (changed) drawMine();
+    show();
+  }
   if (m.t === "full") $("joinerr").textContent = "The island is full (4 players).";
   if (m.t === "wait") { me.waiting = true; $("waitmsg").textContent = m.why; show("wait"); }
   if (m.t === "st") { st = m; show(); hud(); }
   if (m.t === "fx" && m.e === "hit") { haptic(40); $("hurt").classList.add("on"); setTimeout(() => $("hurt").classList.remove("on"), 90); }
   if (m.t === "fx" && m.e === "ko") haptic(200);
+  if (m.t === "fx" && m.e === "ultready") { haptic(60); toast("ULT READY!"); }
   if (m.t === "results") $("champ").textContent = m.me ? "You're the champion!" : m.champ ? `${m.champ} wins!` : "";
 }
 
-// ---------- screens ----------
+// ---------- menus ----------
 function show(force) {
   let s = force;
   if (!s) s = !me.joined ? (me.waiting ? "wait" : "join") : st.screen === "match" ? "pad" : st.screen === "results" ? "results" : "lobby";
@@ -192,8 +280,13 @@ function portrait(cv, c) {
   try { FLAT[c].draw(x, cv.width / 2, cv.height * 0.93, cv.width * 0.82, cv.height * 0.82, { t: 0, air: 0, run: 0, squash: 0, rise: 0, walk: 0, stride: 1, dir: 1, face: 1 }); } catch (e) {}
 }
 function drawChars(el, sel) {
-  el.innerHTML = CHARS.map((c) => `<button data-char="${c}" class="${c === sel ? "on" : ""}"><canvas width="144" height="144" data-cv="${c}"></canvas><span>${FLAT[c].name}</span></button>`).join("");
+  el.innerHTML = CHARS.map((c) => `<button data-char="${c}" class="${c === sel ? "on" : ""}"><canvas width="140" height="140" data-cv="${c}"></canvas><b>${FLAT[c].name}</b><small>${ULTS[c].name}</small></button>`).join("");
   el.querySelectorAll("canvas").forEach((cv) => portrait(cv, cv.dataset.cv));
+  el.dataset.sel = sel;
+}
+function drawMine() {
+  portrait($("mecv"), me.char); portrait($("mecv2"), me.char); portrait($("critcv"), st.next || me.char);
+  for (const id of ["chars2", "chars3"]) drawChars($(id), me.char);
 }
 $("name").value = me.name;
 drawChars($("chars"), me.char);
@@ -201,43 +294,72 @@ $("chars").onclick = (e) => { const b = e.target.closest("[data-char]"); if (b) 
 $("joinbtn").onclick = () => {
   const n = $("name").value.trim();
   if (!n) { $("joinerr").textContent = "Type your name first."; return; }
+  $("name").blur();
   me.name = n; LS("name", n); LS("char", me.char); haptic();
   send({ t: "join", name: me.name, char: me.char });
 };
 function lobby() {
-  $("mename").textContent = me.name; $("meslot").textContent = `Player ${me.slot + 1}`;
+  $("mename").textContent = me.name; $("meslot").textContent = `Player ${me.slot + 1} · ULT: ${ULTS[me.char].name}`;
+  if ($("chars2").dataset.sel !== me.char) drawMine();
   portrait($("mecv"), me.char);
-  if ($("chars2").dataset.sel !== me.char) { drawChars($("chars2"), me.char); $("chars2").dataset.sel = me.char; }
 }
-$("chars2").onclick = (e) => { const b = e.target.closest("[data-char]"); if (b) { me.char = b.dataset.char; LS("char", me.char); send({ t: "char", char: me.char }); haptic(); } };
+function pickChar(e) {
+  const b = e.target.closest("[data-char]");
+  if (!b) return;
+  me.char = b.dataset.char; LS("char", me.char);
+  send({ t: "char", char: me.char });
+  haptic();
+  drawMine();
+}
+$("chars2").onclick = pickChar;
+$("chars3").onclick = (e) => { pickChar(e); setTimeout(() => $("sheet").classList.add("hide"), 250); };
+$("critbtn").addEventListener("pointerdown", (e) => {
+  e.stopPropagation(); haptic();
+  drawChars($("chars3"), st.next || me.char);
+  $("sheetnote").textContent = st.phase === "fight" && !st.ghost ? "Your new critter joins from the next round." : "Switches right away.";
+  $("sheet").classList.remove("hide");
+});
+$("sheetclose").onclick = () => $("sheet").classList.add("hide");
 $("startbtn").onclick = () => { haptic(); send({ t: "start" }); };
 $("againbtn").onclick = () => { haptic(); send({ t: "again" }); };
 
-// ---------- twin sticks ----------
-function stick(zoneId, stickId, onMove) {
+// ---------- twin sticks: a fixed home spot, follows your thumb while held ----------
+function home() {
+  const W = innerWidth, H = innerHeight, sl = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("padding-left")) || 0;
+  return { l: [Math.max(120, W * 0.15) + sl, H - 108], r: [W - 116, H - 104] };
+}
+function placeHome(s, xy) { s.style.left = xy[0] + "px"; s.style.top = xy[1] + "px"; }
+function stick(zoneId, stickId, side, onMove) {
   const zone = $(zoneId), s = $(stickId), nub = s.querySelector(".nub");
   let cur = null;
   zone.addEventListener("pointerdown", (e) => {
     if (cur) return;
     cur = { id: e.pointerId, x0: e.clientX, y0: e.clientY };
     try { zone.setPointerCapture(e.pointerId); } catch (err) {}
-    s.classList.remove("hide"); s.style.left = e.clientX + "px"; s.style.top = e.clientY + "px";
+    s.classList.add("held");
+    s.style.left = e.clientX + "px"; s.style.top = e.clientY + "px";
     nub.style.transform = ""; e.preventDefault();
   });
   zone.addEventListener("pointermove", (e) => {
     if (!cur || e.pointerId !== cur.id) return;
     let dx = e.clientX - cur.x0, dy = e.clientY - cur.y0;
-    const d = Math.hypot(dx, dy), max = 60;
+    const d = Math.hypot(dx, dy), max = 58;
     if (d > max) { dx *= max / d; dy *= max / d; }
     nub.style.transform = `translate(${dx}px, ${dy}px)`;
     onMove(dx / max, dy / max);
     e.preventDefault();
   });
-  const end = (e) => { if (cur && e.pointerId === cur.id) { cur = null; s.classList.add("hide"); onMove(0, 0); } };
+  const end = (e) => {
+    if (!cur || e.pointerId !== cur.id) return;
+    cur = null; s.classList.remove("held"); nub.style.transform = ""; onMove(0, 0);
+    placeHome(s, home()[side]);
+  };
   zone.addEventListener("pointerup", end); zone.addEventListener("pointercancel", end);
+  placeHome(s, home()[side]);
+  addEventListener("resize", () => { if (!cur) placeHome(s, home()[side]); });
 }
-stick("lzone", "lstick", (x, y) => { inp.mx = x; inp.mz = y; });
-stick("rzone", "rstick", (x, y) => { inp.ax = x; inp.az = y; });
+stick("lzone", "lstick", "l", (x, y) => { inp.mx = x; inp.mz = y; });
+stick("rzone", "rstick", "r", (x, y) => { inp.ax = x; inp.az = y; $("rstick").classList.toggle("firing", Math.hypot(x, y) > 0.45); });
 
 function press(el, fn, release) {
   el.addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); el.classList.add("down"); haptic(10); fn(); });
@@ -246,51 +368,59 @@ function press(el, fn, release) {
 }
 press($("swap"), () => { inp.w++; });
 press($("use"), () => { inp.u++; });
+press($("ult"), () => { if ((st.ult || 0) >= 100) { inp.x++; haptic(50); } else toast(`ULT ${st.ult || 0}% · grab blue orbs`); });
 press($("loot"), () => { inp.l = 1; sendInput(); }, () => { inp.l = 0; sendInput(); });
-document.addEventListener("contextmenu", (e) => e.preventDefault());
-document.addEventListener("gesturestart", (e) => e.preventDefault());
 
 function sendInput() {
   if (st.screen !== "match") return;
   const r = (v) => Math.round(v * 1000) / 1000;
-  send({ t: "in", mx: r(inp.mx), mz: r(inp.mz), ax: r(inp.ax), az: r(inp.az), l: inp.l, w: inp.w, u: inp.u });
+  send({ t: "in", mx: r(inp.mx), mz: r(inp.mz), ax: r(inp.ax), az: r(inp.az), l: inp.l, w: inp.w, u: inp.u, x: inp.x });
 }
 setInterval(sendInput, 33);
 
 // ---------- HUD ----------
 const slotHTML = (s) => s ? ICON[s.type] + (s.ammo !== null && s.ammo !== undefined ? `<em>${s.ammo}</em>` : "") : ICON.fists;
-let lastHtml = "";
+let lastHtml = "", lastChar = null;
+$("ultic").innerHTML = ICON.ult;
+$("lootic").innerHTML = ICON.star;
+$("crownic").innerHTML = ICON.crown;
 function hud() {
   if (st.screen !== "match") return;
   document.body.classList.toggle("ghost", !!st.ghost);
+  if (st.char && st.char !== lastChar) { lastChar = st.char; me.char = st.char; portrait($("mecv2"), st.char); $("ultname").textContent = ULTS[st.char].name; }
+  const next = st.next || st.char;
+  if ($("critcv").dataset.c !== next) { $("critcv").dataset.c = next; portrait($("critcv"), next); }
+  $("critnext").textContent = st.next ? "NEXT ROUND" : "";
   $("nm").textContent = me.name;
+  $("crownic").classList.toggle("hide", !st.crown);
+  $("roundtx").textContent = `ROUND ${st.round || 1}`;
   $("stars").innerHTML = Array.from({ length: st.wins || 0 }, () => `<span>${ICON.star}</span>`).join("");
   $("hp").style.width = (st.hp || 0) + "%";
   $("sh").style.width = ((st.shield || 0) / 50) * 100 + "%";
+  $("kingmini").classList.toggle("hide", st.king === null || st.king === undefined);
+  if (st.king != null) $("kinghp").style.width = st.king + "%";
+  $("ult").style.setProperty("--u", st.ult || 0);
+  $("ult").classList.toggle("ready", (st.ult || 0) >= 100 && !st.ghost);
   const sl = st.slots || [null, null];
   const html = slotHTML(sl[0]) + "|" + slotHTML(sl[1]) + "|" + st.active + (st.item ? st.item.type + st.item.count : "") + st.ghost;
   if (html !== lastHtml) {
     lastHtml = html;
     $("s0").innerHTML = slotHTML(sl[0]); $("s1").innerHTML = slotHTML(sl[1]);
     $("s0").classList.toggle("on", st.active === 0); $("s1").classList.toggle("on", st.active === 1);
-    $("useic").innerHTML = st.ghost ? ICON.bomba : st.item ? ICON[st.item.type] : "";
+    $("useic").innerHTML = st.ghost ? ICON.ghost : st.item ? ICON[st.item.type] : ICON.buko;
     $("usect").textContent = !st.ghost && st.item && st.item.count > 1 ? "x" + st.item.count : "";
     $("uselb").textContent = st.ghost ? "BOMB" : st.item ? NAME[st.item.type].split(" ")[0].toUpperCase() : "USE";
-    $("lootic").innerHTML = ICON.star;
   }
-  $("use").classList.toggle("empty", !st.ghost && !st.item);
-  $("use").classList.toggle("cd", !!st.ghost && st.ghostCd > 0);
-  $("swap").classList.toggle("hide", !!st.ghost);
-  $("loot").classList.toggle("hide", !!st.ghost);
+  $("use").classList.toggle("dim", st.ghost ? st.ghostCd > 0 : !st.item);
   $("loot").classList.toggle("near", !!st.near);
-  $("rhint").textContent = st.ghost ? "PUSH TO DROP A GHOST BOMB" : "AIM + SHOOT";
   let b = "";
   if (st.phase === "countdown") { const c = Math.ceil(st.cd - 0.6); b = c > 0 ? `${c}<small>Round ${st.round}</small>` : "RAMBULAN!"; }
-  else if (st.phase === "roundEnd") b = st.winner === st.me ? "You win the round!" : st.ghost ? "Round over" : "Round over";
-  else if (st.ghost) b = `<small>You're a MULTO. Haunt them: ${st.ghostCd > 0 ? "bomb ready in " + Math.ceil(st.ghostCd) + "s" : "bomb ready!"}</small>`;
+  else if (st.phase === "roundEnd") b = st.winner === st.me ? "You win the round!" : "Round over";
+  else if (st.ghost) b = `<small>You're a MULTO. Push the right stick or tap BOMB${st.ghostCd > 0 ? " in " + Math.ceil(st.ghostCd) + "s" : ": ready!"}</small>`;
   if ($("banner").dataset.h !== b) { $("banner").innerHTML = b; $("banner").dataset.h = b; }
 }
 
+window.__st = () => st;   // debug hook for tests
 connect();
 show();
 </script>

@@ -4,6 +4,7 @@ export const RARITY_NAME = ["Common", "Rare", "Epic", "Legendary"];
 export const NAME = {
   fists: "Kamao", arnis: "Arnis", tirador: "Tirador", ripple: "Ripple", boga: "Boga", paltik: "Paltik", bazooka: "Bazooka",
   buko: "Buko Juice", kalasag: "Kalasag", bomba: "Bomba", shoes: "Rubber Shoes",
+  king: "King Yhon", slam: "Belly Flop", wave: "Tidal Wave", spring: "Hot Spring", spike: "Spike Storm",
 };
 const S = 'stroke="#1a1030" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"';
 export const ICON = {
@@ -19,5 +20,8 @@ export const ICON = {
   bomba: `<svg viewBox="0 0 64 64"><circle cx="30" cy="38" r="20" fill="#2b2d33" ${S}/><rect x="26" y="12" width="10" height="9" fill="#555" ${S}/><path d="M33 12c4-6 10-6 14-2" fill="none" stroke="#a0612b" stroke-width="3"/><circle cx="50" cy="9" r="5" fill="#ffb703"/><circle cx="23" cy="31" r="4" fill="#fff" opacity=".5"/></svg>`,
   shoes: `<svg viewBox="0 0 64 64"><path d="M6 40c0-10 6-20 14-20 4 8 10 10 18 12 12 2 20 6 20 12v4H6z" fill="#e8312b" ${S}/><rect x="6" y="46" width="52" height="8" rx="3" fill="#fff" ${S}/><path d="M24 30l6 3M28 26l6 3" stroke="#fff" stroke-width="3"/></svg>`,
   ghost: `<svg viewBox="0 0 64 64"><path d="M12 58V28a20 20 0 0 1 40 0v30l-7-6-6 6-7-6-6 6-7-6z" fill="#eef2ff" ${S}/><circle cx="25" cy="28" r="4" fill="#1a1030"/><circle cx="39" cy="28" r="4" fill="#1a1030"/></svg>`,
+  crown: `<svg viewBox="0 0 64 64"><path d="M6 50l4-30 13 12 9-20 9 20 13-12 4 30z" fill="#ffc928" ${S}/><circle cx="32" cy="40" r="4" fill="#e8312b"/></svg>`,
+  ult: `<svg viewBox="0 0 64 64"><path d="M32 2l7 20 21-6-14 16 14 16-21-6-7 20-7-20-21 6 14-16L4 16l21 6z" fill="#ffd21f" ${S}/></svg>`,
+  orb: `<svg viewBox="0 0 64 64"><path d="M32 4l22 14v28L32 60 10 46V18z" fill="#7af0ff" ${S}/><path d="M32 4v56M10 18l44 28M54 18L10 46" stroke="#2a8cff" stroke-width="2" opacity=".6"/></svg>`,
   star: `<svg viewBox="0 0 64 64"><path d="M32 4l8 18 20 2-15 13 5 20-18-11-18 11 5-20L4 24l20-2z" fill="#ffd21f" ${S}/></svg>`,
 };
