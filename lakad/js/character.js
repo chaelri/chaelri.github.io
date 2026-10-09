@@ -5,17 +5,18 @@
 // centre part, glasses, her skin tone, black tee with a white script print,
 // light grey pants, white sneakers. Units are metres, y up, facing +z.
 import * as THREE from "three";
-import { toon, outline, strand, canvasTex, frontMappedSphere } from "./style.js";
+import { toon, outline, ribbon, canvasTex, frontMappedSphere } from "./style.js";
 
 // scan medians, lifted into anime-friendly values
 export const PALETTE = {
-  skin: "#ecbc9b", skinShade: "#d4977a",
-  hair: "#33252a", hairTip: "#1f1619", hairShine: "#6e5554",
+  skin: "#e0a988", skinShade: "#c98c6e",          // her warm tan
+  hair: "#3d2f34", hairTip: "#2a1f25", hairShine: "#85707a",     // soft black: dark enough to read black, light enough to shade
   tee: "#2b2930", teePrint: "#f2eee8",
   pants: "#cfd2d3",
   shoe: "#fbfaf7", sole: "#f0b7c4",
-  iris: "#5a3426", irisLight: "#a8724f",
-  frame: "#5b4a4e",
+  iris: "#2b1a17", irisLight: "#5e3d2e",          // very dark brown
+  frame: "#d9d3d6",                               // thin clear/silver frames
+  lips: "#d77f86",
 };
 
 const HEAD_R = 0.215;     // chibi: head ~45% of a ~1 m height
@@ -99,7 +100,7 @@ export class Character {
 
     // --- head: painted face on the front (unlit, so the eyes stay crisp) -----
     this.faceMat = new THREE.MeshBasicMaterial({ map: FACE_OPEN });
-    this.headMesh = part(frontMappedSphere(HEAD_R, 64, 48), this.faceMat, B.head, [0, HEAD_R * 0.96, 0.0], [1.04, 0.95, 0.96]);
+    this.headMesh = part(frontMappedSphere(HEAD_R, 64, 48), this.faceMat, B.head, [0, HEAD_R * 0.94, 0.0], [1.1, 0.95, 0.98]);
     const H = new THREE.Group();
     H.position.copy(this.headMesh.position);
     B.head.add(H);
@@ -121,79 +122,82 @@ export class Character {
     this.nextBlink = 2;
   }
 
-  // Dark shoulder-length cut with a centre part, built from pointed strands
-  // the way the reference's hair is: a crown cap, side-swept bangs that split
-  // at the part, cheek-framing locks, and a back fall on a springy bone.
+  // Her hair, as the scan shows it: black, sleek and flat on top with a centre
+  // part, curtained over the temples, falling straight past the jaw to the
+  // shoulders with softly flipped ends. A snug cap carries the part and the
+  // hairline; smooth panels (not spikes) hang round the sides and back.
   buildHair(H, hairBone) {
     const R = HEAD_R;
     const hairMat = toon("#ffffff", { vertexColors: true });
-    const shade = (g, top, bottom) => {   // painted gradient: lighter crown, darker tips
+    const shade = (g, top, bottom) => {   // painted gradient: sheen near the crown, darker ends
       const p = g.attributes.position, c = new Float32Array(p.count * 3);
       const A = new THREE.Color(PALETTE.hairShine), Bc = new THREE.Color(PALETTE.hair), C = new THREE.Color(PALETTE.hairTip);
       for (let i = 0; i < p.count; i++) {
         const t = THREE.MathUtils.clamp((top - p.getY(i)) / (top - bottom), 0, 1);
-        const col = t < 0.25 ? A.clone().lerp(Bc, t / 0.25) : Bc.clone().lerp(C, (t - 0.25) / 0.75);
+        // a sheen band a little below the crown, the anime "angel ring"
+        const ring = Math.exp(-(((t - 0.16) / 0.05) ** 2)) * 0.8;
+        const col = Bc.clone().lerp(C, t).lerp(A, ring);
         c.set([col.r, col.g, col.b], i * 3);
       }
       g.setAttribute("color", new THREE.BufferAttribute(c, 3));
       return g;
     };
 
-    // cap: sphere over crown and back, the face window cut by an alpha mask
-    const cap = frontMappedSphere(R * 1.07, 56, 40);
-    shade(cap, R * 1.1, -R * 0.6);
+    const cap = frontMappedSphere(R * 1.035, 64, 48);
+    shade(cap, R * 1.05, -R * 1.6);
     const capMat = toon("#ffffff", { vertexColors: true, alphaMap: hairMask(), alphaTest: 0.5, side: THREE.DoubleSide });
-    part(cap, capMat, H, [0, 0, 0], [1.03, 1.0, 1.0]);
+    part(cap, capMat, H, [0, 0, 0], [1.1, 0.97, 1.0]);
 
-    const add = (pts, w, th, parent = H) => part(shade(strand(pts, w, th), R * 1.1, -R * 1.9), hairMat, parent, [0, 0, 0], [1, 1, 1], { fine: true });
-    // curtain bangs: her centre part, swept out over the temples to the cheeks
-    for (const side of [1, -1]) {
-      add([[side * R * 0.03, R * 1.06, R * 0.22], [side * R * 0.3, R * 0.86, R * 0.86], [side * R * 0.62, R * 0.45, R * 0.99], [side * R * 0.8, -R * 0.02, R * 0.86]], R * 0.3, R * 0.07);
-      add([[side * R * 0.05, R * 1.06, R * 0.02], [side * R * 0.45, R * 0.92, R * 0.7], [side * R * 0.84, R * 0.35, R * 0.82], [side * R * 0.93, -R * 0.32, R * 0.7]], R * 0.32, R * 0.08);
-      add([[side * R * 0.02, R * 1.02, R * 0.4], [side * R * 0.18, R * 0.8, R * 0.95], [side * R * 0.42, R * 0.56, R * 1.05]], R * 0.2, R * 0.05);
+    // a point on the head at azimuth a (0 = front, + = her left) and elevation e
+    const on = (a, e, r = 1.08) => [Math.sin(a) * Math.cos(e) * R * r * 1.12, Math.sin(e) * R * r, Math.cos(a) * Math.cos(e) * R * r];
+    const panel = (a, len, width, flip, parent = H, e0 = 1.15) => {
+      const [x1, y1, z1] = on(a, 0.25), [x2, y2, z2] = on(a, -0.45, 1.09);
+      const pts = [on(a, e0, 1.02), on(a, 0.75), [x1, y1, z1], [x2, y2, z2],
+        [x2 * 1.02, -R * (len - 0.45), z2 * 1.0],
+        [x2 * (1.02 + flip), -R * len, z2 * (1.0 + flip * 0.6)]];
+      const g = ribbon(pts, [Math.cos(a), 0, -Math.sin(a)], width, R * 0.075);
+      return part(shade(g, R * 1.05, -R * 1.6), hairMat, parent, [0, 0, 0], [1, 1, 1], { fine: true });
+    };
+    // curtain over each temple, then the side and back fall
+    for (const sd of [1, -1]) {
+      panel(sd * 0.98, 1.15, R * 0.26, 0.16, H, 1.3);     // the curtain, framing the face
+      panel(sd * 1.25, 1.3, R * 0.34, 0.15);
+      panel(sd * 1.6, 1.35, R * 0.38, 0.12);
+      panel(sd * 2.0, 1.38, R * 0.42, 0.1);
+      panel(sd * 2.5, 1.38, R * 0.42, 0.07);
     }
-    // framing locks down past the cheeks to the jaw
-    for (const side of [1, -1]) {
-      add([[side * R * 0.7, R * 0.8, R * 0.45], [side * R * 1.0, R * 0.2, R * 0.6], [side * R * 1.0, -R * 0.45, R * 0.52], [side * R * 0.9, -R * 0.95, R * 0.42]], R * 0.26, R * 0.08);
-      add([[side * R * 0.85, R * 0.6, R * 0.1], [side * R * 1.1, -R * 0.1, R * 0.25], [side * R * 1.08, -R * 0.85, R * 0.18]], R * 0.32, R * 0.1);
-      add([[side * R * 0.85, R * 0.6, -R * 0.2], [side * R * 1.1, -R * 0.1, -R * 0.15], [side * R * 1.08, -R * 1.0, -R * 0.2]], R * 0.32, R * 0.1);
-      add([[side * R * 0.8, R * 0.7, R * 0.3], [side * R * 1.06, R * 0.0, R * 0.42], [side * R * 1.04, -R * 0.7, R * 0.34]], R * 0.3, R * 0.09);
+    panel(Math.PI, 1.38, R * 0.44, 0.06);
+    // the ends on the springy bone: hair bone sits behind the crown, so these
+    // short pieces swish below the shoulders
+    for (const x of [-0.45, 0, 0.45]) {
+      const g = ribbon([[x * R, -R * 0.9, -R * 0.55], [x * R * 1.05, -R * 1.25, -R * 0.62], [x * R * 1.1, -R * 1.55, -R * 0.6]],
+        [1, 0, 0], R * 0.42, R * 0.07);
+      part(shade(g, R * 1.05, -R * 1.6), hairMat, hairBone, [0, -R * 1.2, R * 0.45], [1, 1, 1], { fine: true });
     }
-    // back fall: a fan of strands round the back of the head to the shoulders
-    for (let i = 0; i <= 8; i++) {
-      const a = Math.PI * (0.18 + 0.64 * (i / 8));          // around the back
-      const x = Math.cos(a) * R, z = -Math.sin(a) * R;
-      const len = 1.55 + 0.12 * Math.sin(i * 1.7);
-      add([[x * 0.6, R * 0.9, z * 0.6], [x * 1.08, R * 0.1, z * 1.08], [x * 1.12, -R * (len - 0.6), z * 1.05], [x * 1.18, -R * len, z * 0.98]],
-        R * 0.42, R * 0.1, H);
-    }
-    // a couple of strands on the springy bone, so the ends swish
-    for (const x of [-0.5, 0, 0.5]) {
-      part(shade(strand([[x * HEAD_R, 0, 0], [x * HEAD_R * 1.1, -R * 1.0, -R * 0.12], [x * HEAD_R * 1.15, -R * 1.9, -R * 0.08]], R * 0.32, R * 0.08), 0, -R * 1.9),
-        hairMat, hairBone, [0, 0, 0], [1, 1, 1], { fine: true });
-    }
-    // her small flyaway at the crown (the cute ahoge)
-    add([[0, R * 1.05, R * 0.05], [R * 0.05, R * 1.32, R * 0.15], [R * 0.2, R * 1.38, R * 0.32]], R * 0.07, R * 0.025);
   }
 
-  // thin round frames, as in the scan
+  // big round lenses in thin clear/silver frames, as in the scan, with glare
   buildGlasses(H) {
     const R = HEAD_R, g = new THREE.Group();
+    const lensMat = new THREE.MeshBasicMaterial({ map: glare(), transparent: true, depthWrite: false });
     for (const side of [1, -1]) {
-      const ring = new THREE.Mesh(new THREE.TorusGeometry(R * 0.2, R * 0.016, 8, 36), M.frame);
-      ring.position.set(side * R * 0.33, -R * 0.2, R * 0.97);
-      ring.rotation.y = side * 0.22;
-      ring.scale.set(1.08, 0.92, 1);
-      g.add(ring);
-      const arm = new THREE.Mesh(new THREE.CylinderGeometry(R * 0.012, R * 0.012, R * 0.75, 6), M.frame);
+      const pos = [side * R * 0.385, -R * 0.21, R * 1.0];
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(R * 0.25, R * 0.014, 8, 48), M.frame);
+      ring.position.set(...pos);
+      ring.rotation.y = side * 0.25;
+      g.add(outline(ring, true));
+      const lens = new THREE.Mesh(new THREE.CircleGeometry(R * 0.245, 40), lensMat);
+      lens.position.set(...pos);
+      lens.rotation.y = side * 0.25;
+      g.add(lens);
+      const arm = new THREE.Mesh(new THREE.CylinderGeometry(R * 0.011, R * 0.011, R * 0.8, 6), M.frame);
       arm.rotation.x = Math.PI / 2;
-      arm.position.set(side * R * 0.62, -R * 0.14, R * 0.62);
-      arm.rotation.z = 0;
-      arm.rotation.y = side * 0.45;
+      arm.rotation.y = side * 0.38;
+      arm.position.set(side * R * 0.82, -R * 0.15, R * 0.62);
       g.add(arm);
     }
-    const bridge = new THREE.Mesh(new THREE.TorusGeometry(R * 0.06, R * 0.012, 6, 12, Math.PI), M.frame);
-    bridge.position.set(0, -R * 0.16, R * 1.02);
+    const bridge = new THREE.Mesh(new THREE.TorusGeometry(R * 0.07, R * 0.012, 6, 14, Math.PI), M.frame);
+    bridge.position.set(0, -R * 0.15, R * 1.06);
     g.add(bridge);
     H.add(g);
   }
@@ -297,90 +301,113 @@ function teeTexture() {
   });
 }
 
-// Anime face painted into the head's planar front UVs.
-// Big warm-brown eyes low on the face, white highlights, a thick upper lash
-// line, short brows, blush with hatching, a small smile.
+// Her face, painted into the head's planar front UVs: a round full face, gentle
+// almond eyes with a soft lower lid (her smiling eyes), very dark irises,
+// natural brows, full soft pink lips in a closed smile, a hint of blush.
 function paintFace(closed = false) {
   return canvasTex(1024, (g, S, X, Y) => {
     g.fillStyle = PALETTE.skin;
     g.fillRect(0, 0, S, S);
-    // soft shadow under the bangs
-    const sh = g.createLinearGradient(0, Y(0.78), 0, Y(0.55));
-    sh.addColorStop(0, "rgba(200,120,100,.55)");
-    sh.addColorStop(1, "rgba(200,120,100,0)");
-    g.fillStyle = sh;
-    g.fillRect(0, 0, S, Y(0.5));
+    // soft shade under the hairline and along the jaw
+    const sh = g.createLinearGradient(0, Y(0.8), 0, Y(0.6));
+    sh.addColorStop(0, "rgba(170,100,80,.45)"); sh.addColorStop(1, "rgba(170,100,80,0)");
+    g.fillStyle = sh; g.fillRect(0, 0, S, Y(0.55));
 
-    const EY = 0.4, EX = 0.165, EW = 0.085, EH = 0.105;
+    const EY = 0.395, EX = 0.175, EW = 0.085, EH = 0.066;
+    const ink = "#2a1d20";
     for (const side of [-1, 1]) {
       const cx = X(0.5 + side * EX), cy = Y(EY);
+      // brows: natural, soft, slightly straight
+      g.strokeStyle = "#3b2a2a"; g.lineWidth = S * 0.011; g.lineCap = "round";
+      g.beginPath(); g.moveTo(cx - side * S * 0.06, Y(EY + 0.12)); g.quadraticCurveTo(cx + side * S * 0.005, Y(EY + 0.138), cx + side * S * 0.07, Y(EY + 0.118)); g.stroke();
       if (closed) {
-        g.strokeStyle = "#2b1f26"; g.lineWidth = S * 0.011; g.lineCap = "round";
-        g.beginPath(); g.arc(cx, cy - S * 0.02, S * EW * 0.9, 0.15 * Math.PI, 0.85 * Math.PI); g.stroke();
+        g.strokeStyle = ink; g.lineWidth = S * 0.01;
+        g.beginPath(); g.arc(cx, cy - S * 0.03, S * EW, 0.2 * Math.PI, 0.8 * Math.PI); g.stroke();
       } else {
-        // white of the eye
-        g.fillStyle = "#fffaf6";
-        g.beginPath(); g.ellipse(cx, cy, S * EW, S * EH, 0, 0, Math.PI * 2); g.fill();
-        // iris: dark top, warm brown bottom
-        const ir = g.createLinearGradient(0, cy - S * EH, 0, cy + S * EH);
-        ir.addColorStop(0, "#26161a"); ir.addColorStop(0.45, PALETTE.iris); ir.addColorStop(1, PALETTE.irisLight);
-        g.fillStyle = ir;
-        g.beginPath(); g.ellipse(cx, cy + S * 0.006, S * EW * 0.78, S * EH * 0.92, 0, 0, Math.PI * 2); g.fill();
-        g.fillStyle = "#1c1014";
-        g.beginPath(); g.ellipse(cx, cy + S * 0.004, S * EW * 0.36, S * EH * 0.45, 0, 0, Math.PI * 2); g.fill();
-        // highlights
-        g.fillStyle = "#ffffff";
-        g.beginPath(); g.ellipse(cx - side * S * 0.026, cy - S * 0.038, S * 0.024, S * 0.03, -0.4, 0, Math.PI * 2); g.fill();
-        g.beginPath(); g.arc(cx + side * S * 0.028, cy + S * 0.042, S * 0.011, 0, Math.PI * 2); g.fill();
-        // thick upper lash line with a little flick outward
-        g.strokeStyle = "#2b1f26"; g.lineCap = "round"; g.lineWidth = S * 0.016;
+        // almond eye: white, then iris clipped by the lids
+        g.save();
         g.beginPath();
-        g.ellipse(cx, cy + S * 0.012, S * EW * 1.04, S * EH * 1.02, 0, Math.PI * 1.08, Math.PI * 1.92);
+        g.moveTo(cx - S * EW, cy);
+        g.quadraticCurveTo(cx - side * S * 0.01, cy - S * EH * 1.55, cx + S * EW, cy - side * S * 0.0);
+        g.quadraticCurveTo(cx, cy + S * EH * 0.75, cx - S * EW, cy);
+        g.closePath();
+        g.fillStyle = "#fbf6f2"; g.fill();
+        g.clip();
+        const ir = g.createLinearGradient(0, cy - S * EH, 0, cy + S * EH * 0.6);
+        ir.addColorStop(0, "#120a0b"); ir.addColorStop(0.55, PALETTE.iris); ir.addColorStop(1, PALETTE.irisLight);
+        g.fillStyle = ir;
+        g.beginPath(); g.arc(cx, cy - S * 0.008, S * EH * 0.95, 0, Math.PI * 2); g.fill();
+        g.fillStyle = "rgba(255,255,255,.95)";
+        g.beginPath(); g.arc(cx - side * S * 0.014, cy - S * 0.026, S * 0.012, 0, Math.PI * 2); g.fill();
+        g.restore();
+        // upper lid line, thicker toward the outer corner
+        g.strokeStyle = ink; g.lineWidth = S * 0.012;
+        g.beginPath();
+        g.moveTo(cx - S * EW * 1.02, cy + S * 0.002);
+        g.quadraticCurveTo(cx - side * S * 0.01, cy - S * EH * 1.6, cx + S * EW * 1.05, cy - S * 0.004);
         g.stroke();
-        g.lineWidth = S * 0.01;
-        g.beginPath(); g.moveTo(cx + side * S * EW * 0.95, cy - S * EH * 0.62); g.lineTo(cx + side * S * EW * 1.3, cy - S * EH * 0.9); g.stroke();
-        // lower lid hint
-        g.lineWidth = S * 0.005; g.strokeStyle = "rgba(90,52,38,.7)";
-        g.beginPath(); g.arc(cx, cy - S * 0.01, S * EW * 0.95, 0.3 * Math.PI, 0.7 * Math.PI); g.stroke();
+        // soft lower lid, lifted: the smile in her eyes
+        g.strokeStyle = "rgba(120,70,60,.55)"; g.lineWidth = S * 0.005;
+        g.beginPath(); g.moveTo(cx - S * EW * 0.8, cy + S * 0.012); g.quadraticCurveTo(cx, cy + S * EH * 0.85, cx + S * EW * 0.8, cy + S * 0.012); g.stroke();
       }
-      // brows
-      g.strokeStyle = "#4a3433"; g.lineWidth = S * 0.007;
-      g.beginPath(); g.moveTo(cx - side * S * 0.05, Y(EY + 0.15)); g.quadraticCurveTo(cx, Y(EY + 0.175), cx + side * S * 0.06, Y(EY + 0.155)); g.stroke();
-      // blush + hatching
-      const bl = g.createRadialGradient(X(0.5 + side * 0.21), Y(0.27), 0, X(0.5 + side * 0.21), Y(0.27), S * 0.075);
-      bl.addColorStop(0, "rgba(245,130,140,.55)"); bl.addColorStop(1, "rgba(245,130,140,0)");
-      g.fillStyle = bl;
-      g.beginPath(); g.ellipse(X(0.5 + side * 0.21), Y(0.27), S * 0.08, S * 0.045, 0, 0, Math.PI * 2); g.fill();
-      g.strokeStyle = "rgba(220,90,100,.55)"; g.lineWidth = S * 0.004;
-      for (let i = -1; i <= 1; i++) {
-        const bx = X(0.5 + side * 0.21) + i * S * 0.022;
-        g.beginPath(); g.moveTo(bx - S * 0.008, Y(0.255)); g.lineTo(bx + S * 0.008, Y(0.285)); g.stroke();
-      }
+      // a hint of blush on the full cheeks
+      const bx = X(0.5 + side * 0.23), by = Y(0.28);
+      const bl = g.createRadialGradient(bx, by, 0, bx, by, S * 0.08);
+      bl.addColorStop(0, "rgba(232,120,120,.32)"); bl.addColorStop(1, "rgba(232,120,120,0)");
+      g.fillStyle = bl; g.beginPath(); g.arc(bx, by, S * 0.08, 0, Math.PI * 2); g.fill();
     }
-    // nose: a tiny warm tick
-    g.strokeStyle = "rgba(190,110,90,.8)"; g.lineWidth = S * 0.005;
-    g.beginPath(); g.moveTo(X(0.505), Y(0.29)); g.lineTo(X(0.497), Y(0.276)); g.stroke();
-    // small smile
-    g.strokeStyle = "#7a3a3e"; g.lineWidth = S * 0.007; g.lineCap = "round";
-    g.beginPath(); g.arc(X(0.5), Y(0.235), S * 0.028, 0.18 * Math.PI, 0.82 * Math.PI); g.stroke();
+    // nose: soft shadow on one side + a tiny tip
+    g.strokeStyle = "rgba(165,95,75,.7)"; g.lineWidth = S * 0.006; g.lineCap = "round";
+    g.beginPath(); g.moveTo(X(0.512), Y(0.3)); g.quadraticCurveTo(X(0.5), Y(0.285), X(0.488), Y(0.288)); g.stroke();
+    // full soft lips, closed smile
+    const lx = X(0.5), ly = Y(0.215), lw = S * 0.06;
+    g.fillStyle = PALETTE.lips;
+    g.beginPath();
+    g.moveTo(lx - lw, ly);
+    g.quadraticCurveTo(lx - lw * 0.5, ly - S * 0.02, lx, ly - S * 0.012);
+    g.quadraticCurveTo(lx + lw * 0.5, ly - S * 0.02, lx + lw, ly);
+    g.quadraticCurveTo(lx, ly + S * 0.04, lx - lw, ly);
+    g.fill();
+    g.strokeStyle = "#9c4f55"; g.lineWidth = S * 0.005;
+    g.beginPath(); g.moveTo(lx - lw * 0.95, ly - S * 0.001); g.quadraticCurveTo(lx, ly + S * 0.008, lx + lw * 0.95, ly - S * 0.001); g.stroke();
+    g.fillStyle = "rgba(255,255,255,.35)";
+    g.beginPath(); g.ellipse(lx + S * 0.012, ly + S * 0.011, S * 0.012, S * 0.004, 0, 0, Math.PI * 2); g.fill();
+  });
+}
+
+// lens glare: two soft diagonal streaks, like the glare in her scan
+function glare() {
+  return canvasTex(128, (g, S) => {
+    g.clearRect(0, 0, S, S);
+    g.fillStyle = "rgba(220,235,255,.12)";
+    g.beginPath(); g.arc(S / 2, S / 2, S / 2, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = "rgba(255,255,255,.55)"; g.lineCap = "round";
+    g.lineWidth = S * 0.09; g.beginPath(); g.moveTo(S * 0.25, S * 0.45); g.lineTo(S * 0.48, S * 0.22); g.stroke();
+    g.lineWidth = S * 0.04; g.beginPath(); g.moveTo(S * 0.36, S * 0.6); g.lineTo(S * 0.6, S * 0.36); g.stroke();
   });
 }
 const FACE_OPEN = paintFace(false);
 const FACE_BLINK = paintFace(true);
 
-// Hair cap alpha: white = hair. Black = the face window (the strands drawn
-// on top supply the bangs and the framing, so this is a plain soft oval).
+// Hair cap alpha: white = hair. The face window's top edge is her hairline:
+// high at the centre part, curtained down over the temples. A thin line from
+// the window up over the crown leaves the part showing.
 function hairMask() {
-  return canvasTex(256, (g, S, X, Y) => {
+  return canvasTex(512, (g, S, X, Y) => {
     g.fillStyle = "#fff"; g.fillRect(0, 0, S, S);
     g.fillStyle = "#000";
     g.beginPath();
-    g.moveTo(X(0.24), Y(0.55));
-    g.bezierCurveTo(X(0.3), Y(0.8), X(0.7), Y(0.8), X(0.76), Y(0.55));
-    g.bezierCurveTo(X(0.82), Y(0.25), X(0.78), Y(0.0), X(0.74), Y(-0.1));
-    g.lineTo(X(0.26), Y(-0.1));
-    g.bezierCurveTo(X(0.22), Y(0.0), X(0.18), Y(0.25), X(0.24), Y(0.55));
+    g.moveTo(X(0.5), Y(0.8));
+    g.bezierCurveTo(X(0.38), Y(0.79), X(0.22), Y(0.72), X(0.19), Y(0.5));
+    g.bezierCurveTo(X(0.16), Y(0.3), X(0.2), Y(0.05), X(0.26), Y(-0.1));
+    g.lineTo(X(0.74), Y(-0.1));
+    g.bezierCurveTo(X(0.8), Y(0.05), X(0.84), Y(0.3), X(0.81), Y(0.5));
+    g.bezierCurveTo(X(0.78), Y(0.72), X(0.62), Y(0.79), X(0.5), Y(0.8));
     g.fill();
+    // the part
+    g.lineWidth = S * 0.012;
+    g.strokeStyle = "#000";
+    g.beginPath(); g.moveTo(X(0.5), Y(0.79)); g.lineTo(X(0.5), Y(0.975)); g.stroke();   // stops short of the top row the back half samples
   });
 }
 

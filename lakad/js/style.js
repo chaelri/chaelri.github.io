@@ -67,6 +67,38 @@ export function strand(points, width, thick, { segs = 12, radial = 8, tipPow = 0
   return g;
 }
 
+/** smooth hair panel: follows the points, cross-section lies along `side`
+ *  (kept flat against the head instead of twisting like Frenet frames),
+ *  full width most of the way with a soft rounded end */
+export function ribbon(points, side, width, thick, { segs = 16, radial = 10, root = 0.7, end = 0.25 } = {}) {
+  const curve = new THREE.CatmullRomCurve3(points.map((p) => new THREE.Vector3(...p)));
+  const S = new THREE.Vector3(...side).normalize();
+  const pos = [], idx = [];
+  for (let i = 0; i <= segs; i++) {
+    const t = i / segs, c = curve.getPointAt(t), T = curve.getTangentAt(t);
+    const w = S.clone().addScaledVector(T, -S.dot(T)).normalize();     // side, made perpendicular
+    const n = new THREE.Vector3().crossVectors(w, T).normalize();      // out from the head
+    let k = 1;
+    if (t < 0.12) k = root + (1 - root) * (t / 0.12);
+    if (t > 1 - end) k = Math.cos(((t - (1 - end)) / end) * Math.PI / 2) ** 0.6;
+    k = Math.max(k, 0.04);
+    for (let j = 0; j < radial; j++) {
+      const a = (j / radial) * Math.PI * 2;
+      const v = c.clone().addScaledVector(w, Math.cos(a) * width * k).addScaledVector(n, Math.sin(a) * thick * Math.max(k, 0.3));
+      pos.push(v.x, v.y, v.z);
+    }
+  }
+  for (let i = 0; i < segs; i++) for (let j = 0; j < radial; j++) {
+    const a = i * radial + j, b = i * radial + (j + 1) % radial, c = a + radial, d = b + radial;
+    idx.push(a, c, b, b, c, d);   // this cross-section runs the other way round: outward-facing again
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+}
+
 /** paint on a canvas in the head's planar front UVs: u = 0.5 + x/2R, v = 0.5 + y/2R */
 export function canvasTex(size, paint) {
   const c = document.createElement("canvas");

@@ -18,11 +18,16 @@ python3 play.py        # serves the repo root, opens /lakad/
 
 **Style:** anime chibi, matched to a low-poly hand-painted chibi reference (kept local, not committed). That means flat painted colour with a soft two-tone toon light (`MeshToonMaterial` + a 2-step ramp), ink outlines from an inverted hull pushed out along normals (`style.js`), painted eyes, and hair built from pointed strands.
 
-**Likeness:** from what her scan shows, not a photo:
-- dark shoulder-length hair with a centre part and curtain bangs, plus a cowlick (ahoge)
-- thin round glasses
-- warm brown eyes and her skin tone
+**Likeness:** read off her scan, not a photo:
+- sleek black hair, flat on top with a centre part, falling straight past the jaw to the shoulders. It's built as a snug cap plus smooth panels (`ribbon`), not spikes.
+- a round, full face (head scaled 1.1 wide)
+- gentle almond "smiling" eyes with very dark irises
+- big round lenses in thin clear frames, with glare
+- full pink lips in a closed smile
+- warm tan skin
 - black tee with its white handwritten print, light grey pants, white sneakers
+
+The first anime pass (huge sparkly eyes, spiky flared hair, an ahoge) was rejected as "doesn't look like Karla at all". Generic anime features erase her.
 
 **Face:** painted on a canvas in the head's planar front UVs, with a separate closed-eye texture for blinking every 2.5–5.5 s. The face is unlit, so the eyes stay crisp.
 

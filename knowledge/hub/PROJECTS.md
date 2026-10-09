@@ -247,7 +247,7 @@ Anime-chibi Karla in a pastel playground: WASD walk, Shift sprint, Space jump, a
 - **Deploy:** GitHub Pages `/lakad/` is the full game. `assets/` (gitignored) only holds the old photo-face output and a local style reference.
 - **Quirks:**
   - **Style target is a low-poly hand-painted chibi Charlie supplied** (a fan model of a game character, so it's not committed). The approach: toon ramp + ink hull + painted eyes + pointed strands.
-  - **The photo face from the scan was rejected ("ang panget")**: recognisable but uncanny. The likeness now comes from features: centre-part curtain bangs, round glasses, her tee print, her colours.
+  - **The photo face from the scan was rejected ("ang panget")**: recognisable but uncanny. So was the first generic-anime pass (huge eyes, spiky hair): "doesn't look like Karla at all". Likeness comes from HER features read off the scan: sleek centre-part black hair to the shoulders, round full face, gentle almond eyes, big round clear glasses, full lips, warm tan.
   - **Strand winding matters:** inward-wound strands let the BackSide ink hull draw over them, and the hair rendered solid black.
   - **Toon + `vertexColors` multiplies the base colour**, so hair materials use white as the base and the gradient carries the colour.
   - **`frontMappedSphere` seam:** the back maps to the top row with u continuous. Corner or edge-column mappings tore a see-through stripe through the alpha-masked hair cap.
