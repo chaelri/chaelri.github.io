@@ -213,6 +213,15 @@ The **Claude** taskbar app on Windows — one click opens a small centred window
   - Light/dark toggle: `Ctrl+Alt+T` or the terminal title-bar button; written to the workspace file so it only affects this window.
 
 
+### kart/ (Karera)  🟢
+
+Offline Mario Kart-style racer: the Mac is the split-screen display (up to 3 players + CPU racers), each phone is a steering wheel (joystick or tilt) with drift, items and brake. Critter drivers from bubududu-smash/3d, coins, ? boxes, 7 items, drift mini-turbos, rocket starts. Built 2026-10-09.
+
+- **Tech:** stdlib Python relay (WebSocket + HTTPS for tilt), three.js r186 vendored, pure-JS sim, synthesized audio. No internet at play time.
+- **Entry:** `server.py`, `index.html` + `js/main.js` (board), `js/sim.js`, `js/render.js`, `phone.html`.
+- **Deploy:** Local only (`python3 kart/server.py`).
+- **Full docs:** See `knowledge/kart/SUMMARY.md` and `kart/README.md`.
+
 ### monopoly/  🟢
 
 Offline Monopoly for 2-8 players: the Mac is the board and bank, each phone is a wallet (balance, properties, houses, roll/buy/bid/build/mortgage/trade). Rent, tax, GO, cards, auctions and debts all settle automatically. Built 2026-10-09 for game nights on weak house internet.
@@ -634,6 +643,7 @@ Simple side-scrolling platformer (Bubu & Dudu) — canvas-based game.
 | diskscope | Local only (`python3 serve.py`) | Manual |
 | phone-drop | Local only (`python3 receive.py`) | Manual |
 | monopoly | Local only (`python3 monopoly/server.py`) | Manual |
+| kart (Karera) | Local only (`python3 kart/server.py`) | Manual |
 | guard-exit-interview | GitHub Pages — **DUAL-REPO** (also push to `guard-exit-tracker`) | ✅ |
 | vm-management | GitHub Pages `/vm-management/` | ✅ |
 | weddingbar | Firebase Hosting (root via `firebase.json`) — also GH Pages `/weddingbar/` | `firebase deploy` |

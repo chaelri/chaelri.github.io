@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#16121f">
+<title>Karera Wheel</title>
+<style>
+:root { --c: #e8312b; --ink: #16121f; --gold: #ffd21f; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #16121f; color: #fff; font-family: -apple-system, "Avenir Next", sans-serif; overscroll-behavior: none; }
+button { font: inherit; border: 0; cursor: pointer; color: inherit; }
+.hide { display: none !important; }
+.display { font-family: "Arial Black", "Avenir Next", sans-serif; font-weight: 900; }
+.screen { position: fixed; inset: 0; padding: calc(16px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) calc(16px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left)); overflow-y: auto; }
+
+/* join + lobby */
+.title { font: 900 44px/1 "Arial Black", sans-serif; color: var(--gold); -webkit-text-stroke: 2px #6b0d09; font-style: italic; text-shadow: 0 5px 0 #6b0d09; }
+.sub { color: #b9b3d9; font-size: 15px; margin: 8px 0 14px; line-height: 1.4; }
+input[type=text] { width: 100%; padding: 14px 16px; border-radius: 14px; border: 3px solid #3a3360; background: #241e3b; color: #fff; font: 800 20px -apple-system, sans-serif; user-select: text; -webkit-user-select: text; }
+.chars { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 14px 0; }
+.chars button { background: #241e3b; border: 3px solid #3a3360; border-radius: 16px; padding: 6px 4px 8px; display: flex; flex-direction: column; align-items: center; }
+.chars button.on { border-color: var(--gold); background: #3a2f12; }
+.chars canvas { width: 72px; height: 72px; }
+.chars span { font-size: 12px; font-weight: 800; }
+.big { width: 100%; padding: 16px; border-radius: 16px; font: 900 22px "Arial Black", sans-serif; background: var(--gold); color: #2a1600; box-shadow: 0 6px 0 #a87900; }
+.big:active { transform: translateY(4px); box-shadow: 0 2px 0 #a87900; }
+.big.alt { background: #2f2950; color: #fff; box-shadow: 0 6px 0 #120e24; }
+.me { display: flex; align-items: center; gap: 14px; background: linear-gradient(90deg, var(--c), transparent); border-radius: 18px; padding: 10px 14px; margin: 10px 0 14px; }
+.me canvas { width: 80px; height: 80px; }
+.me b { font: 900 26px "Arial Black"; display: block; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; margin: 10px 0; }
+.pill { padding: 9px 14px; border-radius: 99px; background: #2f2950; font-weight: 800; font-size: 14px; }
+.pill.on { background: var(--gold); color: #2a1600; }
+.note { font-size: 13.5px; color: #b9b3d9; line-height: 1.45; }
+.note a { color: var(--gold); font-weight: 800; }
+.err { color: #ff8a80; font-weight: 800; margin-top: 10px; }
+
+/* controller (landscape) */
+#drive { padding: 0; overflow: hidden; touch-action: none; }
+#steer { position: absolute; left: 0; top: 0; bottom: 0; width: 52%; touch-action: none; }
+#steer .hint { position: absolute; left: 0; right: 0; bottom: 18px; text-align: center; color: rgba(255,255,255,.35); font-weight: 800; font-size: 13px; letter-spacing: .1em; }
+#knob, #base { position: absolute; border-radius: 50%; pointer-events: none; transform: translate(-50%, -50%); }
+#base { width: 150px; height: 70px; border-radius: 40px; background: rgba(255,255,255,.08); border: 3px solid rgba(255,255,255,.18); }
+#knob { width: 74px; height: 74px; background: radial-gradient(circle at 40% 35%, #fff, var(--c)); box-shadow: 0 6px 18px rgba(0,0,0,.5); }
+#wheel { position: absolute; left: 26%; top: 54%; width: min(46vh, 40vw); aspect-ratio: 1; transform: translate(-50%, -50%); pointer-events: none; }
+#wheel svg { width: 100%; height: 100%; }
+#bar { position: absolute; left: 0; right: 0; top: 0; display: flex; align-items: center; gap: 14px; padding: calc(8px + env(safe-area-inset-top)) 16px 0 calc(16px + env(safe-area-inset-left)); pointer-events: none; z-index: 2; }
+#bar .pl { font: 900 34px/1 "Arial Black"; color: var(--gold); -webkit-text-stroke: 1.5px #2a1600; font-style: italic; }
+#bar .pl small { font-size: .5em; }
+#bar .lp, #bar .cn { font: 900 17px "Arial Black"; }
+#bar .cn { display: flex; align-items: center; gap: 4px; } #bar .cn svg { width: 22px; height: 22px; }
+#bar .nm { margin-left: auto; padding: 4px 12px; border-radius: 99px; background: var(--c); font-weight: 900; }
+#gear { position: absolute; right: calc(10px + env(safe-area-inset-right)); top: calc(46px + env(safe-area-inset-top)); z-index: 3; background: rgba(255,255,255,.1); border-radius: 99px; padding: 6px 12px; font-weight: 800; font-size: 13px; }
+.btn { position: absolute; display: flex; align-items: center; justify-content: center; flex-direction: column; touch-action: none; font: 900 18px "Arial Black", sans-serif; letter-spacing: .04em; transition: transform .06s; }
+.btn.down { transform: scale(.93); filter: brightness(1.25); }
+#item { right: calc(24% + env(safe-area-inset-right)); top: 22%; width: min(34vh, 24vw); aspect-ratio: 1; border-radius: 26%; background: radial-gradient(circle at 50% 35%, #fff, #d7e0ff); border: 5px solid #fff; box-shadow: 0 0 0 4px rgba(0,0,0,.5), 0 8px 0 #6f7bb3; color: #3a3360; }
+#item .ic { width: 70%; height: 70%; display: flex; align-items: center; justify-content: center; }
+#item .ic svg { width: 100%; height: 100%; }
+#item .lb { font-size: 12px; margin-top: 2px; }
+#item.empty { opacity: .45; }
+#item.spin .ic { animation: wob .12s linear infinite; }
+@keyframes wob { 50% { transform: scale(.85) rotate(8deg); } }
+#drift { right: calc(3% + env(safe-area-inset-right)); bottom: 7%; width: min(44vh, 30vw); height: min(36vh, 26vw); border-radius: 28px; background: linear-gradient(180deg, #ff7a3d, #e8312b); box-shadow: 0 8px 0 #7a0d09; font-size: 26px; }
+#drift small { font: 700 12px -apple-system; opacity: .85; letter-spacing: 0; }
+#brake { right: calc(3% + env(safe-area-inset-right)); top: 22%; width: min(22vh, 16vw); aspect-ratio: 1; border-radius: 50%; background: #2f2950; box-shadow: 0 6px 0 #120e24; font-size: 14px; }
+#gas { right: calc(3% + min(44vh, 30vw) + 14px + env(safe-area-inset-right)); bottom: 7%; width: min(30vh, 20vw); height: min(36vh, 26vw); border-radius: 24px; background: linear-gradient(180deg, #5ee35e, #239a39); box-shadow: 0 8px 0 #0e5520; }
+#flashhit { position: absolute; inset: 0; background: rgba(232,49,43,.45); opacity: 0; pointer-events: none; transition: opacity .4s; }
+#flashhit.on { opacity: 1; transition: none; }
+#banner { position: absolute; left: 0; right: 0; top: 34%; text-align: center; pointer-events: none; font: 900 54px "Arial Black"; color: #fff; -webkit-text-stroke: 3px #1a1030; font-style: italic; }
+#rotate { position: fixed; inset: 0; background: #16121f; display: none; align-items: center; justify-content: center; flex-direction: column; gap: 16px; text-align: center; padding: 30px; z-index: 50; }
+#rotate .ph { width: 70px; height: 120px; border: 5px solid #fff; border-radius: 16px; animation: rot 1.8s ease-in-out infinite; }
+@keyframes rot { 40%, 70% { transform: rotate(-90deg); } }
+@media (orientation: portrait) { body.driving #rotate { display: flex; } }
+#sheet { position: fixed; inset: 0; background: rgba(10,8,25,.92); z-index: 40; padding: calc(20px + env(safe-area-inset-top)) 24px; overflow-y: auto; }
+#status { position: fixed; right: calc(10px + env(safe-area-inset-right)); top: calc(10px + env(safe-area-inset-top)); font-size: 12px; font-weight: 800; padding: 3px 10px; border-radius: 99px; background: rgba(255,255,255,.1); z-index: 60; pointer-events: none; }
+#status.bad { background: #e8312b; }
+body.driving #status:not(.bad) { display: none; }
+</style>
+</head>
+<body>
+<div id="status">connecting...</div>
+
+<section class="screen" id="join">
+  <div class="title">KARERA</div>
+  <div class="sub">Your phone is your steering wheel. Pick a name and a critter.</div>
+  <input type="text" id="name" maxlength="12" placeholder="Your name" autocomplete="off">
+  <div class="chars" id="chars"></div>
+  <button class="big" id="joinbtn">JOIN</button>
+  <div class="err" id="joinerr"></div>
+</section>
+
+<section class="screen hide" id="lobby">
+  <div class="title" style="font-size:34px">KARERA</div>
+  <div class="me"><canvas id="mecv" width="160" height="160"></canvas><div><b id="mename"></b><span id="meslot"></span></div></div>
+  <div class="note">Change critter</div>
+  <div class="chars" id="chars2"></div>
+  <button class="big" id="startbtn">START RACE</button>
+  <div class="row"><span class="note" style="align-self:center">Steering:</span>
+    <button class="pill" data-mode="stick">Joystick</button><button class="pill" data-mode="tilt">Tilt</button></div>
+  <div class="row"><span class="note" style="align-self:center">Gas:</span>
+    <button class="pill" data-gas="1">Automatic</button><button class="pill" data-gas="0">Gas button</button></div>
+  <div class="note" id="tiltnote"></div>
+  <p class="note">Turn your phone sideways when the race starts. <b>Hold DRIFT</b> while turning, let go for a turbo. Hold DRIFT on "2" for a rocket start.</p>
+</section>
+
+<section class="screen hide" id="wait">
+  <div class="title" style="font-size:34px">KARERA</div>
+  <p class="sub" id="waitmsg">A race is on. You're in the next one!</p>
+</section>
+
+<section class="screen hide" id="results">
+  <div class="title" style="font-size:34px">FINISH!</div>
+  <p class="display" id="resplace" style="font-size:60px;color:var(--gold);margin:10px 0;font-style:italic"></p>
+  <button class="big" id="againbtn">RACE AGAIN</button>
+</section>
+
+<section class="screen hide" id="drive">
+  <div id="steer"><div id="base" class="hide"></div><div id="knob" class="hide"></div>
+    <div id="wheel" class="hide"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="44" fill="none" stroke="#fff" stroke-width="9" opacity=".85"/><circle cx="50" cy="50" r="10" fill="#fff" opacity=".85"/><path d="M8 52h30M62 52h30M50 60v32" stroke="#fff" stroke-width="9" opacity=".85"/><circle cx="50" cy="8" r="5" fill="var(--c)"/></svg></div>
+    <div class="hint" id="steerhint">TOUCH AND SLIDE TO STEER</div></div>
+  <div id="bar"><div class="pl" id="pl"></div><div class="lp" id="lp"></div><div class="cn" id="cn"></div><div class="nm" id="nm"></div></div>
+  <button id="gear">Re-centre</button>
+  <div class="btn empty" id="item"><div class="ic"></div><div class="lb">ITEM</div></div>
+  <div class="btn" id="brake">BRAKE</div>
+  <div class="btn" id="drift">DRIFT<small>hold while turning</small></div>
+  <div class="btn hide" id="gas">GAS</div>
+  <div id="banner"></div>
+  <div id="flashhit"></div>
+</section>
+
+<div id="rotate"><div class="ph"></div><b class="display" style="font-size:22px">Turn your phone sideways</b></div>
+
+<script type="module">
+import { ICON, ITEM_NAME, ORDINAL } from "/js/icons.js";
+import { FLAT } from "/assets/flat.js";
+
+const $ = (id) => document.getElementById(id);
+const CHARS = ["yhon", "axolotl", "capybara", "hedgehog"];
+const LS = (k, v) => { try { if (v === undefined) return localStorage.getItem("karera." + k); localStorage.setItem("karera." + k, v); } catch (e) {} };
+let pid = LS("pid");
+if (!pid) { pid = Math.random().toString(36).slice(2, 12); LS("pid", pid); }
+let me = { name: LS("name") || "", char: LS("char") || "yhon", joined: false };
+let mode = new URLSearchParams(location.search).get("mode") || LS("mode") || "stick";
+let autoGas = LS("autogas") !== "0";
+let st = {};
+const input = { steer: 0, gas: 0, brake: 0, drift: 0, item: 0 };
+
+// ---------- haptics (Android vibrate; iOS 17.4+ switch-toggle tick) ----------
+let hsw = null;
+function haptic(ms = 12) {
+  try { if (navigator.vibrate && navigator.vibrate(ms)) return; } catch (e) {}
+  try {
+    if (!hsw) {
+      const l = document.createElement("label");
+      l.style.cssText = "position:fixed;top:-64px;left:-64px;width:1px;height:1px;opacity:0;pointer-events:none;";
+      hsw = document.createElement("input"); hsw.type = "checkbox"; hsw.setAttribute("switch", "");
+      l.appendChild(hsw); document.body.appendChild(l);
+    }
+    hsw.click();
+  } catch (e) {}
+}
+
+// ---------- connection: WebSocket, falling back to POST + SSE ----------
+let ws = null, fallback = false, es = null, wsFails = 0, lastMsg = 0;
+function connect() {
+  if (fallback) return startFallback();
+  const proto = location.protocol === "https:" ? "wss" : "ws";
+  let opened = false;
+  try { ws = new WebSocket(`${proto}://${location.host}/ws?pid=${pid}`); } catch (e) { wsFails = 9; return connect(); }
+  const t = setTimeout(() => { if (!opened) { try { ws.close(); } catch (e) {} } }, 4000);
+  ws.onopen = () => { opened = true; clearTimeout(t); wsFails = 0; link(true); hello(); };
+  ws.onmessage = (e) => onMsg(JSON.parse(e.data));
+  ws.onclose = () => {
+    clearTimeout(t); link(false);
+    if (!opened && ++wsFails >= 2) fallback = true;
+    setTimeout(connect, 800);
+  };
+}
+function startFallback() {
+  if (es) es.close();
+  es = new EventSource(`/out?pid=${pid}`);
+  es.onopen = () => { link(true); hello(); };
+  es.onmessage = (e) => onMsg(JSON.parse(e.data));
+  es.onerror = () => link(false);
+}
+function send(m) {
+  if (!fallback && ws && ws.readyState === 1) ws.send(JSON.stringify(m));
+  else if (fallback) fetch(`/in?pid=${pid}`, { method: "POST", body: JSON.stringify(m), keepalive: true }).catch(() => {});
+}
+function link(ok) { $("status").textContent = ok ? (fallback ? "connected (slow mode)" : "connected") : "reconnecting..."; $("status").classList.toggle("bad", !ok); }
+function hello() { if (me.name) send({ t: "join", name: me.name, char: me.char }); }
+document.addEventListener("visibilitychange", () => { if (!document.hidden && (!ws || ws.readyState !== 1) && !fallback) connect(); });
+
+function onMsg(m) {
+  lastMsg = performance.now();
+  if (m.t === "board") hello();
+  if (m.t === "joined") { me.joined = true; me.slot = m.slot; me.color = m.color; me.name = m.name; me.char = m.char; document.documentElement.style.setProperty("--c", m.color); show(); }
+  if (m.t === "full") { $("joinerr").textContent = `The race is full (${m.max} players).`; }
+  if (m.t === "wait") { me.waiting = true; $("waitmsg").textContent = m.why; show("wait"); }
+  if (m.t === "st") { st = m; show(); hud(); }
+  if (m.t === "fx" && m.e === "hit") { haptic(60); $("flashhit").classList.add("on"); setTimeout(() => $("flashhit").classList.remove("on"), 80); }
+  if (m.t === "fx" && m.e === "finish") haptic(40);
+  if (m.t === "results") { $("resplace").textContent = m.place ? ORDINAL(m.place) : ""; }
+}
+
+// ---------- screens ----------
+function show(force) {
+  let s = force;
+  if (!s) {
+    if (!me.joined) s = me.waiting ? "wait" : "join";
+    else if (st.screen === "race") s = "drive";
+    else if (st.screen === "results") s = "results";
+    else s = "lobby";
+  }
+  for (const id of ["join", "lobby", "wait", "results", "drive"]) $(id).classList.toggle("hide", id !== s);
+  document.body.classList.toggle("driving", s === "drive");
+  if (s === "lobby") lobby();
+}
+
+function drawChars(el, sel) {
+  el.innerHTML = CHARS.map((c) => `<button data-char="${c}" class="${c === sel ? "on" : ""}"><canvas width="144" height="144" data-cv="${c}"></canvas><span>${FLAT[c].name}</span></button>`).join("");
+  el.querySelectorAll("canvas").forEach((cv) => portrait(cv, cv.dataset.cv));
+}
+function portrait(cv, c) {
+  const x = cv.getContext("2d");
+  x.clearRect(0, 0, cv.width, cv.height);
+  try { FLAT[c].draw(x, cv.width / 2, cv.height * 0.93, cv.width * 0.82, cv.height * 0.82, { t: 0, air: 0, run: 0, squash: 0, rise: 0, walk: 0, stride: 1, dir: 1, face: 1 }); } catch (e) {}
+}
+$("name").value = me.name;
+drawChars($("chars"), me.char);
+$("chars").onclick = (e) => { const b = e.target.closest("[data-char]"); if (b) { me.char = b.dataset.char; drawChars($("chars"), me.char); haptic(); } };
+$("joinbtn").onclick = () => {
+  const n = $("name").value.trim();
+  if (!n) { $("joinerr").textContent = "Type your name first."; return; }
+  me.name = n; LS("name", n); LS("char", me.char);
+  $("joinerr").textContent = "";
+  haptic();
+  send({ t: "join", name: me.name, char: me.char });
+};
+function lobby() {
+  $("mename").textContent = me.name;
+  $("meslot").textContent = `Player ${me.slot + 1}`;
+  portrait($("mecv"), me.char);
+  if ($("chars2").dataset.sel !== me.char) { drawChars($("chars2"), me.char); $("chars2").dataset.sel = me.char; }
+  document.querySelectorAll("[data-mode]").forEach((b) => b.classList.toggle("on", b.dataset.mode === mode));
+  document.querySelectorAll("[data-gas]").forEach((b) => b.classList.toggle("on", (b.dataset.gas === "1") === autoGas));
+  tiltNote();
+}
+$("chars2").onclick = (e) => { const b = e.target.closest("[data-char]"); if (b) { me.char = b.dataset.char; LS("char", me.char); send({ t: "char", char: me.char }); haptic(); } };
+$("startbtn").onclick = () => { haptic(); send({ t: "start" }); };
+$("againbtn").onclick = () => { haptic(); send({ t: "again" }); };
+document.querySelectorAll("[data-gas]").forEach((b) => b.onclick = () => { autoGas = b.dataset.gas === "1"; LS("autogas", autoGas ? "1" : "0"); lobby(); applyMode(); });
+document.querySelectorAll("[data-mode]").forEach((b) => b.onclick = async () => {
+  if (b.dataset.mode === "tilt") { if (!(await enableTilt())) return; }
+  mode = b.dataset.mode; LS("mode", mode); lobby(); applyMode();
+});
+
+// ---------- tilt steering ----------
+// Signed angle of the gravity vector in the screen plane, relative to where the
+// phone was held at calibration. Negating all axes (iOS vs Android sign
+// conventions) leaves a signed angle unchanged, so no platform check is needed.
+let g0 = null, gNow = null, tiltOn = false;
+function onMotion(e) {
+  const a = e.accelerationIncludingGravity;
+  if (!a || a.x === null) return;
+  gNow = [a.x, a.y];
+  if (!g0) g0 = gNow;
+}
+async function enableTilt() {
+  if (!window.isSecureContext) { tiltNote(true); return false; }
+  try {
+    if (typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function") {
+      const r = await DeviceMotionEvent.requestPermission();
+      if (r !== "granted") { $("tiltnote").textContent = "Motion access was denied. Using the joystick."; return false; }
+    }
+  } catch (e) { $("tiltnote").textContent = "This phone won't share motion data. Using the joystick."; return false; }
+  if (!tiltOn) { addEventListener("devicemotion", onMotion); tiltOn = true; }
+  g0 = null;
+  return true;
+}
+async function tiltNote(push) {
+  const el = $("tiltnote");
+  if (window.isSecureContext) { el.textContent = mode === "tilt" ? "Hold the phone like a wheel. Tap Re-centre any time." : ""; return; }
+  if (!push && mode !== "tilt") { el.textContent = ""; return; }
+  try {
+    const n = await (await fetch("/api/net")).json();
+    if (!n.https) { el.textContent = "Tilt needs the secure page, which isn't available. Use the joystick."; return; }
+    const url = `https://${location.hostname}:${n.https}/p?mode=tilt`;
+    el.innerHTML = `Tilt steering needs the secure page: <a href="${url}">open it here</a>. Your phone will warn that it's "not private" (it's just this Mac): tap <b>Show Details</b> then <b>visit this website</b>.`;
+  } catch (e) {}
+}
+function tiltSteer() {
+  if (!gNow || !g0) return 0;
+  const [ax, ay] = g0, [bx, by] = gNow;
+  const ang = Math.atan2(ax * by - ay * bx, ax * bx + ay * by);
+  const flip = LS("tiltflip") === "1" ? -1 : 1;
+  let s = (ang / 0.42) * flip;
+  if (Math.abs(s) < 0.05) s = 0;
+  return Math.max(-1, Math.min(1, s));
+}
+$("gear").onclick = () => { g0 = gNow; haptic(); };
+
+function applyMode() {
+  const tilt = mode === "tilt" && tiltOn;
+  $("wheel").classList.toggle("hide", !tilt);
+  $("gear").classList.toggle("hide", !tilt);
+  $("steerhint").textContent = tilt ? "TILT TO STEER" : "TOUCH AND SLIDE TO STEER";
+  $("gas").classList.toggle("hide", autoGas);
+}
+
+// ---------- touch controls ----------
+let stick = null;   // {id, x0, y0}
+const steerEl = $("steer");
+steerEl.addEventListener("pointerdown", (e) => {
+  if (mode === "tilt" && tiltOn) return;
+  stick = { id: e.pointerId, x0: e.clientX, y0: e.clientY };
+  try { steerEl.setPointerCapture(e.pointerId); } catch (err) {}
+  for (const id of ["base", "knob"]) { $(id).classList.remove("hide"); $(id).style.left = e.clientX + "px"; $(id).style.top = e.clientY + "px"; }
+  e.preventDefault();
+});
+steerEl.addEventListener("pointermove", (e) => {
+  if (!stick || e.pointerId !== stick.id) return;
+  const dx = Math.max(-70, Math.min(70, e.clientX - stick.x0));
+  input.steer = Math.abs(dx) < 6 ? 0 : dx / 70;
+  $("knob").style.left = stick.x0 + dx + "px";
+  e.preventDefault();
+});
+const endStick = (e) => { if (stick && e.pointerId === stick.id) { stick = null; input.steer = 0; $("base").classList.add("hide"); $("knob").classList.add("hide"); } };
+steerEl.addEventListener("pointerup", endStick);
+steerEl.addEventListener("pointercancel", endStick);
+
+function hold(el, key) {
+  const ids = new Set();
+  const on = (e) => { ids.add(e.pointerId); try { el.setPointerCapture(e.pointerId); } catch (err) {} input[key] = 1; el.classList.add("down"); haptic(8); e.preventDefault(); sendInput(); };
+  const off = (e) => { ids.delete(e.pointerId); if (!ids.size) { input[key] = 0; el.classList.remove("down"); sendInput(); } };
+  el.addEventListener("pointerdown", on);
+  el.addEventListener("pointerup", off);
+  el.addEventListener("pointercancel", off);
+}
+hold($("drift"), "drift");
+hold($("brake"), "brake");
+hold($("gas"), "gas");
+$("item").addEventListener("pointerdown", (e) => {
+  e.preventDefault();
+  $("item").classList.add("down"); setTimeout(() => $("item").classList.remove("down"), 120);
+  if (st.item && !st.roulette) { input.item++; haptic(20); sendInput(); }
+});
+document.addEventListener("contextmenu", (e) => e.preventDefault());
+document.addEventListener("gesturestart", (e) => e.preventDefault());
+
+// ---------- input stream ----------
+function sendInput() {
+  if (st.screen !== "race") return;
+  const steer = mode === "tilt" && tiltOn ? tiltSteer() : input.steer;
+  let gas;
+  if (autoGas) gas = st.phase === "countdown" ? input.drift : (input.brake ? 0 : 1);   // countdown: DRIFT revs the engine
+  else gas = input.gas;
+  send({ t: "in", s: +steer.toFixed(3), g: gas, b: input.brake, d: st.phase === "countdown" ? 0 : input.drift, i: input.item });
+  if (mode === "tilt" && tiltOn) $("wheel").style.transform = `translate(-50%, -50%) rotate(${steer * 70}deg)`;
+}
+setInterval(sendInput, 33);
+
+// ---------- HUD ----------
+let lastItem = null;
+function hud() {
+  if (st.screen !== "race") return;
+  $("pl").innerHTML = st.place ? `${st.place}<small>${ORDINAL(st.place).slice(-2)}</small>` : "";
+  $("lp").textContent = st.finished ? "FINISHED" : `LAP ${st.lap}/${st.laps}`;
+  $("cn").innerHTML = ICON.coin + (st.coins ?? 0);
+  $("nm").textContent = me.name;
+  const it = st.roulette ? "?" : st.item || "";
+  if (it !== lastItem) {
+    lastItem = it;
+    if (st.item && !st.roulette) haptic(25);
+  }
+  const box = $("item");
+  box.classList.toggle("spin", !!st.roulette);
+  box.classList.toggle("empty", !st.item && !st.roulette);
+  box.querySelector(".ic").innerHTML = st.roulette ? ICON[["boost", "banana", "green", "red", "star"][Math.floor(performance.now() / 90) % 5]] : st.item ? ICON[st.item] : "";
+  box.querySelector(".lb").textContent = st.roulette ? "..." : st.item ? (ITEM_NAME[st.item] + (st.item === "triple" && st.count > 1 ? ` x${st.count}` : "")) : "ITEM";
+  let b = "";
+  if (st.phase === "countdown") { const c = Math.ceil(st.cd - 0.7); b = c > 3 ? "Get ready" : c > 0 ? String(c) : "GO!"; }
+  else if (st.finished) b = ORDINAL(st.fp) + "!";
+  $("banner").textContent = b;
+}
+
+applyMode();
+if (mode === "tilt") enableTilt().then((ok) => { if (!ok) { mode = "stick"; LS("mode", "stick"); } applyMode(); });
+connect();
+show();
+</script>
+</body>
+</html>
