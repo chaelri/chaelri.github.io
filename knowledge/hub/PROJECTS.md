@@ -212,16 +212,6 @@ The **Claude** taskbar app on Windows — one click opens a small centred window
   - **Junction, not symlink** — `mklink /J` needs no admin or Developer Mode. The installer removes an old link with `rmdir`, which never touches the target.
   - Light/dark toggle: `Ctrl+Alt+T` or the terminal title-bar button; written to the workspace file so it only affects this window.
 
-### phone-drop/  🟢
-
-iPhone → Mac file drop that works on any network (no shared WiFi). Built 2026-10-09. iCloud Drive is the transport: the phone saves into **iCloud Drive / To Mac** (share-sheet shortcut "Send to Mac", or Save to Files), and a LaunchAgent moves each file to `~/Downloads/From iPhone`, empties the inbox, notifies and reveals it in Finder.
-
-- **Tech:** single Swift file built with `swiftc`, ad-hoc signed with identifier `com.chaelri.phonedrop`; per-user LaunchAgent with `WatchPaths` on the inbox + a 60 s `StartInterval` fallback. Each run drains and exits.
-- **Entry:** `phone-drop.swift`, `install.sh`, `README.md` (iPhone Shortcut steps).
-- **Quirks:**
-  - **Python can't do this job.** Under launchd, `/usr/bin/python3` gets `Operation not permitted` on the iCloud Drive folder (TCC). The compiled binary is its own responsible process and reads it fine, with no Full Disk Access grant.
-  - **Dataless placeholders:** a file with `SF_DATALESS` gets `brctl download` and up to 10 min to materialise, then must hold its size for 3 s before it's moved.
-  - Filename clashes get `(2)` suffixes, so nothing is ever overwritten.
 
 ### claude-usage/  🟢
 
@@ -593,7 +583,6 @@ Simple side-scrolling platformer (Bubu & Dudu) — canvas-based game.
 | mac-toggle (menu bar) | per-user LaunchAgent `com.chaelri.mactoggle.menubar` via `menubar/install-menubar.sh` | Manual |
 | claude-terminal | Local only (Windows, `install.ps1`) | Manual |
 | claude-usage | per-user LaunchAgent `com.chaelri.claudeusage` via `install.sh` | Manual |
-| phone-drop | per-user LaunchAgent `com.chaelri.phonedrop` via `install.sh` | Manual |
 | diskscope | Local only (`python3 serve.py`) | Manual |
 | guard-exit-interview | GitHub Pages — **DUAL-REPO** (also push to `guard-exit-tracker`) | ✅ |
 | vm-management | GitHub Pages `/vm-management/` | ✅ |
