@@ -230,13 +230,27 @@ iPhone → Mac file receiver, AirDrop-ish with a QR. `python3 receive.py` opens 
 Gaussian-splat viewer + subject-isolation script. Built 2026-10-09 for the first scan sent through `phone-drop/` ("Barangay V.ply", Karla seated).
 
 - **Tech:** vanilla ES modules, three.js 0.186.1 + Spark 2.3.1 (World Labs) **vendored** in `vendor/` so it runs offline; `refine.py` is numpy + scipy (run with `~/Desktop/enclosure/.venv/bin/python`).
-- **Entry:** `index.html` (viewer: open/drag-drop, `?src=`, turntable, bg toggle), `view.py` (stdlib server on 127.0.0.1:8790+), `refine.py`.
+- **Entry:** `index.html` (viewer: open/drag-drop, `?src=`, turntable, bg toggle), `view.py` (stdlib server on 127.0.0.1:8790+), `refine.py`, `mesh.py` (splats → vertex-coloured mesh via marching cubes).
 - **Deploy:** works on GitHub Pages `/splat/` as an empty drag-drop viewer. `scans/` is gitignored, so scans of people never get pushed.
 - **Quirks:**
   - **Phone 3DGS exports are y-down, z-forward** (OpenCV camera frame). The viewer applies `quaternion(1,0,0,0)`; `refine.py --box` takes raw file coords, so y runs head → feet.
   - Scaniverse-style files carry a **sky dome**: ~10 k splats at r ≈ 240 m, scale e², opacity 0.99. Any crop drops it.
   - `display: grid` beat the `hidden` attribute on the drop overlay; `[hidden] { display:none !important }` is load-bearing.
   - Headless screenshots need real time (CDP driver with sleeps): Spark decodes in a worker and `--virtual-time-budget` stalls it at "loading".
+
+### lakad/  🟢
+
+Chibi Karla in a pastel playground: WASD walk, Shift sprint, Space jump, an 18-bone skeleton with procedural idle/walk/sprint/jump. Her face is rendered from her scan (`splat/scans/Karla.ply`). Built 2026-10-09.
+
+- **Tech:** vanilla ES modules, three.js 0.186 from `../splat/vendor/` (offline), no binary assets except the gitignored face texture. `tools/face_photo.py` is numpy/scipy/PIL (`~/Desktop/enclosure/.venv/bin/python`).
+- **Entry:** `index.html`, `js/main.js` (input, physics, camera), `js/character.js` (bones, body, hair, poses), `js/world.js`, `play.py`.
+- **Deploy:** works on GitHub Pages `/lakad/` with a drawn fallback face; the real face (`assets/`) stays on the Mac.
+- **Quirks:**
+  - **The scan only has her front, seated, cut at the lap**, so the body is built, not scanned. Charlie asked for chibi so the face carries the likeness.
+  - **Face = a rendered photo, not a mesh.** Marching cubes kept the hair and lost the face, and a depth-relief mask smeared off-axis. A splat render mapped onto a sphere with planar UVs is what held up.
+  - **`--straighten 0.6`**: she was scanned ~39° turned and 20° down. Fully frontal exposes the uncaptured far cheek as blotches.
+  - The hair face-opening is an `alphaMap` + `alphaTest` in the same planar UVs as the face, so the two always line up.
+  - Headless checks drive `window.__lakad.hold(code)`; the CDP screenshot needs real-time sleeps.
 
 ### claude-usage/  🟢
 
