@@ -167,13 +167,7 @@ export class Character {
       panel(sd * 2.5, 1.38, R * 0.42, 0.07);
     }
     panel(Math.PI, 1.38, R * 0.44, 0.06);
-    // the ends on the springy bone: hair bone sits behind the crown, so these
-    // short pieces swish below the shoulders
-    for (const x of [-0.45, 0, 0.45]) {
-      const g = ribbon([[x * R, -R * 0.9, -R * 0.55], [x * R * 1.05, -R * 1.25, -R * 0.62], [x * R * 1.1, -R * 1.55, -R * 0.6]],
-        [1, 0, 0], R * 0.42, R * 0.07);
-      part(shade(g, R * 1.05, -R * 1.6), hairMat, hairBone, [0, -R * 1.2, R * 0.45], [1, 1, 1], { fine: true });
-    }
+  }
   }
 
   // big round lenses in thin clear/silver frames, as in the scan, with glare
