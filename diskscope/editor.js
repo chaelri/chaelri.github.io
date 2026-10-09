@@ -166,6 +166,12 @@ function buildStage() {
     canvas.appendChild(v);
     return v;
   });
+  // Photos can't play in a <video>, so they get their own layer on top.
+  E.img = el('img');
+  E.img.className = 'ed-still';
+  E.img.draggable = false;
+  canvas.appendChild(E.img);
+  E.still = false;
   E.front = 0;
   E.loaded = [null, null];      // which clip each element is holding
   showFront();
@@ -180,6 +186,11 @@ function showFront() {
 
 const backIndex = () => 1 - E.front;
 
+function showStill(on) {
+  E.still = on;
+  $('#ed-canvas').classList.toggle('still', on);
+}
+
 /* Park the next clip in the spare element, ready to go. */
 function primeNext(fromClip) {
   const i = E.clips.indexOf(fromClip);
@@ -189,6 +200,7 @@ function primeNext(fromClip) {
   const asset = E.assets[next.asset];
   if (!asset) return;
   const url = sourceUrl(asset);
+  if (asset.still) { new Image().src = url; return; }   // warm the cache, keep the spare free
   const already = E.loaded[backIndex()];
   if (already && already.id === next.id) return;
   E.loaded[backIndex()] = next;
@@ -382,7 +394,7 @@ function jumpKey(dir) {
 /* Mirrors the export's framing: cover+reframe on a chosen aspect, contain on
    source, punch-in as a scale about the same x/y the filter graph uses. */
 function paintFrame(clip) {
-  const v = E.video;
+  const v = E.still ? E.img : E.video;
   if (!v || !clip) return;
   const f = frameFor(clip);
   const fill = !!$('#ed-canvas').dataset.fill;
@@ -390,13 +402,26 @@ function paintFrame(clip) {
   v.style.objectPosition = `${f.x * 100}% ${f.y * 100}%`;
   v.style.transformOrigin = `${f.x * 100}% ${f.y * 100}%`;
   v.style.transform = f.scale > 1.001 ? `scale(${f.scale})` : '';
-  v.muted = !!clip.mute;
+  if (!E.still) v.muted = !!clip.mute;
   syncPanCursor();
 }
 
 function mount(clip, offset, play) {
   const asset = E.assets[clip.asset];
   if (!asset) return;
+
+  if (asset.still) {
+    // A photo has no clock of its own — tick() advances E.t by wall time.
+    E.vids.forEach((v) => v.pause());
+    const url = sourceUrl(asset);
+    if (!E.img.src.endsWith(url)) E.img.src = url;
+    showStill(true);
+    E.activeClip = clip.id;
+    paintFrame(clip);
+    primeNext(clip);
+    return;
+  }
+  showStill(false);
 
   // If the spare element is already sitting on this clip, promote it — that is
   // the seamless path, and it is the one every boundary takes.
@@ -436,11 +461,18 @@ function step() {
   mount(next, 0, E.playing);
 }
 
-function tick() {
+function tick(now) {
   if (!E.open) return;
+  const dt = E.lastTick ? Math.min(0.25, (now - E.lastTick) / 1000) : 0;
+  E.lastTick = now;
   if (E.playing) {
     const at = locate(E.t);
-    if (at && E.video && !E.video.paused) {
+    if (at && E.still) {
+      const into = at.offset + dt;
+      if (into >= clipLen(at.clip) - 0.03) step();
+      else E.t = at.start + into;
+      if ((at.clip.keys || []).length) paintFrame(at.clip);
+    } else if (at && E.video && !E.video.paused) {
       const into = E.video.currentTime - at.clip.in;
       if (into >= clipLen(at.clip) - 0.03) step();
       else E.t = at.start + Math.max(0, into);
@@ -460,6 +492,7 @@ function play() {
   $('#ed-play').firstElementChild.textContent = 'pause';
   const at = locate(E.t);
   if (at) mount(at.clip, at.offset, true);
+  E.lastTick = 0;
   cancelAnimationFrame(E.raf);
   E.raf = requestAnimationFrame(tick);
 }

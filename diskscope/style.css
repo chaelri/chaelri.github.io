@@ -1686,6 +1686,17 @@ body.editing .tray { display: none; }
   pointer-events: none;
 }
 .ed-canvas video.front { opacity: 1; }
+.ed-canvas img.ed-still {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  opacity: 0;
+  pointer-events: none;
+}
+.ed-canvas.still img.ed-still { opacity: 1; }
+.ed-canvas.still video.front { opacity: 0; }
 
 /* ── keyframes ───────────────────────────────────────────────────────────── */
 
