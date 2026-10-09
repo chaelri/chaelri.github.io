@@ -2223,6 +2223,10 @@ function wire() {
 }
 
 function onKey(ev) {
+  // The editor and review overlays have their own keyboard; Space there is
+  // play/pause, not "reveal the row behind me in Finder".
+  if ($('#editor')?.classList.contains('on') || $('#review')?.classList.contains('on')) return;
+
   const typing = ev.target.tagName === 'INPUT';
   const meta = ev.metaKey || ev.ctrlKey;
 
