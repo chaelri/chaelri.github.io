@@ -13154,6 +13154,87 @@ body.nr-locked { overflow: hidden; }
   overflow: hidden;
 }
 .nr-scroll.nr-scrollable-page { overflow-y: auto; }
+/* Horizontal drags belong to the page curl (js/09-narrate.js). */
+.nr-scroll { touch-action: pan-y; }
+
+/* Page curl — the stage sits exactly over #nrScroll while a page turns.
+   Every moving part is positioned by transform only (set per frame in JS),
+   so a drag never triggers layout or repaint. */
+.nr-curl {
+  position: absolute;
+  z-index: 2;
+  overflow: hidden;
+  pointer-events: none;
+  --nr-curl-dark: 0, 0, 0;
+  --nr-curl-dark-a: 0.5;
+  --nr-curl-light-a: 0.06;
+}
+.light .nr-curl {
+  --nr-curl-dark: 26, 26, 46;
+  --nr-curl-dark-a: 0.26;
+  --nr-curl-light-a: 0.45;
+}
+.nr-curl-mask {
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: hidden;
+  transform-origin: 0 0;
+}
+.nr-scroll.nr-curl-page {
+  position: absolute;
+  left: 0;
+  top: 0;
+  margin: 0;
+  max-width: none;
+  overflow: hidden;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+.nr-curl-page .nr-pageable,
+.nr-curl-page .nr-pageable * { animation: none !important; }
+/* .nr-line rests at opacity 0 and only its entry animation brings it in. */
+.nr-curl-page .nr-line { opacity: 1; }
+/* Back of the sheet: thin paper, so the page's own text shows through,
+   mirrored, at a whisper. */
+.nr-curl-tint {
+  position: absolute;
+  inset: 0;
+  opacity: 0.86;
+}
+/* Light on the curl of the flap — dark in the crease, a soft sheen across
+   its belly, a little shadow at the lifted edge. Drawn 100px wide and
+   scaled to the flap's width, anchored on the fold. */
+.nr-curl-flap-shade {
+  position: absolute;
+  top: 0;
+  width: 100px;
+  height: 100%;
+  transform-origin: 100% 50%;
+  will-change: transform;
+  background: linear-gradient(
+    to left,
+    rgba(var(--nr-curl-dark), var(--nr-curl-dark-a)) 0%,
+    rgba(var(--nr-curl-dark), 0) 22%,
+    rgba(255, 255, 255, var(--nr-curl-light-a)) 68%,
+    rgba(var(--nr-curl-dark), calc(var(--nr-curl-dark-a) * 0.45)) 100%
+  );
+}
+/* Shadow the lifted flap throws onto the page underneath, right at the fold. */
+.nr-curl-under-shade {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100px;
+  height: 100%;
+  transform-origin: 0 50%;
+  will-change: transform, opacity;
+  background: linear-gradient(
+    to right,
+    rgba(var(--nr-curl-dark), var(--nr-curl-dark-a)),
+    rgba(var(--nr-curl-dark), 0)
+  );
+}
 
 .nr-pager {
   flex: 0 0 auto;
@@ -13225,7 +13306,7 @@ body.nr-locked { overflow: hidden; }
 /* ── Retell reactions ──────────────────────────────────────────────────────
    Hold a beat for a picker, double-tap for the heart. Reactions live in
    localStorage under `retellReactions` and ride the Firebase mirror. */
-#nrScroll [data-rk] {
+:is(#nrScroll, .nr-curl-page) [data-rk] {
   position: relative;
   /* Keeps the held-state ::before (z-index: -1) inside this beat. Without it
      the layer sinks past .nr-shell's background — the overlay's
@@ -13242,15 +13323,15 @@ body.nr-locked { overflow: hidden; }
   transition: transform 0.18s ease;
 }
 /* Held, but the picker hasn't opened yet — the press has to feel received. */
-#nrScroll [data-rk].nr-press-hold { transform: scale(0.985); }
+:is(#nrScroll, .nr-curl-page) [data-rk].nr-press-hold { transform: scale(0.985); }
 /* Each reaction carries its own colour, so a wall of reacted beats doesn't
    read as one undifferentiated pink. --nr-rc is set from data-react. */
-#nrScroll [data-react] { --nr-rc: 219, 39, 119; }
-#nrScroll [data-react="love"] { --nr-rc: 244, 63, 94; }
-#nrScroll [data-react="happy"] { --nr-rc: 245, 158, 11; }
-#nrScroll [data-react="wow"] { --nr-rc: 167, 139, 250; }
-#nrScroll [data-react="sad"] { --nr-rc: 96, 165, 250; }
-#nrScroll [data-react="angry"] { --nr-rc: 249, 115, 22; }
+:is(#nrScroll, .nr-curl-page) [data-react] { --nr-rc: 219, 39, 119; }
+:is(#nrScroll, .nr-curl-page) [data-react="love"] { --nr-rc: 244, 63, 94; }
+:is(#nrScroll, .nr-curl-page) [data-react="happy"] { --nr-rc: 245, 158, 11; }
+:is(#nrScroll, .nr-curl-page) [data-react="wow"] { --nr-rc: 167, 139, 250; }
+:is(#nrScroll, .nr-curl-page) [data-react="sad"] { --nr-rc: 96, 165, 250; }
+:is(#nrScroll, .nr-curl-page) [data-react="angry"] { --nr-rc: 249, 115, 22; }
 
 /* A reacted narration beat has no bubble of its own, so the badge had nothing
    to sit against and floated in the gap between paragraphs. The tinted card
@@ -13259,15 +13340,15 @@ body.nr-locked { overflow: hidden; }
    not, so reacting can never shift the text sideways. The bleed is smaller
    than the padding, which leaves the card a real margin off the modal edge
    instead of running into it. */
-#nrScroll .nr-narr,
-#nrScroll .nr-turn {
+:is(#nrScroll, .nr-curl-page) .nr-narr,
+:is(#nrScroll, .nr-curl-page) .nr-turn {
   padding-left: 12px;
   padding-right: 12px;
   margin-left: -8px;
   margin-right: -8px;
 }
-#nrScroll .nr-narr.nr-reacted,
-#nrScroll .nr-turn.nr-reacted {
+:is(#nrScroll, .nr-curl-page) .nr-narr.nr-reacted,
+:is(#nrScroll, .nr-curl-page) .nr-turn.nr-reacted {
   /* Vertical padding only — the horizontal half is already on every beat.
      Setting the `margin` shorthand here wiped .nr-narr's own 22px bottom
      margin, which is what made two reacted cards touch. */
@@ -13277,10 +13358,10 @@ body.nr-locked { overflow: hidden; }
   background: rgba(var(--nr-rc), 0.09);
   box-shadow: 0 0 0 1px rgba(var(--nr-rc), 0.28);
 }
-.light #nrScroll .nr-narr.nr-reacted,
-.light #nrScroll .nr-turn.nr-reacted { background: rgba(var(--nr-rc), 0.1); }
+.light :is(#nrScroll, .nr-curl-page) .nr-narr.nr-reacted,
+.light :is(#nrScroll, .nr-curl-page) .nr-turn.nr-reacted { background: rgba(var(--nr-rc), 0.1); }
 /* Bubbles already have their speaker's own fill, so they take a ring only. */
-#nrScroll .nr-bubble.nr-reacted { box-shadow: 0 0 0 1px rgba(var(--nr-rc), 0.4); }
+:is(#nrScroll, .nr-curl-page) .nr-bubble.nr-reacted { box-shadow: 0 0 0 1px rgba(var(--nr-rc), 0.4); }
 
 /* Held. No ring and no border on the beat — instead the rest of the page is
    pushed back behind a dimmed, blurred scrim and the held beat is lifted above
@@ -13301,7 +13382,7 @@ body.nr-locked { overflow: hidden; }
   to { opacity: 1; }
 }
 /* Above the scrim, so it never gets blurred with everything else. */
-#nrScroll [data-rk].nr-pressing { z-index: 2; }
+:is(#nrScroll, .nr-curl-page) [data-rk].nr-pressing { z-index: 2; }
 
 /* The picker itself — fixed, positioned in JS above the held beat (or below
    it when there's no room). Without `position: fixed` it falls back to being a
@@ -13412,8 +13493,8 @@ body.nr-locked { overflow: hidden; }
    between them. Beats with no chip (turn lines) keep it on its own row.
    Absolute positioning was the first attempt and it put the badge over the
    last line of text whenever that line ran long. */
-#nrScroll [data-rk]:has(.nr-chip) { display: flow-root; }
-#nrScroll [data-rk]:has(.nr-chip) > .nr-react-badge {
+:is(#nrScroll, .nr-curl-page) [data-rk]:has(.nr-chip) { display: flow-root; }
+:is(#nrScroll, .nr-curl-page) [data-rk]:has(.nr-chip) > .nr-react-badge {
   float: right;
   margin: -2px 0 0 10px;
 }

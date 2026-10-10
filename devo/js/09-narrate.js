@@ -444,6 +444,8 @@ function _nrPaginate(keepIndex = 0, animate = true) {
   const pager = document.getElementById("nrPager");
   if (!scroll) return;
 
+  // A turn in progress holds clones of the old pages — let it go first.
+  _nrCurlAbort();
   const items = [...scroll.querySelectorAll(".nr-pageable")];
   if (!items.length) {
     _nrPages = [];
@@ -560,8 +562,323 @@ function _nrGoToPage(idx, animate = true) {
 function _nrStepPage(delta) {
   const next = _nrPageIdx + delta;
   if (next < 0 || next >= _nrPages.length) return;
-  _nrGoToPage(next);
+  if (_nrCurl?.dragging) return;
+  _nrCurlFinishNow();
+  const c = _nrReduceMotion() ? null : _nrCurlBuild(delta > 0 ? "next" : "prev", false);
+  if (!c) {
+    _nrGoToPage(next);
+    return;
+  }
+  _nrCurlTween(c, true);
 }
+
+/* ── Page curl ─────────────────────────────────────────────────────────────
+   Swiping turns the page like paper: the corner you grab (top-right when the
+   finger lands in the upper half, bottom-right otherwise) follows the finger
+   1:1, the page folds along the line halfway between that corner and where
+   it is now, and the folded flap shows the back of the sheet — thin Bible
+   paper, so the text shows through mirrored. Swiping right pulls the
+   previous page back over from the left the same way. The pager arrows and
+   ←/→ play the same turn on their own.
+
+   Everything is a transform, so the browser never re-lays-out or repaints
+   mid-drag. The half-plane clips are oversized `overflow: hidden` boxes
+   rotated so one edge sits on the fold line, with the page clone inside
+   counter-transformed back into place:
+     fold frame F = translate(M) rotate(φ)   M = fold midpoint, φ = normal
+     P-side mask  = F · translate(-S, -S/2)  child = translate(S, S/2) · F⁻¹
+     the flap's child adds scaleX(-1), which in the fold frame IS the
+     reflection across the fold line.
+   The pages are clones of #nrScroll trimmed to one page (CSS targets them
+   via `:is(#nrScroll, .nr-curl-page)`); the real scroll is hidden under the
+   stage until the turn lands, then shows the new page in the same frame. */
+const _NR_CURL_LOCK_PX = 12;     // horizontal travel before a drag is a swipe
+const _NR_CURL_COMMIT = 0.2;     // fraction of a full turn that commits it
+const _NR_CURL_FLICK_V = 0.35;   // px/ms — a flick commits regardless
+const _NR_CURL_LIFT = 0.1;       // how far the corner rises mid-turn (× height)
+let _nrCurl = null;
+let _nrSwipe = null;
+
+function _nrReduceMotion() {
+  return !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+}
+
+// The page's own background, so an opaque clone is indistinguishable from the
+// real page: the overlay colour plus the curtain glow, offset so the glow
+// lines up with where it sits behind the real page.
+function _nrPaperBg(el, scroll) {
+  const ov = document.getElementById("narrateOverlay");
+  const curtain = document.getElementById("nrCurtain");
+  const or = ov.getBoundingClientRect();
+  const sr = scroll.getBoundingClientRect();
+  el.style.backgroundColor = getComputedStyle(ov).backgroundColor;
+  if (curtain) el.style.backgroundImage = getComputedStyle(curtain).backgroundImage;
+  el.style.backgroundSize = `${or.width}px ${or.height}px`;
+  el.style.backgroundPosition = `${or.left - sr.left}px ${or.top - sr.top}px`;
+  el.style.backgroundRepeat = "no-repeat";
+}
+
+function _nrPageClone(scroll, idx, opaque) {
+  const clone = scroll.cloneNode(true);
+  clone.removeAttribute("id");
+  clone.classList.remove("nr-scrollable-page");
+  clone.classList.add("nr-curl-page");
+  clone.querySelectorAll("[id]").forEach((n) => n.removeAttribute("id"));
+  clone.querySelectorAll(".nr-hold-scrim, .nr-react-picker").forEach((n) => n.remove());
+  const keep = new Set(_nrPages[idx]);
+  const real = [...scroll.querySelectorAll(".nr-pageable")];
+  [...clone.querySelectorAll(".nr-pageable")].forEach((n, i) => {
+    if (keep.has(real[i])) n.style.removeProperty("display");
+    else n.remove();
+  });
+  clone.style.width = `${scroll.clientWidth}px`;
+  clone.style.height = `${scroll.clientHeight}px`;
+  if (opaque) _nrPaperBg(clone, scroll);
+  return clone;
+}
+
+function _nrCurlBuild(dir, cornerTop) {
+  const scroll = document.getElementById("nrScroll");
+  if (!scroll || !_nrPages.length) return null;
+  const target = _nrPageIdx + (dir === "next" ? 1 : -1);
+  if (target < 0 || target >= _nrPages.length) return null;
+  _nrClosePicker();
+
+  const W = scroll.clientWidth;
+  const H = scroll.clientHeight;
+  const S = Math.ceil(Math.hypot(W, H) * 2.2);
+  const frontIdx = dir === "next" ? _nrPageIdx : target;
+  const underIdx = dir === "next" ? target : _nrPageIdx;
+
+  const stage = document.createElement("div");
+  stage.className = "nr-curl";
+  stage.style.left = `${scroll.offsetLeft}px`;
+  stage.style.top = `${scroll.offsetTop}px`;
+  stage.style.width = `${W}px`;
+  stage.style.height = `${H}px`;
+
+  const mask = (cls) => {
+    const m = document.createElement("div");
+    m.className = `nr-curl-mask ${cls}`;
+    m.style.width = m.style.height = `${S}px`;
+    return m;
+  };
+
+  const under = _nrPageClone(scroll, underIdx, false);
+  const shadeMask = mask("nr-curl-shade-mask");
+  const underShade = document.createElement("div");
+  underShade.className = "nr-curl-under-shade";
+  shadeMask.appendChild(underShade);
+
+  const frontMask = mask("");
+  const front = _nrPageClone(scroll, frontIdx, true);
+  frontMask.appendChild(front);
+
+  const flapMask = mask("");
+  const flap = _nrPageClone(scroll, frontIdx, true);
+  const tint = document.createElement("div");
+  tint.className = "nr-curl-tint";
+  tint.style.backgroundColor = getComputedStyle(document.getElementById("narrateOverlay")).backgroundColor;
+  flap.appendChild(tint);
+  const flapShade = document.createElement("div");
+  flapShade.className = "nr-curl-flap-shade";
+  flapShade.style.left = `${S - 100}px`;
+  flapMask.append(flap, flapShade);
+
+  stage.append(under, shadeMask, frontMask, flapMask);
+  scroll.parentElement.appendChild(stage);
+  // The page being turned away keeps the reader's scroll on an oversized page.
+  if (frontIdx === _nrPageIdx) { front.scrollTop = flap.scrollTop = scroll.scrollTop; }
+  else under.scrollTop = scroll.scrollTop;
+  scroll.style.visibility = "hidden";
+
+  const C = { x: W, y: cornerTop ? 0 : H };
+  const P0 = dir === "next" ? { ...C } : { x: -W, y: C.y };
+  const c = {
+    dir, target, W, H, S, C, P0, P: { ...P0 }, stage, scroll,
+    frontMask, front, flapMask, flap, flapShade, shadeMask, underShade,
+    dragging: false, raf: 0, tweenRaf: 0, commit: false,
+  };
+  _nrCurl = c;
+  _nrCurlRender(c);
+  return c;
+}
+
+// Rise of the corner mid-turn — zero at both ends, so a flat swipe still
+// curls the page instead of sliding a straight vertical fold across.
+function _nrCurlLift(c, x) {
+  const prog = Math.max(0, Math.min(1, (c.C.x - x) / (2 * c.W)));
+  return (c.C.y === 0 ? 1 : -1) * c.H * _NR_CURL_LIFT * Math.sin(Math.PI * prog);
+}
+
+// The sheet is bound at the spine (left edge), so its corner can't travel
+// further from either spine end than the page reaches.
+function _nrCurlConstrain(c, x, y) {
+  const ends = [
+    [0, c.C.y, c.W],
+    [0, c.H - c.C.y, Math.hypot(c.W, c.H)],
+  ];
+  for (const [sx, sy, r] of ends) {
+    const dx = x - sx;
+    const dy = y - sy;
+    const d = Math.hypot(dx, dy);
+    if (d > r) {
+      x = sx + (dx / d) * r;
+      y = sy + (dy / d) * r;
+    }
+  }
+  return { x, y };
+}
+
+function _nrCurlRender(c) {
+  const { C, P, S } = c;
+  let nx = C.x - P.x;
+  let ny = C.y - P.y;
+  const d = Math.hypot(nx, ny);
+  if (d < 0.5) { nx = 1; ny = 0; } else { nx /= d; ny /= d; }
+  const mx = (C.x + P.x) / 2;
+  const my = (C.y + P.y) / 2;
+  const phi = Math.atan2(ny, nx);
+  const h = S / 2;
+  const F = `translate(${mx}px, ${my}px) rotate(${phi}rad)`;
+  const inv = `rotate(${-phi}rad) translate(${-mx}px, ${-my}px)`;
+  const pSide = `${F} translate(${-S}px, ${-h}px)`;
+  c.frontMask.style.transform = pSide;
+  c.flapMask.style.transform = pSide;
+  c.shadeMask.style.transform = `${F} translate(0px, ${-h}px)`;
+  c.front.style.transform = `translate(${S}px, ${h}px) ${inv}`;
+  c.flap.style.transform = `translate(${S}px, ${h}px) scaleX(-1) ${inv}`;
+  // The flap reaches from the fold to the corner: half the corner's travel.
+  const half = d / 2;
+  c.flapShade.style.transform = `scaleX(${Math.max(half, 0.01) / 100})`;
+  const prog = Math.min(1, d / (2 * c.W));
+  c.underShade.style.transform = `scaleX(${Math.max(8, Math.min(half * 0.7, 90)) / 100})`;
+  c.underShade.style.opacity = String(1 - prog * prog);
+}
+
+function _nrCurlTeardown(c) {
+  cancelAnimationFrame(c.raf);
+  cancelAnimationFrame(c.tweenRaf);
+  c.stage.remove();
+  c.scroll.style.visibility = "";
+  if (_nrCurl === c) _nrCurl = null;
+}
+
+function _nrCurlLand(c) {
+  if (c.commit) {
+    _nrGoToPage(c.target, false);
+    haptic(8);
+  }
+  _nrCurlTeardown(c);
+}
+
+// Carry the corner to where the turn ends — fully over (commit) or back to
+// where it started — easing out the way a released page settles.
+function _nrCurlTween(c, commit) {
+  c.dragging = false;
+  c.commit = commit;
+  const end = commit === (c.dir === "next") ? { x: -c.W, y: c.C.y } : { ...c.C };
+  const from = { ...c.P };
+  const base = from.y - _nrCurlLift(c, from.x);
+  const dist = Math.hypot(end.x - from.x, end.y - from.y);
+  const dur = Math.max(220, Math.min(560, 170 + dist * 0.4));
+  const t0 = performance.now();
+  const step = (now) => {
+    if (_nrCurl !== c) return;
+    const k = Math.min(1, (now - t0) / dur);
+    const e = 1 - Math.pow(1 - k, 3);
+    const x = from.x + (end.x - from.x) * e;
+    const y = base + (end.y - base) * e + _nrCurlLift(c, x);
+    c.P = k < 1 ? _nrCurlConstrain(c, x, y) : end;
+    _nrCurlRender(c);
+    if (k < 1) c.tweenRaf = requestAnimationFrame(step);
+    else _nrCurlLand(c);
+  };
+  c.tweenRaf = requestAnimationFrame(step);
+}
+
+// A new tap or arrow press while a turn is still settling lands it at once,
+// so quick taps on the arrow keep up instead of being dropped.
+function _nrCurlFinishNow() {
+  const c = _nrCurl;
+  if (!c) return;
+  if (c.dragging) c.commit = false;
+  _nrCurlLand(c);
+}
+
+function _nrCurlAbort() {
+  if (_nrCurl) _nrCurlTeardown(_nrCurl);
+  _nrSwipe = null;
+}
+
+document.addEventListener("pointerdown", (e) => {
+  _nrSwipe = null;
+  if (!_nrOpen || _nrPages.length < 2) return;
+  if (e.pointerType === "mouse" && e.button !== 0) return;
+  if (!e.target.closest?.("#nrScroll, .nr-curl")) return;
+  if (document.getElementById("nrReactPicker") || document.getElementById("nrSheet")) return;
+  _nrCurlFinishNow();
+  _nrSwipe = { id: e.pointerId, x: e.clientX, y: e.clientY, v: 0, lastX: e.clientX, lastT: e.timeStamp };
+});
+
+document.addEventListener("pointermove", (e) => {
+  const s = _nrSwipe;
+  if (!s || e.pointerId !== s.id || _nrPickDragging) return;
+  const dx = e.clientX - s.x;
+  const dy = e.clientY - s.y;
+  if (!_nrCurl) {
+    if (Math.abs(dy) > _NR_CURL_LOCK_PX && Math.abs(dy) >= Math.abs(dx)) { _nrSwipe = null; return; }
+    if (Math.abs(dx) < _NR_CURL_LOCK_PX || Math.abs(dx) < Math.abs(dy) * 1.2) return;
+    if (_nrReduceMotion()) {
+      _nrSwipe = null;
+      _nrCancelPress();
+      _nrSuppressClick = true;
+      _nrStepPage(dx < 0 ? 1 : -1);
+      return;
+    }
+    const scroll = document.getElementById("nrScroll");
+    const top = scroll.getBoundingClientRect().top;
+    const c = _nrCurlBuild(dx < 0 ? "next" : "prev", s.y - top < scroll.clientHeight / 2);
+    if (!c) { _nrSwipe = null; return; }   // first or last page
+    c.dragging = true;
+    _nrCancelPress();
+    try { document.getElementById("narrateOverlay").setPointerCapture(e.pointerId); } catch (_) {}
+  }
+  const c = _nrCurl;
+  const dt = e.timeStamp - s.lastT;
+  if (dt > 0) s.v = s.v * 0.4 + ((e.clientX - s.lastX) / dt) * 0.6;
+  s.lastX = e.clientX;
+  s.lastT = e.timeStamp;
+  const x = c.P0.x + dx;
+  c.P = _nrCurlConstrain(c, x, c.P0.y + dy + _nrCurlLift(c, x));
+  if (!c.raf) {
+    c.raf = requestAnimationFrame(() => {
+      c.raf = 0;
+      if (_nrCurl === c) _nrCurlRender(c);
+    });
+  }
+});
+
+document.addEventListener("touchmove", (e) => {
+  if (_nrCurl?.dragging) e.preventDefault();
+}, { passive: false });
+
+function _nrSwipeEnd(e, cancelled) {
+  const s = _nrSwipe;
+  if (!s || e.pointerId !== s.id) return;
+  _nrSwipe = null;
+  const c = _nrCurl;
+  if (!c?.dragging) return;
+  // The release must not land as a tap (double-tap heart, chip, picker).
+  _nrSuppressClick = true;
+  const sign = c.dir === "next" ? -1 : 1;
+  const prog = c.dir === "next" ? (c.C.x - c.P.x) / (2 * c.W) : (c.P.x - c.P0.x) / (2 * c.W);
+  const flick = s.v * sign > _NR_CURL_FLICK_V;
+  const backFlick = s.v * sign < -_NR_CURL_FLICK_V;
+  _nrCurlTween(c, !cancelled && !backFlick && (prog > _NR_CURL_COMMIT || flick));
+}
+document.addEventListener("pointerup", (e) => _nrSwipeEnd(e, false));
+document.addEventListener("pointercancel", (e) => _nrSwipeEnd(e, true));
 
 let _nrResizeTimer = null;
 window.addEventListener("resize", () => {
@@ -711,6 +1028,7 @@ function closeNarrate() {
   _nrClosePicker();
   _nrCancelPress();
   _nrCloseSheet();
+  _nrCurlAbort();
   overlay.classList.remove("nr-rising");
   overlay.classList.add("nr-falling");
   const done = () => {
