@@ -10673,57 +10673,6 @@ body.tts-canvas-active .cm-listen-bar {
   padding: 20px 8px 0;
 }
 
-/* Page turn — swipe / chevrons / arrow keys in study mode. A snapshot of
-   the outgoing (or incoming) page is laid over the viewport and rotated on
-   its left hinge by the Web Animations API (see _turnPage in
-   10-creator-canvas.js). Stays under the FAB (z-index 6). */
-.cm-page-sheet {
-  position: absolute;
-  inset: 0;
-  z-index: 4;
-  overflow: hidden;
-  pointer-events: none;
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-  box-shadow: 0 0 36px rgba(26, 26, 46, 0.22);
-  will-change: transform;
-}
-/* Mirrors .cm-scroll's box so the clone lands exactly where the page was. */
-.cm-page-sheet-inner {
-  display: flex;
-  justify-content: center;
-  padding: 40px 16px 0;
-}
-/* Light catching the curve of a lifting page: dark at the hinge, a soft
-   highlight across the belly, a touch of shadow at the free edge. */
-.cm-page-gloss {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  pointer-events: none;
-  background: linear-gradient(
-    to right,
-    rgba(26, 26, 46, 0.16) 0%,
-    rgba(255, 255, 255, 0) 30%,
-    rgba(255, 255, 255, 0.4) 78%,
-    rgba(26, 26, 46, 0.12) 100%
-  );
-}
-/* Shadow the turning page casts on the page beneath it. */
-.cm-turn-shade {
-  position: absolute;
-  inset: 0;
-  z-index: 3;
-  opacity: 0;
-  pointer-events: none;
-  background: linear-gradient(
-    to right,
-    rgba(26, 26, 46, 0.26),
-    rgba(26, 26, 46, 0.08) 60%,
-    rgba(26, 26, 46, 0)
-  );
-}
-
 /* Real element, not padding — guaranteed to extend scrollHeight on every browser. */
 .cm-tail-spacer {
   height: 25vh;

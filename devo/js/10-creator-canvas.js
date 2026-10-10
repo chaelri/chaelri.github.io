@@ -1658,10 +1658,6 @@ async function _imgcrShare() {
     if (overlay.hidden) return;
     const info = getCurrentPassageInfo();
     if (!info) return;
-    // A page turn paints the new chapter immediately, then the loadBtn
-    // wrapper reloads it again once the AI pass finishes — seconds later.
-    // Keep the reader's place on that second, same-chapter render.
-    const keepScroll = stateKey === info.key ? scrollEl.scrollTop : 0;
     currentInfo = info;
     stateKey = info.key;
     state = loadState(stateKey);
@@ -1670,7 +1666,7 @@ async function _imgcrShare() {
     passageTitleEl2.textContent = titleText;
     renderPassage(info);
     resetHistory();
-    scrollEl.scrollTop = keepScroll;
+    scrollEl.scrollTop = 0;
   }
   window._cmReload = reload;
 
@@ -1797,207 +1793,23 @@ async function _imgcrShare() {
   // Audio Library button wiring lives in 03-tts.js (covers all entry points
   // — dashboard, canvas top bar, overflow sheet — in one place).
 
-  // ---------- Page turn (canvas-side chapter nav) ----------
-  // Swipe left = next chapter, swipe right = previous, turning like a book
-  // page. The chevrons and ←/→ keys use the same turn.
-  //
-  // The legacy prev/next chapter buttons set #book/#chapter synchronously
-  // (cross-book wraparound + verseEl reset for free) before their async
-  // loadPassage, and bibleData is already in memory — so reload() can paint
-  // the new chapter straight away. The old page is snapshotted first (a
-  // clone of #cmPaper at its scroll offset) and laid over the viewport:
-  //   next → the old sheet lifts off its left hinge and swings away
-  //   prev → the previous sheet swings back in over the old one
-  // In-canvas TTS is stopped first: its queue references the old chapter's
-  // DOM, and letting it keep playing breaks the highlight system.
-  const TURN_MS = 640;
-  const SWIPE_LOCK_PX = 14;      // horizontal travel before we claim the gesture
-  const SWIPE_COMMIT_PX = 70;    // release past this turns the page…
-  const SWIPE_FLICK_V = 0.4;     // …or a flick faster than this (px/ms)
-  const NEXT_TILT_MAX = 28;      // deg the page lifts while dragging
-  const PREV_SHIFT_MAX = 40;     // px the page slides while dragging back
-  let swipe = null;              // { id, x, y, locked, dx, v, lastX, lastT }
-  let turning = false;
-
-  function _perspective() {
-    return `perspective(${Math.max(1600, viewport.clientWidth * 2.4)}px)`;
-  }
-
-  function _pageSnapshot() {
-    const sheet = document.createElement("div");
-    sheet.className = "cm-page-sheet";
-    const bg = getComputedStyle(overlay);
-    sheet.style.backgroundColor = bg.backgroundColor;
-    sheet.style.backgroundImage = bg.backgroundImage;
-    const inner = document.createElement("div");
-    inner.className = "cm-page-sheet-inner";
-    inner.style.transform = `translateY(${-scrollEl.scrollTop}px)`;
-    const clone = paperEl.cloneNode(true);
-    clone.removeAttribute("id");
-    clone.querySelectorAll("[id]").forEach((n) => n.removeAttribute("id"));
-    inner.appendChild(clone);
-    const gloss = document.createElement("div");
-    gloss.className = "cm-page-gloss";
-    sheet.append(inner, gloss);
-    return sheet;
-  }
-
-  // Drag feedback before release: dragging toward next lifts the page off
-  // its left hinge; dragging back slides it aside to make room.
-  function _dragTilt(dx) {
-    const w = viewport.clientWidth || 1;
-    if (dx < 0) {
-      const deg = Math.max(-1, dx / w) * NEXT_TILT_MAX;
-      scrollEl.style.transformOrigin = "left center";
-      scrollEl.style.transform = `${_perspective()} rotateY(${deg}deg)`;
-      return { deg, x: 0 };
-    }
-    const x = Math.min(1, dx / w) * PREV_SHIFT_MAX;
-    scrollEl.style.transformOrigin = "";
-    scrollEl.style.transform = `translateX(${x}px)`;
-    return { deg: 0, x };
-  }
-
-  function _resetTilt(animated) {
-    if (!scrollEl.style.transform) return;
-    if (!animated) {
-      scrollEl.style.transition = "";
-      scrollEl.style.transform = "";
-      return;
-    }
-    scrollEl.style.transition = "transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)";
-    scrollEl.style.transform = "";
-    setTimeout(() => { scrollEl.style.transition = ""; }, 320);
-  }
-
-  function _turnPage(dir, from = { deg: 0, x: 0 }) {
-    if (turning || overlay.hidden) return;
-    const before = `${bookEl?.value}-${chapterEl?.value}`;
-    const animate = !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    const oldSheet = animate ? _pageSnapshot() : null;
-
+  // Canvas-side chapter nav. Stop any in-canvas TTS before swapping content
+  // (the queue references the old chapter's DOM; letting it keep playing
+  // breaks the highlight system). Reuse the legacy prev/next chapter button
+  // logic so we get the cross-book wraparound + verseEl reset for free, then
+  // call reload() once #output finishes re-rendering.
+  function _switchChapter(triggerBtnId) {
     if (typeof stopTTS === "function" && document.body.classList.contains("tts-canvas-active")) {
       stopTTS();
     }
-    document.getElementById(dir === "next" ? "nextChapterBtn" : "prevChapterBtn")?.click();
-    if (`${bookEl?.value}-${chapterEl?.value}` === before) {
-      // Genesis 1 / Revelation 22 — no page to turn to.
-      _resetTilt(true);
-      return;
-    }
-    reload();
-    _resetTilt(false);
-    haptic(8);
-    if (!oldSheet) return;
-
-    turning = true;
-    const persp = _perspective();
-    const ease = "cubic-bezier(0.45, 0.05, 0.3, 1)";
-    const shade = document.createElement("div");
-    shade.className = "cm-turn-shade";
-    const parts = [shade, oldSheet];
-    let anim;
-
-    if (dir === "next") {
-      // Shade on the new page underneath fades as the old one clears it.
-      viewport.append(shade, oldSheet);
-      oldSheet.style.transformOrigin = "left center";
-      const dur = TURN_MS * (1 - from.deg / -180);
-      anim = oldSheet.animate(
-        [
-          { transform: `${persp} rotateY(${from.deg}deg)` },
-          { transform: `${persp} rotateY(-180deg)` },
-        ],
-        { duration: dur, easing: ease, fill: "forwards" },
-      );
-      oldSheet.lastChild.animate([{ opacity: 0.15 }, { opacity: 1 }], { duration: dur * 0.5, easing: "ease-out", fill: "forwards" });
-      shade.animate([{ opacity: 1 }, { opacity: 0 }], { duration: dur, easing: "ease-in", fill: "forwards" });
-    } else {
-      // The previous page (already painted underneath) is snapshotted too and
-      // swings in over the old page, which darkens as it's covered.
-      const newSheet = _pageSnapshot();
-      parts.push(newSheet);
-      oldSheet.style.transform = `translateX(${from.x}px)`;
-      viewport.append(oldSheet, shade, newSheet);
-      newSheet.style.transformOrigin = "left center";
-      oldSheet.animate(
-        [{ transform: `translateX(${from.x}px)` }, { transform: "translateX(0)" }],
-        { duration: TURN_MS * 0.6, easing: ease, fill: "forwards" },
-      );
-      anim = newSheet.animate(
-        [
-          { transform: `${persp} rotateY(-100deg)` },
-          { transform: `${persp} rotateY(0deg)` },
-        ],
-        { duration: TURN_MS, easing: ease, fill: "forwards" },
-      );
-      newSheet.lastChild.animate([{ opacity: 1 }, { opacity: 0 }], { duration: TURN_MS, easing: "ease-in", fill: "forwards" });
-      shade.animate([{ opacity: 0 }, { opacity: 1 }], { duration: TURN_MS, easing: "ease-out", fill: "forwards" });
-    }
-
-    let done = false;
-    const finish = () => {
-      if (done) return;
-      done = true;
-      parts.forEach((n) => n.remove());
-      turning = false;
-    };
-    anim.finished.then(finish, finish);
-    setTimeout(finish, TURN_MS * 2); // safety
+    document.getElementById(triggerBtnId)?.click();
+    // The trigger fires loadPassage asynchronously; the loadBtn.onclick
+    // wrapper below also calls reload() once load completes, but we kick a
+    // short follow-up here in case the wrapper isn't reached for some flow.
+    setTimeout(reload, 250);
   }
-
-  document.getElementById("cmPrevChBtn")?.addEventListener("click", () => _turnPage("prev"));
-  document.getElementById("cmNextChBtn")?.addEventListener("click", () => _turnPage("next"));
-
-  // Swipe tracking runs alongside the long-press highlighter: a swipe moves
-  // before LONG_PRESS_MS fires, so the existing pointermove has already
-  // cancelled the pending stroke by the time we lock the gesture. Mostly
-  // vertical drags are left to native pan-y scrolling.
-  viewport.addEventListener("pointerdown", (e) => {
-    swipe = null;
-    if (turning || e.button > 0) return;
-    if (e.target.closest("input, textarea, select, .cm-fab, .cm-fab-arc")) return;
-    swipe = { id: e.pointerId, x: e.clientX, y: e.clientY, locked: false, dx: 0, v: 0, lastX: e.clientX, lastT: e.timeStamp };
-  });
-  viewport.addEventListener("pointermove", (e) => {
-    if (!swipe || e.pointerId !== swipe.id) return;
-    if (strokeActive) { swipe = null; return; }
-    const dx = e.clientX - swipe.x;
-    const dy = e.clientY - swipe.y;
-    if (!swipe.locked) {
-      if (Math.abs(dy) > SWIPE_LOCK_PX && Math.abs(dy) >= Math.abs(dx)) { swipe = null; return; }
-      if (Math.abs(dx) < SWIPE_LOCK_PX || Math.abs(dx) < Math.abs(dy) * 1.4) return;
-      swipe.locked = true;
-      cancelLongPress();
-      closePopover();
-      try { viewport.setPointerCapture(e.pointerId); } catch (_) {}
-    }
-    const dt = e.timeStamp - swipe.lastT;
-    if (dt > 0) swipe.v = (e.clientX - swipe.lastX) / dt;
-    swipe.lastX = e.clientX;
-    swipe.lastT = e.timeStamp;
-    swipe.dx = dx;
-    swipe.from = _dragTilt(dx);
-  });
-  viewport.addEventListener("touchmove", (e) => {
-    if (swipe?.locked) e.preventDefault();
-  }, { passive: false });
-  viewport.addEventListener("pointerup", (e) => {
-    if (!swipe || e.pointerId !== swipe.id) return;
-    const s = swipe;
-    swipe = null;
-    if (!s.locked) return;
-    suppressNextClick = true;
-    try { viewport.releasePointerCapture(e.pointerId); } catch (_) {}
-    const flick = Math.abs(s.v) > SWIPE_FLICK_V && Math.sign(s.v) === Math.sign(s.dx);
-    if (Math.abs(s.dx) > SWIPE_COMMIT_PX || flick) _turnPage(s.dx < 0 ? "next" : "prev", s.from);
-    else _resetTilt(true);
-  });
-  viewport.addEventListener("pointercancel", (e) => {
-    if (!swipe || e.pointerId !== swipe.id) return;
-    swipe = null;
-    _resetTilt(true);
-  });
+  document.getElementById("cmPrevChBtn")?.addEventListener("click", () => _switchChapter("prevChapterBtn"));
+  document.getElementById("cmNextChBtn")?.addEventListener("click", () => _switchChapter("nextChapterBtn"));
 
   // Tap chapter title → open the existing book picker bottom-sheet. When the
   // user picks a passage, the picker triggers loadBtn.click() which our
@@ -2018,9 +1830,6 @@ async function _imgcrShare() {
     if (e.key === "l" || e.key === "L") {
       e.preventDefault();
       cmListenBtn?.click();
-    } else if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
-      e.preventDefault();
-      _turnPage(e.key === "ArrowRight" ? "next" : "prev");
     }
   });
   closeBtn.addEventListener("click", close);
