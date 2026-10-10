@@ -520,9 +520,19 @@ function _nrGoToPage(idx, animate = true) {
   if (animate) {
     _nrPages[_nrPageIdx].forEach((el, k) => {
       el.style.animation = "none";
+      el.style.removeProperty("opacity");
       void el.offsetWidth;
       el.style.removeProperty("animation");
       el.style.animationDelay = `${Math.min(k * 55, 500)}ms`;
+    });
+  } else {
+    // Going display:none → shown restarts a CSS animation by itself, and
+    // .nr-line rests at opacity 0 until nrBeatIn plays — so without this a
+    // page that's already on screen (a curl that just landed, a re-pack)
+    // blinks out and staggers back in.
+    _nrPages[_nrPageIdx].forEach((el) => {
+      el.style.animation = "none";
+      el.style.opacity = "1";
     });
   }
 
@@ -665,10 +675,6 @@ function _nrCurlBuild(dir, cornerTop) {
   };
 
   const under = _nrPageClone(scroll, underIdx, false);
-  const shadeMask = mask("nr-curl-shade-mask");
-  const underShade = document.createElement("div");
-  underShade.className = "nr-curl-under-shade";
-  shadeMask.appendChild(underShade);
 
   const frontMask = mask("");
   const front = _nrPageClone(scroll, frontIdx, true);
@@ -680,12 +686,9 @@ function _nrCurlBuild(dir, cornerTop) {
   tint.className = "nr-curl-tint";
   tint.style.backgroundColor = getComputedStyle(document.getElementById("narrateOverlay")).backgroundColor;
   flap.appendChild(tint);
-  const flapShade = document.createElement("div");
-  flapShade.className = "nr-curl-flap-shade";
-  flapShade.style.left = `${S - 100}px`;
-  flapMask.append(flap, flapShade);
+  flapMask.appendChild(flap);
 
-  stage.append(under, shadeMask, frontMask, flapMask);
+  stage.append(under, frontMask, flapMask);
   scroll.parentElement.appendChild(stage);
   // The page being turned away keeps the reader's scroll on an oversized page.
   if (frontIdx === _nrPageIdx) { front.scrollTop = flap.scrollTop = scroll.scrollTop; }
@@ -696,7 +699,7 @@ function _nrCurlBuild(dir, cornerTop) {
   const P0 = dir === "next" ? { ...C } : { x: -W, y: C.y };
   const c = {
     dir, target, W, H, S, C, P0, P: { ...P0 }, stage, scroll,
-    frontMask, front, flapMask, flap, flapShade, shadeMask, underShade,
+    frontMask, front, flapMask, flap,
     dragging: false, raf: 0, tweenRaf: 0, commit: false,
   };
   _nrCurl = c;
@@ -745,15 +748,8 @@ function _nrCurlRender(c) {
   const pSide = `${F} translate(${-S}px, ${-h}px)`;
   c.frontMask.style.transform = pSide;
   c.flapMask.style.transform = pSide;
-  c.shadeMask.style.transform = `${F} translate(0px, ${-h}px)`;
   c.front.style.transform = `translate(${S}px, ${h}px) ${inv}`;
   c.flap.style.transform = `translate(${S}px, ${h}px) scaleX(-1) ${inv}`;
-  // The flap reaches from the fold to the corner: half the corner's travel.
-  const half = d / 2;
-  c.flapShade.style.transform = `scaleX(${Math.max(half, 0.01) / 100})`;
-  const prog = Math.min(1, d / (2 * c.W));
-  c.underShade.style.transform = `scaleX(${Math.max(8, Math.min(half * 0.7, 90)) / 100})`;
-  c.underShade.style.opacity = String(1 - prog * prog);
 }
 
 function _nrCurlTeardown(c) {

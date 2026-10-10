@@ -13165,14 +13165,6 @@ body.nr-locked { overflow: hidden; }
   z-index: 2;
   overflow: hidden;
   pointer-events: none;
-  --nr-curl-dark: 0, 0, 0;
-  --nr-curl-dark-a: 0.5;
-  --nr-curl-light-a: 0.06;
-}
-.light .nr-curl {
-  --nr-curl-dark: 26, 26, 46;
-  --nr-curl-dark-a: 0.26;
-  --nr-curl-light-a: 0.45;
 }
 .nr-curl-mask {
   position: absolute;
@@ -13202,39 +13194,7 @@ body.nr-locked { overflow: hidden; }
   inset: 0;
   opacity: 0.86;
 }
-/* Light on the curl of the flap — dark in the crease, a soft sheen across
-   its belly, a little shadow at the lifted edge. Drawn 100px wide and
-   scaled to the flap's width, anchored on the fold. */
-.nr-curl-flap-shade {
-  position: absolute;
-  top: 0;
-  width: 100px;
-  height: 100%;
-  transform-origin: 100% 50%;
-  will-change: transform;
-  background: linear-gradient(
-    to left,
-    rgba(var(--nr-curl-dark), var(--nr-curl-dark-a)) 0%,
-    rgba(var(--nr-curl-dark), 0) 22%,
-    rgba(255, 255, 255, var(--nr-curl-light-a)) 68%,
-    rgba(var(--nr-curl-dark), calc(var(--nr-curl-dark-a) * 0.45)) 100%
-  );
-}
-/* Shadow the lifted flap throws onto the page underneath, right at the fold. */
-.nr-curl-under-shade {
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 100px;
-  height: 100%;
-  transform-origin: 0 50%;
-  will-change: transform, opacity;
-  background: linear-gradient(
-    to right,
-    rgba(var(--nr-curl-dark), var(--nr-curl-dark-a)),
-    rgba(var(--nr-curl-dark), 0)
-  );
-}
+
 
 .nr-pager {
   flex: 0 0 auto;
