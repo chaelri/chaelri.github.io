@@ -413,7 +413,7 @@
   };
   PHONE.addEventListener("change", repaintPosters);
   const apply = (card, info) => {
-    if (info && isNsfw(info.genres)) return card.classList.add("adx-nsfw");
+    if (info && isNsfw(info.genres)) { card.classList.add("adx-nsfw"); return noteEmpty(); }
     if (info) renderChips(card, info);
     usePoster(card, info);
     if (info && !card.matches(".popularbox2")) {
@@ -678,6 +678,25 @@
   const settleFast = (a, g) => {
     if (g && isNsfw(g.genres)) a.classList.add("adx-nsfw");
     else markSafe(a);
+    noteEmpty();
+  };
+  // Every result hidden: say so in the site's own words, not an empty box.
+  const emptyNote = (box, items, html, place) => {
+    const all = items.length && items.every((el) => el.classList.contains("adx-nsfw"));
+    const note = box.parentNode && box.parentNode.querySelector(".adx-empty");
+    if (all && !note) place(Object.assign(document.createElement("div"), { className: "adx-empty", innerHTML: html }));
+    else if (!all && note) note.remove();
+    box.classList.toggle("adx-all-nsfw", !!all);
+  };
+  const noteEmpty = () => {
+    const fast = document.getElementById("fastsearch2");
+    if (fast) emptyNote(fast, Array.from(fast.querySelectorAll(':scope > a[href*="anime.php"]')),
+      "<div class='fastitem bc1 ac'><div class='linetitle bc c mar0'>No results found</div></div>",
+      (n) => fast.appendChild(n));
+    const grid = location.pathname === "/search.php" && document.querySelector(".boldtext > .info3");
+    if (grid) emptyNote(grid, Array.from(grid.querySelectorAll(".similarimg")),
+      "<div class='linetitle c'>No results found</div>",
+      (n) => grid.after(n));
   };
   const scanFast = () => {
     const pending = [];
