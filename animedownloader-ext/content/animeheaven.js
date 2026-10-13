@@ -669,8 +669,38 @@
     });
   };
 
+  // ── live search dropdown (fastsearch.php, rebuilt on every keystroke) ──
+  // Same NSFW check as the cards. Cached shows settle at once; the rest are
+  // only fetched once typing pauses, and only if still in the dropdown, so
+  // "l", "lo", "lov" don't each queue a round of show pages.
+  const FAST_SETTLE_MS = 400;
+  let fastTimer = null;
+  const settleFast = (a, g) => {
+    if (g && isNsfw(g.genres)) a.classList.add("adx-nsfw");
+    else markSafe(a);
+  };
+  const scanFast = () => {
+    const pending = [];
+    document.querySelectorAll('#fastsearch2 > a[href*="anime.php"]').forEach((a) => {
+      if (a.dataset.adxSeen) return;
+      const id = showIdOf(a.href);
+      const hit = id && cached(id);
+      if (!id || hit) { a.dataset.adxSeen = "1"; return settleFast(a, hit); }
+      pending.push(a);
+    });
+    if (!pending.length) return;
+    clearTimeout(fastTimer);
+    fastTimer = setTimeout(() => {
+      document.querySelectorAll('#fastsearch2 > a[href*="anime.php"]:not([data-adx-seen])').forEach((a) => {
+        a.dataset.adxSeen = "1";
+        lookup(showIdOf(a.href)).then((g) => settleFast(a, g));
+      });
+    }, FAST_SETTLE_MS);
+  };
+
   const scan = () => {
     tintTimers();
+    scanFast();
     document.querySelectorAll(CARD_SEL).forEach((card) => {
       if (card.dataset.adxSeen) return;
       card.dataset.adxSeen = "1";

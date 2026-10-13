@@ -1049,7 +1049,8 @@ h1 { margin: 0; font: inherit; }
 /* ── genre chips / status / episode badges (animeheaven.js) ───────── */
 .chart:not([data-adx-safe]) .coverimg,
 .similarimg:not([data-adx-safe]) .coverimg,
-.popularbox2:not([data-adx-safe]) .popularimg { filter: blur(14px) saturate(0.6); }
+.popularbox2:not([data-adx-safe]) .popularimg,
+#fastsearch2 > a:not([data-adx-safe]) .coverimg { filter: blur(14px) saturate(0.6); }
 .adx-nsfw { display: none !important; }
 .adx-genre-row {
   display: flex;
