@@ -62,30 +62,6 @@ function renderComments(key, container, { skipFocus = false } = {}) {
   commentLabel.innerText = "NOTES";
   commentHeader.appendChild(commentLabel);
 
-  const verse =
-    bibleData[BIBLE_META[key.split("-")[0]].name.toUpperCase()][
-      key.split("-")[1]
-    ][verseIndex];
-
-  const copyVerse = document.createElement("div");
-  copyVerse.classList.add("copy-verse");
-  copyVerse.innerText = "COPY VERSE";
-  commentHeader.appendChild(copyVerse);
-  copyVerse.onclick = () => {
-    copyVerse.style.opacity = "1";
-    copyVerse.classList.add("ai-fade-in");
-    copyVerse.innerText = "VERSE COPIED! ✅";
-    setTimeout(() => {
-      copyVerse.classList.remove("ai-fade-in");
-      copyVerse.innerText = "COPY VERSE";
-      copyVerse.style.opacity = "0.6";
-    }, 2000);
-    navigator.clipboard.writeText(
-      `${verse}
-${BIBLE_META[key.split("-")[0]].name.toUpperCase()} ${key.split("-")[1]}:${verseIndex}`,
-    );
-  };
-
   const list = comments[key] || [];
 
   list.forEach((obj, i) => {

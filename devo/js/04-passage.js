@@ -1657,8 +1657,8 @@ async function loadPassage() {
       wrap.innerHTML = `
         <div class="verse-swipe-track">
         <div class="verse-swipe-hints" aria-hidden="true">
-          <span class="vsh vsh-note"><span class="material-icons">edit_note</span>Note</span>
-          <span class="vsh vsh-ai">Context · Ask<span class="material-icons">auto_awesome</span></span>
+          <span class="vsh vsh-note"><span class="material-icons">edit_note</span></span>
+          <span class="vsh vsh-ai"><span class="material-icons">auto_awesome</span><span class="material-icons">chat_bubble_outline</span></span>
         </div>
         <div id="${
           v.verse

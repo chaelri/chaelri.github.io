@@ -13805,9 +13805,7 @@ body.is-offline.tts-canvas-active #offlinePill { bottom: calc(84px + env(safe-ar
   align-items: center;
   pointer-events: none;
   opacity: 0;
-  color: #f7a8d0;
-  font-size: 12px;
-  font-weight: 600;
+  color: #c83086; /* same pink as the verse number */
   transition: opacity 0.12s;
 }
 .vsh {
@@ -13817,13 +13815,12 @@ body.is-offline.tts-canvas-active #offlinePill { bottom: calc(84px + env(safe-ar
   transform: scale(0.9);
   transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-.vsh .material-icons { font-size: 20px; }
+.vsh .material-icons { font-size: 24px; }
 .verse-swiping .verse-swipe-hints { opacity: 0.45; }
 .verse-swipe-armed .verse-swipe-hints { opacity: 1; }
 .verse-swipe-armed .vsh { transform: scale(1); }
 .verse[data-swipe="note"] .vsh-ai,
 .verse[data-swipe="ai"] .vsh-note { visibility: hidden; }
-.light .verse-swipe-hints { color: #be185d; }
 
 .verse-notes-inline {
   display: flex;
