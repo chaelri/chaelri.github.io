@@ -231,15 +231,6 @@ Offline Mario Kart-style racer: the Mac is the split-screen display (up to 3 pla
 - **Deploy:** Local only — `Laro.command` on the Desktop (or `laro/play`). Moved from `kart/` to `laro/karera/` on 2026-10-18.
 - **Full docs:** See `knowledge/kart/SUMMARY.md` and `laro/karera/README.md`.
 
-### monopoly/  🟢
-
-Offline Monopoly for 2-8 players: the Mac is the board and bank, each phone is a wallet (balance, properties, houses, roll/buy/bid/build/mortgage/trade). Rent, tax, GO, cards, auctions and debts all settle automatically. Built 2026-10-09 for game nights on weak house internet.
-
-- **Tech:** stdlib `/usr/bin/python3` server (SSE push + JSON POST), pure-Python rules engine `game.py`, vanilla HTML/JS pages, vendored qrcode.js. No CDN, nothing online.
-- **Entry:** `server.py`, `game.py`, `board.html`, `phone.html`, `common.js`, `_selftest.py`.
-- **Deploy:** Local only (`python3 monopoly/server.py`). Saves to `monopoly/saves/current.json` (gitignored) and resumes.
-- **Full docs:** See `knowledge/monopoly/SUMMARY.md` and `monopoly/README.md`.
-
 ### phone-drop/  🟢
 
 iPhone → Mac file receiver, AirDrop-ish with a QR. `python3 receive.py` opens a QR page on the Mac; scan it, pick files on the phone, and they stream into `~/Downloads/From iPhone` until Ctrl-C. Built 2026-10-09.
@@ -651,7 +642,6 @@ Simple side-scrolling platformer (Bubu & Dudu) — canvas-based game.
 | claude-usage | per-user LaunchAgent `com.chaelri.claudeusage` via `install.sh` | Manual |
 | diskscope | Local only (`python3 serve.py`) | Manual |
 | phone-drop | Local only (`python3 receive.py`) | Manual |
-| monopoly | Local only (`python3 monopoly/server.py`) | Manual |
 | laro (Rambulan + Karera) | Local only (`Laro.command` on the Desktop → picker page on :8840) | Manual |
 | guard-exit-interview | GitHub Pages — **DUAL-REPO** (also push to `guard-exit-tracker`) | ✅ |
 | vm-management | GitHub Pages `/vm-management/` | ✅ |
