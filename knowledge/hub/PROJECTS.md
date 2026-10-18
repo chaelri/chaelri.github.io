@@ -219,7 +219,7 @@ Offline 3D island brawl royale: one shared camera on the Mac frames everyone, ph
 
 - **Tech:** same stdlib relay as kart (port 8830), three.js + assets served from `../kart/`, pure-JS sim with a bot self-test.
 - **Entry:** `server.py`, `index.html` + `js/main.js`, `js/sim.js`, `js/map.js`, `js/render.js`, `phone.html`.
-- **Deploy:** Local only (`python3 arena/server.py`).
+- **Deploy:** Local only — `./play rambulan` from the repo root, or `Rambulan.command` on the Desktop (`./play` with no args shows a menu of the three offline games; if the game is already running it just reopens the board).
 - **Full docs:** See `knowledge/arena/SUMMARY.md` and `arena/README.md`.
 
 ### kart/ (Karera)  🟢
@@ -228,7 +228,7 @@ Offline Mario Kart-style racer: the Mac is the split-screen display (up to 3 pla
 
 - **Tech:** stdlib Python relay (WebSocket + HTTPS for tilt), three.js r186 vendored, pure-JS sim, synthesized audio. No internet at play time.
 - **Entry:** `server.py`, `index.html` + `js/main.js` (board), `js/sim.js`, `js/render.js`, `phone.html`.
-- **Deploy:** Local only (`python3 kart/server.py`).
+- **Deploy:** Local only — `./play karera` or `Karera.command` on the Desktop.
 - **Full docs:** See `knowledge/kart/SUMMARY.md` and `kart/README.md`.
 
 ### monopoly/  🟢
@@ -237,7 +237,7 @@ Offline Monopoly for 2-8 players: the Mac is the board and bank, each phone is a
 
 - **Tech:** stdlib `/usr/bin/python3` server (SSE push + JSON POST), pure-Python rules engine `game.py`, vanilla HTML/JS pages, vendored qrcode.js. No CDN, nothing online.
 - **Entry:** `server.py`, `game.py`, `board.html`, `phone.html`, `common.js`, `_selftest.py`.
-- **Deploy:** Local only (`python3 monopoly/server.py`). Saves to `monopoly/saves/current.json` (gitignored) and resumes.
+- **Deploy:** Local only — `./play monopoly` or `Monopoly.command` on the Desktop. Saves to `monopoly/saves/current.json` (gitignored) and resumes.
 - **Full docs:** See `knowledge/monopoly/SUMMARY.md` and `monopoly/README.md`.
 
 ### phone-drop/  🟢

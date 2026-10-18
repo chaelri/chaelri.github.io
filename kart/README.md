@@ -3,8 +3,10 @@
 Offline kart racing, Mario Kart style. The Mac is the screen (split screen for up to 3 players, plus CPU racers); each phone is a steering wheel.
 
 ```
-python3 kart/server.py
+./play karera            # or: python3 kart/server.py
 ```
+
+Or double-click **Karera.command** on the Desktop.
 
 The board opens on the Mac with a QR code. Scan it, pick a critter, and press **START RACE** (on the phone or the Mac).
 

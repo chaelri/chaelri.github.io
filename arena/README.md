@@ -3,8 +3,10 @@
 Offline island brawl for 2 to 4 players. Everyone shares ONE screen on the Mac (the camera zooms to keep all fighters in frame); each phone is a twin-stick controller.
 
 ```
-python3 arena/server.py
+./play rambulan          # or: python3 arena/server.py
 ```
+
+Or double-click **Rambulan.command** on the Desktop. The code lives in `arena/`; Rambulan is the game's name.
 
 Needs the `kart/` folder next to it: three.js, the glTF loader and the critter models are served from there.
 
