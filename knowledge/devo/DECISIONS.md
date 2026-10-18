@@ -570,3 +570,14 @@ The global `.modal-close` (`top: 16px; right: 16px` of `#modalContent`) visually
 - Offline: expired stories and retells are served instead of erroring, the cache purge is skipped, the dashboard greeting/recap don't show loaders, TTS fails fast on undownloaded verses and skips prefetch.
 
 **Testing**: never with a real sync name. A scratch copy with `SYNC_USERS = { zztest: "devo-sync-zztest-claude" }` and a CDP driver (Network.emulateNetworkConditions on page + SW targets) covered: offline boot from the device copy, Bible + passage offline, offline AI cards, offline write surviving reloads and reaching RTDB on reconnect, AI auto-retry, weak-signal boot. The test path was deleted afterwards.
+
+---
+
+## 29. Verse actions by swipe; notes inline under the verse (2026-10-18)
+
+**Decision**: Charlie didn't want Context / Ask / Note always showing under every verse, or the sidebar notes list ("No notes yet for this passage.").
+
+- **Swipe** (`_wireVerseSwipe` in `04-passage.js`, one delegated touch handler on `#output`): left → right fires the Note button (toggles the editor); right → left opens a Context / Ask row for that verse (`.verse-actions-open`, Note hidden in it), closed by picking one or tapping elsewhere. The header slides over `.verse-swipe-hints` and arms at 64 px with a `haptic()` tick. Horizontal intent needs |dx| > 1.3·|dy|, so vertical scrolling is untouched; touches within 24 px of the screen edge are ignored (iOS back swipe); skipped in TTS mode. The header sits in a new `.verse-swipe-track` wrapper (nothing depended on it being a direct child of `.verse`).
+- **Mouse** (`hover: hover` + `pointer: fine`): the row keeps its space at opacity 0 and shows on hover, so moving down the page never shifts text.
+- **Inline notes** (`_renderInlineNotes`): a verse's notes show under it while the editor is closed; nothing at all when there are none. Re-rendered from `renderComments` (add/delete) and when the editor or "toggle all notes" closes.
+- **Sidebar list removed**: `renderSummary` still walks `comments` for Copy Notes (`window.__currentSummaryItems`, `hasCurrentComments`) but keeps `#summaryContent` hidden.

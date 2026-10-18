@@ -123,6 +123,7 @@ ${BIBLE_META[key.split("-")[0]].name.toUpperCase()} ${key.split("-")[1]}:${verse
 
   const newTextarea = input.querySelector("textarea");
   if (!skipFocus) newTextarea.focus();
+  _renderInlineNotes(container.closest(".verse"));
 }
 
 /* ---------- TOGGLE ALL NOTES ---------- */
@@ -143,6 +144,7 @@ function toggleAllNotes() {
       renderComments(key, commentsEl, { skipFocus: true });
     } else {
       commentsEl.hidden = true;
+      _renderInlineNotes(wrap);
     }
   });
 }
@@ -161,7 +163,6 @@ function renderSummary() {
   const single = verseEl.value;
   window.__currentSummaryItems = [];
 
-  let items = [];
   hasCurrentComments = false;
   Object.entries(comments).forEach(([key, list]) => {
     const parts = key.split("-");
@@ -175,44 +176,14 @@ function renderSummary() {
 
     hasCurrentComments = true;
 
-    items.push({ verseNum: v, list });
     window.__currentSummaryItems.push({ verseNum: parseInt(v), list }); // numeric for copy-notes sort
     checkIfHasTextAreaAnswers();
   });
 
-  if (!items.length) {
-    summaryEl.textContent = "No notes yet for this passage.";
-    return;
-  }
-
-  items.sort((a, b) => parseInt(a.verseNum) - parseInt(b.verseNum));
-
-  items.forEach((item) => {
-    const block = document.createElement("div");
-    block.className = "summary-item";
-    block.innerHTML = `<a href="#${item.verseNum}" class="summary-verse">Verse ${item.verseNum}</a>`;
-
-    item.list.forEach((n) => {
-      const note = document.createElement("div");
-      note.className = "summary-note";
-      note.innerHTML = `
-        ${n.text}
-        <time>
-          ${new Date(n.time).toLocaleString("en-US", {
-            month: "long",
-            day: "numeric",
-            year: "numeric",
-            hour: "numeric",
-            minute: "2-digit",
-            hour12: true,
-          })}
-        </time>
-      `;
-      block.appendChild(note);
-    });
-
-    summaryEl.appendChild(block);
-  });
+  // The sidebar notes list was removed (2026-10-18): notes show under their
+  // verse now (_renderInlineNotes). The loop above still runs because Copy
+  // Notes reads window.__currentSummaryItems and hasCurrentComments.
+  summaryEl.hidden = true;
 }
 
 const scrollTopBtn = document.getElementById("scrollTopBtn");

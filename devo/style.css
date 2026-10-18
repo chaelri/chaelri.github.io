@@ -13769,3 +13769,81 @@ body.is-offline #offlinePill {
 }
 /* Out of the way of the TTS mini-player when both are up. */
 body.is-offline.tts-canvas-active #offlinePill { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
+
+/* ── Verse swipe actions + inline notes (2026-10-18) ─────────────────────────
+   The Context / Ask / Note row no longer sits under every verse. Touch: swipe
+   a verse right for Note, left for a Context / Ask row (_wireVerseSwipe).
+   Mouse: the row keeps its space but only shows on hover, so moving down the
+   page never shifts the text. */
+.verse-actions { display: none; }
+.verse.verse-actions-open .verse-actions { display: flex; animation: verseActionsIn 0.18s ease-out; }
+.verse.verse-actions-open .verse-action-btn[data-action="note"] { display: none; }
+@keyframes verseActionsIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}
+@media (hover: hover) and (pointer: fine) {
+  .verse-actions { display: flex; opacity: 0; transition: opacity 0.15s; }
+  .verse:hover .verse-actions,
+  .verse:focus-within .verse-actions,
+  .verse:has(.verse-action-btn-on) .verse-actions { opacity: 1; }
+  .verse.verse-actions-open .verse-action-btn[data-action="note"] { display: inline-flex; }
+}
+#output.tts-mode .verse .verse-actions { display: none; }
+
+.verse-swipe-track { position: relative; }
+.verse-swipe-track > .verse-header {
+  position: relative;
+  touch-action: pan-y;
+}
+.verse-swiping .verse-swipe-track > .verse-header { will-change: transform; }
+.verse-swipe-hints {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  pointer-events: none;
+  opacity: 0;
+  color: #f7a8d0;
+  font-size: 12px;
+  font-weight: 600;
+  transition: opacity 0.12s;
+}
+.vsh {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transform: scale(0.9);
+  transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.vsh .material-icons { font-size: 20px; }
+.verse-swiping .verse-swipe-hints { opacity: 0.45; }
+.verse-swipe-armed .verse-swipe-hints { opacity: 1; }
+.verse-swipe-armed .vsh { transform: scale(1); }
+.verse[data-swipe="note"] .vsh-ai,
+.verse[data-swipe="ai"] .vsh-note { visibility: hidden; }
+.light .verse-swipe-hints { color: #be185d; }
+
+.verse-notes-inline {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 6px 0 4px;
+}
+.verse-notes-inline[hidden] { display: none; }
+.verse-note-inline {
+  padding: 7px 12px;
+  border-left: 2px solid rgba(200, 48, 134, 0.6);
+  border-radius: 0 10px 10px 0;
+  background: rgba(200, 48, 134, 0.07);
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.light .verse-note-inline {
+  background: rgba(190, 24, 93, 0.06);
+  color: rgba(30, 41, 59, 0.85);
+}

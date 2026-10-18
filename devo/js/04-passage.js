@@ -209,6 +209,98 @@ function _revealFromButton(panel, btn, cls) {
 // row also answers "which one did I tap?" after the press animation ends.
 // Context and Ask share one .inline-ai-mount, so state is read from what's
 // actually rendered rather than tracked in a flag.
+// ── Verse notes, shown under the verse ─────────────────────────────────────
+// A verse's notes sit right under it whenever the editor is closed; a verse
+// with none shows nothing (no "No notes" line). The editor (.comments) still
+// lists them with delete buttons while it's open, so the two never show at once.
+function _renderInlineNotes(wrap) {
+  const el = wrap?.querySelector(".verse-notes-inline");
+  if (!el) return;
+  const list = comments[wrap.dataset.verseKey] || [];
+  const editorOpen = !wrap.querySelector(".comments")?.hidden;
+  el.hidden = editorOpen || !list.length;
+  el.innerHTML = el.hidden ? "" : list.map((n) => `<div class="verse-note-inline">${n.text}</div>`).join("");
+}
+
+// ── Verse swipe actions ────────────────────────────────────────────────────
+// The Context / Ask / Note row used to sit under every verse. Now:
+//   swipe left → right : Note
+//   swipe right → left : a small Context / Ask row for that verse
+// The verse slides with the finger over a hint of what's behind it; past
+// SWIPE_ARM px it arms (haptic tick) and fires on release. Vertical drags,
+// taps, double-tap-to-favourite and iOS edge-back swipes are left alone.
+// Mouse users get the row on hover instead (see .verse-actions CSS).
+function _wireVerseSwipe() {
+  if (output._swipeWired) return;
+  output._swipeWired = true;
+  const SWIPE_ARM = 64, SWIPE_MAX = 96, EDGE = 24;
+  let st = null;
+
+  output.addEventListener("touchstart", (e) => {
+    st = null;
+    if (e.touches.length !== 1 || output.classList.contains("tts-mode")) return;
+    const header = e.target.closest(".verse-header");
+    if (!header || e.target.closest("button, a, textarea, input")) return;
+    const t = e.touches[0];
+    if (t.clientX < EDGE || t.clientX > innerWidth - EDGE) return;
+    st = { x: t.clientX, y: t.clientY, header, wrap: header.closest(".verse"), dx: 0, mode: null, armed: false };
+  }, { passive: true });
+
+  output.addEventListener("touchmove", (e) => {
+    if (!st) return;
+    const t = e.touches[0];
+    const dx = t.clientX - st.x, dy = t.clientY - st.y;
+    if (!st.mode) {
+      if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+      if (Math.abs(dx) < Math.abs(dy) * 1.3) { st = null; return; } // a scroll
+      st.mode = "h";
+      st.wrap.classList.add("verse-swiping");
+    }
+    e.preventDefault();
+    st.dx = dx;
+    st.header.style.transform = `translateX(${Math.max(-SWIPE_MAX, Math.min(SWIPE_MAX, dx * 0.75))}px)`;
+    st.wrap.dataset.swipe = dx > 0 ? "note" : "ai";
+    const armed = Math.abs(dx) >= SWIPE_ARM;
+    if (armed !== st.armed) {
+      st.armed = armed;
+      st.wrap.classList.toggle("verse-swipe-armed", armed);
+      if (armed) haptic(8);
+    }
+  }, { passive: false });
+
+  const end = () => {
+    if (!st || st.mode !== "h") { st = null; return; }
+    const { wrap, header, dx, armed } = st;
+    st = null;
+    header.style.transition = "transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1)";
+    header.style.transform = "";
+    setTimeout(() => {
+      header.style.transition = "";
+      wrap.classList.remove("verse-swiping", "verse-swipe-armed");
+      delete wrap.dataset.swipe;
+    }, 250);
+    if (!armed) return;
+    if (dx > 0) wrap.querySelector('[data-action="note"]')?.click();
+    else _toggleVerseAiChooser(wrap);
+  };
+  output.addEventListener("touchend", end);
+  output.addEventListener("touchcancel", end);
+
+  // The chooser closes once one is picked, or on a tap anywhere else.
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest(".verse-action-btn");
+    document.querySelectorAll(".verse.verse-actions-open").forEach((w) => {
+      if (btn ? btn.closest(".verse") === w : !w.contains(e.target)) w.classList.remove("verse-actions-open");
+    });
+  });
+}
+
+function _toggleVerseAiChooser(wrap) {
+  const open = !wrap.classList.contains("verse-actions-open");
+  document.querySelectorAll(".verse.verse-actions-open").forEach((w) => w.classList.remove("verse-actions-open"));
+  wrap.classList.toggle("verse-actions-open", open);
+}
+
 function _syncVerseActionStates(wrap) {
   if (!wrap) return;
   const mount = wrap.querySelector(".inline-ai-mount");
@@ -1563,6 +1655,11 @@ async function loadPassage() {
       wrap.className = "verse" + (isFav ? " highlighted" : "");
       wrap.dataset.verseKey = key;
       wrap.innerHTML = `
+        <div class="verse-swipe-track">
+        <div class="verse-swipe-hints" aria-hidden="true">
+          <span class="vsh vsh-note"><span class="material-icons">edit_note</span>Note</span>
+          <span class="vsh vsh-ai">Context · Ask<span class="material-icons">auto_awesome</span></span>
+        </div>
         <div id="${
           v.verse
         }" class="verse-header" style="display:flex; justify-content:space-between; align-items:flex-start;">
@@ -1575,14 +1672,17 @@ async function loadPassage() {
             </span>
           </div>
         </div>
+        </div>
         <div class="verse-actions">
           <button class="verse-action-btn" data-action="context"><span class="material-icons">auto_awesome</span><span>Context</span></button>
           <button class="verse-action-btn" data-action="ask"><span class="material-icons">chat_bubble_outline</span><span>Ask</span></button>
           <button class="verse-action-btn" data-action="note"><span class="material-icons">edit_note</span><span>Note</span></button>
         </div>
         <div class="inline-ai-mount"></div>
+        <div class="verse-notes-inline" hidden></div>
         <div class="comments ai-fade-in" hidden></div>
       `;
+      _renderInlineNotes(wrap);
 
       // ... keep your existing listener code here ...
       const commentsEl = wrap.querySelector(".comments");
@@ -1654,6 +1754,7 @@ async function loadPassage() {
             renderComments(key, commentsEl);
             _revealFromButton(commentsEl, noteActionBtn, "comments--revealing");
           }
+          _renderInlineNotes(wrap);
           _syncVerseActionStates(wrap);
         };
       }
@@ -1676,6 +1777,8 @@ async function loadPassage() {
     // lit-states on the next frame instead of threading callbacks through
     // every card renderer. #output is a stable node across passage loads, so
     // guard against stacking duplicate listeners.
+    _wireVerseSwipe();
+
     if (!output._verseActionSyncWired) {
       output.addEventListener("click", (e) => {
         const verseWrap = e.target.closest?.(".verse");
