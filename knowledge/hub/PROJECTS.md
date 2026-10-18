@@ -230,20 +230,6 @@ Gaussian-splat viewer + subject-isolation script. Built 2026-10-09 for the first
   - `display: grid` beat the `hidden` attribute on the drop overlay; `[hidden] { display:none !important }` is load-bearing.
   - Headless screenshots need real time (CDP driver with sleeps): Spark decodes in a worker and `--virtual-time-budget` stalls it at "loading".
 
-### lakad/  🟢
-
-Anime-chibi Karla in a pastel playground: WASD walk, Shift sprint, Space jump, an 18-bone skeleton with procedural idle/walk/sprint/jump, and blinking. Built 2026-10-09.
-
-- **Tech:** vanilla ES modules, three.js 0.186 from `../splat/vendor/` (offline). No binary assets: the face, tee print and hair mask are canvas-painted, and all geometry is generated.
-- **Entry:** `index.html`, `js/main.js` (input, physics, camera), `js/character.js` (bones, body, hair, glasses, painted face, poses), `js/style.js` (toon ramp, inverted-hull outlines, strand geometry, front-mapped sphere), `js/world.js`, `play.py`.
-- **Deploy:** GitHub Pages `/lakad/` is the full game. `assets/` (gitignored) only holds the old photo-face output and a local style reference.
-- **Quirks:**
-  - **Style target is a low-poly hand-painted chibi Charlie supplied** (a fan model of a game character, so it's not committed). The approach: toon ramp + ink hull + painted eyes + pointed strands.
-  - **The photo face from the scan was rejected ("ang panget")**: recognisable but uncanny. So was the first generic-anime pass (huge eyes, spiky hair): "doesn't look like Karla at all". Likeness comes from HER features read off the scan: sleek centre-part black hair to the shoulders, round full face, gentle almond eyes, big round clear glasses, full lips, warm tan.
-  - **Strand winding matters:** inward-wound strands let the BackSide ink hull draw over them, and the hair rendered solid black.
-  - **Toon + `vertexColors` multiplies the base colour**, so hair materials use white as the base and the gradient carries the colour.
-  - **`frontMappedSphere` seam:** the back maps to the top row with u continuous. Corner or edge-column mappings tore a see-through stripe through the alpha-masked hair cap.
-
 ### claude-usage/  🟢
 
 Menu bar indicator showing Claude plan usage as a live percentage — built because the Claude desktop app's own menu item needs a right click before it shows anything. The number IS the title; clicking opens session / weekly / scoped rows with absolute reset times and a manual Refresh. **Spike alerts (2026-08-06)** warn when the session percentage climbs fast.
