@@ -413,7 +413,8 @@ async function _nrGetCached(key) {
     const raw = localStorage.getItem(key);
     if (!raw) return null;
     const wrapped = JSON.parse(raw);
-    if (!wrapped || Date.now() - (wrapped.t || 0) > _NR_CACHE_TTL) return null;
+    // Past its week, a retell is still better than nothing while offline.
+    if (!wrapped || (Date.now() - (wrapped.t || 0) > _NR_CACHE_TTL && navigator.onLine !== false)) return null;
     return wrapped.d;
   } catch {
     return null;
@@ -1008,7 +1009,7 @@ async function openNarrate() {
   } catch (err) {
     console.warn("[retell]", err);
     scroll.innerHTML = `<div class="nr-loading">
-      <p class="nr-error">Couldn't retell this chapter.</p>
+      <p class="nr-error">${navigator.onLine === false || err?.kind ? aiFailText("Retell", err) : "Couldn't retell this chapter."}</p>
       <button type="button" class="nr-retry" id="nrRetry">Try again</button>
     </div>`;
     document.getElementById("nrRetry")?.addEventListener("click", () => {

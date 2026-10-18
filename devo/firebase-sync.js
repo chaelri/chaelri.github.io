@@ -66,6 +66,24 @@ let _suppressFbWrites = false; // true while we apply remote changes locally
 let _writeTimers = {};
 let _remoteListenerCb = null;  // saved so deactivation can detach it
 
+// Offline-first state. The mirror is also kept on the device (IndexedDB), so
+// the app boots from it with no network, and every synced write is recorded as
+// PENDING until RTDB acknowledges it. Pending writes survive reloads and are
+// replayed (merged against whatever RTDB has by then) when a connection comes
+// back. Before this, a sync user offline either hung forever on boot (RTDB
+// once() never resolves offline) or — if the SDK failed to load — booted on an
+// empty real localStorage whose later merge could overwrite the real journals.
+let _pending = new Map();      // decodedKey -> string value, or null for a delete
+let _live = false;             // true once pending is replayed and the listener is attached
+let _connGen = 0;              // bumped on activate/deactivate so a stale background connect bails
+let _unsent = new Set();       // keys whose debounced RTDB write hasn't been handed to the SDK yet
+// Declared up here, not beside the IndexedDB helpers: bootstrap() runs at load
+// and would hit them in their temporal dead zone.
+const LOCAL_DB = "devo-sync-local";
+let _localDbP = null;
+let _dirty = new Set();
+let _flushTimer = null;
+
 // ── Boot ────────────────────────────────────────────────────────────────────
 (async function bootstrap() {
   const name = (_realLs.getItem(BOOTSTRAP_KEY) || "").trim().toLowerCase();
@@ -93,13 +111,104 @@ async function _activateSyncFor(user) {
   if (_syncUser) await _deactivateSync();
   _syncUser = lower;
   _syncPath = path;
+  const gen = ++_connGen;
+
+  // Local copy on this device → boot from it right now, connect in the
+  // background. The app never waits on the network.
+  const local = await _loadLocal(lower).catch((err) => {
+    console.warn("[sync] local copy unreadable", err);
+    return null;
+  });
+  if (gen !== _connGen) return;
+  if (local) {
+    _mirror = local.mirror;
+    _pending = local.pending;
+    // Anything still in real localStorage (e.g. written before typing the
+    // name mid-session) is folded in as a pending local change.
+    for (const [enc, v] of Object.entries(_readRealLsForSync())) {
+      const key = _decodeKey(enc);
+      const merged = key in _mirror ? _mergeOne(key, v, _mirror[key]) : v;
+      _mirror[key] = merged;
+      _pending.set(key, merged);
+      _markDirty(key);
+    }
+    _installMirror();
+    _clearMigratedRealLs();
+    _refreshAppGlobals();
+    _connectInBackground(gen);
+    return;
+  }
+
+  // First run on this device (no local copy yet): RTDB is the only place the
+  // data lives, so this one boot has to reach it.
   await _initFirebase();
   const merged = await _mergeOnBoot();
+  if (gen !== _connGen) return;
   _mirror = _decodeAll(merged);
+  _pending = new Map();
   _installMirror();
   _clearMigratedRealLs();
+  for (const k of Object.keys(_mirror)) _markDirty(k);
+  _flushLocal();
+  _live = true;
   _listenForRemoteChanges();
   _refreshAppGlobals();
+}
+
+// Reach RTDB whenever it becomes reachable: replay pending local writes
+// (merged with what RTDB has now, per key, same rules as the boot merge),
+// then attach the live listener. Retries on `online` and every 30 s.
+async function _connectInBackground(gen) {
+  const retry = () => {
+    if (gen !== _connGen) return;
+    clearTimeout(_connectInBackground._t);
+    _connectInBackground._t = setTimeout(() => _connectInBackground(gen), 30000);
+    window.addEventListener("online", () => _connectInBackground(gen), { once: true });
+  };
+  if (gen !== _connGen || _live || _connectInBackground._busy === gen) return;
+  _connectInBackground._busy = gen;
+  try {
+    await _initFirebase();
+    const snap = await _fbDb.ref(_syncPath).once("value"); // resolves once connected
+    if (gen !== _connGen) return;
+    const remote = _decodeAll(snap.val() || {});
+    const updates = {};
+    const sent = new Map();
+    for (const [key, v] of _pending) {
+      const out = v === null ? null : key in remote ? _mergeOne(key, v, remote[key]) : v;
+      updates[_encodeKey(key)] = out;
+      sent.set(key, out);
+      if (out === null) delete _mirror[key];
+      else _mirror[key] = out;
+      _markDirty(key);
+    }
+    if (sent.size) {
+      _fbDb.ref(_syncPath).update(updates).then(() => {
+        for (const [key, out] of sent) {
+          if (_pending.get(key) === out) _pending.delete(key); // unchanged since → acked
+          _markDirty(key);
+        }
+      }).catch((err) => console.warn("[sync] pending replay failed", err));
+      // Keep pending as the merged values until RTDB acks.
+      for (const [key, out] of sent) _pending.set(key, out);
+    }
+    _live = true;
+    _listenForRemoteChanges(); // fires at once with the full snapshot; changed keys repaint themselves
+    if (sent.has("bibleFavorites") || sent.has("bibleComments")) {
+      try { favorites = JSON.parse(_mirror["bibleFavorites"] || "{}"); } catch {}
+      try { comments = JSON.parse(_mirror["bibleComments"] || "{}"); } catch {}
+    }
+  } catch (err) {
+    console.warn("[sync] offline — using the copy on this device", err);
+    retry();
+  } finally {
+    if (_connectInBackground._busy === gen) _connectInBackground._busy = null;
+  }
+}
+// One key through the boot-merge rules (favorites max, comments union, …).
+function _mergeOne(key, localVal, remoteVal) {
+  const enc = _encodeKey(key);
+  return _mergeAll({ [enc]: localVal }, { [enc]: remoteVal })[enc];
 }
 window.activateSyncForUser = _activateSyncFor;
 
@@ -114,6 +223,11 @@ window.activateKarlaSync   = () => _activateSyncFor("karla");
 // (mostly empty post-clear).
 async function _deactivateSync() {
   if (!_syncUser) return;
+  _connGen++;
+  _flushLocal(); // this user's pending writes stay on the device for next time
+  _live = false;
+  _pending = new Map();
+  _unsent = new Set();
   if (_fbDb && _remoteListenerCb && _syncPath) {
     try { _fbDb.ref(_syncPath).off("value", _remoteListenerCb); } catch {}
   }
@@ -182,7 +296,9 @@ function _loadScript(src) {
     const s = document.createElement("script");
     s.src = src;
     s.onload = resolve;
-    s.onerror = reject;
+    // Drop a failed tag, or the next attempt (back online) finds it and
+    // "resolves" without the SDK ever loading.
+    s.onerror = (e) => { s.remove(); reject(e); };
     document.head.appendChild(s);
   });
 }
@@ -254,22 +370,27 @@ function _installMirror() {
       const v = String(value);
       if (_mirror[key] === v) return;
       _mirror[key] = v;
+      _markDirty(key);
       // Mirror userName back to real LS so next page load detects the sync
       // user before Firebase finishes loading.
       if (key === BOOTSTRAP_KEY) _realLs.setItem(key, v);
       if (_suppressFbWrites) return;
       if (!_shouldSync(key)) return;
+      _pending.set(key, v);
       _scheduleFbWrite(key, v);
     },
     removeItem(key) {
       if (!(key in _mirror)) return;
       delete _mirror[key];
+      _markDirty(key);
       if (key === BOOTSTRAP_KEY) _realLs.removeItem(key);
       if (_suppressFbWrites) return;
       if (!_shouldSync(key)) return;
-      _fbDb.ref(`${_syncPath}/${_encodeKey(key)}`).remove().catch(() => {});
+      _pending.set(key, null);
+      _scheduleFbWrite(key, null);
     },
     clear() {
+      for (const k of Object.keys(_mirror)) _markDirty(k);
       _mirror = {};
     },
     key(i) { return Object.keys(_mirror)[i] || null; },
@@ -287,15 +408,98 @@ function _shouldSync(key) {
     SYNC_DYNAMIC_PREFIXES.some(p => key.startsWith(p));
 }
 
+// value === null means delete. Until the background connect has replayed the
+// pending queue (_live), writes just stay pending — the replay sends them.
+// Offline after that, the SDK queues the write itself; either way the key
+// leaves _pending only when RTDB acknowledges that exact value.
 function _scheduleFbWrite(key, value) {
   const enc = _encodeKey(key);
   clearTimeout(_writeTimers[enc]);
+  if (!_live || !_fbDb) return;
+  _unsent.add(key);
   _writeTimers[enc] = setTimeout(() => {
-    _fbDb.ref(`${_syncPath}/${enc}`).set(value).catch((err) => {
+    delete _writeTimers[enc];
+    _unsent.delete(key);
+    const ref = _fbDb.ref(`${_syncPath}/${enc}`);
+    (value === null ? ref.remove() : ref.set(value)).then(() => {
+      if (_pending.get(key) === value) {
+        _pending.delete(key);
+        _markDirty(key);
+      }
+    }).catch((err) => {
       console.warn("RTDB write failed for", key, err);
     });
   }, FB_WRITE_DEBOUNCE_MS);
 }
+
+// ── Local copy (IndexedDB) ──────────────────────────────────────────────────
+// Stores: kv [user, key] -> string, pending [user, key] -> {v}, meta user -> {savedAt}.
+// meta marks a complete copy; without it the boot goes to RTDB first.
+
+function _localDb() {
+  if (!_localDbP) {
+    _localDbP = new Promise((resolve, reject) => {
+      const req = indexedDB.open(LOCAL_DB, 1);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        for (const s of ["kv", "pending", "meta"]) if (!db.objectStoreNames.contains(s)) db.createObjectStore(s);
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+  return _localDbP;
+}
+
+async function _loadLocal(user) {
+  const db = await _localDb();
+  const tx = db.transaction(["kv", "pending", "meta"], "readonly");
+  const range = IDBKeyRange.bound([user], [user, []]);
+  const req = (store, method, arg) => new Promise((res, rej) => {
+    const r = tx.objectStore(store)[method](arg);
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+  const [meta, keys, vals, pKeys, pVals] = await Promise.all([
+    req("meta", "get", user),
+    req("kv", "getAllKeys", range), req("kv", "getAll", range),
+    req("pending", "getAllKeys", range), req("pending", "getAll", range),
+  ]);
+  if (!meta) return null;
+  const mirror = {};
+  keys.forEach((k, i) => { mirror[k[1]] = vals[i]; });
+  const pending = new Map();
+  pKeys.forEach((k, i) => pending.set(k[1], pVals[i].v));
+  return { mirror, pending };
+}
+
+function _markDirty(key) {
+  _dirty.add(key);
+  clearTimeout(_flushTimer);
+  _flushTimer = setTimeout(_flushLocal, 250);
+}
+
+function _flushLocal() {
+  clearTimeout(_flushTimer);
+  if (!_syncUser || !_mirror || !_dirty.size) return;
+  const user = _syncUser, keys = [..._dirty];
+  const snapshot = keys.map((k) => [k, _mirror[k], _pending.has(k) ? _pending.get(k) : undefined]);
+  _dirty = new Set();
+  _localDb().then((db) => {
+    const tx = db.transaction(["kv", "pending", "meta"], "readwrite");
+    const kv = tx.objectStore("kv"), pend = tx.objectStore("pending");
+    for (const [k, v, p] of snapshot) {
+      if (v === undefined) kv.delete([user, k]); else kv.put(v, [user, k]);
+      if (p === undefined) pend.delete([user, k]); else pend.put({ v: p }, [user, k]);
+    }
+    tx.objectStore("meta").put({ savedAt: Date.now() }, user);
+    tx.onerror = () => console.warn("[sync] local save failed", tx.error);
+  }).catch((err) => console.warn("[sync] local save failed", err));
+}
+
+// Closing the tab / backgrounding the phone mustn't drop the last 250 ms.
+addEventListener("pagehide", _flushLocal);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") _flushLocal(); });
 
 // ── Listen for remote changes ───────────────────────────────────────────────
 function _listenForRemoteChanges() {
@@ -319,10 +523,14 @@ function _listenForRemoteChanges() {
       else nonJournalChanged = true;
     };
 
-    // Apply additions / updates.
+    // Apply additions / updates. A key typed in the last 400 ms hasn't reached
+    // the SDK yet, so this snapshot still holds its OLD value — skip it, or the
+    // keystroke gets reverted by an unrelated remote change.
     for (const [key, val] of Object.entries(decoded)) {
+      if (_unsent.has(key)) continue;
       if (_mirror[key] !== val) {
         _mirror[key] = val;
+        _markDirty(key);
         anyChanged = true;
         if (key.startsWith("devo.canvas.")) changedCanvasKeys.push(key);
         if (key === "bibleFavorites") favoritesChanged = true;
@@ -330,10 +538,12 @@ function _listenForRemoteChanges() {
         noteJournalKey(key);
       }
     }
-    // Apply remote deletions.
+    // Apply remote deletions — synced keys only. Device-only settings (theme,
+    // TTS prefs…) live in the mirror too and were never in RTDB.
     for (const key of Object.keys(_mirror)) {
-      if (!(key in decoded)) {
+      if (!(key in decoded) && _shouldSync(key) && !_unsent.has(key) && !_pending.has(key)) {
         delete _mirror[key];
+        _markDirty(key);
         anyChanged = true;
         if (key.startsWith("devo.canvas.")) changedCanvasKeys.push(key);
         if (key === "bibleFavorites") favoritesChanged = true;

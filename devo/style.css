@@ -13700,3 +13700,72 @@ body.nr-locked { overflow: hidden; }
   border-bottom-color: rgba(0, 0, 0, 0.1);
   color: #a8005f;
 }
+
+/* ── Offline / weak signal ───────────────────────────────────────────────────
+   aiFailHTML() card for AI panels, and the pill shown while the device is
+   offline. Everything but AI keeps working, so both are quiet, not alarms. */
+.ai-offline-note {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(148, 163, 184, 0.08);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  color: rgba(226, 232, 240, 0.78);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.ai-offline-note .material-symbols-outlined {
+  font-size: 18px;
+  opacity: 0.7;
+}
+.ai-offline-msg { flex: 1 1 180px; }
+.ai-offline-retry {
+  margin-left: auto;
+  border: none;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font: inherit;
+  font-weight: 600;
+  font-size: 12px;
+  cursor: pointer;
+  color: #db2777;
+  background: rgba(219, 39, 119, 0.12);
+}
+.ai-offline-retry:hover { background: rgba(219, 39, 119, 0.2); }
+.light .ai-offline-note {
+  background: rgba(15, 23, 42, 0.04);
+  border-color: rgba(15, 23, 42, 0.08);
+  color: rgba(30, 41, 59, 0.75);
+}
+
+#offlinePill {
+  position: fixed;
+  left: 50%;
+  bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  transform: translate(-50%, 20px);
+  z-index: 10400;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px 7px 11px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.92);
+  color: rgba(226, 232, 240, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+#offlinePill .material-symbols-outlined { font-size: 16px; }
+body.is-offline #offlinePill {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+/* Out of the way of the TTS mini-player when both are up. */
+body.is-offline.tts-canvas-active #offlinePill { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }

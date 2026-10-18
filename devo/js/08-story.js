@@ -78,7 +78,7 @@ async function openStoryModal() {
     content.innerHTML = `
       <div class="story-loading">
         <span class="material-symbols-outlined" style="font-size:36px;color:#6b7a94">error_outline</span>
-        <div class="story-loading-text">${e.message || "Failed to load"}</div>
+        <div class="story-loading-text">${aiFailText("The story", e)}</div>
         <button class="primary" onclick="openStoryModal()" style="margin-top:8px">Retry</button>
       </div>`;
   }
@@ -279,7 +279,7 @@ STRICT: No greetings. No padding. Start with #### Key Themes immediately.`);
       </div>
     </div>`;
     mountEl.querySelector('.ai-card-close').onclick = () => { mountEl.innerHTML = ''; };
-  } catch {
+  } catch (err) {
     mountEl.innerHTML = `<div class="inline-ai-card dig-deeper">
     ${_digDeeperEffectsHTML()}
   
@@ -288,7 +288,7 @@ STRICT: No greetings. No padding. Start with #### Key Themes immediately.`);
           <span class="ai-card-label">Dig Deeper</span>
           <button class="ai-card-close" title="Close">✕</button>
         </div>
-        <p style="color:rgba(255,255,255,0.7);font-size:13px;">Failed to load. Try again.</p>
+        <p style="color:rgba(255,255,255,0.7);font-size:13px;">${aiFailText("Dig Deeper", err)}</p>
       </div>
     </div>`;
     mountEl.querySelector('.ai-card-close').onclick = () => { mountEl.innerHTML = ''; };
@@ -458,8 +458,7 @@ QUESTION: ${question}`);
     } catch (err) {
       console.error("[Story Chat Error]", err);
       typingEl.style.display = 'none';
-      const msg = err?.message?.length > 10 && err.message.length < 200 ? err.message : "Sorry, something went wrong.";
-      verseChatHistories[key].push({ role: "model", text: msg });
+      verseChatHistories[key].push({ role: "model", text: aiFailText("Chat", err) });
       renderChatHistory(key, histEl);
     }
   }
@@ -990,7 +989,7 @@ async function openReflectModal() {
         await saveAIToStorage({
           ...updated,
           reflectionHTML:
-            reflectionEl.innerHTML !== "<p>Failed to generate reflection questions.</p>"
+            !_isAiFailHTML(reflectionEl.innerHTML) && reflectionEl.innerHTML !== "<p>Failed to generate reflection questions.</p>"
               ? reflectionEl.innerHTML
               : null,
         });

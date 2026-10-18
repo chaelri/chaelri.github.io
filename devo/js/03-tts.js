@@ -439,6 +439,14 @@ async function ttsSynthesize(text, retries = 5, meta) {
     return _edgeToClientShape(cached.blob, cached.timings || []);
   }
 
+  // Offline and not downloaded: say so now instead of five backoff retries.
+  if (navigator.onLine === false) {
+    _ttsLogPush("fail", meta, "offline — not downloaded");
+    const err = new Error("offline");
+    err.kind = "offline";
+    throw err;
+  }
+
   // 2. Dedupe — if another caller already started synth for this exact text,
   //    share its promise. Skip the semaphore entirely (the lead caller owns
   //    the slot). After the shared synth resolves, append our meta to the
@@ -474,7 +482,7 @@ async function ttsSynthesize(text, retries = 5, meta) {
           _ttsLogPush("success", meta, attempt > 0 ? `saved (try ${attempt + 1})` : "saved");
           return _edgeToClientShape(blob, timings);
         } catch (err) {
-          if (attempt < retries - 1) {
+          if (attempt < retries - 1 && navigator.onLine !== false) {
             const base = err.message === "rate-limit" ? 2000 : 600;
             const delay = Math.min(base * Math.pow(1.8, attempt), 12000) + Math.random() * 800;
             console.warn("[devo-tts] retry", refLabel, err.message, `(${attempt + 2}/${retries})`);
@@ -508,6 +516,7 @@ async function ttsSynthesize(text, retries = 5, meta) {
 // background.
 function _ttsPrefetchChapter() {
   if (!window.__aiPayload?.versesText) return;
+  if (navigator.onLine === false) return; // nothing to download; playback still uses what's saved
   const bookKey = bookEl?.value;
   const bookName = BIBLE_META?.[bookKey]?.name || "";
   const ch = chapterEl?.value || "";
@@ -922,6 +931,7 @@ async function _renderAudioLibrary(expandBook) {
 // burns ~37× more cache reads per poll.
 async function _ttsPrefetchSpecific(ref, onlyVerseNums, opts) {
   if (!ref) { console.warn("[devo-tts] prefetch: no ref"); return; }
+  if (navigator.onLine === false) return;
   if (!bibleData && typeof fetchBibleData === "function") {
     try { await fetchBibleData(); }
     catch (err) { console.error("[devo-tts] prefetch: fetchBibleData failed", err); }
@@ -1190,7 +1200,9 @@ async function ttsPlayAt(index, gen) {
     if (immPauseBtn) immPauseBtn.classList.remove("tts-imm-btn-loading");
     if (immLoadBar) immLoadBar.classList.remove("buffering");
     document.getElementById("ttsPlayer")?.classList.remove("tts-buffering");
-    ttsSetStatus(`${ttsIcon("warning")} Verse ${item.verseNum} failed`);
+    ttsSetStatus(navigator.onLine === false || err?.kind === "offline"
+      ? `${ttsIcon("cloud_off")} Verse ${item.verseNum} isn't downloaded (offline)`
+      : `${ttsIcon("warning")} Verse ${item.verseNum} failed`);
 
     // Repurpose pause button as a single-verse retry
     const pauseBtn = document.getElementById("ttsPauseBtn");

@@ -322,10 +322,10 @@ IMPORTANT: Bold the key theological terms and important words using **double ast
         card.appendChild(footer);
       }
     });
-  } catch {
+  } catch (err) {
     _swapCardBody(mountEl, () => {
-      body.innerHTML =
-        `<p style="color:rgba(255,255,255,0.7);font-size:13px;">Failed to load quick context.</p>`;
+      body.innerHTML = aiFailHTML("Quick context", err, () =>
+        fetchInlineQuickContext({ book, chapter, verse, text }, mountEl));
     });
   }
 }
@@ -533,8 +533,7 @@ QUESTION: ${question}`,
     } catch (err) {
       console.error("[Verse Chat Error]", err);
       typingEl.style.display = 'none';
-      const msg = err?.message?.length > 10 && err.message.length < 200 ? err.message : "Sorry, something went wrong.";
-      verseChatHistories[key].push({ role: "model", text: msg });
+      verseChatHistories[key].push({ role: "model", text: aiFailText("Chat", err) });
       renderChatHistory(key, histEl);
     }
   };
@@ -663,8 +662,8 @@ STRICT: No greetings. No "this verse tells us". No padding. Start with #### Orig
   } catch (err) {
     console.error(err);
     _swapCardBody(mountEl, () => {
-      body.innerHTML =
-        `<p style="color:rgba(255,255,255,0.7);font-size:13px;">Failed to load deeper context.</p>`;
+      body.innerHTML = aiFailHTML("Deeper context", err, () =>
+        fetchInlineDigDeeper({ book, chapter, verse, text }, mountEl));
     });
   }
 }
@@ -1231,6 +1230,9 @@ async function loadDashContinueRecap() {
     return;
   }
 
+  // Offline: nothing to show and nothing to wait for — the recap is optional.
+  if (navigator.onLine === false) { el.textContent = ""; return; }
+
   // Cache miss — show subtle dim loader, then fetch.
   el.innerHTML = `<span class="dash-continue-recap-loader"><span class="rdot"></span><span class="rdot"></span><span class="rdot"></span></span>`;
 
@@ -1238,7 +1240,7 @@ async function loadDashContinueRecap() {
   const prompt = `Write ONE short, casual sentence (max 18 words) recapping what ${refLabel} is about, written for someone returning to it. No "this chapter" preamble — start with the substance. Reply with ONLY the sentence, no quotes, no emojis.`;
 
   try {
-    const res = await fetch("https://gemini-proxy-668755364170.asia-southeast1.run.app", {
+    const res = await aiFetch(GEMINI_PROXY, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ task: "summary", contents: [{ parts: [{ text: prompt }] }] }),
@@ -1290,6 +1292,14 @@ async function loadDashGreetingMsg() {
     return;
   }
 
+  // Offline: keep yesterday's greeting (or none) rather than loading dots that
+  // can't resolve.
+  if (navigator.onLine === false) {
+    el.textContent = cachedMsg;
+    el.style.opacity = "";
+    return;
+  }
+
   // Cache miss → show stale msg dimmed (or loading dots) while we fetch.
   if (cachedMsg) {
     el.textContent = cachedMsg;
@@ -1311,7 +1321,7 @@ async function loadDashGreetingMsg() {
   const prompt = `Write ONE warm greeting sentence (max 15 words) for ${name || "a friend"} opening a Bible app this ${timeOfDay}. Casual, caring, like a friend. No emojis, no guilt. Reply with ONLY the sentence.`;
 
   try {
-    const res = await fetch("https://gemini-proxy-668755364170.asia-southeast1.run.app", {
+    const res = await aiFetch(GEMINI_PROXY, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ task: "summary", contents: [{ parts: [{ text: prompt }] }] }),
@@ -1326,6 +1336,8 @@ async function loadDashGreetingMsg() {
       }
     } else if (cachedMsg) {
       el.style.opacity = "";
+    } else if (document.getElementById("dashGreetingMsg") === el) {
+      el.textContent = ""; // empty reply: don't leave the loading dots up forever
     }
   } catch {
     // Keep showing cached if fetch fails
@@ -1725,6 +1737,8 @@ async function runAIForCurrentPassage() {
     cached &&
     cached.contextHTML &&
     cached.reflectionHTML &&
+    !_isAiFailHTML(cached.contextHTML) &&
+    !_isAiFailHTML(cached.reflectionHTML) &&
     cached.contextHTML != "<p>Failed to generate context summary.</p>" &&
     cached.reflectionHTML != "<p>Failed to generate reflection questions.</p>"
   ) {
@@ -1764,17 +1778,17 @@ async function runAIForCurrentPassage() {
     }),
   ]);
 
+  await _saveCurrentAI();
+}
+
+// Persist whatever passage AI is on screen, leaving failures out so they're
+// regenerated next time instead of being served from cache.
+async function _saveCurrentAI() {
+  const ctx = aiContextSummaryEl.innerHTML;
+  const refl = document.getElementById("aiReflection").innerHTML;
   await saveAIToStorage({
-    contextHTML:
-      aiContextSummaryEl.innerHTML !=
-      "<p>Failed to generate context summary.</p>"
-        ? aiContextSummaryEl.innerHTML
-        : null,
-    reflectionHTML:
-      document.getElementById("aiReflection").innerHTML !=
-      "<p>Failed to generate reflection questions.</p>"
-        ? document.getElementById("aiReflection").innerHTML
-        : null,
+    contextHTML: _isAiFailHTML(ctx) ? null : ctx,
+    reflectionHTML: _isAiFailHTML(refl) ? null : refl,
     answers: {},
   });
 }
@@ -1956,7 +1970,10 @@ ${versesText || ''}`;
     await Promise.all([quickPromise, fullPromise]);
   } catch (err) {
     console.error(err);
-    aiContextSummaryEl.innerHTML = "<p>Failed to generate context summary.</p>";
+    aiContextSummaryEl.innerHTML = aiFailHTML("The chapter summary", err, async () => {
+      await renderAIContextSummary();
+      await _saveCurrentAI();
+    });
   }
 }
 
@@ -2194,7 +2211,7 @@ async function _smartRetryReflections() {
   await saveAIToStorage({
     ...updated,
     reflectionHTML:
-      mount.innerHTML !== "<p>Failed to generate reflection questions.</p>"
+      !_isAiFailHTML(mount.innerHTML) && mount.innerHTML !== "<p>Failed to generate reflection questions.</p>"
         ? mount.innerHTML
         : null,
   });
@@ -2213,7 +2230,7 @@ async function _fullRetryReflections() {
   await saveAIToStorage({
     ...updated,
     reflectionHTML:
-      mount.innerHTML !== "<p>Failed to generate reflection questions.</p>"
+      !_isAiFailHTML(mount.innerHTML) && mount.innerHTML !== "<p>Failed to generate reflection questions.</p>"
         ? mount.innerHTML
         : null,
   });
@@ -2569,7 +2586,7 @@ ${book} ${chapter}
 ${versesText}
 `;
 
-  const res = await fetch("https://gemini-proxy-668755364170.asia-southeast1.run.app", {
+  const res = await aiFetch(GEMINI_PROXY, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ task: "summary", contents: [{ parts: [{ text: prompt }] }] }),
@@ -2596,6 +2613,10 @@ ${versesText}
 
 async function renderAIReflectionQuestions({ book, chapter, versesText }) {
   const mount = document.getElementById("aiReflection");
+  const _reflRetry = async () => {
+    await renderAIReflectionQuestions({ book, chapter, versesText });
+    await _saveCurrentAI();
+  };
   mount.classList.add("ai-fade-in");
   _ensureReflectionRetryUI(mount);
 
@@ -2624,7 +2645,7 @@ async function renderAIReflectionQuestions({ book, chapter, versesText }) {
     const angles = _pickAnglesForPassage(book, chapter);
     const lis = await _fetchReflectionLis({ book, chapter, versesText, count: 3, recentPriorQs, angles });
     if (!lis || lis.length === 0) {
-      mount.innerHTML = "<p>Failed to generate reflection questions.</p>";
+      mount.innerHTML = aiFailHTML("Reflection questions", null, _reflRetry);
       return true;
     }
     // Track the new questions in the cross-chapter rolling buffer so the next
@@ -2656,7 +2677,7 @@ async function renderAIReflectionQuestions({ book, chapter, versesText }) {
     _refreshRetryButtonState(mount);
   } catch (e) {
     console.error(e);
-    mount.innerHTML = "<p>Failed to generate reflection questions.</p>";
+    mount.innerHTML = aiFailHTML("Reflection questions", e, _reflRetry);
   }
   return true;
 }

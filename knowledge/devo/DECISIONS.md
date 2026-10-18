@@ -549,3 +549,24 @@ The global `.modal-close` (`top: 16px; right: 16px` of `#modalContent`) visually
 - `style.css` — the whole orphan block was pruned this time (~820 lines of `.dash-prov-*` / `.obed-*`), unlike the SOAP removal which left its CSS in place. `.dash-prov-topic` was also dropped from the shared `dashRefShimmer` selector, leaving `.dash-continue-ref` alone on it.
 
 **Leftover state**: existing `obedienceJournal` / `dashProverbCache` / `dashProverbRecentRefs` / `dashProverbLastTopic` values stay in localStorage and RTDB but are never read or written again — the same quiet-decay treatment the SOAP keys got in #23. Not migrated into another journal: obedience entries carried a status + note thread + verse tie-in that free-form Gratitude/Prayers entries have no slot for.
+
+---
+
+## 28. Offline-first: device copy for sync users, SW timeouts, AI fails fast (2026-10-18)
+
+**Decision**: devo must open and work with no signal or a weak one. Only AI needs the network.
+
+**What was broken**:
+- **Sync users (Charlie, Karla) couldn't open the app offline at all.** `firebase-sync.js` awaited `ref.once("value")` before injecting the app chunks; offline that promise never resolves. If the Firebase SDK itself failed to load, the app booted on real localStorage — which `_clearMigratedRealLs` had emptied — and the next online merge was local-wins for journals, so offline entries could overwrite the real journal.
+- **SW was network-first with no timeout** (HTML network-only), so a weak signal meant waiting out every request; activate deleted every cache, Bible JSON included.
+- `marked.min.js` was a parser-blocking CDN script in `<head>` and unused.
+- AI calls had no timeout and showed raw errors ("Gemini proxy error: 503", "Failed to fetch"); TTS retried 5× with backoff even when offline.
+
+**Implementation**:
+- `firebase-sync.js`: the mirror is persisted to IndexedDB `devo-sync-local` (`kv` [user,key] → value, `pending` [user,key] → {v}, `meta` user → marks a complete copy). With a copy, boot installs the mirror from it and injects the app immediately; `_connectInBackground` loads the SDK, waits for `once("value")`, replays pending writes merged per key with `_mergeAll` rules (`_mergeOne`), then attaches the listener. Retries on `online` and every 30 s. Writes stay in `_pending` until RTDB acks that exact value. Without a copy (first run on a device) it still goes to RTDB first, as before. The listener no longer deletes device-only keys (theme, TTS prefs) and skips keys typed in the last 400 ms (`_unsent`) so an unrelated remote change can't revert a keystroke.
+  - **TDZ trap**: the `LOCAL_DB` / `_localDbP` / `_dirty` declarations must sit above `bootstrap()`, which runs at load.
+- `sw.js`: shell = network with a 3.5 s timeout, then cache; after one fallback a 30 s weak-signal window answers the rest from cache at once (otherwise page → scripts → chunks each pay the timeout: 16 s → 4.8 s at 8 s latency). Bible JSON in `devo-data-v1` cache-first, never revalidated; Firebase SDK + Google Fonts in `devo-cdn-v1` cache-first with background refresh; both precached at install and kept across deploys. Gemini proxy and RTDB are not intercepted.
+- `01-core.js`: `aiFetch` (fails at once offline, 30 s timeout, `AiNetError.kind` offline/timeout/server), `aiFailText`, `aiFailHTML(what, err, retry)` — card with Try again that also retries itself on `online` if still on screen; the `ai-offline-note` class keeps failures out of the passage AI cache (`_isAiFailHTML`, `_saveCurrentAI`). `#offlinePill` ("Offline · AI paused") on `body.is-offline`.
+- Offline: expired stories and retells are served instead of erroring, the cache purge is skipped, the dashboard greeting/recap don't show loaders, TTS fails fast on undownloaded verses and skips prefetch.
+
+**Testing**: never with a real sync name. A scratch copy with `SYNC_USERS = { zztest: "devo-sync-zztest-claude" }` and a CDP driver (Network.emulateNetworkConditions on page + SW targets) covered: offline boot from the device copy, Bible + passage offline, offline AI cards, offline write surviving reloads and reaching RTDB on reconnect, AI auto-retry, weak-signal boot. The test path was deleted afterwards.

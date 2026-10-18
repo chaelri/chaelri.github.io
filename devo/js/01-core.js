@@ -44,9 +44,94 @@ const AI_TONE = `Be direct — no greetings, no filler, no "Hey there!", no "Gre
 // cold-start tax (~1–3s container spin-up). Fires a cheap GET to the health
 // route — zero tokens, zero cost, but leaves the container alive and ready.
 (function _warmGeminiProxy() {
+  if (navigator.onLine === false) return;
   try {
     fetch(GEMINI_PROXY, { method: 'GET', cache: 'no-store', keepalive: true }).catch(() => {});
   } catch {}
+})();
+
+/* ---------- OFFLINE / WEAK-SIGNAL AI ----------
+ * Everything except AI works offline (Bible, notes, journals, reflections you
+ * already have, downloaded audio). AI needs the proxy, so every AI request
+ * goes through aiFetch: it fails at once when the device says it's offline,
+ * and gives up after AI_TIMEOUT_MS on a weak signal instead of spinning
+ * forever. The error carries .kind = "offline" | "timeout" | "server" so
+ * aiFailHTML can say which one it was. */
+const AI_TIMEOUT_MS = 30000;
+
+class AiNetError extends Error {
+  constructor(kind, message) { super(message); this.kind = kind; }
+}
+
+async function aiFetch(url, opts = {}) {
+  if (navigator.onLine === false) throw new AiNetError("offline", "You're offline.");
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), AI_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, { ...opts, signal: ctrl.signal });
+    if (!res.ok) throw new AiNetError("server", `Gemini proxy error: ${res.status}`);
+    return res;
+  } catch (err) {
+    if (err instanceof AiNetError) throw err;
+    if (err?.name === "AbortError") throw new AiNetError("timeout", "The connection is too weak right now.");
+    throw new AiNetError(navigator.onLine === false ? "offline" : "timeout", "Couldn't reach the internet.");
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// One plain sentence for chat bubbles and other text-only spots.
+function aiFailText(what, err) {
+  const kind = err?.kind || (navigator.onLine === false ? "offline" : "server");
+  if (kind === "offline") return `You're offline. ${what} will load once you're back online.`;
+  if (kind === "timeout") return `The connection is too weak to load ${what.toLowerCase()} right now.`;
+  return `Couldn't load ${what.toLowerCase()}. Try again in a bit.`;
+}
+
+// Failure card for AI panels. `retry` runs on the Try again tap, and by itself
+// when the device comes back online — if the card is still on screen.
+// The `ai-offline-note` class also marks the HTML as a failure so it's never
+// cached as a real result.
+const _aiRetries = new Map();
+let _aiRetrySeq = 0;
+function aiFailHTML(what, err, retry) {
+  const kind = err?.kind || (navigator.onLine === false ? "offline" : "server");
+  const id = `aiFail${++_aiRetrySeq}`;
+  if (retry) _aiRetries.set(id, retry);
+  const icon = kind === "offline" ? "cloud_off" : "signal_cellular_connected_no_internet_0_bar";
+  return `<div class="ai-offline-note" id="${id}">
+    <span class="material-symbols-outlined">${icon}</span>
+    <span class="ai-offline-msg">${aiFailText(what, err)}</span>
+    ${retry ? `<button type="button" class="ai-offline-retry" data-ai-retry="${id}">Try again</button>` : ""}
+  </div>`;
+}
+function _isAiFailHTML(html) {
+  return !html || html.includes("ai-offline-note");
+}
+document.addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-ai-retry]");
+  if (!btn) return;
+  const fn = _aiRetries.get(btn.dataset.aiRetry);
+  _aiRetries.delete(btn.dataset.aiRetry);
+  if (fn) { e.stopPropagation(); fn(); }
+});
+window.addEventListener("online", () => {
+  const due = [..._aiRetries].filter(([id]) => document.getElementById(id));
+  _aiRetries.clear();
+  for (const [, fn] of due) { try { fn(); } catch {} }
+});
+
+// Small pill so it's obvious why AI is paused — and that the rest still works.
+(function _offlinePill() {
+  const pill = document.createElement("div");
+  pill.id = "offlinePill";
+  pill.setAttribute("role", "status");
+  pill.innerHTML = `<span class="material-symbols-outlined">cloud_off</span><span>Offline · AI paused</span>`;
+  const sync = () => document.body.classList.toggle("is-offline", navigator.onLine === false);
+  const mount = () => { document.body.appendChild(pill); sync(); };
+  if (document.body) mount(); else document.addEventListener("DOMContentLoaded", mount, { once: true });
+  window.addEventListener("online", sync);
+  window.addEventListener("offline", sync);
 })();
 
 /* ---------- CANONICAL VERSE-TEXT NORMALIZER ----------
@@ -184,12 +269,11 @@ async function callGemini(prompt, generationConfig) {
   // passing { maxOutputTokens: 8192 } lifts the 2048-token default that was
   // truncating long teaching answers mid-sentence.
   if (generationConfig) body.generationConfig = generationConfig;
-  const res = await fetch(GEMINI_PROXY, {
+  const res = await aiFetch(GEMINI_PROXY, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`Gemini proxy error: ${res.status}`);
   const data = await res.json();
   return data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
 }
@@ -310,7 +394,8 @@ async function _getStoryCache(key) {
       const req = tx.objectStore(_STORY_STORE).get(key);
       req.onsuccess = () => {
         const entry = req.result;
-        if (entry && Date.now() - entry.time < _STORY_MAX_AGE) resolve(entry.data);
+        // Offline, an expired story beats an error screen.
+        if (entry && (Date.now() - entry.time < _STORY_MAX_AGE || navigator.onLine === false)) resolve(entry.data);
         else resolve(null);
       };
       req.onerror = () => resolve(null);
@@ -455,6 +540,9 @@ async function _listTtsAudioEntries() {
 
 // Purge expired entries on startup
 (async function _purgeExpiredCache() {
+  // Offline, expired stories/images are all there is — keep them until a
+  // load with signal.
+  if (navigator.onLine === false) return;
   try {
     const db = await _openImageDB();
     const purge = (storeName, maxAge) => {
@@ -841,8 +929,8 @@ async function openStrongModal(strongNum, contextText) {
   `;
 
   try {
-    const res = await fetch(
-      "https://gemini-proxy-668755364170.asia-southeast1.run.app",
+    const res = await aiFetch(
+      GEMINI_PROXY,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -865,7 +953,7 @@ async function openStrongModal(strongNum, contextText) {
       }
     `;
   } catch (err) {
-    modalContent.innerHTML = "Failed to load cross-references.";
+    modalContent.innerHTML = aiFailHTML("Cross-references", err, () => openStrongModal(strongNum, contextText));
   }
 }
 

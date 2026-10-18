@@ -781,7 +781,7 @@ async function _imgcrShare() {
     } catch (err) {
       console.warn("Context summary failed:", err);
       summary.dataset.state = "error";
-      summary.innerHTML = `<span class="cm-ctx-error">Couldn't load context. Tap to retry.</span>`;
+      summary.innerHTML = `<span class="cm-ctx-error">${aiFailText("Context", err)} Tap to retry.</span>`;
       summary.onclick = () => {
         summary.onclick = null;
         summary.dataset.state = "loading";
@@ -847,7 +847,7 @@ async function _imgcrShare() {
       _ctxThread.push({ role: "assistant", text: full });
     } catch (err) {
       console.warn("Context ask failed:", err);
-      ansEl.innerHTML = `<span class="cm-ctx-error">Couldn't answer. Try again.</span>`;
+      ansEl.innerHTML = `<span class="cm-ctx-error">${aiFailText("The answer", err)}</span>`;
     }
   }
 
