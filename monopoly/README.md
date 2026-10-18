@@ -7,8 +7,6 @@ python3 server.py          # resumes the saved game, or opens a fresh lobby
 python3 server.py --new    # throw the saved game away
 ```
 
-From the repo root, `./play monopoly` (or double-click **Monopoly.command** on the Desktop) does the same as the first line.
-
 The board opens on the Mac with a QR code. Everyone scans it, types a name and picks a colour, then the host clicks **Start game**.
 
 ## Offline setup

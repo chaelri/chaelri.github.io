@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Laro</title>
+<style>
+  :root {
+    --bg: #12101c;
+    --ink: #fff;
+    --dim: rgba(255,255,255,.62);
+    --card: rgba(255,255,255,.06);
+    --line: rgba(255,255,255,.1);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: radial-gradient(1200px 700px at 50% -10%, #2a2150 0%, var(--bg) 60%) fixed, var(--bg);
+    color: var(--ink);
+    font-family: ui-rounded, "SF Pro Rounded", -apple-system, system-ui, sans-serif;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 56px 16px 40px;
+  }
+  h1 {
+    margin: 0 0 36px; font-size: 56px; font-weight: 900; letter-spacing: -.02em;
+    background: linear-gradient(90deg, #ffd166, #ff7b9c, #8ec5ff);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .games {
+    display: grid; gap: 22px; width: 100%; max-width: 760px;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  }
+  .game {
+    position: relative; border-radius: 26px; overflow: hidden;
+    background: var(--card); border: 1px solid var(--line);
+    display: flex; flex-direction: column; cursor: pointer;
+    transition: transform .18s ease, box-shadow .18s ease;
+  }
+  .game:hover { transform: translateY(-4px); box-shadow: 0 18px 40px -12px var(--glow); }
+  .game:active { transform: translateY(-1px) scale(.99); }
+  .art {
+    height: 170px; display: grid; place-items: center;
+    background: var(--grad);
+  }
+  .art svg { width: 96px; height: 96px; filter: drop-shadow(0 6px 10px rgba(0,0,0,.25)); }
+  .body { padding: 18px 20px 20px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+  .name { font-size: 28px; font-weight: 900; }
+  .what { color: var(--dim); font-size: 15px; line-height: 1.4; }
+  .meta { display: flex; align-items: center; gap: 10px; margin-top: auto; padding-top: 14px; }
+  .chip {
+    font-size: 13px; font-weight: 700; color: var(--dim);
+    border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px;
+  }
+  .play {
+    margin-left: auto; border: 0; border-radius: 999px; padding: 10px 22px;
+    font: inherit; font-weight: 900; font-size: 16px; color: #1b1530;
+    background: var(--accent); cursor: pointer;
+  }
+  .state { display: none; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: #7dffb2; }
+  .state::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; box-shadow: 0 0 8px currentColor; }
+  .game.on .state { display: flex; }
+  .game.on .chip { display: none; }
+  .stop {
+    display: none; border: 1px solid var(--line); background: none; color: var(--dim);
+    border-radius: 999px; padding: 8px 14px; font: inherit; font-weight: 700; font-size: 13px; cursor: pointer;
+  }
+  .game.ours .stop { display: inline-block; }
+  .stop:hover { color: #ff8d8d; border-color: #ff8d8d55; }
+  .game.busy .play { opacity: .55; pointer-events: none; }
+  .err { color: #ff8d8d; font-size: 13px; min-height: 18px; }
+  .foot { margin-top: 30px; color: var(--dim); font-size: 14px; text-align: center; line-height: 1.6; }
+  kbd { font: inherit; font-weight: 700; color: var(--ink); }
+
+  .rambulan { --grad: linear-gradient(135deg, #ff9a3c, #ff4f7b); --accent: #ffb36b; --glow: #ff6a5c88; }
+  .karera   { --grad: linear-gradient(135deg, #3ad0ff, #6a5cff); --accent: #8edcff; --glow: #5c8bff88; }
+
+  @media (max-width: 560px) { h1 { font-size: 44px; margin-bottom: 26px; } body { padding-top: 36px; } }
+</style>
+</head>
+<body>
+<h1>Laro</h1>
+
+<div class="games">
+  <div class="game rambulan" data-id="rambulan">
+    <div class="art">
+      <svg viewBox="0 0 64 64" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 50 44 20"/><path d="M40 16l8 8"/><path d="M50 50 20 20"/><path d="M24 16l-8 8"/><path d="M10 54l6-6"/><path d="M54 54l-6-6"/>
+      </svg>
+    </div>
+    <div class="body">
+      <div class="name">Rambulan</div>
+      <div class="what">Island brawl. Loot chests, outlast the storm, first to 3 rounds.</div>
+      <div class="meta"><span class="chip">2–4 players</span><span class="state">Running</span><button class="stop">Stop</button><button class="play">Play</button></div>
+      <div class="err"></div>
+    </div>
+  </div>
+
+  <div class="game karera" data-id="karera">
+    <div class="art">
+      <svg viewBox="0 0 64 64" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M8 40h48l-4-12H40l-6-8H20l-6 8H8z"/><circle cx="18" cy="44" r="6" fill="#fff"/><circle cx="46" cy="44" r="6" fill="#fff"/>
+      </svg>
+    </div>
+    <div class="body">
+      <div class="name">Karera</div>
+      <div class="what">Kart racing. Phones are the steering wheels; drift, items, CPU racers.</div>
+      <div class="meta"><span class="chip">1–3 players</span><span class="state">Running</span><button class="stop">Stop</button><button class="play">Play</button></div>
+      <div class="err"></div>
+    </div>
+  </div>
+</div>
+
+<div class="foot">Phones join on the same WiFi by scanning the QR on the game's board. No internet needed.</div>
+
+<script>
+const cards = [...document.querySelectorAll(".game")];
+
+async function refresh() {
+  try {
+    const s = await (await fetch("/api/status")).json();
+    for (const c of cards) {
+      const g = s[c.dataset.id];
+      c.classList.toggle("on", g.running);
+      c.classList.toggle("ours", g.running && g.ours);
+    }
+  } catch {}
+}
+
+async function play(c) {
+  const err = c.querySelector(".err");
+  err.textContent = "";
+  c.classList.add("busy");
+  try {
+    const r = await (await fetch(`/api/start/${c.dataset.id}`, { method: "POST" })).json();
+    if (!r.ok) throw new Error("didn't start");
+    location.href = r.url;
+  } catch (e) {
+    err.textContent = "Couldn't start it. Check the Terminal window.";
+    c.classList.remove("busy");
+  }
+}
+
+for (const c of cards) {
+  c.addEventListener("click", (e) => { if (!e.target.closest(".stop")) play(c); });
+  c.querySelector(".stop").addEventListener("click", async () => {
+    await fetch(`/api/stop/${c.dataset.id}`, { method: "POST" });
+    refresh();
+  });
+}
+
+refresh();
+setInterval(refresh, 3000);
+addEventListener("pageshow", refresh);
+</script>
+</body>
+</html>

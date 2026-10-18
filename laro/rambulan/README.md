@@ -3,12 +3,12 @@
 Offline island brawl for 2 to 4 players. Everyone shares ONE screen on the Mac (the camera zooms to keep all fighters in frame); each phone is a twin-stick controller.
 
 ```
-./play rambulan          # or: python3 arena/server.py
+python3 laro/rambulan/server.py
 ```
 
-Or double-click **Rambulan.command** on the Desktop. The code lives in `arena/`; Rambulan is the game's name.
+Or double-click **Laro.command** on the Desktop and pick Rambulan.
 
-Needs the `kart/` folder next to it: three.js, the glTF loader and the critter models are served from there.
+Needs the `karera/` folder next to it: three.js, the glTF loader and the critter models are served from there.
 
 ## How a match goes
 
@@ -30,6 +30,6 @@ Keyboard at the Mac (testing): K adds a keyboard player, WASD move, arrows aim +
 
 ## Files
 
-- `js/sim.js`: the match (pure JS). `js/map.js`: island layout + collision. `_selftest.mjs`: `node arena/_selftest.mjs 30` plays bot matches and checks them.
+- `js/sim.js`: the match (pure JS). `js/map.js`: island layout + collision. `_selftest.mjs`: `node laro/rambulan/_selftest.mjs 30` plays bot matches and checks them.
 - `js/render.js`: three.js island, shared camera. `js/main.js` + `index.html`: lobby, HUD, kill feed. `phone.html`: controller.
 - `server.py`: same stdlib relay as Karera, port 8830.

@@ -213,23 +213,23 @@ The **Claude** taskbar app on Windows — one click opens a small centred window
   - Light/dark toggle: `Ctrl+Alt+T` or the terminal title-bar button; written to the workspace file so it only affects this window.
 
 
-### arena/ (Rambulan)  🟢
+### laro/rambulan/ (Rambulan)  🟢
 
 Offline 3D island brawl royale: one shared camera on the Mac frames everyone, phones are twin-stick controllers. Loot chests with rarity beams, 7 weapons + 4 items, a shrinking storm, ghosts (multo) for knocked-out players, first to 3 rounds. Critter fighters. Built 2026-10-09.
 
-- **Tech:** same stdlib relay as kart (port 8830), three.js + assets served from `../kart/`, pure-JS sim with a bot self-test.
+- **Tech:** same stdlib relay as Karera (port 8830), three.js + assets served from `../karera/`, pure-JS sim with a bot self-test.
 - **Entry:** `server.py`, `index.html` + `js/main.js`, `js/sim.js`, `js/map.js`, `js/render.js`, `phone.html`.
-- **Deploy:** Local only — `./play rambulan` from the repo root, or `Rambulan.command` on the Desktop (`./play` with no args shows a menu of the three offline games; if the game is already running it just reopens the board).
-- **Full docs:** See `knowledge/arena/SUMMARY.md` and `arena/README.md`.
+- **Deploy:** Local only — double-click `Laro.command` on the Desktop (or `laro/play`) and pick it. Moved from `arena/` to `laro/rambulan/` on 2026-10-18.
+- **Full docs:** See `knowledge/arena/SUMMARY.md` and `laro/rambulan/README.md`.
 
-### kart/ (Karera)  🟢
+### laro/karera/ (Karera)  🟢
 
 Offline Mario Kart-style racer: the Mac is the split-screen display (up to 3 players + CPU racers), each phone is a steering wheel (joystick or tilt) with drift, items and brake. Critter drivers from bubududu-smash/3d, coins, ? boxes, 7 items, drift mini-turbos, rocket starts. Built 2026-10-09.
 
 - **Tech:** stdlib Python relay (WebSocket + HTTPS for tilt), three.js r186 vendored, pure-JS sim, synthesized audio. No internet at play time.
 - **Entry:** `server.py`, `index.html` + `js/main.js` (board), `js/sim.js`, `js/render.js`, `phone.html`.
-- **Deploy:** Local only — `./play karera` or `Karera.command` on the Desktop.
-- **Full docs:** See `knowledge/kart/SUMMARY.md` and `kart/README.md`.
+- **Deploy:** Local only — `Laro.command` on the Desktop (or `laro/play`). Moved from `kart/` to `laro/karera/` on 2026-10-18.
+- **Full docs:** See `knowledge/kart/SUMMARY.md` and `laro/karera/README.md`.
 
 ### monopoly/  🟢
 
@@ -237,7 +237,7 @@ Offline Monopoly for 2-8 players: the Mac is the board and bank, each phone is a
 
 - **Tech:** stdlib `/usr/bin/python3` server (SSE push + JSON POST), pure-Python rules engine `game.py`, vanilla HTML/JS pages, vendored qrcode.js. No CDN, nothing online.
 - **Entry:** `server.py`, `game.py`, `board.html`, `phone.html`, `common.js`, `_selftest.py`.
-- **Deploy:** Local only — `./play monopoly` or `Monopoly.command` on the Desktop. Saves to `monopoly/saves/current.json` (gitignored) and resumes.
+- **Deploy:** Local only (`python3 monopoly/server.py`). Saves to `monopoly/saves/current.json` (gitignored) and resumes.
 - **Full docs:** See `knowledge/monopoly/SUMMARY.md` and `monopoly/README.md`.
 
 ### phone-drop/  🟢
@@ -652,8 +652,7 @@ Simple side-scrolling platformer (Bubu & Dudu) — canvas-based game.
 | diskscope | Local only (`python3 serve.py`) | Manual |
 | phone-drop | Local only (`python3 receive.py`) | Manual |
 | monopoly | Local only (`python3 monopoly/server.py`) | Manual |
-| kart (Karera) | Local only (`python3 kart/server.py`) | Manual |
-| arena (Rambulan) | Local only (`python3 arena/server.py`, needs `kart/`) | Manual |
+| laro (Rambulan + Karera) | Local only (`Laro.command` on the Desktop → picker page on :8840) | Manual |
 | guard-exit-interview | GitHub Pages — **DUAL-REPO** (also push to `guard-exit-tracker`) | ✅ |
 | vm-management | GitHub Pages `/vm-management/` | ✅ |
 | weddingbar | Firebase Hosting (root via `firebase.json`) — also GH Pages `/weddingbar/` | `firebase deploy` |

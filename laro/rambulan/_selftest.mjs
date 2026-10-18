@@ -1,4 +1,4 @@
-// node arena/_selftest.mjs [matches] — bot-only matches through the real sim.
+// node laro/rambulan/_selftest.mjs [matches] — bot-only matches through the real sim.
 import { createMatch, step, C } from "./js/sim.js";
 import { solidAt } from "./js/map.js";
 const N = +process.argv[2] || 20;

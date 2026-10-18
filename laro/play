@@ -1,0 +1,13 @@
+#!/bin/bash
+# Laro launcher. With no argument it opens the game picker; with one it starts
+# that game directly.
+#   laro/play            picker page
+#   laro/play rambulan   (or karera)
+# Ctrl-C (or closing the Terminal window) stops everything it started.
+cd "$(dirname "$0")" || exit 1
+case "$1" in
+  "")             exec /usr/bin/python3 -u serve.py ;;
+  rambulan|arena) exec /usr/bin/python3 -u rambulan/server.py ;;
+  karera|kart)    exec /usr/bin/python3 -u karera/server.py ;;
+  *) echo "usage: laro/play [rambulan|karera]"; exit 1 ;;
+esac

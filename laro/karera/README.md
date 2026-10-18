@@ -3,10 +3,10 @@
 Offline kart racing, Mario Kart style. The Mac is the screen (split screen for up to 3 players, plus CPU racers); each phone is a steering wheel.
 
 ```
-./play karera            # or: python3 kart/server.py
+python3 laro/karera/server.py
 ```
 
-Or double-click **Karera.command** on the Desktop.
+Or double-click **Laro.command** on the Desktop and pick Karera.
 
 The board opens on the Mac with a QR code. Scan it, pick a critter, and press **START RACE** (on the phone or the Mac).
 
@@ -38,4 +38,4 @@ Turbo, Triple Turbo, Saging (banana), Green Shell, Red Shell (homes on the kart 
 - `js/sim.js`: the race (pure JS: physics, drift, items, coins, CPU drivers). `js/track.js`: circuit spline + terrain.
 - `js/render.js`: three.js world. `js/sound.js`: synth music + sfx. `js/icons.js`: item icons.
 - `phone.html`: the controller.
-- `_selftest.mjs`: `node kart/_selftest.mjs 20` runs all-CPU races and checks they finish sanely.
+- `_selftest.mjs`: `node laro/karera/_selftest.mjs 20` runs all-CPU races and checks they finish sanely.

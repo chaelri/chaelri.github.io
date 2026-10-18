@@ -4,8 +4,8 @@
     python3 server.py            # http :8830 (+ https :8831, unused by the phone for now)
     python3 server.py --no-open
 
-Same relay as kart/server.py. three.js, the glTF loader and the critter models
-are served from ../kart so they aren't duplicated in the repo.
+Same relay as karera/server.py. three.js, the glTF loader and the critter models
+are served from ../karera so they aren't duplicated in the repo.
 
 Stdlib only, no internet. Phones and the Mac need the same local network
 (house WiFi, even with no internet, or one phone's hotspot).
@@ -37,7 +37,7 @@ import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-KART = os.path.normpath(os.path.join(HERE, "..", "kart"))
+KART = os.path.normpath(os.path.join(HERE, "..", "karera"))
 CERTS = os.path.join(HERE, "certs")
 GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 
