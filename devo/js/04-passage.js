@@ -223,11 +223,10 @@ function _renderInlineNotes(wrap) {
 }
 
 // ── Verse swipe actions ────────────────────────────────────────────────────
-// The Context / Ask / Note row used to sit under every verse. Now a swipe
-// slides the verse over and it STAYS there; the icons it uncovers are the
-// buttons:
-//   swipe left → right : Note
-//   swipe right → left : Context · Ask
+// The Context / Ask / Note row used to sit under every verse. Now:
+//   swipe left → right : Note opens at once; the verse slides back over its icon
+//   swipe right → left : the verse STAYS slid over, and the Context / Ask
+//                        icons it uncovered are the buttons — tap one
 // Swiping it back, tapping the verse, or tapping anywhere else closes it; one
 // verse is open at a time. The slide is the CSS var --swipe-x on .verse (see
 // style.css): the icons are clipped to the gap, so closing covers them rather
@@ -305,8 +304,10 @@ function _wireVerseSwipe() {
       if (back) _closeVerseSwipe(wrap); else _openVerseSwipe(wrap, open);
       return;
     }
-    if (armed) _openVerseSwipe(wrap, dx > 0 ? "note" : "ai");
-    else _closeVerseSwipe(wrap);
+    if (armed && dx < 0) { _openVerseSwipe(wrap, "ai"); return; }
+    // Note opens straight away; the verse slides back over its icon.
+    _closeVerseSwipe(wrap);
+    if (armed && dx > 0) wrap.querySelector('[data-action="note"]')?.click();
   };
   output.addEventListener("touchend", end);
   output.addEventListener("touchcancel", end);
