@@ -223,43 +223,41 @@ function _renderInlineNotes(wrap) {
 }
 
 // ── Verse swipe actions ────────────────────────────────────────────────────
-// The Context / Ask / Note row used to sit under every verse. Now:
-//   swipe left → right : Note (springs back)
-//   swipe right → left : the verse STAYS slid over, and the Context / Ask
-//                        icons it uncovered are the buttons — tap one.
-// Swiping it back, tapping the verse, or tapping anywhere else closes it; only
-// one verse is open at a time. Past SWIPE_ARM px a swipe arms (haptic tick).
-// Vertical drags, double-tap-to-favourite and iOS edge-back swipes are left
-// alone. Mouse users get the row on hover instead (see .verse-actions CSS).
-const SWIPE_OPEN_PX = 108;
+// The Context / Ask / Note row used to sit under every verse. Now a swipe
+// slides the verse over and it STAYS there; the icons it uncovers are the
+// buttons:
+//   swipe left → right : Note
+//   swipe right → left : Context · Ask
+// Swiping it back, tapping the verse, or tapping anywhere else closes it; one
+// verse is open at a time. The slide is the CSS var --swipe-x on .verse (see
+// style.css): the icons are clipped to the gap, so closing covers them rather
+// than sliding text over them. Vertical drags, double-tap-to-favourite and iOS
+// edge-back swipes are left alone. Mouse users get the row on hover instead.
+const SWIPE_OPEN = { note: 64, ai: -108 };
 
-function _closeVerseSwipe(wrap, animate = true) {
-  const header = wrap?.querySelector(".verse-swipe-track > .verse-header");
-  if (!header) return;
-  wrap.classList.remove("verse-swipe-open");
-  header.style.transition = animate ? "transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1)" : "";
-  header.style.transform = "";
-  setTimeout(() => {
-    if (wrap.classList.contains("verse-swipe-open")) return;
-    header.style.transition = "";
-    wrap.classList.remove("verse-swiping", "verse-swipe-armed");
-    delete wrap.dataset.swipe;
-  }, 250);
+function _setSwipeX(wrap, px) {
+  wrap.style.setProperty("--swipe-x", `${px}px`);
 }
 
-function _openVerseSwipe(wrap) {
+function _closeVerseSwipe(wrap) {
+  if (!wrap) return;
+  wrap.classList.remove("verse-swipe-open", "verse-swipe-armed", "verse-swiping");
+  delete wrap.dataset.swipeOpen;
+  _setSwipeX(wrap, 0);
+}
+
+function _openVerseSwipe(wrap, side) {
   document.querySelectorAll(".verse.verse-swipe-open").forEach((w) => { if (w !== wrap) _closeVerseSwipe(w); });
-  const header = wrap.querySelector(".verse-swipe-track > .verse-header");
-  wrap.classList.add("verse-swipe-open", "verse-swipe-armed");
-  wrap.dataset.swipe = "ai";
-  header.style.transition = "transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1)";
-  header.style.transform = `translateX(${-SWIPE_OPEN_PX}px)`;
+  wrap.classList.remove("verse-swiping");
+  wrap.classList.add("verse-swipe-open");
+  wrap.dataset.swipeOpen = side;
+  _setSwipeX(wrap, SWIPE_OPEN[side]);
 }
 
 function _wireVerseSwipe() {
   if (output._swipeWired) return;
   output._swipeWired = true;
-  const SWIPE_ARM = 64, SWIPE_MAX = 120, EDGE = 24;
+  const SWIPE_ARM = 56, SWIPE_MAX = 130, EDGE = 24;
   let st = null;
 
   output.addEventListener("touchstart", (e) => {
@@ -270,8 +268,9 @@ function _wireVerseSwipe() {
     const t = e.touches[0];
     if (t.clientX < EDGE || t.clientX > innerWidth - EDGE) return;
     const wrap = header.closest(".verse");
-    st = { x: t.clientX, y: t.clientY, header, wrap, dx: 0, mode: null, armed: false,
-           base: wrap.classList.contains("verse-swipe-open") ? -SWIPE_OPEN_PX : 0 };
+    const open = wrap.dataset.swipeOpen;
+    st = { x: t.clientX, y: t.clientY, wrap, dx: 0, mode: null, armed: false,
+           open, base: open ? SWIPE_OPEN[open] : 0 };
   }, { passive: true });
 
   output.addEventListener("touchmove", (e) => {
@@ -283,14 +282,11 @@ function _wireVerseSwipe() {
       if (Math.abs(dx) < Math.abs(dy) * 1.3) { st = null; return; } // a scroll
       st.mode = "h";
       st.wrap.classList.add("verse-swiping");
-      st.header.style.transition = "";
     }
     e.preventDefault();
     st.dx = dx;
-    const x = Math.max(-SWIPE_MAX, Math.min(SWIPE_MAX, st.base + dx * 0.8));
-    st.header.style.transform = `translateX(${x}px)`;
-    if (st.base) return; // dragging an open verse: release decides open/close
-    st.wrap.dataset.swipe = dx > 0 ? "note" : "ai";
+    _setSwipeX(st.wrap, Math.max(-SWIPE_MAX, Math.min(SWIPE_MAX, st.base + dx * 0.8)));
+    if (st.open) return; // dragging an open verse: release decides
     const armed = Math.abs(dx) >= SWIPE_ARM;
     if (armed !== st.armed) {
       st.armed = armed;
@@ -301,15 +297,16 @@ function _wireVerseSwipe() {
 
   const end = () => {
     if (!st || st.mode !== "h") { st = null; return; }
-    const { wrap, dx, armed, base } = st;
+    const { wrap, dx, armed, open } = st;
     st = null;
-    if (base) {                       // was open
-      if (dx > 24) _closeVerseSwipe(wrap); else _openVerseSwipe(wrap);
+    if (open) {
+      // Dragged back toward closed (or past it) → close; otherwise stay open.
+      const back = open === "note" ? dx < -24 : dx > 24;
+      if (back) _closeVerseSwipe(wrap); else _openVerseSwipe(wrap, open);
       return;
     }
-    if (armed && dx < 0) { _openVerseSwipe(wrap); return; }
-    _closeVerseSwipe(wrap);
-    if (armed && dx > 0) wrap.querySelector('[data-action="note"]')?.click();
+    if (armed) _openVerseSwipe(wrap, dx > 0 ? "note" : "ai");
+    else _closeVerseSwipe(wrap);
   };
   output.addEventListener("touchend", end);
   output.addEventListener("touchcancel", end);
@@ -318,7 +315,7 @@ function _wireVerseSwipe() {
   // close it (that first tap does nothing else).
   document.addEventListener("click", (e) => {
     const act = e.target.closest(".vsh-btn");
-    const open = [...document.querySelectorAll(".verse.verse-swipe-open")];
+    const openWraps = [...document.querySelectorAll(".verse.verse-swipe-open")];
     if (act) {
       const wrap = act.closest(".verse");
       e.stopPropagation();
@@ -326,9 +323,9 @@ function _wireVerseSwipe() {
       wrap.querySelector(`.verse-action-btn[data-action="${act.dataset.swipeAct}"]`)?.click();
       return;
     }
-    if (!open.length) return;
-    if (open.some((w) => w.querySelector(".verse-header")?.contains(e.target))) e.stopPropagation();
-    open.forEach((w) => _closeVerseSwipe(w));
+    if (!openWraps.length) return;
+    if (openWraps.some((w) => w.querySelector(".verse-header")?.contains(e.target))) e.stopPropagation();
+    openWraps.forEach((w) => _closeVerseSwipe(w));
   }, true);
 }
 
@@ -1688,7 +1685,9 @@ async function loadPassage() {
       wrap.innerHTML = `
         <div class="verse-swipe-track">
         <div class="verse-swipe-hints" aria-hidden="true">
-          <span class="vsh vsh-note"><span class="material-icons">edit_note</span></span>
+          <span class="vsh vsh-note">
+            <button type="button" class="vsh-btn" data-swipe-act="note" aria-label="Note" tabindex="-1"><span class="material-icons">edit_note</span></button>
+          </span>
           <span class="vsh vsh-ai">
             <button type="button" class="vsh-btn" data-swipe-act="context" aria-label="Context" tabindex="-1"><span class="material-icons">auto_awesome</span></button>
             <button type="button" class="vsh-btn" data-swipe-act="ask" aria-label="Ask" tabindex="-1"><span class="material-icons">chat_bubble_outline</span></button>

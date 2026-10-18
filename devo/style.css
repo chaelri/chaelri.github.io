@@ -13784,39 +13784,43 @@ body.is-offline.tts-canvas-active #offlinePill { bottom: calc(84px + env(safe-ar
 }
 #output.tts-mode .verse .verse-actions { display: none; }
 
+/* One animatable value drives the whole swipe: --swipe-x is how far the verse
+   has slid (+ right / − left). The verse moves by it, and each side's icons
+   live in a clip exactly as wide as the gap it leaves — so sliding back
+   covers the icons instead of the text passing over them. */
+@property --swipe-x {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 0px;
+}
+.verse { --swipe-x: 0px; transition: --swipe-x 0.26s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.verse.verse-swiping { transition: none; }
 .verse-swipe-track { position: relative; }
 .verse-swipe-track > .verse-header {
   position: relative;
   touch-action: pan-y;
+  transform: translateX(var(--swipe-x));
 }
 .verse-swiping .verse-swipe-track > .verse-header { will-change: transform; }
 .verse-swipe-hints {
   position: absolute;
   inset: 0;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   pointer-events: none;
-  opacity: 0;
   color: #c83086; /* same pink as the verse number */
-  transition: opacity 0.12s;
 }
 .vsh {
-  display: inline-flex;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: flex;
   align-items: center;
-  gap: 4px;
-  transform: scale(0.9);
-  transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+  gap: 6px;
+  overflow: hidden;
 }
+.vsh-note { left: 0; width: max(0px, var(--swipe-x)); justify-content: flex-start; }
+.vsh-ai { right: 0; width: max(0px, calc(-1 * var(--swipe-x))); justify-content: flex-end; }
 .vsh .material-icons { font-size: 24px; }
-.verse-swiping .verse-swipe-hints { opacity: 0.45; }
-.verse-swipe-armed .verse-swipe-hints { opacity: 1; }
-.verse-swipe-armed .vsh { transform: scale(1); }
-.verse[data-swipe="note"] .vsh-ai,
-.verse[data-swipe="ai"] .vsh-note { visibility: hidden; }
 
-/* Swiped right-to-left, the verse stays over and these are the buttons. */
-.vsh-ai { gap: 6px; }
 .vsh-btn {
   flex: 0 0 46px !important; /* the global `button { flex: 0 !important }` collapses it otherwise */
   width: 46px;
@@ -13833,10 +13837,12 @@ body.is-offline.tts-canvas-active #offlinePill { bottom: calc(84px + env(safe-ar
   color: inherit;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.15s;
+  transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.15s;
+  transform: scale(0.85);
 }
+.verse-swipe-armed .vsh-btn,
+.verse-swipe-open .vsh-btn { transform: scale(1); }
 .vsh-btn:active { transform: scale(0.9); background: rgba(200, 48, 134, 0.24); }
-.verse-swipe-open .verse-swipe-hints { opacity: 1; }
 .verse-swipe-open .vsh-btn { pointer-events: auto; }
 
 .verse-notes-inline {
