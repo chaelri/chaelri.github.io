@@ -13776,18 +13776,11 @@ body.is-offline.tts-canvas-active #offlinePill { bottom: calc(84px + env(safe-ar
    Mouse: the row keeps its space but only shows on hover, so moving down the
    page never shifts the text. */
 .verse-actions { display: none; }
-.verse.verse-actions-open .verse-actions { display: flex; animation: verseActionsIn 0.18s ease-out; }
-.verse.verse-actions-open .verse-action-btn[data-action="note"] { display: none; }
-@keyframes verseActionsIn {
-  from { opacity: 0; transform: translateY(-4px); }
-  to { opacity: 1; transform: none; }
-}
 @media (hover: hover) and (pointer: fine) {
   .verse-actions { display: flex; opacity: 0; transition: opacity 0.15s; }
   .verse:hover .verse-actions,
   .verse:focus-within .verse-actions,
   .verse:has(.verse-action-btn-on) .verse-actions { opacity: 1; }
-  .verse.verse-actions-open .verse-action-btn[data-action="note"] { display: inline-flex; }
 }
 #output.tts-mode .verse .verse-actions { display: none; }
 
@@ -13821,6 +13814,30 @@ body.is-offline.tts-canvas-active #offlinePill { bottom: calc(84px + env(safe-ar
 .verse-swipe-armed .vsh { transform: scale(1); }
 .verse[data-swipe="note"] .vsh-ai,
 .verse[data-swipe="ai"] .vsh-note { visibility: hidden; }
+
+/* Swiped right-to-left, the verse stays over and these are the buttons. */
+.vsh-ai { gap: 6px; }
+.vsh-btn {
+  flex: 0 0 46px !important; /* the global `button { flex: 0 !important }` collapses it otherwise */
+  width: 46px;
+  height: 46px;
+  min-height: 0;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: rgba(200, 48, 134, 0.12);
+  color: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.15s;
+}
+.vsh-btn:active { transform: scale(0.9); background: rgba(200, 48, 134, 0.24); }
+.verse-swipe-open .verse-swipe-hints { opacity: 1; }
+.verse-swipe-open .vsh-btn { pointer-events: auto; }
 
 .verse-notes-inline {
   display: flex;

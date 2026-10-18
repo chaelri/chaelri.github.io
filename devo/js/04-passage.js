@@ -224,16 +224,42 @@ function _renderInlineNotes(wrap) {
 
 // ── Verse swipe actions ────────────────────────────────────────────────────
 // The Context / Ask / Note row used to sit under every verse. Now:
-//   swipe left → right : Note
-//   swipe right → left : a small Context / Ask row for that verse
-// The verse slides with the finger over a hint of what's behind it; past
-// SWIPE_ARM px it arms (haptic tick) and fires on release. Vertical drags,
-// taps, double-tap-to-favourite and iOS edge-back swipes are left alone.
-// Mouse users get the row on hover instead (see .verse-actions CSS).
+//   swipe left → right : Note (springs back)
+//   swipe right → left : the verse STAYS slid over, and the Context / Ask
+//                        icons it uncovered are the buttons — tap one.
+// Swiping it back, tapping the verse, or tapping anywhere else closes it; only
+// one verse is open at a time. Past SWIPE_ARM px a swipe arms (haptic tick).
+// Vertical drags, double-tap-to-favourite and iOS edge-back swipes are left
+// alone. Mouse users get the row on hover instead (see .verse-actions CSS).
+const SWIPE_OPEN_PX = 108;
+
+function _closeVerseSwipe(wrap, animate = true) {
+  const header = wrap?.querySelector(".verse-swipe-track > .verse-header");
+  if (!header) return;
+  wrap.classList.remove("verse-swipe-open");
+  header.style.transition = animate ? "transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1)" : "";
+  header.style.transform = "";
+  setTimeout(() => {
+    if (wrap.classList.contains("verse-swipe-open")) return;
+    header.style.transition = "";
+    wrap.classList.remove("verse-swiping", "verse-swipe-armed");
+    delete wrap.dataset.swipe;
+  }, 250);
+}
+
+function _openVerseSwipe(wrap) {
+  document.querySelectorAll(".verse.verse-swipe-open").forEach((w) => { if (w !== wrap) _closeVerseSwipe(w); });
+  const header = wrap.querySelector(".verse-swipe-track > .verse-header");
+  wrap.classList.add("verse-swipe-open", "verse-swipe-armed");
+  wrap.dataset.swipe = "ai";
+  header.style.transition = "transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1)";
+  header.style.transform = `translateX(${-SWIPE_OPEN_PX}px)`;
+}
+
 function _wireVerseSwipe() {
   if (output._swipeWired) return;
   output._swipeWired = true;
-  const SWIPE_ARM = 64, SWIPE_MAX = 96, EDGE = 24;
+  const SWIPE_ARM = 64, SWIPE_MAX = 120, EDGE = 24;
   let st = null;
 
   output.addEventListener("touchstart", (e) => {
@@ -243,7 +269,9 @@ function _wireVerseSwipe() {
     if (!header || e.target.closest("button, a, textarea, input")) return;
     const t = e.touches[0];
     if (t.clientX < EDGE || t.clientX > innerWidth - EDGE) return;
-    st = { x: t.clientX, y: t.clientY, header, wrap: header.closest(".verse"), dx: 0, mode: null, armed: false };
+    const wrap = header.closest(".verse");
+    st = { x: t.clientX, y: t.clientY, header, wrap, dx: 0, mode: null, armed: false,
+           base: wrap.classList.contains("verse-swipe-open") ? -SWIPE_OPEN_PX : 0 };
   }, { passive: true });
 
   output.addEventListener("touchmove", (e) => {
@@ -255,10 +283,13 @@ function _wireVerseSwipe() {
       if (Math.abs(dx) < Math.abs(dy) * 1.3) { st = null; return; } // a scroll
       st.mode = "h";
       st.wrap.classList.add("verse-swiping");
+      st.header.style.transition = "";
     }
     e.preventDefault();
     st.dx = dx;
-    st.header.style.transform = `translateX(${Math.max(-SWIPE_MAX, Math.min(SWIPE_MAX, dx * 0.75))}px)`;
+    const x = Math.max(-SWIPE_MAX, Math.min(SWIPE_MAX, st.base + dx * 0.8));
+    st.header.style.transform = `translateX(${x}px)`;
+    if (st.base) return; // dragging an open verse: release decides open/close
     st.wrap.dataset.swipe = dx > 0 ? "note" : "ai";
     const armed = Math.abs(dx) >= SWIPE_ARM;
     if (armed !== st.armed) {
@@ -270,35 +301,35 @@ function _wireVerseSwipe() {
 
   const end = () => {
     if (!st || st.mode !== "h") { st = null; return; }
-    const { wrap, header, dx, armed } = st;
+    const { wrap, dx, armed, base } = st;
     st = null;
-    header.style.transition = "transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1)";
-    header.style.transform = "";
-    setTimeout(() => {
-      header.style.transition = "";
-      wrap.classList.remove("verse-swiping", "verse-swipe-armed");
-      delete wrap.dataset.swipe;
-    }, 250);
-    if (!armed) return;
-    if (dx > 0) wrap.querySelector('[data-action="note"]')?.click();
-    else _toggleVerseAiChooser(wrap);
+    if (base) {                       // was open
+      if (dx > 24) _closeVerseSwipe(wrap); else _openVerseSwipe(wrap);
+      return;
+    }
+    if (armed && dx < 0) { _openVerseSwipe(wrap); return; }
+    _closeVerseSwipe(wrap);
+    if (armed && dx > 0) wrap.querySelector('[data-action="note"]')?.click();
   };
   output.addEventListener("touchend", end);
   output.addEventListener("touchcancel", end);
 
-  // The chooser closes once one is picked, or on a tap anywhere else.
+  // Tap a revealed icon → that action. Tap the open verse or anywhere else →
+  // close it (that first tap does nothing else).
   document.addEventListener("click", (e) => {
-    const btn = e.target.closest(".verse-action-btn");
-    document.querySelectorAll(".verse.verse-actions-open").forEach((w) => {
-      if (btn ? btn.closest(".verse") === w : !w.contains(e.target)) w.classList.remove("verse-actions-open");
-    });
-  });
-}
-
-function _toggleVerseAiChooser(wrap) {
-  const open = !wrap.classList.contains("verse-actions-open");
-  document.querySelectorAll(".verse.verse-actions-open").forEach((w) => w.classList.remove("verse-actions-open"));
-  wrap.classList.toggle("verse-actions-open", open);
+    const act = e.target.closest(".vsh-btn");
+    const open = [...document.querySelectorAll(".verse.verse-swipe-open")];
+    if (act) {
+      const wrap = act.closest(".verse");
+      e.stopPropagation();
+      _closeVerseSwipe(wrap);
+      wrap.querySelector(`.verse-action-btn[data-action="${act.dataset.swipeAct}"]`)?.click();
+      return;
+    }
+    if (!open.length) return;
+    if (open.some((w) => w.querySelector(".verse-header")?.contains(e.target))) e.stopPropagation();
+    open.forEach((w) => _closeVerseSwipe(w));
+  }, true);
 }
 
 function _syncVerseActionStates(wrap) {
@@ -1658,7 +1689,10 @@ async function loadPassage() {
         <div class="verse-swipe-track">
         <div class="verse-swipe-hints" aria-hidden="true">
           <span class="vsh vsh-note"><span class="material-icons">edit_note</span></span>
-          <span class="vsh vsh-ai"><span class="material-icons">auto_awesome</span><span class="material-icons">chat_bubble_outline</span></span>
+          <span class="vsh vsh-ai">
+            <button type="button" class="vsh-btn" data-swipe-act="context" aria-label="Context" tabindex="-1"><span class="material-icons">auto_awesome</span></button>
+            <button type="button" class="vsh-btn" data-swipe-act="ask" aria-label="Ask" tabindex="-1"><span class="material-icons">chat_bubble_outline</span></button>
+          </span>
         </div>
         <div id="${
           v.verse
