@@ -1,9 +1,0 @@
-{
-  "name": "CRITTER CLASH",
-  "short_name": "CRITTER CLASH",
-  "start_url": "./",
-  "display": "fullscreen",
-  "orientation": "portrait",
-  "background_color": "#ff8a1f",
-  "theme_color": "#ff8a1f"
-}
