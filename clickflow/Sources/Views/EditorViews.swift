@@ -62,6 +62,7 @@ struct MacroEditor: View {
 struct StepsPane: View {
     @Binding var macro: Macro
     @ObservedObject private var runner = Runner.shared
+    @ViewState private var dragging: UUID?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -73,21 +74,31 @@ struct StepsPane: View {
                 }
                 .frame(maxHeight: .infinity)
             } else {
-                List {
-                    ForEach($macro.steps) { $step in
-                        StepCard(step: $step,
-                                 number: number(of: step.id),
-                                 busy: runner.isBusy,
-                                 onTest: { if let i = index(of: step.id) { runner.test(stepAt: i, of: macro.id) } },
-                                 onDuplicate: { duplicate(step.id) },
-                                 onDelete: { macro.steps.removeAll { $0.id == step.id } })
-                            .listRowSeparator(.hidden)
-                            .listRowInsets(EdgeInsets(top: 4, leading: 14, bottom: 4, trailing: 14))
+                // A plain stack, not a List: List's drag-to-reorder holds every mouse-down
+                // to see if it's a drag, which made the text fields slow to take focus.
+                // Reordering is from the ☰ handle only.
+                ScrollView {
+                    VStack(spacing: 8) {
+                        ForEach($macro.steps) { $step in
+                            StepCard(step: $step,
+                                     number: number(of: step.id),
+                                     busy: runner.isBusy,
+                                     onTest: { if let i = index(of: step.id) { runner.test(stepAt: i, of: macro.id) } },
+                                     onDuplicate: { duplicate(step.id) },
+                                     onDelete: { macro.steps.removeAll { $0.id == step.id } },
+                                     onDrag: {
+                                         dragging = step.id
+                                         return NSItemProvider(object: step.id.uuidString as NSString)
+                                     })
+                                .opacity(dragging == step.id ? 0.45 : 1)
+                                .onDrop(of: [.text], delegate: StepDropDelegate(target: step.id, steps: $macro.steps,
+                                                                                dragging: $dragging))
+                        }
                     }
-                    .onMove { macro.steps.move(fromOffsets: $0, toOffset: $1) }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
                 }
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
+                .onDrop(of: [.text], isTargeted: nil) { _ in dragging = nil; return false }
             }
             Divider()
             footer
@@ -206,24 +217,18 @@ struct StepCard: View {
     var onTest: () -> Void
     var onDuplicate: () -> Void
     var onDelete: () -> Void
+    var onDrag: () -> NSItemProvider
 
-    private var tint: Color {
-        switch step.type {
-        case .leftClick: return .blue
-        case .doubleClick: return .indigo
-        case .rightClick: return .purple
-        case .move: return .teal
-        case .wait: return .orange
-        case .typeText: return .pink
-        case .keyShortcut: return .green
-        case .postClipboard: return .cyan
-        }
-    }
+    private var tint: Color { step.type.tint }
 
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
             Image(systemName: "line.3.horizontal")
                 .foregroundStyle(.tertiary)
+                .frame(width: 22, height: 34)
+                .contentShape(Rectangle())
+                .onHover { inside in (inside ? NSCursor.openHand : NSCursor.arrow).set() }
+                .onDrag(onDrag)
                 .help("Drag to reorder")
             Text("\(number)")
                 .font(.callout.monospacedDigit().weight(.medium))
@@ -365,6 +370,29 @@ struct SecondsField: View {
                 .frame(width: 58)
             Text("s").foregroundStyle(.secondary)
         }
+    }
+}
+
+/// Live reordering: the dragged card swaps into place as it passes over another one.
+struct StepDropDelegate: DropDelegate {
+    let target: UUID
+    @Binding var steps: [Step]
+    @Binding var dragging: UUID?
+
+    func dropEntered(info: DropInfo) {
+        guard let d = dragging, d != target,
+              let from = steps.firstIndex(where: { $0.id == d }),
+              let to = steps.firstIndex(where: { $0.id == target }) else { return }
+        withAnimation(.snappy(duration: 0.22)) {
+            steps.move(fromOffsets: IndexSet(integer: from), toOffset: to > from ? to + 1 : to)
+        }
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? { DropProposal(operation: .move) }
+
+    func performDrop(info: DropInfo) -> Bool {
+        dragging = nil
+        return true
     }
 }
 
@@ -634,6 +662,21 @@ struct ConditionsEditor: View {
     private func optionalDay(_ kp: WritableKeyPath<Conditions, String?>) -> Binding<Bool> {
         Binding(get: { conditions[keyPath: kp] != nil },
                 set: { conditions[keyPath: kp] = $0 ? DayString.string(Date()) : nil })
+    }
+}
+
+extension StepType {
+    var tint: Color {
+        switch self {
+        case .leftClick: return .blue
+        case .doubleClick: return .indigo
+        case .rightClick: return .purple
+        case .move: return .teal
+        case .wait: return .orange
+        case .typeText: return .pink
+        case .keyShortcut: return .green
+        case .postClipboard: return .cyan
+        }
     }
 }
 

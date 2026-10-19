@@ -59,6 +59,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         WindowManager.observe()
         Scheduler.shared.start()
 
+        if CommandLine.arguments.contains("--preview-hud") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                MainActor.assumeIsolated { Runner.shared.preview() }
+            }
+        }
         if CommandLine.arguments.contains("--accuracy-test") {
             Task { @MainActor in
                 let lines = await AccuracyTest.run()

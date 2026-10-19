@@ -1,13 +1,40 @@
 import AppKit
 
 struct RunStatus {
+    enum Phase: Equatable {
+        case starting      // window getting out of the way
+        case waiting       // a Wait step, or a step's "Delay before"
+        case acting        // the click / typing / request itself
+        case pausingLoop   // pause between repeats
+    }
+
     var macroName: String
+    var steps: [Step]
     var stepIndex = 0
-    var stepCount: Int
-    var step: Step?
     var iteration = 0
     var iterations: Int
-    var nextAt: Date?
+    /// Set when only one step is being tested.
+    var testOnly: Int?
+    var repeatDelay: Double = 0
+    var started = Date()
+    var phase: Phase = .starting
+    var phaseStart = Date()
+    var phaseEnd: Date?
+    /// 0…1 for steps that report it (typing).
+    var progress: Double?
+    var completed: Set<Int> = []
+
+    var stepCount: Int { steps.count }
+    var step: Step? { steps.indices.contains(stepIndex) ? steps[stepIndex] : nil }
+}
+
+struct RunSummary: Equatable {
+    var id = UUID()
+    var macroName: String
+    var result: RunResult
+    var duration: TimeInterval
+    var stepCount: Int
+    var reason: String?
 }
 
 struct PendingRun: Identifiable {
@@ -27,6 +54,8 @@ final class Runner: ObservableObject {
 
     @Published private(set) var status: RunStatus?
     @Published private(set) var countdown: PendingRun?
+    /// The just-finished run, shown briefly on the HUD.
+    @Published private(set) var summary: RunSummary?
     private var queue: [PendingRun] = []
     private var task: Task<Void, Never>?
     private var countdownTask: Task<Void, Never>?
@@ -67,6 +96,32 @@ final class Runner: ObservableObject {
         start(m, trigger: .test, onlyStep: index, note: nil)
     }
 
+    /// `--preview-hud`: plays a harmless macro (waits + in-place moves, nothing clicked or
+    /// typed, nothing saved) so the run HUD can be looked at.
+    func preview() {
+        guard !isBusy else { return }
+        let here = Geo.mouse
+        func move(_ name: String, delay: Double) -> Step {
+            var s = Step(type: .move, x: here.x.rounded(), y: here.y.rounded(), delayBefore: delay)
+            s.name = name
+            return s
+        }
+        func wait(_ name: String, _ secs: Double) -> Step {
+            var s = Step(type: .wait, seconds: secs)
+            s.name = name
+            return s
+        }
+        let m = Macro(name: "HUD preview", steps: [
+            move("Open the timesheet", delay: 0.6),
+            wait("Wait for the page to load", 3),
+            move("Hover the Clock Out button", delay: 1.2),
+            wait("", 2),
+            move("Point at the confirm dialog with a deliberately long step name that has to truncate", delay: 0.8),
+            wait("Let it settle", 1.5),
+        ])
+        start(m, trigger: .test, onlyStep: nil, note: "HUD preview")
+    }
+
     func enqueueScheduled(_ m: Macro, schedule: Schedule, note: String?) {
         guard !queue.contains(where: { $0.macroID == m.id }), countdown?.macroID != m.id else {
             log(m, .scheduled, .skipped, "Already queued", start: Date())
@@ -104,6 +159,7 @@ final class Runner: ObservableObject {
             return
         }
         p.fireAt = Date().addingTimeInterval(5)
+        summary = nil
         countdown = p
         HUD.shared.show()
         installEsc()
@@ -145,7 +201,8 @@ final class Runner: ObservableObject {
     private func start(_ m: Macro, trigger: RunTrigger, onlyStep: Int?, note: String?) {
         let started = Date()
         let iterations = onlyStep == nil ? m.repeatCount : 1
-        status = RunStatus(macroName: m.name, stepCount: m.steps.count, iterations: iterations)
+        summary = nil
+        status = RunStatus(macroName: m.name, steps: m.steps, iterations: iterations, testOnly: onlyStep, repeatDelay: m.repeatDelay)
         if let i = onlyStep { status?.stepIndex = i }
         HUD.shared.show()
         installEsc()
@@ -160,30 +217,34 @@ final class Runner: ObservableObject {
                 var it = 0
                 while iterations == 0 || it < iterations {
                     if it > 0, m.repeatDelay > 0 {
-                        status?.nextAt = Date().addingTimeInterval(m.repeatDelay)
+                        status?.stepIndex = 0
+                        setPhase(.pausingLoop, m.repeatDelay)
                         try await sleep(m.repeatDelay)
                     }
+                    status?.completed = []
+                    status?.iteration = it
                     for (i, step) in m.steps.enumerated() {
                         if let only = onlyStep, i != only { continue }
                         try Task.checkCancellation()
                         status?.stepIndex = i
-                        status?.step = step
-                        status?.iteration = it
+                        status?.progress = nil
                         let delay = step.type == .wait ? step.seconds : (onlyStep == nil ? step.delayBefore : 0)
                         if delay > 0 {
-                            status?.nextAt = Date().addingTimeInterval(delay)
+                            setPhase(.waiting, delay)
                             try await sleep(delay)
                         }
-                        status?.nextAt = nil
-                        guard step.type != .wait else { continue }
-                        if step.type.needsAccessibility, !AXIsProcessTrusted() { throw EngineError.noPermission }
-                        let dodged = step.type.hasPoint && HUD.shared.dodge(step.point)
-                        try await ClickEngine.perform(step)
-                        if step.type.isClick, Prefs.clickRing { ClickRing.show(at: step.point) }
-                        if dodged {
-                            try? await Task.sleep(nanoseconds: 150_000_000)
-                            HUD.shared.undodge()
+                        if step.type != .wait {
+                            setPhase(.acting, nil)
+                            if step.type.needsAccessibility, !AXIsProcessTrusted() { throw EngineError.noPermission }
+                            let dodged = step.type.hasPoint && HUD.shared.dodge(step.point)
+                            try await ClickEngine.perform(step) { p in Runner.shared.status?.progress = p }
+                            if step.type.isClick, Prefs.clickRing { ClickRing.show(at: step.point) }
+                            if dodged {
+                                try? await Task.sleep(nanoseconds: 150_000_000)
+                                HUD.shared.undodge()
+                            }
                         }
+                        status?.completed.insert(i)
                     }
                     it += 1
                 }
@@ -204,6 +265,13 @@ final class Runner: ObservableObject {
         }
     }
 
+    private func setPhase(_ p: RunStatus.Phase, _ duration: Double?) {
+        let now = Date()
+        status?.phase = p
+        status?.phaseStart = now
+        status?.phaseEnd = duration.map { now.addingTimeInterval($0) }
+    }
+
     /// Task.sleep throws the moment the task is cancelled, so Stop is instant even mid-wait.
     private func sleep(_ seconds: Double) async throws {
         try await Task.sleep(nanoseconds: UInt64(max(0, seconds) * 1_000_000_000))
@@ -211,6 +279,9 @@ final class Runner: ObservableObject {
 
     private func finish(_ m: Macro, trigger: RunTrigger, started: Date, result: RunResult, reason: String?, restoreWindow: Bool) {
         log(m, trigger, result, reason, start: started, end: Date())
+        let count = status.map { $0.testOnly == nil ? $0.stepCount : 1 } ?? m.steps.count
+        summary = RunSummary(macroName: m.name, result: result, duration: Date().timeIntervalSince(started),
+                             stepCount: count, reason: result == .completed ? nil : reason)
         status = nil
         task = nil
         displayAwake.set(false)
@@ -222,7 +293,18 @@ final class Runner: ObservableObject {
     private func endIfIdle() {
         guard status == nil, countdown == nil else { return }
         removeEsc()
-        if !Recorder.shared.isRecording { HUD.shared.hide() }
+        guard !Recorder.shared.isRecording else { return }
+        guard let shown = summary else { HUD.shared.hide(); return }
+        // Hold the "Done" card for a moment so the end of the run is legible.
+        HUD.shared.show()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.2) {
+            MainActor.assumeIsolated {
+                let r = Runner.shared
+                guard r.summary?.id == shown.id else { return }
+                r.summary = nil
+                if r.status == nil, r.countdown == nil, !Recorder.shared.isRecording { HUD.shared.hide() }
+            }
+        }
     }
 
     // MARK: Esc to stop

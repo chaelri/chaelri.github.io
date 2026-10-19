@@ -18,3 +18,6 @@ macOS click-macro recorder/editor/scheduler. SwiftUI app shell + AppKit panels, 
 - The HUD is a non-activating panel that never becomes key (typing steps keep their target). It hides itself if a click lands on it.
 - Editing a schedule resets its `lastCheck`, so an edit never fires a past time. Date-range conditions are folded into `nextOccurrence`, so "Next run" is accurate.
 - Step ids aren't exported; macro and schedule ids are.
+- **Steps are a ScrollView + VStack, not a List.** List's `onMove` holds every mouse-down to detect a drag, which made the step text fields slow to focus. Reorder is drag-from-☰ only (`StepDropDelegate`).
+- Run HUD (`HUD.swift`): previous / current / next rows keyed by step index so they slide; phase (`waiting` / `acting` / `pausingLoop`) + `progress` come from `RunStatus`; a summary card holds 2.2 s after a run. The panel is never key, so system prominent buttons render grey: Stop uses its own style.
+- `ClickFlow --preview-hud` plays a harmless waits-and-moves macro to look at the HUD.

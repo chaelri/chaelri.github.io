@@ -61,7 +61,7 @@ enum EngineError: LocalizedError {
 enum ClickEngine {
     private static let source = CGEventSource(stateID: .hidSystemState)
 
-    static func perform(_ step: Step) async throws {
+    static func perform(_ step: Step, progress: ((Double) -> Void)? = nil) async throws {
         switch step.type {
         case .wait:
             return
@@ -74,7 +74,7 @@ enum ClickEngine {
         case .rightClick:
             try await click(step.point, button: .right, count: 1)
         case .typeText:
-            try await type(step.text)
+            try await type(step.text, progress: progress)
         case .keyShortcut:
             guard let combo = KeyCombo.parse(step.keys) else { throw EngineError.badShortcut(step.keys) }
             press(combo)
@@ -128,8 +128,10 @@ enum ClickEngine {
         }
     }
 
-    static func type(_ text: String) async throws {
-        for ch in text {
+    static func type(_ text: String, progress: ((Double) -> Void)? = nil) async throws {
+        let total = max(1, text.count)
+        for (n, ch) in text.enumerated() {
+            progress?(Double(n) / Double(total))
             try Task.checkCancellation()
             if ch == "\n" || ch == "\r" {
                 press(KeyCombo(keyCode: 36, flags: [], name: "↩"))

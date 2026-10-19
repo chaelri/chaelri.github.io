@@ -42,6 +42,19 @@ enum StepType: String, Codable, CaseIterable, Identifiable {
 
     var isClick: Bool { hasPoint && self != .move }
 
+    var verb: String {
+        switch self {
+        case .leftClick: return "Clicking"
+        case .doubleClick: return "Double-clicking"
+        case .rightClick: return "Right-clicking"
+        case .move: return "Moving"
+        case .wait: return "Waiting"
+        case .typeText: return "Typing"
+        case .keyShortcut: return "Pressing"
+        case .postClipboard: return "Sending"
+        }
+    }
+
     /// Steps that post synthetic input; a network step works without the permission.
     var needsAccessibility: Bool { self != .wait && self != .postClipboard }
 }
@@ -67,6 +80,31 @@ struct Step: Identifiable, Equatable {
     func title(_ number: Int) -> String {
         let n = name.trimmingCharacters(in: .whitespaces)
         return n.isEmpty ? "Step \(number)" : "Step \(number) · \(n)"
+    }
+
+    /// The step's own name, or its type when unnamed.
+    var heading: String {
+        let n = name.trimmingCharacters(in: .whitespaces)
+        return n.isEmpty ? type.label : n
+    }
+
+    /// One line on what the step does, for the run HUD.
+    var detail: String {
+        switch type {
+        case .move:
+            return "Move to \(Fmt.coord(x)), \(Fmt.coord(y))"
+        case .leftClick, .doubleClick, .rightClick:
+            return "\(type.label) at \(Fmt.coord(x)), \(Fmt.coord(y))"
+        case .wait:
+            return "Wait \(Fmt.seconds(seconds))"
+        case .typeText:
+            let flat = text.replacingOccurrences(of: "\n", with: " ⏎ ")
+            return "Type “\(flat)” · \(text.count) chars"
+        case .keyShortcut:
+            return "Press \(KeyCombo.parse(keys)?.display ?? keys)"
+        case .postClipboard:
+            return "Post clipboard → \(URL(string: url)?.host ?? url)"
+        }
     }
 
     /// Time this step adds to a run (waits + delays; the actions themselves are near-instant).
