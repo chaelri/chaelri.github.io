@@ -2,8 +2,8 @@
 // servo-sweep.ino — ESP32-C3 SuperMini: CONTINUOUS-ROTATION servo "click"
 // ---------------------------------------------------------------------------
 // Same functionality as autoclicker/aircon: on "click", the servo bursts
-// forward (PUSH_US) for PUSH_MS, briefly waits, then bursts the opposite
-// direction (RETURN_US) for the SAME duration (RETURN_MS) to land back at rest.
+// forward (PUSH_US) and keeps pushing into the button for CLICK_HOLD_MS, then
+// bursts the opposite direction (RETURN_US) back onto the rest stop.
 // -> it goes, then comes right back. Triggered from the phone via Firebase.
 //
 // Continuous-rotation servos do NOT take angles. Pulse width = speed+direction:
@@ -11,8 +11,9 @@
 //   writeMicroseconds(1000) = full speed one way
 //   writeMicroseconds(2000) = full speed the other way
 // Travel = HOW LONG a non-1500 pulse is held (PUSH_MS / RETURN_MS), not an angle.
-// To rotate FURTHER, increase PUSH_MS/RETURN_MS (keep them EQUAL so it returns
-// exactly to rest). If it spins the WRONG way on press, swap PUSH_US/RETURN_US.
+// Open-loop timing drifts, so the arm runs between two hard stops (button and
+// a rest block) and each burst overdrives into its stop to re-home every click.
+// If it spins the WRONG way on press, swap PUSH_US/RETURN_US.
 //
 // Servo (3-pin module):
 //   brown  (GND)    -> ESP32 GND
@@ -57,9 +58,13 @@ const int SERVO_PIN   = 3;      // GPIO3 -> yellow signal wire
 const int STOP_US     = 1500;   // neutral — motor off (try 1480..1520 if it creeps)
 const int PUSH_US     = 1000;   // press direction  (swap with RETURN_US if reversed)
 const int RETURN_US   = 2000;   // release direction
-const int PUSH_MS     = 260;    // burst duration -> how far it turns (bigger = more)
-const int RETURN_MS   = 140;    // shorter than PUSH_MS on purpose — pushes more, returns less
-const int CLICK_HOLD_MS = 200;  // pause at the far end before returning
+// Both ends are HARD STOPS: the button on the push side, a fixed block on the
+// rest side. Each burst is deliberately longer than the travel needs, so the
+// arm stalls into the stop and lands in the same place every time — no drift.
+// Requires the physical rest stop; without it RETURN_MS overshoots backwards.
+const int PUSH_MS     = 350;    // longer than needed to reach the button
+const int RETURN_MS   = 350;    // longer than needed to reach the rest stop
+const int CLICK_HOLD_MS = 250;  // keep driving INTO the button this long (no holding torque at STOP_US)
 
 Servo servo;
 bool isPressed = false;         // latched state (for press/release/toggle)
@@ -112,11 +117,9 @@ void doToggle() { isPressed ? doRelease() : doPress(); }
 // Momentary click: go, brief hold, come right back. Always ends at rest.
 void doClick() {
   if (isPressed) doRelease();
-  servo.writeMicroseconds(PUSH_US);
-  delay(PUSH_MS);
-  servo.writeMicroseconds(STOP_US);
-  delay(CLICK_HOLD_MS);
-  servo.writeMicroseconds(RETURN_US);
+  servo.writeMicroseconds(PUSH_US);     // travel, then stall into the button
+  delay(PUSH_MS + CLICK_HOLD_MS);       // motor stays on — STOP_US would let the button spring it back
+  servo.writeMicroseconds(RETURN_US);   // back until it stalls on the rest stop
   delay(RETURN_MS);
   servo.writeMicroseconds(STOP_US);
   isPressed = false;
