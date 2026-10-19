@@ -149,6 +149,7 @@ struct StepsPane: View {
         if type == .keyShortcut { s.keys = "cmd+s" }
         if type == .postClipboard { s.url = StepsPane.defaultPostURL }
         if type.hasArea { s.text = "{text}" }
+        if type == .discordMessage { s.text = "**{macro}** · {time}\n{clipboard}" }
         if type.hasArea {
             let f = CGDisplayBounds(CGMainDisplayID())
             s.x = (f.midX - 150).rounded()
@@ -312,6 +313,10 @@ struct StepCard: View, Equatable {
                     }
                     .font(.callout)
                 }
+                if step.type == .discordMessage {
+                    MessageComposer(text: bind(\.text), variables: MessageVars.forMessage)
+                    WebhookWarning()
+                }
                 if step.type == .readText {
                     ScreenshotOptions(copyResult: bind(\.copyResult), sendDiscord: bind(\.sendDiscord),
                                       textOnly: bind(\.textOnly), message: bind(\.text))
@@ -388,6 +393,8 @@ struct StepCard: View, Equatable {
             CoordField(label: "Y", value: bind(\.y))
             CoordField(label: "W", value: bind(\.width))
             CoordField(label: "H", value: bind(\.height))
+        case .discordMessage:
+            EmptyView()
         case .openURL:
             TextField("Paste a link, e.g. eva.hrforte.com", text: bind(\.url))
                 .textFieldStyle(.roundedBorder)
@@ -865,6 +872,25 @@ struct ScreenshotOptions: View {
     }
 }
 
+/// Shown only when there is no webhook to send to.
+struct WebhookWarning: View {
+    @ViewState private var has = Discord.webhookURL != nil
+
+    var body: some View {
+        Group {
+            if !has {
+                HStack(spacing: 6) {
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                    Text("Set your Discord webhook in Settings › Discord first.").foregroundStyle(.secondary)
+                    Button("Open Settings") { AppState.shared.selection = .settings }.controlSize(.small)
+                }
+                .font(.caption)
+            }
+        }
+        .onAppear { has = Discord.webhookURL != nil }
+    }
+}
+
 /// Live = the step really acts. Show only = runs just mark where it would act.
 struct LiveToggle: View {
     @Binding var showOnly: Bool
@@ -900,6 +926,7 @@ extension StepType {
         case .postClipboard: return .cyan
         case .readText: return .mint
         case .openURL: return .yellow
+        case .discordMessage: return .indigo
         }
     }
 }

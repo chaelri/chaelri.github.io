@@ -109,6 +109,9 @@ enum SelfTest {
         check("message variables",
               MessageVars.fill("{macro}: {text}", text: "Clocked-in for 8h", macro: "Auto Clock-Out"),
               "Auto Clock-Out: Clocked-in for 8h")
+        check("clipboard variable",
+              MessageVars.fill("**{macro}**\n{clipboard}", text: "", macro: "M", clipboard: { "copied!" }),
+              "**M**\ncopied!")
         check("empty read fills a placeholder", MessageVars.fill("{text}", text: "", macro: ""), "(no text found)")
 
         check("link without scheme", OpenLink.normalized("eva.hrforte.com/login")?.absoluteString ?? "nil", "https://eva.hrforte.com/login")

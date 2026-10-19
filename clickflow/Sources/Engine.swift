@@ -63,6 +63,7 @@ enum EngineError: LocalizedError {
     case badShortcut(String)
     case noPermission
     case emptyClipboard
+    case emptyMessage
     case badURL(String)
     case http(Int, String)
 
@@ -71,6 +72,7 @@ enum EngineError: LocalizedError {
         case .badShortcut(let s): return "Couldn't read the key shortcut \"\(s)\""
         case .noPermission: return "Accessibility permission is off"
         case .emptyClipboard: return "The clipboard had no text to post"
+        case .emptyMessage: return "The Discord message is empty"
         case .badURL(let s): return "\"\(s)\" isn't a valid http(s) URL"
         case .http(let code, let body): return "POST failed with HTTP \(code)\(body.isEmpty ? "" : ": \(body)")"
         }
@@ -128,6 +130,12 @@ enum ClickEngine {
             try await postClipboard(to: step.url)
         case .openURL:
             try await openInChrome(step.url)
+        case .discordMessage:
+            let live = RunLive.shared.status
+            let message = MessageVars.fill(step.text, text: live?.lastOutput ?? "", macro: live?.macroName ?? "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !message.isEmpty else { throw EngineError.emptyMessage }
+            try await Discord.send(text: message)
         }
         return nil
     }

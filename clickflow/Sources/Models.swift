@@ -1,9 +1,10 @@
 import Foundation
+import AppKit
 
 // MARK: - Steps
 
 enum StepType: String, Codable, CaseIterable, Identifiable {
-    case leftClick, doubleClick, rightClick, move, wait, typeText, keyShortcut, postClipboard, readText, openURL
+    case leftClick, doubleClick, rightClick, move, wait, typeText, keyShortcut, postClipboard, readText, openURL, discordMessage
 
     var id: String { rawValue }
 
@@ -19,6 +20,7 @@ enum StepType: String, Codable, CaseIterable, Identifiable {
         case .postClipboard: return "Post clipboard"
         case .readText: return "Screenshot area"
         case .openURL: return "Open link in Chrome"
+        case .discordMessage: return "Send to Discord"
         }
     }
 
@@ -34,6 +36,7 @@ enum StepType: String, Codable, CaseIterable, Identifiable {
         case .postClipboard: return "paperplane"
         case .readText: return "text.viewfinder"
         case .openURL: return "globe"
+        case .discordMessage: return "paperplane.circle"
         }
     }
 
@@ -58,6 +61,7 @@ enum StepType: String, Codable, CaseIterable, Identifiable {
         case .postClipboard: return "Sending"
         case .readText: return "Capturing"
         case .openURL: return "Opening"
+        case .discordMessage: return "Sending"
         }
     }
 
@@ -74,11 +78,14 @@ enum StepType: String, Codable, CaseIterable, Identifiable {
         case .postClipboard: return "Would post the clipboard"
         case .readText: return "Would capture this area"
         case .openURL: return "Would open this link"
+        case .discordMessage: return "Would send this message"
         }
     }
 
     /// Steps that post synthetic input; a network step works without the permission.
-    var needsAccessibility: Bool { self != .wait && self != .postClipboard && self != .openURL && !hasArea }
+    var needsAccessibility: Bool {
+        self != .wait && self != .postClipboard && self != .openURL && self != .discordMessage && !hasArea
+    }
 
     /// Steps that work on a screen rectangle (x, y, width, height).
     var hasArea: Bool { self == .readText }
@@ -141,6 +148,9 @@ struct Step: Identifiable, Equatable {
             return "Press \(KeyCombo.parse(keys)?.display ?? keys)"
         case .postClipboard:
             return "Post clipboard → \(URL(string: url)?.host ?? url)"
+        case .discordMessage:
+            let flat = text.replacingOccurrences(of: "\n", with: " ⏎ ")
+            return "Send “\(flat)” to Discord"
         case .openURL:
             return "Open \(OpenLink.normalized(url)?.host ?? (url.isEmpty ? "a link" : url)) in Chrome"
         case .readText:
@@ -205,6 +215,9 @@ extension Step: Codable {
             try c.encode(delayBefore, forKey: .delayBefore)
         case .postClipboard, .openURL:
             try c.encode(url, forKey: .url)
+            try c.encode(delayBefore, forKey: .delayBefore)
+        case .discordMessage:
+            try c.encode(text, forKey: .text)
             try c.encode(delayBefore, forKey: .delayBefore)
         case .readText:
             try c.encode(x, forKey: .x)
@@ -593,13 +606,25 @@ enum Fmt {
 /// `{text}`, `{date}`, `{time}`, `{macro}` in a Discord message.
 enum MessageVars {
     static let all: [(token: String, help: String)] = [
-        ("{text}", "the text it read"), ("{date}", "today's date"), ("{time}", "the time now"), ("{macro}", "this macro's name"),
+        ("{text}", "the text it read"), ("{clipboard}", "what's on the clipboard"),
+        ("{date}", "today's date"), ("{time}", "the time now"), ("{macro}", "this macro's name"),
+    ]
+    /// For a Send to Discord step, {text} is the last Screenshot area read in the same run.
+    static let forMessage: [(token: String, help: String)] = [
+        ("{clipboard}", "what's on the clipboard"), ("{text}", "the last text a Screenshot area step read in this run"),
+        ("{date}", "today's date"), ("{time}", "the time now"), ("{macro}", "this macro's name"),
     ]
 
-    static func fill(_ template: String, text: String, macro: String, now: Date = Date()) -> String {
+    static func fill(_ template: String, text: String, macro: String, now: Date = Date(),
+                     clipboard: () -> String = { NSPasteboard.general.string(forType: .string) ?? "" }) -> String {
         let date = DateFormatter.localizedString(from: now, dateStyle: .medium, timeStyle: .none)
         let time = DateFormatter.localizedString(from: now, dateStyle: .none, timeStyle: .short)
-        return template
+        var out = template
+        if out.contains("{clipboard}") {
+            let c = clipboard()
+            out = out.replacingOccurrences(of: "{clipboard}", with: c.isEmpty ? "(clipboard empty)" : c)
+        }
+        return out
             .replacingOccurrences(of: "{text}", with: text.isEmpty ? "(no text found)" : text)
             .replacingOccurrences(of: "{date}", with: date)
             .replacingOccurrences(of: "{time}", with: time)
