@@ -101,3 +101,6 @@ gemini-proxy/.credentials.md
 gemini-proxy/.gmail-creds-*.json
 gemini-proxy/.drive-creds.json
 gemini-proxy/.drive-client.json
+
+# ClickFlow build output
+clickflow/build/

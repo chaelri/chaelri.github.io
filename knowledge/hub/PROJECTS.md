@@ -173,6 +173,16 @@ Battery-powered hand-held WiFi remote for **both** `autoclicker/` and `aircon/`.
   - **Color palette is amber + emerald** (distinct from autoclicker's indigo/purple and aircon's sky/cyan).
 - **Full docs:** See `knowledge/pocket-remote/SUMMARY.md`, `ARCHITECTURE.md`, `KEY_FILES.md`.
 
+### clickflow/  🟢
+
+macOS click-macro app: record / edit / schedule click sequences (every day, weekdays, weekends, custom, once, interval), with a crosshair picker, global emergency stop ⌃⌥⌘., run history and a menu bar item. Built 2026-10-19 from `~/Downloads/clickflow-app-spec.md`.
+
+- **Tech:** SwiftUI + AppKit, built with `swiftc` (CLT only) by `build.sh`; CGEvent posting, ScreenCaptureKit loupe, Carbon hotkey, SMAppService login item.
+- **Entry:** `build.sh`, `Sources/Runner.swift`, `Sources/Scheduler.swift`, `Sources/Engine.swift`.
+- **Deploy:** Local only, `./build.sh install` → `/Applications/ClickFlow.app`.
+- **Quirks:** `@State` is a macro in the macOS 26 SDK with no plugin in the CLT, so use `@ViewState` (typealias). Self-signed identity in `clickflow-signing.keychain-db` keeps the Accessibility grant across rebuilds.
+- **Full docs:** `knowledge/clickflow/SUMMARY.md`, `clickflow/README.md`.
+
 ### claude-terminal/  🟢
 
 The **Claude** taskbar app on Windows — one click opens a small centred window that is only a terminal running `claude --dangerously-skip-permissions` in this repo; quitting claude closes it. Built 2026-10-07.
@@ -599,6 +609,7 @@ Simple side-scrolling platformer (Bubu & Dudu) — canvas-based game.
 | mac-toggle (Mac agent) | root LaunchDaemon `com.chaelri.mactoggle` via `agent/install.sh` | Manual |
 | mac-toggle (menu bar) | per-user LaunchAgent `com.chaelri.mactoggle.menubar` via `menubar/install-menubar.sh` | Manual |
 | claude-terminal | Local only (Windows, `install.ps1`) | Manual |
+| clickflow | Local only (`./build.sh install` → /Applications) | Manual |
 | claude-usage | per-user LaunchAgent `com.chaelri.claudeusage` via `install.sh` | Manual |
 | diskscope | Local only (`python3 serve.py`) | Manual |
 | phone-drop | Local only (`python3 receive.py`) | Manual |
