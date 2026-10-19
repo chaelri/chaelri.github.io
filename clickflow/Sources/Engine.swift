@@ -16,6 +16,12 @@ enum Geo {
         CGRect(x: r.minX, y: mainHeight - r.maxY, width: r.width, height: r.height)
     }
 
+    static func quartzRect(fromCocoa r: NSRect) -> CGRect { quartz(fromCocoa: r) }
+
+    static func cocoaRect(fromQuartz r: CGRect) -> NSRect {
+        NSRect(x: r.minX, y: mainHeight - r.maxY, width: r.width, height: r.height)
+    }
+
     static func frame(of screen: NSScreen) -> CGRect {
         if let id = screen.displayID { return CGDisplayBounds(id) }
         return quartz(fromCocoa: screen.frame)
@@ -93,14 +99,16 @@ enum ClickEngine {
                 NSPasteboard.general.setString(text, forType: .string)
             }
             if step.sendDiscord {
-                guard let png = Discord.png(image) else { throw ScreenText.Failure.captureFailed }
-                var caption = step.text.trimmingCharacters(in: .whitespacesAndNewlines)
-                if step.includeText {
-                    let read = text.isEmpty ? "_(no text found)_" : text
-                    caption = caption.isEmpty ? read : caption + "\n" + read
-                }
+                let message = MessageVars.fill(step.text, text: text, macro: RunLive.shared.status?.macroName ?? "")
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
                 try Task.checkCancellation()
-                try await Discord.send(png: png, filename: "clickflow-\(Int(Date().timeIntervalSince1970)).png", caption: caption)
+                if step.textOnly {
+                    guard !message.isEmpty else { throw ScreenText.Failure.noText }
+                    try await Discord.send(text: message)
+                } else {
+                    guard let png = Discord.png(image) else { throw ScreenText.Failure.captureFailed }
+                    try await Discord.send(png: png, filename: "clickflow-\(Int(Date().timeIntervalSince1970)).png", caption: message)
+                }
             }
             return text.isEmpty ? nil : text
         case .move:

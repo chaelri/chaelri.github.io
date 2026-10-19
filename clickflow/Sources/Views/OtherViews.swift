@@ -143,7 +143,7 @@ struct SettingsView: View {
                         Discord.webhookURL = v
                         webhookDraft = ""
                         hasWebhook = true
-                        webhookNote = "Saved to the Keychain."
+                        webhookNote = "Saved."
                     }
                     .disabled(webhookDraft.isEmpty)
                     if hasWebhook {
@@ -178,7 +178,7 @@ struct SettingsView: View {
             } header: {
                 Text("Discord")
             } footer: {
-                Text("Used by Screenshot to Discord steps. Kept in the macOS Keychain, never in macros.json or exports.")
+                Text("Used by Screenshot area steps. Kept in a private file on this Mac, never in macros.json or exports.")
                     .font(.caption).foregroundStyle(.secondary)
             }
 

@@ -148,6 +148,7 @@ struct StepsPane: View {
         }
         if type == .keyShortcut { s.keys = "cmd+s" }
         if type == .postClipboard { s.url = StepsPane.defaultPostURL }
+        if type.hasArea { s.text = "{text}" }
         if type.hasArea {
             let f = CGDisplayBounds(CGMainDisplayID())
             s.x = (f.midX - 150).rounded()
@@ -155,6 +156,21 @@ struct StepsPane: View {
         }
         if type != .wait, !macro.steps.isEmpty { s.delayBefore = 0.5 }
         macro.steps.append(s)
+        // Placing is part of adding: open the marker straight away, ✗ keeps the defaults.
+        if type.hasPoint || type.hasArea { place(s) }
+    }
+
+    private func place(_ s: Step) {
+        let (m, id) = (macro.id, s.id)
+        Task { @MainActor in
+            if s.type.hasArea {
+                if let r = await Placer.placeArea(start: s.area) {
+                    Store.shared.updateStep(m, id) { $0.x = r.minX; $0.y = r.minY; $0.width = r.width; $0.height = r.height }
+                }
+            } else if let p = await Placer.placePoint(start: s.point) {
+                Store.shared.updateStep(m, id) { $0.x = p.x; $0.y = p.y }
+            }
+        }
     }
 
     private func duplicate(_ id: UUID) {
@@ -298,7 +314,7 @@ struct StepCard: View, Equatable {
                 }
                 if step.type == .readText {
                     ScreenshotOptions(copyResult: bind(\.copyResult), sendDiscord: bind(\.sendDiscord),
-                                      includeText: bind(\.includeText), caption: bind(\.text))
+                                      textOnly: bind(\.textOnly), message: bind(\.text))
                     ReadResult(stepID: step.id)
                 }
             }
@@ -325,11 +341,11 @@ struct StepCard: View, Equatable {
             if step.type != .wait { LiveToggle(showOnly: bind(\.showOnly)) }
             if step.type.hasPoint {
                 Button { pick() } label: { Label("Pick", systemImage: "scope") }
-                    .help("Choose the point on screen")
+                    .help("Show the target on screen to drag it onto the spot, then ✓")
             }
             if step.type.hasArea {
                 Button { pickArea() } label: { Label("Pick area", systemImage: "rectangle.dashed") }
-                    .help("Drag a box around the text on screen")
+                    .help("Show the box on screen to move / resize it, then ✓")
             }
             Button { onTest() } label: { Label("Test", systemImage: "play") }
                 .help("Run just this step")
@@ -382,8 +398,9 @@ struct StepCard: View, Equatable {
     }
 
     private func pickArea() {
+        let start = step.area
         Task { @MainActor in
-            if let r = await CoordinatePicker.pickArea() {
+            if let r = await Placer.placeArea(start: start) {
                 update { s in
                     s.x = r.minX
                     s.y = r.minY
@@ -396,7 +413,7 @@ struct StepCard: View, Equatable {
 
     private func pick() {
         Task { @MainActor in
-            if let p = await CoordinatePicker.pick() {
+            if let p = await Placer.placePoint(start: step.point) {
                 update { s in
                     s.x = p.x
                     s.y = p.y
@@ -777,37 +794,49 @@ struct ReadResult: View {
 struct ScreenshotOptions: View {
     @Binding var copyResult: Bool
     @Binding var sendDiscord: Bool
-    @Binding var includeText: Bool
-    @Binding var caption: String
+    @Binding var textOnly: Bool
+    @Binding var message: String
     @ViewState private var hasWebhook = Discord.webhookURL != nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            option($copyResult, icon: "doc.on.clipboard", tint: .mint,
-                   on: "Copy the text to the clipboard", off: "Copy the text to the clipboard (off)")
-            option($sendDiscord, icon: "paperplane", tint: .indigo,
-                   on: "Send the screenshot to Discord", off: "Send the screenshot to Discord (off)")
+            option($copyResult, icon: "doc.on.clipboard", tint: .mint, label: "Copy the text to the clipboard")
+            option($sendDiscord, icon: "paperplane", tint: .indigo, label: "Send to Discord")
             if sendDiscord {
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Picker("", selection: $textOnly) {
+                        Text("Screenshot + message").tag(false)
+                        Text("Message only").tag(true)
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .fixedSize()
                     HStack(spacing: 8) {
                         Text("Message").foregroundStyle(.secondary)
-                        TextField("Optional text sent with the image", text: $caption)
+                        TextField(textOnly ? "{text}" : "Optional, e.g. {text}", text: $message)
                             .textFieldStyle(.roundedBorder)
-                            .frame(maxWidth: 340)
+                            .frame(maxWidth: 360)
                     }
-                    Toggle("Include the text it read in the message", isOn: $includeText)
-                        .toggleStyle(.checkbox)
-                    HStack(spacing: 6) {
-                        if hasWebhook {
-                            Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-                            Text("Straight to your webhook: no Firebase, no Cloud Run.").foregroundStyle(.secondary)
-                        } else {
+                    HStack(spacing: 5) {
+                        Text("Insert").font(.caption).foregroundStyle(.secondary)
+                        ForEach(MessageVars.all, id: \.token) { v in
+                            Button(v.token) { message += (message.isEmpty || message.hasSuffix(" ") || message.hasSuffix("\n") ? "" : " ") + v.token }
+                                .font(.system(.caption, design: .monospaced))
+                                .buttonStyle(.plain)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Capsule().fill(Color.indigo.opacity(0.15)))
+                                .help("Replaced with \(v.help)")
+                        }
+                    }
+                    if !hasWebhook {
+                        HStack(spacing: 6) {
                             Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
                             Text("Set your Discord webhook in Settings › Discord first.").foregroundStyle(.secondary)
                             Button("Open Settings") { AppState.shared.selection = .settings }.controlSize(.small)
                         }
+                        .font(.caption)
                     }
-                    .font(.caption)
                 }
                 .padding(.leading, 34)
                 .transition(.opacity.combined(with: .move(edge: .top)))
@@ -818,13 +847,13 @@ struct ScreenshotOptions: View {
         .onAppear { hasWebhook = Discord.webhookURL != nil }
     }
 
-    private func option(_ value: Binding<Bool>, icon: String, tint: Color, on: String, off: String) -> some View {
+    private func option(_ value: Binding<Bool>, icon: String, tint: Color, label: String) -> some View {
         HStack(spacing: 8) {
             Toggle("", isOn: value).toggleStyle(.switch).controlSize(.mini).labelsHidden()
             Image(systemName: value.wrappedValue ? icon + ".fill" : icon)
                 .foregroundStyle(value.wrappedValue ? tint : Color.secondary)
                 .frame(width: 18)
-            Text(value.wrappedValue ? on : off).foregroundStyle(value.wrappedValue ? .primary : .secondary)
+            Text(label).foregroundStyle(value.wrappedValue ? .primary : .secondary)
         }
     }
 }

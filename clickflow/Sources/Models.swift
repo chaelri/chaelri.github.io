@@ -103,8 +103,8 @@ struct Step: Identifiable, Equatable {
     var copyResult = true
     /// Screenshot area: post the image straight to the Discord webhook.
     var sendDiscord = false
-    /// Screenshot area: put the text it read into the Discord message too.
-    var includeText = true
+    /// Screenshot area: send only the message to Discord, no image.
+    var textOnly = false
 
     var point: CGPoint { CGPoint(x: x, y: y) }
     var area: CGRect { CGRect(x: x, y: y, width: max(1, width), height: max(1, height)) }
@@ -150,7 +150,7 @@ struct Step: Identifiable, Equatable {
 }
 
 extension Step: Codable {
-    enum CodingKeys: String, CodingKey { case type, name, x, y, delayBefore, seconds, text, keys, url, showOnly, width, height, copyResult, sendDiscord, includeText }
+    enum CodingKeys: String, CodingKey { case type, name, x, y, delayBefore, seconds, text, keys, url, showOnly, width, height, copyResult, sendDiscord, includeText, textOnly }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -174,7 +174,12 @@ extension Step: Codable {
         height = try c.decodeIfPresent(Double.self, forKey: .height) ?? 120
         copyResult = try c.decodeIfPresent(Bool.self, forKey: .copyResult) ?? !legacyDiscord
         sendDiscord = try c.decodeIfPresent(Bool.self, forKey: .sendDiscord) ?? legacyDiscord
-        includeText = try c.decodeIfPresent(Bool.self, forKey: .includeText) ?? !legacyDiscord
+        textOnly = try c.decodeIfPresent(Bool.self, forKey: .textOnly) ?? false
+        // "Include the text it read" became the {text} variable in the message.
+        if type == .readText, try c.decodeIfPresent(Bool.self, forKey: .includeText) ?? !legacyDiscord,
+           !text.contains("{text}") {
+            text = text.isEmpty ? "{text}" : text + "\n{text}"
+        }
     }
 
     // Only the fields a step's type uses, so exports read like the spec's example.
@@ -202,7 +207,7 @@ extension Step: Codable {
             try c.encode(height, forKey: .height)
             try c.encode(copyResult, forKey: .copyResult)
             try c.encode(sendDiscord, forKey: .sendDiscord)
-            try c.encode(includeText, forKey: .includeText)
+            try c.encode(textOnly, forKey: .textOnly)
             if !text.isEmpty { try c.encode(text, forKey: .text) }
             try c.encode(delayBefore, forKey: .delayBefore)
         default:
@@ -576,5 +581,22 @@ enum Fmt {
 
     static func coord(_ v: Double) -> String {
         v == v.rounded() ? String(Int(v)) : String(format: "%.1f", v)
+    }
+}
+
+/// `{text}`, `{date}`, `{time}`, `{macro}` in a Discord message.
+enum MessageVars {
+    static let all: [(token: String, help: String)] = [
+        ("{text}", "the text it read"), ("{date}", "today's date"), ("{time}", "the time now"), ("{macro}", "this macro's name"),
+    ]
+
+    static func fill(_ template: String, text: String, macro: String, now: Date = Date()) -> String {
+        let date = DateFormatter.localizedString(from: now, dateStyle: .medium, timeStyle: .none)
+        let time = DateFormatter.localizedString(from: now, dateStyle: .none, timeStyle: .short)
+        return template
+            .replacingOccurrences(of: "{text}", with: text.isEmpty ? "(no text found)" : text)
+            .replacingOccurrences(of: "{date}", with: date)
+            .replacingOccurrences(of: "{time}", with: time)
+            .replacingOccurrences(of: "{macro}", with: macro)
     }
 }

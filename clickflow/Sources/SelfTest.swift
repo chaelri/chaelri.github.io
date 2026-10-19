@@ -106,6 +106,10 @@ enum SelfTest {
         check("old Screenshot to Discord step migrates",
               "\(migrated.type.rawValue) discord=\(migrated.sendDiscord) clip=\(migrated.copyResult) caption=\(migrated.text)",
               "readText discord=true clip=false caption=hi")
+        check("message variables",
+              MessageVars.fill("{macro}: {text}", text: "Clocked-in for 8h", macro: "Auto Clock-Out"),
+              "Auto Clock-Out: Clocked-in for 8h")
+        check("empty read fills a placeholder", MessageVars.fill("{text}", text: "", macro: ""), "(no text found)")
 
         var post = Step(type: .postClipboard, delayBefore: 0.5)
         post.url = "https://example.com/hook"

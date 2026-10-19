@@ -80,6 +80,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             return
         }
+        if CommandLine.arguments.contains("--placer-test") {
+            Task { @MainActor in
+                let lines = await Placer.selfTest()
+                try? lines.joined(separator: "\n").write(to: Store.shared.directory.appendingPathComponent("placer-test.txt"),
+                                                         atomically: true, encoding: .utf8)
+                NSApp.terminate(nil)
+            }
+        }
         if CommandLine.arguments.contains("--preview-hud") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
                 MainActor.assumeIsolated { Runner.shared.previewHUD() }

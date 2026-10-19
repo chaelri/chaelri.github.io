@@ -20,8 +20,12 @@ Accessibility grant survives rebuilds.
 
 - **Steps:** left / double / right click, move, wait, type text, key shortcut (`cmd+s`, `⌘⇧4`, `return`),
   post clipboard (POSTs the clipboard text to a URL; defaults to `clickflow-hook`, which relays it to #clickflow),
-  screenshot area (one step: captures a rectangle, always reads its text on-device, then optionally copies the text and/or posts the image straight to a Discord webhook, no Firebase; the
-  webhook URL is set in Settings › Discord and kept in the Keychain, never in macros.json or exports).
+  screenshot area (one step: captures a rectangle, always reads its text on-device, then optionally copies the text and/or
+  posts to a Discord webhook directly, no Firebase: screenshot + message, or message only. The message is a template:
+  `{text}` `{date}` `{time}` `{macro}`. The webhook URL is set in Settings › Discord and kept in
+  `~/Library/Application Support/ClickFlow/discord-webhook` (mode 600), never in macros.json or exports).
+- **Placing points and areas:** a floating target / dashed box that stays on top while you use other apps (⌘-Tab freely);
+  drag it into place and press ✓ (✗ cancels). Adding a click or screenshot step opens it straight away.
 - **Preview** (toolbar, ⌥⌘R): plays the macro without executing anything; purple markers show where each click
   lands or which area would be read. Skip jumps past the current step.
 - **Live / Show only** (per step): a show-only step is never executed, even in a real run; it only shows its marker.
