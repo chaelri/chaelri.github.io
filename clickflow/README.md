@@ -41,7 +41,7 @@ Accessibility grant survives rebuilds.
   never lock. Fail-safes: the lock lives only during a run, macOS drops it if ClickFlow stalls, and it dies with the app.
 - **Schedules:** every day / weekday / weekend / custom days / once / interval, with optional date range,
   required app (running or frontmost) and minimum idle time. Missed runs either skip (logged) or run once.
-  A 5-second "About to run" countdown with Cancel runs first.
+  It starts the moment it is due, with no countdown (Esc stops it).
 - **Settings › Click accuracy test:** clicks a target on each display and reports where the click landed.
 
 Data: `~/Library/Application Support/ClickFlow/` (`macros.json`, `history.json`, `scheduler-state.json`).

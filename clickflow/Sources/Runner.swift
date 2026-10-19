@@ -75,8 +75,8 @@ final class RunLive: ObservableObject {
     @Published var summary: RunSummary?
 }
 
-/// Plays macros one at a time. Scheduled runs queue behind a running one and get a
-/// 5-second "About to run" countdown; manual runs are refused while anything is busy.
+/// Plays macros one at a time. Scheduled runs queue behind a running one and start the
+/// moment they're due; manual runs are refused while anything is busy.
 @MainActor
 final class Runner: ObservableObject {
     static let shared = Runner()
@@ -222,23 +222,16 @@ final class Runner: ObservableObject {
 
     private func pump() {
         guard !isBusy, !queue.isEmpty else { return }
-        var p = queue.removeFirst()
+        let p = queue.removeFirst()
         guard let m = Store.shared.macro(p.macroID) else { pump(); return }
         if let reason = blockReason(m, schedule: p.schedule) {
             log(m, .scheduled, .skipped, reason.text, start: Date())
             pump()
             return
         }
-        p.fireAt = Date().addingTimeInterval(5)
+        // Enabled means go: no "About to run" countdown, it starts straight away.
         summary = nil
-        countdown = p
-        HUD.shared.show()
-        installEsc()
-        countdownTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 5_000_000_000)
-            guard !Task.isCancelled else { return }
-            self.skipCountdown()
-        }
+        start(m, trigger: .scheduled, onlyStep: nil, note: p.note)
     }
 
     func skipCountdown() {

@@ -7,7 +7,7 @@ macOS click-macro recorder/editor/scheduler. SwiftUI app shell + AppKit panels, 
 - `Store.swift` — JSON persistence (Application Support/ClickFlow), import/export, AppState (sidebar selection).
 - `Engine.swift` — `Geo` (Quartz top-left points ↔ AppKit bottom-left), `ClickEngine` (CGEvent posting), `KeyCombo` parser.
 - `System.swift` — permissions monitor, SMAppService login item, screen-lock/idle checks, IOPM assertions, Carbon hotkey ⌃⌥⌘., WindowManager.
-- `Runner.swift` — one run at a time; scheduled runs queue + 5 s countdown; preflight `blockReason`; logs history.
+- `Runner.swift` — one run at a time; scheduled runs queue and start immediately (no countdown); preflight `blockReason`; logs history.
 - `Scheduler.swift` — 1 s tick; per-schedule persisted `lastCheck`; pure `decide()` → fire / missed (90 s grace).
 - `Recorder.swift`, `Picker.swift`, `Panels.swift` (HUD, click ring, accuracy test), `SelfTest.swift`, `Views/`.
 
