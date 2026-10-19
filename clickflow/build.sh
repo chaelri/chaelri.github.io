@@ -93,8 +93,17 @@ case "${1:-build}" in
     open /Applications/ClickFlow.app
     echo "✓ /Applications/ClickFlow.app"
     ;;
+  backup)
+    # Copies the live macros (steps + schedules) into the repo. The Discord webhook is a
+    # separate file and is never included.
+    src="$HOME/Library/Application Support/ClickFlow/macros.json"
+    if grep -q "discord.com/api/webhooks" "$src"; then echo "✗ macros.json contains a webhook URL; not copying" >&2; exit 1; fi
+    mkdir -p macros
+    cp "$src" macros/macros.json
+    echo "✓ macros/macros.json"
+    ;;
   *)
-    echo "usage: $0 [build|install|test]" >&2
+    echo "usage: $0 [build|install|test|backup]" >&2
     exit 2
     ;;
 esac

@@ -1,0 +1,172 @@
+{
+  "macros" : [
+    {
+      "enabled" : true,
+      "id" : "A3AA5401-FA14-49FC-989F-F8F02304AC63",
+      "name" : "Auto Clock-Out",
+      "repeatCount" : 1,
+      "repeatDelay" : 0,
+      "schedules" : [
+        {
+          "conditions" : {
+            "requireFrontmost" : false
+          },
+          "customDays" : [
+
+          ],
+          "enabled" : true,
+          "endTime" : "17:00",
+          "id" : "1AF0A1D2-64B4-4D20-8237-F2503B09EB8B",
+          "intervalMinutes" : 30,
+          "missedRunPolicy" : "skip",
+          "repeat" : "weekdays",
+          "time" : "16:00"
+        }
+      ],
+      "steps" : [
+        {
+          "delayBefore" : 0,
+          "name" : "Open HRForte",
+          "type" : "openURL",
+          "url" : "https:\/\/eva.hrforte.com\/dashboard"
+        },
+        {
+          "copyResult" : false,
+          "delayBefore" : 10,
+          "height" : 41,
+          "name" : "Send Current Clock-in Status to Discord",
+          "sendDiscord" : true,
+          "text" : "Currently In: {text} | {date}",
+          "textOnly" : true,
+          "type" : "readText",
+          "width" : 46,
+          "x" : 1218,
+          "y" : 171
+        },
+        {
+          "delayBefore" : 2,
+          "name" : "Click on Clock Out",
+          "type" : "leftClick",
+          "x" : 1244,
+          "y" : 184
+        },
+        {
+          "delayBefore" : 0.5,
+          "name" : "Click on Clock Out",
+          "type" : "leftClick",
+          "x" : 1165,
+          "y" : 393
+        },
+        {
+          "name" : "Waiting for Location to initialized",
+          "seconds" : 3,
+          "type" : "wait"
+        },
+        {
+          "delayBefore" : 2,
+          "name" : "End",
+          "type" : "leftClick",
+          "x" : 426,
+          "y" : 755
+        },
+        {
+          "delayBefore" : 5,
+          "keys" : "cmd+w",
+          "name" : "Closing HRForte",
+          "type" : "keyShortcut"
+        },
+        {
+          "delayBefore" : 0,
+          "name" : "Send \"Clock-out done!\" to Discord",
+          "text" : "Clock-out done! ✅ {time}",
+          "type" : "discordMessage"
+        }
+      ]
+    },
+    {
+      "enabled" : true,
+      "id" : "33BB2CD2-C92F-40FE-9438-4ECC00BAB476",
+      "name" : "Auto Clock-In",
+      "repeatCount" : 1,
+      "repeatDelay" : 0,
+      "schedules" : [
+        {
+          "conditions" : {
+            "requireFrontmost" : false
+          },
+          "customDays" : [
+
+          ],
+          "enabled" : true,
+          "endTime" : "17:00",
+          "id" : "FD00AA0D-88CE-4801-8D70-D4BECC88B7CB",
+          "intervalMinutes" : 30,
+          "missedRunPolicy" : "skip",
+          "repeat" : "weekdays",
+          "time" : "06:00"
+        }
+      ],
+      "steps" : [
+        {
+          "delayBefore" : 0,
+          "name" : "Open HRForte",
+          "type" : "openURL",
+          "url" : "https:\/\/eva.hrforte.com\/dashboard"
+        },
+        {
+          "copyResult" : false,
+          "delayBefore" : 10,
+          "height" : 41,
+          "name" : "Send Current Clock-in Status to Discord",
+          "sendDiscord" : true,
+          "text" : "Clocking-In, last clocked-out: {text} | {date}",
+          "textOnly" : true,
+          "type" : "readText",
+          "width" : 46,
+          "x" : 1218,
+          "y" : 171
+        },
+        {
+          "delayBefore" : 2,
+          "name" : "Click on Clock In",
+          "type" : "leftClick",
+          "x" : 1244,
+          "y" : 184
+        },
+        {
+          "delayBefore" : 0.5,
+          "name" : "Click on Clock In",
+          "type" : "leftClick",
+          "x" : 1165,
+          "y" : 338
+        },
+        {
+          "name" : "Waiting for Location to initialized",
+          "seconds" : 10,
+          "type" : "wait"
+        },
+        {
+          "delayBefore" : 2,
+          "name" : "Clock-in!",
+          "showOnly" : true,
+          "type" : "leftClick",
+          "x" : 425,
+          "y" : 894
+        },
+        {
+          "delayBefore" : 5,
+          "keys" : "cmd+w",
+          "name" : "Closing HRForte",
+          "type" : "keyShortcut"
+        },
+        {
+          "delayBefore" : 0,
+          "name" : "Send \"Clock-in done!\" to Discord",
+          "text" : "Clock-in done! ✅ {time}",
+          "type" : "discordMessage"
+        }
+      ]
+    }
+  ],
+  "version" : 1
+}

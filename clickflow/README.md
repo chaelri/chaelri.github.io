@@ -45,3 +45,7 @@ Accessibility grant survives rebuilds.
 - **Settings › Click accuracy test:** clicks a target on each display and reports where the click landed.
 
 Data: `~/Library/Application Support/ClickFlow/` (`macros.json`, `history.json`, `scheduler-state.json`).
+
+**Saved macros:** `macros/macros.json` is a copy of the live macros (steps and schedules). Refresh it with
+`./build.sh backup`. To restore on another Mac, use Import in the app (same format as Export), then set the
+Discord webhook again in Settings, since it is never saved in the repo.
