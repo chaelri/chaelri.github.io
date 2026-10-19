@@ -635,7 +635,7 @@ private struct GhostAreaView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text("\(number) · \(step.heading) · Would read this area")
+            Text("\(number) · \(step.heading) · \(step.type.wouldVerb)")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.white)
                 .lineLimit(1)

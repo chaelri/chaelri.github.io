@@ -81,6 +81,13 @@ enum ClickEngine {
         switch step.type {
         case .wait:
             return nil
+        case .sendScreenshot:
+            let image = try await ScreenText.capture(step.area)
+            guard let png = Discord.png(image) else { throw ScreenText.Failure.captureFailed }
+            try Task.checkCancellation()
+            try await Discord.send(png: png, filename: "clickflow-\(Int(Date().timeIntervalSince1970)).png",
+                                   caption: step.text)
+            return nil
         case .readText:
             let text = try await ScreenText.read(step.area)
             if step.copyResult {

@@ -76,6 +76,10 @@ struct SettingsView: View {
     @AppStorage(Prefs.hideWindowDuringRuns) private var hideWindow = true
     @AppStorage(Prefs.showClickRing) private var clickRing = true
     @ViewState private var accuracy: [String] = []
+    @ViewState private var webhookDraft = ""
+    @ViewState private var hasWebhook = Discord.webhookURL != nil
+    @ViewState private var webhookNote: String?
+    @ViewState private var sendingTest = false
     @ViewState private var testing = false
 
     var body: some View {
@@ -128,6 +132,56 @@ struct SettingsView: View {
                 Text(displaySummary).font(.caption).foregroundStyle(.secondary)
             }
 
+            Section {
+                HStack(spacing: 8) {
+                    SecureField(hasWebhook ? "Saved — paste a new URL to replace it" : "https://discord.com/api/webhooks/…",
+                                text: $webhookDraft)
+                        .textFieldStyle(.roundedBorder)
+                    Button("Save") {
+                        let v = webhookDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard Discord.isValidWebhook(v) else { webhookNote = "That isn't a Discord webhook URL."; return }
+                        Discord.webhookURL = v
+                        webhookDraft = ""
+                        hasWebhook = true
+                        webhookNote = "Saved to the Keychain."
+                    }
+                    .disabled(webhookDraft.isEmpty)
+                    if hasWebhook {
+                        Button("Remove", role: .destructive) {
+                            Discord.webhookURL = nil
+                            hasWebhook = false
+                            webhookNote = "Removed."
+                        }
+                    }
+                }
+                HStack {
+                    Label(hasWebhook ? "Webhook set" : "No webhook yet",
+                          systemImage: hasWebhook ? "checkmark.circle.fill" : "circle.dashed")
+                        .foregroundStyle(hasWebhook ? .green : .secondary)
+                    if let n = webhookNote { Text(n).foregroundStyle(.secondary) }
+                    Spacer()
+                    Button(sendingTest ? "Sending…" : "Send Test Image") {
+                        sendingTest = true
+                        Task { @MainActor in
+                            do {
+                                try await Discord.send(png: SettingsView.testImage(), caption: "ClickFlow test image")
+                                webhookNote = "Test image sent."
+                            } catch {
+                                webhookNote = error.localizedDescription
+                            }
+                            sendingTest = false
+                        }
+                    }
+                    .disabled(!hasWebhook || sendingTest)
+                }
+                .font(.callout)
+            } header: {
+                Text("Discord")
+            } footer: {
+                Text("Used by Screenshot to Discord steps. Kept in the macOS Keychain, never in macros.json or exports.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+
             Section("Data") {
                 LabeledContent("Macros") { Text("\(store.macros.count)") }
                 HStack {
@@ -139,6 +193,23 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
+    }
+
+    /// A rendered card, so the test never captures (and posts) the real screen.
+    static func testImage() -> Data {
+        let w = 640, h = 200
+        let ctx = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: 0,
+                            space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+        ctx.setFillColor(CGColor(red: 0.35, green: 0.32, blue: 0.95, alpha: 1))
+        ctx.fill(CGRect(x: 0, y: 0, width: w, height: h))
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(cgContext: ctx, flipped: false)
+        let attrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 40, weight: .bold), .foregroundColor: NSColor.white]
+        ("ClickFlow → Discord ✓" as NSString).draw(at: NSPoint(x: 40, y: 110), withAttributes: attrs)
+        let small: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 20), .foregroundColor: NSColor.white.withAlphaComponent(0.85)]
+        (Fmt.stamp(Date()) as NSString).draw(at: NSPoint(x: 40, y: 60), withAttributes: small)
+        NSGraphicsContext.restoreGraphicsState()
+        return Discord.png(ctx.makeImage()!) ?? Data()
     }
 
     private var displaySummary: String {

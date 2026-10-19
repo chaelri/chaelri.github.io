@@ -3,7 +3,7 @@ import Foundation
 // MARK: - Steps
 
 enum StepType: String, Codable, CaseIterable, Identifiable {
-    case leftClick, doubleClick, rightClick, move, wait, typeText, keyShortcut, postClipboard, readText
+    case leftClick, doubleClick, rightClick, move, wait, typeText, keyShortcut, postClipboard, readText, sendScreenshot
 
     var id: String { rawValue }
 
@@ -18,6 +18,7 @@ enum StepType: String, Codable, CaseIterable, Identifiable {
         case .keyShortcut: return "Key shortcut"
         case .postClipboard: return "Post clipboard"
         case .readText: return "Read text from area"
+        case .sendScreenshot: return "Screenshot to Discord"
         }
     }
 
@@ -32,6 +33,7 @@ enum StepType: String, Codable, CaseIterable, Identifiable {
         case .keyShortcut: return "command"
         case .postClipboard: return "paperplane"
         case .readText: return "text.viewfinder"
+        case .sendScreenshot: return "camera.viewfinder"
         }
     }
 
@@ -55,6 +57,7 @@ enum StepType: String, Codable, CaseIterable, Identifiable {
         case .keyShortcut: return "Pressing"
         case .postClipboard: return "Sending"
         case .readText: return "Reading"
+        case .sendScreenshot: return "Sending"
         }
     }
 
@@ -70,11 +73,15 @@ enum StepType: String, Codable, CaseIterable, Identifiable {
         case .keyShortcut: return "Would press this"
         case .postClipboard: return "Would post the clipboard"
         case .readText: return "Would read this area"
+        case .sendScreenshot: return "Would send this area"
         }
     }
 
     /// Steps that post synthetic input; a network step works without the permission.
-    var needsAccessibility: Bool { self != .wait && self != .postClipboard && self != .readText }
+    var needsAccessibility: Bool { self != .wait && self != .postClipboard && !hasArea }
+
+    /// Steps that work on a screen rectangle (x, y, width, height).
+    var hasArea: Bool { self == .readText || self == .sendScreenshot }
 }
 
 /// One step of a macro. Coordinates are global Quartz points: origin at the top-left
@@ -130,6 +137,8 @@ struct Step: Identifiable, Equatable {
             return "Press \(KeyCombo.parse(keys)?.display ?? keys)"
         case .postClipboard:
             return "Post clipboard → \(URL(string: url)?.host ?? url)"
+        case .sendScreenshot:
+            return "Send \(Int(width))×\(Int(height)) at \(Fmt.coord(x)), \(Fmt.coord(y)) to Discord"
         case .readText:
             return "Read text in \(Int(width))×\(Int(height)) at \(Fmt.coord(x)), \(Fmt.coord(y))"
                 + (copyResult ? " → clipboard" : "")
@@ -177,6 +186,13 @@ extension Step: Codable {
             try c.encode(delayBefore, forKey: .delayBefore)
         case .postClipboard:
             try c.encode(url, forKey: .url)
+            try c.encode(delayBefore, forKey: .delayBefore)
+        case .sendScreenshot:
+            try c.encode(x, forKey: .x)
+            try c.encode(y, forKey: .y)
+            try c.encode(width, forKey: .width)
+            try c.encode(height, forKey: .height)
+            try c.encode(text, forKey: .text)
             try c.encode(delayBefore, forKey: .delayBefore)
         case .readText:
             try c.encode(x, forKey: .x)

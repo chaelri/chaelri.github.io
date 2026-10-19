@@ -20,7 +20,9 @@ Accessibility grant survives rebuilds.
 
 - **Steps:** left / double / right click, move, wait, type text, key shortcut (`cmd+s`, `⌘⇧4`, `return`),
   post clipboard (POSTs the clipboard text to a URL; defaults to `clickflow-hook`, which relays it to #clickflow),
-  read text from area (screenshot a rectangle → Apple's on-device Vision OCR → clipboard; needs Screen Recording).
+  read text from area (screenshot a rectangle → Apple's on-device Vision OCR → clipboard; needs Screen Recording),
+  screenshot to Discord (captures a rectangle and posts the PNG straight to a Discord webhook, no Firebase; the
+  webhook URL is set in Settings › Discord and kept in the Keychain, never in macros.json or exports).
 - **Preview** (toolbar, ⌥⌘R): plays the macro without executing anything; purple markers show where each click
   lands or which area would be read. Skip jumps past the current step.
 - **Live / Show only** (per step): a show-only step is never executed, even in a real run; it only shows its marker.

@@ -148,7 +148,7 @@ struct StepsPane: View {
         }
         if type == .keyShortcut { s.keys = "cmd+s" }
         if type == .postClipboard { s.url = StepsPane.defaultPostURL }
-        if type == .readText {
+        if type.hasArea {
             let f = CGDisplayBounds(CGMainDisplayID())
             s.x = (f.midX - 150).rounded()
             s.y = (f.midY - 60).rounded()
@@ -312,6 +312,7 @@ struct StepCard: View, Equatable {
                     .help("On: the text read replaces what's on the clipboard, so a Post clipboard step can send it.")
                 }
                 if step.type == .readText { ReadResult(stepID: step.id) }
+                if step.type == .sendScreenshot { DiscordStepOptions(caption: bind(\.text)) }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -338,7 +339,7 @@ struct StepCard: View, Equatable {
                 Button { pick() } label: { Label("Pick", systemImage: "scope") }
                     .help("Choose the point on screen")
             }
-            if step.type == .readText {
+            if step.type.hasArea {
                 Button { pickArea() } label: { Label("Pick area", systemImage: "rectangle.dashed") }
                     .help("Drag a box around the text on screen")
             }
@@ -378,7 +379,7 @@ struct StepCard: View, Equatable {
             } else if !step.keys.isEmpty {
                 Text("Not a key I know").font(.callout).foregroundStyle(.red)
             }
-        case .readText:
+        case .readText, .sendScreenshot:
             CoordField(label: "X", value: bind(\.x))
             CoordField(label: "Y", value: bind(\.y))
             CoordField(label: "W", value: bind(\.width))
@@ -783,6 +784,41 @@ struct ReadResult: View {
     }
 }
 
+/// Caption + where it goes, for a Screenshot to Discord step.
+struct DiscordStepOptions: View {
+    @Binding var caption: String
+    @ObservedObject private var perms = PermissionMonitor.shared
+    @ViewState private var hasWebhook = Discord.webhookURL != nil
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                Text("Message").foregroundStyle(.secondary)
+                TextField("Optional text sent with the image", text: $caption)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(maxWidth: 360)
+            }
+            HStack(spacing: 6) {
+                if !perms.screenRecording {
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                    Text("Needs Screen Recording permission.").foregroundStyle(.secondary)
+                    Button("Allow") { PermissionMonitor.requestScreenRecording() }.controlSize(.small)
+                } else if hasWebhook {
+                    Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                    Text("Posts straight to your Discord webhook (no Firebase, no Cloud Run).").foregroundStyle(.secondary)
+                } else {
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                    Text("Set your Discord webhook in Settings › Discord first.").foregroundStyle(.secondary)
+                    Button("Open Settings") { AppState.shared.selection = .settings }.controlSize(.small)
+                }
+            }
+            .font(.caption)
+        }
+        .font(.callout)
+        .onAppear { hasWebhook = Discord.webhookURL != nil }
+    }
+}
+
 /// Live = the step really acts. Show only = runs just mark where it would act.
 struct LiveToggle: View {
     @Binding var showOnly: Bool
@@ -817,6 +853,7 @@ extension StepType {
         case .keyShortcut: return .green
         case .postClipboard: return .cyan
         case .readText: return .mint
+        case .sendScreenshot: return .indigo
         }
     }
 }

@@ -289,7 +289,7 @@ final class Runner: ObservableObject {
                         let ghost = preview || step.showOnly
                         // Show the target from the moment the step is up, so the countdown has a place.
                         if ghost, step.type.hasPoint { Ghost.show(step, number: i + 1) }
-                        if ghost, step.type == .readText { Ghost.showArea(step, number: i + 1) }
+                        if ghost, step.type.hasArea { Ghost.showArea(step, number: i + 1) }
                         defer { if ghost { Ghost.hide() } }
                         let delay = step.type == .wait ? step.seconds : (onlyStep == nil ? step.delayBefore : 0)
                         if delay > 0 {
@@ -428,8 +428,11 @@ final class Runner: ObservableObject {
         let needsAX = m.steps.contains { $0.type.needsAccessibility && !$0.showOnly }
         if needsAX, !AXIsProcessTrusted() { return BlockReason(text: "Accessibility permission is off", permission: true) }
         if SystemState.screenLocked { return BlockReason(text: "The screen was locked") }
-        if m.steps.contains(where: { $0.type == .readText && !$0.showOnly }), !CGPreflightScreenCaptureAccess() {
-            return BlockReason(text: "Screen Recording permission is off (needed to read text)")
+        if m.steps.contains(where: { $0.type.hasArea && !$0.showOnly }), !CGPreflightScreenCaptureAccess() {
+            return BlockReason(text: "Screen Recording permission is off (needed to capture the screen)")
+        }
+        if m.steps.contains(where: { $0.type == .sendScreenshot && !$0.showOnly }), Discord.webhookURL == nil {
+            return BlockReason(text: "No Discord webhook set (Settings › Discord)")
         }
         if let c = schedule?.conditions {
             let app = (c.requireApp ?? "").trimmingCharacters(in: .whitespaces)

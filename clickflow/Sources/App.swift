@@ -63,6 +63,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         WindowManager.observe()
         Scheduler.shared.start()
 
+        if let i = CommandLine.arguments.firstIndex(of: "--set-discord-webhook"), i + 1 < CommandLine.arguments.count {
+            let url = CommandLine.arguments[i + 1]
+            let ok = Discord.isValidWebhook(url)
+            if ok { Discord.webhookURL = url }
+            let send = CommandLine.arguments.contains("--send-test")
+            Task { @MainActor in
+                var lines = [ok ? "saved" : "invalid webhook URL"]
+                if ok, send {
+                    do { try await Discord.send(png: SettingsView.testImage(), caption: "ClickFlow test image"); lines.append("test sent") }
+                    catch { lines.append("test failed: \(error.localizedDescription)") }
+                }
+                try? lines.joined(separator: "\n").write(to: Store.shared.directory.appendingPathComponent("discord-setup.txt"),
+                                                         atomically: true, encoding: .utf8)
+                NSApp.terminate(nil)
+            }
+            return
+        }
         if CommandLine.arguments.contains("--preview-hud") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
                 MainActor.assumeIsolated { Runner.shared.previewHUD() }
