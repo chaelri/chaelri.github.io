@@ -277,13 +277,23 @@ struct StepCard: View {
                     HStack(spacing: 6) {
                         Text("Delay before").foregroundStyle(.secondary)
                         SecondsField(value: $step.delayBefore)
-                        if step.type == .readText {
-                            Toggle("Copy the text to the clipboard", isOn: $step.copyResult)
-                                .toggleStyle(.checkbox)
-                                .padding(.leading, 12)
-                        }
                     }
                     .font(.callout)
+                }
+                if step.type == .readText {
+                    HStack(spacing: 8) {
+                        Toggle("", isOn: $step.copyResult)
+                            .toggleStyle(.switch)
+                            .controlSize(.mini)
+                            .labelsHidden()
+                        Image(systemName: step.copyResult ? "doc.on.clipboard.fill" : "doc.on.clipboard")
+                            .foregroundStyle(step.copyResult ? Color.mint : Color.secondary)
+                        Text(step.copyResult ? "Also copy the result to the clipboard"
+                                             : "Don't touch the clipboard (result only shows here and in history)")
+                            .foregroundStyle(step.copyResult ? .primary : .secondary)
+                    }
+                    .font(.callout)
+                    .help("On: the text read replaces what's on the clipboard, so a Post clipboard step can send it.")
                 }
                 if step.type == .readText { ReadResult(stepID: step.id) }
             }
