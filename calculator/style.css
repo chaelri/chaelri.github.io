@@ -1,0 +1,178 @@
+:root {
+  --bg: #e9ecf2;
+  --bg-glow: #d6dcf0;
+  --card: #f7f8fb;
+  --card-border: rgba(15, 17, 21, 0.06);
+  --text: #12141a;
+  --muted: #7b8193;
+  --key: #ffffff;
+  --key-hover: #f0f2f7;
+  --fn: #e2e5ee;
+  --fn-hover: #d6dae6;
+  --accent: #ff8a1f;
+  --accent-hover: #ff9b3d;
+  --accent-text: #ffffff;
+  --error: #e5484d;
+  --shadow: 0 30px 60px -20px rgba(30, 40, 80, 0.25), 0 8px 20px -10px rgba(30, 40, 80, 0.15);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0b0c10;
+    --bg-glow: #1a1d2b;
+    --card: #15171e;
+    --card-border: rgba(255, 255, 255, 0.06);
+    --text: #f4f5f8;
+    --muted: #8a90a2;
+    --key: #23262f;
+    --key-hover: #2c303b;
+    --fn: #3a3e4a;
+    --fn-hover: #464a57;
+    --shadow: 0 30px 60px -20px rgba(0, 0, 0, 0.7);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: radial-gradient(circle at 30% 20%, var(--bg-glow), var(--bg) 60%);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.calc {
+  width: 100%;
+  max-width: 360px;
+  padding: 20px;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 32px;
+  box-shadow: var(--shadow);
+}
+
+.display {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: flex-end;
+  height: 140px;
+  padding: 8px 8px 16px;
+  overflow: hidden;
+}
+
+.expression {
+  min-height: 1.4em;
+  max-width: 100%;
+  color: var(--muted);
+  font-size: 1.05rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  direction: rtl; /* keep the end of a long expression visible */
+  text-align: right;
+}
+
+.result {
+  display: block;
+  max-width: 100%;
+  font-size: var(--size, 3.6rem);
+  font-weight: 300;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  transition: font-size 0.15s ease;
+}
+
+.result.error {
+  color: var(--error);
+  font-size: 1.6rem;
+  font-weight: 400;
+}
+
+.keys {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.key {
+  aspect-ratio: 1;
+  border: none;
+  border-radius: 50%;
+  background: var(--key);
+  color: var(--text);
+  font: inherit;
+  font-size: 1.6rem;
+  font-weight: 400;
+  cursor: pointer;
+  user-select: none;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  transition: background-color 0.15s ease, color 0.15s ease, transform 0.08s ease;
+}
+
+.key:hover {
+  background: var(--key-hover);
+}
+
+.key:active,
+.key.pressed {
+  transform: scale(0.92);
+  filter: brightness(1.15);
+}
+
+.key:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.key.fn {
+  background: var(--fn);
+  font-size: 1.3rem;
+  font-weight: 500;
+}
+
+.key.fn:hover {
+  background: var(--fn-hover);
+}
+
+.key.op,
+.key.eq {
+  background: var(--accent);
+  color: var(--accent-text);
+  font-size: 1.9rem;
+}
+
+.key.op:hover,
+.key.eq:hover {
+  background: var(--accent-hover);
+}
+
+/* Operator waiting for its second number */
+.key.op.active {
+  background: var(--accent-text);
+  color: var(--accent);
+}
+
+@media (max-width: 380px) {
+  .calc {
+    padding: 14px;
+    border-radius: 26px;
+  }
+
+  .keys {
+    gap: 10px;
+  }
+}
