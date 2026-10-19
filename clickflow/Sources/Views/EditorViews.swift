@@ -388,6 +388,13 @@ struct StepCard: View, Equatable {
             CoordField(label: "Y", value: bind(\.y))
             CoordField(label: "W", value: bind(\.width))
             CoordField(label: "H", value: bind(\.height))
+        case .openURL:
+            TextField("Paste a link, e.g. eva.hrforte.com", text: bind(\.url))
+                .textFieldStyle(.roundedBorder)
+                .frame(minWidth: 220, maxWidth: 380)
+            if !step.url.isEmpty, OpenLink.normalized(step.url) == nil {
+                Text("Not a web link").font(.callout).foregroundStyle(.red)
+            }
         case .postClipboard:
             TextField("https://…", text: bind(\.url))
                 .textFieldStyle(.roundedBorder)
@@ -892,6 +899,7 @@ extension StepType {
         case .keyShortcut: return .green
         case .postClipboard: return .cyan
         case .readText: return .mint
+        case .openURL: return .yellow
         }
     }
 }

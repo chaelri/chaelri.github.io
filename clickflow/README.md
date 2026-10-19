@@ -19,6 +19,7 @@ Accessibility grant survives rebuilds.
 ## Use
 
 - **Steps:** left / double / right click, move, wait, type text, key shortcut (`cmd+s`, `⌘⇧4`, `return`),
+  open link in Chrome (new tab; default browser if Chrome is missing; `https://` added when left out),
   post clipboard (POSTs the clipboard text to a URL; defaults to `clickflow-hook`, which relays it to #clickflow),
   screenshot area (one step: captures a rectangle, always reads its text on-device, then optionally copies the text and/or
   posts to a Discord webhook directly, no Firebase: screenshot + message, or message only. The message is a template:

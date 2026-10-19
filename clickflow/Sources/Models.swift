@@ -3,7 +3,7 @@ import Foundation
 // MARK: - Steps
 
 enum StepType: String, Codable, CaseIterable, Identifiable {
-    case leftClick, doubleClick, rightClick, move, wait, typeText, keyShortcut, postClipboard, readText
+    case leftClick, doubleClick, rightClick, move, wait, typeText, keyShortcut, postClipboard, readText, openURL
 
     var id: String { rawValue }
 
@@ -18,6 +18,7 @@ enum StepType: String, Codable, CaseIterable, Identifiable {
         case .keyShortcut: return "Key shortcut"
         case .postClipboard: return "Post clipboard"
         case .readText: return "Screenshot area"
+        case .openURL: return "Open link in Chrome"
         }
     }
 
@@ -32,6 +33,7 @@ enum StepType: String, Codable, CaseIterable, Identifiable {
         case .keyShortcut: return "command"
         case .postClipboard: return "paperplane"
         case .readText: return "text.viewfinder"
+        case .openURL: return "globe"
         }
     }
 
@@ -55,6 +57,7 @@ enum StepType: String, Codable, CaseIterable, Identifiable {
         case .keyShortcut: return "Pressing"
         case .postClipboard: return "Sending"
         case .readText: return "Capturing"
+        case .openURL: return "Opening"
         }
     }
 
@@ -70,11 +73,12 @@ enum StepType: String, Codable, CaseIterable, Identifiable {
         case .keyShortcut: return "Would press this"
         case .postClipboard: return "Would post the clipboard"
         case .readText: return "Would capture this area"
+        case .openURL: return "Would open this link"
         }
     }
 
     /// Steps that post synthetic input; a network step works without the permission.
-    var needsAccessibility: Bool { self != .wait && self != .postClipboard && !hasArea }
+    var needsAccessibility: Bool { self != .wait && self != .postClipboard && self != .openURL && !hasArea }
 
     /// Steps that work on a screen rectangle (x, y, width, height).
     var hasArea: Bool { self == .readText }
@@ -137,6 +141,8 @@ struct Step: Identifiable, Equatable {
             return "Press \(KeyCombo.parse(keys)?.display ?? keys)"
         case .postClipboard:
             return "Post clipboard → \(URL(string: url)?.host ?? url)"
+        case .openURL:
+            return "Open \(OpenLink.normalized(url)?.host ?? (url.isEmpty ? "a link" : url)) in Chrome"
         case .readText:
             var outs = ["text"]
             if copyResult { outs.append("clipboard") }
@@ -197,7 +203,7 @@ extension Step: Codable {
         case .keyShortcut:
             try c.encode(keys, forKey: .keys)
             try c.encode(delayBefore, forKey: .delayBefore)
-        case .postClipboard:
+        case .postClipboard, .openURL:
             try c.encode(url, forKey: .url)
             try c.encode(delayBefore, forKey: .delayBefore)
         case .readText:
@@ -598,5 +604,17 @@ enum MessageVars {
             .replacingOccurrences(of: "{date}", with: date)
             .replacingOccurrences(of: "{time}", with: time)
             .replacingOccurrences(of: "{macro}", with: macro)
+    }
+}
+
+enum OpenLink {
+    /// Adds https:// when the scheme is missing; nil for anything that isn't a web link.
+    static func normalized(_ raw: String) -> URL? {
+        let t = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !t.isEmpty else { return nil }
+        let withScheme = t.contains("://") ? t : "https://" + t
+        guard let u = URL(string: withScheme), let scheme = u.scheme?.lowercased(),
+              ["http", "https"].contains(scheme), u.host?.isEmpty == false else { return nil }
+        return u
     }
 }

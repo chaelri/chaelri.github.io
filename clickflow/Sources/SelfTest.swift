@@ -111,6 +111,13 @@ enum SelfTest {
               "Auto Clock-Out: Clocked-in for 8h")
         check("empty read fills a placeholder", MessageVars.fill("{text}", text: "", macro: ""), "(no text found)")
 
+        check("link without scheme", OpenLink.normalized("eva.hrforte.com/login")?.absoluteString ?? "nil", "https://eva.hrforte.com/login")
+        check("non-web link rejected", OpenLink.normalized("file:///etc/passwd")?.absoluteString ?? "nil", "nil")
+        var link = Step(type: .openURL, delayBefore: 0.5)
+        link.url = "https://example.com"
+        let linkBack = try! JSONDecoder().decode(Step.self, from: JSONEncoder().encode(link))
+        check("open link step round trip", "\(linkBack.type.rawValue) \(linkBack.url)", "openURL https://example.com")
+
         var post = Step(type: .postClipboard, delayBefore: 0.5)
         post.url = "https://example.com/hook"
         let postJSON = String(decoding: try! JSONEncoder().encode(post), as: UTF8.self)

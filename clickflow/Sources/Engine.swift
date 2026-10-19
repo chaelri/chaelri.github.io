@@ -126,8 +126,23 @@ enum ClickEngine {
             press(combo)
         case .postClipboard:
             try await postClipboard(to: step.url)
+        case .openURL:
+            try await openInChrome(step.url)
         }
         return nil
+    }
+
+    /// Opens the link in Google Chrome (a new tab, or a new window if Chrome wasn't running).
+    /// Falls back to the default browser when Chrome isn't installed.
+    static func openInChrome(_ raw: String) async throws {
+        guard let url = OpenLink.normalized(raw) else { throw EngineError.badURL(raw) }
+        let cfg = NSWorkspace.OpenConfiguration()
+        cfg.activates = true
+        if let chrome = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.google.Chrome") {
+            _ = try await NSWorkspace.shared.open([url], withApplicationAt: chrome, configuration: cfg)
+        } else {
+            NSWorkspace.shared.open(url)
+        }
     }
 
     /// POSTs the clipboard text as-is. A JSON-looking clipboard goes as application/json.
