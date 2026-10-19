@@ -149,6 +149,47 @@ internal static class Native
     [DllImport("user32.dll")]
     public static extern bool ShowWindow(nint hWnd, int cmd);
 
+    public const int SW_MAXIMIZE = 3, SW_RESTORE = 9;
+
+    [DllImport("user32.dll")]
+    public static extern bool BringWindowToTop(nint hWnd);
+
+    [DllImport("user32.dll")]
+    public static extern bool IsIconic(nint hWnd);
+
+    [DllImport("user32.dll")]
+    public static extern bool IsZoomed(nint hWnd);
+
+    [DllImport("user32.dll")]
+    public static extern bool IsWindowVisible(nint hWnd);
+
+    [DllImport("user32.dll")]
+    public static extern nint GetWindow(nint hWnd, uint cmd);
+    public const uint GW_OWNER = 4;
+
+    [DllImport("user32.dll")]
+    public static extern bool GetWindowRect(nint hWnd, out RECT r);
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct RECT { public int Left, Top, Right, Bottom; }
+
+    [DllImport("user32.dll")]
+    public static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool attach);
+
+    [DllImport("kernel32.dll")]
+    public static extern uint GetCurrentThreadId();
+
+    public delegate bool EnumWindowsProc(nint hWnd, nint lParam);
+
+    [DllImport("user32.dll")]
+    public static extern bool EnumWindows(EnumWindowsProc proc, nint lParam);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    public static extern int GetClassName(nint hWnd, System.Text.StringBuilder name, int max);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    public static extern int GetWindowText(nint hWnd, System.Text.StringBuilder text, int max);
+
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     public static extern uint RegisterWindowMessage(string msg);
 

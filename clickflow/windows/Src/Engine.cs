@@ -109,7 +109,7 @@ public static class ClickEngine
                 await PostClipboard(step.Url, ct);
                 break;
             case StepType.OpenUrl:
-                OpenInChrome(step.Url);
+                await OpenInChrome(step.Url, ct);
                 break;
             case StepType.DiscordMessage:
                 var msg = MessageVars.Fill(step.Text, ctx.LastOutput ?? "", ctx.MacroName).Trim();
@@ -141,16 +141,110 @@ public static class ClickEngine
         return null;
     }
 
-    /// Opens the link in Google Chrome (a new tab, or a new window if Chrome wasn't running).
+    /// Opens the link in Google Chrome (a new tab, or a new window if Chrome wasn't running),
+    /// then maximizes that window and brings it to the front before the next step runs.
     /// Falls back to the default browser when Chrome isn't installed.
-    public static void OpenInChrome(string raw)
+    public static async Task OpenInChrome(string raw, CancellationToken ct)
     {
         var url = OpenLink.Normalized(raw) ?? throw new EngineException($"\"{raw}\" isn't a valid http(s) URL");
         var chrome = ChromePath();
-        var psi = chrome != null
-            ? new ProcessStartInfo(chrome) { UseShellExecute = false, ArgumentList = { url.AbsoluteUri } }
-            : new ProcessStartInfo(url.AbsoluteUri) { UseShellExecute = true };
-        Process.Start(psi)?.Dispose();
+        if (chrome == null)
+        {
+            Process.Start(new ProcessStartInfo(url.AbsoluteUri) { UseShellExecute = true })?.Dispose();
+            return;
+        }
+        var before = ChromeWindows().ToDictionary(w => w.Hwnd, w => w.Title);
+        Process.Start(new ProcessStartInfo(chrome) { UseShellExecute = false, ArgumentList = { url.AbsoluteUri } })?.Dispose();
+
+        // Chrome tries to activate its own window, but Windows' foreground lock refuses a
+        // process launched from the tray, so it only flashes in the taskbar. Find the window
+        // that took the link (a new one, else the one whose tab title changed, else the
+        // topmost) and activate it from here.
+        nint target = 0;
+        var sw = Stopwatch.StartNew();
+        while (sw.ElapsedMilliseconds < 10_000)
+        {
+            ct.ThrowIfCancellationRequested();
+            var now = ChromeWindows();
+            var hit = now.FirstOrDefault(w => !before.ContainsKey(w.Hwnd))
+                ?? now.FirstOrDefault(w => before.TryGetValue(w.Hwnd, out var t) && t != w.Title);
+            if (hit != null) { target = hit.Hwnd; break; }
+            if (sw.ElapsedMilliseconds > 1500 && now.Count > 0) { target = now[0].Hwnd; break; }
+            await Task.Delay(100, ct);
+        }
+        if (target == 0) throw new EngineException("Chrome didn't open a window");
+
+        for (int attempt = 0; attempt < 30; attempt++)
+        {
+            ct.ThrowIfCancellationRequested();
+            Activate(target);
+            if (GetForegroundWindow() == target) break;
+            await Task.Delay(100, ct);
+        }
+        if (GetForegroundWindow() != target) throw new EngineException("Chrome opened but couldn't be brought to the front");
+        await Task.Delay(300, ct);   // let the tab settle before a click or typing step
+    }
+
+    sealed record ChromeWindow(nint Hwnd, string Title);
+
+    /// Visible Chrome browser windows, topmost first (EnumWindows walks the Z order).
+    static List<ChromeWindow> ChromeWindows()
+    {
+        var list = new List<ChromeWindow>();
+        var pids = new Dictionary<uint, bool>();
+        var cls = new StringBuilder(64);
+        var title = new StringBuilder(512);
+        EnumWindows((h, _) =>
+        {
+            if (!IsWindowVisible(h) || GetWindow(h, GW_OWNER) != 0) return true;
+            cls.Clear();
+            GetClassName(h, cls, cls.Capacity);
+            if (cls.ToString() != "Chrome_WidgetWin_1") return true;   // Edge, VS Code etc. share this class
+            GetWindowThreadProcessId(h, out var pid);
+            if (!pids.TryGetValue(pid, out var isChrome))
+            {
+                try { using var p = Process.GetProcessById((int)pid); isChrome = p.ProcessName.Equals("chrome", StringComparison.OrdinalIgnoreCase); }
+                catch (Exception) { isChrome = false; }
+                pids[pid] = isChrome;
+            }
+            if (!isChrome) return true;
+            title.Clear();
+            GetWindowText(h, title, title.Capacity);
+            if (title.Length > 0) list.Add(new ChromeWindow(h, title.ToString()));
+            return true;
+        }, 0);
+        return list;
+    }
+
+    /// Maximizes and focuses a window from a background process. Sharing the foreground
+    /// thread's input state is what lets SetForegroundWindow through the foreground lock.
+    static void Activate(nint hwnd)
+    {
+        if (IsIconic(hwnd)) ShowWindow(hwnd, SW_RESTORE);
+        if (!IsZoomed(hwnd) && !CoversScreen(hwnd)) ShowWindow(hwnd, SW_MAXIMIZE);
+        uint me = GetCurrentThreadId();
+        uint fg = GetWindowThreadProcessId(GetForegroundWindow(), out _);
+        uint target = GetWindowThreadProcessId(hwnd, out _);
+        bool attachFg = fg != 0 && fg != me && AttachThreadInput(me, fg, true);
+        bool attachTarget = target != me && target != fg && AttachThreadInput(me, target, true);
+        try
+        {
+            BringWindowToTop(hwnd);
+            SetForegroundWindow(hwnd);
+        }
+        finally
+        {
+            if (attachTarget) AttachThreadInput(me, target, false);
+            if (attachFg) AttachThreadInput(me, fg, false);
+        }
+    }
+
+    /// True for a Chrome window already in F11 full screen, which maximizing would undo.
+    static bool CoversScreen(nint hwnd)
+    {
+        if (!GetWindowRect(hwnd, out var r)) return false;
+        var screen = Screen.FromHandle(hwnd).Bounds;
+        return r.Left <= screen.Left && r.Top <= screen.Top && r.Right >= screen.Right && r.Bottom >= screen.Bottom;
     }
 
     // ---------- Post clipboard ----------
