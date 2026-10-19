@@ -25,7 +25,21 @@ enum Geo {
         NSScreen.screens.first { frame(of: $0).contains(p) }
     }
 
-    static func isOnScreen(_ p: CGPoint) -> Bool { screen(at: p) != nil }
+    /// Cached display frames for the editor's per-card off-screen warning; refreshed when
+    /// the display layout changes instead of being queried on every render.
+    nonisolated(unsafe) private static var cachedFrames: [CGRect]?
+    nonisolated(unsafe) private static var observing = false
+
+    static func isOnScreen(_ p: CGPoint) -> Bool {
+        if !observing {
+            observing = true
+            NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification,
+                                                   object: nil, queue: .main) { _ in cachedFrames = nil }
+        }
+        let frames = cachedFrames ?? NSScreen.screens.map(frame(of:))
+        cachedFrames = frames
+        return frames.contains { $0.contains(p) }
+    }
 
     /// Current pointer position in Quartz points.
     static var mouse: CGPoint { CGEvent(source: nil)?.location ?? quartz(fromCocoa: NSEvent.mouseLocation) }

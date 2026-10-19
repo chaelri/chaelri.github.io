@@ -78,10 +78,12 @@ struct StepsPane: View {
                 // to see if it's a drag, which made the text fields slow to take focus.
                 // Reordering is from the ☰ handle only.
                 ScrollView {
-                    VStack(spacing: 8) {
-                        ForEach($macro.steps) { $step in
-                            StepCard(step: $step,
-                                     number: number(of: step.id),
+                    // Lazy: only cards on screen are built, so opening a long macro is instant.
+                    LazyVStack(spacing: 8) {
+                        ForEach(Array(macro.steps.enumerated()), id: \.element.id) { idx, step in
+                            StepCard(step: step,
+                                     macroID: macro.id,
+                                     number: idx + 1,
                                      busy: runner.isBusy,
                                      onTest: { if let i = index(of: step.id) { runner.test(stepAt: i, of: macro.id) } },
                                      onDuplicate: { duplicate(step.id) },
@@ -90,6 +92,7 @@ struct StepsPane: View {
                                          dragging = step.id
                                          return NSItemProvider(object: step.id.uuidString as NSString)
                                      })
+                                .equatable()
                                 .opacity(dragging == step.id ? 0.45 : 1)
                                 .onDrop(of: [.text], delegate: StepDropDelegate(target: step.id, steps: $macro.steps,
                                                                                 dragging: $dragging))
@@ -215,14 +218,29 @@ struct RepeatControls: View {
     }
 }
 
-struct StepCard: View {
-    @Binding var step: Step
+/// Equatable on what it shows, so SwiftUI skips cards whose step didn't change. (The
+/// closures are recreated every render and would otherwise make every card look new.)
+struct StepCard: View, Equatable {
+    let step: Step
+    let macroID: UUID
     let number: Int
     let busy: Bool
     var onTest: () -> Void
     var onDuplicate: () -> Void
     var onDelete: () -> Void
     var onDrag: () -> NSItemProvider
+
+    static func == (a: StepCard, b: StepCard) -> Bool {
+        a.step == b.step && a.number == b.number && a.busy == b.busy && a.macroID == b.macroID
+    }
+
+    private func bind<T>(_ kp: WritableKeyPath<Step, T>) -> Binding<T> {
+        let current = step[keyPath: kp]
+        let (m, id) = (macroID, step.id)
+        return Binding(get: { current }, set: { v in Store.shared.updateStep(m, id) { $0[keyPath: kp] = v } })
+    }
+
+    private func update(_ change: (inout Step) -> Void) { Store.shared.updateStep(macroID, step.id, change) }
 
     private var tint: Color { step.type.tint }
     private var ghost: Bool { step.showOnly && step.type != .wait }
@@ -250,7 +268,7 @@ struct StepCard: View {
                 // Name + actions share the top row, so a card is never wider than its fields:
                 // the old layout put the buttons beside the fields and overflowed narrow windows.
                 HStack(spacing: 8) {
-                    TextField("Add a name…", text: $step.name)
+                    TextField("Add a name…", text: bind(\.name))
                         .textFieldStyle(.plain)
                         .font(step.name.isEmpty ? .callout : .headline)
                         .frame(minWidth: 80, maxWidth: .infinity, alignment: .leading)
@@ -259,14 +277,12 @@ struct StepCard: View {
                             .foregroundStyle(.orange)
                             .help("This point isn't on any connected display. Was a monitor unplugged?")
                     }
-                    ViewThatFits(in: .horizontal) {
-                        actions.labelStyle(.titleAndIcon)
-                        actions.labelStyle(.iconOnly)
-                    }
-                    .controlSize(.small)
+                    actions
+                        .labelStyle(.titleAndIcon)
+                        .controlSize(.small)
                 }
                 HStack(spacing: 14) {
-                    Picker("", selection: $step.type) {
+                    Picker("", selection: bind(\.type)) {
                         ForEach(StepType.allCases) { t in Text(t.label).tag(t) }
                     }
                     .labelsHidden()
@@ -276,13 +292,13 @@ struct StepCard: View {
                 if step.type != .wait {
                     HStack(spacing: 6) {
                         Text("Delay before").foregroundStyle(.secondary)
-                        SecondsField(value: $step.delayBefore)
+                        SecondsField(value: bind(\.delayBefore))
                     }
                     .font(.callout)
                 }
                 if step.type == .readText {
                     HStack(spacing: 8) {
-                        Toggle("", isOn: $step.copyResult)
+                        Toggle("", isOn: bind(\.copyResult))
                             .toggleStyle(.switch)
                             .controlSize(.mini)
                             .labelsHidden()
@@ -308,7 +324,7 @@ struct StepCard: View {
         .animation(.easeOut(duration: 0.15), value: ghost)
         .contextMenu {
             if step.type != .wait {
-                Button(step.showOnly ? "Make Live (Execute It)" : "Show Only (Don't Execute)") { step.showOnly.toggle() }
+                Button(step.showOnly ? "Make Live (Execute It)" : "Show Only (Don't Execute)") { update { $0.showOnly.toggle() } }
             }
             Button("Duplicate Step", action: onDuplicate)
             Button("Delete Step", role: .destructive, action: onDelete)
@@ -317,7 +333,7 @@ struct StepCard: View {
 
     private var actions: some View {
         HStack(spacing: 6) {
-            if step.type != .wait { LiveToggle(showOnly: $step.showOnly) }
+            if step.type != .wait { LiveToggle(showOnly: bind(\.showOnly)) }
             if step.type.hasPoint {
                 Button { pick() } label: { Label("Pick", systemImage: "scope") }
                     .help("Choose the point on screen")
@@ -339,16 +355,16 @@ struct StepCard: View {
     @ViewBuilder private var fields: some View {
         switch step.type {
         case .leftClick, .doubleClick, .rightClick, .move:
-            CoordField(label: "X", value: $step.x)
-            CoordField(label: "Y", value: $step.y)
+            CoordField(label: "X", value: bind(\.x))
+            CoordField(label: "Y", value: bind(\.y))
         case .wait:
-            SecondsField(value: $step.seconds)
+            SecondsField(value: bind(\.seconds))
         case .typeText:
-            TextField("Text to type", text: $step.text)
+            TextField("Text to type", text: bind(\.text))
                 .textFieldStyle(.roundedBorder)
                 .frame(minWidth: 160, maxWidth: 300)
         case .keyShortcut:
-            TextField("cmd+s, return…", text: $step.keys)
+            TextField("cmd+s, return…", text: bind(\.keys))
                 .textFieldStyle(.roundedBorder)
                 .frame(width: 130)
             if let combo = KeyCombo.parse(step.keys) {
@@ -363,12 +379,12 @@ struct StepCard: View {
                 Text("Not a key I know").font(.callout).foregroundStyle(.red)
             }
         case .readText:
-            CoordField(label: "X", value: $step.x)
-            CoordField(label: "Y", value: $step.y)
-            CoordField(label: "W", value: $step.width)
-            CoordField(label: "H", value: $step.height)
+            CoordField(label: "X", value: bind(\.x))
+            CoordField(label: "Y", value: bind(\.y))
+            CoordField(label: "W", value: bind(\.width))
+            CoordField(label: "H", value: bind(\.height))
         case .postClipboard:
-            TextField("https://…", text: $step.url)
+            TextField("https://…", text: bind(\.url))
                 .textFieldStyle(.roundedBorder)
                 .frame(minWidth: 220, maxWidth: 360)
                 .help("Sends the clipboard text as the POST body")
@@ -379,10 +395,12 @@ struct StepCard: View {
     private func pickArea() {
         Task { @MainActor in
             if let r = await CoordinatePicker.pickArea() {
-                step.x = r.minX
-                step.y = r.minY
-                step.width = r.width
-                step.height = r.height
+                update { s in
+                    s.x = r.minX
+                    s.y = r.minY
+                    s.width = r.width
+                    s.height = r.height
+                }
             }
         }
     }
@@ -390,8 +408,10 @@ struct StepCard: View {
     private func pick() {
         Task { @MainActor in
             if let p = await CoordinatePicker.pick() {
-                step.x = p.x
-                step.y = p.y
+                update { s in
+                    s.x = p.x
+                    s.y = p.y
+                }
             }
         }
     }

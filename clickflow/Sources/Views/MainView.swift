@@ -192,7 +192,7 @@ struct Sidebar: View {
 
 struct MacroRow: View {
     let macro: Macro
-    @ObservedObject private var store = Store.shared
+    private var store: Store { Store.shared }
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {

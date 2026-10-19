@@ -133,6 +133,16 @@ final class Store: ObservableObject {
             })
     }
 
+    /// Mutates one step in place. Cards write through this instead of a binding into the
+    /// whole macro, so a keystroke only redraws its own card.
+    func updateStep(_ macroID: UUID, _ stepID: UUID, _ change: (inout Step) -> Void) {
+        guard let mi = macros.firstIndex(where: { $0.id == macroID }),
+              let si = macros[mi].steps.firstIndex(where: { $0.id == stepID }) else { return }
+        var s = macros[mi].steps[si]
+        change(&s)
+        if s != macros[mi].steps[si] { macros[mi].steps[si] = s }
+    }
+
     var nextRun: (macro: Macro, date: Date)? {
         guard !pausedAll else { return nil }
         let now = Date()
