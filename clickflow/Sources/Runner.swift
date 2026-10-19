@@ -431,7 +431,7 @@ final class Runner: ObservableObject {
         if m.steps.contains(where: { $0.type.hasArea && !$0.showOnly }), !CGPreflightScreenCaptureAccess() {
             return BlockReason(text: "Screen Recording permission is off (needed to capture the screen)")
         }
-        if m.steps.contains(where: { $0.type == .sendScreenshot && !$0.showOnly }), Discord.webhookURL == nil {
+        if m.steps.contains(where: { $0.type == .readText && $0.sendDiscord && !$0.showOnly }), Discord.webhookURL == nil {
             return BlockReason(text: "No Discord webhook set (Settings › Discord)")
         }
         if let c = schedule?.conditions {

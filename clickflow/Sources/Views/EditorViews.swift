@@ -297,22 +297,10 @@ struct StepCard: View, Equatable {
                     .font(.callout)
                 }
                 if step.type == .readText {
-                    HStack(spacing: 8) {
-                        Toggle("", isOn: bind(\.copyResult))
-                            .toggleStyle(.switch)
-                            .controlSize(.mini)
-                            .labelsHidden()
-                        Image(systemName: step.copyResult ? "doc.on.clipboard.fill" : "doc.on.clipboard")
-                            .foregroundStyle(step.copyResult ? Color.mint : Color.secondary)
-                        Text(step.copyResult ? "Also copy the result to the clipboard"
-                                             : "Don't touch the clipboard (result only shows here and in history)")
-                            .foregroundStyle(step.copyResult ? .primary : .secondary)
-                    }
-                    .font(.callout)
-                    .help("On: the text read replaces what's on the clipboard, so a Post clipboard step can send it.")
+                    ScreenshotOptions(copyResult: bind(\.copyResult), sendDiscord: bind(\.sendDiscord),
+                                      includeText: bind(\.includeText), caption: bind(\.text))
+                    ReadResult(stepID: step.id)
                 }
-                if step.type == .readText { ReadResult(stepID: step.id) }
-                if step.type == .sendScreenshot { DiscordStepOptions(caption: bind(\.text)) }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -379,7 +367,7 @@ struct StepCard: View, Equatable {
             } else if !step.keys.isEmpty {
                 Text("Not a key I know").font(.callout).foregroundStyle(.red)
             }
-        case .readText, .sendScreenshot:
+        case .readText:
             CoordField(label: "X", value: bind(\.x))
             CoordField(label: "Y", value: bind(\.y))
             CoordField(label: "W", value: bind(\.width))
@@ -784,38 +772,60 @@ struct ReadResult: View {
     }
 }
 
-/// Caption + where it goes, for a Screenshot to Discord step.
-struct DiscordStepOptions: View {
+/// What a Screenshot area step does with its capture. The text is always read (on-device,
+/// no AI); these choose where the results go.
+struct ScreenshotOptions: View {
+    @Binding var copyResult: Bool
+    @Binding var sendDiscord: Bool
+    @Binding var includeText: Bool
     @Binding var caption: String
-    @ObservedObject private var perms = PermissionMonitor.shared
     @ViewState private var hasWebhook = Discord.webhookURL != nil
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 8) {
-                Text("Message").foregroundStyle(.secondary)
-                TextField("Optional text sent with the image", text: $caption)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(maxWidth: 360)
-            }
-            HStack(spacing: 6) {
-                if !perms.screenRecording {
-                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
-                    Text("Needs Screen Recording permission.").foregroundStyle(.secondary)
-                    Button("Allow") { PermissionMonitor.requestScreenRecording() }.controlSize(.small)
-                } else if hasWebhook {
-                    Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-                    Text("Posts straight to your Discord webhook (no Firebase, no Cloud Run).").foregroundStyle(.secondary)
-                } else {
-                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
-                    Text("Set your Discord webhook in Settings › Discord first.").foregroundStyle(.secondary)
-                    Button("Open Settings") { AppState.shared.selection = .settings }.controlSize(.small)
+        VStack(alignment: .leading, spacing: 8) {
+            option($copyResult, icon: "doc.on.clipboard", tint: .mint,
+                   on: "Copy the text to the clipboard", off: "Copy the text to the clipboard (off)")
+            option($sendDiscord, icon: "paperplane", tint: .indigo,
+                   on: "Send the screenshot to Discord", off: "Send the screenshot to Discord (off)")
+            if sendDiscord {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 8) {
+                        Text("Message").foregroundStyle(.secondary)
+                        TextField("Optional text sent with the image", text: $caption)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(maxWidth: 340)
+                    }
+                    Toggle("Include the text it read in the message", isOn: $includeText)
+                        .toggleStyle(.checkbox)
+                    HStack(spacing: 6) {
+                        if hasWebhook {
+                            Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                            Text("Straight to your webhook: no Firebase, no Cloud Run.").foregroundStyle(.secondary)
+                        } else {
+                            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                            Text("Set your Discord webhook in Settings › Discord first.").foregroundStyle(.secondary)
+                            Button("Open Settings") { AppState.shared.selection = .settings }.controlSize(.small)
+                        }
+                    }
+                    .font(.caption)
                 }
+                .padding(.leading, 34)
+                .transition(.opacity.combined(with: .move(edge: .top)))
             }
-            .font(.caption)
         }
         .font(.callout)
+        .animation(.easeOut(duration: 0.15), value: sendDiscord)
         .onAppear { hasWebhook = Discord.webhookURL != nil }
+    }
+
+    private func option(_ value: Binding<Bool>, icon: String, tint: Color, on: String, off: String) -> some View {
+        HStack(spacing: 8) {
+            Toggle("", isOn: value).toggleStyle(.switch).controlSize(.mini).labelsHidden()
+            Image(systemName: value.wrappedValue ? icon + ".fill" : icon)
+                .foregroundStyle(value.wrappedValue ? tint : Color.secondary)
+                .frame(width: 18)
+            Text(value.wrappedValue ? on : off).foregroundStyle(value.wrappedValue ? .primary : .secondary)
+        }
     }
 }
 
@@ -853,7 +863,6 @@ extension StepType {
         case .keyShortcut: return .green
         case .postClipboard: return .cyan
         case .readText: return .mint
-        case .sendScreenshot: return .indigo
         }
     }
 }

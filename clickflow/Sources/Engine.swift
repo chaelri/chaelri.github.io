@@ -81,20 +81,28 @@ enum ClickEngine {
         switch step.type {
         case .wait:
             return nil
-        case .sendScreenshot:
-            let image = try await ScreenText.capture(step.area)
-            guard let png = Discord.png(image) else { throw ScreenText.Failure.captureFailed }
-            try Task.checkCancellation()
-            try await Discord.send(png: png, filename: "clickflow-\(Int(Date().timeIntervalSince1970)).png",
-                                   caption: step.text)
-            return nil
         case .readText:
-            let text = try await ScreenText.read(step.area)
+            // One capture feeds everything: on-device OCR, the clipboard, and Discord.
+            let image = try await ScreenText.capture(step.area)
+            try Task.checkCancellation()
+            let text = (try? await ScreenText.recognize(image)) ?? ""
             if step.copyResult {
+                // Never leave the old clipboard in place for a Post clipboard step to send.
+                guard !text.isEmpty else { throw ScreenText.Failure.noText }
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(text, forType: .string)
             }
-            return text
+            if step.sendDiscord {
+                guard let png = Discord.png(image) else { throw ScreenText.Failure.captureFailed }
+                var caption = step.text.trimmingCharacters(in: .whitespacesAndNewlines)
+                if step.includeText {
+                    let read = text.isEmpty ? "_(no text found)_" : text
+                    caption = caption.isEmpty ? read : caption + "\n" + read
+                }
+                try Task.checkCancellation()
+                try await Discord.send(png: png, filename: "clickflow-\(Int(Date().timeIntervalSince1970)).png", caption: caption)
+            }
+            return text.isEmpty ? nil : text
         case .move:
             postMouse(.mouseMoved, step.point, .left)
         case .leftClick:

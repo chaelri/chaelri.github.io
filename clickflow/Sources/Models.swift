@@ -3,7 +3,7 @@ import Foundation
 // MARK: - Steps
 
 enum StepType: String, Codable, CaseIterable, Identifiable {
-    case leftClick, doubleClick, rightClick, move, wait, typeText, keyShortcut, postClipboard, readText, sendScreenshot
+    case leftClick, doubleClick, rightClick, move, wait, typeText, keyShortcut, postClipboard, readText
 
     var id: String { rawValue }
 
@@ -17,8 +17,7 @@ enum StepType: String, Codable, CaseIterable, Identifiable {
         case .typeText: return "Type text"
         case .keyShortcut: return "Key shortcut"
         case .postClipboard: return "Post clipboard"
-        case .readText: return "Read text from area"
-        case .sendScreenshot: return "Screenshot to Discord"
+        case .readText: return "Screenshot area"
         }
     }
 
@@ -33,7 +32,6 @@ enum StepType: String, Codable, CaseIterable, Identifiable {
         case .keyShortcut: return "command"
         case .postClipboard: return "paperplane"
         case .readText: return "text.viewfinder"
-        case .sendScreenshot: return "camera.viewfinder"
         }
     }
 
@@ -56,8 +54,7 @@ enum StepType: String, Codable, CaseIterable, Identifiable {
         case .typeText: return "Typing"
         case .keyShortcut: return "Pressing"
         case .postClipboard: return "Sending"
-        case .readText: return "Reading"
-        case .sendScreenshot: return "Sending"
+        case .readText: return "Capturing"
         }
     }
 
@@ -72,8 +69,7 @@ enum StepType: String, Codable, CaseIterable, Identifiable {
         case .typeText: return "Would type this"
         case .keyShortcut: return "Would press this"
         case .postClipboard: return "Would post the clipboard"
-        case .readText: return "Would read this area"
-        case .sendScreenshot: return "Would send this area"
+        case .readText: return "Would capture this area"
         }
     }
 
@@ -81,7 +77,7 @@ enum StepType: String, Codable, CaseIterable, Identifiable {
     var needsAccessibility: Bool { self != .wait && self != .postClipboard && !hasArea }
 
     /// Steps that work on a screen rectangle (x, y, width, height).
-    var hasArea: Bool { self == .readText || self == .sendScreenshot }
+    var hasArea: Bool { self == .readText }
 }
 
 /// One step of a macro. Coordinates are global Quartz points: origin at the top-left
@@ -105,6 +101,10 @@ struct Step: Identifiable, Equatable {
     var height: Double = 120
     /// Read text: put the result on the clipboard (so Post clipboard can send it).
     var copyResult = true
+    /// Screenshot area: post the image straight to the Discord webhook.
+    var sendDiscord = false
+    /// Screenshot area: put the text it read into the Discord message too.
+    var includeText = true
 
     var point: CGPoint { CGPoint(x: x, y: y) }
     var area: CGRect { CGRect(x: x, y: y, width: max(1, width), height: max(1, height)) }
@@ -137,11 +137,11 @@ struct Step: Identifiable, Equatable {
             return "Press \(KeyCombo.parse(keys)?.display ?? keys)"
         case .postClipboard:
             return "Post clipboard → \(URL(string: url)?.host ?? url)"
-        case .sendScreenshot:
-            return "Send \(Int(width))×\(Int(height)) at \(Fmt.coord(x)), \(Fmt.coord(y)) to Discord"
         case .readText:
-            return "Read text in \(Int(width))×\(Int(height)) at \(Fmt.coord(x)), \(Fmt.coord(y))"
-                + (copyResult ? " → clipboard" : "")
+            var outs = ["text"]
+            if copyResult { outs.append("clipboard") }
+            if sendDiscord { outs.append("Discord") }
+            return "Screenshot \(Int(width))×\(Int(height)) at \(Fmt.coord(x)), \(Fmt.coord(y)) → " + outs.joined(separator: " · ")
         }
     }
 
@@ -150,11 +150,17 @@ struct Step: Identifiable, Equatable {
 }
 
 extension Step: Codable {
-    enum CodingKeys: String, CodingKey { case type, name, x, y, delayBefore, seconds, text, keys, url, showOnly, width, height, copyResult }
+    enum CodingKeys: String, CodingKey { case type, name, x, y, delayBefore, seconds, text, keys, url, showOnly, width, height, copyResult, sendDiscord, includeText }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        type = try c.decode(StepType.self, forKey: .type)
+        // "sendScreenshot" was its own step before it merged into Screenshot area.
+        let rawType = try c.decode(String.self, forKey: .type)
+        let legacyDiscord = rawType == "sendScreenshot"
+        guard let t = legacyDiscord ? .readText : StepType(rawValue: rawType) else {
+            throw DecodingError.dataCorruptedError(forKey: .type, in: c, debugDescription: "Unknown step type \(rawType)")
+        }
+        type = t
         name = try c.decodeIfPresent(String.self, forKey: .name) ?? ""
         x = try c.decodeIfPresent(Double.self, forKey: .x) ?? 0
         y = try c.decodeIfPresent(Double.self, forKey: .y) ?? 0
@@ -166,7 +172,9 @@ extension Step: Codable {
         showOnly = try c.decodeIfPresent(Bool.self, forKey: .showOnly) ?? false
         width = try c.decodeIfPresent(Double.self, forKey: .width) ?? 300
         height = try c.decodeIfPresent(Double.self, forKey: .height) ?? 120
-        copyResult = try c.decodeIfPresent(Bool.self, forKey: .copyResult) ?? true
+        copyResult = try c.decodeIfPresent(Bool.self, forKey: .copyResult) ?? !legacyDiscord
+        sendDiscord = try c.decodeIfPresent(Bool.self, forKey: .sendDiscord) ?? legacyDiscord
+        includeText = try c.decodeIfPresent(Bool.self, forKey: .includeText) ?? !legacyDiscord
     }
 
     // Only the fields a step's type uses, so exports read like the spec's example.
@@ -187,19 +195,15 @@ extension Step: Codable {
         case .postClipboard:
             try c.encode(url, forKey: .url)
             try c.encode(delayBefore, forKey: .delayBefore)
-        case .sendScreenshot:
-            try c.encode(x, forKey: .x)
-            try c.encode(y, forKey: .y)
-            try c.encode(width, forKey: .width)
-            try c.encode(height, forKey: .height)
-            try c.encode(text, forKey: .text)
-            try c.encode(delayBefore, forKey: .delayBefore)
         case .readText:
             try c.encode(x, forKey: .x)
             try c.encode(y, forKey: .y)
             try c.encode(width, forKey: .width)
             try c.encode(height, forKey: .height)
             try c.encode(copyResult, forKey: .copyResult)
+            try c.encode(sendDiscord, forKey: .sendDiscord)
+            try c.encode(includeText, forKey: .includeText)
+            if !text.isEmpty { try c.encode(text, forKey: .text) }
             try c.encode(delayBefore, forKey: .delayBefore)
         default:
             try c.encode(x, forKey: .x)

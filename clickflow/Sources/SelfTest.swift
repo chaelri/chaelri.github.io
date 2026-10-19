@@ -101,6 +101,12 @@ enum SelfTest {
         let namedBack = try! JSONDecoder().decode(Step.self, from: JSONEncoder().encode(named))
         check("step name round trip", namedBack.title(2), "Step 2 · Wait for login")
 
+        let legacy = #"{"type":"sendScreenshot","x":10,"y":20,"width":75,"height":73,"text":"hi","delayBefore":0.5}"#
+        let migrated = try! JSONDecoder().decode(Step.self, from: Data(legacy.utf8))
+        check("old Screenshot to Discord step migrates",
+              "\(migrated.type.rawValue) discord=\(migrated.sendDiscord) clip=\(migrated.copyResult) caption=\(migrated.text)",
+              "readText discord=true clip=false caption=hi")
+
         var post = Step(type: .postClipboard, delayBefore: 0.5)
         post.url = "https://example.com/hook"
         let postJSON = String(decoding: try! JSONEncoder().encode(post), as: UTF8.self)
