@@ -95,6 +95,11 @@ enum SelfTest {
         check("two keys rejected", key("a+b"), "nil")
         check("unknown key", key("cmd+banana"), "nil")
 
+        var named = Step(type: .wait, seconds: 5)
+        named.name = "Wait for login"
+        let namedBack = try! JSONDecoder().decode(Step.self, from: JSONEncoder().encode(named))
+        check("step name round trip", namedBack.title(2), "Step 2 · Wait for login")
+
         var post = Step(type: .postClipboard, delayBefore: 0.5)
         post.url = "https://example.com/hook"
         let postJSON = String(decoding: try! JSONEncoder().encode(post), as: UTF8.self)

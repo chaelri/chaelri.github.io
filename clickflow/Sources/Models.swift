@@ -51,6 +51,8 @@ enum StepType: String, Codable, CaseIterable, Identifiable {
 struct Step: Identifiable, Equatable {
     var id = UUID()
     var type: StepType
+    /// Optional label shown on the card, in the HUD and in run history.
+    var name = ""
     var x: Double = 0
     var y: Double = 0
     var delayBefore: Double = 0
@@ -61,16 +63,23 @@ struct Step: Identifiable, Equatable {
 
     var point: CGPoint { CGPoint(x: x, y: y) }
 
+    /// "Step 3 · Open timesheet" when named, "Step 3" otherwise.
+    func title(_ number: Int) -> String {
+        let n = name.trimmingCharacters(in: .whitespaces)
+        return n.isEmpty ? "Step \(number)" : "Step \(number) · \(n)"
+    }
+
     /// Time this step adds to a run (waits + delays; the actions themselves are near-instant).
     var duration: Double { type == .wait ? seconds : delayBefore }
 }
 
 extension Step: Codable {
-    enum CodingKeys: String, CodingKey { case type, x, y, delayBefore, seconds, text, keys, url }
+    enum CodingKeys: String, CodingKey { case type, name, x, y, delayBefore, seconds, text, keys, url }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         type = try c.decode(StepType.self, forKey: .type)
+        name = try c.decodeIfPresent(String.self, forKey: .name) ?? ""
         x = try c.decodeIfPresent(Double.self, forKey: .x) ?? 0
         y = try c.decodeIfPresent(Double.self, forKey: .y) ?? 0
         delayBefore = max(0, try c.decodeIfPresent(Double.self, forKey: .delayBefore) ?? 0)
@@ -84,6 +93,7 @@ extension Step: Codable {
     func encode(to encoder: Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
         try c.encode(type, forKey: .type)
+        if !name.isEmpty { try c.encode(name, forKey: .name) }
         switch type {
         case .wait:
             try c.encode(seconds, forKey: .seconds)

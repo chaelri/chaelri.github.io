@@ -161,7 +161,8 @@ struct HUDView: View {
     }
 
     private func detail(_ s: RunStatus, now: Date) -> String {
-        var parts = ["Step \(s.stepIndex + 1) of \(s.stepCount)"]
+        let name = s.step?.name.trimmingCharacters(in: .whitespaces) ?? ""
+        var parts = ["Step \(s.stepIndex + 1) of \(s.stepCount)" + (name.isEmpty ? "" : " · \(name)")]
         if s.iterations != 1 {
             parts.append(s.iterations == 0 ? "loop \(s.iteration + 1)" : "loop \(s.iteration + 1)/\(s.iterations)")
         }

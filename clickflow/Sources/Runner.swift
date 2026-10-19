@@ -190,10 +190,14 @@ final class Runner: ObservableObject {
             } catch is CancellationError {
                 result = .stopped
                 let s = status
-                reason = s.map { "Stopped at step \($0.stepIndex + 1) of \($0.stepCount)" }
+                reason = s.map { st in
+                    let title = st.step?.title(st.stepIndex + 1) ?? "Step \(st.stepIndex + 1)"
+                    return "Stopped at \(title) (of \(st.stepCount))"
+                }
             } catch {
                 result = .failed
-                reason = error.localizedDescription
+                let st = status
+                reason = (st?.step.map { "\($0.title(st!.stepIndex + 1)): " } ?? "") + error.localizedDescription
             }
             HUD.shared.undodge()
             finish(m, trigger: trigger, started: started, result: result, reason: reason, restoreWindow: hid)
@@ -277,7 +281,7 @@ final class Runner: ObservableObject {
         }
         if let i = m.steps.firstIndex(where: { $0.type.hasPoint && !Geo.isOnScreen($0.point) }) {
             let s = m.steps[i]
-            return BlockReason(text: "Step \(i + 1) points at \(Fmt.coord(s.x)), \(Fmt.coord(s.y)), which is off every display",
+            return BlockReason(text: "\(s.title(i + 1)) points at \(Fmt.coord(s.x)), \(Fmt.coord(s.y)), which is off every display",
                                offScreen: true)
         }
         return nil

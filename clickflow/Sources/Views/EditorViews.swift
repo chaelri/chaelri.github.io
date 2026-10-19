@@ -236,6 +236,10 @@ struct StepCard: View {
                 .background(tint.opacity(0.14), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
 
             VStack(alignment: .leading, spacing: 8) {
+                TextField("Add a name…", text: $step.name)
+                    .textFieldStyle(.plain)
+                    .font(step.name.isEmpty ? .callout : .headline)
+                    .frame(maxWidth: 360, alignment: .leading)
                 HStack(spacing: 14) {
                     Picker("", selection: $step.type) {
                         ForEach(StepType.allCases) { t in Text(t.label).tag(t) }
@@ -302,6 +306,8 @@ struct StepCard: View {
             if let combo = KeyCombo.parse(step.keys) {
                 Text(combo.display)
                     .font(.system(.callout, design: .rounded).weight(.semibold))
+                    .foregroundStyle(Color.primary)
+                    .fixedSize()
                     .padding(.horizontal, 8)
                     .padding(.vertical, 2)
                     .background(RoundedRectangle(cornerRadius: 6).fill(.quaternary))
@@ -333,7 +339,10 @@ struct CoordField: View {
 
     var body: some View {
         HStack(spacing: 5) {
-            Text(label).font(.callout.weight(.semibold)).foregroundStyle(.secondary)
+            Text(label)
+                .font(.callout.weight(.semibold))
+                .foregroundStyle(Color.secondary)
+                .fixedSize()
             TextField("", value: $value, format: .number.precision(.fractionLength(0...1)).grouping(.never))
                 .textFieldStyle(.roundedBorder)
                 .monospacedDigit()
