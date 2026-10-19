@@ -574,6 +574,7 @@ void setup() {
 
   loadState();
 
+  wifiMulti.addAP("CharLa",   "Kahitano1!");
   wifiMulti.addAP("CAYNO",   "lokomoko");
   wifiMulti.addAP("Chaelri", "charlie24");
   WiFi.mode(WIFI_STA);

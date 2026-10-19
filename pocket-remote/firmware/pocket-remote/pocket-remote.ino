@@ -313,6 +313,7 @@ void setup() {
   pinMode(BTN_PIN, INPUT_PULLUP);
   loadMode();
 
+  wifiMulti.addAP("CharLa", "Kahitano1!");
   wifiMulti.addAP("CAYNO", "lokomoko");
   wifiMulti.addAP("Chaelri", "charlie24");
 

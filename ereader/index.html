@@ -817,6 +817,7 @@ void setup() {
   pinMode(BTN_PIN, INPUT_PULLUP);
   Wire.setPins(SDA_PIN, SCL_PIN); oled.begin();
 
+  wifiMulti.addAP("CharLa", "Kahitano1!");
   wifiMulti.addAP("CAYNO", "lokomoko");
   wifiMulti.addAP("Chaelri", "charlie24");
   WiFi.mode(WIFI_STA);

@@ -147,6 +147,7 @@ void killOnboardLED() {
 // ============================================================
 bool connectWiFi() {
   WiFi.mode(WIFI_STA);
+  wifiMulti.addAP("CharLa",   "Kahitano1!");
   wifiMulti.addAP("CAYNO",   "lokomoko");
   wifiMulti.addAP("Chaelri", "charlie24");
 

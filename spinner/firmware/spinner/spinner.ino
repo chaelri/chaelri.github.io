@@ -301,6 +301,7 @@ void setup() {
 
   // WiFi pool - identical to autoclicker/aircon/pocket-remote so the spinner
   // joins whichever known network is reachable.
+  wifiMulti.addAP("CharLa",   "Kahitano1!");
   wifiMulti.addAP("CAYNO",   "lokomoko");
   wifiMulti.addAP("Chaelri", "charlie24");
 

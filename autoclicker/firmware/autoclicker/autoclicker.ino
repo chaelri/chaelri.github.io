@@ -766,6 +766,7 @@ void setup() {
   // the line HIGH at idle; a press shorts it to GND -> reads LOW.
   pinMode(BTN_PIN, INPUT_PULLUP);
 
+  wifiMulti.addAP("CharLa", "Kahitano1!");
   wifiMulti.addAP("CAYNO", "lokomoko");
   wifiMulti.addAP("Chaelri", "charlie24");
 

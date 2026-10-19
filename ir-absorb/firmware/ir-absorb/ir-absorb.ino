@@ -276,6 +276,7 @@ void setup() {
   irrecv.setUnknownThreshold(kMinUnknownSize);
   irrecv.enableIRIn(/*pullup=*/true);
 
+  wifiMulti.addAP("CharLa", "Kahitano1!");
   wifiMulti.addAP("CAYNO", "lokomoko");
   wifiMulti.addAP("Chaelri", "charlie24");
 
