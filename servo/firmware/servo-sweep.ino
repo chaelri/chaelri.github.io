@@ -3,7 +3,7 @@
 // ---------------------------------------------------------------------------
 // Same functionality as autoclicker/aircon: on "click", the servo bursts
 // forward (PUSH_US) and keeps pushing into the button for CLICK_HOLD_MS, then
-// bursts the opposite direction (RETURN_US) back onto the rest stop.
+// bursts the opposite direction (RETURN_US) briefly, back to rest.
 // -> it goes, then comes right back. Triggered from the phone via Firebase.
 //
 // Continuous-rotation servos do NOT take angles. Pulse width = speed+direction:
@@ -11,8 +11,8 @@
 //   writeMicroseconds(1000) = full speed one way
 //   writeMicroseconds(2000) = full speed the other way
 // Travel = HOW LONG a non-1500 pulse is held (PUSH_MS / RETURN_MS), not an angle.
-// Open-loop timing drifts, so the arm runs between two hard stops (button and
-// a rest block) and each burst overdrives into its stop to re-home every click.
+// The push overdrives into the button (a hard stop), so the return is shorter
+// than the push — it only undoes the distance the arm actually moved.
 // If it spins the WRONG way on press, swap PUSH_US/RETURN_US.
 //
 // Servo (3-pin module):
@@ -58,13 +58,14 @@ const int SERVO_PIN   = 3;      // GPIO3 -> yellow signal wire
 const int STOP_US     = 1500;   // neutral — motor off (try 1480..1520 if it creeps)
 const int PUSH_US     = 1000;   // press direction  (swap with RETURN_US if reversed)
 const int RETURN_US   = 2000;   // release direction
-// Both ends are HARD STOPS: the button on the push side, a fixed block on the
-// rest side. Each burst is deliberately longer than the travel needs, so the
-// arm stalls into the stop and lands in the same place every time — no drift.
-// Requires the physical rest stop; without it RETURN_MS overshoots backwards.
-const int PUSH_MS     = 350;    // longer than needed to reach the button
-const int RETURN_MS   = 350;    // longer than needed to reach the rest stop
-const int CLICK_HOLD_MS = 250;  // keep driving INTO the button this long (no holding torque at STOP_US)
+// The push side is a hard stop (the PC power button): PUSH_MS is longer than
+// the travel needs, so the arm stalls into the button and the leftover time is
+// spent pressing, not moving. Its REAL travel is therefore much less than
+// PUSH_MS, so RETURN_MS is short — just enough to back off to rest. There is
+// no rest stop; a long return overshoots backwards.
+const int PUSH_MS     = 450;    // reach the button, then keep pressing into it
+const int RETURN_MS   = 120;    // only undo the distance actually travelled
+const int CLICK_HOLD_MS = 0;    // extra drive-into-button time on a click (on top of PUSH_MS)
 
 Servo servo;
 bool isPressed = false;         // latched state (for press/release/toggle)
@@ -119,7 +120,7 @@ void doClick() {
   if (isPressed) doRelease();
   servo.writeMicroseconds(PUSH_US);     // travel, then stall into the button
   delay(PUSH_MS + CLICK_HOLD_MS);       // motor stays on — STOP_US would let the button spring it back
-  servo.writeMicroseconds(RETURN_US);   // back until it stalls on the rest stop
+  servo.writeMicroseconds(RETURN_US);   // short burst back to rest
   delay(RETURN_MS);
   servo.writeMicroseconds(STOP_US);
   isPressed = false;
