@@ -42,11 +42,17 @@ extension NSScreen {
 enum EngineError: LocalizedError {
     case badShortcut(String)
     case noPermission
+    case emptyClipboard
+    case badURL(String)
+    case http(Int, String)
 
     var errorDescription: String? {
         switch self {
         case .badShortcut(let s): return "Couldn't read the key shortcut \"\(s)\""
         case .noPermission: return "Accessibility permission is off"
+        case .emptyClipboard: return "The clipboard had no text to post"
+        case .badURL(let s): return "\"\(s)\" isn't a valid http(s) URL"
+        case .http(let code, let body): return "POST failed with HTTP \(code)\(body.isEmpty ? "" : ": \(body)")"
         }
     }
 }
@@ -72,6 +78,32 @@ enum ClickEngine {
         case .keyShortcut:
             guard let combo = KeyCombo.parse(step.keys) else { throw EngineError.badShortcut(step.keys) }
             press(combo)
+        case .postClipboard:
+            try await postClipboard(to: step.url)
+        }
+    }
+
+    /// POSTs the clipboard text as-is. A JSON-looking clipboard goes as application/json.
+    static func postClipboard(to raw: String) async throws {
+        let s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let url = URL(string: s), ["http", "https"].contains(url.scheme?.lowercased() ?? "") else {
+            throw EngineError.badURL(s)
+        }
+        guard let text = NSPasteboard.general.string(forType: .string), !text.isEmpty else {
+            throw EngineError.emptyClipboard
+        }
+        var req = URLRequest(url: url, timeoutInterval: 20)
+        req.httpMethod = "POST"
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let looksJSON = (trimmed.hasPrefix("{") || trimmed.hasPrefix("["))
+            && (try? JSONSerialization.jsonObject(with: Data(trimmed.utf8))) != nil
+        req.setValue(looksJSON ? "application/json" : "text/plain; charset=utf-8", forHTTPHeaderField: "Content-Type")
+        req.httpBody = Data(text.utf8)
+        // URLSession's async API throws CancellationError on Stop, so the emergency stop still works mid-request.
+        let (data, response) = try await URLSession.shared.data(for: req)
+        let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+        guard (200..<300).contains(code) else {
+            throw EngineError.http(code, String(decoding: data.prefix(200), as: UTF8.self))
         }
     }
 

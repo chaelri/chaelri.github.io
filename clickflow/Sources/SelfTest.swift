@@ -95,6 +95,13 @@ enum SelfTest {
         check("two keys rejected", key("a+b"), "nil")
         check("unknown key", key("cmd+banana"), "nil")
 
+        var post = Step(type: .postClipboard, delayBefore: 0.5)
+        post.url = "https://example.com/hook"
+        let postJSON = String(decoding: try! JSONEncoder().encode(post), as: UTF8.self)
+        let postBack = try! JSONDecoder().decode(Step.self, from: Data(postJSON.utf8))
+        check("post clipboard step round trip", "\(postBack.type.rawValue) \(postBack.url) \(postBack.delayBefore)",
+              "postClipboard https://example.com/hook 0.5")
+
         // The spec's own JSON example, then a round trip.
         let spec = """
         {

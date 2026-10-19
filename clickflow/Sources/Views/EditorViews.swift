@@ -114,6 +114,9 @@ struct StepsPane: View {
         .background(.bar)
     }
 
+    /// The clickflow-hook Cloud Run relay: saves to the test RTDB and posts to #clickflow.
+    static let defaultPostURL = "https://clickflow-hook-668755364170.asia-southeast1.run.app"
+
     private func index(of id: UUID) -> Int? { macro.steps.firstIndex { $0.id == id } }
     private func number(of id: UUID) -> Int { (index(of: id) ?? 0) + 1 }
 
@@ -130,6 +133,7 @@ struct StepsPane: View {
             }
         }
         if type == .keyShortcut { s.keys = "cmd+s" }
+        if type == .postClipboard { s.url = StepsPane.defaultPostURL }
         if type != .wait, !macro.steps.isEmpty { s.delayBefore = 0.5 }
         macro.steps.append(s)
     }
@@ -212,6 +216,7 @@ struct StepCard: View {
         case .wait: return .orange
         case .typeText: return .pink
         case .keyShortcut: return .green
+        case .postClipboard: return .cyan
         }
     }
 
@@ -303,6 +308,12 @@ struct StepCard: View {
             } else if !step.keys.isEmpty {
                 Text("Not a key I know").font(.callout).foregroundStyle(.red)
             }
+        case .postClipboard:
+            TextField("https://…", text: $step.url)
+                .textFieldStyle(.roundedBorder)
+                .frame(minWidth: 220, maxWidth: 360)
+                .help("Sends the clipboard text as the POST body")
+            Text("clipboard → POST").font(.callout).foregroundStyle(.secondary)
         }
     }
 

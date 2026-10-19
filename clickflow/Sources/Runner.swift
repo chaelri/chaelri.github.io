@@ -176,7 +176,7 @@ final class Runner: ObservableObject {
                         }
                         status?.nextAt = nil
                         guard step.type != .wait else { continue }
-                        guard AXIsProcessTrusted() else { throw EngineError.noPermission }
+                        if step.type.needsAccessibility, !AXIsProcessTrusted() { throw EngineError.noPermission }
                         let dodged = step.type.hasPoint && HUD.shared.dodge(step.point)
                         try await ClickEngine.perform(step)
                         if step.type.isClick, Prefs.clickRing { ClickRing.show(at: step.point) }

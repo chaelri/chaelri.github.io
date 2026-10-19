@@ -18,7 +18,8 @@ Accessibility grant survives rebuilds.
 
 ## Use
 
-- **Steps:** left / double / right click, move, wait, type text, key shortcut (`cmd+s`, `⌘⇧4`, `return`).
+- **Steps:** left / double / right click, move, wait, type text, key shortcut (`cmd+s`, `⌘⇧4`, `return`),
+  post clipboard (POSTs the clipboard text to a URL; defaults to `clickflow-hook`, which relays it to #clickflow).
   Each card shows X / Y in points plus "Delay before". Pick, Test, drag to reorder, right-click to duplicate.
 - **Pick:** crosshair overlay on every display. Click or ↩ captures, arrows nudge 1 pt (⇧ = 10), esc cancels.
   The loupe needs Screen Recording; without it picking still works.

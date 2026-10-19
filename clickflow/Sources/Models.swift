@@ -3,7 +3,7 @@ import Foundation
 // MARK: - Steps
 
 enum StepType: String, Codable, CaseIterable, Identifiable {
-    case leftClick, doubleClick, rightClick, move, wait, typeText, keyShortcut
+    case leftClick, doubleClick, rightClick, move, wait, typeText, keyShortcut, postClipboard
 
     var id: String { rawValue }
 
@@ -16,6 +16,7 @@ enum StepType: String, Codable, CaseIterable, Identifiable {
         case .wait: return "Wait"
         case .typeText: return "Type text"
         case .keyShortcut: return "Key shortcut"
+        case .postClipboard: return "Post clipboard"
         }
     }
 
@@ -28,6 +29,7 @@ enum StepType: String, Codable, CaseIterable, Identifiable {
         case .wait: return "hourglass"
         case .typeText: return "keyboard"
         case .keyShortcut: return "command"
+        case .postClipboard: return "paperplane"
         }
     }
 
@@ -39,6 +41,9 @@ enum StepType: String, Codable, CaseIterable, Identifiable {
     }
 
     var isClick: Bool { hasPoint && self != .move }
+
+    /// Steps that post synthetic input; a network step works without the permission.
+    var needsAccessibility: Bool { self != .wait && self != .postClipboard }
 }
 
 /// One step of a macro. Coordinates are global Quartz points: origin at the top-left
@@ -52,6 +57,7 @@ struct Step: Identifiable, Equatable {
     var seconds: Double = 1
     var text = ""
     var keys = ""
+    var url = ""
 
     var point: CGPoint { CGPoint(x: x, y: y) }
 
@@ -60,7 +66,7 @@ struct Step: Identifiable, Equatable {
 }
 
 extension Step: Codable {
-    enum CodingKeys: String, CodingKey { case type, x, y, delayBefore, seconds, text, keys }
+    enum CodingKeys: String, CodingKey { case type, x, y, delayBefore, seconds, text, keys, url }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -71,6 +77,7 @@ extension Step: Codable {
         seconds = max(0, try c.decodeIfPresent(Double.self, forKey: .seconds) ?? 1)
         text = try c.decodeIfPresent(String.self, forKey: .text) ?? ""
         keys = try c.decodeIfPresent(String.self, forKey: .keys) ?? ""
+        url = try c.decodeIfPresent(String.self, forKey: .url) ?? ""
     }
 
     // Only the fields a step's type uses, so exports read like the spec's example.
@@ -85,6 +92,9 @@ extension Step: Codable {
             try c.encode(delayBefore, forKey: .delayBefore)
         case .keyShortcut:
             try c.encode(keys, forKey: .keys)
+            try c.encode(delayBefore, forKey: .delayBefore)
+        case .postClipboard:
+            try c.encode(url, forKey: .url)
             try c.encode(delayBefore, forKey: .delayBefore)
         default:
             try c.encode(x, forKey: .x)
