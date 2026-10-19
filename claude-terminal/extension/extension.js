@@ -52,9 +52,11 @@ for ($i = 0; $i -lt 60; $i++) {
   }
   Start-Sleep -Milliseconds 250
 }`;
+    // Not detached: on Windows a detached child gets its own console, which
+    // Windows 11 hands to Windows Terminal as a visible empty tab regardless of
+    // -WindowStyle Hidden. Attached + windowsHide means no console window at all.
     spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-WindowStyle', 'Hidden', '-Command', script], {
         windowsHide: true,
-        detached: true,
         stdio: 'ignore',
     }).unref();
 }
