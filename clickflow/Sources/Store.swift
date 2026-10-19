@@ -13,13 +13,15 @@ enum Prefs {
     static let showClickRing = "showClickRing"
     static let onboarded = "onboarded"
     static let pausedAll = "pausedAll"
+    static let lockInputDuringRuns = "lockInputDuringRuns"
 
     static func registerDefaults() {
-        UserDefaults.standard.register(defaults: [hideWindowDuringRuns: true, showClickRing: true])
+        UserDefaults.standard.register(defaults: [hideWindowDuringRuns: true, showClickRing: true, lockInputDuringRuns: true])
     }
 
     static var hideWindow: Bool { UserDefaults.standard.bool(forKey: hideWindowDuringRuns) }
     static var clickRing: Bool { UserDefaults.standard.bool(forKey: showClickRing) }
+    static var lockInput: Bool { UserDefaults.standard.bool(forKey: lockInputDuringRuns) }
 }
 
 @MainActor

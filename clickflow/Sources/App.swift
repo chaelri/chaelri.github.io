@@ -80,6 +80,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             return
         }
+        if CommandLine.arguments.contains("--lock-test") {
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                let lines = await InputLock.selfTest()
+                try? lines.joined(separator: "\n").write(to: Store.shared.directory.appendingPathComponent("lock-test.txt"),
+                                                         atomically: true, encoding: .utf8)
+                NSApp.terminate(nil)
+            }
+        }
         if CommandLine.arguments.contains("--placer-test") {
             Task { @MainActor in
                 let lines = await Placer.selfTest()

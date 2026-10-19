@@ -17,6 +17,8 @@ struct RunStatus {
     var testOnly: Int?
     /// Dry run: nothing is clicked, typed or sent; each step shows where it would act.
     var preview = false
+    /// Real mouse / keyboard blocked for this run (esc, ⌃⌥⌘. or ⌘Q stops).
+    var inputLocked = false
     var skipped: Set<Int> = []
     var repeatDelay: Double = 0
     var started = Date()
@@ -278,6 +280,10 @@ final class Runner: ObservableObject {
         installEsc()
         displayAwake.set(true)
         let hid = Prefs.hideWindow ? WindowManager.hideMain() : false
+        // Lock real input for real runs only: Preview and step tests need the mouse for Skip / Stop.
+        if Prefs.lockInput, !preview, onlyStep == nil {
+            status?.inputLocked = InputLock.engage()
+        }
 
         task = Task { @MainActor in
             var result = RunResult.completed
@@ -396,6 +402,7 @@ final class Runner: ObservableObject {
         summary = RunSummary(macroName: m.name, result: result, duration: Date().timeIntervalSince(started),
                              stepCount: count, reason: result == .completed ? nil : reason, output: output,
                              outputImage: status?.lastImage)
+        InputLock.release()
         status = nil
         task = nil
         displayAwake.set(false)

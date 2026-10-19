@@ -75,6 +75,7 @@ struct SettingsView: View {
     @ObservedObject private var store = Store.shared
     @AppStorage(Prefs.hideWindowDuringRuns) private var hideWindow = true
     @AppStorage(Prefs.showClickRing) private var clickRing = true
+    @AppStorage(Prefs.lockInputDuringRuns) private var lockInput = true
     @ViewState private var accuracy: [String] = []
     @ViewState private var webhookDraft = ""
     @ViewState private var hasWebhook = Discord.webhookURL != nil
@@ -99,6 +100,11 @@ struct SettingsView: View {
                 if let e = login.error { Text(e).font(.caption).foregroundStyle(.red) }
                 Toggle("Hide this window while a macro runs", isOn: $hideWindow)
                 Toggle("Show a ring where each click lands", isOn: $clickRing)
+                VStack(alignment: .leading, spacing: 2) {
+                    Toggle("Lock mouse & keyboard while a macro runs", isOn: $lockInput)
+                    Text("Your touches are ignored so nothing interrupts the macro. esc, \(HotKey.display) or ⌘Q stops it and unlocks; ⌘⌥esc (Force Quit) always works. Preview and step tests never lock.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
                 LabeledContent("Emergency stop") {
                     Text("\(HotKey.display) from any app, or esc during a run")
                         .foregroundStyle(.secondary)

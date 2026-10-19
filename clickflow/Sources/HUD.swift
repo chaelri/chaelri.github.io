@@ -218,7 +218,13 @@ private struct RunCard: View {
                     }
                     .buttonStyle(PillButtonStyle(color: .red))
                 }
-                Text("\(HotKey.display) or esc").font(.caption2).foregroundStyle(.tertiary)
+                if status.inputLocked {
+                    Label("Input locked · esc to stop", systemImage: "lock.fill")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.orange)
+                } else {
+                    Text("\(HotKey.display) or esc").font(.caption2).foregroundStyle(.tertiary)
+                }
             }
         }
     }
