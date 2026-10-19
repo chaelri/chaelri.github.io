@@ -29,3 +29,12 @@ macOS click-macro recorder/editor/scheduler. SwiftUI app shell + AppKit panels, 
 - `Placer.swift` replaced the full-screen picker for Pick buttons: non-activating floating target / box + ✓ ✗ bar, usable while other apps are focused. The area box is four strip windows, so nothing covers its interior. Never set `ignoresMouseEvents` on a window that should pass clicks through its transparent parts (setting it at all, even false, makes the whole window catch clicks). `--placer-test` checks click-through and drag.
 - Drags read `event.cgEvent.location`, not `NSEvent.mouseLocation`, which lagged and dropped the end of fast drags.
 - Input lock (`InputLock.swift`): active CGEventTap at `.cghidEventTap`, all event types; passes events whose `eventSourceUnixProcessID` is ours, handles esc / ⌃⌥⌘. / ⌘Q itself (the tap sits before the Carbon hotkey, so the hotkey alone would never fire), passes ⌘⌥esc. Released in `finish`, plus a 1 s watchdog. `--lock-test` locks for <1 s and checks our own events pass.
+
+## Windows port (`clickflow/windows/`, 2026-10-19)
+- C# .NET 8 WinForms, `build.ps1 [build|test|install]`, needs only the .NET 8 SDK. `nuget.config` in the folder because this PC's NuGet had no sources.
+- Reads/writes the Mac `macros.json` shape exactly (`Json.cs`: sorted keys, per-type fields, ISO dates), so exports cross over. Coordinates are physical pixels, not Mac points, so imported points need re-picking. `cmd`/`⌘` parse as Ctrl.
+- `macros/macros.windows.json`: Auto Clock-In/Out with macros + schedules disabled and every step Show only. Inert on purpose (Charlie: never execute them while building). `build.ps1 install` seeds `%APPDATA%\ClickFlow\macros.json` from it only when no macros exist.
+- Click = `SetCursorPos` + `SendInput` down/up (exact pixel; absolute SendInput rounds). Every posted event carries `dwExtraInfo = 0x0C11CF10`; the input-lock and recorder low-level hooks use it to pass ClickFlow's own events.
+- Static init order bit once: `Store.Directory` must be declared above `Store.Shared`.
+- HUD / markers set `WDA_EXCLUDEFROMCAPTURE` so OCR never reads them; `CLICKFLOW_ALLOW_CAPTURE=1` turns that off for dev screenshots. `CLICKFLOW_DATA_DIR` isolates a test build's data.
+- Screenshot area OCR: `Windows.Media.Ocr`, image upscaled 2–3× first.

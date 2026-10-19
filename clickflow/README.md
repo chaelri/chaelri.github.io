@@ -49,3 +49,7 @@ Data: `~/Library/Application Support/ClickFlow/` (`macros.json`, `history.json`,
 **Saved macros:** `macros/macros.json` is a copy of the live macros (steps and schedules). Refresh it with
 `./build.sh backup`. To restore on another Mac, use Import in the app (same format as Export), then set the
 Discord webhook again in Settings, since it is never saved in the repo.
+
+**Windows:** `windows/` is a C# / .NET 8 port with the same steps, HUD and macro format. See `windows/README.md`.
+`macros/macros.windows.json` is the Windows copy of the saved macros, with schedules off and every step
+Show only until the points are re-picked on the PC.

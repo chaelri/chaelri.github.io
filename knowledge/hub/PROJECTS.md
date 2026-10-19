@@ -181,7 +181,8 @@ macOS click-macro app: record / edit / schedule click sequences (every day, week
 - **Entry:** `build.sh`, `Sources/Runner.swift`, `Sources/Scheduler.swift`, `Sources/Engine.swift`.
 - **Deploy:** Local only, `./build.sh install` → `/Applications/ClickFlow.app`.
 - **Quirks:** `@State` is a macro in the macOS 26 SDK with no plugin in the CLT, so use `@ViewState` (typealias). Self-signed identity in `clickflow-signing.keychain-db` keeps the Accessibility grant across rebuilds.
-- **Full docs:** `knowledge/clickflow/SUMMARY.md`, `clickflow/README.md`.
+- **Windows port (2026-10-19):** `clickflow/windows/` — C# .NET 8 WinForms tray app, `build.ps1 [build|test|install]`, same macro JSON as the Mac (exports cross over). `clickflow/macros/macros.windows.json` is the Mac macros made inert (schedules off, every step Show only, `cmd+w`→`ctrl+w`) until the clicks are re-picked on the PC.
+- **Full docs:** `knowledge/clickflow/SUMMARY.md`, `clickflow/README.md`, `clickflow/windows/README.md`.
 
 ### claude-terminal/  🟢
 
@@ -609,7 +610,7 @@ Simple side-scrolling platformer (Bubu & Dudu) — canvas-based game.
 | mac-toggle (Mac agent) | root LaunchDaemon `com.chaelri.mactoggle` via `agent/install.sh` | Manual |
 | mac-toggle (menu bar) | per-user LaunchAgent `com.chaelri.mactoggle.menubar` via `menubar/install-menubar.sh` | Manual |
 | claude-terminal | Local only (Windows, `install.ps1`) | Manual |
-| clickflow | Local only (`./build.sh install` → /Applications) | Manual |
+| clickflow | Local only: Mac `./build.sh install` → /Applications; Windows `windows\build.ps1 install` → %LOCALAPPDATA%\Programs\ClickFlow | Manual |
 | claude-usage | per-user LaunchAgent `com.chaelri.claudeusage` via `install.sh` | Manual |
 | diskscope | Local only (`python3 serve.py`) | Manual |
 | phone-drop | Local only (`python3 receive.py`) | Manual |
