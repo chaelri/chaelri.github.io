@@ -20,7 +20,6 @@ Accessibility grant survives rebuilds.
 
 - **Steps:** left / double / right click, move, wait, type text, key shortcut (`cmd+s`, `⌘⇧4`, `return`),
   post clipboard (POSTs the clipboard text to a URL; defaults to `clickflow-hook`, which relays it to #clickflow),
-  read text from area (screenshot a rectangle → Apple's on-device Vision OCR → clipboard; needs Screen Recording),
   screenshot area (one step: captures a rectangle, always reads its text on-device, then optionally copies the text and/or posts the image straight to a Discord webhook, no Firebase; the
   webhook URL is set in Settings › Discord and kept in the Keychain, never in macros.json or exports).
 - **Preview** (toolbar, ⌥⌘R): plays the macro without executing anything; purple markers show where each click
