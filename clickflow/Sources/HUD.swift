@@ -97,18 +97,19 @@ final class HUD {
 // MARK: - Root view
 
 struct HUDView: View {
-    @ObservedObject private var runner = Runner.shared
+    @ObservedObject private var live = RunLive.shared
     @ObservedObject private var recorder = Recorder.shared
+    private let runner = Runner.shared
 
     var body: some View {
         ZStack {
             if recorder.isRecording {
                 RecordingCard(recorder: recorder)
-            } else if let c = runner.countdown {
+            } else if let c = live.countdown {
                 CountdownCard(pending: c, runner: runner)
-            } else if let s = runner.status {
+            } else if let s = live.status {
                 RunCard(status: s, runner: runner)
-            } else if let sum = runner.summary {
+            } else if let sum = live.summary {
                 SummaryCard(summary: sum)
             }
         }
@@ -117,7 +118,7 @@ struct HUDView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(.primary.opacity(0.1)))
-        .animation(.easeOut(duration: 0.2), value: runner.status == nil)
+        .animation(.easeOut(duration: 0.2), value: live.status == nil)
     }
 }
 
@@ -125,7 +126,7 @@ struct HUDView: View {
 
 private struct RunCard: View {
     let status: RunStatus
-    @ObservedObject var runner: Runner
+    let runner: Runner
 
     struct Row: Identifiable {
         enum Role { case done, current, next }
@@ -171,25 +172,46 @@ private struct RunCard: View {
     private var header: some View {
         HStack(alignment: .center, spacing: 10) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(status.testOnly != nil ? "Testing a step" : status.macroName)
-                    .font(.headline)
-                    .lineLimit(1)
+                HStack(spacing: 6) {
+                    if status.preview {
+                        Label("PREVIEW", systemImage: "eye")
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Capsule().fill(Color.purple))
+                            .help("Nothing is clicked, typed or sent")
+                    }
+                    Text(status.testOnly != nil ? "Testing a step" : status.macroName)
+                        .font(.headline)
+                        .lineLimit(1)
+                }
                 TimelineView(.periodic(from: .now, by: 0.25)) { ctx in
                     Text(subtitle(now: ctx.date))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
-                        .contentTransition(.numericText())
                 }
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 3) {
-                Button {
-                    runner.stop()
-                } label: {
-                    Label("Stop", systemImage: "stop.fill")
+                HStack(spacing: 6) {
+                    if status.preview {
+                        Button {
+                            runner.skipStep()
+                        } label: {
+                            Label("Skip", systemImage: "forward.fill")
+                        }
+                        .buttonStyle(PillButtonStyle(color: .purple))
+                        .help("Jump past this step")
+                    }
+                    Button {
+                        runner.stop()
+                    } label: {
+                        Label("Stop", systemImage: "stop.fill")
+                    }
+                    .buttonStyle(PillButtonStyle(color: .red))
                 }
-                .buttonStyle(StopButtonStyle())
                 Text("\(HotKey.display) or esc").font(.caption2).foregroundStyle(.tertiary)
             }
         }
@@ -227,33 +249,33 @@ private struct SegmentBar: View {
     let status: RunStatus
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30)) { ctx in
+        TimelineView(.animation(minimumInterval: 1.0 / 60)) { ctx in
             let fraction = phaseFraction(status, now: ctx.date)
-            if status.stepCount <= 48 {
-                HStack(spacing: 3) {
-                    ForEach(0..<status.stepCount, id: \.self) { i in
-                        GeometryReader { g in
-                            ZStack(alignment: .leading) {
-                                Capsule().fill(Color.primary.opacity(0.12))
-                                Capsule()
-                                    .fill(status.steps[i].type.tint)
-                                    .frame(width: g.size.width * fill(i, fraction))
-                            }
+            Canvas { gc, size in
+                let track = Color.primary.opacity(0.12)
+                let h = size.height
+                if status.stepCount <= 48 {
+                    let gap: CGFloat = 3
+                    let n = CGFloat(status.stepCount)
+                    let w = (size.width - gap * (n - 1)) / n
+                    for i in 0..<status.stepCount {
+                        let x = CGFloat(i) * (w + gap)
+                        gc.fill(Path(roundedRect: CGRect(x: x, y: 0, width: w, height: h), cornerRadius: h / 2), with: .color(track))
+                        let f = fill(i, fraction)
+                        if f > 0 {
+                            gc.fill(Path(roundedRect: CGRect(x: x, y: 0, width: max(h, w * f), height: h), cornerRadius: h / 2),
+                                    with: .color(status.steps[i].type.tint))
                         }
                     }
+                } else {
+                    // Too many steps for segments: one continuous bar.
+                    let overall = (Double(status.stepIndex) + fraction) / Double(max(1, status.stepCount))
+                    gc.fill(Path(roundedRect: CGRect(origin: .zero, size: size), cornerRadius: h / 2), with: .color(track))
+                    gc.fill(Path(roundedRect: CGRect(x: 0, y: 0, width: max(h, size.width * overall), height: h), cornerRadius: h / 2),
+                            with: .color(.accentColor))
                 }
-                .frame(height: 5)
-            } else {
-                // Too many steps for segments: one continuous bar.
-                let overall = (Double(status.stepIndex) + fraction) / Double(max(1, status.stepCount))
-                GeometryReader { g in
-                    ZStack(alignment: .leading) {
-                        Capsule().fill(Color.primary.opacity(0.12))
-                        Capsule().fill(Color.accentColor).frame(width: g.size.width * overall)
-                    }
-                }
-                .frame(height: 5)
             }
+            .frame(height: 5)
         }
     }
 
@@ -285,6 +307,7 @@ private struct StepRow: View {
     typealias RunCardRole = RunCard.Row.Role
 
     private var isCurrent: Bool { role == .current }
+    private var isGhost: Bool { step.type != .wait && (status.preview || step.showOnly) }
 
     var body: some View {
         HStack(alignment: .center, spacing: 11) {
@@ -307,7 +330,7 @@ private struct StepRow: View {
                     .lineLimit(1)
                     .truncationMode(.tail)
                 if isCurrent, showsBar {
-                    TimelineView(.animation(minimumInterval: 1.0 / 30)) { ctx in
+                    TimelineView(.animation(minimumInterval: 1.0 / 60)) { ctx in
                         ProgressLine(fraction: phaseFraction(status, now: ctx.date), tint: step.type.tint)
                     }
                     .padding(.top, 2)
@@ -319,9 +342,10 @@ private struct StepRow: View {
         .background {
             if isCurrent {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(step.type.tint.opacity(0.12))
+                    .fill((isGhost ? Color.purple : step.type.tint).opacity(0.12))
                     .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .strokeBorder(step.type.tint.opacity(0.35)))
+                        .strokeBorder((isGhost ? Color.purple : step.type.tint).opacity(0.45),
+                                      style: StrokeStyle(lineWidth: 1, dash: isGhost ? [5, 4] : [])))
             }
         }
         .opacity(isCurrent ? 1 : 0.55)
@@ -355,20 +379,32 @@ private struct StepRow: View {
     @ViewBuilder private var trailing: some View {
         switch role {
         case .done:
-            Label("Done", systemImage: "checkmark.circle.fill")
-                .labelStyle(.titleAndIcon)
-                .font(.caption.weight(.medium))
-                .foregroundStyle(.green)
+            if status.skipped.contains(number - 1) {
+                Label("Skipped", systemImage: "forward.circle.fill")
+                    .labelStyle(.titleAndIcon)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+            } else if isGhost {
+                Label("Shown", systemImage: "eye.circle.fill")
+                    .labelStyle(.titleAndIcon)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.purple)
+            } else {
+                Label("Done", systemImage: "checkmark.circle.fill")
+                    .labelStyle(.titleAndIcon)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.green)
+            }
         case .next:
-            Text(step.type == .wait || step.delayBefore == 0 ? "Up next" : "Up next · after \(Fmt.seconds(step.delayBefore))")
+            Text((step.showOnly && !status.preview ? "Show only · " : "")
+                 + (step.type == .wait || step.delayBefore == 0 ? "Up next" : "Up next · after \(Fmt.seconds(step.delayBefore))"))
                 .font(.caption)
                 .foregroundStyle(.secondary)
         case .current:
             TimelineView(.periodic(from: .now, by: 0.1)) { ctx in
                 Text(currentState(now: ctx.date))
                     .font(.caption.weight(.semibold).monospacedDigit())
-                    .foregroundStyle(step.type.tint)
-                    .contentTransition(.numericText())
+                    .foregroundStyle(isGhost ? Color.purple : step.type.tint)
             }
         }
     }
@@ -382,8 +418,10 @@ private struct StepRow: View {
             return "Next loop in \(String(format: "%.1fs", left ?? 0))"
         case .waiting:
             if step.type == .wait { return String(format: "%.1fs left", left ?? 0) }
+            if isGhost { return String(format: "Shows in %.1fs", left ?? 0) }
             return String(format: "\(step.type.verb) in %.1fs", left ?? 0)
         case .acting:
+            if isGhost { return step.type.wouldVerb }
             if let p = status.progress { return "\(step.type.verb) \(Int(p * 100))%" }
             return "\(step.type.verb)…"
         }
@@ -395,13 +433,13 @@ private struct ProgressLine: View {
     let tint: Color
 
     var body: some View {
-        GeometryReader { g in
-            ZStack(alignment: .leading) {
-                Capsule().fill(Color.primary.opacity(0.1))
-                Capsule()
-                    .fill(LinearGradient(colors: [tint.opacity(0.7), tint], startPoint: .leading, endPoint: .trailing))
-                    .frame(width: max(4, g.size.width * fraction))
-            }
+        Canvas { gc, size in
+            let h = size.height
+            gc.fill(Path(roundedRect: CGRect(origin: .zero, size: size), cornerRadius: h / 2), with: .color(.primary.opacity(0.1)))
+            let w = max(h, size.width * fraction)
+            gc.fill(Path(roundedRect: CGRect(x: 0, y: 0, width: w, height: h), cornerRadius: h / 2),
+                    with: .linearGradient(Gradient(colors: [tint.opacity(0.7), tint]),
+                                          startPoint: .zero, endPoint: CGPoint(x: w, y: 0)))
         }
         .frame(height: 4)
     }
@@ -423,14 +461,16 @@ private struct PulseRing: View {
 }
 
 /// The panel is never key, so a system prominent button would render dimmed grey.
-private struct StopButtonStyle: ButtonStyle {
+private struct PillButtonStyle: ButtonStyle {
+    let color: Color
+
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.callout.weight(.semibold))
             .foregroundStyle(.white)
             .padding(.horizontal, 14)
             .padding(.vertical, 6)
-            .background(Capsule().fill(Color.red.opacity(configuration.isPressed ? 0.75 : 1)))
+            .background(Capsule().fill(color.opacity(configuration.isPressed ? 0.75 : 1)))
             .scaleEffect(configuration.isPressed ? 0.96 : 1)
             .animation(.snappy(duration: 0.12), value: configuration.isPressed)
     }
@@ -467,7 +507,7 @@ private struct RecordingCard: View {
 
 private struct CountdownCard: View {
     let pending: PendingRun
-    @ObservedObject var runner: Runner
+    let runner: Runner
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 30)) { ctx in
@@ -519,7 +559,9 @@ private struct SummaryCard: View {
                 .opacity(appeared ? 1 : 0)
             VStack(alignment: .leading, spacing: 3) {
                 Text("\(word) · \(summary.macroName)").font(.headline).lineLimit(1)
-                Text(summary.reason ?? "\(summary.stepCount) step\(summary.stepCount == 1 ? "" : "s") in \(Fmt.seconds(summary.duration))")
+                Text(summary.reason
+                     ?? summary.output.map { "Read: " + $0.replacingOccurrences(of: "\n", with: " ⏎ ") }
+                     ?? "\(summary.stepCount) step\(summary.stepCount == 1 ? "" : "s") in \(Fmt.seconds(summary.duration))")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -529,6 +571,139 @@ private struct SummaryCard: View {
         }
         .onAppear {
             withAnimation(.spring(response: 0.38, dampingFraction: 0.55)) { appeared = true }
+        }
+    }
+}
+
+// MARK: - Ghost marker
+
+/// Where a preview / show-only step would act: a dashed target on the exact point
+/// plus a label. Never takes clicks.
+@MainActor
+enum Ghost {
+    static let size = NSSize(width: 320, height: 120)
+    /// Target centre inside the panel (top-left origin, SwiftUI space).
+    static let anchor = CGPoint(x: 60, y: 60)
+    private static var panel: FloatingPanel?
+
+    static func show(_ step: Step, number: Int) {
+        let p = panel ?? {
+            let p = FloatingPanel(size: size, interactive: false)
+            p.level = .screenSaver
+            p.hasShadow = false
+            panel = p
+            return p
+        }()
+        let host = NSHostingView(rootView: GhostView(step: step, number: number))
+        host.frame = NSRect(origin: .zero, size: size)
+        p.contentView = host
+        let c = Geo.cocoa(fromQuartz: step.point)
+        p.setFrameOrigin(NSPoint(x: c.x - anchor.x, y: c.y - (size.height - anchor.y)))
+        p.orderFrontRegardless()
+    }
+
+    static func hide() {
+        panel?.orderOut(nil)
+        areaPanel?.orderOut(nil)
+    }
+
+    private static var areaPanel: FloatingPanel?
+
+    /// A dashed box over the exact area a Read-text step would capture.
+    static func showArea(_ step: Step, number: Int) {
+        let r = step.area
+        let p = areaPanel ?? {
+            let p = FloatingPanel(size: r.size, interactive: false)
+            p.level = .screenSaver
+            p.hasShadow = false
+            areaPanel = p
+            return p
+        }()
+        let host = NSHostingView(rootView: GhostAreaView(step: step, number: number))
+        p.contentView = host
+        let c = Geo.cocoa(fromQuartz: CGPoint(x: r.minX, y: r.maxY))
+        // Room above the box for the label.
+        p.setFrame(NSRect(x: c.x - 3, y: c.y - 3, width: r.width + 6, height: r.height + 30), display: true)
+        p.orderFrontRegardless()
+    }
+}
+
+private struct GhostAreaView: View {
+    let step: Step
+    let number: Int
+    @ViewState private var phase: CGFloat = 0
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text("\(number) · \(step.heading) · Would read this area")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.white)
+                .lineLimit(1)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
+                .background(RoundedRectangle(cornerRadius: 6).fill(Color.purple))
+            RoundedRectangle(cornerRadius: 4)
+                .fill(Color.purple.opacity(0.1))
+                .overlay(RoundedRectangle(cornerRadius: 4)
+                    .strokeBorder(Color.purple, style: StrokeStyle(lineWidth: 2.5, dash: [7, 5], dashPhase: phase)))
+                .padding(3)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .onAppear {
+            withAnimation(.linear(duration: 1).repeatForever(autoreverses: false)) { phase = -24 }
+        }
+    }
+}
+
+private struct GhostView: View {
+    let step: Step
+    let number: Int
+    @ViewState private var spin = false
+    @ViewState private var pulse = false
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            ZStack {
+                Circle()
+                    .fill(Color.purple.opacity(0.14))
+                    .frame(width: 70, height: 70)
+                    .scaleEffect(pulse ? 1.15 : 0.9)
+                Circle()
+                    .strokeBorder(Color.purple, style: StrokeStyle(lineWidth: 2.5, dash: [6, 5]))
+                    .frame(width: 46, height: 46)
+                    .rotationEffect(.degrees(spin ? 360 : 0))
+                Path { p in
+                    p.move(to: CGPoint(x: 60, y: 40)); p.addLine(to: CGPoint(x: 60, y: 53))
+                    p.move(to: CGPoint(x: 60, y: 67)); p.addLine(to: CGPoint(x: 60, y: 80))
+                    p.move(to: CGPoint(x: 40, y: 60)); p.addLine(to: CGPoint(x: 53, y: 60))
+                    p.move(to: CGPoint(x: 67, y: 60)); p.addLine(to: CGPoint(x: 80, y: 60))
+                }
+                .stroke(Color.purple, lineWidth: 2)
+                .frame(width: 120, height: 120)
+                Circle().fill(Color.purple).frame(width: 6, height: 6)
+            }
+            .frame(width: 120, height: 120)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text("\(number) · \(step.heading)")
+                    .font(.caption.weight(.semibold))
+                    .lineLimit(1)
+                Text("\(step.type.wouldVerb) · \(Fmt.coord(step.x)), \(Fmt.coord(step.y))")
+                    .font(.caption2)
+                    .opacity(0.85)
+                    .lineLimit(1)
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 5)
+            .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.purple))
+            .frame(maxWidth: 200, alignment: .leading)
+            .offset(x: 100, y: 40)
+        }
+        .frame(width: Ghost.size.width, height: Ghost.size.height, alignment: .topLeading)
+        .onAppear {
+            withAnimation(.linear(duration: 4).repeatForever(autoreverses: false)) { spin = true }
+            withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) { pulse = true }
         }
     }
 }

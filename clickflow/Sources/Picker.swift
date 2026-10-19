@@ -9,19 +9,24 @@ import ScreenCaptureKit
 final class CoordinatePicker {
     private static var active: CoordinatePicker?
 
-    static func pick() async -> CGPoint? {
-        guard active == nil else { return nil }
+    static func pick() async -> CGPoint? { await run(area: false).0 }
+
+    /// Drag out a rectangle; returns it in Quartz points (rounded).
+    static func pickArea() async -> CGRect? { await run(area: true).1 }
+
+    private static func run(area: Bool) async -> (CGPoint?, CGRect?) {
+        guard active == nil else { return (nil, nil) }
         let hid = WindowManager.hideMain()
         try? await Task.sleep(nanoseconds: 250_000_000)
         let shots = await captureDisplays()
-        let point: CGPoint? = await withCheckedContinuation { cont in
-            let p = CoordinatePicker(shots: shots) { cont.resume(returning: $0) }
+        let result: (CGPoint?, CGRect?) = await withCheckedContinuation { cont in
+            let p = CoordinatePicker(shots: shots, area: area) { cont.resume(returning: ($0, $1)) }
             active = p
             p.begin()
         }
         active = nil
         if hid { WindowManager.restoreMain(activate: true) }
-        return point
+        return result
     }
 
     private static func captureDisplays() async -> [CGDirectDisplayID: CGImage] {
@@ -45,7 +50,10 @@ final class CoordinatePicker {
     // MARK: Instance
 
     let shots: [CGDirectDisplayID: CGImage]
-    private let done: (CGPoint?) -> Void
+    let area: Bool
+    /// Area mode: where the drag started.
+    private(set) var areaStart: CGPoint?
+    private let done: (CGPoint?, CGRect?) -> Void
     private var windows: [PickerWindow] = []
     private var timer: Timer?
     private var keyMonitor: Any?
@@ -53,9 +61,16 @@ final class CoordinatePicker {
     /// Rounded to whole points: what you see in the readout is exactly what gets stored.
     private(set) var point = CGPoint.zero
 
-    private init(shots: [CGDirectDisplayID: CGImage], done: @escaping (CGPoint?) -> Void) {
+    private init(shots: [CGDirectDisplayID: CGImage], area: Bool, done: @escaping (CGPoint?, CGRect?) -> Void) {
         self.shots = shots
+        self.area = area
         self.done = done
+    }
+
+    /// The rectangle being dragged, in Quartz points.
+    var selection: CGRect? {
+        guard let s = areaStart else { return nil }
+        return CGRect(x: min(s.x, point.x), y: min(s.y, point.y), width: abs(point.x - s.x), height: abs(point.y - s.y))
     }
 
     private func begin() {
@@ -90,7 +105,7 @@ final class CoordinatePicker {
         let step: CGFloat = e.modifierFlags.contains(.shift) ? 10 : 1
         switch e.keyCode {
         case 53: finish(nil)
-        case 36, 76: finish(point)
+        case 36, 76: if !area { finish(point) }
         case 123: nudge(-step, 0)
         case 124: nudge(step, 0)
         case 125: nudge(0, step)
@@ -108,9 +123,26 @@ final class CoordinatePicker {
         tick()
     }
 
-    func clicked() { finish(point) }
+    func pressed() {
+        if area {
+            areaStart = point
+            windows.forEach { $0.contentView?.needsDisplay = true }
+        } else {
+            finish(point)
+        }
+    }
 
-    private func finish(_ result: CGPoint?) {
+    func released() {
+        guard area, let r = selection else { return }
+        if r.width >= 4, r.height >= 4 {
+            finish(nil, rect: r)
+        } else {
+            areaStart = nil   // a click, not a drag: keep picking
+            windows.forEach { $0.contentView?.needsDisplay = true }
+        }
+    }
+
+    private func finish(_ result: CGPoint?, rect: CGRect? = nil) {
         guard !finished else { return }
         finished = true
         timer?.invalidate()
@@ -118,7 +150,7 @@ final class CoordinatePicker {
         windows.forEach { $0.orderOut(nil) }
         windows.removeAll()
         NSCursor.arrow.set()
-        done(result)
+        done(result, rect)
     }
 }
 
@@ -160,7 +192,11 @@ final class PickerView: NSView {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
     override func mouseDown(with event: NSEvent) {
-        MainActor.assumeIsolated { picker.clicked() }
+        MainActor.assumeIsolated { picker.pressed() }
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        MainActor.assumeIsolated { picker.released() }
     }
 
     override func resetCursorRects() { addCursorRect(bounds, cursor: .crosshair) }
@@ -171,10 +207,30 @@ final class PickerView: NSView {
         NSColor.black.withAlphaComponent(0.12).setFill()
         bounds.fill()
 
-        let (frame, p, shot) = MainActor.assumeIsolated {
-            (Geo.frame(of: screen), picker.point, screen.displayID.flatMap { picker.shots[$0] })
+        let (frame, p, shot, selection, isArea) = MainActor.assumeIsolated {
+            (Geo.frame(of: screen), picker.point, screen.displayID.flatMap { picker.shots[$0] }, picker.selection, picker.area)
         }
-        drawHint()
+        drawHint(area: isArea)
+        if let sel = selection?.intersection(frame), !sel.isNull {
+            let r = NSRect(x: sel.minX - frame.minX, y: frame.maxY - sel.maxY, width: sel.width, height: sel.height)
+            NSColor.controlAccentColor.withAlphaComponent(0.14).setFill()
+            r.fill()
+            let box = NSBezierPath(rect: r.insetBy(dx: 0.5, dy: 0.5))
+            box.lineWidth = 2
+            NSColor.controlAccentColor.setStroke()
+            box.stroke()
+            if let full = selection {
+                let label = "\(Int(full.width)) × \(Int(full.height))" as NSString
+                let attrs: [NSAttributedString.Key: Any] = [
+                    .font: NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .semibold), .foregroundColor: NSColor.white,
+                ]
+                let ts = label.size(withAttributes: attrs)
+                let pill = NSRect(x: r.minX, y: r.maxY + 6, width: ts.width + 16, height: ts.height + 6)
+                NSColor.controlAccentColor.setFill()
+                NSBezierPath(roundedRect: pill, xRadius: pill.height / 2, yRadius: pill.height / 2).fill()
+                label.draw(at: NSPoint(x: pill.minX + 8, y: pill.minY + 3), withAttributes: attrs)
+            }
+        }
         guard frame.contains(p) else { return }
 
         // View coordinates are bottom-left within this screen.
@@ -257,8 +313,10 @@ final class PickerView: NSView {
         label.draw(at: NSPoint(x: pill.minX + 10, y: pill.minY + 4), withAttributes: attrs)
     }
 
-    private func drawHint() {
-        let text = "Click to pick a point  ·  ← → ↑ ↓ nudge (⇧ ×10)  ·  ↩ pick  ·  esc cancel" as NSString
+    private func drawHint(area: Bool) {
+        let text = (area
+            ? "Drag a box around the text to read  ·  esc cancel"
+            : "Click to pick a point  ·  ← → ↑ ↓ nudge (⇧ ×10)  ·  ↩ pick  ·  esc cancel") as NSString
         let attrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 13, weight: .medium), .foregroundColor: NSColor.white]
         let ts = text.size(withAttributes: attrs)
         let top = bounds.maxY - (screen.frame.maxY - screen.visibleFrame.maxY)

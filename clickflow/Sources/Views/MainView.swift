@@ -32,6 +32,14 @@ struct MainView: View {
                 .disabled(runner.isBusy)
 
                 Button {
+                    if let id = selectedID { runner.previewRun(id) }
+                } label: {
+                    Label("Preview", systemImage: "eye")
+                }
+                .help("Play it without clicking, typing or sending anything; markers show where each click would land (⌥⌘R)")
+                .disabled(selectedID == nil || runner.isBusy)
+
+                Button {
                     if let id = selectedID { runner.runNow(id) }
                 } label: {
                     Label("Run", systemImage: "play.fill")
@@ -172,6 +180,7 @@ struct Sidebar: View {
 
     @ViewBuilder private func menu(for m: Macro) -> some View {
         Button("Run Now") { Runner.shared.runNow(m.id) }.disabled(Runner.shared.isBusy)
+        Button("Preview") { Runner.shared.previewRun(m.id) }.disabled(Runner.shared.isBusy)
         Divider()
         Button("Rename…") { renameText = m.name; renaming = m.id }
         Button("Duplicate") { store.duplicate(m.id) }

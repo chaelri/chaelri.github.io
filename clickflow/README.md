@@ -19,7 +19,11 @@ Accessibility grant survives rebuilds.
 ## Use
 
 - **Steps:** left / double / right click, move, wait, type text, key shortcut (`cmd+s`, `⌘⇧4`, `return`),
-  post clipboard (POSTs the clipboard text to a URL; defaults to `clickflow-hook`, which relays it to #clickflow).
+  post clipboard (POSTs the clipboard text to a URL; defaults to `clickflow-hook`, which relays it to #clickflow),
+  read text from area (screenshot a rectangle → Apple's on-device Vision OCR → clipboard; needs Screen Recording).
+- **Preview** (toolbar, ⌥⌘R): plays the macro without executing anything; purple markers show where each click
+  lands or which area would be read. Skip jumps past the current step.
+- **Live / Show only** (per step): a show-only step is never executed, even in a real run; it only shows its marker.
   Each card shows X / Y in points plus "Delay before". Pick, Test, drag to reorder, right-click to duplicate.
 - **Pick:** crosshair overlay on every display. Click or ↩ captures, arrows nudge 1 pt (⇧ = 10), esc cancels.
   The loupe needs Screen Recording; without it picking still works.

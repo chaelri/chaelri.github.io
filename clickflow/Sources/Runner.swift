@@ -15,6 +15,9 @@ struct RunStatus {
     var iterations: Int
     /// Set when only one step is being tested.
     var testOnly: Int?
+    /// Dry run: nothing is clicked, typed or sent; each step shows where it would act.
+    var preview = false
+    var skipped: Set<Int> = []
     var repeatDelay: Double = 0
     var started = Date()
     var phase: Phase = .starting
@@ -23,6 +26,9 @@ struct RunStatus {
     /// 0…1 for steps that report it (typing).
     var progress: Double?
     var completed: Set<Int> = []
+
+    /// Text from the latest Read-text step in this run.
+    var lastOutput: String?
 
     var stepCount: Int { steps.count }
     var step: Step? { steps.indices.contains(stepIndex) ? steps[stepIndex] : nil }
@@ -35,6 +41,7 @@ struct RunSummary: Equatable {
     var duration: TimeInterval
     var stepCount: Int
     var reason: String?
+    var output: String?
 }
 
 struct PendingRun: Identifiable {
@@ -46,23 +53,55 @@ struct PendingRun: Identifiable {
     var fireAt: Date?
 }
 
+/// The fast-changing state of a run (phase, progress, which step). Only the HUD observes
+/// this; everything else watches `Runner.busy`, so a progress tick never redraws the
+/// main window.
+@MainActor
+final class RunLive: ObservableObject {
+    static let shared = RunLive()
+    @Published var status: RunStatus?
+    @Published var countdown: PendingRun?
+    @Published var summary: RunSummary?
+}
+
 /// Plays macros one at a time. Scheduled runs queue behind a running one and get a
 /// 5-second "About to run" countdown; manual runs are refused while anything is busy.
 @MainActor
 final class Runner: ObservableObject {
     static let shared = Runner()
 
-    @Published private(set) var status: RunStatus?
-    @Published private(set) var countdown: PendingRun?
+    /// Coarse state for the rest of the UI: changes only when a run starts or ends.
+    @Published private(set) var busy = false
+    @Published private(set) var runningName: String?
+
+    private(set) var status: RunStatus? {
+        get { RunLive.shared.status }
+        set { RunLive.shared.status = newValue; syncBusy() }
+    }
+    private(set) var countdown: PendingRun? {
+        get { RunLive.shared.countdown }
+        set { RunLive.shared.countdown = newValue; syncBusy() }
+    }
     /// The just-finished run, shown briefly on the HUD.
-    @Published private(set) var summary: RunSummary?
+    private(set) var summary: RunSummary? {
+        get { RunLive.shared.summary }
+        set { RunLive.shared.summary = newValue }
+    }
+
+    private func syncBusy() {
+        let b = RunLive.shared.status != nil || RunLive.shared.countdown != nil
+        if busy != b { busy = b }
+        let n = RunLive.shared.status?.macroName
+        if runningName != n { runningName = n }
+    }
     private var queue: [PendingRun] = []
     private var task: Task<Void, Never>?
     private var countdownTask: Task<Void, Never>?
     private var escMonitors: [Any] = []
+    private var skipRequested = false
     private let displayAwake = PowerAssertion(type: "PreventUserIdleDisplaySleep", reason: "ClickFlow is running a macro")
 
-    var isBusy: Bool { status != nil || countdown != nil || Recorder.shared.isRecording }
+    var isBusy: Bool { busy || Recorder.shared.isRecording }
 
     // MARK: Entry points
 
@@ -85,10 +124,25 @@ final class Runner: ObservableObject {
         start(m, trigger: .manual, onlyStep: nil, note: nil)
     }
 
+    /// Plays the whole macro without executing anything: markers show where each click
+    /// would land, and Skip jumps past the current step.
+    func previewRun(_ id: UUID) {
+        guard let m = Store.shared.macro(id) else { return }
+        guard !isBusy else { NSSound.beep(); return }
+        if m.steps.isEmpty { Alerts.show("Can't preview \(m.name)", "The macro has no steps."); return }
+        start(m, trigger: .preview, onlyStep: nil, note: nil, preview: true)
+    }
+
+    /// Skip the rest of the current step (preview only).
+    func skipStep() {
+        guard status?.preview == true else { return }
+        skipRequested = true
+    }
+
     func test(stepAt index: Int, of id: UUID) {
         guard let m = Store.shared.macro(id), m.steps.indices.contains(index) else { return }
         guard !isBusy else { NSSound.beep(); return }
-        guard AXIsProcessTrusted() else {
+        guard m.steps[index].showOnly || !m.steps[index].type.needsAccessibility || AXIsProcessTrusted() else {
             if Alerts.confirm("ClickFlow can't click yet", "Turn on ClickFlow in System Settings › Privacy & Security › Accessibility.",
                               ok: "Open Settings") { PermissionMonitor.requestAccessibility() }
             return
@@ -98,7 +152,7 @@ final class Runner: ObservableObject {
 
     /// `--preview-hud`: plays a harmless macro (waits + in-place moves, nothing clicked or
     /// typed, nothing saved) so the run HUD can be looked at.
-    func preview() {
+    func previewHUD() {
         guard !isBusy else { return }
         let here = Geo.mouse
         func move(_ name: String, delay: Double) -> Step {
@@ -119,7 +173,7 @@ final class Runner: ObservableObject {
             move("Point at the confirm dialog with a deliberately long step name that has to truncate", delay: 0.8),
             wait("Let it settle", 1.5),
         ])
-        start(m, trigger: .test, onlyStep: nil, note: "HUD preview")
+        start(m, trigger: .preview, onlyStep: nil, note: "HUD preview", preview: true)
     }
 
     func enqueueScheduled(_ m: Macro, schedule: Schedule, note: String?) {
@@ -198,11 +252,12 @@ final class Runner: ObservableObject {
 
     // MARK: Playback
 
-    private func start(_ m: Macro, trigger: RunTrigger, onlyStep: Int?, note: String?) {
+    private func start(_ m: Macro, trigger: RunTrigger, onlyStep: Int?, note: String?, preview: Bool = false) {
         let started = Date()
         let iterations = onlyStep == nil ? m.repeatCount : 1
         summary = nil
         status = RunStatus(macroName: m.name, steps: m.steps, iterations: iterations, testOnly: onlyStep, repeatDelay: m.repeatDelay)
+        status?.preview = preview
         if let i = onlyStep { status?.stepIndex = i }
         HUD.shared.show()
         installEsc()
@@ -218,9 +273,11 @@ final class Runner: ObservableObject {
                 while iterations == 0 || it < iterations {
                     if it > 0, m.repeatDelay > 0 {
                         status?.stepIndex = 0
+                        skipRequested = false
                         setPhase(.pausingLoop, m.repeatDelay)
                         try await sleep(m.repeatDelay)
                     }
+                    status?.skipped = []
                     status?.completed = []
                     status?.iteration = it
                     for (i, step) in m.steps.enumerated() {
@@ -228,16 +285,38 @@ final class Runner: ObservableObject {
                         try Task.checkCancellation()
                         status?.stepIndex = i
                         status?.progress = nil
+                        skipRequested = false
+                        let ghost = preview || step.showOnly
+                        // Show the target from the moment the step is up, so the countdown has a place.
+                        if ghost, step.type.hasPoint { Ghost.show(step, number: i + 1) }
+                        if ghost, step.type == .readText { Ghost.showArea(step, number: i + 1) }
+                        defer { if ghost { Ghost.hide() } }
                         let delay = step.type == .wait ? step.seconds : (onlyStep == nil ? step.delayBefore : 0)
                         if delay > 0 {
                             setPhase(.waiting, delay)
                             try await sleep(delay)
                         }
-                        if step.type != .wait {
+                        if skipRequested {
+                            status?.skipped.insert(i)
+                        } else if step.type != .wait, ghost {
+                            // Hold long enough to read where it would have acted.
+                            let hold = step.type.hasPoint ? 0.9 : 0.7
+                            setPhase(.acting, hold)
+                            try await sleep(hold)
+                            if skipRequested { status?.skipped.insert(i) }
+                        } else if step.type != .wait {
                             setPhase(.acting, nil)
                             if step.type.needsAccessibility, !AXIsProcessTrusted() { throw EngineError.noPermission }
                             let dodged = step.type.hasPoint && HUD.shared.dodge(step.point)
-                            try await ClickEngine.perform(step) { p in Runner.shared.status?.progress = p }
+                            let out = try await ClickEngine.perform(step) { p in
+                                let r = Runner.shared
+                                let q = (p * 100).rounded(.down) / 100
+                                if r.status?.progress != q { r.status?.progress = q }
+                            }
+                            if let out {
+                                StepOutputs.shared.text[step.id] = out
+                                status?.lastOutput = out
+                            }
                             if step.type.isClick, Prefs.clickRing { ClickRing.show(at: step.point) }
                             if dodged {
                                 try? await Task.sleep(nanoseconds: 150_000_000)
@@ -251,6 +330,7 @@ final class Runner: ObservableObject {
             } catch is CancellationError {
                 result = .stopped
                 let s = status
+                Ghost.hide()
                 reason = s.map { st in
                     let title = st.step?.title(st.stepIndex + 1) ?? "Step \(st.stepIndex + 1)"
                     return "Stopped at \(title) (of \(st.stepCount))"
@@ -272,16 +352,24 @@ final class Runner: ObservableObject {
         status?.phaseEnd = duration.map { now.addingTimeInterval($0) }
     }
 
-    /// Task.sleep throws the moment the task is cancelled, so Stop is instant even mid-wait.
+    /// Sliced Task.sleep: throws the moment the task is cancelled (Stop is instant even
+    /// mid-wait) and returns early when Skip is pressed.
     private func sleep(_ seconds: Double) async throws {
-        try await Task.sleep(nanoseconds: UInt64(max(0, seconds) * 1_000_000_000))
+        let end = Date().addingTimeInterval(max(0, seconds))
+        while !skipRequested {
+            let left = end.timeIntervalSinceNow
+            if left <= 0 { return }
+            try await Task.sleep(nanoseconds: UInt64(min(left, 0.05) * 1_000_000_000))
+        }
     }
 
     private func finish(_ m: Macro, trigger: RunTrigger, started: Date, result: RunResult, reason: String?, restoreWindow: Bool) {
-        log(m, trigger, result, reason, start: started, end: Date())
+        let read = status?.lastOutput.map { "Read: “" + String($0.replacingOccurrences(of: "\n", with: " ⏎ ").prefix(300)) + "”" }
+        log(m, trigger, result, [reason, read].compactMap { $0 }.joined(separator: " · ").nilIfEmpty, start: started, end: Date())
         let count = status.map { $0.testOnly == nil ? $0.stepCount : 1 } ?? m.steps.count
+        let output = status?.lastOutput
         summary = RunSummary(macroName: m.name, result: result, duration: Date().timeIntervalSince(started),
-                             stepCount: count, reason: result == .completed ? nil : reason)
+                             stepCount: count, reason: result == .completed ? nil : reason, output: output)
         status = nil
         task = nil
         displayAwake.set(false)
@@ -337,8 +425,12 @@ final class Runner: ObservableObject {
 
     func blockReason(_ m: Macro, schedule: Schedule?, checkIdle: Bool = true) -> BlockReason? {
         if m.steps.isEmpty { return BlockReason(text: "The macro has no steps") }
-        if !AXIsProcessTrusted() { return BlockReason(text: "Accessibility permission is off", permission: true) }
+        let needsAX = m.steps.contains { $0.type.needsAccessibility && !$0.showOnly }
+        if needsAX, !AXIsProcessTrusted() { return BlockReason(text: "Accessibility permission is off", permission: true) }
         if SystemState.screenLocked { return BlockReason(text: "The screen was locked") }
+        if m.steps.contains(where: { $0.type == .readText && !$0.showOnly }), !CGPreflightScreenCaptureAccess() {
+            return BlockReason(text: "Screen Recording permission is off (needed to read text)")
+        }
         if let c = schedule?.conditions {
             let app = (c.requireApp ?? "").trimmingCharacters(in: .whitespaces)
             if !app.isEmpty {
@@ -385,4 +477,9 @@ final class Runner: ObservableObject {
     func logSkip(_ m: Macro, reason: String, at date: Date = Date()) {
         log(m, .scheduled, .skipped, reason, start: date)
     }
+}
+
+
+extension String {
+    var nilIfEmpty: String? { isEmpty ? nil : self }
 }

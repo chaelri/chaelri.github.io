@@ -33,6 +33,10 @@ struct ClickFlowApp: App {
                     if case .macro(let id) = AppState.shared.selection { Runner.shared.runNow(id) }
                 }
                 .keyboardShortcut("r")
+                Button("Preview Selected (nothing is clicked)") {
+                    if case .macro(let id) = AppState.shared.selection { Runner.shared.previewRun(id) }
+                }
+                .keyboardShortcut("r", modifiers: [.command, .option])
                 Button("Stop  \(HotKey.display)") { Runner.shared.emergencyStop() }
                     .keyboardShortcut(".")
             }
@@ -41,7 +45,7 @@ struct ClickFlowApp: App {
         MenuBarExtra {
             MenuBarMenu()
         } label: {
-            Image(systemName: runner.status != nil || recorder.isRecording ? "record.circle.fill" : "cursorarrow.click.2")
+            Image(systemName: runner.busy || recorder.isRecording ? "record.circle.fill" : "cursorarrow.click.2")
         }
     }
 }
@@ -61,7 +65,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         if CommandLine.arguments.contains("--preview-hud") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-                MainActor.assumeIsolated { Runner.shared.preview() }
+                MainActor.assumeIsolated { Runner.shared.previewHUD() }
             }
         }
         if CommandLine.arguments.contains("--accuracy-test") {
@@ -103,8 +107,8 @@ struct MenuBarMenu: View {
         } else {
             Text("No scheduled runs")
         }
-        if let s = runner.status {
-            Button("Stop \(s.macroName)  \(HotKey.display)") { runner.emergencyStop() }
+        if let name = runner.runningName {
+            Button("Stop \(name)  \(HotKey.display)") { runner.emergencyStop() }
         }
         Divider()
         Menu("Run") {

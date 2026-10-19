@@ -145,6 +145,11 @@ struct StepsPane: View {
         }
         if type == .keyShortcut { s.keys = "cmd+s" }
         if type == .postClipboard { s.url = StepsPane.defaultPostURL }
+        if type == .readText {
+            let f = CGDisplayBounds(CGMainDisplayID())
+            s.x = (f.midX - 150).rounded()
+            s.y = (f.midY - 60).rounded()
+        }
         if type != .wait, !macro.steps.isEmpty { s.delayBefore = 0.5 }
         macro.steps.append(s)
     }
@@ -220,6 +225,7 @@ struct StepCard: View {
     var onDrag: () -> NSItemProvider
 
     private var tint: Color { step.type.tint }
+    private var ghost: Bool { step.showOnly && step.type != .wait }
 
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
@@ -241,10 +247,24 @@ struct StepCard: View {
                 .background(tint.opacity(0.14), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
 
             VStack(alignment: .leading, spacing: 8) {
-                TextField("Add a name…", text: $step.name)
-                    .textFieldStyle(.plain)
-                    .font(step.name.isEmpty ? .callout : .headline)
-                    .frame(maxWidth: 360, alignment: .leading)
+                // Name + actions share the top row, so a card is never wider than its fields:
+                // the old layout put the buttons beside the fields and overflowed narrow windows.
+                HStack(spacing: 8) {
+                    TextField("Add a name…", text: $step.name)
+                        .textFieldStyle(.plain)
+                        .font(step.name.isEmpty ? .callout : .headline)
+                        .frame(minWidth: 80, maxWidth: .infinity, alignment: .leading)
+                    if step.type.hasPoint, !Geo.isOnScreen(step.point) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.orange)
+                            .help("This point isn't on any connected display. Was a monitor unplugged?")
+                    }
+                    ViewThatFits(in: .horizontal) {
+                        actions.labelStyle(.titleAndIcon)
+                        actions.labelStyle(.iconOnly)
+                    }
+                    .controlSize(.small)
+                }
                 HStack(spacing: 14) {
                     Picker("", selection: $step.type) {
                         ForEach(StepType.allCases) { t in Text(t.label).tag(t) }
@@ -257,40 +277,53 @@ struct StepCard: View {
                     HStack(spacing: 6) {
                         Text("Delay before").foregroundStyle(.secondary)
                         SecondsField(value: $step.delayBefore)
+                        if step.type == .readText {
+                            Toggle("Copy the text to the clipboard", isOn: $step.copyResult)
+                                .toggleStyle(.checkbox)
+                                .padding(.leading, 12)
+                        }
                     }
                     .font(.callout)
                 }
+                if step.type == .readText { ReadResult(stepID: step.id) }
             }
-
-            Spacer(minLength: 8)
-
-            if step.type.hasPoint, !Geo.isOnScreen(step.point) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.orange)
-                    .help("This point isn't on any connected display. Was a monitor unplugged?")
-            }
-            HStack(spacing: 6) {
-                if step.type.hasPoint {
-                    Button { pick() } label: { Label("Pick", systemImage: "scope") }
-                        .help("Choose the point on screen")
-                }
-                Button { onTest() } label: { Label("Test", systemImage: "play") }
-                    .help("Run just this step")
-                    .disabled(busy)
-                Button(role: .destructive, action: onDelete) { Image(systemName: "trash") }
-                    .buttonStyle(.borderless)
-                    .help("Delete step")
-            }
-            .controlSize(.small)
-            .labelStyle(.titleAndIcon)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
-        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color(nsColor: .controlBackgroundColor)))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color(nsColor: .separatorColor).opacity(0.7)))
+        .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
+            .fill(ghost ? Color.purple.opacity(0.06) : Color(nsColor: .controlBackgroundColor)))
+        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
+            .strokeBorder(ghost ? Color.purple.opacity(0.6) : Color(nsColor: .separatorColor).opacity(0.7),
+                          style: StrokeStyle(lineWidth: ghost ? 1.5 : 1, dash: ghost ? [6, 4] : [])))
+        .animation(.easeOut(duration: 0.15), value: ghost)
         .contextMenu {
+            if step.type != .wait {
+                Button(step.showOnly ? "Make Live (Execute It)" : "Show Only (Don't Execute)") { step.showOnly.toggle() }
+            }
             Button("Duplicate Step", action: onDuplicate)
             Button("Delete Step", role: .destructive, action: onDelete)
         }
+    }
+
+    private var actions: some View {
+        HStack(spacing: 6) {
+            if step.type != .wait { LiveToggle(showOnly: $step.showOnly) }
+            if step.type.hasPoint {
+                Button { pick() } label: { Label("Pick", systemImage: "scope") }
+                    .help("Choose the point on screen")
+            }
+            if step.type == .readText {
+                Button { pickArea() } label: { Label("Pick area", systemImage: "rectangle.dashed") }
+                    .help("Drag a box around the text on screen")
+            }
+            Button { onTest() } label: { Label("Test", systemImage: "play") }
+                .help("Run just this step")
+                .disabled(busy)
+            Button(role: .destructive, action: onDelete) { Image(systemName: "trash") }
+                .buttonStyle(.borderless)
+                .help("Delete step")
+        }
+        .fixedSize()
     }
 
     @ViewBuilder private var fields: some View {
@@ -319,12 +352,28 @@ struct StepCard: View {
             } else if !step.keys.isEmpty {
                 Text("Not a key I know").font(.callout).foregroundStyle(.red)
             }
+        case .readText:
+            CoordField(label: "X", value: $step.x)
+            CoordField(label: "Y", value: $step.y)
+            CoordField(label: "W", value: $step.width)
+            CoordField(label: "H", value: $step.height)
         case .postClipboard:
             TextField("https://…", text: $step.url)
                 .textFieldStyle(.roundedBorder)
                 .frame(minWidth: 220, maxWidth: 360)
                 .help("Sends the clipboard text as the POST body")
             Text("clipboard → POST").font(.callout).foregroundStyle(.secondary)
+        }
+    }
+
+    private func pickArea() {
+        Task { @MainActor in
+            if let r = await CoordinatePicker.pickArea() {
+                step.x = r.minX
+                step.y = r.minY
+                step.width = r.width
+                step.height = r.height
+            }
         }
     }
 
@@ -665,6 +714,67 @@ struct ConditionsEditor: View {
     }
 }
 
+/// What the step read last time (from a Test or a run), with a copy button.
+struct ReadResult: View {
+    let stepID: UUID
+    @ObservedObject private var outputs = StepOutputs.shared
+    @ObservedObject private var perms = PermissionMonitor.shared
+
+    var body: some View {
+        if !perms.screenRecording {
+            HStack(spacing: 8) {
+                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                Text("Needs Screen Recording permission to read the screen.").foregroundStyle(.secondary)
+                Button("Allow") { PermissionMonitor.requestScreenRecording() }.controlSize(.small)
+            }
+            .font(.callout)
+        } else if let text = outputs.text[stepID] {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Label("Last read", systemImage: "text.viewfinder").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Copy") {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(text, forType: .string)
+                    }
+                    .controlSize(.small)
+                }
+                Text(text)
+                    .font(.system(.callout, design: .monospaced))
+                    .textSelection(.enabled)
+                    .lineLimit(6)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(10)
+            .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(0.05)))
+        } else {
+            Text("Press Test to read the area now.").font(.caption).foregroundStyle(.tertiary)
+        }
+    }
+}
+
+/// Live = the step really acts. Show only = runs just mark where it would act.
+struct LiveToggle: View {
+    @Binding var showOnly: Bool
+
+    var body: some View {
+        Button {
+            showOnly.toggle()
+        } label: {
+            Label(showOnly ? "Show only" : "Live", systemImage: showOnly ? "eye" : "bolt.fill")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(showOnly ? Color.purple : Color.green)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Capsule().fill((showOnly ? Color.purple : Color.green).opacity(0.14)))
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .help(showOnly ? "Show only: runs mark where this would act, but never execute it. Click to make it live."
+                       : "Live: this step really executes. Click to make it show-only.")
+    }
+}
+
 extension StepType {
     var tint: Color {
         switch self {
@@ -676,6 +786,7 @@ extension StepType {
         case .typeText: return .pink
         case .keyShortcut: return .green
         case .postClipboard: return .cyan
+        case .readText: return .mint
         }
     }
 }

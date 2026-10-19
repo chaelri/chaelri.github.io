@@ -21,3 +21,6 @@ macOS click-macro recorder/editor/scheduler. SwiftUI app shell + AppKit panels, 
 - **Steps are a ScrollView + VStack, not a List.** List's `onMove` holds every mouse-down to detect a drag, which made the step text fields slow to focus. Reorder is drag-from-☰ only (`StepDropDelegate`).
 - Run HUD (`HUD.swift`): previous / current / next rows keyed by step index so they slide; phase (`waiting` / `acting` / `pausingLoop`) + `progress` come from `RunStatus`; a summary card holds 2.2 s after a run. The panel is never key, so system prominent buttons render grey: Stop uses its own style.
 - `ClickFlow --preview-hud` plays a harmless waits-and-moves macro to look at the HUD.
+- `RunLive` holds the fast run state (status/countdown/summary) and only the HUD observes it; the rest of the UI watches `Runner.busy`. Observing the runner directly made every progress tick re-render the hidden main window (the HUD stutter).
+- Read text (`ScreenText.swift`): SCScreenshotManager with `sourceRect` on the display under the area's centre, ClickFlow's own windows excluded, then `VNRecognizeTextRequest` (.accurate). Empty result throws, so a following Post clipboard never sends stale clipboard text.
+- Step cards keep their actions on the name row (ViewThatFits drops labels when narrow); beside the fields they overflowed the detail column and slid under the sidebar.

@@ -3,7 +3,7 @@ import Foundation
 // MARK: - Steps
 
 enum StepType: String, Codable, CaseIterable, Identifiable {
-    case leftClick, doubleClick, rightClick, move, wait, typeText, keyShortcut, postClipboard
+    case leftClick, doubleClick, rightClick, move, wait, typeText, keyShortcut, postClipboard, readText
 
     var id: String { rawValue }
 
@@ -17,6 +17,7 @@ enum StepType: String, Codable, CaseIterable, Identifiable {
         case .typeText: return "Type text"
         case .keyShortcut: return "Key shortcut"
         case .postClipboard: return "Post clipboard"
+        case .readText: return "Read text from area"
         }
     }
 
@@ -30,6 +31,7 @@ enum StepType: String, Codable, CaseIterable, Identifiable {
         case .typeText: return "keyboard"
         case .keyShortcut: return "command"
         case .postClipboard: return "paperplane"
+        case .readText: return "text.viewfinder"
         }
     }
 
@@ -52,11 +54,27 @@ enum StepType: String, Codable, CaseIterable, Identifiable {
         case .typeText: return "Typing"
         case .keyShortcut: return "Pressing"
         case .postClipboard: return "Sending"
+        case .readText: return "Reading"
+        }
+    }
+
+    /// What a preview / show-only step says instead of doing it.
+    var wouldVerb: String {
+        switch self {
+        case .leftClick: return "Would click here"
+        case .doubleClick: return "Would double-click here"
+        case .rightClick: return "Would right-click here"
+        case .move: return "Would move here"
+        case .wait: return "Waiting"
+        case .typeText: return "Would type this"
+        case .keyShortcut: return "Would press this"
+        case .postClipboard: return "Would post the clipboard"
+        case .readText: return "Would read this area"
         }
     }
 
     /// Steps that post synthetic input; a network step works without the permission.
-    var needsAccessibility: Bool { self != .wait && self != .postClipboard }
+    var needsAccessibility: Bool { self != .wait && self != .postClipboard && self != .readText }
 }
 
 /// One step of a macro. Coordinates are global Quartz points: origin at the top-left
@@ -73,8 +91,16 @@ struct Step: Identifiable, Equatable {
     var text = ""
     var keys = ""
     var url = ""
+    /// Never executed: runs only show where it would act (marker + HUD), then move on.
+    var showOnly = false
+    /// Read text: the area is x, y (top-left) + width × height, in points.
+    var width: Double = 300
+    var height: Double = 120
+    /// Read text: put the result on the clipboard (so Post clipboard can send it).
+    var copyResult = true
 
     var point: CGPoint { CGPoint(x: x, y: y) }
+    var area: CGRect { CGRect(x: x, y: y, width: max(1, width), height: max(1, height)) }
 
     /// "Step 3 · Open timesheet" when named, "Step 3" otherwise.
     func title(_ number: Int) -> String {
@@ -104,6 +130,9 @@ struct Step: Identifiable, Equatable {
             return "Press \(KeyCombo.parse(keys)?.display ?? keys)"
         case .postClipboard:
             return "Post clipboard → \(URL(string: url)?.host ?? url)"
+        case .readText:
+            return "Read text in \(Int(width))×\(Int(height)) at \(Fmt.coord(x)), \(Fmt.coord(y))"
+                + (copyResult ? " → clipboard" : "")
         }
     }
 
@@ -112,7 +141,7 @@ struct Step: Identifiable, Equatable {
 }
 
 extension Step: Codable {
-    enum CodingKeys: String, CodingKey { case type, name, x, y, delayBefore, seconds, text, keys, url }
+    enum CodingKeys: String, CodingKey { case type, name, x, y, delayBefore, seconds, text, keys, url, showOnly, width, height, copyResult }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -125,6 +154,10 @@ extension Step: Codable {
         text = try c.decodeIfPresent(String.self, forKey: .text) ?? ""
         keys = try c.decodeIfPresent(String.self, forKey: .keys) ?? ""
         url = try c.decodeIfPresent(String.self, forKey: .url) ?? ""
+        showOnly = try c.decodeIfPresent(Bool.self, forKey: .showOnly) ?? false
+        width = try c.decodeIfPresent(Double.self, forKey: .width) ?? 300
+        height = try c.decodeIfPresent(Double.self, forKey: .height) ?? 120
+        copyResult = try c.decodeIfPresent(Bool.self, forKey: .copyResult) ?? true
     }
 
     // Only the fields a step's type uses, so exports read like the spec's example.
@@ -132,6 +165,7 @@ extension Step: Codable {
         var c = encoder.container(keyedBy: CodingKeys.self)
         try c.encode(type, forKey: .type)
         if !name.isEmpty { try c.encode(name, forKey: .name) }
+        if showOnly, type != .wait { try c.encode(true, forKey: .showOnly) }
         switch type {
         case .wait:
             try c.encode(seconds, forKey: .seconds)
@@ -143,6 +177,13 @@ extension Step: Codable {
             try c.encode(delayBefore, forKey: .delayBefore)
         case .postClipboard:
             try c.encode(url, forKey: .url)
+            try c.encode(delayBefore, forKey: .delayBefore)
+        case .readText:
+            try c.encode(x, forKey: .x)
+            try c.encode(y, forKey: .y)
+            try c.encode(width, forKey: .width)
+            try c.encode(height, forKey: .height)
+            try c.encode(copyResult, forKey: .copyResult)
             try c.encode(delayBefore, forKey: .delayBefore)
         default:
             try c.encode(x, forKey: .x)
@@ -394,13 +435,14 @@ extension Schedule {
 // MARK: - Run history
 
 enum RunTrigger: String, Codable {
-    case manual, scheduled, test
+    case manual, scheduled, test, preview
 
     var label: String {
         switch self {
         case .manual: return "Manual"
         case .scheduled: return "Scheduled"
         case .test: return "Step test"
+        case .preview: return "Preview"
         }
     }
 
@@ -409,6 +451,7 @@ enum RunTrigger: String, Codable {
         case .manual: return "hand.tap"
         case .scheduled: return "alarm"
         case .test: return "testtube.2"
+        case .preview: return "eye"
         }
     }
 }

@@ -61,10 +61,19 @@ enum EngineError: LocalizedError {
 enum ClickEngine {
     private static let source = CGEventSource(stateID: .hidSystemState)
 
-    static func perform(_ step: Step, progress: ((Double) -> Void)? = nil) async throws {
+    /// Returns the text a Read-text step produced; nil for every other step.
+    @discardableResult
+    static func perform(_ step: Step, progress: ((Double) -> Void)? = nil) async throws -> String? {
         switch step.type {
         case .wait:
-            return
+            return nil
+        case .readText:
+            let text = try await ScreenText.read(step.area)
+            if step.copyResult {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(text, forType: .string)
+            }
+            return text
         case .move:
             postMouse(.mouseMoved, step.point, .left)
         case .leftClick:
@@ -81,6 +90,7 @@ enum ClickEngine {
         case .postClipboard:
             try await postClipboard(to: step.url)
         }
+        return nil
     }
 
     /// POSTs the clipboard text as-is. A JSON-looking clipboard goes as application/json.

@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 
 /// `ClickFlow --selftest`: schedule maths, missed-run decisions, shortcut parsing and
 /// the spec's JSON example, checked without any UI. Exits non-zero on any failure.
@@ -140,6 +141,33 @@ enum SelfTest {
         } else {
             check("spec JSON parses", "no", "yes")
         }
+
+        // On-device OCR on a rendered image (no screen capture involved).
+        let ocrImage: CGImage = {
+            let w = 900, h = 200
+            let ctx = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: 0,
+                                space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+            ctx.setFillColor(CGColor(gray: 1, alpha: 1))
+            ctx.fill(CGRect(x: 0, y: 0, width: w, height: h))
+            let ns = NSGraphicsContext(cgContext: ctx, flipped: false)
+            NSGraphicsContext.saveGraphicsState()
+            NSGraphicsContext.current = ns
+            let attrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 44, weight: .medium),
+                                                        .foregroundColor: NSColor.black]
+            ("Clocked-in for 8h 12m" as NSString).draw(at: NSPoint(x: 30, y: 110), withAttributes: attrs)
+            ("Status: ON SHIFT" as NSString).draw(at: NSPoint(x: 30, y: 30), withAttributes: attrs)
+            NSGraphicsContext.restoreGraphicsState()
+            return ctx.makeImage()!
+        }()
+        let sem = DispatchSemaphore(value: 0)
+        var ocr = ""
+        Task.detached {
+            ocr = (try? await ScreenText.recognize(ocrImage)) ?? "error"
+            sem.signal()
+        }
+        sem.wait()
+        check("OCR reads rendered text in order", ocr.replacingOccurrences(of: "\n", with: " | "),
+              "Clocked-in for 8h 12m | Status: ON SHIFT")
 
         print(failures == 0 ? "\nAll checks passed." : "\n\(failures) check(s) failed.")
         return failures == 0
