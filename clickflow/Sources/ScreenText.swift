@@ -79,4 +79,5 @@ enum ScreenText {
 final class StepOutputs: ObservableObject {
     static let shared = StepOutputs()
     @Published var text: [UUID: String] = [:]
+    @Published var images: [UUID: CGImage] = [:]
 }

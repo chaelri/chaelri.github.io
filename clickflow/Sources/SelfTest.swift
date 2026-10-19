@@ -4,6 +4,21 @@ import AppKit
 /// `ClickFlow --selftest`: schedule maths, missed-run decisions, shortcut parsing and
 /// the spec's JSON example, checked without any UI. Exits non-zero on any failure.
 enum SelfTest {
+    /// A small drawn card standing in for a screen capture (demos and tests).
+    static func sampleImage() -> CGImage {
+        let w = 260, h = 90
+        let ctx = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: 0,
+                            space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+        ctx.setFillColor(CGColor(gray: 0.97, alpha: 1))
+        ctx.fill(CGRect(x: 0, y: 0, width: w, height: h))
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(cgContext: ctx, flipped: false)
+        ("Clocked-in for 7h 42m" as NSString).draw(at: NSPoint(x: 14, y: 34), withAttributes: [
+            .font: NSFont.systemFont(ofSize: 22, weight: .semibold), .foregroundColor: NSColor.black])
+        NSGraphicsContext.restoreGraphicsState()
+        return ctx.makeImage()!
+    }
+
     static func run() -> Bool {
         var cal = Calendar(identifier: .gregorian)
         cal.timeZone = .current

@@ -13,7 +13,13 @@ final class HUD {
 
     static func height(runner: Runner, recorder: Recorder) -> CGFloat {
         if recorder.isRecording || runner.countdown != nil { return 82 }
-        if let s = runner.status { return s.testOnly == nil ? 236 : 150 }
+        if let s = runner.status {
+            // Room for a capture strip when the previous or current row has one.
+            let shown = s.testOnly != nil ? [s.stepIndex] : [s.stepIndex - 1, s.stepIndex]
+            let extra: CGFloat = shown.contains { s.captures[$0] != nil } ? 64 : 0
+            return (s.testOnly == nil ? 236 : 150) + extra
+        }
+        if let sum = runner.summary, sum.outputImage != nil || sum.output != nil { return 96 }
         return 82   // summary
     }
 
@@ -307,6 +313,7 @@ private struct StepRow: View {
     typealias RunCardRole = RunCard.Row.Role
 
     private var isCurrent: Bool { role == .current }
+    private var capture: StepCapture? { role == .next ? nil : status.captures[number - 1] }
     private var isGhost: Bool { step.type != .wait && (status.preview || step.showOnly) }
 
     var body: some View {
@@ -329,6 +336,11 @@ private struct StepRow: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .truncationMode(.tail)
+                if let cap = capture {
+                    CaptureStrip(capture: cap)
+                        .padding(.top, 3)
+                        .transition(.scale(scale: 0.9, anchor: .topLeading).combined(with: .opacity))
+                }
                 if isCurrent, showsBar {
                     TimelineView(.animation(minimumInterval: 1.0 / 60)) { ctx in
                         ProgressLine(fraction: phaseFraction(status, now: ctx.date), tint: step.type.tint)
@@ -348,7 +360,8 @@ private struct StepRow: View {
                                       style: StrokeStyle(lineWidth: 1, dash: isGhost ? [5, 4] : [])))
             }
         }
-        .opacity(isCurrent ? 1 : 0.55)
+        .opacity(isCurrent || capture != nil ? 1 : 0.55)
+        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: capture != nil)
         .scaleEffect(isCurrent ? 1 : 0.97, anchor: .leading)
     }
 
@@ -476,6 +489,40 @@ private struct PillButtonStyle: ButtonStyle {
     }
 }
 
+/// What a Screenshot area step got: the image it captured and the text it read.
+private struct CaptureStrip: View {
+    let capture: StepCapture
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 10) {
+            if let img = capture.image {
+                Image(decorative: img, scale: 2)
+                    .resizable()
+                    .interpolation(.high)
+                    .aspectRatio(contentMode: .fit)
+                    .frame(maxWidth: 84, maxHeight: 48)
+                    .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 5, style: .continuous).strokeBorder(Color.white.opacity(0.25)))
+                    .shadow(color: .black.opacity(0.3), radius: 3, y: 1)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(capture.text.isEmpty ? "NO TEXT FOUND" : "FOUND")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(capture.text.isEmpty ? Color.orange : Color.mint)
+                Text(capture.text.isEmpty ? "Nothing readable in the area" : capture.text)
+                    .font(.system(.callout, design: .monospaced).weight(.semibold))
+                    .foregroundStyle(capture.text.isEmpty ? Color.secondary : Color.primary)
+                    .lineLimit(2)
+                    .truncationMode(.tail)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(7)
+        .background(RoundedRectangle(cornerRadius: 9, style: .continuous)
+            .fill((capture.text.isEmpty ? Color.orange : Color.mint).opacity(0.12)))
+    }
+}
+
 // MARK: - Other modes
 
 private struct RecordingCard: View {
@@ -557,15 +604,33 @@ private struct SummaryCard: View {
                 .foregroundStyle(color)
                 .scaleEffect(appeared ? 1 : 0.4)
                 .opacity(appeared ? 1 : 0)
+            if let img = summary.outputImage {
+                Image(decorative: img, scale: 2)
+                    .resizable()
+                    .interpolation(.high)
+                    .aspectRatio(contentMode: .fit)
+                    .frame(maxWidth: 72, maxHeight: 50)
+                    .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 5, style: .continuous).strokeBorder(Color.white.opacity(0.25)))
+            }
             VStack(alignment: .leading, spacing: 3) {
                 Text("\(word) · \(summary.macroName)").font(.headline).lineLimit(1)
-                Text(summary.reason
-                     ?? summary.output.map { "Read: " + $0.replacingOccurrences(of: "\n", with: " ⏎ ") }
-                     ?? "\(summary.stepCount) step\(summary.stepCount == 1 ? "" : "s") in \(Fmt.seconds(summary.duration))")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
+                if let out = summary.output, summary.reason == nil {
+                    Text(out.replacingOccurrences(of: "\n", with: " ⏎ "))
+                        .font(.system(.callout, design: .monospaced).weight(.semibold))
+                        .lineLimit(2)
+                        .truncationMode(.tail)
+                    Text("\(summary.stepCount) step\(summary.stepCount == 1 ? "" : "s") in \(Fmt.seconds(summary.duration))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text(summary.reason
+                         ?? "\(summary.stepCount) step\(summary.stepCount == 1 ? "" : "s") in \(Fmt.seconds(summary.duration))")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
             }
             Spacer()
         }

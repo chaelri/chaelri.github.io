@@ -29,9 +29,17 @@ struct RunStatus {
 
     /// Text from the latest Read-text step in this run.
     var lastOutput: String?
+    /// What each Screenshot area step captured and read, by step index.
+    var captures: [Int: StepCapture] = [:]
+    var lastImage: CGImage?
 
     var stepCount: Int { steps.count }
     var step: Step? { steps.indices.contains(stepIndex) ? steps[stepIndex] : nil }
+}
+
+struct StepCapture {
+    var text: String
+    var image: CGImage?
 }
 
 struct RunSummary: Equatable {
@@ -42,6 +50,7 @@ struct RunSummary: Equatable {
     var stepCount: Int
     var reason: String?
     var output: String?
+    var outputImage: CGImage?
 }
 
 struct PendingRun: Identifiable {
@@ -165,7 +174,11 @@ final class Runner: ObservableObject {
             s.name = name
             return s
         }
+        var shot = Step(type: .readText, x: here.x.rounded(), y: here.y.rounded(), delayBefore: 0.4)
+        shot.name = "Send Current Clock-in Status to Discord"
+        shot.sendDiscord = true
         let m = Macro(name: "HUD preview", steps: [
+            shot,
             move("Open the timesheet", delay: 0.6),
             wait("Wait for the page to load", 3),
             move("Hover the Clock Out button", delay: 1.2),
@@ -174,6 +187,8 @@ final class Runner: ObservableObject {
             wait("Let it settle", 1.5),
         ])
         start(m, trigger: .preview, onlyStep: nil, note: "HUD preview", preview: true)
+        // A drawn stand-in for a capture, so the result strip can be seen without reading the screen.
+        status?.captures[0] = StepCapture(text: "Clocked-in for 7h 42m", image: SelfTest.sampleImage())
     }
 
     func enqueueScheduled(_ m: Macro, schedule: Schedule, note: String?) {
@@ -286,6 +301,7 @@ final class Runner: ObservableObject {
                         status?.stepIndex = i
                         status?.progress = nil
                         skipRequested = false
+                        if status?.captures.isEmpty == false { HUD.shared.show() }
                         let ghost = preview || step.showOnly
                         // Show the target from the moment the step is up, so the countdown has a place.
                         if ghost, step.type.hasPoint { Ghost.show(step, number: i + 1) }
@@ -308,6 +324,7 @@ final class Runner: ObservableObject {
                             setPhase(.acting, nil)
                             if step.type.needsAccessibility, !AXIsProcessTrusted() { throw EngineError.noPermission }
                             let dodged = step.type.hasPoint && HUD.shared.dodge(step.point)
+                            ClickEngine.lastCapture = nil
                             let out = try await ClickEngine.perform(step) { p in
                                 let r = Runner.shared
                                 let q = (p * 100).rounded(.down) / 100
@@ -316,6 +333,14 @@ final class Runner: ObservableObject {
                             if let out {
                                 StepOutputs.shared.text[step.id] = out
                                 status?.lastOutput = out
+                            }
+                            if step.type == .readText {
+                                let img = ClickEngine.lastCapture
+                                status?.captures[i] = StepCapture(text: out ?? "", image: img)
+                                if let img { StepOutputs.shared.images[step.id] = img }
+                                if out == nil { StepOutputs.shared.text[step.id] = "" }
+                                status?.lastImage = img
+                                HUD.shared.show()   // grow to fit the result
                             }
                             if step.type.isClick, Prefs.clickRing { ClickRing.show(at: step.point) }
                             if dodged {
@@ -369,7 +394,8 @@ final class Runner: ObservableObject {
         let count = status.map { $0.testOnly == nil ? $0.stepCount : 1 } ?? m.steps.count
         let output = status?.lastOutput
         summary = RunSummary(macroName: m.name, result: result, duration: Date().timeIntervalSince(started),
-                             stepCount: count, reason: result == .completed ? nil : reason, output: output)
+                             stepCount: count, reason: result == .completed ? nil : reason, output: output,
+                             outputImage: status?.lastImage)
         status = nil
         task = nil
         displayAwake.set(false)

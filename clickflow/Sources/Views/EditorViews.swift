@@ -789,11 +789,23 @@ struct ReadResult: View {
                     }
                     .controlSize(.small)
                 }
-                Text(text)
-                    .font(.system(.callout, design: .monospaced))
-                    .textSelection(.enabled)
-                    .lineLimit(6)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                HStack(alignment: .top, spacing: 10) {
+                    if let img = outputs.images[stepID] {
+                        Image(decorative: img, scale: 2)
+                            .resizable()
+                            .interpolation(.high)
+                            .aspectRatio(contentMode: .fit)
+                            .frame(maxWidth: 120, maxHeight: 80)
+                            .clipShape(RoundedRectangle(cornerRadius: 5))
+                            .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(Color(nsColor: .separatorColor)))
+                    }
+                    Text(text.isEmpty ? "No text found in the area" : text)
+                        .font(.system(.callout, design: .monospaced))
+                        .foregroundStyle(text.isEmpty ? .secondary : .primary)
+                        .textSelection(.enabled)
+                        .lineLimit(6)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
             }
             .padding(10)
             .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(0.05)))

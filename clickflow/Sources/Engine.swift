@@ -82,6 +82,8 @@ enum EngineError: LocalizedError {
 @MainActor
 enum ClickEngine {
     private static let source = CGEventSource(stateID: .hidSystemState)
+    /// The image the latest Screenshot area step captured, for the HUD and the editor.
+    static var lastCapture: CGImage?
 
     /// Returns the text a Read-text step produced; nil for every other step.
     @discardableResult
@@ -92,6 +94,7 @@ enum ClickEngine {
         case .readText:
             // One capture feeds everything: on-device OCR, the clipboard, and Discord.
             let image = try await ScreenText.capture(step.area)
+            lastCapture = image
             try Task.checkCancellation()
             let text = (try? await ScreenText.recognize(image)) ?? ""
             if step.copyResult {
