@@ -244,6 +244,11 @@ function recog(list) {
   }).join('');
 }
 
+// A "what you might have right now" card: title, what to do, looping demo.
+function caseDemo(title, text, demo) {
+  return `<div class="case-demo">${demoHTML({ pieces: 'pair', ...demo })}<div class="case-t">${title}</div><div class="case-x">${text}</div></div>`;
+}
+
 // ---------------------------------------------------------------- lessons
 const LESSONS = {
   mine: {
@@ -329,8 +334,14 @@ const LESSONS = {
       <div class="howto">
         <div class="howto-row"><span class="howto-n">1</span><div><strong>Hold it right.</strong> White cross on the <strong>bottom</strong>, yellow on top, <strong>green facing you</strong>. You always work on the gap at the <strong>front-right</strong>: between green (front) and orange (right).</div>
           ${demoHTML({ setup: 'z2', alg: 'z2', mask: 'f2l', caption: 'White on top? Flip it over.' })}</div>
-        <div class="howto-row"><span class="howto-n">2</span><div><strong>Find the two pieces.</strong> The <strong>corner</strong> has white + green + orange. The <strong>edge</strong> has green + orange (no white, no yellow). Both should be in the top layer.</div>
-          ${demoHTML({ setup: "R U' R' U", alg: 'U U U U', pieces: 'pair', caption: 'Only the corner + edge are lit. Both ride around the top.' })}</div>
+        <div class="howto-row wide"><span class="howto-n">2</span><div><strong>Find the two pieces.</strong> The <strong>corner</strong> has white + green + orange. The <strong>edge</strong> has green + orange (no white, no yellow). They need to be in the <strong>top layer</strong>. Where are yours right now? Only those two pieces are lit below.
+          <div class="cases">
+            ${caseDemo('Both on top', 'Good. Go to step 3.', { setup: "R U' R' U", alg: 'U U U U' })}
+            ${caseDemo('Edge stuck in the middle', 'Corner not above the gap? Then <b>R U R\'</b> lifts the edge up.', { setup: "R U' R' U2 R U' R'", alg: "R U R'" })}
+            ${caseDemo('Corner stuck in the bottom', 'Edge not at the top-right? (turn <b>U</b> if it is) Then <b>R U R\'</b> lifts the corner up.', { setup: "F' U' F U2 R U' R'", alg: "R U R'" })}
+            ${caseDemo('Both stuck, wrong way round', 'Same move takes both out: <b>R U R\'</b>.', { setup: "R U' R' U' R U R' U2 R U' R'", alg: "R U R'" })}
+            ${caseDemo('Stuck in a different gap', 'Spin the cube (<b>y\'</b> / <b>y</b>) so that gap is at the front-right, <b>R U R\'</b>, spin back.', { setup: "F' U F y' R U' R' y", alg: "y' R U R' y" })}
+          </div></div></div>
         <div class="howto-row"><span class="howto-n">3</span><div><strong>Put the corner above the gap.</strong> Turn the top (<span class="tok" data-mv="U">U</span> / <span class="tok" data-mv="U'">U'</span>) until the corner is at the top front-right, right over the gap.</div>
           ${demoHTML({ setup: "R U' R' U2", alg: 'U2', pieces: 'pair', caption: 'Corner ends up over the front-right gap.' })}</div>
         <div class="howto-row"><span class="howto-n">4</span><div><strong>Look at two things:</strong> which way the corner's <strong>white sticker</strong> faces (you, right, or up), and <strong>where the edge</strong> is. Find the matching picture below and do its moves.</div>
