@@ -203,18 +203,30 @@ export function mountScan(root, api) {
     gctx.drawImage(v, 0, 0, w, h);
     const { x, y, size } = box(w, h);
     const cell = size / 3, r = Math.max(2, Math.round(cell * 0.18));
+    const px = (cx, cy, rr) => {
+      const d = gctx.getImageData(Math.round(cx) - rr, Math.round(cy) - rr, rr * 2, rr * 2).data, out = [];
+      for (let i = 0; i < d.length; i += 4) out.push([d[i], d[i + 1], d[i + 2]]);
+      return out;
+    };
     const out = [];
     for (let row = 0; row < 3; row++)
       for (let col = 0; col < 3; col++) {
-        const cx = Math.round(x + cell * (col + 0.5)), cy = Math.round(y + cell * (row + 0.5));
-        const d = gctx.getImageData(cx - r, cy - r, r * 2, r * 2).data;
-        let R = 0, G = 0, B = 0;
-        const n = d.length / 4;
-        for (let i = 0; i < d.length; i += 4) { R += d[i]; G += d[i + 1]; B += d[i + 2]; }
-        R /= n; G /= n; B /= n;
-        let sd = 0;
-        for (let i = 0; i < d.length; i += 4) sd += (d[i] - R) ** 2 + (d[i + 1] - G) ** 2 + (d[i + 2] - B) ** 2;
-        out.push({ rgb: [R, G, B], sd: Math.sqrt(sd / n / 3) });
+        const cx = x + cell * (col + 0.5), cy = y + cell * (row + 0.5);
+        let pts;
+        if (row === 1 && col === 1) {
+          // Centres often carry a printed logo (e.g. a black "Swift Block" on
+          // white) right in the middle: read the four corners of the sticker
+          // instead, and drop whatever dark logo pixels still get in.
+          const o = cell * 0.3, rr = Math.max(1, Math.round(cell * 0.07));
+          pts = [[-o, -o], [o, -o], [-o, o], [o, o]].flatMap(([dx, dy]) => px(cx + dx, cy + dy, rr));
+          const lum = (p) => p[0] * 0.3 + p[1] * 0.59 + p[2] * 0.11;
+          const top = Math.max(...pts.map(lum));
+          pts = pts.filter((p) => lum(p) >= top * 0.55);
+        } else pts = px(cx, cy, r);
+        const n = pts.length;
+        const m = [0, 1, 2].map((k) => pts.reduce((t, p) => t + p[k], 0) / n);
+        const sd = pts.reduce((t, p) => t + (p[0] - m[0]) ** 2 + (p[1] - m[1]) ** 2 + (p[2] - m[2]) ** 2, 0);
+        out.push({ rgb: m, sd: Math.sqrt(sd / n / 3) });
       }
     return out;
   }
