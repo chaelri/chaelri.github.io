@@ -890,6 +890,89 @@ app.post("/kain-notify", async (req, res) => {
   }
 });
 
+// Servo power-on — hit by Cloud Scheduler (autoclicker-weekday-click, 5:55 and
+// 3:55 weekdays). The servo presses the PC's power button, so pressing it while
+// the PC is already on turns it OFF. The PC writes /servo/pc/lastSeen every
+// minute from x:50 to x:55 and at boot (servo/pc-heartbeat/install.ps1); a
+// fresh stamp means it is on and the click is skipped. A missing or stale one
+// means off or asleep, so the click goes through. Failing safe = skip: an
+// unreadable lastSeen never clicks, because clicking a running PC loses work
+// and a skipped morning only means pressing the button by hand.
+const SERVO_DB = "https://test-database-55379-default-rtdb.asia-southeast1.firebasedatabase.app/servo";
+const SERVO_FRESH_MS = 6 * 60 * 1000;
+
+function servoManilaTime(ms) {
+  return new Date(ms).toLocaleString("en-US", {
+    timeZone: "Asia/Manila",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+async function servoPut(path, value) {
+  const r = await fetch(`${SERVO_DB}/${path}.json?print=silent`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(value),
+  });
+  if (!r.ok) throw new Error(`RTDB PUT ${path} ${r.status}`);
+}
+
+app.post("/servo-poweron", async (_req, res) => {
+  const now = Date.now();
+  let action, reason, lastSeen = null;
+  try {
+    const r = await fetch(`${SERVO_DB}/pc.json`);
+    if (!r.ok) throw new Error(`RTDB GET pc ${r.status}`);
+    const pc = (await r.json()) || {};
+    lastSeen = typeof pc.lastSeen === "number" ? pc.lastSeen : null;
+    const age = lastSeen === null ? Infinity : now - lastSeen;
+
+    if (age < SERVO_FRESH_MS) {
+      action = "skipped";
+      reason = `PC seen ${Math.max(0, Math.round(age / 60000))} min ago (${pc.via || "?"})`;
+    } else {
+      await servoPut("command", "click");
+      action = "clicked";
+      reason = lastSeen === null
+        ? "PC never seen"
+        : `PC not seen since ${servoManilaTime(lastSeen)}`;
+    }
+  } catch (e) {
+    console.error("servo-poweron error:", e);
+    action = "error";
+    reason = `not clicked: ${e.message}`;
+  }
+
+  try {
+    await servoPut("lastRun", { at: { ".sv": "timestamp" }, action, reason, pcLastSeen: lastSeen });
+  } catch (e) {
+    console.error("servo lastRun write failed:", e);
+  }
+
+  const hook = process.env.SERVO_DISCORD_WEBHOOK;
+  if (hook) {
+    const content = {
+      clicked: `PC turned on! (${reason})`,
+      skipped: `PC already on, didn't click. (${reason})`,
+      error: `Servo check failed, ${reason}`,
+    }[action];
+    try {
+      await fetch(hook, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content, allowed_mentions: { parse: [] } }),
+      });
+    } catch (e) {
+      console.error("servo Discord post failed:", e);
+    }
+  }
+
+  res.status(action === "error" ? 500 : 200).json({ action, reason });
+});
+
 // Health check — also acts as the warm-up target hit from the devo app on
 // page load to keep the Cloud Run container alive and skip cold starts.
 app.get("/", (_req, res) => res.json({ status: "ok" }));
