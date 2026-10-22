@@ -138,7 +138,7 @@ public static class ClickEngine
     static readonly TimeSpan ServoWindow = TimeSpan.FromHours(3);
 
     /// Null when the servo pressed the power button within ServoWindow (written by gemini-proxy
-    /// /servo-poweron at 5:55 / 3:55); otherwise why the shutdown must not happen. Anything
+    /// /servo-poweron at 5:55 / 3:55, and by the servo/ remote on a manual press); otherwise why the shutdown must not happen. Anything
     /// unreadable counts as "no": a PC left on is harmless, one switched off mid-work is not.
     public static async Task<string?> ServoDidNotStartPc(CancellationToken ct)
     {
