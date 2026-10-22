@@ -230,6 +230,7 @@ public sealed class Runner
         {
             var result = RunResult.Completed;
             string? reason = note;
+            bool shutDown = false;
             try
             {
                 if (hid) await Task.Delay(350, ct);
@@ -252,7 +253,8 @@ public sealed class Runner
                         st.StepIndex = i;
                         st.Progress = null;
                         skipRequested = false;
-                        bool ghost = preview || step.ShowOnly;
+                        // Testing a single step never powers the machine off.
+                        bool ghost = preview || step.ShowOnly || (onlyStep != null && step.Type == StepType.Shutdown);
                         int number = i + 1;
                         // Show the target from the moment the step is up, so the countdown has a place.
                         if (ghost && step.Type.HasPoint()) UI.Post(() => Ghost.ShowPoint(step, number));
@@ -285,6 +287,13 @@ public sealed class Runner
                                 bool dodged = step.Type.HasPoint() && UI.Send(() => Hud.Shared.Dodge(step.Point));
                                 ClickEngine.LastCapture = null;
                                 var outText = await ClickEngine.Perform(step, st, ct, p => st.Progress = Math.Floor(p * 100) / 100);
+                                if (step.Type == StepType.Shutdown)
+                                {
+                                    // Nothing after it can run: end the run so it is logged first.
+                                    lock (st) st.Completed.Add(i);
+                                    shutDown = true;
+                                    break;
+                                }
                                 if (outText != null)
                                 {
                                     st.LastOutput = outText;
@@ -315,6 +324,7 @@ public sealed class Runner
                         }
                         lock (st) st.Completed.Add(i);
                     }
+                    if (shutDown) break;
                 }
             }
             catch (OperationCanceledException)
@@ -328,7 +338,13 @@ public sealed class Runner
                 result = RunResult.Failed;
                 reason = (st.Step is { } s ? $"{s.Title(st.StepIndex + 1)}: " : "") + e.Message;
             }
-            UI.Post(() => Finish(m, st, trigger, started, result, reason, hid, log));
+            if (shutDown) reason = "Forced shutdown";
+            UI.Post(() =>
+            {
+                Finish(m, st, trigger, started, result, reason, hid, log);
+                // Log posts to the UI thread too, so flush on the next turn.
+                if (shutDown) UI.Post(() => { Store.Shared.Flush(); Power.ForceShutDown(); });
+            });
         });
     }
 

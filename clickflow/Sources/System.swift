@@ -68,6 +68,25 @@ final class LoginItem: ObservableObject {
     }
 }
 
+// MARK: - Power
+
+enum Power {
+    /// Force shutdown with no root: force-quit every app first (so unsaved-changes sheets
+    /// can't cancel it), then ask loginwindow to shut down without its confirmation dialog.
+    @MainActor
+    static func forceShutDown() {
+        let me = ProcessInfo.processInfo.processIdentifier
+        for app in NSWorkspace.shared.runningApplications
+        where app.activationPolicy == .regular && app.processIdentifier != me {
+            app.forceTerminate()
+        }
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        p.arguments = ["-e", "tell application \"loginwindow\" to «event aevtrsdn»"]
+        try? p.run()
+    }
+}
+
 enum SystemState {
     static var screenLocked: Bool {
         guard let d = CGSessionCopyCurrentDictionary() as? [String: Any] else { return false }

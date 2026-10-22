@@ -139,6 +139,18 @@ enum ClickEngine {
                 .trimmingCharacters(in: .whitespacesAndNewlines)
             guard !message.isEmpty else { throw EngineError.emptyMessage }
             try await Discord.send(text: message)
+        case .shutdown:
+            // Runner ends the run here, logs it, then forces the shutdown. The Discord note is
+            // best effort, capped at 10 s and immune to Stop: nothing may keep the machine on.
+            let live = RunLive.shared.status
+            let note = MessageVars.fill(step.text, text: live?.lastOutput ?? "", macro: live?.macroName ?? "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            if !note.isEmpty, Discord.webhookURL != nil {
+                let send = Task { try await Discord.send(text: note) }
+                let cap = Task { try await Task.sleep(nanoseconds: 10_000_000_000); send.cancel() }
+                _ = try? await send.value
+                cap.cancel()
+            }
         }
         return nil
     }

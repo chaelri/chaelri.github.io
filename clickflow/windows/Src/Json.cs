@@ -79,6 +79,10 @@ public static class Json
                 c["url"] = s.Url;
                 c["delayBefore"] = s.DelayBefore;
                 break;
+            case StepType.Shutdown:
+                c["text"] = s.Text;
+                c["delayBefore"] = s.DelayBefore;
+                break;
             case StepType.ReadText:
                 c["x"] = s.X; c["y"] = s.Y; c["width"] = s.Width; c["height"] = s.Height;
                 c["copyResult"] = s.CopyResult; c["sendDiscord"] = s.SendDiscord; c["textOnly"] = s.TextOnly;

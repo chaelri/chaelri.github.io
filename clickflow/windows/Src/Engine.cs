@@ -116,6 +116,18 @@ public static class ClickEngine
                 if (msg.Length == 0) throw new EngineException("The Discord message is empty");
                 await Discord.SendText(msg, ct);
                 break;
+            case StepType.Shutdown:
+            {
+                // Runner ends the run here, logs it, then forces the shutdown. The Discord note is
+                // best effort, capped at 10 s and immune to Stop: nothing may keep the machine on.
+                var note = MessageVars.Fill(step.Text, ctx.LastOutput ?? "", ctx.MacroName).Trim();
+                if (note.Length > 0 && Discord.WebhookUrl != null)
+                {
+                    using var cap = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                    try { await Discord.SendText(note, cap.Token); } catch (Exception) { }
+                }
+                break;
+            }
         }
         return null;
     }

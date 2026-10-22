@@ -168,6 +168,7 @@ public sealed class MacroEditor : Panel
         if (type == StepType.PostClipboard) s.Url = DefaultPostUrl;
         if (type == StepType.ReadText) { s.Width = 300; s.Height = 120; s.X = p.X - 150; s.Y = p.Y - 60; }
         if (type == StepType.DiscordMessage) s.Text = "{macro} finished at {time}";
+        if (type == StepType.Shutdown) s.Text = "PC Shutdown at {time}";
         macro.Steps.Add(s);
         store.Changed();
         RebuildSteps();

@@ -150,6 +150,7 @@ struct StepsPane: View {
         if type == .postClipboard { s.url = StepsPane.defaultPostURL }
         if type.hasArea { s.text = "{text}" }
         if type == .discordMessage { s.text = "**{macro}** · {time}\n{clipboard}" }
+        if type == .shutdown { s.text = "PC Shutdown at {time}" }
         if type.hasArea {
             let f = CGDisplayBounds(CGMainDisplayID())
             s.x = (f.midX - 150).rounded()
@@ -313,7 +314,7 @@ struct StepCard: View, Equatable {
                     }
                     .font(.callout)
                 }
-                if step.type == .discordMessage {
+                if step.type == .discordMessage || step.type == .shutdown {
                     MessageComposer(text: bind(\.text), variables: MessageVars.forMessage)
                     WebhookWarning()
                 }
@@ -395,6 +396,8 @@ struct StepCard: View, Equatable {
             CoordField(label: "H", value: bind(\.height))
         case .discordMessage:
             EmptyView()
+        case .shutdown:
+            Text("Sends the message, force-quits every app, shuts down · steps after it never run").font(.callout).foregroundStyle(.secondary)
         case .openURL:
             TextField("Paste a link, e.g. eva.hrforte.com", text: bind(\.url))
                 .textFieldStyle(.roundedBorder)
@@ -939,6 +942,7 @@ extension StepType {
         case .readText: return .mint
         case .openURL: return .yellow
         case .discordMessage: return .indigo
+        case .shutdown: return .red
         }
     }
 }

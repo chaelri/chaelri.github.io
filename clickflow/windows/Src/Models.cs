@@ -5,7 +5,7 @@ namespace ClickFlow;
 // ---------- Steps ----------
 
 /// Raw values match the Mac app's macros.json, so exports move between the two.
-public enum StepType { LeftClick, DoubleClick, RightClick, Move, Wait, TypeText, KeyShortcut, PostClipboard, ReadText, OpenUrl, DiscordMessage }
+public enum StepType { LeftClick, DoubleClick, RightClick, Move, Wait, TypeText, KeyShortcut, PostClipboard, ReadText, OpenUrl, DiscordMessage, Shutdown }
 
 public static class StepTypes
 {
@@ -17,6 +17,7 @@ public static class StepTypes
         StepType.Move => "move", StepType.Wait => "wait", StepType.TypeText => "typeText",
         StepType.KeyShortcut => "keyShortcut", StepType.PostClipboard => "postClipboard",
         StepType.ReadText => "readText", StepType.OpenUrl => "openURL", StepType.DiscordMessage => "discordMessage",
+        StepType.Shutdown => "shutdown",
         _ => "wait",
     };
 
@@ -28,7 +29,7 @@ public static class StepTypes
         StepType.Move => "Move mouse", StepType.Wait => "Wait", StepType.TypeText => "Type text",
         StepType.KeyShortcut => "Key shortcut", StepType.PostClipboard => "Post clipboard",
         StepType.ReadText => "Screenshot area", StepType.OpenUrl => "Open link in Chrome",
-        StepType.DiscordMessage => "Send to Discord", _ => "",
+        StepType.DiscordMessage => "Send to Discord", StepType.Shutdown => "Force shut down", _ => "",
     };
 
     /// Segoe Fluent Icons / Segoe MDL2 Assets glyphs.
@@ -37,7 +38,7 @@ public static class StepTypes
         StepType.LeftClick => "", StepType.DoubleClick => "", StepType.RightClick => "",
         StepType.Move => "", StepType.Wait => "", StepType.TypeText => "",
         StepType.KeyShortcut => "", StepType.PostClipboard => "", StepType.ReadText => "",
-        StepType.OpenUrl => "", StepType.DiscordMessage => "", _ => "",
+        StepType.OpenUrl => "", StepType.DiscordMessage => "", StepType.Shutdown => "", _ => "",
     };
 
     public static bool HasPoint(this StepType t) => t is StepType.LeftClick or StepType.DoubleClick or StepType.RightClick or StepType.Move;
@@ -49,7 +50,7 @@ public static class StepTypes
         StepType.LeftClick => "Clicking", StepType.DoubleClick => "Double-clicking", StepType.RightClick => "Right-clicking",
         StepType.Move => "Moving", StepType.Wait => "Waiting", StepType.TypeText => "Typing",
         StepType.KeyShortcut => "Pressing", StepType.PostClipboard => "Sending", StepType.ReadText => "Capturing",
-        StepType.OpenUrl => "Opening", StepType.DiscordMessage => "Sending", _ => "",
+        StepType.OpenUrl => "Opening", StepType.DiscordMessage => "Sending", StepType.Shutdown => "Shutting down", _ => "",
     };
 
     /// What a preview / show-only step says instead of doing it.
@@ -59,12 +60,13 @@ public static class StepTypes
         StepType.RightClick => "Would right-click here", StepType.Move => "Would move here", StepType.Wait => "Waiting",
         StepType.TypeText => "Would type this", StepType.KeyShortcut => "Would press this",
         StepType.PostClipboard => "Would post the clipboard", StepType.ReadText => "Would capture this area",
-        StepType.OpenUrl => "Would open this link", StepType.DiscordMessage => "Would send this message", _ => "",
+        StepType.OpenUrl => "Would open this link", StepType.DiscordMessage => "Would send this message",
+        StepType.Shutdown => "Would shut down the PC", _ => "",
     };
 
     /// Steps that post synthetic input (Windows needs no permission for that, but a locked screen blocks it).
     public static bool PostsInput(this StepType t) =>
-        t is not (StepType.Wait or StepType.PostClipboard or StepType.OpenUrl or StepType.DiscordMessage or StepType.ReadText);
+        t is not (StepType.Wait or StepType.PostClipboard or StepType.OpenUrl or StepType.DiscordMessage or StepType.ReadText or StepType.Shutdown);
 }
 
 /// One step of a macro. Coordinates are physical pixels on the virtual desktop: origin at the
@@ -130,6 +132,8 @@ public sealed class Step
                 case StepType.KeyShortcut: return $"Press {KeyCombo.Parse(Keys)?.Display ?? Keys}";
                 case StepType.PostClipboard: return $"Post clipboard → {(Uri.TryCreate(Url, UriKind.Absolute, out var u) ? u.Host : Url)}";
                 case StepType.DiscordMessage: return $"Send “{Text.Replace("\r", "").Replace("\n", " ⏎ ")}” to Discord";
+                case StepType.Shutdown:
+                    return Text.Trim().Length == 0 ? "Force shut down the PC (unsaved work is lost)" : "Send to Discord, then force shut down the PC";
                 case StepType.OpenUrl:
                     return $"Open {OpenLink.Normalized(Url)?.Host ?? (Url.Length == 0 ? "a link" : Url)} in Chrome";
                 case StepType.ReadText:

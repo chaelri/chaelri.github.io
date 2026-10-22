@@ -4,7 +4,7 @@ import AppKit
 // MARK: - Steps
 
 enum StepType: String, Codable, CaseIterable, Identifiable {
-    case leftClick, doubleClick, rightClick, move, wait, typeText, keyShortcut, postClipboard, readText, openURL, discordMessage
+    case leftClick, doubleClick, rightClick, move, wait, typeText, keyShortcut, postClipboard, readText, openURL, discordMessage, shutdown
 
     var id: String { rawValue }
 
@@ -21,6 +21,7 @@ enum StepType: String, Codable, CaseIterable, Identifiable {
         case .readText: return "Screenshot area"
         case .openURL: return "Open link in Chrome"
         case .discordMessage: return "Send to Discord"
+        case .shutdown: return "Force shut down"
         }
     }
 
@@ -37,6 +38,7 @@ enum StepType: String, Codable, CaseIterable, Identifiable {
         case .readText: return "text.viewfinder"
         case .openURL: return "globe"
         case .discordMessage: return "paperplane.circle"
+        case .shutdown: return "power"
         }
     }
 
@@ -62,6 +64,7 @@ enum StepType: String, Codable, CaseIterable, Identifiable {
         case .readText: return "Capturing"
         case .openURL: return "Opening"
         case .discordMessage: return "Sending"
+        case .shutdown: return "Shutting down"
         }
     }
 
@@ -79,12 +82,13 @@ enum StepType: String, Codable, CaseIterable, Identifiable {
         case .readText: return "Would capture this area"
         case .openURL: return "Would open this link"
         case .discordMessage: return "Would send this message"
+        case .shutdown: return "Would shut down the computer"
         }
     }
 
     /// Steps that post synthetic input; a network step works without the permission.
     var needsAccessibility: Bool {
-        self != .wait && self != .postClipboard && self != .openURL && self != .discordMessage && !hasArea
+        self != .wait && self != .postClipboard && self != .openURL && self != .discordMessage && self != .shutdown && !hasArea
     }
 
     /// Steps that work on a screen rectangle (x, y, width, height).
@@ -153,6 +157,8 @@ struct Step: Identifiable, Equatable {
             return "Send “\(flat)” to Discord"
         case .openURL:
             return "Open \(OpenLink.normalized(url)?.host ?? (url.isEmpty ? "a link" : url)) in Chrome"
+        case .shutdown:
+            return text.isEmpty ? "Force shut down the Mac (unsaved work is lost)" : "Send to Discord, then force shut down the Mac"
         case .readText:
             var outs = ["text"]
             if copyResult { outs.append("clipboard") }
@@ -217,6 +223,9 @@ extension Step: Codable {
             try c.encode(url, forKey: .url)
             try c.encode(delayBefore, forKey: .delayBefore)
         case .discordMessage:
+            try c.encode(text, forKey: .text)
+            try c.encode(delayBefore, forKey: .delayBefore)
+        case .shutdown:
             try c.encode(text, forKey: .text)
             try c.encode(delayBefore, forKey: .delayBefore)
         case .readText:

@@ -281,10 +281,11 @@ final class Runner: ObservableObject {
         task = Task { @MainActor in
             var result = RunResult.completed
             var reason = note
+            var shutDown = false
             do {
                 if hid { try await Task.sleep(nanoseconds: 350_000_000) }
                 var it = 0
-                while iterations == 0 || it < iterations {
+                run: while iterations == 0 || it < iterations {
                     if it > 0, m.repeatDelay > 0 {
                         status?.stepIndex = 0
                         skipRequested = false
@@ -301,7 +302,8 @@ final class Runner: ObservableObject {
                         status?.progress = nil
                         skipRequested = false
                         if status?.captures.isEmpty == false { HUD.shared.show() }
-                        let ghost = preview || step.showOnly
+                        // Testing a single step never powers the machine off.
+                        let ghost = preview || step.showOnly || (onlyStep != nil && step.type == .shutdown)
                         // Show the target from the moment the step is up, so the countdown has a place.
                         if ghost, step.type.hasPoint { Ghost.show(step, number: i + 1) }
                         if ghost, step.type.hasArea { Ghost.showArea(step, number: i + 1) }
@@ -328,6 +330,12 @@ final class Runner: ObservableObject {
                                 let r = Runner.shared
                                 let q = (p * 100).rounded(.down) / 100
                                 if r.status?.progress != q { r.status?.progress = q }
+                            }
+                            if step.type == .shutdown {
+                                // Nothing after it can run: end the run so it is logged first.
+                                status?.completed.insert(i)
+                                shutDown = true
+                                break run
                             }
                             if let out {
                                 StepOutputs.shared.text[step.id] = out
@@ -365,7 +373,12 @@ final class Runner: ObservableObject {
                 reason = (st?.step.map { "\($0.title(st!.stepIndex + 1)): " } ?? "") + error.localizedDescription
             }
             HUD.shared.undodge()
-            finish(m, trigger: trigger, started: started, result: result, reason: reason, restoreWindow: hid)
+            if shutDown {
+                log(m, trigger, .completed, "Forced shutdown", start: started, end: Date())
+                Store.shared.flush()
+                Power.forceShutDown()
+            }
+            finish(m, trigger: trigger, started: started, result: result, reason: reason, restoreWindow: hid, log: !shutDown)
         }
     }
 
@@ -387,9 +400,9 @@ final class Runner: ObservableObject {
         }
     }
 
-    private func finish(_ m: Macro, trigger: RunTrigger, started: Date, result: RunResult, reason: String?, restoreWindow: Bool) {
+    private func finish(_ m: Macro, trigger: RunTrigger, started: Date, result: RunResult, reason: String?, restoreWindow: Bool, log logIt: Bool = true) {
         let read = status?.lastOutput.map { "Read: “" + String($0.replacingOccurrences(of: "\n", with: " ⏎ ").prefix(300)) + "”" }
-        log(m, trigger, result, [reason, read].compactMap { $0 }.joined(separator: " · ").nilIfEmpty, start: started, end: Date())
+        if logIt { log(m, trigger, result, [reason, read].compactMap { $0 }.joined(separator: " · ").nilIfEmpty, start: started, end: Date()) }
         let count = status.map { $0.testOnly == nil ? $0.stepCount : 1 } ?? m.steps.count
         let output = status?.lastOutput
         summary = RunSummary(macroName: m.name, result: result, duration: Date().timeIntervalSince(started),

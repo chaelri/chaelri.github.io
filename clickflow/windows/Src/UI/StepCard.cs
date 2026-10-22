@@ -195,6 +195,17 @@ public sealed class StepCard : FitCard
             case StepType.ReadText:
                 BuildScreenshot();
                 break;
+            case StepType.Shutdown:
+            {
+                var c = new Composer(s.Text, MessageVars.ForMessage, () => "text read earlier");
+                c.Changed += t => { s.Text = t; editor.StepChanged(); };
+                Add(c);
+                Add(Hint(Discord.WebhookUrl == null
+                    ? "No Discord webhook set, so it only shuts down: Settings › Discord."
+                    : "Sends this to Discord (leave empty to skip), then force-closes every app (unsaved work is lost) and shuts down. Steps after it never run.", Theme.Red));
+                Add(DelayRow());
+                break;
+            }
         }
     }
 

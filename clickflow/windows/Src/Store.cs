@@ -35,6 +35,10 @@ public static class Power
     public static void KeepDisplayAwake(bool on) { display = on; Apply(); }
     public static void KeepSystemAwake(bool on) { system = on; Apply(); }
 
+    /// shutdown /f closes apps without letting them ask to save, so nothing can hold it up.
+    public static void ForceShutDown() =>
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("shutdown.exe") { UseShellExecute = false, CreateNoWindow = true, ArgumentList = { "/s", "/f", "/t", "0" } })?.Dispose();
+
     static void Apply() => UI.Post(() =>
     {
         uint flags = Native.ES_CONTINUOUS;

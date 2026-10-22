@@ -135,6 +135,10 @@ enum SelfTest {
         link.url = "https://example.com"
         let linkBack = try! JSONDecoder().decode(Step.self, from: JSONEncoder().encode(link))
         check("open link step round trip", "\(linkBack.type.rawValue) \(linkBack.url)", "openURL https://example.com")
+        var offStep = Step(type: .shutdown, delayBefore: 2)
+        offStep.text = "PC Shutdown at {time}"
+        let off = try! JSONDecoder().decode(Step.self, from: JSONEncoder().encode(offStep))
+        check("shutdown step round trip", "\(off.type.rawValue) \(off.delayBefore) \(off.text)", "shutdown 2.0 PC Shutdown at {time}")
 
         var post = Step(type: .postClipboard, delayBefore: 0.5)
         post.url = "https://example.com/hook"

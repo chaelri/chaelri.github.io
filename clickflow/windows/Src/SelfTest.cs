@@ -91,12 +91,13 @@ static class SelfTest
                 new Step(StepType.KeyShortcut) { Keys = "ctrl+s", ShowOnly = true },
                 new Step(StepType.ReadText) { X = 1, Y = 2, Width = 30, Height = 40, SendDiscord = true, TextOnly = true, CopyResult = false, Text = "In: {text}" },
                 new Step(StepType.OpenUrl) { Url = "https://x.com" },
+                new Step(StepType.Shutdown) { DelayBefore = 2, Text = "PC Shutdown at {time}" },
             },
             Schedules = { new Schedule { Repeat = RepeatKind.Interval, CustomDays = { 2, 3 }, Conditions = { RequireApp = "chrome", MinIdleSeconds = 60 } } },
         };
         var back = Json.ParseMacros(Json.MacroFile(new[] { m }))!.Single();
         Check(back.Id == m.Id && back.Name == m.Name && back.RepeatCount == 3 && back.RepeatDelay == 1.5, "macro fields");
-        Check(back.Steps.Count == 5 && back.Steps[0].X == 10 && back.Steps[0].Y == -20 && back.Steps[0].Name == "a", "click step");
+        Check(back.Steps.Count == 6 && back.Steps[5].Type == StepType.Shutdown && back.Steps[5].DelayBefore == 2 && back.Steps[5].Text == "PC Shutdown at {time}" && back.Steps[0].X == 10 && back.Steps[0].Y == -20 && back.Steps[0].Name == "a", "click step");
         Check(back.Steps[2].ShowOnly && back.Steps[2].Keys == "ctrl+s", "show-only shortcut");
         var rt = back.Steps[3];
         Check(rt.TextOnly && rt.SendDiscord && !rt.CopyResult && rt.Width == 30 && rt.Text == "In: {text}", "screenshot step");
