@@ -73,8 +73,17 @@ export const F2L = [
   "R U F R U R' U' F' R'", "R F U R U' R' F' U' R'",
 ];
 
+// Plain-words recognition for the 4 easy inserts (F2L[0..3]); every position
+// was checked against cube.js. Corner = the one above the gap.
+export const F2L_NOTES = [
+  'White faces YOU. The edge sits right behind the corner on the right, colours matching: already a pair. Move it away, then drop it in.',
+  'White faces RIGHT. The edge sits next to the corner along the front, colours matching: already a pair.',
+  'White faces YOU. The edge is at the far LEFT of the top layer.',
+  'White faces RIGHT. The edge is at the BACK of the top layer.',
+];
+
 export const F2L_GROUPS = [
-  { key: 'basic', title: 'Easy inserts', note: 'Already a pair, or one move from one. Everything else sets up to these.' },
+  { key: 'basic', title: 'Start here: the 4 easy inserts', note: 'Learn these first, until you do them without thinking. Almost every other case is a few moves that turn it into one of these.' },
   { key: 'side', title: 'Corner on top, white facing the side', note: 'Same top colours → bring the edge next to the corner. Different → put it across.' },
   { key: 'up', title: 'Corner on top, white facing up', note: 'Hardest group to see. Hide the edge, put the corner over it, rebuild.' },
   { key: 'edgeSlot', title: 'Corner on top, edge in the slot', note: 'Edge already home or flipped in its slot.' },

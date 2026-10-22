@@ -2,6 +2,7 @@ import { CubeState, parseAlg, invertAlg, algToString, simplify, removeYRotations
 import { CubePlayer } from './player.js';
 import { isoSVG, topSVG } from './thumbs.js';
 import * as C from './content.js';
+import { algHTML, describe, mountMoveTips } from './movetip.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -10,9 +11,11 @@ const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, 
 const player = new CubePlayer($('#viewport'));
 const ui = {
   moves: $('#moves'), play: $('#btnPlay'), loop: $('#btnLoop'),
-  kicker: $('#stageKicker'), title: $('#stageTitle'), view: $('#viewBtn'),
+  kicker: $('#stageKicker'), title: $('#stageTitle'), view: $('#viewBtn'), say: $('#mvSay'),
 };
-const P = { steps: [], labels: {}, setup: [], idx: 0, playing: false, loop: false, gen: 0, view: 'top' };
+// Loop is on by default: a case keeps replaying until you pause it.
+const P = { steps: [], labels: {}, setup: [], idx: 0, playing: false, loop: true, gen: 0, view: 'top' };
+mountMoveTips();
 
 // "[Label] R U R'" -> steps + label positions
 function parseWithLabels(str) {
@@ -62,7 +65,7 @@ function renderMoves() {
   let h = '';
   P.steps.forEach((m, i) => {
     if (P.labels[i] !== undefined) h += `<span class="mv-label" data-i="${i}">${esc(P.labels[i])}</span>`;
-    h += `<button class="mv" data-i="${i}">${esc(m.tok)}</button>`;
+    h += `<button class="mv" data-i="${i}" data-mv="${esc(m.tok)}">${esc(m.tok)}</button>`;
   });
   ui.moves.innerHTML = h;
   markMoves();
@@ -76,6 +79,19 @@ function markMoves() {
   });
   const cur = ui.moves.querySelector('.mv.next');
   if (cur) cur.scrollIntoView({ block: 'nearest' });
+  sayMove();
+}
+
+// The move under way (or up next) in plain words, under the move strip.
+function sayMove() {
+  if (!P.steps.length) { ui.say.innerHTML = ''; return; }
+  if (P.idx >= P.steps.length) {
+    ui.say.innerHTML = `<span class="dim">${P.playing && P.loop ? 'Done. Playing it again…' : 'Done. Press play to watch it again.'}</span>`;
+    return;
+  }
+  const tok = P.steps[P.idx].tok, d = describe(tok);
+  ui.say.innerHTML = `<span class="say-k">${P.playing ? 'Now' : 'Next'}</span><b>${esc(tok)}</b>` +
+    (d ? `<span>${esc(d.what)}: ${esc(d.how)}</span>` : '');
 }
 
 function syncPlay() {
@@ -147,7 +163,7 @@ $('#btnRestart').addEventListener('click', () => seek(0));
 ui.loop.addEventListener('click', () => { P.loop = !P.loop; syncPlay(); });
 $('#speed').addEventListener('input', (e) => {
   player.speed = +e.target.value;
-  $('#speedVal').textContent = (+e.target.value).toFixed(1) + '×';
+  $('#speedVal').textContent = (+e.target.value).toFixed(2).replace(/0$/, '') + '×';
 });
 ui.moves.addEventListener('click', (e) => {
   const t = e.target.closest('[data-i]');
@@ -165,7 +181,7 @@ function caseCard(c, i) {
   return `<button class="card" data-case="${i}">
     <div class="thumb">${c.svg}</div>
     <div class="row">${c.num ? `<span class="num">${c.num}</span>` : ''}<span class="name">${esc(c.name)}</span></div>
-    <code class="alg">${esc(c.alg)}</code>
+    <code class="alg">${algHTML(c.alg)}</code>
     ${c.note ? `<div class="note">${esc(c.note)}</div>` : ''}
   </button>`;
 }
@@ -179,7 +195,7 @@ $('#lesson').addEventListener('click', (e) => {
   if (!card) return;
   document.querySelectorAll('.card.active').forEach((x) => x.classList.remove('active'));
   card.classList.add('active');
-  load(registry[+card.dataset.case]);
+  load(registry[+card.dataset.case], { autoplay: true });
   if (window.matchMedia('(max-width: 900px)').matches)
     $('#stage').scrollIntoView({ behavior: 'smooth', block: 'start' });
 });
@@ -213,7 +229,7 @@ const LESSONS = {
     render() {
       const block = (list) => `<div class="grid wide">${list.map((n) => {
         const i = register({ kicker: 'Notation', title: n.name, alg: n.alg, setup: '', mask: 'none' });
-        return `<button class="card text" data-case="${i}"><span class="big">${esc(n.name.split(' ')[0])}</span><span class="note">${esc(n.note)}</span></button>`;
+        return `<button class="card text" data-case="${i}"><span class="big" data-mv="${esc(n.alg)}">${esc(n.name.split(' ')[0])}</span><span class="note">${esc(n.note)}</span></button>`;
       }).join('')}</div>`;
       return `
       <div class="kicker">Reference</div>
@@ -262,7 +278,7 @@ const LESSONS = {
         const cTop = corner.p[1] === 1, eTop = edge.p[1] === 1;
         const key = k < 4 ? 'basic' : cTop && eTop ? (corner.n[1] === 1 ? 'up' : 'side') : cTop ? 'edgeSlot' : eTop ? 'cornerSlot' : 'both';
         const i = register({ kicker: `F2L case ${k + 1}`, title: C.F2L_GROUPS.find((g) => g.key === key).title, alg, mask: 'f2l' });
-        groups[key].push(caseCard({ name: `Case ${k + 1}`, alg, svg: isoSVG(s, 'f2l'), num: '' }, i));
+        groups[key].push(caseCard({ name: `Case ${k + 1}`, alg, svg: isoSVG(s, 'f2l'), num: '', note: C.F2L_NOTES[k] }, i));
       });
       const body = C.F2L_GROUPS.map((g) => `
         <div class="group-head"><h3>${esc(g.title)}</h3><span class="count">${groups[g.key].length}</span></div>
@@ -270,12 +286,17 @@ const LESSONS = {
         <div class="grid">${groups[g.key].join('')}</div>`).join('');
       return `
       <div class="kicker">Step 2</div>
-      <h2>F2L — all 41 cases</h2>
-      <p class="lead">Pair a white corner with its edge and insert them together. Every pair is one of these 41 cases — see the case, do the moves.</p>
-      <ul class="tips">
-        <li>Shown for the front-right slot. Turn <code>U</code> to line it up; for front-left, mirror it (R↔L).</li>
-        <li>While inserting one pair, look for the next. No pauses.</li>
-      </ul>
+      <h2>F2L — first two layers</h2>
+      <p class="lead">Cross done? Now fill the 4 gaps next to it. Each gap takes one <strong>corner</strong> and one <strong>edge</strong>, and they go in together as a pair.</p>
+      <div class="howto">
+        <div class="howto-row"><span class="howto-n">1</span><div><strong>Hold it right.</strong> White cross on the <strong>bottom</strong>, yellow on top, <strong>green facing you</strong>. You always work on the gap at the <strong>front-right</strong>: between green (front) and orange (right).</div></div>
+        <div class="howto-row"><span class="howto-n">2</span><div><strong>Find the two pieces.</strong> The <strong>corner</strong> has white + green + orange. The <strong>edge</strong> has green + orange (no white, no yellow). Both should be in the top layer.</div></div>
+        <div class="howto-row"><span class="howto-n">3</span><div><strong>Put the corner above the gap.</strong> Turn the top (<span class="tok" data-mv="U">U</span> / <span class="tok" data-mv="U'">U'</span>) until the corner is at the top front-right, right over the gap.</div></div>
+        <div class="howto-row"><span class="howto-n">4</span><div><strong>Look at two things:</strong> which way the corner's <strong>white sticker</strong> faces (you, right, or up), and <strong>where the edge</strong> is. Find the matching picture below and do its moves.</div></div>
+        <div class="howto-row"><span class="howto-n">5</span><div><strong>Next gap.</strong> Spin the whole cube (<span class="tok" data-mv="y">y</span>) so the next empty gap is at the front-right, and repeat.</div></div>
+      </div>
+      <div class="callout"><strong>Don't know a letter?</strong> Hover over (or tap) any move, like <span class="tok" data-mv="R">R</span> or <span class="tok" data-mv="F'">F'</span>, to see it turn. Tap a case and the cube plays it on repeat, with each move explained under the cube. Drag the speed slider down to slow it.</div>
+      <div class="callout">Piece stuck <strong>inside</strong> a gap? Turn that gap to the front-right and do <span class="tok" data-mv="R">R</span> <span class="tok" data-mv="U">U</span> <span class="tok" data-mv="R'">R'</span> to lift it to the top. Then start again from step 2.</div>
       ${body}`;
     },
     stage: () => ({ kicker: 'F2L', title: 'Pick a case', alg: '', setup: '', mask: 'f2l' }),
@@ -378,9 +399,9 @@ const LESSONS = {
       <div class="grid wide"><button class="card text" data-case="${i}"><span class="big">▶</span><span class="note"><strong>Play the full solve</strong><br>${sol.length} moves, ${stages.length} stages</span></button></div>
       <h3>Scramble</h3>
       <p>Hold yellow on top, green in front and do this scramble on your real cube, then follow along.</p>
-      <p><code>${esc(scramble)}</code></p>
+      <p><code>${algHTML(scramble)}</code></p>
       <h3>Solution</h3>
-      <ul class="tips">${stages.map((s) => `<li><strong>${esc(s.name)}</strong> — <code>${esc(s.moves.join(' '))}</code></li>`).join('')}</ul>
+      <ul class="tips">${stages.map((s) => `<li><strong>${esc(s.name)}</strong> — <code>${algHTML(s.moves.join(' '))}</code></li>`).join('')}</ul>
       <div class="callout"><code>y</code> between F2L pairs turns the cube so the next slot is front-right. Real solves try to avoid these, but they keep the example readable.</div>`;
     },
     stage: () => ({ kicker: 'Full solve', title: 'Cross → F2L ×4 → OLL → PLL', alg: C.FULL_SOLVE, mask: 'none' }),

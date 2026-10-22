@@ -24,7 +24,7 @@ function stickerShape(size, r) {
 }
 
 export class CubePlayer {
-  constructor(host) {
+  constructor(host, { interactive = true } = {}) {
     this.host = host;
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -47,8 +47,11 @@ export class CubePlayer {
     this.root.add(this.pivot);
 
     this.mats = {};
-    for (const [k, c] of Object.entries({ ...COLORS, grey: GREY }))
+    this.dim = {};
+    for (const [k, c] of Object.entries({ ...COLORS, grey: GREY })) {
       this.mats[k] = new THREE.MeshStandardMaterial({ color: c, roughness: 0.35, metalness: 0 });
+      this.dim[k] = new THREE.MeshStandardMaterial({ color: new THREE.Color(c).multiplyScalar(0.3), roughness: 0.6, metalness: 0 });
+    }
     const bodyMat = new THREE.MeshStandardMaterial({ color: 0x111216, roughness: 0.6 });
     const bodyGeo = new RoundedBoxGeometry(0.98, 0.98, 0.98, 3, 0.1);
     const stickerGeo = new THREE.ShapeGeometry(stickerShape(0.84, 0.13), 4);
@@ -82,7 +85,7 @@ export class CubePlayer {
     // camera orbit
     this.view = { yaw: 0.62, pitch: 0.5 };
     this.viewTarget = { ...this.view };
-    this.bindDrag();
+    if (interactive) this.bindDrag();
     this.queue = Promise.resolve();
     this.epoch = 0;
     this.speed = 1;
@@ -122,6 +125,11 @@ export class CubePlayer {
     if (snap) this.view = { ...this.viewTarget };
   }
 
+  look(yaw, pitch, snap = false) {
+    this.viewTarget = { yaw, pitch };
+    if (snap) this.view = { ...this.viewTarget };
+  }
+
   bindDrag() {
     const el = this.renderer.domElement;
     let last = null;
@@ -156,6 +164,14 @@ export class CubePlayer {
         s.material = on ? this.mats[f] : this.mats.grey;
       }
     }
+  }
+
+  // Full colour on the layer `mv` turns, dark everywhere else (call after reset).
+  dimExcept(mv) {
+    const moving = new Set(this.layer(mv));
+    for (const c of this.cubies)
+      for (const s of c.userData.stickers)
+        s.material = (moving.has(c) ? this.mats : this.dim)[s.userData.face];
   }
 
   reset() {

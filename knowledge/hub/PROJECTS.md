@@ -349,6 +349,7 @@ Event app for **Campus UNITE — Elevate's 13th Anniversary** (July 17, 2026 · 
   - The full-solve scramble is the solution inverted with `y` rotations folded out (`removeYRotations`); that only works because the solution's net rotation is y4.
   - Masks (`cross` / `f2l` / `oll`) grey stickers by the cubie's HOME position, so a piece keeps its colouring wherever it travels.
   - **Moves queue in `player.animate`** and `reset()` bumps an epoch that cancels anything queued or mid-turn; `animate` resolves false when cancelled and the app only advances its move index on true. Before this, stepping or switching cases mid-turn ran two animations on one pivot and scrambled the stickers.
+  - **Move tips (2026-10-22, `js/movetip.js`)** — Charlie can't read notation yet. Any element with `data-mv` (moves strip, every alg on a card via `algHTML()`, notation tiles) shows a hover/tap card: a second, non-interactive `CubePlayer` loops that one turn with only the turning layer lit (`dimExcept`), plus plain words ("Right side · turn it UP, away from you"). The stage also captions the current/next move under the strip. Cases autoplay on click and loop by default; the speed slider goes down to 0.15×.
   - **A camera tutor tab (scan the cube, webcam follows your moves) was built 2026-10-22 and removed the same day** — Charlie found it bad in use.
   - Headless Chrome can't verify animation (rAF stalls under `--virtual-time-budget`) and has a 500 px minimum width — use real Chrome for both.
 

@@ -125,6 +125,37 @@ button { font: inherit; color: inherit; }
 .speed { display: flex; align-items: center; gap: 8px; margin-left: auto; font: 700 12px var(--mono); color: var(--muted); }
 .speed input { width: 90px; accent-color: var(--accent); }
 
+/* ---------- move tips ---------- */
+.tok { border-bottom: 1px dotted currentColor; cursor: help; }
+.tok:hover { color: var(--accent); }
+.mv-say {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; min-height: 26px;
+  margin-top: 8px; font-size: 14px; color: #c6cbd6;
+}
+.mv-say b { font: 800 18px var(--mono); color: var(--accent); }
+.mv-say .say-k { font: 700 10px var(--mono); text-transform: uppercase; letter-spacing: 0.08em; color: var(--dim); }
+.mv-say .dim { color: var(--dim); }
+.movetip {
+  position: fixed; left: 0; top: 0; z-index: 50; width: 230px; pointer-events: none;
+  background: #0b0d12; border: 1px solid #3a4152; border-radius: 14px; padding: 8px;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.55); opacity: 0; transition: opacity 0.12s;
+}
+.movetip.on { opacity: 1; }
+.mt-cube { width: 100%; aspect-ratio: 1 / 0.85; border-radius: 10px; overflow: hidden; background: radial-gradient(circle at 50% 45%, #232838 0%, #12151c 75%); }
+.mt-cube canvas { display: block; width: 100%; height: 100%; }
+.mt-body { padding: 6px 4px 2px; }
+.mt-tok { font: 800 22px var(--mono); color: var(--accent); line-height: 1.1; }
+.mt-what { font-weight: 700; font-size: 13px; margin-top: 2px; }
+.mt-how { font-size: 13px; color: #c6cbd6; line-height: 1.4; }
+.mt-hold { font-size: 11px; color: var(--dim); margin-top: 6px; }
+
+.howto { display: grid; gap: 8px; margin: 16px 0; }
+.howto-row {
+  display: grid; grid-template-columns: 30px 1fr; gap: 12px; align-items: start;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; color: #c6cbd6;
+}
+.howto-n { width: 26px; height: 26px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: 800 13px/26px var(--mono); text-align: center; }
+
 /* ---------- lesson ---------- */
 .lesson { min-width: 0; padding-bottom: 80px; }
 .lesson h2 { font-size: 30px; letter-spacing: -0.025em; line-height: 1.15; margin: 4px 0 8px; }
