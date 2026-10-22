@@ -336,6 +336,20 @@ Event app for **Campus UNITE — Elevate's 13th Anniversary** (July 17, 2026 · 
   - **No Firebase Security Rules yet** — same posture as `weddingbar/` etc. Lock down with rules before going public if needed.
 - **Full docs:** See `knowledge/elevate-eo-campus-unite-2026/SUMMARY.md`.
 
+### rubiks/  🟢
+
+**Sub-20** — CFOP speedcubing course with a live 3D 3x3. Tabs are the 4 steps (1 Cross, 2 F2L all 41, 3 OLL 2-look, 4 PLL 2-look + all 21) then Advanced (x-cross, pseudo slotting), Full solve, Notation, Timer. No week-by-week roadmap — Charlie asked for just the steps. Built 2026-10-22; Charlie wants sub-30 → sub-20 and explicitly rejected intuitive F2L as too slow, so F2L is taught as algorithms.
+
+- **Tech:** vanilla ES modules, three.js 0.169 via jsDelivr import map (+ `RoundedBoxGeometry` addon), hand-written CSS, Inter + JetBrains Mono. No build.
+- **Entry:** `index.html`, `js/cube.js` (pure sticker model, no DOM — shared by player, thumbnails and node), `js/player.js` (3D), `js/thumbs.js` (SVG case diagrams), `js/content.js` (every alg + lesson data), `js/app.js` (tabs, player controls, timer).
+- **Deploy:** GitHub Pages at `/rubiks/`.
+- **Quirks:**
+  - **A case's start position is always `inverse(alg)`**, so the 3D cube and SVG thumbnail can't disagree with the algorithm. F2L groups are classified at runtime from the resulting state, not hand-labelled.
+  - Every alg was verified in node against `cube.js`: F2L algs leave cross + other 3 slots intact (41 distinct cases), OLL/PLL leave F2L intact, PLLs keep yellow up. Jb/Ra/Rb/Z carry a trailing AUF so the case diagram moves the minimum pieces.
+  - The full-solve scramble is the solution inverted with `y` rotations folded out (`removeYRotations`); that only works because the solution's net rotation is y4.
+  - Masks (`cross` / `f2l` / `oll`) grey stickers by the cubie's HOME position, so a piece keeps its colouring wherever it travels.
+  - Headless Chrome can't verify animation (rAF stalls under `--virtual-time-budget`) and has a 500 px minimum width — use real Chrome for both.
+
 ### driving/  🟢
 
 Browser driving simulator built for LTO practical-exam practice after PDC — a real automatic gearbox (creep, kickdown, lock-up, engine braking), three working mirrors, a random town with traffic and lights, and six graded exercises including parallel and back-in parking.
@@ -606,7 +620,7 @@ Simple side-scrolling platformer (Bubu & Dudu) — canvas-based game.
 
 | Project | Hosting | Auto-deploy on push? |
 |---|---|---|
-| bubududu-smash, ilaw, kain, sherill (also on Vercel as `drive-with-sherill`), driving, devo, monthsary, tayo, sns-dq, weddingtest, towa-no-yuugure, autoclicker, aircon, pocket-remote, mac-toggle, collaterals, flux, pray, echoes, wedding100, weddingtimeline, horizon, money, anohana, bubududu | GitHub Pages subpath | ✅ |
+| rubiks, bubududu-smash, ilaw, kain, sherill (also on Vercel as `drive-with-sherill`), driving, devo, monthsary, tayo, sns-dq, weddingtest, towa-no-yuugure, autoclicker, aircon, pocket-remote, mac-toggle, collaterals, flux, pray, echoes, wedding100, weddingtimeline, horizon, money, anohana, bubududu | GitHub Pages subpath | ✅ |
 | mac-toggle (Mac agent) | root LaunchDaemon `com.chaelri.mactoggle` via `agent/install.sh` | Manual |
 | mac-toggle (menu bar) | per-user LaunchAgent `com.chaelri.mactoggle.menubar` via `menubar/install-menubar.sh` | Manual |
 | claude-terminal | Local only (Windows, `install.ps1`) | Manual |

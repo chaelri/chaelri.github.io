@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Sub-20 · CFOP Trainer</title>
+    <meta name="description" content="Learn CFOP fast: cross, all 41 F2L cases, OLL and PLL, each played on a 3D Rubik's cube." />
+    <meta name="theme-color" content="#0d0f14" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="css/style.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <header class="top">
+      <div class="brand">
+        <div class="logo" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <div>
+          <h1>Sub-20</h1>
+          <p>CFOP, the fast way</p>
+        </div>
+      </div>
+      <nav class="tabs" id="tabs" role="tablist"></nav>
+    </header>
+
+    <main class="layout">
+      <section class="stage" id="stage" aria-label="3D cube">
+        <div class="stage-card">
+          <div class="stage-head">
+            <div>
+              <div class="stage-kicker" id="stageKicker">Notation</div>
+              <div class="stage-title" id="stageTitle">Solved cube</div>
+            </div>
+            <button class="ghost" id="viewBtn" title="Flip view top/bottom">Bottom view</button>
+          </div>
+          <div class="viewport" id="viewport"><div class="drag-hint">drag to look around</div></div>
+          <div class="moves" id="moves"></div>
+          <div class="controls">
+            <button class="ctl" id="btnRestart" title="Back to the start (Home)">
+              <svg viewBox="0 0 24 24"><path d="M12 5V2L7 6l5 4V7a6 6 0 1 1-6 6H4a8 8 0 1 0 8-8z"/></svg>
+            </button>
+            <button class="ctl" id="btnPrev" title="Step back (←)">
+              <svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
+            </button>
+            <button class="ctl play" id="btnPlay" title="Play / pause (Space)">
+              <svg class="i-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+              <svg class="i-pause" viewBox="0 0 24 24"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>
+            </button>
+            <button class="ctl" id="btnNext" title="Step forward (→)">
+              <svg viewBox="0 0 24 24"><path d="M16 6h2v12h-2zM6 18l8.5-6L6 6z"/></svg>
+            </button>
+            <button class="ctl toggle" id="btnLoop" title="Loop">
+              <svg viewBox="0 0 24 24"><path d="M7 7h10v3l4-4-4-4v3H5v6h2zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2z"/></svg>
+            </button>
+            <label class="speed">
+              <span id="speedVal">1.0×</span>
+              <input type="range" id="speed" min="0.3" max="3" step="0.1" value="1" aria-label="Speed" />
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <section class="lesson" id="lesson" aria-live="polite"></section>
+    </main>
+
+    <script type="module" src="js/app.js"></script>
+  </body>
+</html>
