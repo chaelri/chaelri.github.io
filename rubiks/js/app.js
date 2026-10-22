@@ -297,8 +297,25 @@ function nextCase(state, algs, done) {
 const pairIn = (s) => s.pieceSolved([1, -1, 1]) && s.pieceSolved([1, 0, 1]);
 const topYellow = (s) => s.stickers.filter((t) => t.c === 'U').every((t) => t.n[1] === 1);
 const solvedUpToU = (s) => AUFS.some((a) => (a ? s.clone().apply(a) : s).isSolved());
-const thenBtn = (id, a, label) =>
-  `<button class="then" data-goto="${id}">Then: ${a ? `turn <b>${a}</b>, ` : ''}it's ${label} ▸</button>`;
+// The link says what the next case looks like and what to do there, so you
+// can carry on without scrolling; tap it to see that card.
+const thenBtn = (id, a, label, desc, moves) =>
+  `<button class="then" data-goto="${id}"><span class="then-k">Then</span>${a ? `turn <b>${a}</b>, ` : ''}it's <b>${label}</b>${desc ? `: ${desc}` : ''}.${
+    moves ? ` Do <code>${esc(moves)}</code>` : ''} ▸</button>`;
+
+// Where the F2L pair sits in a case, in words (all 41 come out different).
+const FACING = { '0,1,0': 'up', '0,-1,0': 'down', '0,0,1': 'you', '1,0,0': 'right', '-1,0,0': 'left', '0,0,-1': 'back' };
+const TOP_CORNER = { '1,1': 'above the gap', '-1,1': 'top front-left', '-1,-1': 'top back-left', '1,-1': 'top back-right' };
+const TOP_EDGE = { '0,1': 'front', '1,0': 'right', '0,-1': 'back', '-1,0': 'left' };
+function f2lDesc(alg) {
+  const s = stateFor(alg);
+  const w = s.stickers.find((t) => eq(t.home, [1, -1, 1]) && t.c === 'D');
+  const g = s.stickers.find((t) => eq(t.home, [1, 0, 1]) && t.c === 'F');
+  const corner = w.p[1] === 1 ? `Corner ${TOP_CORNER[`${w.p[0]},${w.p[2]}`]}` : 'Corner in the gap';
+  const edge = g.p[1] === 1 ? `edge on top at the ${TOP_EDGE[`${g.p[0]},${g.p[2]}`]}, ${g.n[1] === 1 ? 'green' : 'orange'} up`
+    : `edge in the gap${eq(g.n, [0, 0, 1]) ? '' : ', flipped'}`;
+  return `${corner}, white facing ${FACING[w.n.join()]} · ${edge}`;
+}
 // The one general "what now" line for a whole set of cases.
 const nextLine = (html) => `<div class="next-line"><b>Next</b> ${html}</div>`;
 
@@ -393,7 +410,7 @@ const LESSONS = {
         const edge = s.stickers.find((t) => eq(t.home, [1, 0, 1]) && t.c === 'F');
         const cTop = corner.p[1] === 1, eTop = edge.p[1] === 1;
         const key = k < 4 ? 'basic' : cTop && eTop ? (corner.n[1] === 1 ? 'up' : 'side') : cTop ? 'edgeSlot' : eTop ? 'cornerSlot' : 'both';
-        groups[key].push(caseDemo('', C.F2L_NOTES[k] ? esc(C.F2L_NOTES[k]) : '', { setup: inv(alg), alg }, `Case ${k + 1}`, `f2l-${k + 1}`));
+        groups[key].push(caseDemo(f2lDesc(alg), C.F2L_NOTES[k] ? esc(C.F2L_NOTES[k]) : '', { setup: inv(alg), alg }, `Case ${k + 1}`, `f2l-${k + 1}`));
       });
       const body = C.F2L_GROUPS.map((g) => `
         <div class="group-head"><h3>${esc(g.title)}</h3><span class="count">${groups[g.key].length}</span></div>
@@ -409,7 +426,7 @@ const LESSONS = {
         <div class="howto-row wide"><span class="howto-n">2</span><div><strong>Find the two pieces.</strong> The <strong>corner</strong> has white + green + orange. The <strong>edge</strong> has green + orange (no white, no yellow). They need to be in the <strong>top layer</strong>. Where are yours right now? Only those two pieces are lit below. <strong>Anything stuck: the fix is always <span class="tok" data-mv="R">R</span> <span class="tok" data-mv="U">U</span> <span class="tok" data-mv="R'">R'</span>.</strong>
           ${cases(STUCK.map((c) => {
             const n = nextCase(endOf(c.setup, c.alg), C.F2L, pairIn);
-            return caseDemo(c.title, `${c.text} ${n ? thenBtn(`f2l-${n.i + 1}`, n.a, `Case ${n.i + 1} below`) : ''}`, { setup: c.setup, alg: c.alg });
+            return caseDemo(c.title, `${c.text} ${n ? thenBtn(`f2l-${n.i + 1}`, n.a, `Case ${n.i + 1}`, f2lDesc(C.F2L[n.i]), C.F2L[n.i]) : ''}`, { setup: c.setup, alg: c.alg });
           }))}</div></div>
         <div class="howto-row"><span class="howto-n">3</span><div><strong>Put the corner above the gap.</strong> Turn the top (<span class="tok" data-mv="U">U</span> / <span class="tok" data-mv="U'">U'</span>) until the corner is at the top front-right, right over the gap.</div>
           ${demoHTML({ setup: "R U' R' U2", alg: 'U2', pieces: 'pair', caption: 'Corner ends up over the front-right gap.' })}</div>
@@ -442,7 +459,7 @@ const LESSONS = {
             // each shape sits on a real look-2 case, so the path carries on
             const setup = `${inv(C.OLL_CORNERS[[0, 1, 5][k]].alg)} ${inv(c.alg)}`;
             const n = nextCase(endOf(setup, c.alg), C.OLL_CORNERS.map((o) => o.alg), topYellow);
-            return caseDemo(esc(c.name), `${esc(c.note)} ${n ? thenBtn(`oll2-${n.i}`, n.a, esc(C.OLL_CORNERS[n.i].name)) : ''}`, { setup, alg: c.alg, mask: 'olledge', pieces: '' });
+            return caseDemo(esc(c.name), `${esc(c.note)} ${n ? thenBtn(`oll2-${n.i}`, n.a, esc(C.OLL_CORNERS[n.i].name), esc(C.OLL_CORNERS[n.i].note), C.OLL_CORNERS[n.i].alg) : ''}`, { setup, alg: c.alg, mask: 'olledge', pieces: '' });
           })))}
         ${howStep(3, '<strong>Look 2: the corners.</strong> Cross done. Now find which of these the corners look like, turn <span class="tok" data-mv="U">U</span> until it matches, and do it.',
           cases(C.OLL_CORNERS.map((c, k) => caseDemo(esc(c.name), esc(c.note), { setup: inv(c.alg), alg: c.alg, mask: 'oll', pieces: '' }, 'Case %N%', `oll2-${k}`)))
@@ -473,7 +490,7 @@ const LESSONS = {
           ].map((c) => {
             const edges = C.PLL_2LOOK.slice(2);
             const n = nextCase(endOf(c.setup, c.alg), edges.map((e) => e.alg), solvedUpToU);
-            return caseDemo(c.title, `${c.text} ${n ? thenBtn(`pll2-${n.i}`, n.a, esc(edges[n.i].name)) : ''}`, { setup: c.setup, alg: c.alg, pieces: '' });
+            return caseDemo(c.title, `${c.text} ${n ? thenBtn(`pll2-${n.i}`, n.a, esc(edges[n.i].name), esc(edges[n.i].note), edges[n.i].alg) : ''}`, { setup: c.setup, alg: c.alg, pieces: '' });
           })))}
         ${howStep(2, '<strong>Then the edges.</strong> Corners done: look at the middle sticker of each side.',
           cases(C.PLL_2LOOK.slice(2).map((c, k) => caseDemo(esc(c.name), esc(c.note), { setup: inv(c.alg), alg: c.alg, pieces: '' }, 'Case %N%', `pll2-${k}`)))
