@@ -561,6 +561,7 @@ function brandIconFor(name) {
   if (n.includes("campus missionary")) return "cms";
   if (n.includes("tithe")) return "ccf";
   if (n.includes("claude")) return "claude";
+  if (n.includes("eastwest") || n.includes("east west")) return "eastwest";
   return null;
 }
 function iconFor(name) { return bankIconFor(name) || brandIconFor(name); }
