@@ -49,9 +49,14 @@ Register-ScheduledTask -TaskName $names[0] -Action (Action "repeat") `
     -Trigger @((Window "5:50AM"), (Window "3:50PM")) `
     -Principal $principal -Settings $settings | Out-Null
 
+# At boot heartbeat.ps1 retries for up to ~6 min (24 x 10 s timeout + 5 s), so
+# the 3-minute limit would kill it before the network is up on a slow start.
+$bootSettings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
+    -ExecutionTimeLimit (New-TimeSpan -Minutes 7) -MultipleInstances IgnoreNew
+
 Register-ScheduledTask -TaskName $names[1] -Action (Action "boot") `
     -Trigger (New-ScheduledTaskTrigger -AtStartup) `
-    -Principal $principal -Settings $settings | Out-Null
+    -Principal $principal -Settings $bootSettings | Out-Null
 
 # One write now so the Firebase console shows it working straight away.
 & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $script -Via install
