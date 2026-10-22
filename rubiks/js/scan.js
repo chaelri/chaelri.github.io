@@ -18,6 +18,7 @@ const REF_RGB = { U: [225, 200, 40], D: [220, 222, 222], F: [30, 160, 85], B: [3
 const STABLE_FRAMES = 6;   // ~0.5 s at 80 ms a frame
 const FLAT_SD = 22;        // max colour spread inside one sticker patch
 const NEW_FACE = 160;      // min centre distance to count as a side not seen yet
+const STILL = 90;          // max colour change per square between frames (~ΔE 9)
 
 // ---------------------------------------------------------------- colour
 function lab([r, g, b]) {
@@ -32,7 +33,7 @@ function lab([r, g, b]) {
 // lightness counts for less than hue: shadows darken, they don't recolour
 const dist = (a, b) => 0.35 * (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2;
 const REF_LAB = Object.fromEntries(LETTERS.map((k) => [k, lab(REF_RGB[k])]));
-const nearest = (L, refs) => LETTERS.reduce((best, k) => (dist(L, refs[k]) < dist(L, refs[best]) ? k : best), LETTERS[0]);
+const lum = (p) => p[0] * 0.3 + p[1] * 0.59 + p[2] * 0.11;
 
 function permutations(a) {
   if (a.length <= 1) return [a];
@@ -159,7 +160,7 @@ export function solveRaw(raw, orange, opts) {
 // ---------------------------------------------------------------- UI
 export function mountScan(root, api) {
   const $ = (s) => root.querySelector(s);
-  const S = { mode: 'idle', stream: null, timer: 0, faces: [], last: '', run: 0, raw: null, errors: null, moves: [], labels: {}, mini: null, gen: 0 };
+  const S = { mode: 'idle', stream: null, timer: 0, faces: [], last: null, run: 0, raw: null, errors: null, moves: [], labels: {}, mini: null, gen: 0 };
   const grab = document.createElement('canvas');
   const gctx = grab.getContext('2d', { willReadFrequently: true });
   let cells = [];
@@ -214,14 +215,12 @@ export function mountScan(root, api) {
         const cx = x + cell * (col + 0.5), cy = y + cell * (row + 0.5);
         let pts;
         if (row === 1 && col === 1) {
-          // Centres often carry a printed logo (e.g. a black "Swift Block" on
-          // white) right in the middle: read the four corners of the sticker
-          // instead, and drop whatever dark logo pixels still get in.
-          const o = cell * 0.3, rr = Math.max(1, Math.round(cell * 0.07));
-          pts = [[-o, -o], [o, -o], [-o, o], [o, o]].flatMap(([dx, dy]) => px(cx + dx, cy + dy, rr));
-          const lum = (p) => p[0] * 0.3 + p[1] * 0.59 + p[2] * 0.11;
-          const top = Math.max(...pts.map(lum));
-          pts = pts.filter((p) => lum(p) >= top * 0.55);
+          // Centres often carry a printed logo (a black "Swift Block" + robot
+          // can cover most of the white one): read the whole sticker and keep
+          // only its 50th-90th percentile by brightness, which drops the logo
+          // and any glare whatever their size.
+          pts = px(cx, cy, Math.max(2, Math.round(cell * 0.36))).sort((a, b) => lum(a) - lum(b));
+          pts = pts.slice(Math.floor(pts.length * 0.5), Math.ceil(pts.length * 0.9));
         } else pts = px(cx, cy, r);
         const n = pts.length;
         const m = [0, 1, 2].map((k) => pts.reduce((t, p) => t + p[k], 0) / n);
@@ -236,10 +235,16 @@ export function mountScan(root, api) {
     const v = $('video');
     cells = v ? sample(v) : [];
     if (cells.length === 9) {
-      const flat = cells.every((c) => c.sd < FLAT_SD && Math.max(...c.rgb) > 45);
-      const sig = flat ? cells.map((c) => nearest(lab(c.rgb), REF_LAB)).join('') : '';
-      if (sig && sig === S.last) S.run++;
-      else { S.last = sig; S.run = sig ? 1 : 0; }
+      // Steady = every square's colour barely moved since the last frame.
+      // (Not "same colour name": a beige white or a red that sits between red
+      // and orange flips names frame to frame and would never count.)
+      const labs = cells.map((c) => lab(c.rgb));
+      // A scrambled side always mixes colours; 9 of the same is a wall or a shirt.
+      const mixed = labs.some((L) => dist(L, labs[4]) > NEW_FACE);
+      const flat = mixed && cells.every((c, i) => (i === 4 || c.sd < FLAT_SD) && Math.max(...c.rgb) > 45);
+      const still = flat && S.last && labs.every((L, i) => dist(L, S.last[i]) < STILL);
+      S.run = flat ? (still ? S.run + 1 : 1) : 0;
+      S.last = flat ? labs : null;
       if (S.run === STABLE_FRAMES) take();
     }
     draw();
@@ -448,6 +453,7 @@ export function mountScan(root, api) {
     stop,
     // ?debug: feed 6 captured sides ({ rgb: [9 x [r,g,b]] }) without a camera
     feed(faces) { stop(); S.faces = faces; finish(); },
+    sampleFrom: (src) => sample(src),
     onKey(e) {
       if (S.mode !== 'guide') return false;
       if (e.code === 'Space' || e.key === 'ArrowRight' || e.key === 'Enter') { e.preventDefault(); forward(); return true; }
