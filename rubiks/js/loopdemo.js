@@ -11,10 +11,11 @@ const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, 
 // Named piece sets, by home position.
 const PIECES = {
   pair: [[1, -1, 1], [1, 0, 1]], // the front-right corner + edge
+  crossEdge: [[0, -1, 1], [0, -1, 0], [0, 0, 1]], // white-green edge + the two centres it sits between
 };
 
-export function demoHTML({ setup = '', alg, mask = 'none', pieces = '', caption = '' }) {
-  return `<div class="demo" data-setup="${esc(setup)}" data-alg="${esc(alg)}" data-mask="${mask}" data-pieces="${pieces}">
+export function demoHTML({ setup = '', alg, mask = 'none', pieces = '', view = 'top', caption = '' }) {
+  return `<div class="demo" data-setup="${esc(setup)}" data-alg="${esc(alg)}" data-mask="${mask}" data-pieces="${pieces}" data-view="${view}">
     <div class="demo-cube"></div>
     <div class="demo-moves"></div>
     ${caption ? `<div class="demo-cap">${caption}</div>` : ''}
@@ -26,6 +27,7 @@ export function mountDemos(root) {
   const players = [];
   for (const host of root.querySelectorAll('.demo')) {
     const p = new CubePlayer(host.querySelector('.demo-cube'), { interactive: false });
+    p.setView(host.dataset.view || 'top', true);
     players.push(p);
     run(p, host);
   }

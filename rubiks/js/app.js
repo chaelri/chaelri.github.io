@@ -248,6 +248,12 @@ function recog(list) {
 function caseDemo(title, text, demo) {
   return `<div class="case-demo">${demoHTML({ pieces: 'pair', ...demo })}<div class="case-t">${title}</div><div class="case-x">${text}</div></div>`;
 }
+const inv = (alg) => algToString(invertAlg(parseWithLabels(alg).steps));
+const plain = (alg) => alg.replace(/\[[^\]]*\]\s*/g, '');
+// One numbered how-to step: text plus either a looping demo or a grid of case demos.
+const howStep = (n, html, demo = '') => `<div class="howto-row${demo.startsWith('<div class="cases') ? ' wide' : ''}"><span class="howto-n">${n}</span>${
+  demo.startsWith('<div class="cases') ? `<div>${html}${demo}</div>` : `<div>${html}</div>${demo}`}</div>`;
+const cases = (list) => `<div class="cases">${list.join('')}</div>`;
 
 // ---------------------------------------------------------------- lessons
 const LESSONS = {
@@ -300,6 +306,16 @@ const LESSONS = {
       <div class="kicker">Step 1</div>
       <h2>Cross — in 8 moves or less</h2>
       <p class="lead">White edges around the white centre, on the <strong>bottom</strong>. Aim for 8 moves or less.</p>
+      <div class="howto">
+        ${howStep(1, '<strong>White on the bottom.</strong> The cross is built on the bottom, never on top. Yellow up, green facing you.',
+          demoHTML({ setup: 'z2', alg: 'z2', mask: 'cross', view: 'bottom', caption: 'Seen from below: white ends up on the bottom.' }))}
+        ${howStep(2, '<strong>Pick one white edge.</strong> A white edge has white + one other colour. That colour tells you where it goes: between white and the centre of that colour.',
+          demoHTML({ setup: inv('U F2'), alg: 'U F2', pieces: 'crossEdge', view: 'bottom', caption: 'White-green edge goes between the white and green centres.' }))}
+        ${howStep(3, '<strong>Where is it right now?</strong> Only the white-green edge and its two centres are lit. Find yours:',
+          cases(C.CROSS.map((c) => caseDemo(esc(c.name), esc(c.note), { setup: inv(c.alg), alg: c.alg, pieces: 'crossEdge', view: 'bottom' }))))}
+        ${howStep(4, '<strong>Do all four.</strong> Same thing for white-orange, white-blue, white-red. Plan them all in the 15 s inspection, then go without stopping.',
+          demoHTML({ setup: inv("F' R D2 L' B' D' F2"), alg: "F' R D2 L' B' D' F2", mask: 'cross', view: 'bottom', caption: 'A whole cross in 7 moves.' }))}
+      </div>
       <ul class="tips">
         <li>Plan all four edges in the 15 s inspection, then do it without stopping.</li>
         <li>Keep white on the bottom the whole time — never solve it on top and flip.</li>
@@ -353,8 +369,6 @@ const LESSONS = {
       <div class="callout">Piece stuck <strong>inside</strong> a gap? Turn that gap to the front-right and do <span class="tok" data-mv="R">R</span> <span class="tok" data-mv="U">U</span> <span class="tok" data-mv="R'">R'</span> to lift it to the top. Then start again from step 2.</div>
       ${body}`;
     },
-    mount() { stopDemos = mountDemos($('#lesson')); },
-    unmount() { stopDemos?.(); stopDemos = null; },
     stage: () => ({ kicker: 'F2L', title: 'Pick a case', alg: '', setup: '', mask: 'f2l' }),
   },
 
@@ -370,6 +384,14 @@ const LESSONS = {
       <div class="kicker">Step 3</div>
       <h2>OLL — make the top yellow</h2>
       <p class="lead">Start with two looks: yellow cross first, then the corners. Turn <code>U</code> until it matches the picture (front = bottom of the picture).</p>
+      <div class="howto">
+        ${howStep(1, '<strong>Yellow on top.</strong> The bottom two layers are done; now only the top matters. It takes two looks: first a yellow cross, then yellow corners.',
+          demoHTML({ setup: inv("F R U R' U' F' R U R' U R U2 R'"), alg: "F R U R' U' F' R U R' U R U2 R'", mask: 'oll', caption: 'Look 1 makes the cross, look 2 the corners.' }))}
+        ${howStep(2, '<strong>Look 1: the 4 yellow edges.</strong> Ignore the corners. What shape do the yellow edges make? Hold it like the picture, then do that one.',
+          cases(C.OLL_EDGES.map((c) => caseDemo(esc(c.name), esc(c.note), { setup: inv(c.alg), alg: c.alg, mask: 'olledge', pieces: '' }))))}
+        ${howStep(3, '<strong>Look 2: the corners.</strong> Cross done. Now find which of these the corners look like, turn <span class="tok" data-mv="U">U</span> until it matches, and do it.',
+          cases(C.OLL_CORNERS.map((c) => caseDemo(esc(c.name), esc(c.note), { setup: inv(c.alg), alg: c.alg, mask: 'oll', pieces: '' }))))}
+      </div>
       <h3>Look 1 — yellow cross</h3>
       <p>Only the 4 edges matter here — ignore the corners. You'll have one of these three; do that one alg and the cross is done.</p>
       <div class="grid">${mk(C.OLL_EDGES, 'OLL · edges', 'olledge')}</div>
@@ -399,6 +421,18 @@ const LESSONS = {
       <div class="kicker">Step 4</div>
       <h2>PLL — finish it</h2>
       <p class="lead">Move the top pieces home. Arrows show where each piece goes. Start with the 6 two-look algs, then learn all 21.</p>
+      <div class="howto">
+        ${howStep(1, '<strong>Corners first.</strong> Look at the corner stickers on the 4 sides. <strong>Headlights</strong> = both corners of one side are the same colour. Which do you have?',
+          cases([
+            caseDemo('Headlights on all 4 sides', 'Corners are done already. Go to step 2.', { setup: inv(pll('Ua')), alg: 'U U U U', pieces: '' }),
+            caseDemo('Headlights on 1 side', 'Turn <b>U</b> so they are on the LEFT, then T perm.', { setup: inv(pll('T perm')), alg: pll('T perm'), pieces: '' }),
+            caseDemo('No headlights', 'Y perm, from any side.', { setup: inv(pll('Y perm')), alg: pll('Y perm'), pieces: '' }),
+          ]))}
+        ${howStep(2, '<strong>Then the edges.</strong> Corners done: look at the middle sticker of each side.',
+          cases(C.PLL_2LOOK.slice(2).map((c) => caseDemo(esc(c.name), esc(c.note), { setup: inv(c.alg), alg: c.alg, pieces: '' }))))}
+        ${howStep(3, '<strong>Last turn.</strong> If the top is solved but turned, one <span class="tok" data-mv="U">U</span> / <span class="tok" data-mv="U\'">U\'</span> / <span class="tok" data-mv="U2">U2</span> lines it up.',
+          demoHTML({ setup: "U'", alg: 'U', caption: 'Solved.' }))}
+      </div>
       <h3>How to tell which one you have</h3>
       <p>The white outlines show what to look at. Tap a card to load it on the cube.</p>
       <p><strong>Part A — corners.</strong> Look only at the corner stickers on the sides. <em>Headlights</em> = both corners of one side are the same colour.</p>
@@ -424,6 +458,10 @@ const LESSONS = {
       <div class="kicker">After sub-20</div>
       <h2>How the fastest do it</h2>
       <p class="lead">Yiheng Wang and other top solvers still use CFOP — these are the extras on top. Learn them only once the 4 steps are automatic.</p>
+      <div class="howto">
+        ${C.ADVANCED.map((c, k) => howStep(k + 1, `<strong>${esc(c.name)}.</strong> ${esc(c.note)}`,
+          demoHTML({ setup: algToString(parseAlg(c.setup).concat(invertAlg(parseWithLabels(c.alg).steps))), alg: plain(c.alg), mask: 'f2l', view: c.name === 'X-cross' ? 'bottom' : 'top' }))).join('')}
+      </div>
       <div class="grid wide">${cards}</div>
       <h3>The rest of the toolkit</h3>
       <ul class="tips">
@@ -601,10 +639,12 @@ let stopDemos = null;
 function open(key, push = true) {
   if (!LESSONS[key]) key = 'cross';
   LESSONS[current]?.unmount?.();
+  stopDemos?.();
   current = key;
   registry = [];
   const L = LESSONS[key];
   $('#lesson').innerHTML = L.render();
+  stopDemos = mountDemos($('#lesson'));
   document.querySelectorAll('.tab').forEach((t) => t.setAttribute('aria-selected', String(t.dataset.key === key)));
   if (L.mount) { load(L.stage()); L.mount(); }
   else load(L.stage(), { autoplay: false });
