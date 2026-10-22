@@ -135,11 +135,18 @@ public static class ClickEngine
     // ---------- Servo ----------
 
     const string ServoLastRun = "https://test-database-55379-default-rtdb.asia-southeast1.firebasedatabase.app/servo/lastRun.json";
-    static readonly TimeSpan ServoWindow = TimeSpan.FromHours(3);
+    /// How long after a press the PC may take to boot, log in and start ClickFlow (or wake).
+    static readonly TimeSpan ServoBootWindow = TimeSpan.FromMinutes(10);
 
-    /// Null when the servo pressed the power button within ServoWindow (written by gemini-proxy
-    /// /servo-poweron at 5:55 / 3:55, and by the servo/ remote on a manual press); otherwise why the shutdown must not happen. Anything
-    /// unreadable counts as "no": a PC left on is harmless, one switched off mid-work is not.
+    /// When this PC last came up: ClickFlow starts at login (which a Fast Startup boot also
+    /// goes through), and Scheduler moves it on every wake from sleep.
+    public static DateTime CameUpUtc = Process.GetCurrentProcess().StartTime.ToUniversalTime();
+
+    /// Null when the servo's last press is what turned this PC on; otherwise why the shutdown
+    /// must not happen. A press is just a press (it may have switched the PC off), so the proof
+    /// is timing: the PC came up within ServoBootWindow after it. /servo/lastRun is written by
+    /// gemini-proxy /servo-poweron (5:55 / 3:55), the servo/ remote and the iPhone shortcut.
+    /// Anything unreadable counts as "no": a PC left on is harmless, one switched off mid-work is not.
     public static async Task<string?> ServoDidNotStartPc(CancellationToken ct)
     {
         JsonElement run;
@@ -153,16 +160,22 @@ public static class ClickEngine
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
         catch (Exception) { return "couldn't read /servo/lastRun"; }
 
-        if (run.ValueKind != JsonValueKind.Object) return "the servo has no run on record";
+        if (run.ValueKind != JsonValueKind.Object) return "the servo has no press on record";
         var action = run.TryGetProperty("action", out var a) && a.ValueKind == JsonValueKind.String ? a.GetString() : null;
-        var at = run.TryGetProperty("at", out var t) && t.ValueKind == JsonValueKind.Number ? t.GetDouble() : 0;
-        var age = DateTimeOffset.UtcNow - DateTimeOffset.FromUnixTimeMilliseconds((long)at);
         if (action != "clicked")
         {
             var why = run.TryGetProperty("reason", out var r) && r.ValueKind == JsonValueKind.String ? $" ({r.GetString()})" : "";
             return $"the servo didn't press the button, PC was already on{why}";
         }
-        if (age > ServoWindow) return $"the servo's last press was {Math.Round(age.TotalHours, 1)} h ago";
+        var at = run.TryGetProperty("at", out var t) && t.ValueKind == JsonValueKind.Number ? t.GetDouble() : 0;
+        var pressed = DateTimeOffset.FromUnixTimeMilliseconds((long)at).UtcDateTime;
+        // A minute of slack before the press for clock drift between this PC and Firebase.
+        var after = CameUpUtc - pressed;
+        if (after < TimeSpan.FromMinutes(-1) || after > ServoBootWindow)
+        {
+            static string Local(DateTime utc) => utc.ToLocalTime().ToString("MMM d h:mm tt");
+            return $"PC came up {Local(CameUpUtc)}, not right after the servo's press at {Local(pressed)}";
+        }
         return null;
     }
 
