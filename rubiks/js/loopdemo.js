@@ -21,48 +21,86 @@ const PIECES = {
 // paused: shows the starting position (the thing to look for) until tapped.
 export function demoHTML({ setup = '', alg, mask = 'none', pieces = '', view = 'top', caption = '', paused = false }) {
   return `<div class="demo${paused ? ' paused' : ''}" data-setup="${esc(setup)}" data-alg="${esc(alg)}" data-mask="${mask}" data-pieces="${pieces}" data-view="${view}">
-    <div class="demo-cube">${paused ? '<button class="demo-play" aria-label="Play"></button>' : ''}</div>
+    <div class="demo-cube"><div class="demo-btns"><button class="demo-restart" aria-label="Restart" title="Play from the start"></button>${paused ? '<button class="demo-play" aria-label="Play"></button>' : ''}</div></div>
     <div class="demo-moves"></div>
     ${caption ? `<div class="demo-cap">${caption}</div>` : ''}
   </div>`;
 }
 
 // Starts every .demo under root; returns a function that stops them all.
+// Each demo can: play (loop), step to one move (tap a move: jump to just
+// before it, play it once, stop), restart (play again from the start).
 export function mountDemos(root) {
   const players = [];
-  const live = (host) => {
-    const p = new CubePlayer(host.querySelector('.demo-cube'), { interactive: false });
-    p.setView(host.dataset.view || 'top', true);
-    players.push(p);
-    return p;
-  };
   // Only one case plays at a time: starting one stops the other, which goes
   // back to its still picture and gives its 3D cube back.
   let active = null;
   for (const host of root.querySelectorAll('.demo')) {
     labels(host);
-    if (!host.classList.contains('paused')) { run(live(host), host, () => true); continue; }
-    const src = still(host);
-    const card = { p: null, playing: false };
+    const paused = host.classList.contains('paused');
+    const moves = parseAlg(host.dataset.alg);
+    const toks = [...host.querySelectorAll('.demo-moves .tok')];
+    const mark = (i) => toks.forEach((t, j) => { t.classList.toggle('on', j === i); t.classList.toggle('done', j < i); });
+    const src = paused ? still(host) : null;
+    const card = { p: null, gen: 0, playing: false };
+
+    const live = () => {
+      if (card.p) return card.p;
+      if (paused && active && active !== card) active.stop();
+      if (paused) active = card;
+      host.querySelector('.demo-still')?.remove();
+      card.p = new CubePlayer(host.querySelector('.demo-cube'), { interactive: false });
+      card.p.setView(host.dataset.view || 'top', true);
+      players.push(card.p);
+      return card.p;
+    };
+    const setPlaying = (on) => { card.playing = on; host.classList.toggle('playing', on); };
+
+    card.play = async () => {
+      const p = live(), g = ++card.gen;
+      setPlaying(true);
+      while (card.gen === g && !p.dead) {
+        pose(p, host);
+        mark(-1);
+        await wait(700);
+        for (let i = 0; i < moves.length; i++) {
+          if (card.gen !== g) return;
+          mark(i);
+          if (!(await p.animate(moves[i], 650))) return;
+          await wait(180);
+        }
+        if (card.gen !== g) return;
+        mark(moves.length);
+        await wait(1400);
+      }
+    };
+    card.stepTo = async (i) => {
+      const p = live(), g = ++card.gen;
+      setPlaying(false);
+      pose(p, host);
+      p.applyNow(moves.slice(0, i));
+      mark(i);
+      await wait(250);
+      if (card.gen !== g) return;
+      if (await p.animate(moves[i], 650)) { if (card.gen === g) mark(i + 1); }
+    };
     card.stop = () => {
-      card.playing = false;
-      host.classList.remove('playing');
+      card.gen++;
+      setPlaying(false);
+      if (!paused) return;
       card.p?.destroy();
       card.p = null;
-      host.querySelectorAll('.demo-moves .tok').forEach((t) => t.classList.remove('on', 'done'));
+      mark(-1);
+      host.querySelector('.demo-still')?.remove();
       showStill(host, src);
       if (active === card) active = null;
     };
-    host.querySelector('.demo-cube').addEventListener('click', () => {
-      if (card.playing) return card.stop();
-      if (active) active.stop();
-      active = card;
-      card.playing = true;
-      host.classList.add('playing');
-      host.querySelector('.demo-still')?.remove();
-      card.p = live(host);
-      run(card.p, host, () => card.playing);
-    });
+
+    host.querySelector('.demo-play')?.addEventListener('click', (e) => { e.stopPropagation(); card.playing ? card.stop() : card.play(); });
+    host.querySelector('.demo-restart').addEventListener('click', (e) => { e.stopPropagation(); card.play(); });
+    if (paused) host.querySelector('.demo-cube').addEventListener('click', () => (card.playing ? card.stop() : card.play()));
+    toks.forEach((t, i) => t.addEventListener('click', () => card.stepTo(i)));
+    if (!paused) card.play();
   }
   return () => { active = null; players.forEach((p) => p.destroy()); };
 }
@@ -106,25 +144,4 @@ function showStill(host, src) {
   img.alt = '';
   img.src = src;
   host.querySelector('.demo-cube').prepend(img);
-}
-
-async function run(p, host, isPlaying) {
-  const moves = parseAlg(host.dataset.alg);
-  const toks = [...host.querySelectorAll('.demo-moves .tok')];
-  const mark = (i) => toks.forEach((t, j) => { t.classList.toggle('on', j === i); t.classList.toggle('done', j < i); });
-  while (!p.dead) {
-    pose(p, host);
-    mark(-1);
-    // stopped: sit on the starting position until tapped again
-    if (!isPlaying()) { await new Promise((r) => { p.wake = r; }); p.wake = null; continue; }
-    await wait(700);
-    for (let i = 0; i < moves.length && !p.dead && isPlaying(); i++) {
-      mark(i);
-      if (!(await p.animate(moves[i], 650))) break;
-      await wait(180);
-    }
-    if (!isPlaying()) continue;
-    mark(moves.length);
-    await wait(1400);
-  }
 }
