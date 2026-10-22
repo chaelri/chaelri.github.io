@@ -147,6 +147,13 @@ button { font: inherit; color: inherit; }
 .mt-tok { font: 800 22px var(--mono); color: var(--accent); line-height: 1.1; }
 .mt-what { font-weight: 700; font-size: 13px; margin-top: 2px; }
 .mt-how { font-size: 13px; color: #c6cbd6; line-height: 1.4; }
+.mt-steps { margin: 4px 0 0; padding-left: 18px; }
+.mt-steps li { margin: 2px 0; color: var(--dim); }
+.mt-steps li.on { color: var(--text); }
+.mt-steps li b { font-family: var(--mono); color: var(--accent); }
+.tok.alg { white-space: nowrap; }
+/* long sequences inside a Then link wrap between moves instead of running off the card */
+.then .tok.alg { white-space: normal; overflow-wrap: anywhere; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
 .mt-hold { font-size: 11px; color: var(--dim); margin-top: 6px; }
 
 .howto { display: grid; gap: 8px; margin: 16px 0; }

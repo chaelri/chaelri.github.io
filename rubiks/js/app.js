@@ -299,9 +299,9 @@ const topYellow = (s) => s.stickers.filter((t) => t.c === 'U').every((t) => t.n[
 const solvedUpToU = (s) => AUFS.some((a) => (a ? s.clone().apply(a) : s).isSolved());
 // The link says what the next case looks like and what to do there, so you
 // can carry on without scrolling; tap it to see that card.
-const thenBtn = (id, a, label, desc, moves) =>
+const thenBtn = (id, a, label, desc, moves, pre = '') =>
   `<button class="then" data-goto="${id}"><span class="then-k">Then</span>${a ? `turn <b>${a}</b>, ` : ''}it's <b>${label}</b>${desc ? `: ${desc}` : ''}.${
-    moves ? ` Do <code>${esc(moves)}</code>` : ''} ▸</button>`;
+    moves ? ` Do <code class="tok alg" data-alg="${esc(plain(moves))}"${pre ? ` data-pre="${esc(`${pre} ${a}`.trim())}"` : ''}>${esc(moves)}</code>` : ''} ▸</button>`;
 
 // Where the F2L pair sits in a case, in words (all 41 come out different).
 const FACING = { '0,1,0': 'up', '0,-1,0': 'down', '0,0,1': 'you', '1,0,0': 'right', '-1,0,0': 'left', '0,0,-1': 'back' };
@@ -423,10 +423,10 @@ const LESSONS = {
       <div class="howto">
         <div class="howto-row"><span class="howto-n">1</span><div><strong>Hold it right.</strong> White cross on the <strong>bottom</strong>, yellow on top, <strong>green facing you</strong>. You always work on the gap at the <strong>front-right</strong>: between green (front) and orange (right).</div>
           ${demoHTML({ setup: 'z2', alg: 'z2', mask: 'f2l', caption: 'White on top? Flip it over.' })}</div>
-        <div class="howto-row wide"><span class="howto-n">2</span><div><strong>Find the two pieces.</strong> The <strong>corner</strong> has white + green + orange. The <strong>edge</strong> has green + orange (no white, no yellow). They need to be in the <strong>top layer</strong>. Where are yours right now? Only those two pieces are lit below. <strong>Anything stuck: the fix is always <span class="tok" data-mv="R">R</span> <span class="tok" data-mv="U">U</span> <span class="tok" data-mv="R'">R'</span>.</strong>
+        <div class="howto-row wide"><span class="howto-n">2</span><div><strong>Find the two pieces.</strong> The <strong>corner</strong> has white + green + orange. The <strong>edge</strong> has green + orange (no white, no yellow). They need to be in the <strong>top layer</strong>. Where are yours right now? Only those two pieces are lit below. <strong>Anything stuck: the fix is always <span class="tok alg" data-alg="R U R'" data-pre="R U R' U' R U R'">R U R'</span>.</strong>
           ${cases(STUCK.map((c) => {
             const n = nextCase(endOf(c.setup, c.alg), C.F2L, pairIn);
-            return caseDemo(c.title, `${c.text} ${n ? thenBtn(`f2l-${n.i + 1}`, n.a, `Case ${n.i + 1}`, f2lDesc(C.F2L[n.i]), C.F2L[n.i]) : ''}`, { setup: c.setup, alg: c.alg });
+            return caseDemo(c.title, `${c.text} ${n ? thenBtn(`f2l-${n.i + 1}`, n.a, `Case ${n.i + 1}`, f2lDesc(C.F2L[n.i]), C.F2L[n.i], `${c.setup} ${c.alg}`) : ''}`, { setup: c.setup, alg: c.alg });
           }))}</div></div>
         <div class="howto-row"><span class="howto-n">3</span><div><strong>Put the corner above the gap.</strong> Turn the top (<span class="tok" data-mv="U">U</span> / <span class="tok" data-mv="U'">U'</span>) until the corner is at the top front-right, right over the gap.</div>
           ${demoHTML({ setup: "R U' R' U2", alg: 'U2', pieces: 'pair', caption: 'Corner ends up over the front-right gap.' })}</div>
@@ -459,7 +459,7 @@ const LESSONS = {
             // each shape sits on a real look-2 case, so the path carries on
             const setup = `${inv(C.OLL_CORNERS[[0, 1, 5][k]].alg)} ${inv(c.alg)}`;
             const n = nextCase(endOf(setup, c.alg), C.OLL_CORNERS.map((o) => o.alg), topYellow);
-            return caseDemo(esc(c.name), `${esc(c.note)} ${n ? thenBtn(`oll2-${n.i}`, n.a, esc(C.OLL_CORNERS[n.i].name), esc(C.OLL_CORNERS[n.i].note), C.OLL_CORNERS[n.i].alg) : ''}`, { setup, alg: c.alg, mask: 'olledge', pieces: '' });
+            return caseDemo(esc(c.name), `${esc(c.note)} ${n ? thenBtn(`oll2-${n.i}`, n.a, esc(C.OLL_CORNERS[n.i].name), esc(C.OLL_CORNERS[n.i].note), C.OLL_CORNERS[n.i].alg, `${setup} ${c.alg}`) : ''}`, { setup, alg: c.alg, mask: 'olledge', pieces: '' });
           })))}
         ${howStep(3, '<strong>Look 2: the corners.</strong> Cross done. Now find which of these the corners look like, turn <span class="tok" data-mv="U">U</span> until it matches, and do it.',
           cases(C.OLL_CORNERS.map((c, k) => caseDemo(esc(c.name), esc(c.note), { setup: inv(c.alg), alg: c.alg, mask: 'oll', pieces: '' }, 'Case %N%', `oll2-${k}`)))
@@ -490,7 +490,7 @@ const LESSONS = {
           ].map((c) => {
             const edges = C.PLL_2LOOK.slice(2);
             const n = nextCase(endOf(c.setup, c.alg), edges.map((e) => e.alg), solvedUpToU);
-            return caseDemo(c.title, `${c.text} ${n ? thenBtn(`pll2-${n.i}`, n.a, esc(edges[n.i].name), esc(edges[n.i].note), edges[n.i].alg) : ''}`, { setup: c.setup, alg: c.alg, pieces: '' });
+            return caseDemo(c.title, `${c.text} ${n ? thenBtn(`pll2-${n.i}`, n.a, esc(edges[n.i].name), esc(edges[n.i].note), edges[n.i].alg, `${c.setup} ${c.alg}`) : ''}`, { setup: c.setup, alg: c.alg, pieces: '' });
           })))}
         ${howStep(2, '<strong>Then the edges.</strong> Corners done: look at the middle sticker of each side.',
           cases(C.PLL_2LOOK.slice(2).map((c, k) => caseDemo(esc(c.name), esc(c.note), { setup: inv(c.alg), alg: c.alg, pieces: '' }, 'Case %N%', `pll2-${k}`)))

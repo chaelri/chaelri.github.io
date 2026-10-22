@@ -71,17 +71,26 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // pre: the moves that lead up to this one (case setup + earlier moves), so the
 // tip shows the real cube at that moment; without it, a solved cube.
-async function loop(mv, pre) {
+// seq: one move, or a whole algorithm played in order, each turning layer lit
+// as it goes (the current move is shown in the tip's list).
+async function loop(seq, pre) {
   const g = ++gen;
   const before = pre ? parseAlg(pre) : [];
+  const steps = tip.querySelectorAll('.mt-steps li');
   while (g === gen) {
     mini.reset();
     mini.applyNow(before);
-    mini.dimExcept(mv);
+    mini.dimExcept(seq[0]);
+    steps.forEach((li) => li.classList.remove('on'));
     await wait(450);
-    if (g !== gen) return;
-    await mini.animate(mv, 750);
-    if (g !== gen) return;
+    for (let i = 0; i < seq.length; i++) {
+      if (g !== gen) return;
+      mini.dimExcept(seq[i]);
+      steps.forEach((li, j) => li.classList.toggle('on', j === i));
+      await mini.animate(seq[i], 750);
+      if (g !== gen) return;
+      await wait(seq.length > 1 ? 250 : 0);
+    }
     await wait(900);
   }
 }
@@ -98,23 +107,30 @@ function place(el) {
 }
 
 export function showTip(el) {
-  const d = describe(el.dataset.mv);
-  if (!d) return;
+  const alg = el.dataset.alg;
+  const ds = (alg || el.dataset.mv).trim().split(/\s+/).map(describe);
+  if (!ds.length || ds.some((x) => !x)) return;
+  const d = ds[0];
   ensure();
   clearTimeout(hideT);
   anchor = el;
-  tip.querySelector('.mt-tok').textContent = el.dataset.mv;
-  tip.querySelector('.mt-what').textContent = d.what + (d.hand ? ` · ${d.hand}` : '');
-  tip.querySelector('.mt-how').textContent = d.how;
+  tip.querySelector('.mt-tok').textContent = alg || el.dataset.mv;
+  if (alg) {
+    tip.querySelector('.mt-what').textContent = `${ds.length} moves, in order`;
+    tip.querySelector('.mt-how').innerHTML = `<ol class="mt-steps">${ds.map((x) => `<li><b>${esc(x.mv.tok)}</b> ${esc(x.what)}: ${esc(x.how)}</li>`).join('')}</ol>`;
+  } else {
+    tip.querySelector('.mt-what').textContent = d.what + (d.hand ? ` · ${d.hand}` : '');
+    tip.querySelector('.mt-how').textContent = d.how;
+  }
   tip.classList.add('on');
   if (!mini) mini = new CubePlayer(tip.querySelector('.mt-cube'), { interactive: false });
   // in a case: the same view as that case's cube, so the colours line up
   const pre = el.dataset.pre;
-  const v = pre !== undefined ? { yaw: 0.62, pitch: el.dataset.view === 'bottom' ? -0.5 : 0.5 } : viewFor(d.mv.face);
+  const v = pre !== undefined || alg ? { yaw: 0.62, pitch: el.dataset.view === 'bottom' ? -0.5 : 0.5 } : viewFor(d.mv.face);
   mini.look(v.yaw, v.pitch, true);
   tip.querySelector('.mt-hold').textContent = pre !== undefined ? 'Your cube at this move: the lit layer turns.' : 'Hold: yellow on top, green facing you';
   place(el);
-  loop(d.mv, pre);
+  loop(ds.map((x) => x.mv), pre);
 }
 
 export function hideTip(delay = 0) {
@@ -130,18 +146,18 @@ export function hideTip(delay = 0) {
 export function mountMoveTips() {
   document.addEventListener('pointerover', (e) => {
     if (e.pointerType !== 'mouse') return;
-    const el = e.target.closest('[data-mv]');
+    const el = e.target.closest('[data-mv], [data-alg]');
     if (el && el !== anchor) showTip(el);
   });
   document.addEventListener('pointerout', (e) => {
     if (e.pointerType !== 'mouse') return;
-    const el = e.target.closest('[data-mv]');
+    const el = e.target.closest('[data-mv], [data-alg]');
     if (el && !el.contains(e.relatedTarget)) hideTip(120);
   });
   // touch: a tap shows the tip for a few seconds
   document.addEventListener('pointerdown', (e) => {
     if (e.pointerType === 'mouse') return;
-    const el = e.target.closest('[data-mv]');
+    const el = e.target.closest('[data-mv], [data-alg]');
     if (!el) return hideTip();
     showTip(el);
     hideTip(4500);
