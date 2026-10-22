@@ -458,7 +458,8 @@ public sealed class MainForm : Form
 
         public void Reload(List<Macro> list) { items = list; Clamp(); Invalidate(); }
 
-        int RowH(Macro m) => LogicalToDeviceUnits(m.ScheduleSummary != null ? 74 : 50);
+        // 6 top + name 20 + stats 18 (+ schedule 18 + next 18) + 8 bottom
+        int RowH(Macro m) => LogicalToDeviceUnits(m.ScheduleSummary != null ? 88 : 52);
 
         IEnumerable<(Macro M, Rectangle R)> Rows()
         {
@@ -530,7 +531,7 @@ public sealed class MainForm : Form
                 {
                     TextRenderer.DrawText(g, "", Theme.IconSmall, new Rectangle(x, y, LogicalToDeviceUnits(16), LogicalToDeviceUnits(18)), m.Enabled ? Theme.Muted : Theme.Faint, TextFormatFlags.VerticalCenter);
                     TextRenderer.DrawText(g, summary, Theme.Small, new Rectangle(x + LogicalToDeviceUnits(18), y, w - LogicalToDeviceUnits(18), LogicalToDeviceUnits(18)), m.Enabled ? Theme.Muted : Theme.Faint, flags);
-                    y += LogicalToDeviceUnits(16);
+                    y += LogicalToDeviceUnits(18);
                     if (paused) TextRenderer.DrawText(g, "Paused", Theme.Small, new Rectangle(x, y, w, LogicalToDeviceUnits(18)), Theme.Orange, flags);
                     else if (m.NextRun(DateTime.Now) is { } next)
                         TextRenderer.DrawText(g, $"Next: {Fmt.NextRun(next)}", Theme.Small, new Rectangle(x, y, w, LogicalToDeviceUnits(18)), Theme.Accent, flags);
