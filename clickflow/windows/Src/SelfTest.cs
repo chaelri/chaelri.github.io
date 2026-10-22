@@ -51,7 +51,13 @@ static class SelfTest
         var ranged = new Schedule { Repeat = RepeatKind.Daily, Time = "08:00", Conditions = { StartDate = "2026-11-01", EndDate = "2026-11-02" } };
         Check(ranged.NextOccurrence(D(2026, 10, 19)) == D(2026, 11, 1, 8, 0), "date range: waits for its start");
         Check(ranged.NextOccurrence(D(2026, 11, 2, 9, 0)) == null, "date range: ends");
-        Check(weekdays.Summary == $"Every weekday at {Fmt.Time(D(2026, 1, 1, 6, 0))}", "summary text");
+        var sw = new Macro { Enabled = true, Schedules = { new Schedule { Enabled = false } } };
+        Check(!sw.ScheduleOn, "sidebar switch: off when every schedule is off");
+        sw.SetScheduleOn(true);
+        Check(sw.ScheduleOn && sw.Schedules[0].Enabled, "sidebar switch: on turns a schedule on");
+        sw.SetScheduleOn(false);
+        Check(!sw.ScheduleOn && sw.Schedules[0].Enabled, "sidebar switch: off keeps the schedule's own setting");
+        Check(weekdays.Summary ==$"Every weekday at {Fmt.Time(D(2026, 1, 1, 6, 0))}", "summary text");
 
         // ---- the scheduler's decision ----
         Check(Scheduler.Decide(weekdays, D(2026, 10, 19, 5, 59), D(2026, 10, 19, 6, 0, 1)).Kind == DecisionKind.Fire, "decide: fire on time");

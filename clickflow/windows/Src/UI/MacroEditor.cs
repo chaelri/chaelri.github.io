@@ -261,6 +261,9 @@ public sealed class MacroEditor : Panel
 
     // ---------- schedules ----------
 
+    /// The sidebar switch changed this macro's schedules.
+    public void RefreshSchedules() => RebuildSchedules();
+
     void RebuildSchedules()
     {
         schedulesBox.SuspendLayout();
@@ -268,7 +271,7 @@ public sealed class MacroEditor : Panel
         schedulesBox.Controls.Clear();
         foreach (var s in macro.Schedules)
         {
-            var row = new ScheduleRow(macro, s, () => EditSchedule(s), () =>
+            var row = new ScheduleRow(macro, s, main.RefreshEditorHeader, () => EditSchedule(s), () =>
             {
                 macro.Schedules.Remove(s);
                 store.Changed();
@@ -369,12 +372,20 @@ sealed class ScheduleRow : FitCard
     readonly Label detail = Theme.Label("", Theme.Small, Theme.Muted);
     readonly CheckBox on = new() { AutoSize = true, Text = "On", Margin = new Padding(0, 4, 12, 0) };
 
-    public ScheduleRow(Macro macro, Schedule schedule, Action edit, Action delete)
+    public ScheduleRow(Macro macro, Schedule schedule, Action changed, Action edit, Action delete)
     {
         this.macro = macro;
         this.schedule = schedule;
-        on.Checked = schedule.Enabled;
-        on.CheckedChanged += (_, _) => { schedule.Enabled = on.Checked; Store.Shared.Changed(); Refresh_(); };
+        on.Checked = schedule.Enabled && macro.Enabled;
+        on.CheckedChanged += (_, _) =>
+        {
+            schedule.Enabled = on.Checked;
+            // Switching a schedule on turns the macro on too, so the sidebar switch follows.
+            if (on.Checked) macro.Enabled = true;
+            Store.Shared.Changed();
+            Refresh_();
+            changed();
+        };
         var editB = Theme.Button("Edit", "");
         editB.Click += (_, _) => edit();
         var delB = Theme.Button("", "");

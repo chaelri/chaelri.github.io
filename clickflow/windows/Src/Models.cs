@@ -181,6 +181,17 @@ public sealed class Macro
         }
     }
 
+    /// What the sidebar switch shows: the macro is on and at least one schedule is on.
+    public bool ScheduleOn => Enabled && Schedules.Any(s => s.Enabled);
+
+    /// The sidebar switch. Turning on with every schedule off turns them all on, so the switch
+    /// never reads "on" for a macro that won't run.
+    public void SetScheduleOn(bool on)
+    {
+        Enabled = on;
+        if (on && !Schedules.Any(s => s.Enabled)) foreach (var s in Schedules) s.Enabled = true;
+    }
+
     public DateTime? NextRun(DateTime after)
     {
         if (!Enabled) return null;

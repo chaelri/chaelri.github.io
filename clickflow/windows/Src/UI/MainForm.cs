@@ -145,7 +145,11 @@ public sealed class MainForm : Form
         list.Picked += id => Select(id);
         list.Toggled += id =>
         {
-            if (store.Macro(id) is { } m) { m.Enabled = !m.Enabled; store.Changed(); RefreshEditorHeader(); }
+            if (store.Macro(id) is not { } m) return;
+            m.SetScheduleOn(!m.ScheduleOn);
+            store.Changed();
+            if (current is MacroEditor ed && ed.Macro == m) ed.RefreshSchedules();
+            RefreshEditorHeader();
         };
         list.ContextFor += MacroMenu;
 
@@ -531,7 +535,7 @@ public sealed class MainForm : Form
                     else if (m.NextRun(DateTime.Now) is { } next)
                         TextRenderer.DrawText(g, $"Next: {Fmt.NextRun(next)}", Theme.Small, new Rectangle(x, y, w, LogicalToDeviceUnits(18)), Theme.Accent, flags);
                 }
-                if (m.Schedules.Count > 0) Toggle.Draw(g, SwitchRect(r), m.Enabled);
+                if (m.Schedules.Count > 0) Toggle.Draw(g, SwitchRect(r), m.ScheduleOn);
             }
         }
 
