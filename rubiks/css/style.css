@@ -171,6 +171,12 @@ button { font: inherit; color: inherit; }
 .demo.playing .demo-play::before { content: '❚❚'; margin-left: 0; font-size: 11px; }
 .case-t { font-weight: 700; font-size: 13.5px; color: var(--text); margin-top: 6px; }
 .case-x { font-size: 12.5px; color: var(--muted); line-height: 1.4; margin-top: 2px; }
+.then { display: block; margin-top: 8px; text-align: left; font: 600 12.5px Inter, sans-serif; color: var(--accent); background: rgba(255, 210, 0, 0.08); border: 1px solid rgba(255, 210, 0, 0.3); border-radius: 8px; padding: 6px 8px; cursor: pointer; width: 100%; }
+.then:hover { background: rgba(255, 210, 0, 0.16); }
+.then.done { color: var(--go); background: rgba(47, 212, 122, 0.08); border-color: rgba(47, 212, 122, 0.3); cursor: default; }
+.then b { color: inherit; }
+.case-demo.flash { animation: caseFlash 1.6s ease-out; }
+@keyframes caseFlash { 0%, 30% { box-shadow: 0 0 0 3px var(--accent); } 100% { box-shadow: 0 0 0 0 transparent; } }
 .case-x b { color: var(--text); font-family: var(--mono); }
 .demo-cube { aspect-ratio: 1 / 0.9; border-radius: 10px; overflow: hidden; background: radial-gradient(circle at 50% 45%, #232838 0%, #12151c 75%); }
 .demo-cube canvas { display: block; width: 100%; height: 100%; }

@@ -212,6 +212,17 @@ function caseCard(c, i) {
 let registry = [];
 function register(c) { registry.push(c); return registry.length - 1; }
 
+// "Then: ... ▸" jumps to the card that picks up where a case left you, and plays it.
+$('#lesson').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-goto]');
+  if (!b) return;
+  const t = document.getElementById(b.dataset.goto);
+  if (!t) return;
+  t.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  t.classList.remove('flash'); void t.offsetWidth; t.classList.add('flash');
+  if (!t.querySelector('.demo').classList.contains('playing')) t.querySelector('.demo-cube').click();
+});
+
 $('#lesson').addEventListener('click', (e) => {
   const card = e.target.closest('[data-case]');
   if (!card) return;
@@ -246,8 +257,8 @@ function recog(list) {
 
 // A "what you might have right now" card: title, what to do, looping demo.
 // Starts paused on the position to look for; cases() numbers them.
-function caseDemo(title, text, demo, label = 'Case %N%') {
-  return `<div class="case-demo"><div class="case-n">${label}</div>${demoHTML({ pieces: 'pair', paused: true, ...demo })}${
+function caseDemo(title, text, demo, label = 'Case %N%', id = '') {
+  return `<div class="case-demo"${id ? ` id="${id}"` : ''}><div class="case-n">${label}</div>${demoHTML({ pieces: 'pair', paused: true, ...demo })}${
     title ? `<div class="case-t">${title}</div>` : ''}${text ? `<div class="case-x">${text}</div>` : ''}</div>`;
 }
 const inv = (alg) => algToString(invertAlg(parseWithLabels(alg).steps));
@@ -255,6 +266,27 @@ const plain = (alg) => alg.replace(/\[[^\]]*\]\s*/g, '');
 // One numbered how-to step: text plus either a looping demo or a grid of case demos.
 const howStep = (n, html, demo = '') => `<div class="howto-row${demo.startsWith('<div class="cases') ? ' wide' : ''}"><span class="howto-n">${n}</span>${
   demo.startsWith('<div class="cases') ? `<div>${html}${demo}</div>` : `<div>${html}</div>${demo}`}</div>`;
+// ---- paths: where a case leaves you, and which card picks up from there.
+// Tries every card's moves (after a U turn if needed) on the end position and
+// links the first that finishes the job.
+const AUFS = ['', 'U', "U'", 'U2'];
+const endOf = (setup, alg) => new CubeState().apply(setup).apply(plain(alg));
+function nextCase(state, algs, done) {
+  for (const a of AUFS)
+    for (let i = 0; i < algs.length; i++) {
+      const t = state.clone();
+      if (a) t.apply(a);
+      if (done(t.apply(plain(algs[i])))) return { i, a };
+    }
+  return null;
+}
+const pairIn = (s) => s.pieceSolved([1, -1, 1]) && s.pieceSolved([1, 0, 1]);
+const topYellow = (s) => s.stickers.filter((t) => t.c === 'U').every((t) => t.n[1] === 1);
+const solvedUpToU = (s) => AUFS.some((a) => (a ? s.clone().apply(a) : s).isSolved());
+const thenBtn = (id, a, label) =>
+  `<button class="then" data-goto="${id}">Then: ${a ? `turn <b>${a}</b>, ` : ''}it's ${label} ▸</button>`;
+const thenText = (html) => `<span class="then done">Then: ${html}</span>`;
+
 const cases = (list) => `<div class="cases">${list.map((c, i) => c.replace('%N%', i + 1)).join('')}</div>`;
 
 // ---------------------------------------------------------------- lessons
@@ -310,7 +342,7 @@ const LESSONS = {
           demoHTML({ setup: inv('U F2'), alg: 'U F2', pieces: 'crossEdge', view: 'bottom', caption: 'White-green edge goes between the white and green centres.' }))}
         ${howStep(3, '<strong>Where is it right now?</strong> Every place the white-green edge can be, seen from below. Only it and its two centres are lit. Find yours, tap ▶ to see the fix:',
           cases([...C.CROSS_ALL, C.CROSS.find((c) => c.name.startsWith('In the wrong bottom slot'))].map((c) =>
-            caseDemo(esc(c.name), c.note ? esc(c.note) : '', { setup: inv(c.alg), alg: c.alg, pieces: 'crossEdge', view: 'bottom' }))))}
+            caseDemo(esc(c.name), `${c.note ? esc(c.note) : ''} ${thenText('edge is in. Next white edge.')}`, { setup: inv(c.alg), alg: c.alg, pieces: 'crossEdge', view: 'bottom' }))))}
         ${howStep(4, '<strong>Do all four.</strong> Same thing for white-orange, white-blue, white-red. Plan them all in the 15 s inspection, then go without stopping.',
           demoHTML({ setup: inv("F' R D2 L' B' D' F2"), alg: "F' R D2 L' B' D' F2", mask: 'cross', view: 'bottom', caption: 'A whole cross in 7 moves.' }))}
       </div>
@@ -326,6 +358,18 @@ const LESSONS = {
   f2l: {
     label: 'F2L',
     render() {
+      const STUCK = [
+        { title: 'Both on top', text: 'Good, nothing to lift.', setup: "R U' R' U", alg: 'U U U U' },
+        { title: 'Edge in the gap, colours match', text: 'Looks almost done, but the corner is up top. <b>R U R\'</b> lifts the edge out.', setup: "R U R' U2 R U R'", alg: "R U R'" },
+        { title: 'Edge in the gap, flipped', text: 'Edge colours are the wrong way round. <b>R U R\'</b> lifts it out.', setup: "F' U' F U R U' R'", alg: "R U R'" },
+        { title: 'Corner in the bottom, white facing you', text: 'Front shows green, white, green along the bottom. <b>R U R\'</b> lifts it up.', setup: "R U R' U' R U R'", alg: "R U R'" },
+        { title: 'Corner in the bottom, white facing right', text: 'White shows on the right side. <b>R U R\'</b> lifts it up.', setup: "R U' R' U R U' R'", alg: "R U R'" },
+        { title: 'Corner in the bottom, white facing down', text: 'Corner is in place, but the edge is still up top. <b>R U R\'</b> lifts the corner so they can pair.', setup: "F' U F U R U' R'", alg: "R U R'" },
+        { title: 'Both in the gap, corner white facing you', text: 'Both are in, but twisted. <b>R U R\'</b> takes both out.', setup: "R U' R' U R U2 R' U R U' R'", alg: "R U R'" },
+        { title: 'Both in the gap, corner white facing right', text: 'Both are in, but twisted. <b>R U R\'</b> takes both out.', setup: "F' U F U2 R U R' U R U' R'", alg: "R U R'" },
+        { title: 'Both in the gap, edge flipped', text: 'Corner looks right, edge is flipped. <b>R U R\'</b> takes both out.', setup: "F' U F U' R U2 R' U2 R U' R'", alg: "R U R'" },
+        { title: 'Stuck in a different gap', text: 'Spin the cube (<b>y\'</b> / <b>y</b>) so that gap is at the front-right, <b>R U R\'</b>, spin back.', setup: "F' U F y' R U' R' y", alg: "y' R U R' y" },
+      ];
       const groups = Object.fromEntries(C.F2L_GROUPS.map((g) => [g.key, []]));
       C.F2L.forEach((alg, k) => {
         const s = stateFor(alg);
@@ -333,7 +377,7 @@ const LESSONS = {
         const edge = s.stickers.find((t) => eq(t.home, [1, 0, 1]) && t.c === 'F');
         const cTop = corner.p[1] === 1, eTop = edge.p[1] === 1;
         const key = k < 4 ? 'basic' : cTop && eTop ? (corner.n[1] === 1 ? 'up' : 'side') : cTop ? 'edgeSlot' : eTop ? 'cornerSlot' : 'both';
-        groups[key].push(caseDemo('', C.F2L_NOTES[k] ? esc(C.F2L_NOTES[k]) : '', { setup: inv(alg), alg }, `Case ${k + 1}`));
+        groups[key].push(caseDemo('', `${C.F2L_NOTES[k] ? esc(C.F2L_NOTES[k]) : ''} ${thenText('pair is in. Next gap: spin <b>y</b> and start again.')}`, { setup: inv(alg), alg }, `Case ${k + 1}`, `f2l-${k + 1}`));
       });
       const body = C.F2L_GROUPS.map((g) => `
         <div class="group-head"><h3>${esc(g.title)}</h3><span class="count">${groups[g.key].length}</span></div>
@@ -347,18 +391,10 @@ const LESSONS = {
         <div class="howto-row"><span class="howto-n">1</span><div><strong>Hold it right.</strong> White cross on the <strong>bottom</strong>, yellow on top, <strong>green facing you</strong>. You always work on the gap at the <strong>front-right</strong>: between green (front) and orange (right).</div>
           ${demoHTML({ setup: 'z2', alg: 'z2', mask: 'f2l', caption: 'White on top? Flip it over.' })}</div>
         <div class="howto-row wide"><span class="howto-n">2</span><div><strong>Find the two pieces.</strong> The <strong>corner</strong> has white + green + orange. The <strong>edge</strong> has green + orange (no white, no yellow). They need to be in the <strong>top layer</strong>. Where are yours right now? Only those two pieces are lit below. <strong>Anything stuck: the fix is always <span class="tok" data-mv="R">R</span> <span class="tok" data-mv="U">U</span> <span class="tok" data-mv="R'">R'</span>.</strong>
-          ${cases([
-            caseDemo('Both on top', 'Good. Go to step 3.', { setup: "R U' R' U", alg: 'U U U U' }),
-            caseDemo('Edge in the gap, colours match', 'Looks almost done, but the corner is up top. <b>R U R\'</b> lifts the edge out.', { setup: "R U R' U2 R U R'", alg: "R U R'" }),
-            caseDemo('Edge in the gap, flipped', 'Edge colours are the wrong way round. <b>R U R\'</b> lifts it out.', { setup: "F' U' F U R U' R'", alg: "R U R'" }),
-            caseDemo('Corner in the bottom, white facing you', 'Front shows green, white, green along the bottom. <b>R U R\'</b> lifts it up.', { setup: "R U R' U' R U R'", alg: "R U R'" }),
-            caseDemo('Corner in the bottom, white facing right', 'White shows on the right side. <b>R U R\'</b> lifts it up.', { setup: "R U' R' U R U' R'", alg: "R U R'" }),
-            caseDemo('Corner in the bottom, white facing down', 'Corner is in place, but the edge is still up top. <b>R U R\'</b> lifts the corner so they can pair.', { setup: "F' U F U R U' R'", alg: "R U R'" }),
-            caseDemo('Both in the gap, corner white facing you', 'Both are in, but twisted. <b>R U R\'</b> takes both out.', { setup: "R U' R' U R U2 R' U R U' R'", alg: "R U R'" }),
-            caseDemo('Both in the gap, corner white facing right', 'Both are in, but twisted. <b>R U R\'</b> takes both out.', { setup: "F' U F U2 R U R' U R U' R'", alg: "R U R'" }),
-            caseDemo('Both in the gap, edge flipped', 'Corner looks right, edge is flipped. <b>R U R\'</b> takes both out.', { setup: "F' U F U' R U2 R' U2 R U' R'", alg: "R U R'" }),
-            caseDemo('Stuck in a different gap', 'Spin the cube (<b>y\'</b> / <b>y</b>) so that gap is at the front-right, <b>R U R\'</b>, spin back.', { setup: "F' U F y' R U' R' y", alg: "y' R U R' y" }),
-          ])}</div></div>
+          ${cases(STUCK.map((c) => {
+            const n = nextCase(endOf(c.setup, c.alg), C.F2L, pairIn);
+            return caseDemo(c.title, `${c.text} ${n ? thenBtn(`f2l-${n.i + 1}`, n.a, `Case ${n.i + 1} below`) : ''}`, { setup: c.setup, alg: c.alg });
+          }))}</div></div>
         <div class="howto-row"><span class="howto-n">3</span><div><strong>Put the corner above the gap.</strong> Turn the top (<span class="tok" data-mv="U">U</span> / <span class="tok" data-mv="U'">U'</span>) until the corner is at the top front-right, right over the gap.</div>
           ${demoHTML({ setup: "R U' R' U2", alg: 'U2', pieces: 'pair', caption: 'Corner ends up over the front-right gap.' })}</div>
         <div class="howto-row"><span class="howto-n">4</span><div><strong>Look at two things:</strong> which way the corner's <strong>white sticker</strong> faces (you, right, or up), and <strong>where the edge</strong> is. Find the matching picture below and do its moves.</div>
@@ -385,9 +421,14 @@ const LESSONS = {
         ${howStep(1, '<strong>Yellow on top.</strong> The bottom two layers are done; now only the top matters. It takes two looks: first a yellow cross, then yellow corners.',
           demoHTML({ setup: inv("F R U R' U' F' R U R' U R U2 R'"), alg: "F R U R' U' F' R U R' U R U2 R'", mask: 'oll', caption: 'Look 1 makes the cross, look 2 the corners.' }))}
         ${howStep(2, '<strong>Look 1: the 4 yellow edges.</strong> Ignore the corners. What shape do the yellow edges make? Hold it like the picture, then do that one.',
-          cases(C.OLL_EDGES.map((c) => caseDemo(esc(c.name), esc(c.note), { setup: inv(c.alg), alg: c.alg, mask: 'olledge', pieces: '' }))))}
+          cases(C.OLL_EDGES.map((c, k) => {
+            // each shape sits on a real look-2 case, so the path carries on
+            const setup = `${inv(C.OLL_CORNERS[[0, 1, 5][k]].alg)} ${inv(c.alg)}`;
+            const n = nextCase(endOf(setup, c.alg), C.OLL_CORNERS.map((o) => o.alg), topYellow);
+            return caseDemo(esc(c.name), `${esc(c.note)} ${n ? thenBtn(`oll2-${n.i}`, n.a, esc(C.OLL_CORNERS[n.i].name)) : ''}`, { setup, alg: c.alg, mask: 'olledge', pieces: '' });
+          })))}
         ${howStep(3, '<strong>Look 2: the corners.</strong> Cross done. Now find which of these the corners look like, turn <span class="tok" data-mv="U">U</span> until it matches, and do it.',
-          cases(C.OLL_CORNERS.map((c) => caseDemo(esc(c.name), esc(c.note), { setup: inv(c.alg), alg: c.alg, mask: 'oll', pieces: '' }))))}
+          cases(C.OLL_CORNERS.map((c, k) => caseDemo(esc(c.name), `${esc(c.note)} ${thenText('top is all yellow. On to PLL.')}`, { setup: inv(c.alg), alg: c.alg, mask: 'oll', pieces: '' }, 'Case %N%', `oll2-${k}`))))}
       </div>
       <h2 style="margin-top:44px">Full OLL — all 57</h2>
       <p class="lead">One look instead of two. Grouped by the shape the yellow makes on top. Start with the first group (you already know half of it from 2-look), then the ones that come up most: T, P, Square, Fish, Lightning.</p>
@@ -408,12 +449,16 @@ const LESSONS = {
       <div class="howto">
         ${howStep(1, '<strong>Corners first.</strong> Look at the corner stickers on the 4 sides. <strong>Headlights</strong> = both corners of one side are the same colour. Which do you have?',
           cases([
-            caseDemo('Headlights on all 4 sides', 'Corners are done already. Go to step 2.', { setup: inv(pll('Ua')), alg: 'U U U U', pieces: '' }),
-            caseDemo('Headlights on 1 side', 'Turn <b>U</b> so they are on the LEFT, then T perm.', { setup: inv(pll('T perm')), alg: pll('T perm'), pieces: '' }),
-            caseDemo('No headlights', 'Y perm, from any side.', { setup: inv(pll('Y perm')), alg: pll('Y perm'), pieces: '' }),
-          ]))}
+            { title: 'Headlights on all 4 sides', text: 'Corners are done already.', setup: inv(pll('Ua')), alg: 'U U U U' },
+            { title: 'Headlights on 1 side', text: 'Turn <b>U</b> so they are on the LEFT, then T perm.', setup: `${inv(pll('Ub'))} ${inv(pll('T perm'))}`, alg: pll('T perm') },
+            { title: 'No headlights', text: 'Y perm, from any side.', setup: `${inv(pll('H'))} ${inv(pll('Y perm'))}`, alg: pll('Y perm') },
+          ].map((c) => {
+            const edges = C.PLL_2LOOK.slice(2);
+            const n = nextCase(endOf(c.setup, c.alg), edges.map((e) => e.alg), solvedUpToU);
+            return caseDemo(c.title, `${c.text} ${n ? thenBtn(`pll2-${n.i}`, n.a, esc(edges[n.i].name)) : ''}`, { setup: c.setup, alg: c.alg, pieces: '' });
+          })))}
         ${howStep(2, '<strong>Then the edges.</strong> Corners done: look at the middle sticker of each side.',
-          cases(C.PLL_2LOOK.slice(2).map((c) => caseDemo(esc(c.name), esc(c.note), { setup: inv(c.alg), alg: c.alg, pieces: '' }))))}
+          cases(C.PLL_2LOOK.slice(2).map((c, k) => caseDemo(esc(c.name), `${esc(c.note)} ${thenText('one last <b>U</b> turn if needed. Solved!')}`, { setup: inv(c.alg), alg: c.alg, pieces: '' }, 'Case %N%', `pll2-${k}`))))}
         ${howStep(3, '<strong>Last turn.</strong> If the top is solved but turned, one <span class="tok" data-mv="U">U</span> / <span class="tok" data-mv="U\'">U\'</span> / <span class="tok" data-mv="U2">U2</span> lines it up.',
           demoHTML({ setup: "U'", alg: 'U', caption: 'Solved.' }))}
       </div>
