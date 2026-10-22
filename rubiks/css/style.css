@@ -173,7 +173,8 @@ button { font: inherit; color: inherit; }
 .case-x { font-size: 12.5px; color: var(--muted); line-height: 1.4; margin-top: 2px; }
 .then { display: block; margin-top: 8px; text-align: left; font: 600 12.5px Inter, sans-serif; color: var(--accent); background: rgba(255, 210, 0, 0.08); border: 1px solid rgba(255, 210, 0, 0.3); border-radius: 8px; padding: 6px 8px; cursor: pointer; width: 100%; }
 .then:hover { background: rgba(255, 210, 0, 0.16); }
-.then.done { color: var(--go); background: rgba(47, 212, 122, 0.08); border-color: rgba(47, 212, 122, 0.3); cursor: default; }
+.next-line { margin-top: 12px; padding: 10px 14px; border-radius: 10px; background: rgba(47, 212, 122, 0.08); border: 1px solid rgba(47, 212, 122, 0.3); color: #c6cbd6; font-size: 14px; }
+.next-line b { color: var(--go); margin-right: 6px; }
 .then b { color: inherit; }
 .case-demo.picked { box-shadow: 0 0 0 3px var(--accent); background: #2a2a20; }
 .from-bar { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; font-size: 12.5px; color: #e9e3c8; line-height: 1.4; }

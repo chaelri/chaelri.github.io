@@ -298,7 +298,8 @@ const topYellow = (s) => s.stickers.filter((t) => t.c === 'U').every((t) => t.n[
 const solvedUpToU = (s) => AUFS.some((a) => (a ? s.clone().apply(a) : s).isSolved());
 const thenBtn = (id, a, label) =>
   `<button class="then" data-goto="${id}">Then: ${a ? `turn <b>${a}</b>, ` : ''}it's ${label} ▸</button>`;
-const thenText = (html) => `<span class="then done">Then: ${html}</span>`;
+// The one general "what now" line for a whole set of cases.
+const nextLine = (html) => `<div class="next-line"><b>Next</b> ${html}</div>`;
 
 const cases = (list) => `<div class="cases">${list.map((c, i) => c.replace('%N%', i + 1)).join('')}</div>`;
 
@@ -355,7 +356,8 @@ const LESSONS = {
           demoHTML({ setup: inv('U F2'), alg: 'U F2', pieces: 'crossEdge', view: 'bottom', caption: 'White-green edge goes between the white and green centres.' }))}
         ${howStep(3, '<strong>Where is it right now?</strong> Every place the white-green edge can be, seen from below. Only it and its two centres are lit. Find yours, tap ▶ to see the fix:',
           cases([...C.CROSS_ALL, C.CROSS.find((c) => c.name.startsWith('In the wrong bottom slot'))].map((c) =>
-            caseDemo(esc(c.name), `${c.note ? esc(c.note) : ''} ${thenText('edge is in. Next white edge.')}`, { setup: inv(c.alg), alg: c.alg, pieces: 'crossEdge', view: 'bottom' }))))}
+            caseDemo(esc(c.name), c.note ? esc(c.note) : '', { setup: inv(c.alg), alg: c.alg, pieces: 'crossEdge', view: 'bottom' })))
+          + nextLine('Edge is in. Do the next white edge the same way.'))}
         ${howStep(4, '<strong>Do all four.</strong> Same thing for white-orange, white-blue, white-red. Plan them all in the 15 s inspection, then go without stopping.',
           demoHTML({ setup: inv("F' R D2 L' B' D' F2"), alg: "F' R D2 L' B' D' F2", mask: 'cross', view: 'bottom', caption: 'A whole cross in 7 moves.' }))}
       </div>
@@ -390,7 +392,7 @@ const LESSONS = {
         const edge = s.stickers.find((t) => eq(t.home, [1, 0, 1]) && t.c === 'F');
         const cTop = corner.p[1] === 1, eTop = edge.p[1] === 1;
         const key = k < 4 ? 'basic' : cTop && eTop ? (corner.n[1] === 1 ? 'up' : 'side') : cTop ? 'edgeSlot' : eTop ? 'cornerSlot' : 'both';
-        groups[key].push(caseDemo('', `${C.F2L_NOTES[k] ? esc(C.F2L_NOTES[k]) : ''} ${thenText('pair is in. Next gap: spin <b>y</b> and start again.')}`, { setup: inv(alg), alg }, `Case ${k + 1}`, `f2l-${k + 1}`));
+        groups[key].push(caseDemo('', C.F2L_NOTES[k] ? esc(C.F2L_NOTES[k]) : '', { setup: inv(alg), alg }, `Case ${k + 1}`, `f2l-${k + 1}`));
       });
       const body = C.F2L_GROUPS.map((g) => `
         <div class="group-head"><h3>${esc(g.title)}</h3><span class="count">${groups[g.key].length}</span></div>
@@ -418,6 +420,7 @@ const LESSONS = {
       <div class="callout"><strong>Don't know a letter?</strong> Hover over (or tap) any move, like <span class="tok" data-mv="R">R</span> or <span class="tok" data-mv="F'">F'</span>, to see it turn. Tap a case and the cube plays it on repeat, with each move explained under the cube. Drag the speed slider down to slow it.</div>
       <h2 style="margin-top:44px">All 41 cases</h2>
       <p class="lead">Every way the pair can sit, for the front-right gap. Find the one that looks like yours, tap ▶ to watch it.</p>
+      ${nextLine('After any of these the pair is in. Spin the cube (<span class="tok" data-mv="y">y</span>) to the next empty gap and start again.')}
       ${body}`;
     },
     stage: () => ({ kicker: 'F2L', title: 'Pick a case', alg: '', setup: '', mask: 'f2l' }),
@@ -441,7 +444,8 @@ const LESSONS = {
             return caseDemo(esc(c.name), `${esc(c.note)} ${n ? thenBtn(`oll2-${n.i}`, n.a, esc(C.OLL_CORNERS[n.i].name)) : ''}`, { setup, alg: c.alg, mask: 'olledge', pieces: '' });
           })))}
         ${howStep(3, '<strong>Look 2: the corners.</strong> Cross done. Now find which of these the corners look like, turn <span class="tok" data-mv="U">U</span> until it matches, and do it.',
-          cases(C.OLL_CORNERS.map((c, k) => caseDemo(esc(c.name), `${esc(c.note)} ${thenText('top is all yellow. On to PLL.')}`, { setup: inv(c.alg), alg: c.alg, mask: 'oll', pieces: '' }, 'Case %N%', `oll2-${k}`))))}
+          cases(C.OLL_CORNERS.map((c, k) => caseDemo(esc(c.name), esc(c.note), { setup: inv(c.alg), alg: c.alg, mask: 'oll', pieces: '' }, 'Case %N%', `oll2-${k}`)))
+          + nextLine('The top is all yellow. On to PLL.'))}
       </div>
       <h2 style="margin-top:44px">Full OLL — all 57</h2>
       <p class="lead">One look instead of two. Grouped by the shape the yellow makes on top. Start with the first group (you already know half of it from 2-look), then the ones that come up most: T, P, Square, Fish, Lightning.</p>
@@ -471,7 +475,8 @@ const LESSONS = {
             return caseDemo(c.title, `${c.text} ${n ? thenBtn(`pll2-${n.i}`, n.a, esc(edges[n.i].name)) : ''}`, { setup: c.setup, alg: c.alg, pieces: '' });
           })))}
         ${howStep(2, '<strong>Then the edges.</strong> Corners done: look at the middle sticker of each side.',
-          cases(C.PLL_2LOOK.slice(2).map((c, k) => caseDemo(esc(c.name), `${esc(c.note)} ${thenText('one last <b>U</b> turn if needed. Solved!')}`, { setup: inv(c.alg), alg: c.alg, pieces: '' }, 'Case %N%', `pll2-${k}`))))}
+          cases(C.PLL_2LOOK.slice(2).map((c, k) => caseDemo(esc(c.name), esc(c.note), { setup: inv(c.alg), alg: c.alg, pieces: '' }, 'Case %N%', `pll2-${k}`)))
+          + nextLine('One last turn of the top if needed (step 3), and it\'s solved.'))}
         ${howStep(3, '<strong>Last turn.</strong> If the top is solved but turned, one <span class="tok" data-mv="U">U</span> / <span class="tok" data-mv="U\'">U\'</span> / <span class="tok" data-mv="U2">U2</span> lines it up.',
           demoHTML({ setup: "U'", alg: 'U', caption: 'Solved.' }))}
       </div>
