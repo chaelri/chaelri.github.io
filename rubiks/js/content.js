@@ -154,3 +154,94 @@ export const ADVANCED = [
   { name: 'Pseudo slotting', setup: "L' U L U2 B U' B'", alg: "[Insert with bottom turned] R U R' [Fix the bottom] D",
     note: 'The bottom layer is turned one step off. Instead of fixing it first, insert anyway: the corner fits relative to the cross. One D turn at the end lines everything up. Fewer moves than fixing first.' },
 ];
+
+// Full OLL, one look. Every alg verified: F2L untouched, 57 distinct cases.
+export const OLL_FULL = [
+  { group: "Cross done (OCLL) — learn first", cases: [
+    { n: 27, alg: "R U R' U R U2 R'" },
+    { n: 26, alg: "R U2 R' U' R U' R'" },
+    { n: 21, alg: "R U2 R' U' R U R' U' R U' R'" },
+    { n: 22, alg: "R U2 R2 U' R2 U' R2 U2 R" },
+    { n: 23, alg: "R2 D' R U2 R' D R U2 R" },
+    { n: 24, alg: "r U R' U' r' F R F'" },
+    { n: 25, alg: "F' r U R' U' r' F R" },
+  ] },
+  { group: "Dot", cases: [
+    { n: 1, alg: "R U2 R2 F R F' U2 R' F R F'" },
+    { n: 2, alg: "F R U R' U' F' f R U R' U' f'" },
+    { n: 3, alg: "f R U R' U' f' U' F R U R' U' F'" },
+    { n: 4, alg: "f R U R' U' f' U F R U R' U' F'" },
+    { n: 17, alg: "F R' F' R2 r' U R U' R' U' M'" },
+    { n: 18, alg: "r U R' U R U2 r2 U' R U' R' U2 r" },
+    { n: 19, alg: "r' R U R U R' U' M' R' F R F'" },
+    { n: 20, alg: "r U R' U' M2 U R U' R' U' M'" },
+  ] },
+  { group: "Line", cases: [
+    { n: 51, alg: "F U R U' R' U R U' R' F'" },
+    { n: 52, alg: "R U R' U R U' B U' B' R'" },
+    { n: 55, alg: "R' F R U R U' R2 F' R2 U' R' U R U R'" },
+    { n: 56, alg: "r' U' r U' R' U R U' R' U R r' U r" },
+  ] },
+  { group: "T", cases: [
+    { n: 33, alg: "R U R' U' R' F R F'" },
+    { n: 45, alg: "F R U R' U' F'" },
+  ] },
+  { group: "P", cases: [
+    { n: 31, alg: "R' U' F U R U' R' F' R" },
+    { n: 32, alg: "L U F' U' L' U L F L'" },
+    { n: 43, alg: "F' U' L' U L F" },
+    { n: 44, alg: "F U R U' R' F'" },
+  ] },
+  { group: "Square", cases: [
+    { n: 5, alg: "r' U2 R U R' U r" },
+    { n: 6, alg: "r U2 R' U' R U' r'" },
+  ] },
+  { group: "C", cases: [
+    { n: 34, alg: "R U R2 U' R' F R U R U' F'" },
+    { n: 46, alg: "R' U' R' F R F' U R" },
+  ] },
+  { group: "W", cases: [
+    { n: 36, alg: "L' U' L U' L' U L U L F' L' F" },
+    { n: 38, alg: "R U R' U R U' R' U' R' F R F'" },
+  ] },
+  { group: "Fish", cases: [
+    { n: 9, alg: "R U R' U' R' F R2 U R' U' F'" },
+    { n: 10, alg: "R U R' U R' F R F' R U2 R'" },
+    { n: 35, alg: "R U2 R2 F R F' R U2 R'" },
+    { n: 37, alg: "F R' F' R U R U' R'" },
+  ] },
+  { group: "Small lightning", cases: [
+    { n: 7, alg: "r U R' U R U2 r'" },
+    { n: 8, alg: "l' U' L U' L' U2 l" },
+    { n: 11, alg: "r U R' U R' F R F' R U2 r'" },
+    { n: 12, alg: "M' R' U' R U' R' U2 R U' R r'" },
+  ] },
+  { group: "Big lightning", cases: [
+    { n: 39, alg: "L F' L' U' L U F U' L'" },
+    { n: 40, alg: "R' F R U R' U' F' U R" },
+  ] },
+  { group: "Knight move", cases: [
+    { n: 13, alg: "F U R U' R2 F' R U R U' R'" },
+    { n: 14, alg: "R' F R U R' F' R F U' F'" },
+    { n: 15, alg: "r' U' r R' U' R U r' U r" },
+    { n: 16, alg: "r U r' R U R' U' r U' r'" },
+  ] },
+  { group: "Awkward", cases: [
+    { n: 29, alg: "R U R' U' R U' R' F' U' F R U R'" },
+    { n: 30, alg: "F R' F R2 U' R' U' R U R' F2" },
+    { n: 41, alg: "R U R' U R U2 R' F R U R' U' F'" },
+    { n: 42, alg: "R' U' R U' R' U2 R F R U R' U' F'" },
+  ] },
+  { group: "Small L", cases: [
+    { n: 47, alg: "R' U' R' F R F' R' F R F' U R" },
+    { n: 48, alg: "F R U R' U' R U R' U' F'" },
+    { n: 49, alg: "r U' r2 U r2 U r2 U' r" },
+    { n: 50, alg: "r' U r2 U' r2 U' r2 U r'" },
+    { n: 53, alg: "r' U' R U' R' U R U' R' U2 r" },
+    { n: 54, alg: "r U R' U R U' R' U R U2 r'" },
+  ] },
+  { group: "Corners done", cases: [
+    { n: 28, alg: "r U R' U' r' R U R U' R'" },
+    { n: 57, alg: "R U R' U' M' U R U' r'" },
+  ] },
+];

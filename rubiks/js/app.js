@@ -2,6 +2,7 @@ import { CubeState, parseAlg, invertAlg, algToString, simplify, removeYRotations
 import { CubePlayer } from './player.js';
 import { isoSVG, topSVG } from './thumbs.js';
 import * as C from './content.js';
+import { mountCamera } from './camera.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -24,7 +25,7 @@ function parseWithLabels(str) {
   return { steps, labels };
 }
 
-function load(c, { autoplay = true } = {}) {
+function load(c, { autoplay = false } = {}) {
   P.gen++;
   P.playing = false;
   const { steps, labels } = parseWithLabels(c.alg);
@@ -103,9 +104,8 @@ async function play() {
   syncPlay();
   while (g === P.gen && P.idx < P.steps.length) {
     markMoves();
-    await player.animate(P.steps[P.idx]);
-    if (g !== P.gen) return;
-    P.idx++;
+    if (await player.animate(P.steps[P.idx])) P.idx++;
+    if (g !== P.gen) { syncPlay(); return; }
     markMoves();
     if (P.idx >= P.steps.length && P.loop) {
       await wait(900);
@@ -116,7 +116,12 @@ async function play() {
       await wait(350);
     }
   }
-  if (g === P.gen) { P.playing = false; syncPlay(); }
+  if (g !== P.gen) return;
+  P.playing = false;
+  syncPlay();
+  // show the finished result for a beat, then go back to the first step
+  await wait(1300);
+  if (g === P.gen) seek(0);
 }
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -128,15 +133,35 @@ async function step(dir) {
   pause();
   stepping = true;
   if (dir > 0 && P.idx < P.steps.length) {
-    await player.animate(P.steps[P.idx], 220);
-    P.idx++;
+    if (await player.animate(P.steps[P.idx], 220)) P.idx++;
   } else if (dir < 0 && P.idx > 0) {
-    P.idx--;
-    await player.animateInverse(P.steps[P.idx], 220);
+    if (await player.animateInverse(P.steps[P.idx - 1], 220)) P.idx--;
   }
   stepping = false;
   syncPlay();
 }
+
+// Step forward to move index j, animated (used by the camera tutor).
+async function advanceTo(j) {
+  pause();
+  j = Math.min(j, P.steps.length);
+  while (P.idx < j) {
+    if (!(await player.animate(P.steps[P.idx], 160))) break;
+    P.idx++;
+    syncPlay();
+  }
+}
+function labelAt(i) {
+  let l = '';
+  for (const k of Object.keys(P.labels)) if (+k <= i) l = P.labels[k];
+  return l;
+}
+const cameraApi = {
+  load: (c) => load(c),
+  idx: () => P.idx,
+  nextMove: () => ({ tok: P.steps[P.idx]?.tok || '', label: labelAt(P.idx) }),
+  advanceTo,
+};
 
 ui.play.addEventListener('click', () => (P.playing ? pause() : play()));
 $('#btnNext').addEventListener('click', () => step(1));
@@ -182,8 +207,49 @@ $('#lesson').addEventListener('click', (e) => {
     $('#stage').scrollIntoView({ behavior: 'smooth', block: 'start' });
 });
 
+// PLL recognition cards: a real case + which side stickers to look at.
+const isCorner = (t) => t.p[0] !== 0 && t.p[2] !== 0;
+const pll = (name) => C.PLL_2LOOK.find((c) => c.name.startsWith(name)).alg;
+const RECOG_A = [
+  { title: 'Headlights on all 4 sides', text: 'Every side has matching corners → corners are done. Go to Part B.', alg: pll('Ua'), hl: isCorner },
+  { title: 'Headlights on 1 side → T perm', text: 'One side has matching corners (outlined). Turn U so they are on the LEFT, then T perm. Edges can still be wrong after — normal, go to Part B.', alg: pll('T perm'), hl: (t) => isCorner(t) && t.n[0] === -1 },
+  { title: 'No headlights → Y perm', text: 'No side has matching corners. Do Y perm from any angle. Then go to Part B for the edges.', alg: pll('Y perm'), hl: isCorner },
+];
+const RECOG_B = [
+  { title: 'Solved bar → Ua', text: 'Hold the solved side at the BACK. Front edge is the same colour as the RIGHT side (its corners) → Ua.', alg: pll('Ua'), hl: (t) => t.n[2] === -1 || (t.n[2] === 1 && t.p[0] === 0) || (t.n[0] === 1 && isCorner(t)) },
+  { title: 'Solved bar → Ub', text: 'Hold the solved side at the BACK. Front edge is the same colour as the LEFT side (its corners) → Ub.', alg: pll('Ub'), hl: (t) => t.n[2] === -1 || (t.n[2] === 1 && t.p[0] === 0) || (t.n[0] === -1 && isCorner(t)) },
+  { title: 'Checkerboard → H perm', text: 'No solved side. Every middle sticker is the colour of the OPPOSITE side.', alg: pll('H'), hl: (t) => !isCorner(t) },
+  { title: 'Neighbours swapped → Z perm', text: 'No solved side. Middles match the side NEXT to them. Hold so the front edge belongs on the left.', alg: pll('Z'), hl: (t) => !isCorner(t) },
+];
+function recog(list) {
+  return list.map((r) => {
+    const i = register({ kicker: 'PLL · recognise', title: r.title, alg: r.alg, mask: 'none' });
+    return `<button class="card" data-case="${i}"><div class="thumb">${topSVG(stateFor(r.alg), 'none', false, r.hl)}</div>
+      <div class="row"><span class="name">${esc(r.title)}</span></div><div class="note">${esc(r.text)}</div></button>`;
+  }).join('');
+}
+
 // ---------------------------------------------------------------- lessons
 const LESSONS = {
+  camera: {
+    label: 'Camera',
+    render() {
+      return `
+      <div class="kicker">Live tutor</div>
+      <h2>Solve your real cube with the camera</h2>
+      <p class="lead">Scan your scrambled cube, and the site works out a CFOP solution with the algorithms you're learning. Then solve it while the webcam watches: the 3D cube follows each move you make.</p>
+      <div class="cam-wrap">
+        <div class="cam-stage"><video playsinline muted></video><canvas class="cam-overlay"></canvas></div>
+        <div class="cam-hint" id="camHint"></div>
+      </div>
+      <div class="cam-panel" id="camPanel"></div>
+      <div class="callout">Works best in even light, cube about 30 cm from the camera, filling the grid. The camera only sees the face pointing at it, so an <code>F</code> turn is invisible to it — the next move catches it up, or press <b>Space</b>.</div>`;
+    },
+    mount() { cam = mountCamera($('#lesson'), cameraApi); },
+    unmount() { cam?.stop(); cam = null; },
+    stage: () => ({ kicker: 'Camera', title: 'Scan your cube to start', alg: '', setup: '', mask: 'none' }),
+  },
+
   notation: {
     label: 'Notation',
     render() {
@@ -260,17 +326,28 @@ const LESSONS = {
   oll: {
     label: 'OLL',
     render() {
-      const mk = (list, kick) => list.map((c, k) => {
-        const svg = topSVG(stateFor(c.alg), 'oll');
-        const i = register({ kicker: kick, title: c.name, alg: c.alg, mask: 'oll' });
+      const mk = (list, kick, mask = 'oll') => list.map((c, k) => {
+        const svg = topSVG(stateFor(c.alg), mask);
+        const i = register({ kicker: kick, title: c.name, alg: c.alg, mask });
         return caseCard({ ...c, svg, num: k + 1 }, i);
       }).join('');
       return `
       <div class="kicker">Step 3</div>
       <h2>OLL — make the top yellow</h2>
-      <p class="lead">Two looks: yellow cross first, then the corners. Turn <code>U</code> until it matches the picture (front = bottom of the picture).</p>
-      <h3>Look 1 — yellow cross</h3><div class="grid">${mk(C.OLL_EDGES, 'OLL · edges')}</div>
-      <h3>Look 2 — yellow corners</h3><div class="grid">${mk(C.OLL_CORNERS, 'OLL · corners')}</div>`;
+      <p class="lead">Start with two looks: yellow cross first, then the corners. Turn <code>U</code> until it matches the picture (front = bottom of the picture).</p>
+      <h3>Look 1 — yellow cross</h3>
+      <p>Only the 4 edges matter here — ignore the corners. You'll have one of these three; do that one alg and the cross is done.</p>
+      <div class="grid">${mk(C.OLL_EDGES, 'OLL · edges', 'olledge')}</div>
+      <h3>Look 2 — yellow corners</h3><div class="grid">${mk(C.OLL_CORNERS, 'OLL · corners')}</div>
+      <h2 style="margin-top:44px">Full OLL — all 57</h2>
+      <p class="lead">One look instead of two. Grouped by the shape the yellow makes on top. Start with the first group (you already know half of it from 2-look), then the ones that come up most: T, P, Square, Fish, Lightning.</p>
+      ${C.OLL_FULL.map((g) => `
+        <div class="group-head"><h3>${esc(g.group)}</h3><span class="count">${g.cases.length}</span></div>
+        <div class="grid">${g.cases.map((c) => {
+          const svg = topSVG(stateFor(c.alg), 'oll');
+          const i = register({ kicker: `OLL ${c.n}`, title: g.group, alg: c.alg, mask: 'oll' });
+          return caseCard({ name: `OLL ${c.n}`, alg: c.alg, svg }, i);
+        }).join('')}</div>`).join('')}`;
     },
     stage: () => ({ kicker: 'OLL', title: 'Pick a case', alg: '', setup: '', mask: 'oll' }),
   },
@@ -287,10 +364,12 @@ const LESSONS = {
       <div class="kicker">Step 4</div>
       <h2>PLL — finish it</h2>
       <p class="lead">Move the top pieces home. Arrows show where each piece goes. Start with the 6 two-look algs, then learn all 21.</p>
-      <ul class="tips">
-        <li>Corners first: headlights on one side → hold them on the left, T perm. No headlights → Y perm.</li>
-        <li>Then edges: Ua, Ub, H or Z.</li>
-      </ul>
+      <h3>How to tell which one you have</h3>
+      <p>The white outlines show what to look at. Tap a card to load it on the cube.</p>
+      <p><strong>Part A — corners.</strong> Look only at the corner stickers on the sides. <em>Headlights</em> = both corners of one side are the same colour.</p>
+      <div class="grid wide">${recog(RECOG_A)}</div>
+      <p style="margin-top:18px"><strong>Part B — edges.</strong> Corners done? Turn U until they match their centres, then look at the middle sticker of each side.</p>
+      <div class="grid wide">${recog(RECOG_B)}</div>
       <h3>2-look PLL — learn these first</h3><div class="grid">${mk(C.PLL_2LOOK, 'PLL · 2-look')}</div>
       <h3>Full PLL — all 21</h3>
       <div class="grid">${mk(C.PLL_FULL, 'PLL · full')}</div>`;
@@ -478,18 +557,20 @@ function stop() {
 }
 
 // ---------------------------------------------------------------- tabs
-const ORDER = ['cross', 'f2l', 'oll', 'pll', 'advanced', 'solve', 'notation', 'timer'];
+const ORDER = ['cross', 'f2l', 'oll', 'pll', 'camera', 'advanced', 'solve', 'notation', 'timer'];
 const STEP_NO = { cross: 1, f2l: 2, oll: 3, pll: 4 };
 let current = null;
+let cam = null;
 
 function open(key, push = true) {
   if (!LESSONS[key]) key = 'cross';
+  LESSONS[current]?.unmount?.();
   current = key;
   registry = [];
   const L = LESSONS[key];
   $('#lesson').innerHTML = L.render();
   document.querySelectorAll('.tab').forEach((t) => t.setAttribute('aria-selected', String(t.dataset.key === key)));
-  if (L.mount) L.mount();
+  if (L.mount) { load(L.stage()); L.mount(); }
   else load(L.stage(), { autoplay: false });
   if (push) history.replaceState(null, '', '#' + key);
   window.scrollTo({ top: 0 });
@@ -506,6 +587,7 @@ window.addEventListener('hashchange', () => open(location.hash.slice(1), false))
 // ---------------------------------------------------------------- keys
 document.addEventListener('keydown', (e) => {
   if (e.target.closest('input, textarea')) return;
+  if (current === 'camera' && cam?.onKey(e)) return;
   if (current === 'timer') {
     if (e.code === 'Space' || TIMER.state === 'running') {
       e.preventDefault();

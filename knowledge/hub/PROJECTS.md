@@ -338,7 +338,7 @@ Event app for **Campus UNITE — Elevate's 13th Anniversary** (July 17, 2026 · 
 
 ### rubiks/  🟢
 
-**Sub-20** — CFOP speedcubing course with a live 3D 3x3. Tabs are the 4 steps (1 Cross, 2 F2L all 41, 3 OLL 2-look, 4 PLL 2-look + all 21) then Advanced (x-cross, pseudo slotting), Full solve, Notation, Timer. No week-by-week roadmap — Charlie asked for just the steps. Built 2026-10-22; Charlie wants sub-30 → sub-20 and explicitly rejected intuitive F2L as too slow, so F2L is taught as algorithms.
+**Sub-20** — CFOP speedcubing course with a live 3D 3x3. Tabs are the 4 steps (1 Cross, 2 F2L all 41, 3 OLL 2-look + all 57, 4 PLL 2-look + all 21) then Advanced (x-cross, pseudo slotting), Full solve, Notation, Timer. No week-by-week roadmap — Charlie asked for just the steps. Built 2026-10-22; Charlie wants sub-30 → sub-20 and explicitly rejected intuitive F2L as too slow, so F2L is taught as algorithms.
 
 - **Tech:** vanilla ES modules, three.js 0.169 via jsDelivr import map (+ `RoundedBoxGeometry` addon), hand-written CSS, Inter + JetBrains Mono. No build.
 - **Entry:** `index.html`, `js/cube.js` (pure sticker model, no DOM — shared by player, thumbnails and node), `js/player.js` (3D), `js/thumbs.js` (SVG case diagrams), `js/content.js` (every alg + lesson data), `js/app.js` (tabs, player controls, timer).
@@ -348,6 +348,8 @@ Event app for **Campus UNITE — Elevate's 13th Anniversary** (July 17, 2026 · 
   - Every alg was verified in node against `cube.js`: F2L algs leave cross + other 3 slots intact (41 distinct cases), OLL/PLL leave F2L intact, PLLs keep yellow up. Jb/Ra/Rb/Z carry a trailing AUF so the case diagram moves the minimum pieces.
   - The full-solve scramble is the solution inverted with `y` rotations folded out (`removeYRotations`); that only works because the solution's net rotation is y4.
   - Masks (`cross` / `f2l` / `oll`) grey stickers by the cubie's HOME position, so a piece keeps its colouring wherever it travels.
+  - **Moves queue in `player.animate`** and `reset()` bumps an epoch that cancels anything queued or mid-turn; `animate` resolves false when cancelled and the app only advances its move index on true. Before this, stepping or switching cases mid-turn ran two animations on one pivot and scrambled the stickers.
+  - **Camera tab (2026-10-22): live tutor.** Scan 6 faces (`SCAN_ORDER` in `js/solver.js`, each face held with a named colour on top), colours assigned to the nearest centre in Lab with at most 8 per colour, tap-to-fix net, then `solve()` gives a CFOP solution from the site's own algs: optimal cross from a BFS table over the 4 white edges, then every F2L/OLL/PLL alg × U pre-turn tried in the simulator, shortest kept. **No cube rotations** — back slots use relabelled algs — so the webcam keeps seeing the BLUE (back) face. Tracking predicts the back face after each of the next 5 moves and advances when one matches 8/9 for 3 frames; `F` moves are invisible from the back, so the next visible move catches up or Space advances. 80/80 random scrambles solve in node (2-look and full).
   - Headless Chrome can't verify animation (rAF stalls under `--virtual-time-budget`) and has a 500 px minimum width — use real Chrome for both.
 
 ### driving/  🟢

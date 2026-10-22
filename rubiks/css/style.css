@@ -233,3 +233,38 @@ button { font: inherit; color: inherit; }
   .speed { gap: 5px; }
   .speed input { width: 64px; }
 }
+
+/* ---------- camera tutor ---------- */
+.cam-wrap { position: relative; margin-top: 16px; }
+.cam-stage {
+  position: relative; border-radius: var(--radius); overflow: hidden; background: #000;
+  aspect-ratio: 4 / 3; max-width: 640px; transform: scaleX(-1); /* mirror, like a selfie */
+}
+.cam-stage video, .cam-stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.cam-hint {
+  position: absolute; top: 12px; left: 12px; background: rgba(0, 0, 0, 0.7); color: #fff;
+  padding: 6px 12px; border-radius: 999px; font-size: 13px; font-weight: 600;
+}
+.cam-panel { margin-top: 14px; max-width: 640px; }
+.cam-big { font-size: 16px; }
+.cam-err { color: #ff8a80; background: rgba(255, 80, 60, 0.08); border: 1px solid rgba(255, 80, 60, 0.3); border-radius: 12px; padding: 10px 14px; margin: 10px 0; font-size: 14px; }
+.cam-warn { color: #ffd27a; background: rgba(255, 200, 0, 0.08); border-radius: 10px; padding: 8px 12px; margin-top: 8px; font-size: 14px; }
+.scan-chips { display: flex; gap: 8px; margin-bottom: 10px; }
+.scan-chip { width: 28px; height: 28px; border-radius: 8px; background: var(--c); opacity: 0.25; border: 2px solid transparent; }
+.scan-chip.done { opacity: 1; }
+.scan-chip.now { opacity: 1; border-color: #fff; }
+.net {
+  display: grid; gap: 6px; margin: 12px 0; width: max-content; max-width: 100%;
+  grid-template-areas: '. U . .' 'L F R B' '. D . .';
+}
+.net-face { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; padding: 4px; background: #000; border-radius: 8px; }
+.net-cell { width: 28px; height: 28px; border-radius: 5px; border: 0; padding: 0; cursor: pointer; }
+.net-cell:disabled { cursor: default; }
+.cam-toggle { display: flex; gap: 8px; align-items: center; font-size: 14px; color: var(--muted); margin: 8px 0; }
+.cam-next { display: flex; align-items: baseline; gap: 14px; }
+.cam-next span { font: 700 12px var(--mono); color: var(--dim); text-transform: uppercase; letter-spacing: 0.08em; }
+.cam-next b { font: 800 56px/1 var(--mono); color: var(--accent); }
+.cam-stage-name { font: 700 13px var(--mono); color: var(--muted); margin-top: 4px; }
+.cam-steps { padding-left: 20px; color: #c6cbd6; font-size: 14px; }
+.cam-steps li { margin: 4px 0; }
+@media (max-width: 900px) { .net-cell { width: 22px; height: 22px; } }

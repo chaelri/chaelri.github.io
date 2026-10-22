@@ -84,6 +84,7 @@ export class CubePlayer {
     this.viewTarget = { ...this.view };
     this.bindDrag();
     this.queue = Promise.resolve();
+    this.epoch = 0;
     this.speed = 1;
     this.busy = false;
 
@@ -150,12 +151,15 @@ export class CubePlayer {
         if (mask === 'cross') on = isCenter || (isEdge && hy === -1) || f === 'D';
         else if (mask === 'f2l') on = hy <= 0 || isCenter;
         else if (mask === 'oll') on = hy <= 0 || f === 'U';
+        // look 1 of 2-look OLL: only the edges count, so the top corners go grey
+        else if (mask === 'olledge') on = hy <= 0 || (f === 'U' && !(hx && hz));
         s.material = on ? this.mats[f] : this.mats.grey;
       }
     }
   }
 
   reset() {
+    this.epoch = (this.epoch || 0) + 1;
     this.root.quaternion.identity();
     for (const c of this.cubies) {
       if (c.parent !== this.root) this.root.attach(c);
@@ -191,25 +195,32 @@ export class CubePlayer {
     c.quaternion.setFromRotationMatrix(m);
   }
 
-  // Animated single move. Resolves when the layer has landed.
+  // Animated single move. Moves queue behind each other so two can never
+  // turn the same pivot at once; reset() cancels whatever is queued or
+  // mid-turn. Resolves true if the move was applied, false if cancelled.
   animate(mv, ms) {
-    const { axis, angle } = moveInfo(mv);
-    const cubies = this.layer(mv);
-    this.pivot.quaternion.identity();
-    for (const c of cubies) this.pivot.attach(c);
-    const dur = (ms ?? 300) * (Math.abs(angle) > 2 ? 1.45 : 1) / this.speed;
-    const start = performance.now();
-    return new Promise((resolve) => {
+    const epoch = this.epoch;
+    const run = () => new Promise((resolve) => {
+      if (epoch !== this.epoch) return resolve(false);
+      const { axis, angle } = moveInfo(mv);
+      const cubies = this.layer(mv);
+      this.pivot.quaternion.identity();
+      for (const c of cubies) this.pivot.attach(c);
+      const dur = (ms ?? 300) * (Math.abs(angle) > 2 ? 1.45 : 1) / this.speed;
+      const start = performance.now();
       const tick = (now) => {
+        if (epoch !== this.epoch) return resolve(false);
         const t = Math.min(1, (now - start) / dur);
         this.pivot.quaternion.setFromAxisAngle(AXIS[axis], angle * ease(t));
         if (t < 1) return requestAnimationFrame(tick);
         for (const c of cubies) { this.root.attach(c); this.snap(c); }
         this.pivot.quaternion.identity();
-        resolve();
+        resolve(true);
       };
       requestAnimationFrame(tick);
     });
+    this.queue = this.queue.then(run);
+    return this.queue;
   }
 
   animateInverse(mv, ms) { return this.animate(invertMove(mv), ms); }

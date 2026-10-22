@@ -11,6 +11,7 @@ function shown(t, mask) {
   if (mask === 'cross') return nz === 1 || (nz === 2 && hy === -1) || t.c === 'D';
   if (mask === 'f2l') return hy <= 0 || nz === 1;
   if (mask === 'oll') return hy <= 0 || t.c === 'U';
+  if (mask === 'olledge') return hy <= 0 || (t.c === 'U' && !(hx && hz));
   return true;
 }
 const fill = (t, mask) => (shown(t, mask) ? COLORS[t.c] : GREY);
@@ -47,7 +48,8 @@ export function isoSVG(state, mask, bottom = false) {
 
 // Top-down last-layer diagram with the side stickers as thin strips, plus
 // arrows for where each piece has to travel (PLL).
-export function topSVG(state, mask, arrows = false) {
+// `highlight(sticker)` outlines the side stickers to look at and dims the rest.
+export function topSVG(state, mask, arrows = false, highlight = null) {
   const top = state.stickers.filter((t) => t.p[1] === 1);
   const cell = (x, z) => [x * 1.05, z * 1.05];
   let out = '';
@@ -61,7 +63,9 @@ export function topSVG(state, mask, arrows = false) {
       const [nx, , nz] = t.n;
       const w = nx ? 0.3 : 0.86, h = nz ? 0.3 : 0.86;
       const ox = cx + nx * 0.82, oy = cy + nz * 0.82;
-      out += `<rect x="${ox - w / 2}" y="${oy - h / 2}" width="${w}" height="${h}" rx="0.08" fill="${col}"/>`;
+      const hl = highlight ? highlight(t) : null;
+      const extra = hl ? ' stroke="#fff" stroke-width="0.09"' : highlight ? ' opacity="0.22"' : '';
+      out += `<rect x="${ox - w / 2}" y="${oy - h / 2}" width="${w}" height="${h}" rx="0.08" fill="${col}"${extra}/>`;
     }
   }
   let arr = '';
