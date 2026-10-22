@@ -2,7 +2,7 @@ import { CubeState, parseAlg, invertAlg, algToString, simplify, removeYRotations
 import { CubePlayer } from './player.js';
 import { isoSVG, topSVG } from './thumbs.js';
 import * as C from './content.js';
-import { algHTML, describe, mountMoveTips } from './movetip.js';
+import { algHTML, describe } from './movetip.js';
 import { mountScan } from './scan.js';
 import { demoHTML, mountDemos } from './loopdemo.js';
 
@@ -17,7 +17,6 @@ const ui = {
 };
 // Loop is on by default: a case keeps replaying until you pause it.
 const P = { steps: [], labels: {}, setup: [], idx: 0, playing: false, loop: true, gen: 0, view: 'top' };
-mountMoveTips();
 
 // "[Label] R U R'" -> steps + label positions
 function parseWithLabels(str) {
@@ -435,7 +434,7 @@ const LESSONS = {
         <div class="howto-row"><span class="howto-n">5</span><div><strong>Next gap.</strong> Spin the whole cube (<span class="tok" data-mv="y">y</span>) so the next empty gap is at the front-right, and repeat.</div>
           ${demoHTML({ alg: 'y', mask: 'f2l', caption: 'The whole cube turns; the next gap comes to the front-right.' })}</div>
       </div>
-      <div class="callout"><strong>Don't know a letter?</strong> Hover over (or tap) any move, like <span class="tok" data-mv="R">R</span> or <span class="tok" data-mv="F'">F'</span>, to see it turn. Tap a case and the cube plays it on repeat, with each move explained under the cube. Drag the speed slider down to slow it.</div>
+      <div class="callout"><strong>Don't know a letter?</strong> Press ▶ on any case and watch it turn. Tap a move under a cube to skip to it; the bar shows how far along it is. The Notation tab explains every letter.</div>
       <h2 style="margin-top:44px">All 41 cases</h2>
       <p class="lead">Every way the pair can sit, for the front-right gap. Find the one that looks like yours, tap ▶ to watch it.</p>
       ${nextLine('After any of these the pair is in. Spin the cube (<span class="tok" data-mv="y">y</span>) to the next empty gap and start again.')}

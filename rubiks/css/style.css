@@ -126,8 +126,7 @@ button { font: inherit; color: inherit; }
 .speed input { width: 90px; accent-color: var(--accent); }
 
 /* ---------- move tips ---------- */
-.tok { border-bottom: 1px dotted currentColor; cursor: help; }
-.tok:hover { color: var(--accent); }
+.tok { font-family: var(--mono); font-weight: 700; }
 .mv-say {
   display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; min-height: 26px;
   margin-top: 8px; font-size: 14px; color: #c6cbd6;
@@ -135,26 +134,6 @@ button { font: inherit; color: inherit; }
 .mv-say b { font: 800 18px var(--mono); color: var(--accent); }
 .mv-say .say-k { font: 700 10px var(--mono); text-transform: uppercase; letter-spacing: 0.08em; color: var(--dim); }
 .mv-say .dim { color: var(--dim); }
-.movetip {
-  position: fixed; left: 0; top: 0; z-index: 50; width: 230px; pointer-events: none;
-  background: #0b0d12; border: 1px solid #3a4152; border-radius: 14px; padding: 8px;
-  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.55); opacity: 0; transition: opacity 0.12s;
-}
-.movetip.on { opacity: 1; }
-.mt-cube { width: 100%; aspect-ratio: 1 / 0.85; border-radius: 10px; overflow: hidden; background: radial-gradient(circle at 50% 45%, #232838 0%, #12151c 75%); }
-.mt-cube canvas { display: block; width: 100%; height: 100%; }
-.mt-body { padding: 6px 4px 2px; }
-.mt-tok { font: 800 22px var(--mono); color: var(--accent); line-height: 1.1; }
-.mt-what { font-weight: 700; font-size: 13px; margin-top: 2px; }
-.mt-how { font-size: 13px; color: #c6cbd6; line-height: 1.4; }
-.mt-steps { margin: 4px 0 0; padding-left: 18px; }
-.mt-steps li { margin: 2px 0; color: var(--dim); }
-.mt-steps li.on { color: var(--text); }
-.mt-steps li b { font-family: var(--mono); color: var(--accent); }
-.tok.alg { white-space: nowrap; }
-/* long sequences inside a Then link wrap between moves instead of running off the card */
-.then .tok.alg { white-space: normal; overflow-wrap: anywhere; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
-.mt-hold { font-size: 11px; color: var(--dim); margin-top: 6px; }
 
 .howto { display: grid; gap: 8px; margin: 16px 0; }
 .howto-row {
@@ -170,13 +149,17 @@ button { font: inherit; color: inherit; }
 .demo.paused .demo-cube { cursor: pointer; }
 .demo-still { display: block; width: 100%; height: 100%; object-fit: contain; }
 .demo-btns { display: flex; justify-content: center; gap: 8px; margin-top: 8px; }
-.demo-play, .demo-restart {
+.demo-play, .demo-restart, .demo-speed {
   width: 32px; height: 32px; border-radius: 50%; border: 0; cursor: pointer;
   background: var(--accent); color: var(--accent-ink); font-size: 13px; display: grid; place-items: center;
 }
+.demo-speed { width: auto !important; min-width: 44px; padding: 0 9px; border-radius: 16px !important; background: rgba(20, 22, 28, 0.85) !important; color: var(--text) !important; border: 1px solid #3a4152 !important; font: 700 12px var(--mono); }
 .demo-restart { background: rgba(20, 22, 28, 0.85); color: var(--text); border: 1px solid #3a4152; font-size: 16px; }
 .demo-restart::before { content: '↺'; }
 .demo-moves .tok { cursor: pointer; }
+.demo-bar { height: 5px; margin: 8px 6px 0; border-radius: 3px; background: var(--panel-2); overflow: hidden; cursor: pointer; position: relative; }
+.demo-bar::before { content: ''; position: absolute; inset: -6px 0; } /* bigger tap target */
+.demo-bar i { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 3px; }
 .demo-moves .tok:hover { color: var(--accent); }
 .demo-play::before { content: '▶'; margin-left: 2px; }
 .demo.playing .demo-play::before { content: '❚❚'; margin-left: 0; font-size: 11px; }

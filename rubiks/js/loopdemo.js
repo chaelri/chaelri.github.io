@@ -10,6 +10,18 @@ import { CubePlayer } from './player.js';
 import { parseAlg } from './cube.js';
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// One speed for every demo cube; the button cycles it and it is remembered.
+const SPEEDS = [0.25, 0.5, 1, 2, 3];
+let SPEED = 1;
+try { SPEED = SPEEDS.includes(+localStorage.getItem('rubiks.demoSpeed')) ? +localStorage.getItem('rubiks.demoSpeed') : 1; } catch { /* private mode */ }
+const livePlayers = new Set();
+function setSpeed(v) {
+  SPEED = v;
+  try { localStorage.setItem('rubiks.demoSpeed', String(v)); } catch { /* private mode */ }
+  document.querySelectorAll('.demo-speed').forEach((b) => { b.textContent = `${v}×`; });
+  livePlayers.forEach((p) => { p.speed = v; });
+}
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 // Named piece sets, by home position.
@@ -22,7 +34,8 @@ const PIECES = {
 export function demoHTML({ setup = '', alg, mask = 'none', pieces = '', view = 'top', caption = '', paused = false }) {
   return `<div class="demo${paused ? ' paused' : ''}" data-setup="${esc(setup)}" data-alg="${esc(alg)}" data-mask="${mask}" data-pieces="${pieces}" data-view="${view}">
     <div class="demo-cube"></div>
-    <div class="demo-btns"><button class="demo-restart" aria-label="Restart" title="Play from the start"></button>${paused ? '<button class="demo-play" aria-label="Play"></button>' : ''}</div>
+    <div class="demo-bar"><i></i></div>
+    <div class="demo-btns"><button class="demo-speed" title="Speed">${SPEED}×</button><button class="demo-restart" aria-label="Restart" title="Play from the start"></button>${paused ? '<button class="demo-play" aria-label="Play"></button>' : ''}</div>
     <div class="demo-moves"></div>
     ${caption ? `<div class="demo-cap">${caption}</div>` : ''}
   </div>`;
@@ -41,7 +54,14 @@ export function mountDemos(root) {
     const paused = host.classList.contains('paused');
     const moves = parseAlg(host.dataset.alg);
     const toks = [...host.querySelectorAll('.demo-moves .tok')];
-    const mark = (i) => toks.forEach((t, j) => { t.classList.toggle('on', j === i); t.classList.toggle('done', j < i); });
+    const bar = host.querySelector('.demo-bar i');
+    // the bar fills over a move while it turns (ms), or jumps there (0)
+    const mark = (i, ms = 0) => {
+      toks.forEach((t, j) => { t.classList.toggle('on', j === i); t.classList.toggle('done', j < i); });
+      const n = Math.max(0, Math.min(moves.length, ms ? i + 1 : i));
+      bar.style.transition = ms ? `width ${ms}ms linear` : 'none';
+      bar.style.width = `${(n / moves.length) * 100}%`;
+    };
     const src = paused ? still(host) : null;
     const card = { p: null, gen: 0, playing: false };
 
@@ -52,31 +72,39 @@ export function mountDemos(root) {
       host.querySelector('.demo-still')?.remove();
       card.p = new CubePlayer(host.querySelector('.demo-cube'), { interactive: false });
       card.p.setView(host.dataset.view || 'top', true);
+      card.p.speed = SPEED;
       players.push(card.p);
+      livePlayers.add(card.p);
       return card.p;
     };
     const setPlaying = (on) => { card.playing = on; host.classList.toggle('playing', on); };
 
-    card.play = async () => {
+    // from: start at that move the first time round (skipping there), then loop
+    card.play = async (from = 0) => {
       const p = live(), g = ++card.gen;
       setPlaying(true);
+      let start = from;
       while (card.gen === g && !p.dead) {
         pose(p, host);
-        mark(-1);
-        await wait(700);
-        for (let i = 0; i < moves.length; i++) {
+        p.applyNow(moves.slice(0, start));
+        mark(start);
+        await wait(start ? 300 : 700);
+        for (let i = start; i < moves.length; i++) {
           if (card.gen !== g) return;
-          mark(i);
+          mark(i, 650 / SPEED);
           if (!(await p.animate(moves[i], 650))) return;
-          await wait(180);
+          await wait(180 / SPEED);
         }
         if (card.gen !== g) return;
         mark(moves.length);
         await wait(1400);
+        start = 0;
       }
     };
-    // tap a move: jump to that frame (the cube just before it), nothing plays
+    // tap a move: skip to it. Playing -> carry on from there; paused -> just
+    // show that frame (the cube just before the move).
     card.stepTo = (i) => {
+      if (card.playing) return card.play(i);
       const p = live();
       card.gen++;
       setPlaying(false);
@@ -98,11 +126,19 @@ export function mountDemos(root) {
 
     host.querySelector('.demo-play')?.addEventListener('click', (e) => { e.stopPropagation(); card.playing ? card.stop() : card.play(); });
     host.querySelector('.demo-restart').addEventListener('click', (e) => { e.stopPropagation(); card.play(); });
+    host.querySelector('.demo-speed').addEventListener('click', (e) => {
+      e.stopPropagation();
+      setSpeed(SPEEDS[(SPEEDS.indexOf(SPEED) + 1) % SPEEDS.length]);
+    });
     if (paused) host.querySelector('.demo-cube').addEventListener('click', () => (card.playing ? card.stop() : card.play()));
     toks.forEach((t, i) => t.addEventListener('click', () => card.stepTo(i)));
+    host.querySelector('.demo-bar').addEventListener('click', (e) => {
+      const r = e.currentTarget.getBoundingClientRect();
+      card.stepTo(Math.min(moves.length - 1, Math.floor(((e.clientX - r.left) / r.width) * moves.length)));
+    });
     if (!paused) card.play();
   }
-  return () => { active = null; players.forEach((p) => p.destroy()); };
+  return () => { active = null; players.forEach((p) => { livePlayers.delete(p); p.destroy(); }); };
 }
 
 // Each move carries everything before it (data-pre), so its hover tip can
