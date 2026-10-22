@@ -33,8 +33,7 @@ Templates: `knowledge/_templates/LOG.md`, `knowledge/_templates/QUESTIONS.md`. B
 
 ## Repo-wide conventions
 
-- **No auto-push:** Never run `git push` automatically. Charlie controls all pushes manually.
-- **No auto-commit:** Don't commit unless Charlie asks. The current state of `git status` is intentional.
+- **Always commit and push (since 2026-10-23):** When a change is done, commit the files you touched and `git push` without asking. If the push is rejected, `git pull --rebase` and push again. Leave unrelated working-tree changes alone.
 - **Dual-repo for `guard-exit-interview/`:** Every change must be pushed to BOTH `chaelri.github.io` AND `guard-exit-tracker` repos.
 - **`weddingtest/` is the live wedding invitation** despite the name. Never suggest deleting or renaming.
 - **`monthsary/` rebuilt 2026-04-26:** Recently moved from root to `/monthsary/` subdir; Firebase upgraded 9.6.1 → 11.0.2.
