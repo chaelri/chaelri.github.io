@@ -167,6 +167,7 @@ button { font: inherit; color: inherit; }
 .scan-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; }
 .scan-chips { display: flex; align-items: center; gap: 8px; }
 .scan-chip { width: 34px; height: 34px; border-radius: 9px; border: 2px dashed #3a4152; background: var(--c); }
+.scan-chip.optional { opacity: 0.3; }
 .scan-chip.done { border: 2px solid #0b0c10; box-shadow: 0 0 0 2px var(--go); }
 .scan-count { font: 800 18px var(--mono); color: var(--muted); margin-left: 6px; }
 .scan-say { font-size: 17px; color: #c6cbd6; margin: 12px 0; }

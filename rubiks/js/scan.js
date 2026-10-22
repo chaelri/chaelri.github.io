@@ -48,16 +48,20 @@ function turn(grid, r) {
 }
 
 // ---------------------------------------------------------------- reading
-// Raw faces -> letters, then the one orientation set that makes a real cube.
+// Raw faces -> letters. Takes 5 or 6 sides: with 5, the unseen side comes back
+// as '?' stickers (centre known) for inferLast() to fill in.
 export function readCube(faces) {
-  // name the centres: the assignment of 6 letters that best fits REF colours
+  // name the centres: the assignment of letters that best fits REF colours;
+  // with 5 sides the leftover letter is the unseen one
   const centres = faces.map((f) => lab(f.rgb[4]));
   let best = null, bestCost = Infinity;
   for (const perm of permutations(LETTERS)) {
-    const cost = perm.reduce((s, k, i) => s + dist(centres[i], REF_LAB[k]), 0);
+    const cost = centres.reduce((s, c, i) => s + dist(c, REF_LAB[perm[i]]), 0);
     if (cost < bestCost) { bestCost = cost; best = perm; }
   }
-  const refs = Object.fromEntries(best.map((k, i) => [k, centres[i]]));
+  const refs = Object.fromEntries(centres.map((c, i) => [best[i], c]));
+  // an unseen centre still needs a reference: its nominal colour
+  for (const k of best.slice(faces.length)) refs[k] = REF_LAB[k];
   // every other sticker goes to the nearest centre, at most 8 per colour
   const pairs = [];
   faces.forEach((f, fi) => f.rgb.forEach((c, i) => {
@@ -79,7 +83,11 @@ export function readCube(faces) {
     // > 0 = looks more like the R (orange) centre than the L (red) one
     orange[best[fi]] = f.rgb.map((c) => { const L = lab(c); return dist(L, refs.L) - dist(L, refs.R); });
   });
-  return { raw, orange };
+  for (const k of best.slice(faces.length)) {
+    raw[k] = Array.from({ length: 9 }, (_, i) => (i === 4 ? k : '?'));
+    orange[k] = Array(9).fill(0);
+  }
+  return { raw, orange, missing: best.slice(faces.length)[0] || null };
 }
 
 // Red and orange are what webcams mix up, so they are not trusted as read.
@@ -99,7 +107,7 @@ function resolveRedOrange(faces, orange) {
   const edges = {};
   for (const piece of pieces.values()) {
     const rl = piece.filter((t) => isRL(t.l));
-    if (rl.length !== 1 || piece.length === 1) continue;
+    if (rl.length !== 1 || piece.length === 1 || piece.some((t) => t.l === '?')) continue;
     const x = rl[0];
     if (piece.length === 3) {
       const actual = det(piece.map((t) => t.n));
@@ -117,6 +125,60 @@ function resolveRedOrange(faces, orange) {
   return Object.fromEntries(Object.entries(out).map(([k, v]) => [k, v.join('')]));
 }
 
+// Every real edge / corner as its sorted colour letters ("FRU", "BD", ...).
+const REAL = [];
+for (let x = -1; x <= 1; x++)
+  for (let y = -1; y <= 1; y++)
+    for (let z = -1; z <= 1; z++) {
+      const p = [x, y, z];
+      if (p.filter((v) => v).length < 2) continue;
+      REAL.push(Object.keys(NORMAL).filter((f) => NORMAL[f].some((v, i) => v && v === p[i])).sort().join(''));
+    }
+
+// Fill the unseen side ('?') from the pieces: every piece touching it shows
+// its other colour(s) on the 5 seen sides, and each real piece exists once,
+// so what is missing is whatever that piece's set lacks. Returns every
+// consistent filling (usually one).
+function inferLast(letters) {
+  if (!Object.values(letters).some((f) => f.includes('?'))) return [letters];
+  const pieces = new Map();
+  for (const { face, up } of SCAN_ORDER)
+    faceGrid(face, up).forEach((c, i) => {
+      const key = c.p.join();
+      if (!pieces.has(key)) pieces.set(key, []);
+      pieces.get(key).push({ face, i, l: letters[face][i] });
+    });
+  const used = new Set(), partial = [];
+  for (const piece of pieces.values()) {
+    if (piece.length === 1) continue;
+    const known = piece.filter((t) => t.l !== '?').map((t) => t.l);
+    if (known.length === piece.length) {
+      const k = [...known].sort().join('');
+      if (!REAL.includes(k) || used.has(k)) return [];
+      used.add(k);
+    } else partial.push({ hole: piece.find((t) => t.l === '?'), known });
+  }
+  for (const p of partial)
+    p.cands = REAL.filter((r) => r.length === p.known.length + 1 && !used.has(r) && p.known.every((l) => r.includes(l)) && new Set(p.known).size === p.known.length);
+  const out = [], pick = new Set(), choice = [];
+  (function go(i) {
+    if (out.length >= 6) return;
+    if (i === partial.length) {
+      const f = Object.fromEntries(Object.entries(letters).map(([k, v]) => [k, [...v]]));
+      partial.forEach((p, j) => { f[p.hole.face][p.hole.i] = [...choice[j]].find((l) => !p.known.includes(l)); });
+      out.push(Object.fromEntries(Object.entries(f).map(([k, v]) => [k, v.join('')])));
+      return;
+    }
+    for (const r of partial[i].cands) {
+      if (pick.has(r)) continue;
+      pick.add(r); choice[i] = r;
+      go(i + 1);
+      pick.delete(r);
+    }
+  })(0);
+  return out;
+}
+
 // Try every way each side could have been turned (and the red / orange
 // centres both ways round); return the first that solves.
 export function solveRaw(raw, orange, opts) {
@@ -129,31 +191,51 @@ export function solveRaw(raw, orange, opts) {
   ];
   let fewest = null;
   const found = [];
+  // an unseen side has nothing to turn
+  const blind = order.findIndex((k) => raw[k].includes('?'));
   for (const v of variants) for (let code = 0; code < 4096; code++) {
+    if (blind >= 0 && (code >> (2 * blind)) & 3) continue;
     const faces = {}, sc = {};
     order.forEach((k, j) => {
       const r = (code >> (2 * j)) & 3;
       faces[k] = turn(v.raw[k], r);
       sc[k] = turn(v.orange[k], r);
     });
-    const letters = orange ? resolveRedOrange(faces, sc) : Object.fromEntries(Object.entries(faces).map(([k, g]) => [k, g.join('')]));
-    const built = stateFromFaces(letters);
-    if (built.errors) {
-      if (!fewest || built.errors.length < fewest.length) fewest = built.errors;
-      continue;
+    const seen = orange ? resolveRedOrange(faces, sc) : Object.fromEntries(Object.entries(faces).map(([k, g]) => [k, g.join('')]));
+    for (const letters of inferLast(seen)) {
+      const built = stateFromFaces(letters);
+      if (built.errors) {
+        if (!fewest || built.errors.length < fewest.length) fewest = built.errors;
+        continue;
+      }
+      // how far this reading strays from what the camera saw: every red/orange
+      // sticker it relabelled, weighted by how sure the camera was
+      let cost = 0;
+      for (const k of order)
+        for (let i = 0; i < 9; i++) if (faces[k][i] !== '?' && letters[k][i] !== faces[k][i]) cost += 1 + Math.abs(sc[k]?.[i] || 0) / 100;
+      found.push({ state: built.state, cost });
     }
-    // how far this reading strays from what the camera saw: every red/orange
-    // sticker it relabelled, weighted by how sure the camera was
-    let cost = 0;
-    for (const k of order)
-      for (let i = 0; i < 9; i++) if (letters[k][i] !== faces[k][i]) cost += 1 + Math.abs(sc[k]?.[i] || 0) / 100;
-    found.push({ state: built.state, cost });
   }
   found.sort((a, b) => a.cost - b.cost);
-  for (const f of found) {
+  // With a side unseen, two different cubes can fit the 5 seen sides equally
+  // well (its edges show only one colour each on the seen sides). Never guess
+  // between them: say so, and the caller asks for the 6th side.
+  let first = null;
+  const tried = new Set();
+  for (const f of found.slice(0, 40)) {
+    const key = f.state.stickers.map((t) => t.c).join('');
+    if (tried.has(key)) continue;
+    tried.add(key);
+    if (first && f.cost > first.cost + 1e-9) break;
     const res = solve(f.state, opts);
-    if (!res.error) return { res };
+    if (res.error) continue;
+    if (!first) { first = { res, cost: f.cost }; if (blind < 0) break; continue; }
+    return { ambiguous: true };
   }
+  // and with a side unseen there is no 6th side to cross-check a red/orange
+  // correction against: if one was needed, ask for that side rather than trust it
+  if (first && blind >= 0 && first.cost > 0) return { ambiguous: true };
+  if (first) return { res: first.res };
   return { errors: fewest || ['Could not read the cube'] };
 }
 
@@ -177,6 +259,7 @@ export function mountScan(root, api) {
     }
     S.mode = 'scan';
     S.faces = [];
+    S.asked6 = false;
     render();
     const v = $('video');
     v.srcObject = S.stream;
@@ -260,7 +343,38 @@ export function mountScan(root, api) {
     void root.offsetWidth;
     root.querySelector('.scan-cam')?.classList.add('flash');
     chips();
-    if (S.faces.length === 6) finish();
+    if (S.faces.length === 5 && !S.asked6) tryFive();
+    else if (S.faces.length === 6) finish();
+  }
+
+  // 5 sides are usually enough (the last one is worked out from the pieces),
+  // so the logo side can be left for last and mostly never shown. The camera
+  // keeps running; if the 5 fit more than one cube, ask for the 6th.
+  function tryFive() {
+    S.mode = 'reading';
+    say('Reading your cube…');
+    setTimeout(() => {
+      const rc = readCube(S.faces);
+      const out = solveRaw(rc.raw, rc.orange, { full: false });
+      if (out.res) {
+        stop();
+        ({ raw: S.raw, orange: S.orange } = rc);
+        startGuide(out.res);
+        return;
+      }
+      S.asked6 = true;
+      S.mode = 'scan';
+      S.run = 0;
+      S.last = null;
+      say('Almost! Show the <b>last side</b> too.');
+      chips();
+      tick();
+    }, 40);
+  }
+
+  function say(html) {
+    const el = $('.scan-say');
+    if (el) el.innerHTML = html;
   }
 
   function draw() {
@@ -290,8 +404,9 @@ export function mountScan(root, api) {
     if (!el) return;
     el.innerHTML = Array.from({ length: 6 }, (_, i) => {
       const f = S.faces[i];
-      return `<span class="scan-chip${f ? ' done' : ''}" style="--c:${f ? `rgb(${f.rgb[4].map(Math.round).join(',')})` : 'transparent'}"></span>`;
-    }).join('') + `<span class="scan-count">${S.faces.length}/6</span>`;
+      const optional = i === 5 && !S.asked6 && !f;
+      return `<span class="scan-chip${f ? ' done' : ''}${optional ? ' optional' : ''}" style="--c:${f ? `rgb(${f.rgb[4].map(Math.round).join(',')})` : 'transparent'}"></span>`;
+    }).join('') + `<span class="scan-count">${S.faces.length}/${S.asked6 ? 6 : 5}</span>`;
   }
 
   function finish() {
@@ -313,7 +428,10 @@ export function mountScan(root, api) {
       render();
       return;
     }
-    const { res } = out;
+    startGuide(out.res);
+  }
+
+  function startGuide(res) {
     const steps = [], labels = {};
     for (const st of res.steps) {
       labels[steps.length] = simpleLabel(st.label);
@@ -415,9 +533,13 @@ export function mountScan(root, api) {
       p.innerHTML = `
         <div class="scan-cam"><video playsinline muted></video><canvas class="scan-overlay"></canvas></div>
         <div class="scan-row"><div class="scan-chips" id="scanChips"></div><button class="btn" id="scanReset">Start over</button></div>
-        <p class="scan-say">Turn the cube slowly. Show <b>every side</b> in the box.</p>`;
+        <p class="scan-say">Turn the cube slowly and show <b>5 sides</b> in the box. Leave the logo side for last; it's usually not needed.</p>`;
       chips();
-      $('#scanReset').onclick = () => { S.faces = []; chips(); };
+      $('#scanReset').onclick = () => {
+        S.faces = []; S.asked6 = false; S.mode = 'scan';
+        say('Turn the cube slowly and show <b>5 sides</b> in the box. Leave the logo side for last; it\'s usually not needed.');
+        chips();
+      };
       return;
     }
     if (S.mode === 'thinking') {
@@ -452,7 +574,7 @@ export function mountScan(root, api) {
   return {
     stop,
     // ?debug: feed 6 captured sides ({ rgb: [9 x [r,g,b]] }) without a camera
-    feed(faces) { stop(); S.faces = faces; finish(); },
+    feed(faces) { stop(); S.faces = faces; S.asked6 = false; faces.length === 5 ? tryFive() : finish(); },
     sampleFrom: (src) => sample(src),
     onKey(e) {
       if (S.mode !== 'guide') return false;
