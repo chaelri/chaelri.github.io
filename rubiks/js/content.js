@@ -90,6 +90,29 @@ export const F2L_GROUPS = [
   { key: 'cornerSlot', title: 'Corner in the slot, edge on top', note: 'Corner already below. Pair the edge without breaking it.' },
   { key: 'both', title: 'Both in the slot', note: 'Solved wrong. Usually take out, then reinsert.' },
 ];
+// Every place the white-green edge can be while the other 3 cross edges are
+// already in (found by search, shortest fix that keeps them in). Its other 6
+// spots are taken by those 3 edges; see "In the wrong bottom slot" above.
+export const CROSS_ALL = [
+  { name: "Top layer, front, white facing up", alg: "F2" },
+  { name: "Top layer, right, white facing up", alg: "U F2" },
+  { name: "Top layer, left, white facing up", alg: "U' F2" },
+  { name: "Top layer, back, white facing up", alg: "U2 F2" },
+  { name: "Top layer, right, white facing right", alg: "R' F R" },
+  { name: "Top layer, left, white facing left", alg: "L F' L'" },
+  { name: "Top layer, front, white facing you", alg: "F D R' D'" },
+  { name: "Top layer, back, white facing back", alg: "L' U' L F'" },
+  { name: "Middle layer, front-right, white facing right", alg: "F" },
+  { name: "Middle layer, front-left, white facing left", alg: "F'" },
+  { name: "Middle layer, back-right, white facing back", alg: "D R D'" },
+  { name: "Middle layer, front-left, white facing you", alg: "D' L D" },
+  { name: "Middle layer, front-right, white facing you", alg: "D R' D'" },
+  { name: "Middle layer, back-left, white facing back", alg: "D' L' D" },
+  { name: "Middle layer, back-left, white facing left", alg: "D2 B D2" },
+  { name: "Middle layer, back-right, white facing right", alg: "D2 B' D2" },
+  { name: "Bottom, its own spot, white facing you", alg: "F' D R' D'" },
+];
+
 
 export const OLL_EDGES = [
   { name: 'Line', alg: "F R U R' U' F'", note: 'Hold the line horizontal (left to right).' },

@@ -246,8 +246,9 @@ function recog(list) {
 
 // A "what you might have right now" card: title, what to do, looping demo.
 // Starts paused on the position to look for; cases() numbers them.
-function caseDemo(title, text, demo) {
-  return `<div class="case-demo"><div class="case-n">Case %N%</div>${demoHTML({ pieces: 'pair', paused: true, ...demo })}<div class="case-t">${title}</div><div class="case-x">${text}</div></div>`;
+function caseDemo(title, text, demo, label = 'Case %N%') {
+  return `<div class="case-demo"><div class="case-n">${label}</div>${demoHTML({ pieces: 'pair', paused: true, ...demo })}${
+    title ? `<div class="case-t">${title}</div>` : ''}${text ? `<div class="case-x">${text}</div>` : ''}</div>`;
 }
 const inv = (alg) => algToString(invertAlg(parseWithLabels(alg).steps));
 const plain = (alg) => alg.replace(/\[[^\]]*\]\s*/g, '');
@@ -298,11 +299,6 @@ const LESSONS = {
   cross: {
     label: 'Cross',
     render() {
-      const cards = C.CROSS.map((c, k) => {
-        const svg = isoSVG(stateFor(c.alg), 'cross', true);
-        const i = register({ kicker: 'Cross', title: c.name, alg: c.alg, mask: 'cross', view: 'bottom' });
-        return caseCard({ ...c, svg, num: k + 1 }, i);
-      }).join('');
       return `
       <div class="kicker">Step 1</div>
       <h2>Cross — in 8 moves or less</h2>
@@ -312,8 +308,9 @@ const LESSONS = {
           demoHTML({ setup: 'z2', alg: 'z2', mask: 'cross', view: 'bottom', caption: 'Seen from below: white ends up on the bottom.' }))}
         ${howStep(2, '<strong>Pick one white edge.</strong> A white edge has white + one other colour. That colour tells you where it goes: between white and the centre of that colour.',
           demoHTML({ setup: inv('U F2'), alg: 'U F2', pieces: 'crossEdge', view: 'bottom', caption: 'White-green edge goes between the white and green centres.' }))}
-        ${howStep(3, '<strong>Where is it right now?</strong> Only the white-green edge and its two centres are lit. Find yours:',
-          cases(C.CROSS.map((c) => caseDemo(esc(c.name), esc(c.note), { setup: inv(c.alg), alg: c.alg, pieces: 'crossEdge', view: 'bottom' }))))}
+        ${howStep(3, '<strong>Where is it right now?</strong> Every place the white-green edge can be, seen from below. Only it and its two centres are lit. Find yours, tap ▶ to see the fix:',
+          cases([...C.CROSS_ALL, C.CROSS.find((c) => c.name.startsWith('In the wrong bottom slot'))].map((c) =>
+            caseDemo(esc(c.name), c.note ? esc(c.note) : '', { setup: inv(c.alg), alg: c.alg, pieces: 'crossEdge', view: 'bottom' }))))}
         ${howStep(4, '<strong>Do all four.</strong> Same thing for white-orange, white-blue, white-red. Plan them all in the 15 s inspection, then go without stopping.',
           demoHTML({ setup: inv("F' R D2 L' B' D' F2"), alg: "F' R D2 L' B' D' F2", mask: 'cross', view: 'bottom', caption: 'A whole cross in 7 moves.' }))}
       </div>
@@ -321,8 +318,7 @@ const LESSONS = {
         <li>Plan all four edges in the 15 s inspection, then do it without stopping.</li>
         <li>Keep white on the bottom the whole time — never solve it on top and flip.</li>
       </ul>
-      <h3>The six situations</h3>
-      <div class="grid">${cards}</div>`;
+`;
     },
     stage: () => ({ kicker: 'Cross', title: 'Pick a case', alg: '', setup: '', mask: 'cross', view: 'bottom' }),
   },
@@ -337,13 +333,12 @@ const LESSONS = {
         const edge = s.stickers.find((t) => eq(t.home, [1, 0, 1]) && t.c === 'F');
         const cTop = corner.p[1] === 1, eTop = edge.p[1] === 1;
         const key = k < 4 ? 'basic' : cTop && eTop ? (corner.n[1] === 1 ? 'up' : 'side') : cTop ? 'edgeSlot' : eTop ? 'cornerSlot' : 'both';
-        const i = register({ kicker: `F2L case ${k + 1}`, title: C.F2L_GROUPS.find((g) => g.key === key).title, alg, mask: 'f2l' });
-        groups[key].push(caseCard({ name: `Case ${k + 1}`, alg, svg: isoSVG(s, 'f2l'), num: '', note: C.F2L_NOTES[k] }, i));
+        groups[key].push(caseDemo('', C.F2L_NOTES[k] ? esc(C.F2L_NOTES[k]) : '', { setup: inv(alg), alg }, `Case ${k + 1}`));
       });
       const body = C.F2L_GROUPS.map((g) => `
         <div class="group-head"><h3>${esc(g.title)}</h3><span class="count">${groups[g.key].length}</span></div>
         <p class="group-note">${esc(g.note)}</p>
-        <div class="grid">${groups[g.key].join('')}</div>`).join('');
+        <div class="cases">${groups[g.key].join('')}</div>`).join('');
       return `
       <div class="kicker">Step 2</div>
       <h2>F2L — first two layers</h2>
@@ -351,12 +346,17 @@ const LESSONS = {
       <div class="howto">
         <div class="howto-row"><span class="howto-n">1</span><div><strong>Hold it right.</strong> White cross on the <strong>bottom</strong>, yellow on top, <strong>green facing you</strong>. You always work on the gap at the <strong>front-right</strong>: between green (front) and orange (right).</div>
           ${demoHTML({ setup: 'z2', alg: 'z2', mask: 'f2l', caption: 'White on top? Flip it over.' })}</div>
-        <div class="howto-row wide"><span class="howto-n">2</span><div><strong>Find the two pieces.</strong> The <strong>corner</strong> has white + green + orange. The <strong>edge</strong> has green + orange (no white, no yellow). They need to be in the <strong>top layer</strong>. Where are yours right now? Only those two pieces are lit below.
+        <div class="howto-row wide"><span class="howto-n">2</span><div><strong>Find the two pieces.</strong> The <strong>corner</strong> has white + green + orange. The <strong>edge</strong> has green + orange (no white, no yellow). They need to be in the <strong>top layer</strong>. Where are yours right now? Only those two pieces are lit below. <strong>Anything stuck: the fix is always <span class="tok" data-mv="R">R</span> <span class="tok" data-mv="U">U</span> <span class="tok" data-mv="R'">R'</span>.</strong>
           ${cases([
             caseDemo('Both on top', 'Good. Go to step 3.', { setup: "R U' R' U", alg: 'U U U U' }),
-            caseDemo('Edge stuck in the middle', 'Corner not above the gap? Then <b>R U R\'</b> lifts the edge up.', { setup: "R U' R' U2 R U' R'", alg: "R U R'" }),
-            caseDemo('Corner stuck in the bottom', 'Edge not at the top-right? (turn <b>U</b> if it is) Then <b>R U R\'</b> lifts the corner up.', { setup: "F' U' F U2 R U' R'", alg: "R U R'" }),
-            caseDemo('Both stuck, wrong way round', 'Same move takes both out: <b>R U R\'</b>.', { setup: "R U' R' U' R U R' U2 R U' R'", alg: "R U R'" }),
+            caseDemo('Edge in the gap, colours match', 'Looks almost done, but the corner is up top. <b>R U R\'</b> lifts the edge out.', { setup: "R U R' U2 R U R'", alg: "R U R'" }),
+            caseDemo('Edge in the gap, flipped', 'Edge colours are the wrong way round. <b>R U R\'</b> lifts it out.', { setup: "F' U' F U R U' R'", alg: "R U R'" }),
+            caseDemo('Corner in the bottom, white facing you', 'Front shows green, white, green along the bottom. <b>R U R\'</b> lifts it up.', { setup: "R U R' U' R U R'", alg: "R U R'" }),
+            caseDemo('Corner in the bottom, white facing right', 'White shows on the right side. <b>R U R\'</b> lifts it up.', { setup: "R U' R' U R U' R'", alg: "R U R'" }),
+            caseDemo('Corner in the bottom, white facing down', 'Corner is in place, but the edge is still up top. <b>R U R\'</b> lifts the corner so they can pair.', { setup: "F' U F U R U' R'", alg: "R U R'" }),
+            caseDemo('Both in the gap, corner white facing you', 'Both are in, but twisted. <b>R U R\'</b> takes both out.', { setup: "R U' R' U R U2 R' U R U' R'", alg: "R U R'" }),
+            caseDemo('Both in the gap, corner white facing right', 'Both are in, but twisted. <b>R U R\'</b> takes both out.', { setup: "F' U F U2 R U R' U R U' R'", alg: "R U R'" }),
+            caseDemo('Both in the gap, edge flipped', 'Corner looks right, edge is flipped. <b>R U R\'</b> takes both out.', { setup: "F' U F U' R U2 R' U2 R U' R'", alg: "R U R'" }),
             caseDemo('Stuck in a different gap', 'Spin the cube (<b>y\'</b> / <b>y</b>) so that gap is at the front-right, <b>R U R\'</b>, spin back.', { setup: "F' U F y' R U' R' y", alg: "y' R U R' y" }),
           ])}</div></div>
         <div class="howto-row"><span class="howto-n">3</span><div><strong>Put the corner above the gap.</strong> Turn the top (<span class="tok" data-mv="U">U</span> / <span class="tok" data-mv="U'">U'</span>) until the corner is at the top front-right, right over the gap.</div>
@@ -367,7 +367,8 @@ const LESSONS = {
           ${demoHTML({ alg: 'y', mask: 'f2l', caption: 'The whole cube turns; the next gap comes to the front-right.' })}</div>
       </div>
       <div class="callout"><strong>Don't know a letter?</strong> Hover over (or tap) any move, like <span class="tok" data-mv="R">R</span> or <span class="tok" data-mv="F'">F'</span>, to see it turn. Tap a case and the cube plays it on repeat, with each move explained under the cube. Drag the speed slider down to slow it.</div>
-      <div class="callout">Piece stuck <strong>inside</strong> a gap? Turn that gap to the front-right and do <span class="tok" data-mv="R">R</span> <span class="tok" data-mv="U">U</span> <span class="tok" data-mv="R'">R'</span> to lift it to the top. Then start again from step 2.</div>
+      <h2 style="margin-top:44px">All 41 cases</h2>
+      <p class="lead">Every way the pair can sit, for the front-right gap. Find the one that looks like yours, tap ▶ to watch it.</p>
       ${body}`;
     },
     stage: () => ({ kicker: 'F2L', title: 'Pick a case', alg: '', setup: '', mask: 'f2l' }),
@@ -376,11 +377,6 @@ const LESSONS = {
   oll: {
     label: 'OLL',
     render() {
-      const mk = (list, kick, mask = 'oll') => list.map((c, k) => {
-        const svg = topSVG(stateFor(c.alg), mask);
-        const i = register({ kicker: kick, title: c.name, alg: c.alg, mask });
-        return caseCard({ ...c, svg, num: k + 1 }, i);
-      }).join('');
       return `
       <div class="kicker">Step 3</div>
       <h2>OLL — make the top yellow</h2>
@@ -393,19 +389,11 @@ const LESSONS = {
         ${howStep(3, '<strong>Look 2: the corners.</strong> Cross done. Now find which of these the corners look like, turn <span class="tok" data-mv="U">U</span> until it matches, and do it.',
           cases(C.OLL_CORNERS.map((c) => caseDemo(esc(c.name), esc(c.note), { setup: inv(c.alg), alg: c.alg, mask: 'oll', pieces: '' }))))}
       </div>
-      <h3>Look 1 — yellow cross</h3>
-      <p>Only the 4 edges matter here — ignore the corners. You'll have one of these three; do that one alg and the cross is done.</p>
-      <div class="grid">${mk(C.OLL_EDGES, 'OLL · edges', 'olledge')}</div>
-      <h3>Look 2 — yellow corners</h3><div class="grid">${mk(C.OLL_CORNERS, 'OLL · corners')}</div>
       <h2 style="margin-top:44px">Full OLL — all 57</h2>
       <p class="lead">One look instead of two. Grouped by the shape the yellow makes on top. Start with the first group (you already know half of it from 2-look), then the ones that come up most: T, P, Square, Fish, Lightning.</p>
       ${C.OLL_FULL.map((g) => `
         <div class="group-head"><h3>${esc(g.group)}</h3><span class="count">${g.cases.length}</span></div>
-        <div class="grid">${g.cases.map((c) => {
-          const svg = topSVG(stateFor(c.alg), 'oll');
-          const i = register({ kicker: `OLL ${c.n}`, title: g.group, alg: c.alg, mask: 'oll' });
-          return caseCard({ name: `OLL ${c.n}`, alg: c.alg, svg }, i);
-        }).join('')}</div>`).join('')}`;
+        <div class="cases">${g.cases.map((c) => caseDemo('', '', { setup: inv(c.alg), alg: c.alg, mask: 'oll', pieces: '' }, `OLL ${c.n}`)).join('')}</div>`).join('')}`;
     },
     stage: () => ({ kicker: 'OLL', title: 'Pick a case', alg: '', setup: '', mask: 'oll' }),
   },
@@ -413,11 +401,6 @@ const LESSONS = {
   pll: {
     label: 'PLL',
     render() {
-      const mk = (list, kick) => list.map((c, k) => {
-        const svg = topSVG(stateFor(c.alg), 'none', true);
-        const i = register({ kicker: kick, title: c.name, alg: c.alg, mask: 'none' });
-        return caseCard({ ...c, svg, num: kick.includes('full') ? '' : k + 1 }, i);
-      }).join('');
       return `
       <div class="kicker">Step 4</div>
       <h2>PLL — finish it</h2>
@@ -440,9 +423,9 @@ const LESSONS = {
       <div class="grid wide">${recog(RECOG_A)}</div>
       <p style="margin-top:18px"><strong>Part B — edges.</strong> Corners done? Turn U until they match their centres, then look at the middle sticker of each side.</p>
       <div class="grid wide">${recog(RECOG_B)}</div>
-      <h3>2-look PLL — learn these first</h3><div class="grid">${mk(C.PLL_2LOOK, 'PLL · 2-look')}</div>
-      <h3>Full PLL — all 21</h3>
-      <div class="grid">${mk(C.PLL_FULL, 'PLL · full')}</div>`;
+      <h2 style="margin-top:44px">All 21 PLLs</h2>
+      <p class="lead">One look instead of two. Find yours, tap ▶ to watch it.</p>
+      <div class="cases">${C.PLL_FULL.map((c) => caseDemo('', '', { setup: inv(c.alg), alg: c.alg, pieces: '' }, `${esc(c.name)} perm`)).join('')}</div>`;
     },
     stage: () => ({ kicker: 'PLL', title: 'Pick a case', alg: '', setup: '', mask: 'none' }),
   },

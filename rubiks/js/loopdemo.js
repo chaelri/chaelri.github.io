@@ -2,6 +2,10 @@
 // Markup: <div class="demo" data-setup="R U' R'" data-alg="R U R'"
 //           data-mask="f2l" data-pieces="pair"><div class="demo-cube"></div>
 //           <div class="demo-moves"></div></div>
+//
+// Paused demos (case cards) show their starting position as a still picture
+// and only get a live 3D cube once tapped: browsers cap live WebGL contexts
+// at ~16 per page, and a tab can have a dozen cases.
 import { CubePlayer } from './player.js';
 import { parseAlg } from './cube.js';
 
@@ -26,46 +30,100 @@ export function demoHTML({ setup = '', alg, mask = 'none', pieces = '', view = '
 // Starts every .demo under root; returns a function that stops them all.
 export function mountDemos(root) {
   const players = [];
-  for (const host of root.querySelectorAll('.demo')) {
+  const live = (host) => {
     const p = new CubePlayer(host.querySelector('.demo-cube'), { interactive: false });
     p.setView(host.dataset.view || 'top', true);
     players.push(p);
-    run(p, host);
+    return p;
+  };
+  // Only one case plays at a time: starting one stops the other, which goes
+  // back to its still picture and gives its 3D cube back.
+  let active = null;
+  for (const host of root.querySelectorAll('.demo')) {
+    labels(host);
+    if (!host.classList.contains('paused')) { run(live(host), host, () => true); continue; }
+    const src = still(host);
+    const card = { p: null, playing: false };
+    card.stop = () => {
+      card.playing = false;
+      host.classList.remove('playing');
+      card.p?.destroy();
+      card.p = null;
+      host.querySelectorAll('.demo-moves .tok').forEach((t) => t.classList.remove('on', 'done'));
+      showStill(host, src);
+      if (active === card) active = null;
+    };
+    host.querySelector('.demo-cube').addEventListener('click', () => {
+      if (card.playing) return card.stop();
+      if (active) active.stop();
+      active = card;
+      card.playing = true;
+      host.classList.add('playing');
+      host.querySelector('.demo-still')?.remove();
+      card.p = live(host);
+      run(card.p, host, () => card.playing);
+    });
   }
-  return () => players.forEach((p) => p.destroy());
+  return () => { active = null; players.forEach((p) => p.destroy()); };
 }
 
-async function run(p, host) {
-  const setup = parseAlg(host.dataset.setup || '');
+function labels(host) {
   const moves = parseAlg(host.dataset.alg);
+  host.querySelector('.demo-moves').innerHTML = moves.map((m) => `<span class="tok" data-mv="${esc(m.tok)}">${esc(m.tok)}</span>`).join(' ');
+}
+
+function pose(p, host) {
+  p.reset();
+  p.setMask(host.dataset.mask || 'none');
   const pieces = PIECES[host.dataset.pieces];
-  const label = host.querySelector('.demo-moves');
-  label.innerHTML = moves.map((m) => `<span class="tok" data-mv="${esc(m.tok)}">${esc(m.tok)}</span>`).join(' ');
-  const toks = [...label.children];
+  if (pieces) p.dimExceptPieces(pieces);
+  p.applyNow(parseAlg(host.dataset.setup || ''));
+}
+
+// Every still picture comes from ONE hidden renderer, kept for the page's
+// life: a tab can have 60 cases, one context each would blow the cap.
+let shot = null;
+function still(host) {
+  if (!shot) {
+    const box = document.createElement('div');
+    box.style.cssText = 'position:fixed;left:-10000px;top:0;width:260px;height:234px;pointer-events:none';
+    document.body.appendChild(box);
+    shot = new CubePlayer(box, { interactive: false });
+    shot.dead = true; // no render loop: it only draws on demand
+    shot.resize();
+  }
+  shot.setView(host.dataset.view || 'top', true);
+  pose(shot, host);
+  shot.placeCamera();
+  shot.renderer.render(shot.scene, shot.camera);
+  const src = shot.renderer.domElement.toDataURL('image/png');
+  showStill(host, src);
+  return src;
+}
+function showStill(host, src) {
+  const img = document.createElement('img');
+  img.className = 'demo-still';
+  img.alt = '';
+  img.src = src;
+  host.querySelector('.demo-cube').prepend(img);
+}
+
+async function run(p, host, isPlaying) {
+  const moves = parseAlg(host.dataset.alg);
+  const toks = [...host.querySelectorAll('.demo-moves .tok')];
   const mark = (i) => toks.forEach((t, j) => { t.classList.toggle('on', j === i); t.classList.toggle('done', j < i); });
-  // Paused demos sit on the starting position; a tap plays (and loops) the
-  // fix, another tap stops it and goes back to the start.
-  let playing = !host.classList.contains('paused'), wake = null;
-  if (!playing)
-    host.querySelector('.demo-cube').addEventListener('click', () => {
-      playing = !playing;
-      host.classList.toggle('playing', playing);
-      wake?.();
-    });
   while (!p.dead) {
-    p.reset();
-    p.setMask(host.dataset.mask || 'none');
-    if (pieces) p.dimExceptPieces(pieces);
-    p.applyNow(setup);
+    pose(p, host);
     mark(-1);
-    if (!playing) { await new Promise((r) => { wake = r; }); wake = null; continue; }
+    // stopped: sit on the starting position until tapped again
+    if (!isPlaying()) { await new Promise((r) => { p.wake = r; }); p.wake = null; continue; }
     await wait(700);
-    for (let i = 0; i < moves.length && !p.dead && playing; i++) {
+    for (let i = 0; i < moves.length && !p.dead && isPlaying(); i++) {
       mark(i);
       if (!(await p.animate(moves[i], 650))) break;
       await wait(180);
     }
-    if (!playing) continue;
+    if (!isPlaying()) continue;
     mark(moves.length);
     await wait(1400);
   }
