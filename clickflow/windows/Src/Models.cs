@@ -93,8 +93,8 @@ public sealed class Step
     public bool SendDiscord;
     /// Screenshot area: send only the message, no image.
     public bool TextOnly;
-    /// Force shut down: only when the PC came up right after the servo's last press
-    /// (/servo/lastRun), so a PC someone switched on themselves is never turned off under them.
+    /// Force shut down: only when the last 5:55 / 3:55 servo check clicked (/servo/lastRun),
+    /// so a PC that was already on at that slot is never turned off under someone.
     public bool OnlyIfServo;
 
     public Step() { }

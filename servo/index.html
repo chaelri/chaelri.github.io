@@ -120,7 +120,7 @@
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
-  import { getDatabase, ref, set, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js";
+  import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js";
   import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
 
   const app = initializeApp({
@@ -131,9 +131,6 @@
   });
   const db = getDatabase(app), auth = getAuth(app);
   const cmdRef  = ref(db, "servo/command");   // firmware listens here for "click"
-  // Same shape gemini-proxy /servo-poweron writes, so ClickFlow's "Only if the servo
-  // turned the PC on" shutdown check counts a manual press too.
-  const lastRunRef = ref(db, "servo/lastRun");
 
   const $ = id => document.getElementById(id);
   const buddy = $("buddy"), ring = $("ring"), status = $("status"), statusText = $("statusText"), hint = $("hint");
@@ -155,7 +152,6 @@
     try {
       await authReady;
       await set(cmdRef, "click");
-      set(lastRunRef, { at: serverTimestamp(), action: "clicked", reason: "manual (servo remote)", pcLastSeen: null });
       setTimeout(() => { setStatus("live", "connected ♡"); hint.textContent = "tap again anytime ~"; }, 900);
     } catch (e) {
       setStatus("live", "oops, try again");

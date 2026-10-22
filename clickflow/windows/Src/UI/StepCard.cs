@@ -206,7 +206,7 @@ public sealed class StepCard : FitCard
                 var servo = new CheckBox { Text = "Only if the servo turned the PC on", Checked = s.OnlyIfServo, AutoSize = true, Margin = new Padding(0, 4, 14, 0) };
                 servo.CheckedChanged += (_, _) => { s.OnlyIfServo = servo.Checked; editor.StepChanged(); };
                 Add(servo);
-                Add(Hint("Checks /servo/lastRun in Firebase first. Shuts down only if this PC booted or woke within 10 min after the servo's last press (5:55 / 3:55 schedule, remote or shortcut); otherwise it stays on and the run carries on."));
+                Add(Hint("Checks /servo/lastRun in Firebase first. Shuts down only if the last 5:55 / 3:55 servo check turned the PC on; if the PC was already on then, it stays on and the run carries on."));
                 Add(DelayRow());
                 break;
             }

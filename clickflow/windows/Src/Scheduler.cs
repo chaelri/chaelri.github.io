@@ -47,11 +47,7 @@ public sealed class Scheduler
         timer.Start();
         SystemEvents.PowerModeChanged += (_, e) =>
         {
-            if (e.Mode == PowerModes.Resume)
-            {
-                ClickEngine.CameUpUtc = DateTime.UtcNow;
-                UI.Post(Tick);
-            }
+            if (e.Mode == PowerModes.Resume) UI.Post(Tick);
             if (e.Mode == PowerModes.Suspend) UI.Post(Save);
         };
     }
