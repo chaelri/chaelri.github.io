@@ -165,7 +165,7 @@ button { font: inherit; color: inherit; }
 .demo.playing .demo-play::before { content: '❚❚'; margin-left: 0; font-size: 11px; }
 .case-t { font-weight: 700; font-size: 13.5px; color: var(--text); margin-top: 6px; }
 .case-x { font-size: 12.5px; color: var(--muted); line-height: 1.4; margin-top: 2px; }
-.then { display: block; margin-top: 8px; text-align: left; font: 600 12.5px Inter, sans-serif; color: var(--accent); background: rgba(255, 210, 0, 0.08); border: 1px solid rgba(255, 210, 0, 0.3); border-radius: 8px; padding: 6px 8px; cursor: pointer; width: 100%; }
+.then { display: block; margin-top: 8px; text-align: left; font: 700 13px Inter, sans-serif; color: var(--accent); background: rgba(255, 210, 0, 0.08); border: 1px solid rgba(255, 210, 0, 0.3); border-radius: 8px; padding: 6px 8px; cursor: pointer; width: 100%; }
 .then { line-height: 1.45; }
 .then-k { display: block; font: 700 10px var(--mono); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 2px; }
 .then code { font: 700 12px var(--mono); background: rgba(0, 0, 0, 0.25); color: var(--text); padding: 1px 5px; border-radius: 5px; }
