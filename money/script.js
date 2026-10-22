@@ -432,7 +432,7 @@ function itemCategory(it) {
   return 1;
 }
 const CATEGORY_LABELS = ["Auto-pay", "Recurring", "Installments", "One-time"];
-const BANK_LABELS = { maribank: "Maribank", gcash: "GCash", bpi: "BPI", metrobank: "Metrobank", bdo: "BDO", unionbank: "UnionBank" };
+const BANK_LABELS = { maribank: "Maribank", gcash: "GCash", bpi: "BPI", metrobank: "Metrobank", bdo: "BDO", unionbank: "UnionBank", gotyme: "GoTyme", komo: "Komo" };
 
 function sortItems(items) {
   return items
@@ -550,6 +550,8 @@ function bankIconFor(name) {
   if (n.includes("metrobank") || n.includes("metro bank")) return "metrobank";
   if (n.includes("bdo")) return "bdo";
   if (n.includes("unionbank") || n.includes("union bank") || n === "ub") return "unionbank";
+  if (n.includes("gotyme") || n.includes("go tyme")) return "gotyme";
+  if (/\bkomo\b/.test(n)) return "komo";
   return null;
 }
 // Non-bank brand icons (these don't group; they just show on the row).
@@ -561,9 +563,7 @@ function brandIconFor(name) {
   if (n.includes("campus missionary")) return "cms";
   if (n.includes("tithe")) return "ccf";
   if (n.includes("claude")) return "claude";
-  if (/\bkomo\b/.test(n)) return "komo";
   if (n.includes("eastwest") || n.includes("east west")) return "eastwest";
-  if (n.includes("gotyme") || n.includes("go tyme")) return "gotyme";
   return null;
 }
 function iconFor(name) { return bankIconFor(name) || brandIconFor(name); }
