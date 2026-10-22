@@ -4,6 +4,7 @@ import { isoSVG, topSVG } from './thumbs.js';
 import * as C from './content.js';
 import { algHTML, describe, mountMoveTips } from './movetip.js';
 import { mountScan } from './scan.js';
+import { demoHTML, mountDemos } from './loopdemo.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -326,16 +327,23 @@ const LESSONS = {
       <h2>F2L — first two layers</h2>
       <p class="lead">Cross done? Now fill the 4 gaps next to it. Each gap takes one <strong>corner</strong> and one <strong>edge</strong>, and they go in together as a pair.</p>
       <div class="howto">
-        <div class="howto-row"><span class="howto-n">1</span><div><strong>Hold it right.</strong> White cross on the <strong>bottom</strong>, yellow on top, <strong>green facing you</strong>. You always work on the gap at the <strong>front-right</strong>: between green (front) and orange (right).</div></div>
-        <div class="howto-row"><span class="howto-n">2</span><div><strong>Find the two pieces.</strong> The <strong>corner</strong> has white + green + orange. The <strong>edge</strong> has green + orange (no white, no yellow). Both should be in the top layer.</div></div>
-        <div class="howto-row"><span class="howto-n">3</span><div><strong>Put the corner above the gap.</strong> Turn the top (<span class="tok" data-mv="U">U</span> / <span class="tok" data-mv="U'">U'</span>) until the corner is at the top front-right, right over the gap.</div></div>
-        <div class="howto-row"><span class="howto-n">4</span><div><strong>Look at two things:</strong> which way the corner's <strong>white sticker</strong> faces (you, right, or up), and <strong>where the edge</strong> is. Find the matching picture below and do its moves.</div></div>
-        <div class="howto-row"><span class="howto-n">5</span><div><strong>Next gap.</strong> Spin the whole cube (<span class="tok" data-mv="y">y</span>) so the next empty gap is at the front-right, and repeat.</div></div>
+        <div class="howto-row"><span class="howto-n">1</span><div><strong>Hold it right.</strong> White cross on the <strong>bottom</strong>, yellow on top, <strong>green facing you</strong>. You always work on the gap at the <strong>front-right</strong>: between green (front) and orange (right).</div>
+          ${demoHTML({ setup: 'z2', alg: 'z2', mask: 'f2l', caption: 'White on top? Flip it over.' })}</div>
+        <div class="howto-row"><span class="howto-n">2</span><div><strong>Find the two pieces.</strong> The <strong>corner</strong> has white + green + orange. The <strong>edge</strong> has green + orange (no white, no yellow). Both should be in the top layer.</div>
+          ${demoHTML({ setup: "R U' R' U", alg: 'U U U U', pieces: 'pair', caption: 'Only the corner + edge are lit. Both ride around the top.' })}</div>
+        <div class="howto-row"><span class="howto-n">3</span><div><strong>Put the corner above the gap.</strong> Turn the top (<span class="tok" data-mv="U">U</span> / <span class="tok" data-mv="U'">U'</span>) until the corner is at the top front-right, right over the gap.</div>
+          ${demoHTML({ setup: "R U' R' U2", alg: 'U2', pieces: 'pair', caption: 'Corner ends up over the front-right gap.' })}</div>
+        <div class="howto-row"><span class="howto-n">4</span><div><strong>Look at two things:</strong> which way the corner's <strong>white sticker</strong> faces (you, right, or up), and <strong>where the edge</strong> is. Find the matching picture below and do its moves.</div>
+          ${demoHTML({ setup: "R U' R'", alg: "R U R'", pieces: 'pair', caption: 'White faces right, edge at the back → <b>R U R\'</b>' })}</div>
+        <div class="howto-row"><span class="howto-n">5</span><div><strong>Next gap.</strong> Spin the whole cube (<span class="tok" data-mv="y">y</span>) so the next empty gap is at the front-right, and repeat.</div>
+          ${demoHTML({ alg: 'y', mask: 'f2l', caption: 'The whole cube turns; the next gap comes to the front-right.' })}</div>
       </div>
       <div class="callout"><strong>Don't know a letter?</strong> Hover over (or tap) any move, like <span class="tok" data-mv="R">R</span> or <span class="tok" data-mv="F'">F'</span>, to see it turn. Tap a case and the cube plays it on repeat, with each move explained under the cube. Drag the speed slider down to slow it.</div>
       <div class="callout">Piece stuck <strong>inside</strong> a gap? Turn that gap to the front-right and do <span class="tok" data-mv="R">R</span> <span class="tok" data-mv="U">U</span> <span class="tok" data-mv="R'">R'</span> to lift it to the top. Then start again from step 2.</div>
       ${body}`;
     },
+    mount() { stopDemos = mountDemos($('#lesson')); },
+    unmount() { stopDemos?.(); stopDemos = null; },
     stage: () => ({ kicker: 'F2L', title: 'Pick a case', alg: '', setup: '', mask: 'f2l' }),
   },
 
@@ -577,6 +585,7 @@ const ORDER = ['mine', 'cross', 'f2l', 'oll', 'pll', 'advanced', 'solve', 'notat
 const STEP_NO = { cross: 1, f2l: 2, oll: 3, pll: 4 };
 let current = null;
 let scanner = null;
+let stopDemos = null;
 
 function open(key, push = true) {
   if (!LESSONS[key]) key = 'cross';

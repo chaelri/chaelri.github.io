@@ -50,7 +50,8 @@ export class CubePlayer {
     this.dim = {};
     for (const [k, c] of Object.entries({ ...COLORS, grey: GREY })) {
       this.mats[k] = new THREE.MeshStandardMaterial({ color: c, roughness: 0.35, metalness: 0 });
-      this.dim[k] = new THREE.MeshStandardMaterial({ color: new THREE.Color(c).multiplyScalar(0.3), roughness: 0.6, metalness: 0 });
+      // dimmed = nearly grey, so the lit pieces are the only colour on the cube
+      this.dim[k] = new THREE.MeshStandardMaterial({ color: new THREE.Color(c).lerp(new THREE.Color('#2b2f38'), 0.92), roughness: 0.7, metalness: 0 });
     }
     const bodyMat = new THREE.MeshStandardMaterial({ color: 0x111216, roughness: 0.6 });
     const bodyGeo = new RoundedBoxGeometry(0.98, 0.98, 0.98, 3, 0.1);
@@ -92,9 +93,11 @@ export class CubePlayer {
     this.busy = false;
 
     this.resize = this.resize.bind(this);
-    new ResizeObserver(this.resize).observe(host);
+    this.ro = new ResizeObserver(this.resize);
+    this.ro.observe(host);
     this.resize();
     const loop = () => {
+      if (this.dead) return;
       this.view.yaw += (this.viewTarget.yaw - this.view.yaw) * 0.12;
       this.view.pitch += (this.viewTarget.pitch - this.view.pitch) * 0.12;
       this.placeCamera();
@@ -164,6 +167,25 @@ export class CubePlayer {
         s.material = on ? this.mats[f] : this.mats.grey;
       }
     }
+  }
+
+  // Stop rendering and give the WebGL context back (browsers cap how many live).
+  destroy() {
+    this.dead = true;
+    this.epoch++;
+    this.ro.disconnect();
+    this.renderer.dispose();
+    this.renderer.forceContextLoss();
+    this.renderer.domElement.remove();
+  }
+
+  // Full colour on the pieces whose HOME is in `homes`, dark on the rest; it
+  // follows the pieces wherever they move.
+  dimExceptPieces(homes) {
+    const keep = new Set(homes.map((h) => h.join()));
+    for (const c of this.cubies)
+      for (const s of c.userData.stickers)
+        s.material = (keep.has(c.userData.home.join()) ? this.mats : this.dim)[s.userData.face];
   }
 
   // Full colour on the layer `mv` turns, dark everywhere else (call after reset).
