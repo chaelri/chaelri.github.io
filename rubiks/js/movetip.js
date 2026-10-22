@@ -107,7 +107,7 @@ function place(el) {
 }
 
 export function showTip(el) {
-  const alg = el.dataset.alg;
+  const alg = el.dataset.seq;
   const ds = (alg || el.dataset.mv).trim().split(/\s+/).map(describe);
   if (!ds.length || ds.some((x) => !x)) return;
   const d = ds[0];
@@ -146,18 +146,18 @@ export function hideTip(delay = 0) {
 export function mountMoveTips() {
   document.addEventListener('pointerover', (e) => {
     if (e.pointerType !== 'mouse') return;
-    const el = e.target.closest('[data-mv], [data-alg]');
+    const el = e.target.closest('[data-mv], [data-seq]');
     if (el && el !== anchor) showTip(el);
   });
   document.addEventListener('pointerout', (e) => {
     if (e.pointerType !== 'mouse') return;
-    const el = e.target.closest('[data-mv], [data-alg]');
+    const el = e.target.closest('[data-mv], [data-seq]');
     if (el && !el.contains(e.relatedTarget)) hideTip(120);
   });
   // touch: a tap shows the tip for a few seconds
   document.addEventListener('pointerdown', (e) => {
     if (e.pointerType === 'mouse') return;
-    const el = e.target.closest('[data-mv], [data-alg]');
+    const el = e.target.closest('[data-mv], [data-seq]');
     if (!el) return hideTip();
     showTip(el);
     hideTip(4500);

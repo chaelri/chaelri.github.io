@@ -301,7 +301,7 @@ const solvedUpToU = (s) => AUFS.some((a) => (a ? s.clone().apply(a) : s).isSolve
 // can carry on without scrolling; tap it to see that card.
 const thenBtn = (id, a, label, desc, moves, pre = '') =>
   `<button class="then" data-goto="${id}"><span class="then-k">Then</span>${a ? `turn <b>${a}</b>, ` : ''}it's <b>${label}</b>${desc ? `: ${desc}` : ''}.${
-    moves ? ` Do <code class="tok alg" data-alg="${esc(plain(moves))}"${pre ? ` data-pre="${esc(`${pre} ${a}`.trim())}"` : ''}>${esc(moves)}</code>` : ''} ▸</button>`;
+    moves ? ` Do <code class="tok alg" data-seq="${esc(plain(moves))}"${pre ? ` data-pre="${esc(`${pre} ${a}`.trim())}"` : ''}>${esc(moves)}</code>` : ''} ▸</button>`;
 
 // Where the F2L pair sits in a case, in words (all 41 come out different).
 const FACING = { '0,1,0': 'up', '0,-1,0': 'down', '0,0,1': 'you', '1,0,0': 'right', '-1,0,0': 'left', '0,0,-1': 'back' };
@@ -423,7 +423,7 @@ const LESSONS = {
       <div class="howto">
         <div class="howto-row"><span class="howto-n">1</span><div><strong>Hold it right.</strong> White cross on the <strong>bottom</strong>, yellow on top, <strong>green facing you</strong>. You always work on the gap at the <strong>front-right</strong>: between green (front) and orange (right).</div>
           ${demoHTML({ setup: 'z2', alg: 'z2', mask: 'f2l', caption: 'White on top? Flip it over.' })}</div>
-        <div class="howto-row wide"><span class="howto-n">2</span><div><strong>Find the two pieces.</strong> The <strong>corner</strong> has white + green + orange. The <strong>edge</strong> has green + orange (no white, no yellow). They need to be in the <strong>top layer</strong>. Where are yours right now? Only those two pieces are lit below. <strong>Anything stuck: the fix is always <span class="tok alg" data-alg="R U R'" data-pre="R U R' U' R U R'">R U R'</span>.</strong>
+        <div class="howto-row wide"><span class="howto-n">2</span><div><strong>Find the two pieces.</strong> The <strong>corner</strong> has white + green + orange. The <strong>edge</strong> has green + orange (no white, no yellow). They need to be in the <strong>top layer</strong>. Where are yours right now? Only those two pieces are lit below. <strong>Anything stuck: the fix is always <span class="tok alg" data-seq="R U R'" data-pre="R U R' U' R U R'">R U R'</span>.</strong>
           ${cases(STUCK.map((c) => {
             const n = nextCase(endOf(c.setup, c.alg), C.F2L, pairIn);
             return caseDemo(c.title, `${c.text} ${n ? thenBtn(`f2l-${n.i + 1}`, n.a, `Case ${n.i + 1}`, f2lDesc(C.F2L[n.i]), C.F2L[n.i], `${c.setup} ${c.alg}`) : ''}`, { setup: c.setup, alg: c.alg });
