@@ -2,7 +2,6 @@ import { CubeState, parseAlg, invertAlg, algToString, simplify, removeYRotations
 import { CubePlayer } from './player.js';
 import { isoSVG, topSVG } from './thumbs.js';
 import * as C from './content.js';
-import { mountCamera } from './camera.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -141,28 +140,6 @@ async function step(dir) {
   syncPlay();
 }
 
-// Step forward to move index j, animated (used by the camera tutor).
-async function advanceTo(j) {
-  pause();
-  j = Math.min(j, P.steps.length);
-  while (P.idx < j) {
-    if (!(await player.animate(P.steps[P.idx], 160))) break;
-    P.idx++;
-    syncPlay();
-  }
-}
-function labelAt(i) {
-  let l = '';
-  for (const k of Object.keys(P.labels)) if (+k <= i) l = P.labels[k];
-  return l;
-}
-const cameraApi = {
-  load: (c) => load(c),
-  idx: () => P.idx,
-  nextMove: () => ({ tok: P.steps[P.idx]?.tok || '', label: labelAt(P.idx) }),
-  advanceTo,
-};
-
 ui.play.addEventListener('click', () => (P.playing ? pause() : play()));
 $('#btnNext').addEventListener('click', () => step(1));
 $('#btnPrev').addEventListener('click', () => step(-1));
@@ -231,25 +208,6 @@ function recog(list) {
 
 // ---------------------------------------------------------------- lessons
 const LESSONS = {
-  camera: {
-    label: 'Camera',
-    render() {
-      return `
-      <div class="kicker">Live tutor</div>
-      <h2>Solve your real cube with the camera</h2>
-      <p class="lead">Scan your scrambled cube, and the site works out a CFOP solution with the algorithms you're learning. Then solve it while the webcam watches: the 3D cube follows each move you make.</p>
-      <div class="cam-wrap">
-        <div class="cam-stage"><video playsinline muted></video><canvas class="cam-overlay"></canvas></div>
-        <div class="cam-hint" id="camHint"></div>
-      </div>
-      <div class="cam-panel" id="camPanel"></div>
-      <div class="callout">Works best in even light, cube about 30 cm from the camera, filling the grid. The camera only sees the face pointing at it, so an <code>F</code> turn is invisible to it — the next move catches it up, or press <b>Space</b>.</div>`;
-    },
-    mount() { cam = mountCamera($('#lesson'), cameraApi); },
-    unmount() { cam?.stop(); cam = null; },
-    stage: () => ({ kicker: 'Camera', title: 'Scan your cube to start', alg: '', setup: '', mask: 'none' }),
-  },
-
   notation: {
     label: 'Notation',
     render() {
@@ -557,10 +515,9 @@ function stop() {
 }
 
 // ---------------------------------------------------------------- tabs
-const ORDER = ['cross', 'f2l', 'oll', 'pll', 'camera', 'advanced', 'solve', 'notation', 'timer'];
+const ORDER = ['cross', 'f2l', 'oll', 'pll', 'advanced', 'solve', 'notation', 'timer'];
 const STEP_NO = { cross: 1, f2l: 2, oll: 3, pll: 4 };
 let current = null;
-let cam = null;
 
 function open(key, push = true) {
   if (!LESSONS[key]) key = 'cross';
@@ -587,7 +544,6 @@ window.addEventListener('hashchange', () => open(location.hash.slice(1), false))
 // ---------------------------------------------------------------- keys
 document.addEventListener('keydown', (e) => {
   if (e.target.closest('input, textarea')) return;
-  if (current === 'camera' && cam?.onKey(e)) return;
   if (current === 'timer') {
     if (e.code === 'Space' || TIMER.state === 'running') {
       e.preventDefault();
