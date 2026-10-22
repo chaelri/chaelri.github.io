@@ -212,15 +212,28 @@ function caseCard(c, i) {
 let registry = [];
 function register(c) { registry.push(c); return registry.length - 1; }
 
-// "Then: ... ▸" jumps to the card that picks up where a case left you, and plays it.
+// "Then: ... ▸" takes you to the card that picks up where a case left you. It
+// does not play it: you compare first. That card stays highlighted with a
+// note of where you came from (and the U turn to do first), and "← Back".
+let pathSeq = 0;
+function pick(card, from, auf) {
+  document.querySelectorAll('.case-demo.picked').forEach((c) => c.classList.remove('picked'));
+  document.querySelectorAll('.from-bar').forEach((x) => x.remove());
+  card.classList.add('picked');
+  card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  if (!from) return;
+  if (!from.id) from.id = `case-from-${++pathSeq}`;
+  const name = [from.querySelector('.case-n')?.textContent, from.querySelector('.case-t')?.textContent].filter(Boolean).join(' · ');
+  card.insertAdjacentHTML('afterbegin', `<div class="from-bar"><button class="back" data-back="${from.id}">← Back</button>
+    <span>From <b>${esc(name)}</b>${auf ? `. Turn <b>${esc(auf)}</b> first, then compare.` : '. Compare with your cube.'}</span></div>`);
+}
 $('#lesson').addEventListener('click', (e) => {
+  const back = e.target.closest('[data-back]');
+  if (back) return pick(document.getElementById(back.dataset.back));
   const b = e.target.closest('[data-goto]');
   if (!b) return;
   const t = document.getElementById(b.dataset.goto);
-  if (!t) return;
-  t.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  t.classList.remove('flash'); void t.offsetWidth; t.classList.add('flash');
-  if (!t.querySelector('.demo').classList.contains('playing')) t.querySelector('.demo-cube').click();
+  if (t) pick(t, b.closest('.case-demo'), b.querySelector('b')?.textContent || '');
 });
 
 $('#lesson').addEventListener('click', (e) => {

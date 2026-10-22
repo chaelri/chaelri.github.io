@@ -175,8 +175,10 @@ button { font: inherit; color: inherit; }
 .then:hover { background: rgba(255, 210, 0, 0.16); }
 .then.done { color: var(--go); background: rgba(47, 212, 122, 0.08); border-color: rgba(47, 212, 122, 0.3); cursor: default; }
 .then b { color: inherit; }
-.case-demo.flash { animation: caseFlash 1.6s ease-out; }
-@keyframes caseFlash { 0%, 30% { box-shadow: 0 0 0 3px var(--accent); } 100% { box-shadow: 0 0 0 0 transparent; } }
+.case-demo.picked { box-shadow: 0 0 0 3px var(--accent); background: #2a2a20; }
+.from-bar { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; font-size: 12.5px; color: #e9e3c8; line-height: 1.4; }
+.from-bar b { color: var(--accent); }
+.from-bar .back { align-self: flex-start; border: 0; border-radius: 8px; padding: 5px 10px; background: var(--accent); color: var(--accent-ink); font: 700 12.5px Inter, sans-serif; cursor: pointer; }
 .case-x b { color: var(--text); font-family: var(--mono); }
 .demo-cube { aspect-ratio: 1 / 0.9; border-radius: 10px; overflow: hidden; background: radial-gradient(circle at 50% 45%, #232838 0%, #12151c 75%); }
 .demo-cube canvas { display: block; width: 100%; height: 100%; }
