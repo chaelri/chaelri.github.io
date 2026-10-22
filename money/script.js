@@ -562,6 +562,7 @@ function brandIconFor(name) {
   if (n.includes("tithe")) return "ccf";
   if (n.includes("claude")) return "claude";
   if (n.includes("eastwest") || n.includes("east west")) return "eastwest";
+  if (n.includes("gotyme") || n.includes("go tyme")) return "gotyme";
   return null;
 }
 function iconFor(name) { return bankIconFor(name) || brandIconFor(name); }
