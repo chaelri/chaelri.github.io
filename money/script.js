@@ -561,6 +561,7 @@ function brandIconFor(name) {
   if (n.includes("campus missionary")) return "cms";
   if (n.includes("tithe")) return "ccf";
   if (n.includes("claude")) return "claude";
+  if (/\bkomo\b/.test(n)) return "komo";
   if (n.includes("eastwest") || n.includes("east west")) return "eastwest";
   if (n.includes("gotyme") || n.includes("go tyme")) return "gotyme";
   return null;
