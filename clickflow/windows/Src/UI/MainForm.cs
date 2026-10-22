@@ -29,6 +29,18 @@ public sealed class MainForm : Form
     const int HotkeyId = 0xC11C;
     public static readonly uint ShowMessage = RegisterWindowMessage("ClickFlow.Show");
 
+    /// WS_EX_COMPOSITED: the whole window paints off-screen in one pass. Without it every
+    /// native child of the editor (dozens per macro) repaints on its own and scrolling sweeps.
+    protected override CreateParams CreateParams
+    {
+        get
+        {
+            var cp = base.CreateParams;
+            cp.ExStyle |= 0x02000000;
+            return cp;
+        }
+    }
+
     public MainForm(bool startHidden)
     {
         Text = "ClickFlow";
