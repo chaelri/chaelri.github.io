@@ -1,11 +1,22 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <!-- The Windows 10 2004 SDK target brings in Windows.Media.Ocr (on-device text reading). -->
     <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
     <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
-    <UseWindowsForms>true</UseWindowsForms>
+    <!-- The windows are WinUI 3 (GPU-composited, smooth scrolling). The run HUD, placer,
+         overlays and tray icon stay Windows Forms, on the same thread. -->
+    <UseWinUI>true</UseWinUI>
+    <WindowsPackageType>None</WindowsPackageType>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <EnableMsixTooling>true</EnableMsixTooling>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <Platforms>x64</Platforms>
+    <SelfContained>false</SelfContained>
+    <!-- Program.Main starts WinUI itself (single instance, the self-test, Windows Forms set up first). -->
+    <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
@@ -13,14 +24,19 @@
     <AssemblyName>ClickFlow</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon Condition="Exists('AppIcon.ico')">AppIcon.ico</ApplicationIcon>
-    <Version>1.0.0</Version>
+    <Version>2.0.0</Version>
     <Product>ClickFlow</Product>
     <Description>Records, edits and schedules mouse-click macros</Description>
     <InvariantGlobalization>false</InvariantGlobalization>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
-    <!-- Windows Forms' own high-DPI setting; app.manifest says the same thing. -->
-    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Windows Forms without UseWindowsForms: that switch makes the WPF markup compiler claim App.xaml. -->
+    <FrameworkReference Include="Microsoft.WindowsDesktop.App.WindowsForms" />
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260921001" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.4654" />
+  </ItemGroup>
 
   <ItemGroup Condition="Exists('AppIcon.ico')">
     <EmbeddedResource Include="AppIcon.ico" LogicalName="AppIcon.ico" />

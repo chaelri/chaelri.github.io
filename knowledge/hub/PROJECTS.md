@@ -181,7 +181,7 @@ macOS click-macro app: record / edit / schedule click sequences (every day, week
 - **Entry:** `build.sh`, `Sources/Runner.swift`, `Sources/Scheduler.swift`, `Sources/Engine.swift`.
 - **Deploy:** Local only, `./build.sh install` → `/Applications/ClickFlow.app`.
 - **Quirks:** `@State` is a macro in the macOS 26 SDK with no plugin in the CLT, so use `@ViewState` (typealias). Self-signed identity in `clickflow-signing.keychain-db` keeps the Accessibility grant across rebuilds.
-- **Windows port (2026-10-19):** `clickflow/windows/` — C# .NET 8 WinForms tray app, `build.ps1 [build|test|install]`, same macro JSON as the Mac (exports cross over). `clickflow/macros/macros.windows.json` is the Mac macros made inert (schedules off, every step Show only, `cmd+w`→`ctrl+w`) until the clicks are re-picked on the PC.
+- **Windows port (2026-10-19):** `clickflow/windows/` — C# .NET 8 tray app, `build.ps1 [build|test|install]`; since 2026-10-23 the windows are WinUI 3 (smooth GPU rendering) while the HUD/placer/overlays/tray stay WinForms. Windows Forms must be initialised before `Application.Start` or the process dies with heap corruption (0xC0000374); the scheduler starts before the window is built so a UI bug can never stop a clock-in, same macro JSON as the Mac (exports cross over). `clickflow/macros/macros.windows.json` is the Mac macros made inert (schedules off, every step Show only, `cmd+w`→`ctrl+w`) until the clicks are re-picked on the PC.
 - **Full docs:** `knowledge/clickflow/SUMMARY.md`, `clickflow/README.md`, `clickflow/windows/README.md`.
 
 ### claude-terminal/  🟢

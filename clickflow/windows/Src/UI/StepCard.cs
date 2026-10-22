@@ -1,114 +1,122 @@
 namespace ClickFlow;
 
+using Microsoft.UI;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
+using Windows.UI;
+
 /// One step: number, type, name, Live / Show only, Pick and Test on the top row; the fields its
 /// type uses below. Edits write straight into the Step and save shortly after.
-public sealed class StepCard : FitCard
+public sealed class StepCard : UserControl
 {
     public readonly Step Step;
     readonly MacroEditor editor;
     readonly int index;
-    readonly Label warning = Theme.Label("", Theme.Small, Theme.Orange);
-    Num? x, y, w, h;
-    Label? outputText;
-    PictureBox? outputImage;
-    FlowLayoutPanel? outputRow;
-    Composer? nestedComposer;
+    readonly StackPanel inner = new() { Spacing = 6 };
+    readonly TextBlock warning = Theme.Small("", Theme.Solid(Theme.Orange));
+    NumberBox? x, y, w, h;
+    TextBlock? outputText;
+    Image? outputImage;
+    Border? outputFrame;
+    UIElement? outputRow;
+
+    bool ShowOnlyLook => Step.ShowOnly && Step.Type != StepType.Wait;
 
     public StepCard(MacroEditor editor, Step step, int index)
     {
         this.editor = editor;
         Step = step;
         this.index = index;
-        Padding = new Padding(12, 8, 12, 8);
-        Margin = new Padding(0, 0, 0, 6);
-        if (step.ShowOnly && step.Type != StepType.Wait) { Fill = Theme.PurpleSoft; Edge = Color.FromArgb(214, 196, 250); }
+        Content = ShowOnlyLook ? Theme.Card(inner, Theme.PurpleSoft, Theme.PurpleEdge) : Theme.Card(inner);
 
-        Add(TopRow());
+        inner.Children.Add(TopRow());
         BuildFields();
-        warning.Margin = new Padding(0, 2, 0, 0);
-        Add(warning);
+        inner.Children.Add(warning);
         UpdateWarning();
-        ContextMenuStrip = Menu();
+        ContextFlyout = Menu();
     }
 
-    ContextMenuStrip Menu()
+    MenuFlyout Menu()
     {
-        var m = new ContextMenuStrip();
-        m.Items.Add("Duplicate", null, (_, _) => editor.Duplicate(Step));
-        m.Items.Add("Move Up", null, (_, _) => editor.MoveStep(Step, -1)).Enabled = index > 0;
-        m.Items.Add("Move Down", null, (_, _) => editor.MoveStep(Step, 1)).Enabled = index < editor.Macro.Steps.Count - 1;
-        m.Items.Add(new ToolStripSeparator());
-        m.Items.Add("Delete", null, (_, _) => editor.Remove(Step)).ForeColor = Theme.Red;
+        var m = new MenuFlyout();
+        m.Items.Add(MainWindow.Item("Duplicate", () => editor.Duplicate(Step)));
+        m.Items.Add(MainWindow.Item("Move Up", () => editor.MoveStep(Step, -1), index > 0));
+        m.Items.Add(MainWindow.Item("Move Down", () => editor.MoveStep(Step, 1), index < editor.Macro.Steps.Count - 1));
+        m.Items.Add(new MenuFlyoutSeparator());
+        m.Items.Add(MainWindow.Item("Delete", () => editor.Remove(Step), danger: true));
         return m;
     }
 
-    Control TopRow()
+    UIElement TopRow()
     {
-        var row = new Row { WrapContents = true };
-        var badge = new Label
+        var badge = new Border
         {
-            Text = (index + 1).ToString(), Font = Theme.Bold, ForeColor = Color.White, BackColor = Step.ShowOnly && Step.Type != StepType.Wait ? Theme.Purple : Theme.Accent,
-            AutoSize = false, Size = new Size(LogicalToDeviceUnits(26), LogicalToDeviceUnits(22)), TextAlign = ContentAlignment.MiddleCenter, Margin = new Padding(0, 4, 6, 0),
+            Background = Theme.Solid(ShowOnlyLook ? Theme.Purple : Theme.Accent), CornerRadius = new CornerRadius(5), MinWidth = 26, Height = 22,
+            Padding = new Thickness(6, 0, 6, 0), VerticalAlignment = VerticalAlignment.Center,
+            Child = new TextBlock
+            {
+                Text = (index + 1).ToString(), Foreground = new SolidColorBrush(Colors.White), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, FontSize = 13,
+            },
         };
-        var icon = new Label { Text = Step.Type.Glyph(), Font = Theme.Icon, ForeColor = Theme.Muted, AutoSize = true, Margin = new Padding(0, 6, 2, 0), BackColor = Color.Transparent };
-        var type = Theme.Label(Step.Type.Label(), Theme.Bold);
-        type.Margin = new Padding(0, 6, 8, 0);
-        var name = new TextBox { Text = Step.Name, PlaceholderText = "Name (optional)", Width = LogicalToDeviceUnits(220), Margin = new Padding(0, 2, 8, 2) };
+        var icon = Theme.Icon(Step.Type.Glyph(), 15, Theme.Muted);
+        icon.VerticalAlignment = VerticalAlignment.Center;
+        var type = Theme.Label(Step.Type.Label(), bold: true, wrap: false);
+        var name = new TextBox { Text = Step.Name, PlaceholderText = "Name (optional)", Width = 240, VerticalAlignment = VerticalAlignment.Center };
         name.TextChanged += (_, _) => { Step.Name = name.Text; editor.StepChanged(); };
-        row.Controls.AddRange(new Control[] { badge, icon, type, name });
+        var row = Theme.Row(badge, icon, type, name);
 
-        var tip = new ToolTip();
         if (Step.Type != StepType.Wait)
         {
-            var mode = Theme.Button(Step.ShowOnly ? "Show only" : "Live", Step.ShowOnly ? "" : "");
-            mode.Tint = Step.ShowOnly ? Theme.Purple : Theme.Green;
-            tip.SetToolTip(mode, "Live: the step runs. Show only: it is never executed, even in a real run; it only shows its marker.");
+            var mode = Theme.Button(Step.ShowOnly ? "Show only" : "Live", Step.ShowOnly ? "" : "", tint: Step.ShowOnly ? Theme.Purple : Theme.Green);
+            ToolTipService.SetToolTip(mode, "Live: the step runs. Show only: it is never executed, even in a real run; it only shows its marker.");
             mode.Click += (_, _) =>
             {
                 Step.ShowOnly = !Step.ShowOnly;
                 editor.StepChanged();
                 editor.RebuildSteps();
             };
-            row.Controls.Add(mode);
+            row.Children.Add(mode);
         }
         if (Step.Type.HasPoint() || Step.Type.HasArea())
         {
             var pick = Theme.Button("Pick", "");
-            tip.SetToolTip(pick, Step.Type.HasArea() ? "Drag a box over the area, then press ✓" : "Drag the target onto the spot, then press ✓");
+            ToolTipService.SetToolTip(pick, Step.Type.HasArea() ? "Drag a box over the area, then press ✓" : "Drag the target onto the spot, then press ✓");
             pick.Click += (_, _) => Pick();
-            row.Controls.Add(pick);
+            row.Children.Add(pick);
         }
         if (Step.Type != StepType.Wait)
         {
             var test = Theme.Button("Test", "");
-            tip.SetToolTip(test, Step.ShowOnly ? "Shows this step's marker (it's Show only, so nothing is executed)" : "Runs just this step, for real, with no delay");
+            ToolTipService.SetToolTip(test, Step.ShowOnly ? "Shows this step's marker (it's Show only, so nothing is executed)" : "Runs just this step, for real, with no delay");
             test.Click += (_, _) => editor.Test(Step);
-            row.Controls.Add(test);
+            row.Children.Add(test);
         }
         var more = Theme.Button("", "");
-        more.Click += (_, _) => ContextMenuStrip?.Show(more, new Point(0, more.Height));
-        var del = Theme.Button("", "");
-        del.Tint = Theme.Red;
-        tip.SetToolTip(del, "Delete this step");
+        ToolTipService.SetToolTip(more, "More");
+        more.Flyout = Menu();
+        var del = Theme.Button("", "", tint: Theme.Red);
+        ToolTipService.SetToolTip(del, "Delete this step");
         del.Click += (_, _) => editor.Remove(Step);
-        row.Controls.Add(more);
-        row.Controls.Add(del);
+        row.Children.Add(more);
+        row.Children.Add(del);
         return row;
     }
 
-    Num Field(Row row, string label, double value, double min, double max, int decimals, Action<double> set, string? unit = null, int width = 74)
+    NumberBox Field(WrapPanel row, string label, double value, double min, double max, int decimals, Action<double> set, string? unit = null, double width = 104)
     {
-        row.Controls.Add(Theme.Label(label, null, Theme.Muted));
-        var n = new Num((decimal)min, (decimal)max, decimals, (decimal)value, width);
-        n.ValueChanged += (_, _) => { set((double)n.Value); editor.StepChanged(); UpdateWarning(); };
-        row.Controls.Add(n);
-        if (unit != null) { var u = Theme.Label(unit, null, Theme.Muted); u.Margin = new Padding(0, 6, 14, 0); row.Controls.Add(u); }
+        row.Children.Add(Theme.Label(label, color: Theme.Muted, wrap: false));
+        var n = Theme.Num(min, max, decimals, value, width);
+        n.ValueChanged += (_, e) => { if (double.IsNaN(e.NewValue)) return; set(e.NewValue); editor.StepChanged(); UpdateWarning(); };
+        row.Children.Add(n);
+        if (unit != null) { var u = Theme.Label(unit, color: Theme.Muted, wrap: false); u.Margin = new Thickness(0, 0, 10, 0); row.Children.Add(u); }
         return n;
     }
 
-    Row DelayRow(Row? into = null)
+    WrapPanel DelayRow(WrapPanel? into = null)
     {
-        var row = into ?? new Row();
+        var row = into ?? new WrapPanel();
         Field(row, "Delay before", Step.DelayBefore, 0, 86400, 1, v => Step.DelayBefore = v, "s");
         return row;
     }
@@ -117,14 +125,15 @@ public sealed class StepCard : FitCard
     {
         var t = new TextBox
         {
-            Text = multiline ? value.Replace("\r\n", "\n").Replace("\n", "\r\n") : value, PlaceholderText = placeholder, Multiline = multiline,
-            AcceptsReturn = multiline, ScrollBars = multiline ? ScrollBars.Vertical : ScrollBars.None, Height = multiline ? LogicalToDeviceUnits(64) : 0,
-            Margin = new Padding(0, 4, 0, 4),
+            Text = multiline ? Theme.ToBox(value) : value, PlaceholderText = placeholder, AcceptsReturn = multiline,
+            TextWrapping = multiline ? TextWrapping.Wrap : TextWrapping.NoWrap, MinHeight = multiline ? 64 : 0, MaxHeight = multiline ? 220 : double.PositiveInfinity,
         };
-        t.TextChanged += (_, _) => { set(t.Text.Replace("\r\n", "\n")); editor.StepChanged(); };
-        Stretch(t);
+        t.TextChanged += (_, _) => { set(multiline ? Theme.FromBox(t.Text) : t.Text); editor.StepChanged(); };
+        inner.Children.Add(t);
         return t;
     }
+
+    void Add(UIElement e) => inner.Children.Add(e);
 
     void BuildFields()
     {
@@ -134,7 +143,7 @@ public sealed class StepCard : FitCard
         {
             case StepType.LeftClick or StepType.DoubleClick or StepType.RightClick or StepType.Move:
             {
-                var row = new Row();
+                var row = new WrapPanel();
                 x = Field(row, "X", s.X, -big, big, 0, v => s.X = v);
                 y = Field(row, "Y", s.Y, -big, big, 0, v => s.Y = v, "px");
                 DelayRow(row);
@@ -143,7 +152,7 @@ public sealed class StepCard : FitCard
             }
             case StepType.Wait:
             {
-                var row = new Row();
+                var row = new WrapPanel();
                 Field(row, "Wait", s.Seconds, 0, 86400, 1, v => s.Seconds = v, "seconds");
                 Add(row);
                 break;
@@ -154,21 +163,19 @@ public sealed class StepCard : FitCard
                 break;
             case StepType.KeyShortcut:
             {
-                var row = new Row();
-                var keys = new KeyCaptureBox { Text = s.Keys, PlaceholderText = "ctrl+s, alt+f4, enter, win+d", Width = LogicalToDeviceUnits(200), Margin = new Padding(0, 2, 8, 2) };
-                var parsed = Theme.Label("", Theme.Small);
+                var keys = new KeyCaptureBox { Text = s.Keys, PlaceholderText = "ctrl+s, alt+f4, enter, win+d", Width = 220, VerticalAlignment = VerticalAlignment.Center };
+                var parsed = Theme.Small("");
                 void Show()
                 {
                     var c = KeyCombo.Parse(keys.Text);
                     parsed.Text = keys.Text.Trim().Length == 0 ? "" : c is { } k ? k.Display : "Can't read this shortcut";
-                    parsed.ForeColor = c == null ? Theme.Red : Theme.Muted;
+                    parsed.Foreground = c == null ? Theme.Solid(Theme.Red) : Theme.Muted;
                 }
                 keys.TextChanged += (_, _) => { s.Keys = keys.Text; editor.StepChanged(); Show(); };
                 var rec = Theme.Button("Record keys", "");
-                rec.Click += (_, _) => { keys.Armed = true; keys.Focus(); parsed.Text = "Press the shortcut…"; parsed.ForeColor = Theme.Accent; };
+                rec.Click += (_, _) => { keys.Armed = true; keys.Focus(FocusState.Programmatic); parsed.Text = "Press the shortcut…"; parsed.Foreground = Theme.Solid(Theme.Accent); };
                 keys.Captured += t => keys.Text = t;
-                row.Controls.AddRange(new Control[] { keys, rec, parsed });
-                Add(row);
+                Add(Theme.Row(keys, rec, parsed));
                 Show();
                 Add(DelayRow());
                 break;
@@ -203,8 +210,9 @@ public sealed class StepCard : FitCard
                 Add(Hint(Discord.WebhookUrl == null
                     ? "No Discord webhook set, so it only shuts down: Settings › Discord."
                     : "Sends this to Discord (leave empty to skip), then force-closes every app (unsaved work is lost) and shuts down. Steps after it never run.", Theme.Red));
-                var servo = new CheckBox { Text = "Only if the servo turned the PC on", Checked = s.OnlyIfServo, AutoSize = true, Margin = new Padding(0, 4, 14, 0) };
-                servo.CheckedChanged += (_, _) => { s.OnlyIfServo = servo.Checked; editor.StepChanged(); };
+                var servo = new CheckBox { Content = "Only if the servo turned the PC on", IsChecked = s.OnlyIfServo };
+                servo.Checked += (_, _) => { s.OnlyIfServo = true; editor.StepChanged(); };
+                servo.Unchecked += (_, _) => { s.OnlyIfServo = false; editor.StepChanged(); };
                 Add(servo);
                 Add(Hint("Checks /servo/lastRun in Firebase first. Shuts down only if the last 5:55 / 3:55 servo check turned the PC on; if the PC was already on then, it stays on and the run carries on."));
                 Add(DelayRow());
@@ -216,39 +224,48 @@ public sealed class StepCard : FitCard
     void BuildScreenshot()
     {
         var s = Step;
-        var row = new Row();
+        var row = new WrapPanel();
         x = Field(row, "X", s.X, -100000, 100000, 0, v => s.X = v);
         y = Field(row, "Y", s.Y, -100000, 100000, 0, v => s.Y = v);
         w = Field(row, "W", s.Width, 1, 20000, 0, v => s.Width = v);
         h = Field(row, "H", s.Height, 1, 20000, 0, v => s.Height = v, "px");
         Add(row);
 
-        var copy = new CheckBox { Text = "Copy the text it reads to the clipboard", Checked = s.CopyResult, AutoSize = true, Margin = new Padding(0, 4, 14, 0) };
-        copy.CheckedChanged += (_, _) => { s.CopyResult = copy.Checked; editor.StepChanged(); };
-        var discord = new CheckBox { Text = "Send to Discord", Checked = s.SendDiscord, AutoSize = true, Margin = new Padding(0, 4, 14, 0) };
-        Add(new Row(copy, discord));
+        var copy = new CheckBox { Content = "Copy the text it reads to the clipboard", IsChecked = s.CopyResult };
+        copy.Checked += (_, _) => { s.CopyResult = true; editor.StepChanged(); };
+        copy.Unchecked += (_, _) => { s.CopyResult = false; editor.StepChanged(); };
+        var discord = new CheckBox { Content = "Send to Discord", IsChecked = s.SendDiscord };
+        Add(Theme.Row(copy, discord));
 
-        var discordBox = new FlowLayoutPanel { FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, BackColor = Color.Transparent, Margin = Padding.Empty };
-        var withImage = new RadioButton { Text = "Screenshot + message", Checked = !s.TextOnly, AutoSize = true, Margin = new Padding(0, 2, 14, 0) };
-        var textOnly = new RadioButton { Text = "Message only", Checked = s.TextOnly, AutoSize = true, Margin = new Padding(0, 2, 14, 0) };
-        withImage.CheckedChanged += (_, _) => { s.TextOnly = !withImage.Checked; editor.StepChanged(); };
-        discordBox.Controls.Add(new Row(withImage, textOnly));
+        var discordBox = new StackPanel { Spacing = 6 };
+        var group = $"img-{s.Id}";
+        var withImage = new RadioButton { Content = "Screenshot + message", IsChecked = !s.TextOnly, GroupName = group };
+        var textOnly = new RadioButton { Content = "Message only", IsChecked = s.TextOnly, GroupName = group };
+        withImage.Checked += (_, _) => { s.TextOnly = false; editor.StepChanged(); };
+        textOnly.Checked += (_, _) => { s.TextOnly = true; editor.StepChanged(); };
+        discordBox.Children.Add(Theme.Row(withImage, textOnly));
         var c = new Composer(s.Text, MessageVars.ForScreenshot, () => StepOutputs.Text.GetValueOrDefault(s.Id, "text it reads"));
         c.Changed += t => { s.Text = t; editor.StepChanged(); };
-        discordBox.Controls.Add(c);
-        nestedComposer = c;
-        if (Discord.WebhookUrl == null) discordBox.Controls.Add(Hint("No Discord webhook set yet: Settings › Discord.", Theme.Orange));
-        discordBox.Visible = s.SendDiscord;
-        discord.CheckedChanged += (_, _) => { s.SendDiscord = discord.Checked; discordBox.Visible = discord.Checked; editor.StepChanged(); };
-        Stretch(discordBox);
+        discordBox.Children.Add(c);
+        if (Discord.WebhookUrl == null) discordBox.Children.Add(Hint("No Discord webhook set yet: Settings › Discord.", Theme.Orange));
+        discordBox.Visibility = s.SendDiscord ? Visibility.Visible : Visibility.Collapsed;
+        void SetDiscord(bool v) { s.SendDiscord = v; discordBox.Visibility = v ? Visibility.Visible : Visibility.Collapsed; editor.StepChanged(); }
+        discord.Checked += (_, _) => SetDiscord(true);
+        discord.Unchecked += (_, _) => SetDiscord(false);
+        Add(discordBox);
         Add(DelayRow());
 
-        outputRow = new Row();
-        outputImage = new PictureBox { SizeMode = PictureBoxSizeMode.Zoom, Size = new Size(LogicalToDeviceUnits(120), LogicalToDeviceUnits(50)), Margin = new Padding(0, 4, 10, 0), BorderStyle = BorderStyle.FixedSingle };
-        outputText = Theme.Label("", Theme.Mono, Theme.Text);
-        outputRow.Controls.Add(outputImage);
-        outputRow.Controls.Add(outputText);
-        Add(outputRow);
+        outputImage = new Image { Stretch = Stretch.Uniform, Width = 120, Height = 50 };
+        outputText = new TextBlock { FontFamily = new FontFamily("Consolas"), FontSize = 13, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
+        var frame = outputFrame = new Border { Child = outputImage, BorderBrush = Theme.Res("CardStrokeColorDefaultBrush"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(4) };
+        var grid = new Grid { ColumnSpacing = 10 };
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.Children.Add(frame);
+        Grid.SetColumn(outputText, 1);
+        grid.Children.Add(outputText);
+        outputRow = grid;
+        Add(grid);
         ShowOutput();
     }
 
@@ -258,18 +275,13 @@ public sealed class StepCard : FitCard
         if (outputRow == null || outputText == null || outputImage == null) return;
         bool has = StepOutputs.Text.TryGetValue(Step.Id, out var text);
         StepOutputs.Images.TryGetValue(Step.Id, out var img);
-        outputRow.Visible = has || img != null;
-        outputImage.Image = img;
-        outputImage.Visible = img != null;
+        outputRow.Visibility = has || img != null ? Visibility.Visible : Visibility.Collapsed;
+        outputImage.Source = img != null ? Theme.ToImage(img) : null;
+        if (outputFrame != null) outputFrame.Visibility = img != null ? Visibility.Visible : Visibility.Collapsed;
         outputText.Text = "Last read: " + (string.IsNullOrEmpty(text) ? "(no text found)" : text.Replace("\n", " ⏎ "));
     }
 
-    Label Hint(string text, Color? color = null)
-    {
-        var l = Theme.Label(text, Theme.Small, color ?? Theme.Muted);
-        l.Margin = new Padding(0, 0, 0, 4);
-        return l;
-    }
+    static TextBlock Hint(string text, Color? color = null) => Theme.Small(text, color is { } c ? Theme.Solid(c) : null);
 
     void UpdateWarning()
     {
@@ -277,7 +289,12 @@ public sealed class StepCard : FitCard
         if (Step.Type.HasPoint() && !Screens.OnScreen(Step.Point)) t = "This point is off every display (the display layout may have changed).";
         else if (Step.Type.HasArea() && !Screens.OnScreen(Step.Area)) t = "This area is off every display.";
         warning.Text = t;
-        warning.Visible = t.Length > 0;
+        warning.Visibility = t.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    static void SetNum(NumberBox? n, double v)
+    {
+        if (n != null) n.Value = Math.Clamp(v, n.Minimum, n.Maximum);
     }
 
     public void Pick()
@@ -287,10 +304,7 @@ public sealed class StepCard : FitCard
             editor.WithPlacer((ok, cancel) => Placer.PickArea(Step.Area, a =>
             {
                 Step.X = a.X; Step.Y = a.Y; Step.Width = a.Width; Step.Height = a.Height;
-                if (x != null) x.Value = Math.Clamp(a.X, x.Minimum, x.Maximum);
-                if (y != null) y.Value = Math.Clamp(a.Y, y.Minimum, y.Maximum);
-                if (w != null) w.Value = Math.Clamp(a.Width, w.Minimum, w.Maximum);
-                if (h != null) h.Value = Math.Clamp(a.Height, h.Minimum, h.Maximum);
+                SetNum(x, a.X); SetNum(y, a.Y); SetNum(w, a.Width); SetNum(h, a.Height);
                 editor.StepChanged();
                 ok();
             }, cancel));
@@ -301,18 +315,10 @@ public sealed class StepCard : FitCard
             editor.WithPlacer((ok, cancel) => Placer.PickPoint(start, p =>
             {
                 Step.X = p.X; Step.Y = p.Y;
-                if (x != null) x.Value = Math.Clamp(p.X, x.Minimum, x.Maximum);
-                if (y != null) y.Value = Math.Clamp(p.Y, y.Minimum, y.Maximum);
+                SetNum(x, p.X); SetNum(y, p.Y);
                 editor.StepChanged();
                 ok();
             }, cancel));
         }
-    }
-
-    public override void FitWidth(int width)
-    {
-        base.FitWidth(width);
-        nestedComposer?.FitWidth(width - Padding.Horizontal);
-        if (outputText != null) outputText.MaximumSize = new Size(width - Padding.Horizontal - LogicalToDeviceUnits(140), 0);
     }
 }

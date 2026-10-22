@@ -2,13 +2,13 @@
 
 Windows port of the Mac app in `../Sources`: records, edits and schedules mouse-click macros, with the
 same steps, the same run HUD, and the same `macros.json` format (an export from one imports into the other).
-C# / .NET 8 WinForms, no Visual Studio needed.
+C# / .NET 8. The windows are WinUI 3 (Windows App SDK 1.8, bundled, so nothing to install); the run HUD, placer, overlays and tray icon are Windows Forms on the same thread. No Visual Studio needed.
 
 ## Build
 
 ```
 winget install Microsoft.DotNet.SDK.8    # once
-.\build.ps1            # bin\Release\net8.0-windows10.0.19041.0\ClickFlow.exe
+.\build.ps1            # bin\Release\net8.0-windows10.0.19041.0\win-x64\ClickFlow.exe
 .\build.ps1 test       # build, then the headless self-test (schedule maths, shortcuts, JSON, the repo's macros)
 .\build.ps1 install    # publish to %LOCALAPPDATA%\Programs\ClickFlow + Start Menu shortcut
 ```

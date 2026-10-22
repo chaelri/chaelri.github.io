@@ -13,7 +13,7 @@ public sealed class Hud : OverlayForm
     enum Mode { Hidden, Run, Recording, Summary }
     Mode mode = Mode.Hidden;
     RunSummary? summary;
-    readonly System.Windows.Forms.Timer frame = new() { Interval = 33 };
+    readonly System.Windows.Forms.Timer frame = new() { Interval = 16 };
     readonly System.Windows.Forms.Timer summaryHold = new() { Interval = 2200 };
     Point? anchor;          // top-centre, once placed or dragged
     Point? dodgedFrom;

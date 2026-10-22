@@ -4,10 +4,13 @@ namespace ClickFlow;
 
 static class Program
 {
+    public static string[] Args = Array.Empty<string>();
+
     /// ClickFlow.exe [--minimized] [--preview-hud] [--selftest [file]] [--set-discord-webhook <url> [--send-test]]
     [STAThread]
     static int Main(string[] args)
     {
+        Args = args;
         if (args.Contains("--selftest"))
         {
             int i = Array.IndexOf(args, "--selftest");
@@ -34,10 +37,12 @@ static class Program
         using var mutex = new Mutex(true, @"Local\ClickFlow.SingleInstance", out bool first);
         if (!first)
         {
-            Native.PostMessage(Native.HWND_BROADCAST, MainForm.ShowMessage, 0, 0);
+            Native.PostMessage(Native.HWND_BROADCAST, MainWindow.ShowMessage, 0, 0);
             return 0;
         }
 
+        // Windows Forms (HUD, placer, overlays, tray) is set up before WinUI starts; the other
+        // way round crashes the process.
         Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
@@ -45,24 +50,24 @@ static class Program
         Application.ThreadException += (_, e) => Crash.Report(e.Exception);
         AppDomain.CurrentDomain.UnhandledException += (_, e) => { if (e.ExceptionObject is Exception ex) Crash.Report(ex); };
 
-        // The UI thread's context must exist before the store, HUD or hooks are touched.
-        using var context = new WindowsFormsSynchronizationContext();
-        SynchronizationContext.SetSynchronizationContext(context);
-        UI.Context = context;
+        WinRT.ComWrappersSupport.InitializeComWrappers();
+        WindowsFormsSynchronizationContext? context = null;
+        Microsoft.UI.Xaml.Application.Start(p =>
+        {
+            // The UI thread's context must exist before the store, HUD or hooks are touched.
+            // Windows Forms' context, not WinUI's: UI.Send needs a synchronous Send.
+            context = new WindowsFormsSynchronizationContext();
+            SynchronizationContext.SetSynchronizationContext(context);
+            UI.Context = context;
 
-        _ = Hud.Shared.Handle;   // created on the UI thread
-        InputLock.OnStop = () => { Recorder.Shared.Stop(); Runner.Shared.EmergencyStop(); };
-        InputLock.StillRunning = () => Runner.Shared.Busy;
-        LoginItem.Refresh();
-
-        var form = new MainForm(startHidden: args.Contains("--minimized"));
-        Scheduler.Shared.Start();
-        if (args.Contains("--preview-hud")) form.Shown += (_, _) => Runner.Shared.PreviewHud();
-        // --page history|settings|step:<n>|schedule: opens that view (used for screenshots).
-        if (Array.IndexOf(args, "--page") is var pg and >= 0 && pg + 1 < args.Length)
-            form.Shown += (_, _) => form.OpenPage(args[pg + 1]);
-        Application.Run(form);
+            _ = Hud.Shared.Handle;   // created on the UI thread
+            InputLock.OnStop = () => { Recorder.Shared.Stop(); Runner.Shared.EmergencyStop(); };
+            InputLock.StillRunning = () => Runner.Shared.Busy;
+            LoginItem.Refresh();
+            _ = new App();
+        });
         Store.Shared.Flush();
+        context?.Dispose();
         return 0;
     }
 }

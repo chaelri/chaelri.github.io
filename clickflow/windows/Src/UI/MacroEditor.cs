@@ -1,54 +1,43 @@
-using System.Globalization;
-
 namespace ClickFlow;
 
+using Microsoft.UI.Input;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
+using Windows.System;
+using Windows.UI.Core;
+
 /// The editor for one macro: name and repeat, the step cards, and its schedules.
-public sealed class MacroEditor : Panel
+public sealed class MacroEditor : UserControl, IDisposable
 {
     public const string DefaultPostUrl = "https://clickflow-hook-668755364170.asia-southeast1.run.app";
 
     readonly Macro macro;
-    readonly MainForm main;
+    readonly MainWindow main;
     readonly Store store = Store.Shared;
-    readonly FlowLayoutPanel stack = new();
-    readonly Label stats = Theme.Label("", Theme.Small, Theme.Muted);
+    readonly StackPanel stack = new() { Padding = new Thickness(24, 16, 24, 32), Spacing = 0 };
+    readonly ScrollViewer scroll = new() { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+    readonly TextBlock stats = Theme.Small("");
     readonly List<StepCard> cards = new();
-    readonly FlowLayoutPanel stepsBox = new(), schedulesBox = new();
+    readonly StackPanel stepsBox = new() { Spacing = 6 }, schedulesBox = new() { Spacing = 6 };
 
     public Macro Macro => macro;
+    public MainWindow Main => main;
 
-    public MacroEditor(Macro macro, MainForm main)
+    public MacroEditor(Macro macro, MainWindow main)
     {
         this.macro = macro;
         this.main = main;
-        AutoScroll = true;
-        BackColor = Theme.Window;
-        Padding = new Padding(20, 14, 20, 30);
+        scroll.Content = stack;
+        Content = scroll;
 
-        stack.FlowDirection = FlowDirection.TopDown;
-        stack.WrapContents = false;
-        stack.AutoSize = true;
-        stack.AutoSizeMode = AutoSizeMode.GrowAndShrink;
-        stack.BackColor = Color.Transparent;
-        stack.Location = new Point(Padding.Left, Padding.Top);
-        Controls.Add(stack);
-
-        stack.Controls.Add(BuildHeader());
-        stack.Controls.Add(SectionHeader("Steps", AddStepButton()));
-        foreach (var box in new[] { stepsBox, schedulesBox })
-        {
-            box.FlowDirection = FlowDirection.TopDown;
-            box.WrapContents = false;
-            box.AutoSize = true;
-            box.AutoSizeMode = AutoSizeMode.GrowAndShrink;
-            box.Margin = Padding.Empty;
-            box.BackColor = Color.Transparent;
-        }
-        stack.Controls.Add(stepsBox);
+        stack.Children.Add(BuildHeader());
+        stack.Children.Add(SectionHeader("Steps", AddStepButton()));
+        stack.Children.Add(stepsBox);
         var addSchedule = Theme.Button("Add schedule", "");
         addSchedule.Click += (_, _) => EditSchedule(null);
-        stack.Controls.Add(SectionHeader("Schedules", addSchedule));
-        stack.Controls.Add(schedulesBox);
+        stack.Children.Add(SectionHeader("Schedules", addSchedule));
+        stack.Children.Add(schedulesBox);
 
         RebuildSteps();
         RebuildSchedules();
@@ -56,52 +45,19 @@ public sealed class MacroEditor : Panel
         StepOutputs.Changed += OnOutput;
     }
 
-    protected override void Dispose(bool disposing)
-    {
-        if (disposing) StepOutputs.Changed -= OnOutput;
-        base.Dispose(disposing);
-    }
+    public void Dispose() => StepOutputs.Changed -= OnOutput;
 
     void OnOutput(Guid stepId)
     {
         foreach (var c in cards) if (c.Step.Id == stepId) c.ShowOutput();
     }
 
-    int ContentWidth => Math.Max(LogicalToDeviceUnits(520), ClientSize.Width - Padding.Horizontal - SystemInformation.VerticalScrollBarWidth / 2);
-
-    protected override void OnResize(EventArgs e)
-    {
-        base.OnResize(e);
-        Relayout();
-    }
-
-    void Relayout()
-    {
-        SuspendLayout();
-        int w = ContentWidth;
-        foreach (Control c in stack.Controls) Fit(c, w);
-        foreach (Control c in stepsBox.Controls) Fit(c, w);
-        foreach (Control c in schedulesBox.Controls) Fit(c, w);
-        ResumeLayout();
-    }
-
-    static void Fit(Control c, int w)
-    {
-        if (c is FlowLayoutPanel f && (f.FlowDirection == FlowDirection.TopDown)) return;   // the boxes size from their children
-        if (c is IFits fits) fits.FitWidth(w);
-        else c.Width = w;
-    }
-
     // ---------- header ----------
 
-    Control BuildHeader()
+    UIElement BuildHeader()
     {
-        var card = new FitCard();
-        var name = new TextBox
-        {
-            Text = macro.Name, Font = Theme.H1, BorderStyle = BorderStyle.None, BackColor = Theme.Card,
-            Margin = new Padding(0, 4, 0, 4), PlaceholderText = "Macro name",
-        };
+        var inner = new StackPanel { Spacing = 6 };
+        var name = new TextBox { Text = macro.Name, FontSize = 20, PlaceholderText = "Macro name" };
         name.TextChanged += (_, _) =>
         {
             var t = name.Text.Trim();
@@ -110,18 +66,20 @@ public sealed class MacroEditor : Panel
             store.Touch();
             main.RefreshEditorHeader();
         };
-        name.Leave += (_, _) => { if (name.Text.Trim().Length == 0) name.Text = macro.Name; store.Changed(); };
-        card.Stretch(name);
-        card.Add(stats);
+        name.LostFocus += (_, _) => { if (name.Text.Trim().Length == 0) name.Text = macro.Name; store.Changed(); };
+        inner.Children.Add(name);
+        inner.Children.Add(stats);
 
-        var repeat = new Num(0, 100000, 0, macro.RepeatCount, 80);
-        repeat.ValueChanged += (_, _) => { macro.RepeatCount = (int)repeat.Value; store.Touch(); UpdateStats(); };
-        var delay = new Num(0, 86400, 1, (decimal)macro.RepeatDelay, 80);
-        delay.ValueChanged += (_, _) => { macro.RepeatDelay = (double)delay.Value; store.Touch(); UpdateStats(); };
-        card.Add(new Row(
-            Theme.Label("Repeat"), repeat, Theme.Label("times (0 = until stopped)", null, Theme.Muted),
-            new Label { Width = 18 }, Theme.Label("Pause between repeats"), delay, Theme.Label("s", null, Theme.Muted)));
-        card.Margin = new Padding(0, 0, 0, 14);
+        var repeat = Theme.Num(0, 100000, 0, macro.RepeatCount);
+        repeat.ValueChanged += (_, e) => { if (double.IsNaN(e.NewValue)) return; macro.RepeatCount = (int)e.NewValue; store.Touch(); UpdateStats(); };
+        var delay = Theme.Num(0, 86400, 1, macro.RepeatDelay);
+        delay.ValueChanged += (_, e) => { if (double.IsNaN(e.NewValue)) return; macro.RepeatDelay = e.NewValue; store.Touch(); UpdateStats(); };
+        var gap = new Border { Width = 14 };
+        inner.Children.Add(Theme.Row(
+            Theme.Label("Repeat"), repeat, Theme.Label("times (0 = until stopped)", color: Theme.Muted),
+            gap, Theme.Label("Pause between repeats"), delay, Theme.Label("s", color: Theme.Muted)));
+        var card = Theme.Card(inner);
+        card.Margin = new Thickness(0, 0, 0, 14);
         return card;
     }
 
@@ -134,28 +92,26 @@ public sealed class MacroEditor : Panel
         main.RefreshEditorHeader();
     }
 
-    Control SectionHeader(string title, Control action)
+    static UIElement SectionHeader(string title, UIElement action)
     {
-        var row = new FitRow();
-        var label = Theme.Label(title, Theme.H2);
-        label.Margin = new Padding(2, 4, 12, 0);
-        row.Controls.Add(label);
-        row.Controls.Add(action);
-        row.Margin = new Padding(0, 6, 0, 6);
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, Margin = new Thickness(2, 8, 0, 10) };
+        row.Children.Add(Theme.H2(title));
+        row.Children.Add(action);
         return row;
     }
 
-    FlatButton AddStepButton()
+    Button AddStepButton()
     {
         var b = Theme.Button("Add step", "", primary: true);
-        var menu = new ContextMenuStrip();
+        var menu = new MenuFlyout();
         foreach (var t in StepTypes.All)
         {
             var type = t;
-            menu.Items.Add(t.Label(), null, (_, _) => AddStep(type));
-            if (t is StepType.Move or StepType.KeyShortcut) menu.Items.Add(new ToolStripSeparator());
+            menu.Items.Add(new MenuFlyoutItem { Text = t.Label(), Icon = new FontIcon { Glyph = t.Glyph() } });
+            ((MenuFlyoutItem)menu.Items[^1]).Click += (_, _) => AddStep(type);
+            if (t is StepType.Move or StepType.KeyShortcut) menu.Items.Add(new MenuFlyoutSeparator());
         }
-        b.Click += (_, _) => menu.Show(b, new Point(0, b.Height));
+        b.Flyout = menu;
         return b;
     }
 
@@ -174,41 +130,49 @@ public sealed class MacroEditor : Panel
         RebuildSteps();
         UpdateStats();
         var card = cards.Last();
-        ScrollControlIntoView(card);
+        BringIntoView(card);
         // Adding a click or screenshot step opens the placer straight away.
         if (type.HasPoint() || type.HasArea()) card.Pick();
     }
 
     public void RebuildSteps()
     {
-        SuspendLayout();
-        stepsBox.SuspendLayout();
-        foreach (var c in cards) c.Dispose();
-        stepsBox.Controls.Clear();
+        stepsBox.Children.Clear();
         cards.Clear();
         for (int i = 0; i < macro.Steps.Count; i++)
         {
             var card = new StepCard(this, macro.Steps[i], i);
             cards.Add(card);
-            card.FitWidth(ContentWidth);
-            stepsBox.Controls.Add(card);
+            stepsBox.Children.Add(card);
         }
         if (macro.Steps.Count == 0)
         {
-            var empty = Theme.Label("No steps yet. Add one, or press Record in the toolbar to capture your clicks.", null, Theme.Muted);
-            empty.Margin = new Padding(4, 4, 0, 12);
-            stepsBox.Controls.Add(empty);
+            var empty = Theme.Label("No steps yet. Add one, or press Record in the toolbar to capture your clicks.", color: Theme.Muted);
+            empty.Margin = new Thickness(4, 0, 0, 12);
+            stepsBox.Children.Add(empty);
         }
-        stepsBox.ResumeLayout();
-        ResumeLayout();
+    }
+
+    void BringIntoView(UIElement e, double ratio = 0.3)
+    {
+        // After layout, so a card added just now has a position.
+        AfterLayout(() => e.StartBringIntoView(new BringIntoViewOptions { VerticalAlignmentRatio = ratio, AnimationDesired = true }));
     }
 
     public void ScrollToStep(int i)
     {
-        if (i >= 0 && i < cards.Count) { AutoScrollPosition = new Point(0, cards[i].Top + stepsBox.Top); }
+        if (i >= 0 && i < cards.Count) BringIntoView(cards[i], 0);
     }
 
-    public void ScrollToEnd() => AutoScrollPosition = new Point(0, stack.Height);
+    public void ScrollToEnd() => AfterLayout(() => scroll.ChangeView(null, scroll.ScrollableHeight, null));
+
+    /// Once the editor has been laid out (straight away if it already has).
+    void AfterLayout(Action a)
+    {
+        if (scroll.ActualHeight > 0) { DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () => a()); return; }
+        void Once(object? s, object e) { scroll.LayoutUpdated -= Once; DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () => a()); }
+        scroll.LayoutUpdated += Once;
+    }
 
     public void StepChanged() { store.Touch(); UpdateStats(); }
 
@@ -220,7 +184,7 @@ public sealed class MacroEditor : Panel
         macro.Steps.Insert(j, s);
         store.Changed();
         RebuildSteps();
-        ScrollControlIntoView(cards[j]);
+        BringIntoView(cards[j]);
     }
 
     public void Duplicate(Step s)
@@ -246,18 +210,7 @@ public sealed class MacroEditor : Panel
         if (i >= 0) Runner.Shared.Test(i, macro.Id);
     }
 
-    /// Hides the window while the placer is up (it usually targets an app behind it).
-    public void WithPlacer(Action<Action, Action> open)
-    {
-        var form = FindForm();
-        bool hid = form is { Visible: true, WindowState: not FormWindowState.Minimized };
-        if (hid) form!.WindowState = FormWindowState.Minimized;
-        void Restore()
-        {
-            if (hid && form != null) { form.WindowState = FormWindowState.Normal; form.Activate(); }
-        }
-        open(Restore, Restore);
-    }
+    public void WithPlacer(Action<Action, Action> open) => main.WithPlacer(open);
 
     // ---------- schedules ----------
 
@@ -266,9 +219,7 @@ public sealed class MacroEditor : Panel
 
     void RebuildSchedules()
     {
-        schedulesBox.SuspendLayout();
-        foreach (Control c in schedulesBox.Controls.Cast<Control>().ToList()) c.Dispose();
-        schedulesBox.Controls.Clear();
+        schedulesBox.Children.Clear();
         foreach (var s in macro.Schedules)
         {
             var row = new ScheduleRow(macro, s, main.RefreshEditorHeader, () => EditSchedule(s), () =>
@@ -277,27 +228,25 @@ public sealed class MacroEditor : Panel
                 store.Changed();
                 RebuildSchedules();
             });
-            row.FitWidth(ContentWidth);
-            schedulesBox.Controls.Add(row);
+            schedulesBox.Children.Add(row);
         }
         if (macro.Schedules.Count == 0)
         {
-            var empty = Theme.Label("Not scheduled. Add a schedule to run it by itself (ClickFlow must be open, it lives in the tray).", null, Theme.Muted);
-            empty.Margin = new Padding(4, 4, 0, 12);
-            schedulesBox.Controls.Add(empty);
+            var empty = Theme.Label("Not scheduled. Add a schedule to run it by itself (ClickFlow must be open, it lives in the tray).", color: Theme.Muted);
+            empty.Margin = new Thickness(4, 0, 0, 12);
+            schedulesBox.Children.Add(empty);
         }
-        schedulesBox.ResumeLayout();
     }
 
-    void EditSchedule(Schedule? existing)
+    async void EditSchedule(Schedule? existing)
     {
+        if (XamlRoot == null) return;
         var copy = existing?.Clone(newId: false) ?? new Schedule
         {
             Time = Clock.String(DateTime.Now.AddMinutes(5)),
             Date = DayString.String(DateTime.Today),
         };
-        using var d = new ScheduleDialog(copy, existing == null);
-        if (d.ShowDialog(FindForm()) != DialogResult.OK) return;
+        if (!await ScheduleDialog.Show(XamlRoot, copy, existing == null)) return;
         if (existing == null) macro.Schedules.Add(copy);
         else macro.Schedules[macro.Schedules.IndexOf(existing)] = copy;
         store.Changed();
@@ -306,102 +255,50 @@ public sealed class MacroEditor : Panel
     }
 }
 
-public interface IFits { void FitWidth(int width); }
-
-/// A card with a vertical stack inside; FitWidth sets its width, height follows the content.
-public class FitCard : CardPanel, IFits
-{
-    protected readonly FlowLayoutPanel Inner = new();
-    readonly List<Control> stretched = new();
-
-    public FitCard()
-    {
-        AutoSize = true;
-        AutoSizeMode = AutoSizeMode.GrowAndShrink;
-        Margin = new Padding(0, 0, 0, 8);
-        Inner.FlowDirection = FlowDirection.TopDown;
-        Inner.WrapContents = false;
-        Inner.AutoSize = true;
-        Inner.AutoSizeMode = AutoSizeMode.GrowAndShrink;
-        Inner.BackColor = Color.Transparent;
-        Inner.Margin = Padding.Empty;
-        Inner.Location = new Point(Padding.Left, Padding.Top);
-        Controls.Add(Inner);
-    }
-
-    public void Add(Control c) => Inner.Controls.Add(c);
-    public void Stretch(Control c) { stretched.Add(c); Inner.Controls.Add(c); }
-    protected int InnerWidth => Width - Padding.Horizontal;
-
-    public virtual void FitWidth(int width)
-    {
-        int inner = width - Padding.Horizontal;
-        MinimumSize = new Size(width, 0);
-        MaximumSize = new Size(width, 0);
-        Inner.MaximumSize = new Size(inner, 0);
-        Inner.MinimumSize = new Size(inner, 0);
-        foreach (Control c in Inner.Controls)
-        {
-            if (stretched.Contains(c)) c.Width = inner - c.Margin.Horizontal;
-            else if (c is FlowLayoutPanel f) f.MaximumSize = new Size(inner, 0);
-            else if (c is Label l && l.AutoSize) l.MaximumSize = new Size(inner, 0);
-            if (c is IFits fits) fits.FitWidth(inner - c.Margin.Horizontal);
-        }
-    }
-}
-
-public sealed class FitRow : FlowLayoutPanel, IFits
-{
-    public FitRow()
-    {
-        AutoSize = true;
-        AutoSizeMode = AutoSizeMode.GrowAndShrink;
-        WrapContents = true;
-        BackColor = Color.Transparent;
-    }
-
-    public void FitWidth(int width) { MaximumSize = new Size(width, 0); MinimumSize = new Size(width, 0); }
-}
-
 /// One schedule: switch, summary, next run, Edit, Delete.
-sealed class ScheduleRow : FitCard
+sealed class ScheduleRow : UserControl
 {
     readonly Macro macro;
     readonly Schedule schedule;
-    readonly Label summary = Theme.Label("", Theme.Bold);
-    readonly Label detail = Theme.Label("", Theme.Small, Theme.Muted);
-    readonly CheckBox on = new() { AutoSize = true, Text = "On", Margin = new Padding(0, 4, 12, 0) };
+    readonly TextBlock summary = Theme.Label("", bold: true);
+    readonly TextBlock detail = Theme.Small("");
+    readonly CheckBox on = new() { Content = "On", MinWidth = 0, Margin = new Thickness(0, 0, 6, 0) };
 
     public ScheduleRow(Macro macro, Schedule schedule, Action changed, Action edit, Action delete)
     {
         this.macro = macro;
         this.schedule = schedule;
-        on.Checked = schedule.Enabled && macro.Enabled;
-        on.CheckedChanged += (_, _) =>
+        on.IsChecked = schedule.Enabled && macro.Enabled;
+        void Toggle()
         {
-            schedule.Enabled = on.Checked;
+            schedule.Enabled = on.IsChecked == true;
             // Switching a schedule on turns the macro on too, so the sidebar switch follows.
-            if (on.Checked) macro.Enabled = true;
+            if (schedule.Enabled) macro.Enabled = true;
             Store.Shared.Changed();
             Refresh_();
             changed();
-        };
+        }
+        on.Checked += (_, _) => Toggle();
+        on.Unchecked += (_, _) => Toggle();
         var editB = Theme.Button("Edit", "");
         editB.Click += (_, _) => edit();
-        var delB = Theme.Button("", "");
-        delB.Tint = Theme.Red;
+        var delB = Theme.Button("", "", tint: Theme.Red);
+        ToolTipService.SetToolTip(delB, "Delete this schedule");
         delB.Click += (_, _) => delete();
-        var row = new Row(on, summary) { WrapContents = false };
-        Add(row);
-        Add(detail);
-        Add(new Row(editB, delB) { Margin = new Padding(0, 4, 0, 0) });
+        var inner = new StackPanel { Spacing = 4 };
+        inner.Children.Add(Theme.Row(on, summary));
+        inner.Children.Add(detail);
+        var buttons = Theme.Row(editB, delB);
+        buttons.Margin = new Thickness(0, 4, 0, 0);
+        inner.Children.Add(buttons);
+        Content = Theme.Card(inner);
         Refresh_();
     }
 
     void Refresh_()
     {
         summary.Text = schedule.Summary;
-        summary.ForeColor = schedule.Enabled && macro.Enabled ? Theme.Text : Theme.Faint;
+        summary.Foreground = schedule.Enabled && macro.Enabled ? Theme.Text : Theme.Faint;
         var parts = new List<string>();
         if (!macro.Enabled) parts.Add("Macro's schedules are off (switch in the sidebar)");
         else if (!schedule.Enabled) parts.Add("Off");
@@ -416,33 +313,26 @@ sealed class ScheduleRow : FitCard
 
 /// A Discord message editor: formatting buttons that wrap the selection, variable chips, and a
 /// live preview of what will be sent.
-public sealed class Composer : FlowLayoutPanel, IFits
+public sealed class Composer : StackPanel
 {
-    readonly TextBox box = new() { Multiline = true, ScrollBars = ScrollBars.Vertical, Font = Theme.Body, AcceptsReturn = true, Height = 72 };
-    readonly Label preview = Theme.Label("", Theme.Small, Theme.Muted);
+    readonly TextBox box = new() { AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 72, MaxHeight = 220 };
+    readonly TextBlock preview = Theme.Small("");
     readonly Func<string> sampleText;
     public event Action<string>? Changed;
 
     public Composer(string text, (string Token, string Help)[] vars, Func<string> sampleText)
     {
         this.sampleText = sampleText;
-        FlowDirection = FlowDirection.TopDown;
-        WrapContents = false;
-        AutoSize = true;
-        AutoSizeMode = AutoSizeMode.GrowAndShrink;
-        BackColor = Color.Transparent;
-        Margin = new Padding(0, 4, 0, 4);
+        Spacing = 6;
+        Margin = new Thickness(0, 4, 0, 4);
 
-        var tools = new Row();
-        var tip = new ToolTip();
+        var tools = new WrapPanel { Gap = 4 };
         void Fmt(string label, string help, string pre, string post, string placeholder)
         {
-            var b = Theme.Button(label);
-            b.Font = Theme.Bold;
-            b.AutoSizeNow();
-            tip.SetToolTip(b, help);
+            var b = Small(label, bold: true);
+            ToolTipService.SetToolTip(b, help);
             b.Click += (_, _) => Wrap(pre, post, placeholder);
-            tools.Controls.Add(b);
+            tools.Children.Add(b);
         }
         Fmt("B", "Bold", "**", "**", "bold");
         Fmt("I", "Italic", "*", "*", "italic");
@@ -452,53 +342,52 @@ public sealed class Composer : FlowLayoutPanel, IFits
         Fmt("{ }", "Code block", "```\n", "\n```", "code");
         Fmt("||", "Spoiler", "||", "||", "spoiler");
         Fmt(">", "Quote", "> ", "", "quote");
-        tools.Controls.Add(new Label { Width = 10, Height = 4 });
+        tools.Children.Add(new Border { Width = 8 });
         foreach (var (token, help) in vars)
         {
-            var b = Theme.Button(token);
-            b.Tint = Theme.Accent;
-            tip.SetToolTip(b, help);
+            var b = Small(token);
+            b.Foreground = Theme.Solid(Theme.Accent);
+            ToolTipService.SetToolTip(b, help);
             b.Click += (_, _) => Insert(token);
-            tools.Controls.Add(b);
+            tools.Children.Add(b);
         }
-        Controls.Add(tools);
-        box.Text = text.Replace("\r\n", "\n").Replace("\n", "\r\n");
-        box.TextChanged += (_, _) => { Changed?.Invoke(box.Text.Replace("\r\n", "\n")); UpdatePreview(); };
-        Controls.Add(box);
-        preview.Margin = new Padding(0, 2, 0, 4);
-        Controls.Add(preview);
+        Children.Add(tools);
+        box.Text = Theme.ToBox(text);
+        box.TextChanged += (_, _) => { Changed?.Invoke(Theme.FromBox(box.Text)); UpdatePreview(); };
+        Children.Add(box);
+        Children.Add(preview);
         UpdatePreview();
     }
 
-    public void FitWidth(int width)
+    /// Doesn't take focus, so the text box keeps its selection.
+    static Button Small(string text, bool bold = false) => new()
     {
-        MaximumSize = new Size(width, 0);
-        foreach (Control c in Controls)
-        {
-            if (c is FlowLayoutPanel f) f.MaximumSize = new Size(width, 0);
-            else if (c == box) box.Width = width - box.Margin.Horizontal;
-            else if (c is Label l) l.MaximumSize = new Size(width, 0);
-        }
-    }
+        Content = text, Padding = new Thickness(8, 2, 8, 3), MinWidth = 30, AllowFocusOnInteraction = false,
+        FontWeight = bold ? Microsoft.UI.Text.FontWeights.SemiBold : Microsoft.UI.Text.FontWeights.Normal,
+    };
 
     void Wrap(string pre, string post, string placeholder)
     {
-        int start = box.SelectionStart, len = box.SelectionLength;
-        var sel = len > 0 ? box.SelectedText : placeholder;
-        box.SelectedText = pre.Replace("\n", "\r\n") + sel + post.Replace("\n", "\r\n");
-        box.Select(start + pre.Replace("\n", "\r\n").Length, sel.Length);
-        box.Focus();
+        pre = Theme.ToBox(pre);
+        post = Theme.ToBox(post);
+        int start = box.SelectionStart;
+        var sel = box.SelectionLength > 0 ? box.SelectedText : placeholder;
+        box.SelectedText = pre + sel + post;
+        box.Select(start + pre.Length, sel.Length);
+        box.Focus(FocusState.Programmatic);
     }
 
     void Insert(string token)
     {
+        int start = box.SelectionStart;
         box.SelectedText = token;
-        box.Focus();
+        box.Select(start + token.Length, 0);
+        box.Focus(FocusState.Programmatic);
     }
 
     void UpdatePreview()
     {
-        var text = box.Text.Replace("\r\n", "\n");
+        var text = Theme.FromBox(box.Text);
         if (text.Trim().Length == 0) { preview.Text = "Preview: (empty message)"; return; }
         var filled = MessageVars.Fill(text, sampleText(), "Macro", clipboard: () => "(clipboard text)");
         preview.Text = "Preview: " + filled.Replace("\n", " ⏎ ");
@@ -511,16 +400,23 @@ public sealed class KeyCaptureBox : TextBox
     public bool Armed;
     public event Action<string>? Captured;
 
-    protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+    public KeyCaptureBox()
     {
-        if (Armed && KeyCombo.FromKeys(keyData) is { } s)
+        PreviewKeyDown += (_, e) =>
         {
+            if (!Armed) return;
+            // Same key codes as Windows Forms: build its Keys so KeyCombo.FromKeys reads it.
+            var keys = (Keys)(int)e.Key;
+            if (Down(VirtualKey.Control)) keys |= Keys.Control;
+            if (Down(VirtualKey.Menu)) keys |= Keys.Alt;
+            if (Down(VirtualKey.Shift)) keys |= Keys.Shift;
+            if (KeyCombo.FromKeys(keys) is not { } s) return;
+            e.Handled = true;
             Armed = false;
             Captured?.Invoke(s);
-            return true;
-        }
-        return base.ProcessCmdKey(ref msg, keyData);
+        };
+        LostFocus += (_, _) => Armed = false;
     }
 
-    protected override void OnLeave(EventArgs e) { Armed = false; base.OnLeave(e); }
+    static bool Down(VirtualKey k) => InputKeyboardSource.GetKeyStateForCurrentThread(k).HasFlag(CoreVirtualKeyStates.Down);
 }

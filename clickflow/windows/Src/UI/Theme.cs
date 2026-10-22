@@ -1,11 +1,21 @@
-using System.Drawing.Drawing2D;
 using System.Drawing.Text;
 
 namespace ClickFlow;
 
-/// Colours, fonts and the few custom controls the editor is built from.
+using Microsoft.UI.Text;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Imaging;
+using Windows.Globalization.NumberFormatting;
+using Windows.UI;
+using FSize = Windows.Foundation.Size;
+using FRect = Windows.Foundation.Rect;
+
+/// Colours, text styles and the few building blocks the windows are made of.
 public static class Theme
 {
+    /// For the Windows Forms HUD and overlays.
     public static readonly string IconFamily = FontExists("Segoe Fluent Icons") ? "Segoe Fluent Icons" : "Segoe MDL2 Assets";
 
     static bool FontExists(string name)
@@ -14,167 +24,193 @@ public static class Theme
         return fonts.Families.Any(f => f.Name == name);
     }
 
-    public static readonly Color Window = Color.FromArgb(243, 244, 247);
-    public static readonly Color Sidebar = Color.FromArgb(234, 236, 241);
-    public static readonly Color Card = Color.White;
-    public static readonly Color Border = Color.FromArgb(222, 225, 232);
-    public static readonly Color Text = Color.FromArgb(28, 30, 36);
-    public static readonly Color Muted = Color.FromArgb(104, 110, 124);
-    public static readonly Color Faint = Color.FromArgb(150, 155, 168);
-    public static readonly Color Accent = Color.FromArgb(10, 110, 230);
-    public static readonly Color AccentSoft = Color.FromArgb(222, 235, 255);
-    public static readonly Color Purple = Color.FromArgb(130, 80, 230);
-    public static readonly Color PurpleSoft = Color.FromArgb(240, 232, 255);
-    public static readonly Color Red = Color.FromArgb(214, 52, 46);
-    public static readonly Color Orange = Color.FromArgb(214, 120, 0);
-    public static readonly Color Green = Color.FromArgb(30, 150, 70);
+    public static readonly Color Accent = Rgb(10, 110, 230);
+    public static readonly Color Purple = Rgb(130, 80, 230);
+    public static readonly Color PurpleSoft = Rgb(240, 232, 255);
+    public static readonly Color PurpleEdge = Rgb(214, 196, 250);
+    public static readonly Color Red = Rgb(214, 52, 46);
+    public static readonly Color Orange = Rgb(214, 120, 0);
+    public static readonly Color Green = Rgb(30, 150, 70);
 
-    public static readonly Font Body = new("Segoe UI", 9.75f);
-    public static readonly Font Small = new("Segoe UI", 8.75f);
-    public static readonly Font Bold = new("Segoe UI Semibold", 9.75f);
-    public static readonly Font H1 = new("Segoe UI Semibold", 16f);
-    public static readonly Font H2 = new("Segoe UI Semibold", 11.5f);
-    public static readonly Font Mono = new("Consolas", 10f);
-    public static readonly Font Icon = new(IconFamily, 11f);
-    public static readonly Font IconSmall = new(IconFamily, 9f);
+    public static Color Rgb(byte r, byte g, byte b) => Color.FromArgb(255, r, g, b);
+    public static SolidColorBrush Solid(Color c) => new(c);
+    public static Brush Res(string key) => (Brush)Application.Current.Resources[key];
 
-    public static GraphicsPath Rounded(RectangleF r, float radius) => OverlayForm.Rounded(r, radius);
+    public static Brush Text => Res("TextFillColorPrimaryBrush");
+    public static Brush Muted => Res("TextFillColorSecondaryBrush");
+    public static Brush Faint => Res("TextFillColorTertiaryBrush");
 
-    public static Label Label(string text, Font? font = null, Color? color = null, bool auto = true) => new()
+    public static TextBlock Label(string text, double size = 14, Brush? color = null, bool bold = false, bool wrap = true) => new()
     {
-        Text = text, Font = font ?? Body, ForeColor = color ?? Text, AutoSize = auto, Margin = new Padding(0, 6, 6, 0),
-        UseMnemonic = false, BackColor = Color.Transparent,
+        Text = text, FontSize = size, Foreground = color ?? Text, FontWeight = bold ? FontWeights.SemiBold : FontWeights.Normal,
+        TextWrapping = wrap ? TextWrapping.Wrap : TextWrapping.NoWrap, TextTrimming = wrap ? TextTrimming.None : TextTrimming.CharacterEllipsis,
+        VerticalAlignment = VerticalAlignment.Center, IsTextSelectionEnabled = false,
     };
 
-    public static FlatButton Button(string text, string? glyph = null, bool primary = false) => new(text, glyph, primary);
-}
+    public static TextBlock Small(string text, Brush? color = null) => Label(text, 12, color ?? Muted);
+    public static TextBlock H1(string text) => Label(text, 24, bold: true);
+    public static TextBlock H2(string text) => Label(text, 17, bold: true);
 
-/// A flat rounded button with an optional Fluent icon.
-public sealed class FlatButton : Control
-{
-    public string? Glyph;
-    public bool Primary;
-    public Color? Tint;
-    bool hot, down;
-
-    public FlatButton(string text, string? glyph, bool primary)
+    public static FontIcon Icon(string glyph, double size = 14, Brush? color = null)
     {
-        Text = text;
-        Glyph = glyph;
-        Primary = primary;
-        SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint | ControlStyles.SupportsTransparentBackColor, true);
-        Cursor = Cursors.Hand;
-        Font = Theme.Body;
-        Margin = new Padding(0, 2, 6, 2);
-        BackColor = Color.Transparent;
-        AutoSizeNow();
+        var i = new FontIcon { Glyph = glyph, FontSize = size };
+        if (color != null) i.Foreground = color;
+        return i;
     }
 
-    public void PerformClick() => OnClick(EventArgs.Empty);
-
-    public void AutoSizeNow()
+    /// A button with an optional Fluent icon. Primary is the accent style; tint colours a
+    /// plain one's text (Delete in red, Live in green).
+    public static Button Button(string text, string? glyph = null, bool primary = false, Color? tint = null)
     {
-        int w = TextRenderer.MeasureText(Text, Font).Width + (Glyph != null ? LogicalToDeviceUnits(22) : 0) + LogicalToDeviceUnits(Text.Length > 0 ? 22 : 12);
-        Size = new Size(Math.Max(LogicalToDeviceUnits(30), w), LogicalToDeviceUnits(28));
+        var b = new Button { Padding = new Thickness(text.Length > 0 ? 11 : 8, 5, text.Length > 0 ? 11 : 8, 6), VerticalAlignment = VerticalAlignment.Center };
+        if (primary) b.Style = (Style)Application.Current.Resources["AccentButtonStyle"];
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 7 };
+        if (glyph != null) row.Children.Add(Icon(glyph, 13));
+        if (text.Length > 0) row.Children.Add(new TextBlock { Text = text, VerticalAlignment = VerticalAlignment.Center });
+        b.Content = row;
+        if (tint is { } t && !primary) b.Foreground = Solid(t);
+        return b;
     }
 
-    protected override void OnTextChanged(EventArgs e) { base.OnTextChanged(e); AutoSizeNow(); Invalidate(); }
-    protected override void OnEnabledChanged(EventArgs e) { base.OnEnabledChanged(e); Invalidate(); }
-    protected override void OnMouseEnter(EventArgs e) { hot = true; Invalidate(); }
-    protected override void OnMouseLeave(EventArgs e) { hot = down = false; Invalidate(); }
-    protected override void OnMouseDown(MouseEventArgs e) { down = true; Invalidate(); base.OnMouseDown(e); }
-    protected override void OnMouseUp(MouseEventArgs e) { down = false; Invalidate(); base.OnMouseUp(e); }
-
-    protected override void OnPaint(PaintEventArgs e)
+    /// A white rounded card.
+    public static Border Card(UIElement child, Color? fill = null, Color? edge = null, Thickness? padding = null) => new()
     {
-        var g = e.Graphics;
-        g.SmoothingMode = SmoothingMode.AntiAlias;
-        var tint = Tint ?? Theme.Accent;
-        Color fill, border, fore;
-        if (!Enabled) { fill = Color.FromArgb(238, 239, 242); border = Theme.Border; fore = Theme.Faint; }
-        else if (Primary) { fill = down ? ControlPaint.Dark(tint, 0.1f) : hot ? ControlPaint.Light(tint, 0.15f) : tint; border = fill; fore = Color.White; }
-        else { fill = down ? Color.FromArgb(225, 228, 235) : hot ? Color.FromArgb(240, 242, 246) : Color.White; border = Theme.Border; fore = Tint ?? Theme.Text; }
-        var r = new RectangleF(0.5f, 0.5f, Width - 1.5f, Height - 1.5f);
-        using (var p = Theme.Rounded(r, LogicalToDeviceUnits(6)))
+        Child = child,
+        Background = fill is { } f ? Solid(f) : Res("CardBackgroundFillColorDefaultBrush"),
+        BorderBrush = edge is { } e ? Solid(e) : Res("CardStrokeColorDefaultBrush"),
+        BorderThickness = new Thickness(1),
+        CornerRadius = new CornerRadius(8),
+        Padding = padding ?? new Thickness(14, 10, 14, 12),
+    };
+
+    public static NumberBox Num(double min, double max, int decimals, double value, double width = 104)
+    {
+        var f = new DecimalFormatter { FractionDigits = decimals, IntegerDigits = 1, IsGrouped = false };
+        f.NumberRounder = new IncrementNumberRounder { Increment = decimals > 0 ? Math.Pow(10, -decimals) : 1, RoundingAlgorithm = RoundingAlgorithm.RoundHalfUp };
+        var n = new NumberBox
         {
-            using var b = new SolidBrush(fill);
-            using var pen = new Pen(border);
-            g.FillPath(b, p);
-            g.DrawPath(pen, p);
-        }
-        int x = LogicalToDeviceUnits(Text.Length > 0 ? 10 : 6);
-        if (Glyph != null)
+            Minimum = min, Maximum = max, Value = Math.Clamp(value, min, max), SmallChange = decimals > 0 ? 0.5 : 1, LargeChange = decimals > 0 ? 5 : 10,
+            SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Compact, Width = width, NumberFormatter = f,
+            ValidationMode = NumberBoxValidationMode.InvalidInputOverwritten, VerticalAlignment = VerticalAlignment.Center,
+        };
+        // Emptying the box gives NaN: put the last number back instead of saving it.
+        double last = n.Value;
+        n.ValueChanged += (_, e) =>
         {
-            var ir = new Rectangle(x, 0, LogicalToDeviceUnits(18), Height);
-            if (Text.Length == 0) ir = new Rectangle(0, 0, Width, Height);
-            TextRenderer.DrawText(g, Glyph, Theme.IconSmall, ir, fore, TextFormatFlags.VerticalCenter | TextFormatFlags.HorizontalCenter);
-            x += LogicalToDeviceUnits(22);
+            if (double.IsNaN(e.NewValue)) { n.Value = last; return; }
+            last = e.NewValue;
+        };
+        return n;
+    }
+
+    public static WrapPanel Row(params UIElement[] items)
+    {
+        var r = new WrapPanel();
+        foreach (var i in items) r.Children.Add(i);
+        return r;
+    }
+
+    /// WinUI text boxes use \r for a new line; macros use \n.
+    public static string FromBox(string t) => t.Replace("\r\n", "\n").Replace('\r', '\n');
+    public static string ToBox(string t) => t.Replace("\r\n", "\n").Replace('\n', '\r');
+
+    public static BitmapImage ToImage(Bitmap b)
+    {
+        using var ms = new MemoryStream();
+        b.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+        ms.Position = 0;
+        var bi = new BitmapImage();
+        bi.SetSource(ms.AsRandomAccessStream());
+        return bi;
+    }
+}
+
+/// Children left to right, wrapping to a new line when they run out of width; each line's
+/// items are centred on each other.
+public sealed class WrapPanel : Panel
+{
+    public double Gap = 8, LineGap = 6;
+
+    List<(int From, int To, double Height)> Lines(double width)
+    {
+        var lines = new List<(int, int, double)>();
+        double x = 0, h = 0;
+        int start = 0;
+        for (int i = 0; i < Children.Count; i++)
+        {
+            var c = Children[i];
+            if (c.Visibility == Visibility.Collapsed) continue;
+            var d = c.DesiredSize;
+            if (x > 0 && x + d.Width > width + 0.5)
+            {
+                lines.Add((start, i, h));
+                start = i; x = 0; h = 0;
+            }
+            x += d.Width + Gap;
+            h = Math.Max(h, d.Height);
         }
-        if (Text.Length > 0)
-            TextRenderer.DrawText(g, Text, Font, new Rectangle(x, 0, Width - x - LogicalToDeviceUnits(6), Height), fore,
-                TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis);
+        lines.Add((start, Children.Count, h));
+        return lines;
+    }
+
+    protected override FSize MeasureOverride(FSize available)
+    {
+        double widest = 0, x = 0;
+        foreach (var c in Children)
+        {
+            c.Measure(new FSize(available.Width, double.PositiveInfinity));
+            if (c.Visibility == Visibility.Collapsed) continue;
+            x += c.DesiredSize.Width + Gap;
+            widest = Math.Max(widest, c.DesiredSize.Width);
+        }
+        var lines = Lines(available.Width);
+        double height = lines.Sum(l => l.Height) + LineGap * Math.Max(0, lines.Count(l => l.Height > 0) - 1);
+        double w = double.IsInfinity(available.Width) ? Math.Max(0, x - Gap) : Math.Min(available.Width, Math.Max(widest, x - Gap));
+        return new FSize(w, height);
+    }
+
+    protected override FSize ArrangeOverride(FSize final)
+    {
+        double y = 0;
+        foreach (var (from, to, h) in Lines(final.Width))
+        {
+            double x = 0;
+            for (int i = from; i < to; i++)
+            {
+                var c = Children[i];
+                if (c.Visibility == Visibility.Collapsed) { c.Arrange(new FRect(0, 0, 0, 0)); continue; }
+                var d = c.DesiredSize;
+                double w = Math.Min(d.Width, final.Width);
+                c.Arrange(new FRect(x, y + (h - d.Height) / 2, w, d.Height));
+                x += w + Gap;
+            }
+            if (h > 0) y += h + LineGap;
+        }
+        return final;
     }
 }
 
-/// A white rounded card that lays its children out in a vertical flow.
-public class CardPanel : Panel
+/// Small async dialogs on the WinUI window.
+public static class Dialogs
 {
-    public CardPanel()
+    public static async Task<bool> Confirm(XamlRoot root, string title, string text, string ok)
     {
-        SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint | ControlStyles.ResizeRedraw, true);
-        BackColor = Theme.Window;
-        Padding = new Padding(14, 10, 14, 10);
+        var d = new ContentDialog
+        {
+            XamlRoot = root, Title = title, Content = new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap },
+            PrimaryButtonText = ok, CloseButtonText = "Cancel", DefaultButton = ContentDialogButton.Close,
+        };
+        return await d.ShowAsync() == ContentDialogResult.Primary;
     }
 
-    public Color Fill = Theme.Card;
-    public Color Edge = Theme.Border;
-
-    protected override void OnPaint(PaintEventArgs e)
+    public static async Task<string?> Ask(XamlRoot root, string title, string label, string value)
     {
-        var g = e.Graphics;
-        g.SmoothingMode = SmoothingMode.AntiAlias;
-        using var p = Theme.Rounded(new RectangleF(0.5f, 0.5f, Width - 1.5f, Height - 1.5f), LogicalToDeviceUnits(10));
-        using var b = new SolidBrush(Fill);
-        using var pen = new Pen(Edge);
-        g.FillPath(b, p);
-        g.DrawPath(pen, p);
-    }
-}
-
-/// A row of controls that wraps; children keep their own sizes.
-public sealed class Row : FlowLayoutPanel
-{
-    public Row(params Control[] items)
-    {
-        AutoSize = true;
-        AutoSizeMode = AutoSizeMode.GrowAndShrink;
-        WrapContents = true;
-        Margin = new Padding(0, 2, 0, 2);
-        Padding = Padding.Empty;
-        BackColor = Color.Transparent;
-        Controls.AddRange(items);
-    }
-}
-
-/// A NumericUpDown that writes back on every change and selects its text on focus.
-public sealed class Num : NumericUpDown
-{
-    public Num(decimal min, decimal max, int decimals, decimal value, int width = 74)
-    {
-        Minimum = min;
-        Maximum = max;
-        DecimalPlaces = decimals;
-        Increment = decimals > 0 ? 0.5m : 1;
-        Value = Math.Clamp(value, min, max);
-        Width = width;
-        Font = Theme.Body;
-        Margin = new Padding(0, 2, 10, 2);
-        TextAlign = HorizontalAlignment.Right;
-    }
-
-    protected override void OnEnter(EventArgs e)
-    {
-        base.OnEnter(e);
-        BeginInvoke(() => Select(0, Text.Length));
+        var box = new TextBox { Header = label, Text = value };
+        box.Loaded += (_, _) => { box.Focus(FocusState.Programmatic); box.SelectAll(); };
+        var d = new ContentDialog
+        {
+            XamlRoot = root, Title = title, Content = box, PrimaryButtonText = "OK", CloseButtonText = "Cancel", DefaultButton = ContentDialogButton.Primary,
+        };
+        return await d.ShowAsync() == ContentDialogResult.Primary ? box.Text : null;
     }
 }
