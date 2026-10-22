@@ -156,6 +156,47 @@ button { font: inherit; color: inherit; }
 }
 .howto-n { width: 26px; height: 26px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: 800 13px/26px var(--mono); text-align: center; }
 
+/* ---------- solve mine ---------- */
+.scan-panel { margin-top: 14px; max-width: 640px; }
+.scan-go { font-size: 18px; padding: 14px 26px; border-radius: 14px; }
+.scan-err { color: #ff8a80; margin-bottom: 12px; }
+.scan-cam { position: relative; aspect-ratio: 4 / 3; border-radius: var(--radius); overflow: hidden; background: #000; transform: scaleX(-1); }
+.scan-cam video, .scan-cam canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.scan-cam.flash::after { content: ''; position: absolute; inset: 0; background: #fff; animation: scanFlash 0.4s ease-out forwards; }
+@keyframes scanFlash { from { opacity: 0.6; } to { opacity: 0; } }
+.scan-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; }
+.scan-chips { display: flex; align-items: center; gap: 8px; }
+.scan-chip { width: 34px; height: 34px; border-radius: 9px; border: 2px dashed #3a4152; background: var(--c); }
+.scan-chip.done { border: 2px solid #0b0c10; box-shadow: 0 0 0 2px var(--go); }
+.scan-count { font: 800 18px var(--mono); color: var(--muted); margin-left: 6px; }
+.scan-say { font-size: 17px; color: #c6cbd6; margin: 12px 0; }
+.scan-say.big { font-size: 22px; font-weight: 700; color: var(--text); }
+.scan-hold { font-size: 15px; color: var(--muted); }
+.fix-faces { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0; }
+.fix-face { display: grid; grid-template-columns: repeat(3, 30px); gap: 3px; padding: 4px; background: #000; border-radius: 8px; }
+.fix-cell { width: 30px; height: 30px; border-radius: 5px; border: 0; padding: 0; cursor: pointer; }
+.fix-cell:disabled { cursor: default; }
+.g-top { display: flex; justify-content: space-between; align-items: baseline; }
+.g-stage { font: 700 13px var(--mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent); }
+.g-count { font: 700 13px var(--mono); color: var(--dim); }
+.g-bar { height: 6px; background: var(--panel-2); border-radius: 3px; margin: 8px 0 14px; overflow: hidden; }
+.g-bar i { display: block; height: 100%; background: var(--accent); transition: width 0.25s; }
+.g-main { display: grid; grid-template-columns: 200px 1fr; gap: 18px; align-items: center; }
+.g-mini { aspect-ratio: 1 / 0.9; border-radius: 14px; overflow: hidden; background: radial-gradient(circle at 50% 45%, #232838 0%, var(--panel) 75%); }
+.g-mini canvas { display: block; width: 100%; height: 100%; }
+.g-move { font: 800 88px/1 var(--mono); color: var(--accent); letter-spacing: -0.03em; }
+.g-say { font-size: 17px; color: #c6cbd6; margin-top: 8px; line-height: 1.4; }
+.g-say b { color: var(--text); }
+.g-btns { justify-content: stretch; margin-top: 18px; }
+.g-btns .btn { padding: 14px 18px; font-size: 16px; border-radius: 14px; }
+.g-ok { flex: 1; font-size: 20px !important; }
+.g-next { font: 700 15px var(--mono); color: var(--dim); margin-top: 12px; white-space: pre; }
+.g-done { font: 800 56px var(--mono); color: var(--go); margin: 20px 0; }
+@media (max-width: 900px) {
+  .g-main { grid-template-columns: 130px 1fr; gap: 12px; }
+  .g-move { font-size: 64px; }
+}
+
 /* ---------- lesson ---------- */
 .lesson { min-width: 0; padding-bottom: 80px; }
 .lesson h2 { font-size: 30px; letter-spacing: -0.025em; line-height: 1.15; margin: 4px 0 8px; }

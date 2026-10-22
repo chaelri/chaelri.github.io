@@ -3,6 +3,7 @@ import { CubePlayer } from './player.js';
 import { isoSVG, topSVG } from './thumbs.js';
 import * as C from './content.js';
 import { algHTML, describe, mountMoveTips } from './movetip.js';
+import { mountScan } from './scan.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -156,6 +157,26 @@ async function step(dir) {
   syncPlay();
 }
 
+// Used by "Solve mine": step forward / back one move, animated.
+const guideApi = {
+  load: (c) => load(c),
+  idx: () => P.idx,
+  async advanceTo(j) {
+    pause();
+    j = Math.min(j, P.steps.length);
+    while (P.idx < j) {
+      if (!(await player.animate(P.steps[P.idx], 260))) break;
+      P.idx++;
+      syncPlay();
+    }
+  },
+  async back() {
+    pause();
+    if (P.idx > 0 && (await player.animateInverse(P.steps[P.idx - 1], 260))) P.idx--;
+    syncPlay();
+  },
+};
+
 ui.play.addEventListener('click', () => (P.playing ? pause() : play()));
 $('#btnNext').addEventListener('click', () => step(1));
 $('#btnPrev').addEventListener('click', () => step(-1));
@@ -224,6 +245,22 @@ function recog(list) {
 
 // ---------------------------------------------------------------- lessons
 const LESSONS = {
+  mine: {
+    label: 'Solve mine',
+    render() {
+      return `
+      <div class="kicker">Your cube</div>
+      <h2>Solve my cube</h2>
+      <div id="scanPanel" class="scan-panel"></div>`;
+    },
+    mount() {
+      scanner = mountScan($('#lesson'), guideApi);
+      if (/[?&]debug\b/.test(location.search)) Object.assign(window, { __scanner: scanner, __player: player, __P: P });
+    },
+    unmount() { scanner?.stop(); scanner = null; },
+    stage: () => ({ kicker: 'Your cube', title: 'Scan it to start', alg: '', setup: '', mask: 'none' }),
+  },
+
   notation: {
     label: 'Notation',
     render() {
@@ -536,9 +573,10 @@ function stop() {
 }
 
 // ---------------------------------------------------------------- tabs
-const ORDER = ['cross', 'f2l', 'oll', 'pll', 'advanced', 'solve', 'notation', 'timer'];
+const ORDER = ['mine', 'cross', 'f2l', 'oll', 'pll', 'advanced', 'solve', 'notation', 'timer'];
 const STEP_NO = { cross: 1, f2l: 2, oll: 3, pll: 4 };
 let current = null;
+let scanner = null;
 
 function open(key, push = true) {
   if (!LESSONS[key]) key = 'cross';
@@ -564,7 +602,8 @@ window.addEventListener('hashchange', () => open(location.hash.slice(1), false))
 
 // ---------------------------------------------------------------- keys
 document.addEventListener('keydown', (e) => {
-  if (e.target.closest('input, textarea')) return;
+  if (e.target.closest?.('input, textarea')) return;
+  if (current === 'mine' && scanner?.onKey(e)) return;
   if (current === 'timer') {
     if (e.code === 'Space' || TIMER.state === 'running') {
       e.preventDefault();
