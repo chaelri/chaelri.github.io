@@ -67,7 +67,8 @@ function renderMoves() {
   let h = '';
   P.steps.forEach((m, i) => {
     if (P.labels[i] !== undefined) h += `<span class="mv-label" data-i="${i}">${esc(P.labels[i])}</span>`;
-    h += `<button class="mv" data-i="${i}" data-mv="${esc(m.tok)}">${esc(m.tok)}</button>`;
+    const pre = algToString(P.setup.concat(P.steps.slice(0, i)));
+    h += `<button class="mv" data-i="${i}" data-mv="${esc(m.tok)}" data-pre="${esc(pre)}" data-view="${P.view}">${esc(m.tok)}</button>`;
   });
   ui.moves.innerHTML = h;
   markMoves();

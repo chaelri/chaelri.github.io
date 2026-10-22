@@ -162,11 +162,10 @@ button { font: inherit; color: inherit; }
 .demo-cube { position: relative; }
 .demo.paused .demo-cube { cursor: pointer; }
 .demo-still { display: block; width: 100%; height: 100%; object-fit: contain; }
-.demo-btns { position: absolute; right: 8px; bottom: 8px; display: flex; gap: 6px; z-index: 1; }
+.demo-btns { display: flex; justify-content: center; gap: 8px; margin-top: 8px; }
 .demo-play, .demo-restart {
-  width: 34px; height: 34px; border-radius: 50%; border: 0; cursor: pointer;
+  width: 32px; height: 32px; border-radius: 50%; border: 0; cursor: pointer;
   background: var(--accent); color: var(--accent-ink); font-size: 13px; display: grid; place-items: center;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 .demo-restart { background: rgba(20, 22, 28, 0.85); color: var(--text); border: 1px solid #3a4152; font-size: 16px; }
 .demo-restart::before { content: '↺'; }

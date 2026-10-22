@@ -1,7 +1,7 @@
 // Move tips: hover (or tap) any move token and a small card shows that one
 // turn looping on a mini cube, with what to do in plain words. Tokens are any
 // element with data-mv="R'"; algHTML() wraps an algorithm string in them.
-import { parseMove } from './cube.js';
+import { parseMove, parseAlg } from './cube.js';
 import { CubePlayer } from './player.js';
 
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -69,10 +69,14 @@ function ensure() {
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function loop(mv) {
+// pre: the moves that lead up to this one (case setup + earlier moves), so the
+// tip shows the real cube at that moment; without it, a solved cube.
+async function loop(mv, pre) {
   const g = ++gen;
+  const before = pre ? parseAlg(pre) : [];
   while (g === gen) {
     mini.reset();
+    mini.applyNow(before);
     mini.dimExcept(mv);
     await wait(450);
     if (g !== gen) return;
@@ -104,10 +108,13 @@ export function showTip(el) {
   tip.querySelector('.mt-how').textContent = d.how;
   tip.classList.add('on');
   if (!mini) mini = new CubePlayer(tip.querySelector('.mt-cube'), { interactive: false });
-  const v = viewFor(d.mv.face);
+  // in a case: the same view as that case's cube, so the colours line up
+  const pre = el.dataset.pre;
+  const v = pre !== undefined ? { yaw: 0.62, pitch: el.dataset.view === 'bottom' ? -0.5 : 0.5 } : viewFor(d.mv.face);
   mini.look(v.yaw, v.pitch, true);
+  tip.querySelector('.mt-hold').textContent = pre !== undefined ? 'Your cube at this move: the lit layer turns.' : 'Hold: yellow on top, green facing you';
   place(el);
-  loop(d.mv);
+  loop(d.mv, pre);
 }
 
 export function hideTip(delay = 0) {

@@ -21,15 +21,16 @@ const PIECES = {
 // paused: shows the starting position (the thing to look for) until tapped.
 export function demoHTML({ setup = '', alg, mask = 'none', pieces = '', view = 'top', caption = '', paused = false }) {
   return `<div class="demo${paused ? ' paused' : ''}" data-setup="${esc(setup)}" data-alg="${esc(alg)}" data-mask="${mask}" data-pieces="${pieces}" data-view="${view}">
-    <div class="demo-cube"><div class="demo-btns"><button class="demo-restart" aria-label="Restart" title="Play from the start"></button>${paused ? '<button class="demo-play" aria-label="Play"></button>' : ''}</div></div>
+    <div class="demo-cube"></div>
+    <div class="demo-btns"><button class="demo-restart" aria-label="Restart" title="Play from the start"></button>${paused ? '<button class="demo-play" aria-label="Play"></button>' : ''}</div>
     <div class="demo-moves"></div>
     ${caption ? `<div class="demo-cap">${caption}</div>` : ''}
   </div>`;
 }
 
 // Starts every .demo under root; returns a function that stops them all.
-// Each demo can: play (loop), step to one move (tap a move: jump to just
-// before it, play it once, stop), restart (play again from the start).
+// Each demo can: play (loop), jump to a move (tap it: the cube shows the
+// frame just before it), restart (play again from the start).
 export function mountDemos(root) {
   const players = [];
   // Only one case plays at a time: starting one stops the other, which goes
@@ -74,15 +75,14 @@ export function mountDemos(root) {
         await wait(1400);
       }
     };
-    card.stepTo = async (i) => {
-      const p = live(), g = ++card.gen;
+    // tap a move: jump to that frame (the cube just before it), nothing plays
+    card.stepTo = (i) => {
+      const p = live();
+      card.gen++;
       setPlaying(false);
       pose(p, host);
       p.applyNow(moves.slice(0, i));
       mark(i);
-      await wait(250);
-      if (card.gen !== g) return;
-      if (await p.animate(moves[i], 650)) { if (card.gen === g) mark(i + 1); }
     };
     card.stop = () => {
       card.gen++;
@@ -105,9 +105,14 @@ export function mountDemos(root) {
   return () => { active = null; players.forEach((p) => p.destroy()); };
 }
 
+// Each move carries everything before it (data-pre), so its hover tip can
+// show this case's real cube at that moment.
 function labels(host) {
-  const moves = parseAlg(host.dataset.alg);
-  host.querySelector('.demo-moves').innerHTML = moves.map((m) => `<span class="tok" data-mv="${esc(m.tok)}">${esc(m.tok)}</span>`).join(' ');
+  const moves = parseAlg(host.dataset.alg), setup = host.dataset.setup || '';
+  host.querySelector('.demo-moves').innerHTML = moves.map((m, i) => {
+    const pre = [setup, ...moves.slice(0, i).map((x) => x.tok)].join(' ').trim();
+    return `<span class="tok" data-mv="${esc(m.tok)}" data-pre="${esc(pre)}" data-view="${host.dataset.view || 'top'}">${esc(m.tok)}</span>`;
+  }).join(' ');
 }
 
 function pose(p, host) {
