@@ -81,6 +81,7 @@ public static class Json
                 break;
             case StepType.Shutdown:
                 c["text"] = s.Text;
+                c["onlyIfServo"] = s.OnlyIfServo;
                 c["delayBefore"] = s.DelayBefore;
                 break;
             case StepType.ReadText:
@@ -119,6 +120,7 @@ public static class Json
             CopyResult = Bool(c, "copyResult") ?? !legacyDiscord,
             SendDiscord = Bool(c, "sendDiscord") ?? legacyDiscord,
             TextOnly = Bool(c, "textOnly") ?? false,
+            OnlyIfServo = Bool(c, "onlyIfServo") ?? false,
         };
         // "Include the text it read" became the {text} variable in the message.
         if (type == StepType.ReadText && (Bool(c, "includeText") ?? !legacyDiscord) && !s.Text.Contains("{text}"))

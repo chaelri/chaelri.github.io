@@ -286,6 +286,20 @@ public sealed class Runner
                                     throw new EngineException("The screen is locked");
                                 bool dodged = step.Type.HasPoint() && UI.Send(() => Hud.Shared.Dodge(step.Point));
                                 ClickEngine.LastCapture = null;
+                                if (step.Type == StepType.Shutdown && step.OnlyIfServo
+                                    && await ClickEngine.ServoDidNotStartPc(ct) is { } keepOn)
+                                {
+                                    // Not a failure: the PC was on before the servo's slot, so leave it on
+                                    // and carry on with any steps after this one.
+                                    reason = $"Didn't shut down: {keepOn}";
+                                    if (Discord.WebhookUrl != null)
+                                    {
+                                        using var cap = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                                        try { await Discord.SendText($"{m.Name}: didn't shut down, {keepOn}", cap.Token); } catch (Exception) { }
+                                    }
+                                    lock (st) st.Completed.Add(i);
+                                    continue;
+                                }
                                 var outText = await ClickEngine.Perform(step, st, ct, p => st.Progress = Math.Floor(p * 100) / 100);
                                 if (step.Type == StepType.Shutdown)
                                 {

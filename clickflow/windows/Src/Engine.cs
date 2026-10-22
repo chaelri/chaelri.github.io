@@ -132,6 +132,40 @@ public static class ClickEngine
         return null;
     }
 
+    // ---------- Servo ----------
+
+    const string ServoLastRun = "https://test-database-55379-default-rtdb.asia-southeast1.firebasedatabase.app/servo/lastRun.json";
+    static readonly TimeSpan ServoWindow = TimeSpan.FromHours(3);
+
+    /// Null when the servo pressed the power button within ServoWindow (written by gemini-proxy
+    /// /servo-poweron at 5:55 / 3:55); otherwise why the shutdown must not happen. Anything
+    /// unreadable counts as "no": a PC left on is harmless, one switched off mid-work is not.
+    public static async Task<string?> ServoDidNotStartPc(CancellationToken ct)
+    {
+        JsonElement run;
+        try
+        {
+            using var cap = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            cap.CancelAfter(TimeSpan.FromSeconds(15));
+            var body = await http.GetStringAsync(ServoLastRun, cap.Token);
+            run = JsonDocument.Parse(body).RootElement.Clone();
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+        catch (Exception) { return "couldn't read /servo/lastRun"; }
+
+        if (run.ValueKind != JsonValueKind.Object) return "the servo has no run on record";
+        var action = run.TryGetProperty("action", out var a) && a.ValueKind == JsonValueKind.String ? a.GetString() : null;
+        var at = run.TryGetProperty("at", out var t) && t.ValueKind == JsonValueKind.Number ? t.GetDouble() : 0;
+        var age = DateTimeOffset.UtcNow - DateTimeOffset.FromUnixTimeMilliseconds((long)at);
+        if (action != "clicked")
+        {
+            var why = run.TryGetProperty("reason", out var r) && r.ValueKind == JsonValueKind.String ? $" ({r.GetString()})" : "";
+            return $"the servo didn't press the button, PC was already on{why}";
+        }
+        if (age > ServoWindow) return $"the servo's last press was {Math.Round(age.TotalHours, 1)} h ago";
+        return null;
+    }
+
     // ---------- Chrome ----------
 
     /// chrome.exe from the App Paths registration (per-user installs first), or null.

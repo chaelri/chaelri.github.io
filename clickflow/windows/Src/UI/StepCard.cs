@@ -203,6 +203,10 @@ public sealed class StepCard : FitCard
                 Add(Hint(Discord.WebhookUrl == null
                     ? "No Discord webhook set, so it only shuts down: Settings › Discord."
                     : "Sends this to Discord (leave empty to skip), then force-closes every app (unsaved work is lost) and shuts down. Steps after it never run.", Theme.Red));
+                var servo = new CheckBox { Text = "Only if the servo turned the PC on", Checked = s.OnlyIfServo, AutoSize = true, Margin = new Padding(0, 4, 14, 0) };
+                servo.CheckedChanged += (_, _) => { s.OnlyIfServo = servo.Checked; editor.StepChanged(); };
+                Add(servo);
+                Add(Hint("Checks /servo/lastRun in Firebase first. Shuts down only if the 5:55 / 3:55 servo pressed the power button in the last 3 hours; if the PC was already on, it stays on and the run carries on."));
                 Add(DelayRow());
                 break;
             }
