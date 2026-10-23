@@ -14149,3 +14149,17 @@ body:not(.light) #output .verse .comments .comment {
   font-size: 15px;
   line-height: 22px;
 }
+
+/* Dashboard journal pills + top-right icon buttons: filled card colour, no
+   outline (same as the reader header buttons). */
+body:not(.light) .dash-journal-link,
+body:not(.light) .dash-browse-btn {
+  background: #1b2238 !important;
+  border-color: transparent !important;
+}
+body:not(.light) .dash-journal-link { color: rgba(229, 231, 235, 0.85); }
+body:not(.light) .dash-journal-link:hover,
+body:not(.light) .dash-browse-btn:hover {
+  background: #222b45 !important;
+  border-color: transparent !important;
+}
