@@ -502,15 +502,20 @@ select:disabled {
   margin-top: 10px;
   display: flex;
   gap: 8px;
+  /* Button keeps its own height when the textarea is dragged taller. */
+  align-items: flex-end;
   width: 100%;
-  border-radius: 14px;
-  background: rgba(17, 26, 47, 0.6);
   box-sizing: border-box;
 }
 .comment-input textarea {
   min-width: 0;
   flex: 1;
   box-sizing: border-box;
+}
+/* Ring only: .comments clips overflow, so the global drop glow got cut off
+   into a square patch under the box. */
+.comment-input textarea:focus {
+  box-shadow: 0 0 0 1px rgba(124, 195, 255, 0.35);
 }
 
 /* ---------- SUMMARY ---------- */
@@ -1024,7 +1029,7 @@ select:disabled {
 }
 .ai-reflection textarea:focus {
   outline: none;
-  border-color: rgba(219, 39, 119, 0.4);
+  border-color: rgba(124, 195, 255, 0.5);
   background: rgba(255, 255, 255, 0.06);
 }
 
@@ -1032,7 +1037,7 @@ select:disabled {
 .light .ai-reflection li { background: rgba(0,0,0,0.02); border-color: rgba(0,0,0,0.06); }
 .light .ai-reflection textarea { background: rgba(0,0,0,0.03); border-color: rgba(0,0,0,0.08); color: #1a1a1a; }
 .light .ai-reflection textarea::placeholder { color: rgba(0,0,0,0.25); }
-.light .ai-reflection textarea:focus { border-color: rgba(219,39,119,0.4); background: rgba(0,0,0,0.04); }
+.light .ai-reflection textarea:focus { border-color: rgba(124,195,255,0.5); background: rgba(0,0,0,0.04); }
 
 /* ---------- AI FADE IN ---------- */
 .ai-fade-in {
@@ -1796,7 +1801,7 @@ span.cm-intro-marker.material-symbols-outlined {
   transition: border-color 0.2s;
 }
 #aiReflection textarea:focus {
-  border-color: rgba(219,39,119,0.3);
+  border-color: rgba(124, 195, 255, 0.5);
 }
 #aiReflection textarea::placeholder {
   color: #6b7a94;
@@ -7649,7 +7654,7 @@ button#storyBtn { background: unset; }
   transition: border-color 0.2s;
 }
 #reflectContent textarea:focus {
-  border-color: rgba(219,39,119,0.3);
+  border-color: rgba(124, 195, 255, 0.5);
 }
 #reflectContent textarea::placeholder {
   color: #6b7a94;
