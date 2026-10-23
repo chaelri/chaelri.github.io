@@ -183,6 +183,41 @@ function _verseActionTap(btn) {
 // x-center so the reveal starts under the finger. The class is stripped on
 // animationend — leaving it on would replay the whole thing when the loader
 // card is swapped for the real content a second or two later.
+// Reverse of _revealFromButton: the panel shrinks back up into the button it
+// came from (height → 0, so the verses below slide up), THEN `done` empties or
+// hides it. While it runs, panel._collapsing is set so a tap in that window
+// is ignored instead of reopening a half-gone panel.
+function _collapsePanel(panel, btn, done) {
+  if (!panel || panel._collapsing) return;
+  const h = panel.getBoundingClientRect().height;
+  const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  if (!h || reduce || !panel.animate) { done(); return; }
+  if (btn) {
+    try {
+      const originX = btn.getBoundingClientRect().left - panel.getBoundingClientRect().left
+        + btn.getBoundingClientRect().width / 2;
+      panel.style.setProperty("--ai-origin-x", `${Math.round(originX)}px`);
+    } catch {}
+  }
+  panel._collapsing = true;
+  const prevOverflow = panel.style.overflow;
+  panel.style.overflow = "hidden";
+  panel.style.transformOrigin = "var(--ai-origin-x, 32px) top";
+  const anim = panel.animate(
+    [
+      { height: `${h}px`, opacity: 1, transform: "none" },
+      { height: "0px", opacity: 0, transform: "translateY(-8px) scale(0.97)" },
+    ],
+    { duration: 300, easing: "cubic-bezier(0.4, 0, 0.2, 1)" },
+  );
+  anim.onfinish = anim.oncancel = () => {
+    done();
+    panel.style.overflow = prevOverflow;
+    panel.style.transformOrigin = "";
+    panel._collapsing = false;
+  };
+}
+
 function _revealFromButton(panel, btn, cls) {
   if (!panel || !btn) return;
   try {
@@ -361,9 +396,11 @@ function _mountAICardShell(mountEl, { label, extraClass = "", effectsHTML = "" }
     </div>
   </div>`;
   mountEl.querySelector(".ai-card-close").onclick = () => {
-    mountEl.innerHTML = "";
     const verseWrap = mountEl.closest?.(".verse");
-    if (verseWrap) _syncVerseActionStates(verseWrap);
+    _collapsePanel(mountEl, verseWrap?.querySelector('[data-action="context"]'), () => {
+      mountEl.innerHTML = "";
+      if (verseWrap) _syncVerseActionStates(verseWrap);
+    });
   };
   return {
     card: mountEl.querySelector(".inline-ai-card"),
@@ -453,7 +490,11 @@ IMPORTANT: Bold the key theological terms and important words using **double ast
 
 async function toggleVerseChat(key, book, chapter, verse, text, mountEl) {
   if (mountEl.querySelector(".verse-chat-wrapper")) {
-    mountEl.innerHTML = "";
+    const verseWrap = mountEl.closest?.(".verse");
+    _collapsePanel(mountEl, verseWrap?.querySelector('[data-action="ask"]'), () => {
+      mountEl.innerHTML = "";
+      if (verseWrap) _syncVerseActionStates(verseWrap);
+    });
     // Reset chat memory on close — user wants every reopen to start fresh
     // ("pag inopen ulit dapat refreshed"). Suggestions/followups too.
     delete verseChatHistories[key];
@@ -1741,9 +1782,12 @@ async function loadPassage() {
         e.stopPropagation();
         _verseActionTap(aiBtn);
         const mount = wrap.querySelector(".inline-ai-mount");
+        if (mount._collapsing) return;
         if (mount.innerHTML.trim()) {
-          mount.innerHTML = "";
-          _syncVerseActionStates(wrap);
+          _collapsePanel(mount, aiBtn, () => {
+            mount.innerHTML = "";
+            _syncVerseActionStates(wrap);
+          });
           return;
         }
         fetchInlineQuickContext(
@@ -1766,6 +1810,7 @@ async function loadPassage() {
         e.stopPropagation();
         _verseActionTap(chatBtn);
         const mount = wrap.querySelector(".inline-ai-mount");
+        if (mount._collapsing) return;
         const wasOpen = !!mount.querySelector(".verse-chat-wrapper");
         toggleVerseChat(
           key,
@@ -1784,11 +1829,18 @@ async function loadPassage() {
         noteActionBtn.onclick = (e) => {
           e.stopPropagation();
           _verseActionTap(noteActionBtn);
-          commentsEl.hidden = !commentsEl.hidden;
+          if (commentsEl._collapsing) return;
           if (!commentsEl.hidden) {
-            renderComments(key, commentsEl);
-            _revealFromButton(commentsEl, noteActionBtn, "comments--revealing");
+            _collapsePanel(commentsEl, noteActionBtn, () => {
+              commentsEl.hidden = true;
+              _renderInlineNotes(wrap);
+              _syncVerseActionStates(wrap);
+            });
+            return;
           }
+          commentsEl.hidden = false;
+          renderComments(key, commentsEl);
+          _revealFromButton(commentsEl, noteActionBtn, "comments--revealing");
           _renderInlineNotes(wrap);
           _syncVerseActionStates(wrap);
         };
