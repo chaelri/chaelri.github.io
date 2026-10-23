@@ -64,6 +64,23 @@ function renderComments(key, container, { skipFocus = false } = {}) {
   commentLabel.innerText = "NOTES";
   commentHeader.appendChild(commentLabel);
 
+  // In the reader the notes panel is a Quick Context-style card: ✕ closes it
+  // through the Note button so the collapse animation and button state match.
+  const readerVerse = container.closest("#output .verse");
+  if (readerVerse) {
+    commentHeader.classList.add("ai-card-header");
+    commentLabel.classList.add("ai-card-label");
+    const close = document.createElement("button");
+    close.className = "ai-card-close";
+    close.title = "Close";
+    close.textContent = "✕";
+    close.onclick = (e) => {
+      e.stopPropagation();
+      readerVerse.querySelector('[data-action="note"]')?.click();
+    };
+    commentHeader.appendChild(close);
+  }
+
   const list = comments[key] || [];
 
   // A note just added (Add / Enter) gets the arrival animation; set by the

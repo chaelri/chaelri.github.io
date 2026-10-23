@@ -20,6 +20,8 @@ This file auto-loads when Claude opens any session inside or below `chaelri.gith
 
 @../knowledge/devo/DECISIONS.md
 
+@../knowledge/devo/DESIGN.md
+
 ## Quick reminders
 
 - **`script.js` was split (2026-04-27):** Code now lives in 11 ordered chunks under `devo/js/` (`01-core.js` … `11-boot.js`). They load as classic `<script>` tags via `firebase-sync.js` (`async=false`) and share one script-global scope, so cross-file globals work unchanged. See `KEY_FILES.md` for the line-range → file map. **Knowledge MD line numbers reference the pre-split monolithic file** — translate via the map.

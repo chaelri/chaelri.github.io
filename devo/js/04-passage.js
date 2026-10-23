@@ -512,8 +512,12 @@ async function toggleVerseChat(key, book, chapter, verse, text, mountEl) {
   const hasHistory = false;
 
 
+  // In the reader the chat wears the Quick Context card's header (label + ✕);
+  // other surfaces (canvas, TTS pause, retell) have their own chrome.
+  const inReader = !!mountEl.closest?.("#output .verse");
   mountEl.innerHTML = `
     <div class="verse-chat-wrapper">
+      ${inReader ? `<div class="ai-card-header verse-chat-head"><span class="ai-card-label">Ask</span><button class="ai-card-close" title="Close">✕</button></div>` : ""}
       <div class="chat-history${hasHistory ? "" : " hidden"}" id="chat-hist-${key}"></div>
       <div id="chat-empty-${key}" class="${hasHistory ? "hidden" : ""}">
         <div class="chat-empty-state">
@@ -534,6 +538,10 @@ async function toggleVerseChat(key, book, chapter, verse, text, mountEl) {
       </div>
     </div>
   `;
+  mountEl.querySelector(".verse-chat-head .ai-card-close")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    mountEl.closest(".verse")?.querySelector('[data-action="ask"]')?.click();
+  });
 
   const input = document.getElementById(`chat-input-${key}`);
   const sendBtn = document.getElementById(`chat-send-${key}`);

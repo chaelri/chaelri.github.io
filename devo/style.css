@@ -13923,3 +13923,92 @@ body.is-offline.tts-canvas-active #offlinePill { bottom: calc(84px + env(safe-ar
   background: rgba(190, 24, 93, 0.06);
   color: rgba(30, 41, 59, 0.85);
 }
+
+/* ── Reader panels share the Quick Context card ────────────────────────────
+   Ask and Note under a verse use the same shell as .inline-ai-card: #1b2238
+   surface, 14px radius, 16px padding, an 11px spaced-caps label with a ✕.
+   Saved notes read like the inline notes (pink rule on the left). See
+   knowledge/devo/DESIGN.md. */
+#output .verse-chat-wrapper {
+  background: #1b2238;
+  border: none;
+}
+.verse-chat-head { padding: 16px 16px 0; }
+.verse-chat-head,
+#output .verse .comments .ai-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.verse-chat-head .ai-card-label,
+#output .verse .comments .ai-card-label {
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+  opacity: 1;
+  margin: 0;
+}
+.verse-chat-head .ai-card-close,
+#output .verse .comments .ai-card-close {
+  border: none;
+  background: none;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  font-size: 18px;
+  padding: 0;
+  line-height: 1;
+}
+.verse-chat-head .ai-card-close:hover,
+#output .verse .comments .ai-card-close:hover { color: rgba(255, 255, 255, 0.9); }
+
+#output .verse .comments {
+  margin-top: 8px;
+  padding: 16px;
+  border-radius: 14px;
+  background: #1b2238;
+}
+#output .verse .comments .comment {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0 0 6px;
+  padding: 7px 12px;
+  border-left: 2px solid rgba(200, 48, 134, 0.6);
+  border-radius: 0 10px 10px 0;
+  background: rgba(200, 48, 134, 0.07);
+  color: rgba(255, 255, 255, 0.82) !important;
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+#output .verse .comments .comment button {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0 2px;
+  background: none !important;
+  color: rgba(255, 255, 255, 0.4) !important;
+  font-size: 14px;
+}
+#output .verse .comments .comment button:hover { color: #f472b6 !important; }
+#output .verse-chat-wrapper { max-width: none; }
+
+/* Light mode: the light card Ask already had (#f5f5fa), dark label + ✕. */
+.light #output .verse-chat-wrapper,
+.light #output .verse .comments { background: #f5f5fa; }
+.light .verse-chat-head .ai-card-label,
+.light #output .verse .comments .ai-card-label { color: rgba(0, 0, 0, 0.5); }
+.light .verse-chat-head .ai-card-close,
+.light #output .verse .comments .ai-card-close { color: rgba(0, 0, 0, 0.45) !important; background: none !important; }
+.light #output .verse .comments .comment {
+  background: rgba(190, 24, 93, 0.06) !important;
+  color: rgba(30, 41, 59, 0.85) !important;
+}
+.light #output .verse .comments .comment button { color: rgba(0, 0, 0, 0.35) !important; }
