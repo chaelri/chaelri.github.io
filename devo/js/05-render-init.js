@@ -43,6 +43,8 @@ const updateMetaIndicators = (key, verseContent, newCommentCount) => {
   }
 };
 
+let _noteJustAddedKey = null;
+
 function renderComments(key, container, { skipFocus = false } = {}) {
   container.innerHTML = "";
 
@@ -64,9 +66,15 @@ function renderComments(key, container, { skipFocus = false } = {}) {
 
   const list = comments[key] || [];
 
+  // A note just added (Add / Enter) gets the arrival animation; set by the
+  // add handler right before it re-renders, consumed here.
+  const justAdded = _noteJustAddedKey === key;
+  _noteJustAddedKey = null;
+
   list.forEach((obj, i) => {
     const c = document.createElement("div");
     c.className = "comment";
+    if (justAdded && i === list.length - 1) c.classList.add("comment--new");
     c.innerHTML = `${obj.text}<button>✕</button>`;
     c.querySelector("button").onclick = () => {
       comments[key].splice(i, 1);
@@ -87,6 +95,7 @@ function renderComments(key, container, { skipFocus = false } = {}) {
     if (!comments[key]) comments[key] = [];
     comments[key].push({ text: val, time: Date.now() });
     saveComments();
+    _noteJustAddedKey = key;
     renderComments(key, container);
     renderSummary();
     updateMetaIndicators(key, verseContent, comments[key].length);

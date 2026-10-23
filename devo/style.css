@@ -493,6 +493,18 @@ select:disabled {
   margin: 6px 6px 6px 0;
 }
 
+/* Arrival of a freshly added note: rises in from where the input sits. */
+.comment.comment--new {
+  animation: commentArrive 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes commentArrive {
+  from { opacity: 0; transform: translateY(10px) scale(0.96); }
+  to   { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .comment.comment--new { animation: none; }
+}
+
 .comment button {
   background: none;
   border: none;
