@@ -12504,6 +12504,13 @@ body.cfg-sheet-open.light .bc-picker-btn .material-symbols-outlined { color: rgb
 @media (min-width: 1101px) {
   #mtReflectPanelToggle { display: flex; }
   body.reflect-panel-hidden .layout { grid-template-columns: minmax(0, 1fr); }
+  /* Keep the reading column as wide as it is beside the sidebar
+     (840 layout - 20 gap - 380 sidebar), centred, so lines don't run long. */
+  body.reflect-panel-hidden .layout > .main {
+    width: 100%;
+    max-width: 440px;
+    justify-self: center;
+  }
   /* !important: loadPassage sets an inline display:block on .summary. */
   body.reflect-panel-hidden .layout > aside.summary { display: none !important; }
 }
