@@ -3055,6 +3055,17 @@ body.light {
   border-bottom-left-radius: 4px;
 }
 
+/* "Thinking…" inside a bot bubble: one row, sized like a message, not the
+   stacked full-card loader. */
+.chat-msg.bot .sparkle-loader {
+  flex-direction: row;
+  padding: 0;
+  gap: 8px;
+}
+.chat-msg.bot .sparkle-loader .sparkle-row { gap: 3px; }
+.chat-msg.bot .sparkle-loader .sparkle { font-size: 11px; }
+.chat-msg.bot .sparkle-loader .sparkle-text { font-size: 14px; letter-spacing: 0.2px; }
+
 /* Only new messages animate */
 .chat-msg-new.user {
   animation: chatMsgSlideIn 0.2s ease-out;
