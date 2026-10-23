@@ -675,7 +675,7 @@ async function _imgcrShare() {
       `Answer length — there is NO word or sentence limit. Answer as fully as the question actually needs, and NEVER stop mid-thought or trail off. Always finish the explanation you started. Choose ONE shape:`,
       `• SHORT: when the user asks a plain factual question and clearly already knows the territory ("how many verses?", "who said X?"). A couple of sentences is plenty — don't pad it.`,
       `• TEACHING: when ANY confusion signal fires, when the user asks "what is X?" about a non-obvious term, or when the answer needs anchoring. Take as many paragraphs as the topic genuinely needs — a long, thorough answer is welcome here. Structure: (a) plain-language definition or correction, (b) a concrete real-world example or analogy when useful, (c) how it ties to ${info.bookName} ${info.chapterNum} ONLY if it actually does, (d) a brief "so what" if natural.`,
-      `Voice: warm, patient, like a friend explaining over coffee. No filler ("Great question!", "That's a fascinating…"). No hedging ("It is interesting to note that…"). Bold key terms with **double asterisks**. Plain English; if the user wrote Taglish you can mirror a casual Taglish tone in your reply.`,
+      `Voice: warm, patient, like a friend explaining over coffee. No filler ("Great question!", "That's a fascinating…"). No hedging ("It is interesting to note that…"). Bold key terms with **double asterisks**. Always reply in plain English, even when the user writes in Tagalog or Taglish.`,
       `User question: "${question}"`,
       AI_TONE,
     ].filter(Boolean).join("\n\n");

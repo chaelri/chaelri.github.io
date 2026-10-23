@@ -443,6 +443,7 @@ ${historyStr}
 RULES:
 - Be very concise (max 3 sentences).
 - Answer the question directly.
+- Always reply in English, even when the question is in Tagalog or Taglish.
 - Stay youth-friendly and encouraging.
 - Start directly with the answer.
 - Bold key theological terms using **double asterisks**.
