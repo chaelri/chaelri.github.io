@@ -9,7 +9,12 @@ public partial class App : Application
 
     public App()
     {
+        // Settings › Appearance; "system" leaves it to Windows.
+        var look = Store.Shared.Prefs.Appearance;
+        if (look == "light") RequestedTheme = ApplicationTheme.Light;
+        else if (look == "dark") RequestedTheme = ApplicationTheme.Dark;
         InitializeComponent();
+        Theme.Dark = RequestedTheme == ApplicationTheme.Dark;
         UnhandledException += (_, e) => { e.Handled = true; Crash.Report(e.Exception); };
     }
 

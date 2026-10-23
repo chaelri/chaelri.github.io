@@ -119,6 +119,7 @@ public sealed class SettingsView : UserControl
     {
         this.main = main;
         Content = new ScrollViewer { Content = stack, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+        stack.Children.Add(Appearance());
         stack.Children.Add(Running());
         stack.Children.Add(Discord_());
         stack.Children.Add(Accuracy());
@@ -147,6 +148,34 @@ public sealed class SettingsView : UserControl
         var l = Theme.Small(text);
         l.Margin = new Thickness(28, 0, 0, 6);
         return l;
+    }
+
+    UIElement Appearance()
+    {
+        var p = store.Prefs;
+        var (card, c) = Card("Appearance");
+        string[] keys = { "system", "light", "dark" };
+        var pick = new ComboBox { Width = 220, SelectedIndex = Math.Max(0, Array.IndexOf(keys, p.Appearance)) };
+        pick.Items.Add("Same as Windows");
+        pick.Items.Add("Light");
+        pick.Items.Add("Dark");
+        var restart = Theme.Button("Restart now", "", primary: true);
+        restart.Click += (_, _) => main.Restart();
+        var note = Theme.Small("ClickFlow restarts to change it. Schedules keep their times.");
+        var applied = p.Appearance;
+        void Show() => restart.Visibility = p.Appearance != applied ? Visibility.Visible : Visibility.Collapsed;
+        pick.SelectionChanged += (_, _) =>
+        {
+            p.Appearance = keys[Math.Max(0, pick.SelectedIndex)];
+            store.SavePrefs();
+            Show();
+        };
+        Show();
+        var row = Theme.Row(Theme.Label("Theme"), pick, restart);
+        row.Margin = new Thickness(0, 2, 0, 2);
+        c.Children.Add(row);
+        c.Children.Add(note);
+        return card;
     }
 
     UIElement Running()

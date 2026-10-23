@@ -24,13 +24,19 @@ public static class Theme
         return fonts.Families.Any(f => f.Name == name);
     }
 
-    public static readonly Color Accent = Rgb(10, 110, 230);
-    public static readonly Color Purple = Rgb(130, 80, 230);
-    public static readonly Color PurpleSoft = Rgb(240, 232, 255);
-    public static readonly Color PurpleEdge = Rgb(214, 196, 250);
-    public static readonly Color Red = Rgb(214, 52, 46);
-    public static readonly Color Orange = Rgb(214, 120, 0);
-    public static readonly Color Green = Rgb(30, 150, 70);
+    /// Set once at start-up from Settings › Appearance: WinUI can't switch an app's theme while
+    /// it runs, so changing it restarts ClickFlow.
+    public static bool Dark;
+
+    public static Color Accent => Dark ? Rgb(96, 165, 250) : Rgb(10, 110, 230);
+    public static Color Purple => Dark ? Rgb(167, 139, 250) : Rgb(130, 80, 230);
+    public static Color PurpleSoft => Dark ? Rgb(44, 36, 66) : Rgb(240, 232, 255);
+    public static Color PurpleEdge => Dark ? Rgb(84, 68, 130) : Rgb(214, 196, 250);
+    public static Color Red => Dark ? Rgb(248, 113, 113) : Rgb(214, 52, 46);
+    public static Color Orange => Dark ? Rgb(251, 170, 60) : Rgb(214, 120, 0);
+    public static Color Green => Dark ? Rgb(74, 200, 120) : Rgb(30, 150, 70);
+    /// Text on an Accent or Purple fill (the step number badge).
+    public static Color OnAccent => Dark ? Rgb(18, 18, 18) : Rgb(255, 255, 255);
 
     public static Color Rgb(byte r, byte g, byte b) => Color.FromArgb(255, r, g, b);
     public static SolidColorBrush Solid(Color c) => new(c);

@@ -56,6 +56,8 @@ public sealed class Prefs
     public bool PausedAll;
     public bool Onboarded;
     public bool TrayHintShown;
+    /// "system", "light" or "dark".
+    public string Appearance = "system";
 
     static string FilePath => Path.Combine(Store.Directory, "settings.json");
 
@@ -73,6 +75,7 @@ public sealed class Prefs
                 p.PausedAll = B("pausedAll", false);
                 p.Onboarded = B("onboarded", false);
                 p.TrayHintShown = B("trayHintShown", false);
+                if (o["appearance"] is JsonValue a && a.TryGetValue<string>(out var look) && look is "system" or "light" or "dark") p.Appearance = look;
             }
         }
         catch (Exception) { }
@@ -91,6 +94,7 @@ public sealed class Prefs
                 ["pausedAll"] = PausedAll,
                 ["onboarded"] = Onboarded,
                 ["trayHintShown"] = TrayHintShown,
+                ["appearance"] = Appearance,
             }));
         }
         catch (Exception) { }

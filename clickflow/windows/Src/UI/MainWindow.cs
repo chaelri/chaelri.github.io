@@ -135,14 +135,15 @@ public sealed class MainWindow : Window
     void PaintCaptionButtons()
     {
         var bar = AppWindow.TitleBar;
-        var ink = Windows.UI.Color.FromArgb(0xE4, 0, 0, 0);
+        byte v = Theme.Dark ? (byte)255 : (byte)0;
+        var ink = Windows.UI.Color.FromArgb(0xE4, v, v, v);
         bar.ButtonBackgroundColor = Colors.Transparent;
         bar.ButtonInactiveBackgroundColor = Colors.Transparent;
         bar.ButtonForegroundColor = ink;
-        bar.ButtonInactiveForegroundColor = Windows.UI.Color.FromArgb(0x5C, 0, 0, 0);
-        bar.ButtonHoverBackgroundColor = Windows.UI.Color.FromArgb(0x0F, 0, 0, 0);
+        bar.ButtonInactiveForegroundColor = Windows.UI.Color.FromArgb(0x5C, v, v, v);
+        bar.ButtonHoverBackgroundColor = Windows.UI.Color.FromArgb(0x0F, v, v, v);
         bar.ButtonHoverForegroundColor = ink;
-        bar.ButtonPressedBackgroundColor = Windows.UI.Color.FromArgb(0x0A, 0, 0, 0);
+        bar.ButtonPressedBackgroundColor = Windows.UI.Color.FromArgb(0x0A, v, v, v);
         bar.ButtonPressedForegroundColor = ink;
     }
 
@@ -565,6 +566,14 @@ public sealed class MainWindow : Window
         if (IsMinimized && AppWindow.Presenter is OverlappedPresenter op) op.Restore();
         Activate();
         SetForegroundWindow(Hwnd);
+    }
+
+    /// Starts a fresh ClickFlow on the Settings page, then quits this one (it waits for us).
+    public void Restart()
+    {
+        try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(Environment.ProcessPath!, "--restart --page settings") { UseShellExecute = false }); }
+        catch (Exception e) { Alerts.Show(Owner, "Couldn't restart ClickFlow", e.Message); return; }
+        Quit();
     }
 
     /// Windows is signing out or shutting down: keep the schedule state and macros.

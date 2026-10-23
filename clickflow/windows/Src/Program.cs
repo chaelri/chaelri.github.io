@@ -35,6 +35,12 @@ static class Program
 
         // One ClickFlow per user: a second launch brings the first one's window up.
         using var mutex = new Mutex(true, @"Local\ClickFlow.SingleInstance", out bool first);
+        // Restarting (Settings › Appearance): wait for the old one to quit instead of waking it.
+        if (!first && args.Contains("--restart"))
+        {
+            try { first = mutex.WaitOne(TimeSpan.FromSeconds(20)); }
+            catch (AbandonedMutexException) { first = true; }
+        }
         if (!first)
         {
             Native.PostMessage(Native.HWND_BROADCAST, MainWindow.ShowMessage, 0, 0);

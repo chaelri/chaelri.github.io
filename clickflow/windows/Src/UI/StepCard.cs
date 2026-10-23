@@ -18,7 +18,7 @@ public sealed class StepCard : UserControl
     readonly StackPanel inner = new() { Spacing = 6 };
     readonly TextBlock number = new()
     {
-        Foreground = new SolidColorBrush(Colors.White), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+        Foreground = Theme.Solid(Theme.OnAccent), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
         HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, FontSize = 13,
     };
     readonly Button more = Theme.Button("", "");
