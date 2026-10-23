@@ -17,11 +17,11 @@ public sealed class MacroEditor : UserControl, IDisposable
     readonly Macro macro;
     readonly MainWindow main;
     readonly Store store = Store.Shared;
-    readonly StackPanel stack = new() { Padding = new Thickness(24, 16, 24, 32), Spacing = 0 };
+    readonly StackPanel stack = new() { Padding = new Thickness(32, 22, 32, 40), Spacing = 0 };
     readonly ScrollViewer scroll = new() { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
     readonly TextBlock stats = Theme.Small("");
     readonly List<StepCard> cards = new();
-    readonly StackPanel stepsBox = new() { Spacing = 6 }, schedulesBox = new() { Spacing = 6 };
+    readonly StackPanel stepsBox = new() { Spacing = 12 }, schedulesBox = new() { Spacing = 10 };
 
     public Macro Macro => macro;
     public MainWindow Main => main;
@@ -66,7 +66,7 @@ public sealed class MacroEditor : UserControl, IDisposable
 
     UIElement BuildHeader()
     {
-        var inner = new StackPanel { Spacing = 6 };
+        var inner = new StackPanel { Spacing = 10 };
         var name = new TextBox { Text = macro.Name, FontSize = 20, PlaceholderText = "Macro name" };
         name.TextChanged += (_, _) =>
         {
@@ -99,11 +99,11 @@ public sealed class MacroEditor : UserControl, IDisposable
             Theme.Label("Repeat"), repeat, Theme.Label("times (0 = until stopped)", color: Theme.Muted),
             gap, Theme.Label("Pause between repeats"), delay, Theme.Label("s", color: Theme.Muted), edit));
         // The brand gradient along the top edge.
-        inner.Children.Insert(0, new Border { Height = 3, Margin = new Thickness(-14, -10, -14, 6), CornerRadius = new CornerRadius(12, 12, 0, 0), Background = Theme.BrandGradient() });
+        inner.Children.Insert(0, new Border { Height = 3, Margin = new Thickness(-18, -14, -18, 6), CornerRadius = new CornerRadius(12, 12, 0, 0), Background = Theme.BrandGradient() });
         card = Theme.Card(inner);
         card.BackgroundTransition = new BrushTransition { Duration = TimeSpan.FromMilliseconds(220) };
         resting = card.BorderBrush;
-        card.Margin = new Thickness(0, 0, 0, 14);
+        card.Margin = new Thickness(0, 0, 0, 20);
         return card;
     }
 
@@ -118,7 +118,7 @@ public sealed class MacroEditor : UserControl, IDisposable
 
     static UIElement SectionHeader(string title, string glyph, Windows.UI.Color color, UIElement action)
     {
-        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, Margin = new Thickness(2, 8, 0, 10) };
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, Margin = new Thickness(2, 14, 0, 14) };
         var tile = new Border
         {
             Width = 30, Height = 30, CornerRadius = new CornerRadius(8), Background = Theme.Tint(color, Theme.Dark ? (byte)0x38 : (byte)0x22),

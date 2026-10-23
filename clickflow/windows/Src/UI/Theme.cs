@@ -119,7 +119,7 @@ public static class Theme
         BorderBrush = edge is { } e ? Solid(e) : Res("CardStrokeColorDefaultBrush"),
         BorderThickness = new Thickness(1),
         CornerRadius = new CornerRadius(12),
-        Padding = padding ?? new Thickness(14, 10, 14, 12),
+        Padding = padding ?? new Thickness(18, 14, 18, 16),
     };
 
     public static NumberBox Num(double min, double max, int decimals, double value, double width = 104)
@@ -142,6 +142,14 @@ public static class Theme
         return n;
     }
 
+    /// A borderless button that only fills in on hover, for the quieter actions.
+    public static Button Ghost(Button b)
+    {
+        b.Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+        b.BorderBrush = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+        return b;
+    }
+
     /// A locked number box can't be clicked into, so it can't take focus, and the mouse wheel
     /// (which steps a focused NumberBox) can't change it while you scroll past.
     public static void Lock(NumberBox n, bool locked)
@@ -153,7 +161,7 @@ public static class Theme
     }
 
     /// The Edit / Done toggle that unlocks a group of number boxes.
-    public static Button EditToggle(IReadOnlyList<NumberBox> boxes, string tip, Action<bool>? changed = null)
+    public static Button EditToggle(IReadOnlyList<NumberBox> boxes, string tip, Action<bool>? changed = null, bool ghost = false)
     {
         var b = Button("Edit", "");
         ToolTipService.SetToolTip(b, tip);
@@ -167,8 +175,17 @@ public static class Theme
             foreach (var n in boxes) Lock(n, !editing);
             icon.Glyph = editing ? "" : "";
             text.Text = editing ? "Done" : "Edit";
-            if (editing) b.Style = (Style)Application.Current.Resources["AccentButtonStyle"];
-            else b.ClearValue(FrameworkElement.StyleProperty);
+            if (editing)
+            {
+                b.Style = (Style)Application.Current.Resources["AccentButtonStyle"];
+                b.ClearValue(Control.BackgroundProperty);
+                b.ClearValue(Control.BorderBrushProperty);
+            }
+            else
+            {
+                b.ClearValue(FrameworkElement.StyleProperty);
+                if (ghost) Ghost(b);
+            }
         }
         b.Click += (_, _) => { editing = !editing; Apply(); changed?.Invoke(editing); };
         b.Loaded += (_, _) => Apply();
@@ -202,7 +219,7 @@ public static class Theme
 /// items are centred on each other.
 public sealed class WrapPanel : Panel
 {
-    public double Gap = 8, LineGap = 6;
+    public double Gap = 10, LineGap = 8;
 
     List<(int From, int To, double Height)> Lines(double width)
     {

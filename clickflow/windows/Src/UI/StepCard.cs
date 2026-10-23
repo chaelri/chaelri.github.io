@@ -15,7 +15,7 @@ public sealed class StepCard : UserControl
     public readonly Step Step;
     readonly MacroEditor editor;
     int index;
-    readonly StackPanel inner = new() { Spacing = 6 };
+    readonly StackPanel inner = new() { Spacing = 10 };
     readonly TextBlock number = new()
     {
         Foreground = Theme.Solid(Theme.OnAccent), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
@@ -74,7 +74,7 @@ public sealed class StepCard : UserControl
         // A stripe in the step's colour down the left edge, then the content.
         var stripe = new Border
         {
-            Width = 4, CornerRadius = new CornerRadius(2), Margin = new Thickness(-6, 1, 10, 1),
+            Width = 4, CornerRadius = new CornerRadius(2), Margin = new Thickness(-8, 1, 14, 1),
             Background = Theme.Solid(ShowOnlyLook ? Theme.Purple : Kind),
         };
         var body = new Grid();
@@ -132,14 +132,28 @@ public sealed class StepCard : UserControl
         grip.PointerCaptureLost += (_, _) => editor.DragEnd(commit: false);
         var icon = Theme.Icon(Step.Type.Glyph(), 15, Theme.Solid(Kind));
         icon.VerticalAlignment = VerticalAlignment.Center;
-        var type = Theme.Label(Step.Type.Label(), bold: true, wrap: false);
-        var name = new TextBox { Text = Step.Name, PlaceholderText = "Name (optional)", Width = 240, VerticalAlignment = VerticalAlignment.Center };
-        name.TextChanged += (_, _) => { Step.Name = name.Text; editor.StepChanged(); };
-        var row = Theme.Row(grip, badge, icon, type, name);
+        var type = Theme.Label(Step.Type.Label(), 13, Theme.Muted, wrap: false);
+        var lead = Theme.Row(grip, badge, icon, type);
+        lead.VerticalAlignment = VerticalAlignment.Center;
 
+        // The name reads as the card's title: no box until it's hovered or clicked.
+        var name = new TextBox
+        {
+            Text = Step.Name, PlaceholderText = "Add a name", VerticalAlignment = VerticalAlignment.Center, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            Background = new SolidColorBrush(Colors.Transparent), BorderBrush = new SolidColorBrush(Colors.Transparent), Margin = new Thickness(6, 0, 12, 0),
+        };
+        name.TextChanged += (_, _) => { Step.Name = name.Text; editor.StepChanged(); };
+
+        var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
         if (Step.Type != StepType.Wait)
         {
-            var mode = Theme.Button(Step.ShowOnly ? "Show only" : "Live", Step.ShowOnly ? "" : "", tint: Step.ShowOnly ? Theme.Purple : Theme.Green);
+            // Live / Show only as a coloured pill.
+            var c = Step.ShowOnly ? Theme.Purple : Theme.Green;
+            var mode = Theme.Button(Step.ShowOnly ? "Show only" : "Live", Step.ShowOnly ? "" : "", tint: c);
+            mode.CornerRadius = new CornerRadius(14);
+            mode.Background = Theme.Tint(c, Theme.Dark ? (byte)0x30 : (byte)0x1C);
+            mode.BorderBrush = new SolidColorBrush(Colors.Transparent);
+            mode.Margin = new Thickness(0, 0, 6, 0);
             ToolTipService.SetToolTip(mode, "Live: the step runs. Show only: it is never executed, even in a real run; it only shows its marker.");
             mode.Click += (_, _) =>
             {
@@ -147,35 +161,41 @@ public sealed class StepCard : UserControl
                 editor.StepChanged();
                 editor.RebuildSteps();
             };
-            row.Children.Add(mode);
+            actions.Children.Add(mode);
         }
         if (Step.Type.HasPoint() || Step.Type.HasArea())
         {
-            var pick = Theme.Button("Pick", "");
+            var pick = Theme.Ghost(Theme.Button("Pick", ""));
             ToolTipService.SetToolTip(pick, Step.Type.HasArea() ? "Drag a box over the area, then press ✓" : "Drag the target onto the spot, then press ✓");
             pick.Click += (_, _) => Pick();
-            row.Children.Add(pick);
+            actions.Children.Add(pick);
         }
         if (Step.Type != StepType.Wait)
         {
-            var test = Theme.Button("Test", "");
+            var test = Theme.Ghost(Theme.Button("Test", ""));
             ToolTipService.SetToolTip(test, Step.ShowOnly ? "Shows this step's marker (it's Show only, so nothing is executed)" : "Runs just this step, for real, with no delay");
             test.Click += (_, _) => { Flash(); editor.Test(Step); };
-            row.Children.Add(test);
+            actions.Children.Add(test);
         }
         // Every step type has a number (a delay at least).
-        row.Children.Add(Theme.EditToggle(numbers, "Unlock this step's numbers (position, size, delay) to change them", on =>
+        actions.Children.Add(Theme.EditToggle(numbers, "Unlock this step's numbers (position, size, delay) to change them", on =>
         {
             editing = on;
             Paint();
             Anim.Pop(card, 0.012f);
-        }));
-        ToolTipService.SetToolTip(more, "More");
-        var del = Theme.Button("", "", tint: Theme.Red);
-        ToolTipService.SetToolTip(del, "Delete this step");
-        del.Click += (_, _) => editor.Remove(Step);
-        row.Children.Add(more);
-        row.Children.Add(del);
+        }, ghost: true));
+        ToolTipService.SetToolTip(more, "More: duplicate, move, delete");
+        actions.Children.Add(Theme.Ghost(more));
+
+        var row = new Grid();
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        row.Children.Add(lead);
+        Grid.SetColumn(name, 1);
+        row.Children.Add(name);
+        Grid.SetColumn(actions, 2);
+        row.Children.Add(actions);
         return row;
     }
 
