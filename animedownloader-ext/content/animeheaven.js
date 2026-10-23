@@ -21,7 +21,9 @@
   window.__adxHeavenGenres = true;
 
   // animeheaven tags explicitly ("Explicit Sex", "Nudity", …), not just by genre.
-  const NSFW_RE = /\b(ecchi|erotica|hentai|nudity|explicit|sexual|sex)\b/i;
+  // Bare "explicit" is left out: "Explicit Violence" is gore, not NSFW, and
+  // "Explicit Sex" still matches on "sex".
+  const NSFW_RE = /\b(ecchi|erotica|hentai|nudity|sexual|sex)\b/i;
   const CACHE_KEY = "adx.heaven.shows.v5";
   // a finished show's page never changes
   const TTL_MS = 60 * 24 * 60 * 60 * 1000;
