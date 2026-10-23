@@ -14018,3 +14018,90 @@ body.is-offline.tts-canvas-active #offlinePill { bottom: calc(84px + env(safe-ar
   color: rgba(30, 41, 59, 0.85) !important;
 }
 .light #output .verse .comments .comment button { color: rgba(0, 0, 0, 0.35) !important; }
+
+/* ── Clean pass: everything on the Quick Context card (2026-10-23) ─────────
+   Dark mode only; light mode keeps its own surfaces. See DESIGN.md. */
+
+/* Reader header buttons: filled card colour, no outline. */
+body:not(.light) .mt-action,
+body:not(.light) .mt-overflow,
+body:not(.light) .passage-nav-btn,
+body:not(.light) .action-reflect-btn {
+  background: #1b2238;
+  border-color: transparent;
+}
+body:not(.light) .mt-action:hover,
+body:not(.light) .mt-overflow:hover,
+body:not(.light) .passage-nav-btn:hover,
+body:not(.light) .action-reflect-btn:hover {
+  background: #222b45;
+  border-color: transparent;
+}
+
+/* Favourited verse: the filled heart says it — no pink box behind the text. */
+body:not(.light) .verse.highlighted .verse-content {
+  background: none;
+  padding: 0;
+}
+
+/* Guided Reflection (modal + desktop sidebar): each question is a card. */
+body:not(.light) #reflectContent li,
+body:not(.light) #aiReflection ol > li {
+  background: #1b2238;
+  border: none;
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+body:not(.light) #aiReflection ol > li { padding-inline-start: 16px; }
+body:not(.light) #aiReflection ol > li::before {
+  content: "Question " counter(refl-n);
+  position: static;
+  display: block;
+  margin-bottom: 8px;
+}
+#reflectContent li::before,
+body:not(.light) #aiReflection ol > li::before {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+}
+.light #reflectContent li::before { color: rgba(0, 0, 0, 0.45); }
+body:not(.light) #reflectContent li p,
+body:not(.light) #aiReflection ol > li p {
+  font-size: 15px;
+  line-height: 22px;
+  color: rgba(255, 255, 255, 0.92);
+}
+body:not(.light) #reflectContent li p { margin: 0 0 4px !important; }
+body:not(.light) #reflectContent textarea,
+body:not(.light) #aiReflection textarea {
+  background: rgba(17, 26, 47, 0.9);
+  margin-bottom: 0 !important;
+}
+/* Refresh sits in the title row instead of alone on its own line. */
+#reflectContent .ai-refl-retry {
+  position: absolute;
+  top: 26px;
+  right: 0;
+  margin: 0;
+}
+
+/* Dashboard: Favourites + Notes cards on the card colour; pink stays on the
+   references and labels. Continue Reading keeps its pink glow — it's the CTA. */
+body:not(.light) .dash-fav-row,
+body:not(.light) .dash-notes-card {
+  background: #1b2238;
+  border-color: transparent;
+  border-radius: 14px;
+}
+body:not(.light) .dash-fav-row:hover,
+body:not(.light) .dash-notes-card:hover,
+body:not(.light) .dash-notes-card:active {
+  background: #222b45;
+  border-color: transparent;
+}
+body:not(.light) #aiReflection ol > li p,
+body:not(.light) #aiReflection ol > li p * { font-weight: 400; }

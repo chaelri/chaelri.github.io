@@ -1757,13 +1757,13 @@ async function loadPassage() {
           </div>
         </div>
         </div>
+        <div class="verse-notes-inline" hidden></div>
         <div class="verse-actions">
           <button class="verse-action-btn" data-action="context"><span class="material-icons">auto_awesome</span><span>Context</span></button>
           <button class="verse-action-btn" data-action="ask"><span class="material-icons">chat_bubble_outline</span><span>Ask</span></button>
           <button class="verse-action-btn" data-action="note"><span class="material-icons">edit_note</span><span>Note</span></button>
         </div>
         <div class="inline-ai-mount"></div>
-        <div class="verse-notes-inline" hidden></div>
         <div class="comments ai-fade-in" hidden></div>
       `;
       _renderInlineNotes(wrap);

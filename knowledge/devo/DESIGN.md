@@ -54,6 +54,14 @@ Saved notes read as a quote: `2px` pink rule on the left (`rgba(200,48,134,0.6)`
 - Nothing around an input may clip that glow — `.verse` is `display:flow-root`, not `overflow:hidden`; the swipe slide is clipped on `.verse-swipe-track` (`overflow-x:clip`) instead.
 - Textareas auto-grow (`autoExpand`) instead of showing a resize handle; a button beside one keeps its own height (`align-items:flex-end`).
 
+## Applied across the app (2026-10-23 clean pass, dark mode)
+
+- **Buttons** (Listen, library, more, prev/next, Study/Reflect/Retell): filled `#1b2238`, no outline, `#222b45` on hover.
+- **Favourited verse:** no box behind the text — the filled heart is the marker.
+- **Saved note** sits directly under its verse, above the Context/Ask/Note row.
+- **Guided Reflection** (modal + desktop sidebar): each question is a card with a grey `QUESTION N` label, `15px` regular text, answer box inside. Refresh sits in the modal's title row.
+- **Dashboard:** Favourites and Notes cards use `#1b2238`, no border, `14px` radius. Pink stays on references and labels. Continue Reading keeps its pink glow because it's the main button on the page.
+
 ## Checklist for a new panel
 
 1. Uses the card shell, header row and body text above (copy the values — the reader panels share one CSS block at the end of `style.css`).
