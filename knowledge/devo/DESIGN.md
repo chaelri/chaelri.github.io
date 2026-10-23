@@ -49,7 +49,8 @@ Saved notes read as a quote: `2px` pink rule on the left (`rgba(200,48,134,0.6)`
 
 ## Inputs
 
-- One `1px` border; on focus it turns blue `rgba(124,195,255,0.5)` with a soft drop glow `0 8px 24px rgba(72,107,236,0.25)`. No second ring, no pink.
+- One `1px` border. Reflection boxes: on focus it turns blue `rgba(124,195,255,0.5)` with a soft drop glow `0 8px 24px rgba(72,107,236,0.25)` — no second ring, no pink.
+- An input that already sits inside a card (the Notes card) gets NO highlight on focus, only a slightly brighter border (`rgba(255,255,255,0.18)`). Charlie removed the glow there 2026-10-23.
 - Nothing around an input may clip that glow — `.verse` is `display:flow-root`, not `overflow:hidden`; the swipe slide is clipped on `.verse-swipe-track` (`overflow-x:clip`) instead.
 - Textareas auto-grow (`autoExpand`) instead of showing a resize handle; a button beside one keeps its own height (`align-items:flex-end`).
 

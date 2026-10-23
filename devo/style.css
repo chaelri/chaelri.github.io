@@ -531,9 +531,15 @@ select:disabled {
 /* Grows with its text (autoExpand), so no drag handle poking out of the
    rounded corner. */
 .comment-input textarea { resize: none; }
-/* Notes + reflection boxes: one blue border and a soft glow. The global
-   1px ring drew a second outline just outside the border. */
-.comment-input textarea:focus,
+/* Notes box sits inside its own card, so no highlight on focus — just a
+   slightly brighter border. */
+.comment-input textarea:focus {
+  box-shadow: none;
+  border-color: rgba(255, 255, 255, 0.18);
+}
+.light .comment-input textarea:focus { border-color: rgba(0, 0, 0, 0.2); }
+/* Reflection boxes: one blue border and a soft glow. The global 1px ring
+   drew a second outline just outside the border. */
 .ai-reflection textarea:focus,
 #aiReflection textarea:focus,
 #reflectContent textarea:focus {
