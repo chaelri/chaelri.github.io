@@ -31,7 +31,7 @@ public sealed class MainWindow : Window
     readonly Grid editorHost = new();
     readonly Dictionary<Guid, MacroEditor> editors = new();
     readonly TextBlock pageTitle = Theme.Label("", 20, bold: true, wrap: false);
-    readonly Button recordButton = Theme.Button("Record", "");
+    readonly Button recordButton = Theme.Button("Record", "", tint: Theme.Red);
     readonly Button previewButton = Theme.Button("Preview", "");
     readonly Button runButton = Theme.Button("Run", "", primary: true);
     readonly NotifyIcon tray = new();
@@ -219,6 +219,7 @@ public sealed class MainWindow : Window
         for (int i = 0; i < 5; i++) side.RowDefinitions.Add(new RowDefinition { Height = i == 3 ? new GridLength(1, GridUnitType.Star) : GridLength.Auto });
 
         var brand = Theme.H1("ClickFlow");
+        brand.Foreground = Theme.BrandGradient();
         brand.Margin = new Thickness(6, 0, 0, 10);
         side.Children.Add(brand);
 
@@ -397,13 +398,19 @@ public sealed class MainWindow : Window
     {
         // Cached editors are only hidden; anything else (history, settings) is thrown away.
         if (current is not MacroEditor) (current as IDisposable)?.Dispose();
+        bool changed = !ReferenceEquals(current, c);
         if (c is MacroEditor ed)
         {
             foreach (var other in editors.Values) if (other != ed) other.Visibility = Visibility.Collapsed;
             ed.Visibility = Visibility.Visible;
             content.Content = editorHost;
+            if (changed) { Anim.Enter(ed, distance: 18); ed.Cascade(); }
         }
-        else content.Content = c;
+        else
+        {
+            content.Content = c;
+            Anim.Enter(c, distance: 18);
+        }
         current = c;
         pageTitle.Text = page switch
         {
@@ -699,7 +706,11 @@ sealed class MacroRow : Grid
     readonly StackPanel scheduleLine = new() { Orientation = Orientation.Horizontal, Spacing = 5 };
     readonly TextBlock next = Theme.Label("", 12, wrap: false);
     readonly ToggleSwitch toggle = new() { OnContent = "", OffContent = "", MinWidth = 0, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, -2, -6, 0) };
-    bool isSelected, hot, updating;
+    readonly Border tile = new() { Width = 34, Height = 34, CornerRadius = new CornerRadius(9), VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 2, 10, 0) };
+    readonly FontIcon tileIcon = Theme.Icon("", 15);
+    // The accent pill at the left edge of the selected row.
+    readonly Border pill = new() { Width = 3, Height = 20, CornerRadius = new CornerRadius(2), HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(-10, 0, 0, 0), Visibility = Visibility.Collapsed };
+    bool isSelected, hot, updating, running;
     public event Action<Guid>? Picked, Toggled;
     public event Action<Guid, UIElement, FPoint>? ContextFor;
 
@@ -709,8 +720,19 @@ sealed class MacroRow : Grid
         Padding = new Thickness(10, 7, 10, 9);
         CornerRadius = new CornerRadius(6);
         BorderThickness = new Thickness(1);
+        ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var c = Theme.TileColor(id);
+        tile.Background = Theme.Tint(c, Theme.Dark ? (byte)0x40 : (byte)0x26);
+        tileIcon.Foreground = Theme.Solid(c);
+        tile.Child = tileIcon;
+        Children.Add(tile);
+        pill.Background = Theme.BrandGradient();
+        Grid.SetColumnSpan(pill, 3);
+        Children.Add(pill);
+        BackgroundTransition = new BrushTransition { Duration = TimeSpan.FromMilliseconds(160) };
+        Anim.Pressable(this, 0.97f);
         var text = new StackPanel { Spacing = 2 };
         scheduleLine.Children.Add(clock);
         scheduleLine.Children.Add(schedule);
@@ -718,8 +740,9 @@ sealed class MacroRow : Grid
         text.Children.Add(stats);
         text.Children.Add(scheduleLine);
         text.Children.Add(next);
+        Grid.SetColumn(text, 1);
         Children.Add(text);
-        Grid.SetColumn(toggle, 1);
+        Grid.SetColumn(toggle, 2);
         Children.Add(toggle);
 
         toggle.Toggled += (_, _) => { if (!updating) Toggled?.Invoke(Id); };
@@ -737,6 +760,12 @@ sealed class MacroRow : Grid
 
     public void Update(Macro m, bool selected, bool paused, bool running)
     {
+        if (selected && !isSelected) Anim.Enter(pill, slide: false, ms: 260);
+        pill.Visibility = selected ? Visibility.Visible : Visibility.Collapsed;
+        // Scheduled macros get a clock, the rest a play button; running ones a pulse.
+        tileIcon.Glyph = running ? "" : m.Schedules.Count > 0 ? "" : "";
+        if (running && !this.running) Anim.Pop(tile, 0.12f);
+        this.running = running;
         isSelected = selected;
         name.Text = m.Name;
         stats.Text = running ? "Running…" : m.Stats;
@@ -794,5 +823,6 @@ sealed class NavButton : Button
         Padding = new Thickness(12, 8, 12, 8);
         BorderThickness = new Thickness(0);
         Background = new SolidColorBrush(Colors.Transparent);
+        Anim.Pressable(this, 0.97f);
     }
 }

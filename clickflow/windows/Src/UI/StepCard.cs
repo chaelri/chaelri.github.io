@@ -32,13 +32,64 @@ public sealed class StepCard : UserControl
     UIElement? outputRow;
 
     bool ShowOnlyLook => Step.ShowOnly && Step.Type != StepType.Wait;
+    Color Kind => Theme.StepColor(Step.Type);
+    readonly Border card;
+    readonly Brush restingFill, restingEdge;
+    bool editing, hot, flashing;
+
+    /// Editing: the whole card washes in its colour with a coloured edge. Hover: the edge only.
+    void Paint()
+    {
+        var c = ShowOnlyLook ? Theme.Purple : Kind;
+        card.Background = editing || flashing ? Theme.Solid(Wash(c, editing ? 0.24 : 0.32)) : restingFill;
+        card.BorderBrush = editing ? Theme.Solid(c) : hot ? Theme.Tint(c, 0x90) : restingEdge;
+    }
+
+    /// The colour mixed into the card's own background (solid, so it doesn't look see-through).
+    static Color Wash(Color c, double amount)
+    {
+        var b = Theme.Dark ? Theme.Rgb(44, 44, 44) : Theme.Rgb(255, 255, 255);
+        byte M(byte x, byte y) => (byte)(y + (x - y) * amount);
+        return Theme.Rgb(M(c.R, b.R), M(c.G, b.G), M(c.B, b.B));
+    }
+
+    /// Feedback for Test: a quick wash of colour and a bounce.
+    public void Flash()
+    {
+        flashing = true;
+        Paint();
+        Anim.Pop(card, 0.015f);
+        var t = DispatcherQueue.CreateTimer();
+        t.Interval = TimeSpan.FromMilliseconds(380);
+        t.IsRepeating = false;
+        t.Tick += (_, _) => { flashing = false; Paint(); };
+        t.Start();
+    }
 
     public StepCard(MacroEditor editor, Step step, int index)
     {
         this.editor = editor;
         Step = step;
         this.index = index;
-        Content = ShowOnlyLook ? Theme.Card(inner, Theme.PurpleSoft, Theme.PurpleEdge) : Theme.Card(inner);
+        // A stripe in the step's colour down the left edge, then the content.
+        var stripe = new Border
+        {
+            Width = 4, CornerRadius = new CornerRadius(2), Margin = new Thickness(-6, 1, 10, 1),
+            Background = Theme.Solid(ShowOnlyLook ? Theme.Purple : Kind),
+        };
+        var body = new Grid();
+        body.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        body.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        body.Children.Add(stripe);
+        Grid.SetColumn(inner, 1);
+        body.Children.Add(inner);
+        card = ShowOnlyLook ? Theme.Card(body, Theme.PurpleSoft, Theme.PurpleEdge) : Theme.Card(body);
+        card.BackgroundTransition = new BrushTransition { Duration = TimeSpan.FromMilliseconds(220) };
+        restingFill = card.Background;
+        restingEdge = card.BorderBrush;
+        Content = card;
+        PointerEntered += (_, _) => { hot = true; Paint(); };
+        PointerExited += (_, _) => { hot = false; Paint(); };
 
         inner.Children.Add(TopRow());
         BuildFields();
@@ -71,7 +122,7 @@ public sealed class StepCard : UserControl
     {
         var badge = new Border
         {
-            Background = Theme.Solid(ShowOnlyLook ? Theme.Purple : Theme.Accent), CornerRadius = new CornerRadius(5), MinWidth = 26, Height = 22,
+            Background = Theme.Solid(ShowOnlyLook ? Theme.Purple : Kind), CornerRadius = new CornerRadius(5), MinWidth = 26, Height = 22,
             Padding = new Thickness(6, 0, 6, 0), VerticalAlignment = VerticalAlignment.Center, Child = number,
         };
         var grip = new DragHandle();
@@ -79,7 +130,7 @@ public sealed class StepCard : UserControl
         grip.PointerMoved += (_, e) => editor.DragMove(e);
         grip.PointerReleased += (_, _) => editor.DragEnd(commit: true);
         grip.PointerCaptureLost += (_, _) => editor.DragEnd(commit: false);
-        var icon = Theme.Icon(Step.Type.Glyph(), 15, Theme.Muted);
+        var icon = Theme.Icon(Step.Type.Glyph(), 15, Theme.Solid(Kind));
         icon.VerticalAlignment = VerticalAlignment.Center;
         var type = Theme.Label(Step.Type.Label(), bold: true, wrap: false);
         var name = new TextBox { Text = Step.Name, PlaceholderText = "Name (optional)", Width = 240, VerticalAlignment = VerticalAlignment.Center };
@@ -109,11 +160,16 @@ public sealed class StepCard : UserControl
         {
             var test = Theme.Button("Test", "");
             ToolTipService.SetToolTip(test, Step.ShowOnly ? "Shows this step's marker (it's Show only, so nothing is executed)" : "Runs just this step, for real, with no delay");
-            test.Click += (_, _) => editor.Test(Step);
+            test.Click += (_, _) => { Flash(); editor.Test(Step); };
             row.Children.Add(test);
         }
         // Every step type has a number (a delay at least).
-        row.Children.Add(Theme.EditToggle(numbers, "Unlock this step's numbers (position, size, delay) to change them"));
+        row.Children.Add(Theme.EditToggle(numbers, "Unlock this step's numbers (position, size, delay) to change them", on =>
+        {
+            editing = on;
+            Paint();
+            Anim.Pop(card, 0.012f);
+        }));
         ToolTipService.SetToolTip(more, "More");
         var del = Theme.Button("", "", tint: Theme.Red);
         ToolTipService.SetToolTip(del, "Delete this step");

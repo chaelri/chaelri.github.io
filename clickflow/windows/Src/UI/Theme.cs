@@ -38,6 +38,38 @@ public static class Theme
     /// Text on an Accent or Purple fill (the step number badge).
     public static Color OnAccent => Dark ? Rgb(18, 18, 18) : Rgb(255, 255, 255);
 
+    /// Each kind of step has its own colour: the card's stripe, badge, icon and edit highlight.
+    public static Color StepColor(StepType t) => t switch
+    {
+        StepType.LeftClick or StepType.DoubleClick or StepType.RightClick => Accent,
+        StepType.Move => Dark ? Rgb(148, 163, 184) : Rgb(100, 116, 139),
+        StepType.Wait => Dark ? Rgb(251, 191, 36) : Rgb(217, 119, 6),
+        StepType.TypeText => Dark ? Rgb(45, 212, 191) : Rgb(13, 148, 136),
+        StepType.KeyShortcut => Dark ? Rgb(129, 140, 248) : Rgb(79, 70, 229),
+        StepType.PostClipboard => Dark ? Rgb(34, 211, 238) : Rgb(8, 145, 178),
+        StepType.ReadText => Dark ? Rgb(244, 114, 182) : Rgb(219, 39, 119),
+        StepType.OpenUrl => Dark ? Rgb(74, 222, 128) : Rgb(22, 163, 74),
+        StepType.DiscordMessage => Dark ? Rgb(150, 160, 255) : Rgb(88, 101, 242),
+        StepType.Shutdown => Red,
+        _ => Accent,
+    };
+
+    /// Colours for macro tiles in the sidebar, picked by the macro's id so each keeps its own.
+    static readonly StepType[] TileKinds = { StepType.LeftClick, StepType.OpenUrl, StepType.ReadText, StepType.Wait, StepType.TypeText, StepType.KeyShortcut, StepType.DiscordMessage, StepType.PostClipboard };
+    public static Color TileColor(Guid id) => StepColor(TileKinds[(id.GetHashCode() & 0x7fffffff) % TileKinds.Length]);
+
+    /// The colour at a low opacity, for washes behind content.
+    public static SolidColorBrush Tint(Color c, byte alpha) => new(Color.FromArgb(alpha, c.R, c.G, c.B));
+
+    /// The brand gradient (the app icon's blue to purple).
+    public static LinearGradientBrush BrandGradient()
+    {
+        var g = new LinearGradientBrush { StartPoint = new Windows.Foundation.Point(0, 0), EndPoint = new Windows.Foundation.Point(1, 0) };
+        g.GradientStops.Add(new GradientStop { Color = Dark ? Rgb(96, 165, 250) : Rgb(40, 130, 255), Offset = 0 });
+        g.GradientStops.Add(new GradientStop { Color = Dark ? Rgb(192, 132, 252) : Rgb(130, 70, 230), Offset = 1 });
+        return g;
+    }
+
     public static Color Rgb(byte r, byte g, byte b) => Color.FromArgb(255, r, g, b);
     public static SolidColorBrush Solid(Color c) => new(c);
     public static Brush Res(string key) => (Brush)Application.Current.Resources[key];
@@ -75,6 +107,7 @@ public static class Theme
         if (text.Length > 0) row.Children.Add(new TextBlock { Text = text, VerticalAlignment = VerticalAlignment.Center });
         b.Content = row;
         if (tint is { } t && !primary) b.Foreground = Solid(t);
+        Anim.Pressable(b);
         return b;
     }
 
@@ -120,7 +153,7 @@ public static class Theme
     }
 
     /// The Edit / Done toggle that unlocks a group of number boxes.
-    public static Button EditToggle(IReadOnlyList<NumberBox> boxes, string tip)
+    public static Button EditToggle(IReadOnlyList<NumberBox> boxes, string tip, Action<bool>? changed = null)
     {
         var b = Button("Edit", "");
         ToolTipService.SetToolTip(b, tip);
@@ -137,7 +170,7 @@ public static class Theme
             if (editing) b.Style = (Style)Application.Current.Resources["AccentButtonStyle"];
             else b.ClearValue(FrameworkElement.StyleProperty);
         }
-        b.Click += (_, _) => { editing = !editing; Apply(); };
+        b.Click += (_, _) => { editing = !editing; Apply(); changed?.Invoke(editing); };
         b.Loaded += (_, _) => Apply();
         Apply();
         return b;

@@ -5,6 +5,7 @@ using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
 using Windows.System;
 using Windows.UI.Core;
 
@@ -33,11 +34,11 @@ public sealed class MacroEditor : UserControl, IDisposable
         Content = scroll;
 
         stack.Children.Add(BuildHeader());
-        stack.Children.Add(SectionHeader("Steps", AddStepButton()));
+        stack.Children.Add(SectionHeader("Steps", "", Theme.Accent, AddStepButton()));
         stack.Children.Add(stepsBox);
         var addSchedule = Theme.Button("Add schedule", "");
         addSchedule.Click += (_, _) => EditSchedule(null);
-        stack.Children.Add(SectionHeader("Schedules", addSchedule));
+        stack.Children.Add(SectionHeader("Schedules", "", Theme.Purple, addSchedule));
         stack.Children.Add(schedulesBox);
 
         RebuildSteps();
@@ -84,12 +85,24 @@ public sealed class MacroEditor : UserControl, IDisposable
         var delay = Theme.Num(0, 86400, 1, macro.RepeatDelay);
         delay.ValueChanged += (_, e) => { if (double.IsNaN(e.NewValue)) return; macro.RepeatDelay = e.NewValue; store.Touch(); UpdateStats(); };
         var gap = new Border { Width = 14 };
-        var edit = Theme.EditToggle(new[] { repeat, delay }, "Unlock Repeat and Pause to change them");
+        Border? card = null;
+        Brush? resting = null;
+        var edit = Theme.EditToggle(new[] { repeat, delay }, "Unlock Repeat and Pause to change them", on =>
+        {
+            if (card == null) return;
+            card.BorderBrush = on ? Theme.Solid(Theme.Accent) : resting;
+            card.Background = on ? Theme.Tint(Theme.Accent, Theme.Dark ? (byte)0x24 : (byte)0x14) : Theme.Res("CardBackgroundFillColorDefaultBrush");
+            Anim.Pop(card, 0.008f);
+        });
         edit.Margin = new Thickness(8, 0, 0, 0);
         inner.Children.Add(Theme.Row(
             Theme.Label("Repeat"), repeat, Theme.Label("times (0 = until stopped)", color: Theme.Muted),
             gap, Theme.Label("Pause between repeats"), delay, Theme.Label("s", color: Theme.Muted), edit));
-        var card = Theme.Card(inner);
+        // The brand gradient along the top edge.
+        inner.Children.Insert(0, new Border { Height = 3, Margin = new Thickness(-14, -10, -14, 6), CornerRadius = new CornerRadius(8, 8, 0, 0), Background = Theme.BrandGradient() });
+        card = Theme.Card(inner);
+        card.BackgroundTransition = new BrushTransition { Duration = TimeSpan.FromMilliseconds(220) };
+        resting = card.BorderBrush;
         card.Margin = new Thickness(0, 0, 0, 14);
         return card;
     }
@@ -103,9 +116,15 @@ public sealed class MacroEditor : UserControl, IDisposable
         main.RefreshEditorHeader();
     }
 
-    static UIElement SectionHeader(string title, UIElement action)
+    static UIElement SectionHeader(string title, string glyph, Windows.UI.Color color, UIElement action)
     {
         var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, Margin = new Thickness(2, 8, 0, 10) };
+        var tile = new Border
+        {
+            Width = 30, Height = 30, CornerRadius = new CornerRadius(8), Background = Theme.Tint(color, Theme.Dark ? (byte)0x38 : (byte)0x22),
+            Child = Theme.Icon(glyph, 15, Theme.Solid(color)), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, -4, 0),
+        };
+        row.Children.Add(tile);
         row.Children.Add(Theme.H2(title));
         row.Children.Add(action);
         return row;
@@ -141,6 +160,7 @@ public sealed class MacroEditor : UserControl, IDisposable
         RebuildSteps();
         UpdateStats();
         var card = cards.Last();
+        Anim.Enter(card, slide: false, ms: 360);
         BringIntoView(card);
         // Adding a click or screenshot step opens the placer straight away.
         if (type.HasPoint() || type.HasArea()) card.Pick();
@@ -327,10 +347,27 @@ public sealed class MacroEditor : UserControl, IDisposable
 
     public void Remove(Step s)
     {
-        macro.Steps.Remove(s);
-        store.Changed();
-        RebuildSteps();
-        UpdateStats();
+        if (dragging != null || settling || cards.FirstOrDefault(c => c.Step == s) is not { } card) return;
+        // Fade the card out, then take just that one out (the rest are renumbered, not rebuilt).
+        settling = true;
+        Anim.Leave(card, () =>
+        {
+            settling = false;
+            int i = cards.IndexOf(card);
+            macro.Steps.Remove(s);
+            store.Changed();
+            if (i < 0 || macro.Steps.Count == 0) { RebuildSteps(); UpdateStats(); return; }
+            cards.RemoveAt(i);
+            stepsBox.Children.Remove(card);
+            for (int k = i; k < cards.Count; k++) cards[k].Renumber(k);
+            UpdateStats();
+        });
+    }
+
+    /// Switching to this macro: the cards cascade in.
+    public void Cascade()
+    {
+        for (int i = 0; i < cards.Count; i++) Anim.Enter(cards[i], 30 + Math.Min(i, 10) * 28, slide: false);
     }
 
     public void Test(Step s)
