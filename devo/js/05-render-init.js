@@ -98,6 +98,7 @@ function renderComments(key, container, { skipFocus = false } = {}) {
   updateMetaIndicators(key, verseContent, list.length);
 
   const newTextarea = input.querySelector("textarea");
+  newTextarea.addEventListener("input", () => autoExpand(newTextarea));
   if (!skipFocus) newTextarea.focus();
   _renderInlineNotes(container.closest(".verse"));
 }

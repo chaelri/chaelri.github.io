@@ -475,7 +475,8 @@ select:disabled {
 
 .comments {
   margin-top: 10px;
-  overflow: hidden;
+  /* visible, not hidden: hidden cut the focus glow into a square block. */
+  overflow: visible;
   max-width: 100%;
   box-sizing: border-box;
 }
@@ -512,10 +513,16 @@ select:disabled {
   flex: 1;
   box-sizing: border-box;
 }
-/* Ring only: .comments clips overflow, so the global drop glow got cut off
-   into a square patch under the box. */
-.comment-input textarea:focus {
-  box-shadow: 0 0 0 1px rgba(124, 195, 255, 0.35);
+/* Grows with its text (autoExpand), so no drag handle poking out of the
+   rounded corner. */
+.comment-input textarea { resize: none; }
+/* Notes + reflection boxes: one blue border and a soft glow. The global
+   1px ring drew a second outline just outside the border. */
+.comment-input textarea:focus,
+.ai-reflection textarea:focus,
+#aiReflection textarea:focus,
+#reflectContent textarea:focus {
+  box-shadow: 0 8px 24px rgba(72, 107, 236, 0.25);
 }
 
 /* ---------- SUMMARY ---------- */
@@ -12503,10 +12510,11 @@ body.cfg-sheet-open.light .bc-picker-btn .material-symbols-outlined { color: rgb
 #mtReflectPanelToggle { display: none; }
 @media (min-width: 1101px) {
   #mtReflectPanelToggle { display: flex; }
-  body.reflect-panel-hidden .layout { grid-template-columns: minmax(0, 1fr); }
+  body.reflect-panel-hidden .layout:not(.layout-unset) { grid-template-columns: minmax(0, 1fr); }
   /* Keep the reading column as wide as it is beside the sidebar
      (840 layout - 20 gap - 380 sidebar), centred, so lines don't run long. */
-  body.reflect-panel-hidden .layout > .main {
+  /* :not(.layout-unset) — the dashboard keeps its own full width. */
+  body.reflect-panel-hidden .layout:not(.layout-unset) > .main {
     width: 100%;
     max-width: 440px;
     justify-self: center;
