@@ -1986,6 +1986,29 @@ async function _imgcrShare() {
   mtSearchBible?.addEventListener("click", () => { searchBtn?.click(); closeOverflow(); });
   mtNotesToggle?.addEventListener("click", () => { notesBtn?.click(); closeOverflow(); });
 
+  // Desktop only: hide the reflection sidebar so the page is just the passage.
+  // Device-only preference (not in SYNC_STATIC_KEYS) — the phone layout stacks
+  // the sidebar under the passage, where it never competes for width.
+  const REFLECT_PANEL_KEY = "devo.hideReflectPanel";
+  const mtReflectPanelToggle = document.getElementById("mtReflectPanelToggle");
+  function applyReflectPanel(hidden) {
+    document.body.classList.toggle("reflect-panel-hidden", hidden);
+    if (!mtReflectPanelToggle) return;
+    mtReflectPanelToggle.querySelector(".material-symbols-outlined").textContent =
+      hidden ? "right_panel_open" : "right_panel_close";
+    mtReflectPanelToggle.querySelector(".mt-reflect-panel-label").textContent =
+      hidden ? "Show reflection" : "Hide reflection";
+  }
+  let reflectPanelHidden = false;
+  try { reflectPanelHidden = localStorage.getItem(REFLECT_PANEL_KEY) === "1"; } catch {}
+  applyReflectPanel(reflectPanelHidden);
+  mtReflectPanelToggle?.addEventListener("click", () => {
+    reflectPanelHidden = !reflectPanelHidden;
+    try { localStorage.setItem(REFLECT_PANEL_KEY, reflectPanelHidden ? "1" : "0"); } catch {}
+    applyReflectPanel(reflectPanelHidden);
+    closeOverflow();
+  });
+
   // Mirror the "hidden until passage loaded" behavior of the original buttons.
   // Watch the ttsPlayBtn's class list — when loadBtn.click() unhides it, show
   // our chevrons + action row.

@@ -12492,6 +12492,15 @@ body.cfg-sheet-open.light .bc-picker-btn .material-symbols-outlined { color: rgb
   transition: background 0.12s ease;
 }
 .mt-sheet-item:hover { background: rgba(255, 255, 255, 0.06); }
+
+/* Hide-reflection toggle: only meaningful when the sidebar is a second
+   column (above the 1100px stack breakpoint). */
+#mtReflectPanelToggle { display: none; }
+@media (min-width: 1101px) {
+  #mtReflectPanelToggle { display: flex; }
+  body.reflect-panel-hidden .layout { grid-template-columns: minmax(0, 1fr); }
+  body.reflect-panel-hidden .layout > aside.summary { display: none; }
+}
 .mt-sheet-item .material-symbols-outlined { font-size: 20px; color: #db2777; }
 
 /* Settings row with an inline segmented control (e.g. translation). */
