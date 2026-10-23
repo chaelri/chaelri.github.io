@@ -12499,7 +12499,8 @@ body.cfg-sheet-open.light .bc-picker-btn .material-symbols-outlined { color: rgb
 @media (min-width: 1101px) {
   #mtReflectPanelToggle { display: flex; }
   body.reflect-panel-hidden .layout { grid-template-columns: minmax(0, 1fr); }
-  body.reflect-panel-hidden .layout > aside.summary { display: none; }
+  /* !important: loadPassage sets an inline display:block on .summary. */
+  body.reflect-panel-hidden .layout > aside.summary { display: none !important; }
 }
 .mt-sheet-item .material-symbols-outlined { font-size: 20px; color: #db2777; }
 
