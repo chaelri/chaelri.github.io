@@ -14105,3 +14105,25 @@ body:not(.light) .dash-notes-card:active {
 }
 body:not(.light) #aiReflection ol > li p,
 body:not(.light) #aiReflection ol > li p * { font-weight: 400; }
+
+/* Retell on the Quick Context card (dark mode). Speakers keep their colour
+   (name, avatar, bubble tint) — only the outlines go. */
+body:not(.light) .nr-bar-label,
+body:not(.light) .nr-heading {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: rgba(255, 255, 255, 0.5);
+}
+body:not(.light) .nr-heading { border-bottom: none; padding-bottom: 0; margin: 30px 0 12px; }
+body:not(.light) .nr-close {
+  background: #1b2238 !important;
+  border-color: transparent !important;
+}
+body:not(.light) .nr-close:hover { background: #222b45 !important; }
+body:not(.light) .nr-bubble,
+body:not(.light) .nr-avatar { border-color: transparent !important; }
+body:not(.light) .nr-page-btn:disabled {
+  background: #1b2238 !important;
+  border-color: transparent !important;
+}
