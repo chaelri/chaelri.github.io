@@ -122,8 +122,8 @@ public sealed class StepCard : UserControl
     {
         var badge = new Border
         {
-            Background = Theme.Solid(ShowOnlyLook ? Theme.Purple : Kind), CornerRadius = new CornerRadius(11), MinWidth = 26, Height = 22,
-            Padding = new Thickness(6, 0, 6, 0), VerticalAlignment = VerticalAlignment.Center, Child = number,
+            Background = Theme.Solid(ShowOnlyLook ? Theme.Purple : Kind), CornerRadius = new CornerRadius(12), MinWidth = 24, Height = 24,
+            Padding = new Thickness(4, 0, 4, 0), VerticalAlignment = VerticalAlignment.Center, Child = number,
         };
         var grip = new DragHandle();
         grip.PointerPressed += (_, e) => editor.DragStart(this, grip, e);
