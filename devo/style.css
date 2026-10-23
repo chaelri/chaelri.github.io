@@ -14163,3 +14163,123 @@ body:not(.light) .dash-browse-btn:hover {
   background: #222b45 !important;
   border-color: transparent !important;
 }
+
+/* Reflection answer boxes sit inside a card now → no focus highlight (same
+   rule as the Notes box). */
+#reflectContent textarea:focus,
+#aiReflection textarea:focus,
+.ai-reflection textarea:focus {
+  box-shadow: none !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
+}
+.light #reflectContent textarea:focus,
+.light #aiReflection textarea:focus,
+.light .ai-reflection textarea:focus { border-color: rgba(0, 0, 0, 0.2) !important; }
+
+/* End-of-chapter Reflect button: filled navy like the other buttons. */
+body:not(.light) .passage-end-reflect-btn {
+  background: #1b2238 !important;
+  border-color: transparent !important;
+}
+body:not(.light) .passage-end-reflect-btn:hover { background: #222b45 !important; }
+
+/* Book / chapter picker on the card style: darker sheet, navy blocks, no
+   outlines or row dividers, grey spaced-caps label, no pink slab. */
+body:not(.light) .bc-sheet-panel { background: #121829; }
+body:not(.light) .bc-sheet-header { border-bottom: none; padding: 18px 18px 6px; }
+body:not(.light) .bc-sheet-close { background: #1b2238 !important; }
+body:not(.light) .bc-sheet-close:hover { background: #222b45 !important; }
+body:not(.light) .bc-current-passage {
+  background: #1b2238 !important;
+  border-color: transparent;
+  border-radius: 14px;
+  padding: 16px;
+}
+body:not(.light) .bc-current-passage:hover { background: #222b45 !important; border-color: transparent; }
+body:not(.light) .bc-current-icon { display: none; }
+body:not(.light) .bc-current-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+}
+body:not(.light) .bc-current-ref { font-size: 1.9rem; }
+body:not(.light) .bc-search {
+  background: #1b2238;
+  border-color: transparent;
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+body:not(.light) .bc-search:focus-within { border-color: transparent; }
+body:not(.light) .bc-tabs { background: #1b2238; border-color: transparent; border-radius: 14px; }
+body:not(.light) .bc-tab.active { background: #2b3554; color: #fff; }
+body:not(.light) .bc-book { border-bottom: none; }
+body:not(.light) .bc-book-row { padding: 13px 14px; border-radius: 12px; }
+body:not(.light) .bc-book-row:hover,
+body:not(.light) .bc-book-row.expanded { background: #1b2238; }
+body:not(.light) .bc-book-row.active,
+body:not(.light) .bc-book-row.expanded.active { background: #1b2238; }
+body:not(.light) .bc-book-name { font-weight: 500; font-size: 15px; }
+body:not(.light) .bc-book-detail { background: none; }
+body:not(.light) .bc-search input { padding: 0 !important; height: auto; background: transparent !important; }
+body:not(.light) .bc-chapter-grid button {
+  background: #1b2238 !important;
+  border-color: transparent !important;
+}
+body:not(.light) .bc-chapter-grid button:hover { background: #222b45 !important; }
+
+/* Audio Library in dark mode: same sheet as the book picker (#121829 sheet,
+   navy #1b2238 blocks, no row dividers). Light mode keeps the cream panel. */
+body:not(.light) .audio-lib-panel { background: #121829; }
+body:not(.light) .audio-lib-header,
+body:not(.light) .audio-lib-summary,
+body:not(.light) .audio-lib-activity,
+body:not(.light) .audio-lib-book { border-color: transparent; border-bottom: none; }
+body:not(.light) .audio-lib-title,
+body:not(.light) .audio-lib-book-name,
+body:not(.light) .audio-lib-activity-label,
+body:not(.light) .audio-lib-activity { color: #e6edf7; }
+body:not(.light) .audio-lib-close { background: #1b2238 !important; color: rgba(255,255,255,0.6) !important; }
+body:not(.light) .audio-lib-close:hover { background: #222b45 !important; }
+body:not(.light) .audio-lib-summary { color: rgba(255,255,255,0.5); }
+body:not(.light) .audio-lib-activity {
+  background: #1b2238;
+  margin: 4px 18px 8px;
+  border-radius: 14px;
+}
+body:not(.light) .audio-lib-activity-summary::before { color: rgba(255,255,255,0.4); }
+body:not(.light) .audio-lib-activity-summary .material-symbols-outlined { color: #db2777; }
+body:not(.light) .audio-lib-queue { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.5); }
+body:not(.light) .audio-lib-queue.audio-lib-queue-busy { background: #db2777; color: #fff; }
+body:not(.light) .audio-lib-log { color: rgba(255,255,255,0.65); }
+body:not(.light) .audio-lib-log:empty::before { color: rgba(255,255,255,0.4); }
+body:not(.light) .audio-lib-log-ts,
+body:not(.light) .audio-lib-log-msg,
+body:not(.light) .audio-lib-log-row[data-type="hit"],
+body:not(.light) .audio-lib-log-row[data-type="queued"] { color: rgba(255,255,255,0.45); }
+body:not(.light) .audio-lib-log-row[data-type="started"] { color: #f472b6; }
+body:not(.light) .audio-lib-log-row[data-type="success"] { color: #4ade80; }
+body:not(.light) .audio-lib-log-row[data-type="retry"] { color: #fbbf24; }
+body:not(.light) .audio-lib-log-row[data-type="fail"] { color: #f87171; }
+body:not(.light) .audio-lib-list { padding: 0 6px; }
+body:not(.light) .audio-lib-book-row { border-radius: 12px; }
+body:not(.light) .audio-lib-book-row:hover { background: #1b2238 !important; }
+body:not(.light) .audio-lib-book-name { font-weight: 500; }
+body:not(.light) .audio-lib-book-bar { background: rgba(255,255,255,0.08); }
+body:not(.light) .audio-lib-book-bar-fill { background: #db2777; }
+body:not(.light) .audio-lib-book-count { color: rgba(255,255,255,0.5); }
+body:not(.light) .audio-lib-book-detail { background: none; }
+body:not(.light) .audio-lib-ch {
+  background: #1b2238 !important;
+  border-color: transparent;
+  color: rgba(255,255,255,0.55) !important;
+}
+body:not(.light) .audio-lib-ch[data-status="cached"] { background: #db2777 !important; color: #fff !important; }
+body:not(.light) .audio-lib-ch[data-status="partial"] { background: rgba(219,39,119,0.22) !important; color: #f9a8d4 !important; }
+body:not(.light) .audio-lib-book-dl {
+  background: #1b2238 !important;
+  border-color: transparent;
+  color: #f472b6 !important;
+}
+body:not(.light) .audio-lib-book-dl:hover:not(:disabled) { background: #222b45 !important; }

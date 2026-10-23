@@ -62,6 +62,10 @@ Saved notes are a plain navy card: `#1b2238`, `14px` radius, `12px 16px` padding
 - **Guided Reflection** (modal + desktop sidebar): each question is a card with a grey `QUESTION N` label, `15px` regular text, answer box inside. Refresh sits in the modal's title row.
 - **Dashboard:** Favourites and Notes cards use `#1b2238`, no border, `14px` radius. Pink stays on references and labels. Continue Reading keeps its pink glow because it's the main button on the page.
 
+- **Sheets** (book/chapter picker, Audio Library): `#121829` sheet, navy `#1b2238` blocks (current passage, search, tabs, chapter tiles, Activity), no outlines, no row dividers; rows highlight `#1b2238` on hover. The selected tab is `#2b3554`, not pink. Pink is only for the reference, progress fill and cached chapters.
+- **Retell:** grey labels and section headings, filled close button, speech bubbles without outlines (each speaker keeps their colour).
+- **Answer boxes inside a card** (Notes, Guided Reflection): no focus highlight, only a slightly brighter border.
+
 ## Checklist for a new panel
 
 1. Uses the card shell, header row and body text above (copy the values — the reader panels share one CSS block at the end of `style.css`).
