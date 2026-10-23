@@ -239,7 +239,10 @@ select:disabled {
 
 .verse {
   margin-bottom: 22px;
-  overflow: hidden;
+  /* flow-root keeps the old overflow:hidden block formatting (no margin
+     collapse) without clipping — clipping cut the notes box's focus glow off
+     at the verse edge. The swipe slide is clipped on .verse-swipe-track. */
+  display: flow-root;
 }
 
 .verse.highlighted .verse-content {
@@ -13825,7 +13828,7 @@ body.is-offline.tts-canvas-active #offlinePill { bottom: calc(84px + env(safe-ar
 }
 .verse { --swipe-x: 0px; transition: --swipe-x 0.26s cubic-bezier(0.2, 0.8, 0.2, 1); }
 .verse.verse-swiping { transition: none; }
-.verse-swipe-track { position: relative; }
+.verse-swipe-track { position: relative; overflow-x: clip; }
 .verse-swipe-track > .verse-header {
   position: relative;
   touch-action: pan-y;
