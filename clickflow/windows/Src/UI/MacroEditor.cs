@@ -47,6 +47,14 @@ public sealed class MacroEditor : UserControl, IDisposable
 
     public void Dispose() => StepOutputs.Changed -= OnOutput;
 
+    /// Shown again from the window's cache: catch up on what changed while it was hidden
+    /// (schedules fire and switch off, the sidebar switch, run stats).
+    public void Refresh()
+    {
+        RebuildSchedules();
+        UpdateStats();
+    }
+
     void OnOutput(Guid stepId)
     {
         foreach (var c in cards) if (c.Step.Id == stepId) c.ShowOutput();

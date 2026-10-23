@@ -25,6 +25,11 @@ public sealed class MainWindow : Window
     readonly MacroList list = new();
     readonly NavButton historyNav = new("Run History", ""), settingsNav = new("Settings", "");
     readonly ContentControl content = new() { HorizontalContentAlignment = HorizontalAlignment.Stretch, VerticalContentAlignment = VerticalAlignment.Stretch };
+    // Building an editor (a NumberBox, text box and menus per step) takes long enough to stall
+    // the click that picked it, so each macro's editor is built once, kept here, and switching
+    // macros only flips which one is visible.
+    readonly Grid editorHost = new();
+    readonly Dictionary<Guid, MacroEditor> editors = new();
     readonly TextBlock pageTitle = Theme.Label("", 20, bold: true, wrap: false);
     readonly Button recordButton = Theme.Button("Record", "");
     readonly Button previewButton = Theme.Button("Preview", "");
@@ -56,6 +61,7 @@ public sealed class MainWindow : Window
         ExtendsContentIntoTitleBar = true;
         AppWindow.SetIcon(Win32Interop.GetIconIdFromIcon(AppIcon.Get().Handle));
         AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Tall;
+        PaintCaptionButtons();
 
         double scale = GetDpiForWindow(Hwnd) / 96.0;
         if (AppWindow.Presenter is OverlappedPresenter op)
@@ -73,7 +79,7 @@ public sealed class MainWindow : Window
         // Emergency stop from any app: Ctrl+Alt+.
         RegisterHotKey(messages.Handle, HotkeyId, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, 0xBE);
 
-        store.MacrosChanged += () => { list.Reload(Filtered()); UpdateTray(); };
+        store.MacrosChanged += () => { list.Reload(Filtered()); UpdateTray(); DropStaleEditors(); };
         runner.BusyChanged += UpdateButtons;
         Recorder.Shared.Changed += UpdateButtons;
         runner.HideMain = () =>
@@ -102,10 +108,12 @@ public sealed class MainWindow : Window
         };
         Activated += (_, _) =>
         {
+            PaintCaptionButtons();
             if (shown) return;
             shown = true;
             foreach (var a in onShown) a();
             onShown.Clear();
+            WarmEditors();
         };
 
         list.Reload(Filtered());
@@ -120,7 +128,25 @@ public sealed class MainWindow : Window
         if (shown) a(); else onShown.Add(a);
     }
 
-    bool IsMinimized => AppWindow.Presenter is OverlappedPresenter { State: OverlappedPresenterState.Minimized };
+    /// Minimize / maximize / close sit on the Mica title bar. Left unset, Windows fills them with
+    /// its own solid colour, which shows up as white blocks when the window goes inactive or comes
+    /// back from being hidden for a run; so they're transparent, with colours for the Light theme,
+    /// and set again on every activation.
+    void PaintCaptionButtons()
+    {
+        var bar = AppWindow.TitleBar;
+        var ink = Windows.UI.Color.FromArgb(0xE4, 0, 0, 0);
+        bar.ButtonBackgroundColor = Colors.Transparent;
+        bar.ButtonInactiveBackgroundColor = Colors.Transparent;
+        bar.ButtonForegroundColor = ink;
+        bar.ButtonInactiveForegroundColor = Windows.UI.Color.FromArgb(0x5C, 0, 0, 0);
+        bar.ButtonHoverBackgroundColor = Windows.UI.Color.FromArgb(0x0F, 0, 0, 0);
+        bar.ButtonHoverForegroundColor = ink;
+        bar.ButtonPressedBackgroundColor = Windows.UI.Color.FromArgb(0x0A, 0, 0, 0);
+        bar.ButtonPressedForegroundColor = ink;
+    }
+
+    bool IsMinimized =>AppWindow.Presenter is OverlappedPresenter { State: OverlappedPresenterState.Minimized };
 
     // ---------- layout ----------
 
@@ -212,7 +238,7 @@ public sealed class MainWindow : Window
             if (store.Macro(id) is not { } m) return;
             m.SetScheduleOn(!m.ScheduleOn);
             store.Changed();
-            if (current is MacroEditor ed && ed.Macro == m) ed.RefreshSchedules();
+            if (editors.TryGetValue(id, out var ed)) ed.RefreshSchedules();
             RefreshEditorHeader();
         };
         list.ContextFor += MacroMenu;
@@ -287,10 +313,72 @@ public sealed class MainWindow : Window
         historyNav.Active = settingsNav.Active = false;
         UIElement view;
         // A bug in one step's editor shouldn't take the window (or the tray) down with it.
-        try { view = id is { } g && store.Macro(g) is { } m ? new MacroEditor(m, this) : Empty(); }
+        try { view = id is { } g && store.Macro(g) is { } m ? EditorFor(m) : Empty(); }
         catch (Exception e) { Crash.Report(e); view = Empty(); }
         Swap(view);
         UpdateButtons();
+    }
+
+    MacroEditor EditorFor(Macro m)
+    {
+        if (editors.TryGetValue(m.Id, out var ed) && ed.Macro == m)
+        {
+            ed.Refresh();
+            return ed;
+        }
+        DropEditor(m.Id);
+        ed = new MacroEditor(m, this) { Visibility = Visibility.Collapsed };
+        editors[m.Id] = ed;
+        editorHost.Children.Add(ed);
+        return ed;
+    }
+
+    void DropEditor(Guid id)
+    {
+        if (!editors.Remove(id, out var ed)) return;
+        ed.Dispose();
+        editorHost.Children.Remove(ed);
+        if (current == ed) current = null;
+    }
+
+    /// Deleted (or re-imported) macros lose their cached editor.
+    void DropStaleEditors()
+    {
+        foreach (var (id, ed) in editors.ToList())
+            if (store.Macro(id) != ed.Macro) DropEditor(id);
+    }
+
+    /// Builds and lays out every other macro's editor in the background once the window is up,
+    /// so even the first switch to one is instant. One per idle tick, drawn invisibly for one
+    /// layout pass (that's when WinUI applies the controls' templates), then collapsed.
+    void WarmEditors()
+    {
+        var queue = new Queue<Guid>(store.Macros.Select(m => m.Id));
+        void Next()
+        {
+            while (queue.Count > 0)
+            {
+                var id = queue.Dequeue();
+                if (editors.ContainsKey(id) || store.Macro(id) is not { } m) continue;
+                MacroEditor ed;
+                try { ed = EditorFor(m); }
+                catch (Exception e) { Crash.Report(e); continue; }
+                ed.Opacity = 0;
+                ed.IsHitTestVisible = false;
+                Canvas.SetZIndex(ed, -1);
+                ed.Visibility = Visibility.Visible;
+                DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+                {
+                    if (current != ed) ed.Visibility = Visibility.Collapsed;
+                    ed.Opacity = 1;
+                    ed.IsHitTestVisible = true;
+                    Canvas.SetZIndex(ed, 0);
+                    Next();
+                });
+                return;
+            }
+        }
+        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, Next);
     }
 
     void ShowPage(Page p)
@@ -306,8 +394,15 @@ public sealed class MainWindow : Window
 
     void Swap(UIElement c)
     {
-        (current as IDisposable)?.Dispose();
-        content.Content = c;
+        // Cached editors are only hidden; anything else (history, settings) is thrown away.
+        if (current is not MacroEditor) (current as IDisposable)?.Dispose();
+        if (c is MacroEditor ed)
+        {
+            foreach (var other in editors.Values) if (other != ed) other.Visibility = Visibility.Collapsed;
+            ed.Visibility = Visibility.Visible;
+            content.Content = editorHost;
+        }
+        else content.Content = c;
         current = c;
         pageTitle.Text = page switch
         {
@@ -372,6 +467,7 @@ public sealed class MainWindow : Window
             {
                 m.Name = t.Trim();
                 store.Changed();
+                DropEditor(id);
                 if (selected == id) Select(id);
             }
         }));
