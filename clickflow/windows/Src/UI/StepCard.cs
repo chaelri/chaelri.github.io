@@ -1,8 +1,10 @@
 namespace ClickFlow;
 
 using Microsoft.UI;
+using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Windows.UI;
 
@@ -12,8 +14,16 @@ public sealed class StepCard : UserControl
 {
     public readonly Step Step;
     readonly MacroEditor editor;
-    readonly int index;
+    int index;
     readonly StackPanel inner = new() { Spacing = 6 };
+    readonly TextBlock number = new()
+    {
+        Foreground = new SolidColorBrush(Colors.White), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+        HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, FontSize = 13,
+    };
+    readonly Button more = Theme.Button("", "");
+    // X, Y, delays: locked until Edit, so scrolling past can't nudge them.
+    readonly List<NumberBox> numbers = new();
     readonly TextBlock warning = Theme.Small("", Theme.Solid(Theme.Orange));
     NumberBox? x, y, w, h;
     TextBlock? outputText;
@@ -34,7 +44,16 @@ public sealed class StepCard : UserControl
         BuildFields();
         inner.Children.Add(warning);
         UpdateWarning();
+        Renumber(index);
+    }
+
+    /// After a drag or Move Up / Down: the badge and the menus follow the new position.
+    public void Renumber(int i)
+    {
+        index = i;
+        number.Text = (i + 1).ToString();
         ContextFlyout = Menu();
+        more.Flyout = Menu();
     }
 
     MenuFlyout Menu()
@@ -53,19 +72,19 @@ public sealed class StepCard : UserControl
         var badge = new Border
         {
             Background = Theme.Solid(ShowOnlyLook ? Theme.Purple : Theme.Accent), CornerRadius = new CornerRadius(5), MinWidth = 26, Height = 22,
-            Padding = new Thickness(6, 0, 6, 0), VerticalAlignment = VerticalAlignment.Center,
-            Child = new TextBlock
-            {
-                Text = (index + 1).ToString(), Foreground = new SolidColorBrush(Colors.White), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-                HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, FontSize = 13,
-            },
+            Padding = new Thickness(6, 0, 6, 0), VerticalAlignment = VerticalAlignment.Center, Child = number,
         };
+        var grip = new DragHandle();
+        grip.PointerPressed += (_, e) => editor.DragStart(this, grip, e);
+        grip.PointerMoved += (_, e) => editor.DragMove(e);
+        grip.PointerReleased += (_, _) => editor.DragEnd(commit: true);
+        grip.PointerCaptureLost += (_, _) => editor.DragEnd(commit: false);
         var icon = Theme.Icon(Step.Type.Glyph(), 15, Theme.Muted);
         icon.VerticalAlignment = VerticalAlignment.Center;
         var type = Theme.Label(Step.Type.Label(), bold: true, wrap: false);
         var name = new TextBox { Text = Step.Name, PlaceholderText = "Name (optional)", Width = 240, VerticalAlignment = VerticalAlignment.Center };
         name.TextChanged += (_, _) => { Step.Name = name.Text; editor.StepChanged(); };
-        var row = Theme.Row(badge, icon, type, name);
+        var row = Theme.Row(grip, badge, icon, type, name);
 
         if (Step.Type != StepType.Wait)
         {
@@ -93,9 +112,9 @@ public sealed class StepCard : UserControl
             test.Click += (_, _) => editor.Test(Step);
             row.Children.Add(test);
         }
-        var more = Theme.Button("", "");
+        // Every step type has a number (a delay at least).
+        row.Children.Add(Theme.EditToggle(numbers, "Unlock this step's numbers (position, size, delay) to change them"));
         ToolTipService.SetToolTip(more, "More");
-        more.Flyout = Menu();
         var del = Theme.Button("", "", tint: Theme.Red);
         ToolTipService.SetToolTip(del, "Delete this step");
         del.Click += (_, _) => editor.Remove(Step);
@@ -108,6 +127,8 @@ public sealed class StepCard : UserControl
     {
         row.Children.Add(Theme.Label(label, color: Theme.Muted, wrap: false));
         var n = Theme.Num(min, max, decimals, value, width);
+        Theme.Lock(n, true);
+        numbers.Add(n);
         n.ValueChanged += (_, e) => { if (double.IsNaN(e.NewValue)) return; set(e.NewValue); editor.StepChanged(); UpdateWarning(); };
         row.Children.Add(n);
         if (unit != null) { var u = Theme.Label(unit, color: Theme.Muted, wrap: false); u.Margin = new Thickness(0, 0, 10, 0); row.Children.Add(u); }
@@ -320,5 +341,24 @@ public sealed class StepCard : UserControl
                 ok();
             }, cancel));
         }
+    }
+}
+
+/// The grip on the left of a step card: press and drag to move the step.
+sealed class DragHandle : Grid
+{
+    public DragHandle()
+    {
+        Width = 22;
+        Height = 30;
+        Margin = new Thickness(-6, 0, -4, 0);
+        Background = new SolidColorBrush(Colors.Transparent);
+        VerticalAlignment = VerticalAlignment.Center;
+        var icon = Theme.Icon("", 14, Theme.Faint);
+        icon.HorizontalAlignment = HorizontalAlignment.Center;
+        icon.VerticalAlignment = VerticalAlignment.Center;
+        Children.Add(icon);
+        ProtectedCursor = InputSystemCursor.Create(InputSystemCursorShape.SizeNorthSouth);
+        ToolTipService.SetToolTip(this, "Drag to reorder");
     }
 }

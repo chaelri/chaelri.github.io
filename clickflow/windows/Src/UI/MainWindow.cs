@@ -338,7 +338,7 @@ public sealed class MainWindow : Window
         if (!editors.Remove(id, out var ed)) return;
         ed.Dispose();
         editorHost.Children.Remove(ed);
-        if (current == ed) current = null;
+        if (ReferenceEquals(current, ed)) current = null;
     }
 
     /// Deleted (or re-imported) macros lose their cached editor.
@@ -369,7 +369,7 @@ public sealed class MainWindow : Window
                 ed.Visibility = Visibility.Visible;
                 DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
                 {
-                    if (current != ed) ed.Visibility = Visibility.Collapsed;
+                    if (!ReferenceEquals(current, ed)) ed.Visibility = Visibility.Collapsed;
                     ed.Opacity = 1;
                     ed.IsHitTestVisible = true;
                     Canvas.SetZIndex(ed, 0);

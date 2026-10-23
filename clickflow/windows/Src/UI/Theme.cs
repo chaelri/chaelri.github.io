@@ -103,6 +103,40 @@ public static class Theme
         return n;
     }
 
+    /// A locked number box can't be clicked into, so it can't take focus, and the mouse wheel
+    /// (which steps a focused NumberBox) can't change it while you scroll past.
+    public static void Lock(NumberBox n, bool locked)
+    {
+        n.IsHitTestVisible = !locked;
+        n.IsTabStop = !locked;
+        n.SpinButtonPlacementMode = locked ? NumberBoxSpinButtonPlacementMode.Hidden : NumberBoxSpinButtonPlacementMode.Compact;
+        n.Opacity = locked ? 0.75 : 1;
+    }
+
+    /// The Edit / Done toggle that unlocks a group of number boxes.
+    public static Button EditToggle(IReadOnlyList<NumberBox> boxes, string tip)
+    {
+        var b = Button("Edit", "");
+        ToolTipService.SetToolTip(b, tip);
+        var row = (StackPanel)b.Content;
+        var icon = (FontIcon)row.Children[0];
+        var text = (TextBlock)row.Children[1];
+        bool editing = false;
+        // The boxes may be added after the button is made: lock them once they're all there.
+        void Apply()
+        {
+            foreach (var n in boxes) Lock(n, !editing);
+            icon.Glyph = editing ? "" : "";
+            text.Text = editing ? "Done" : "Edit";
+            if (editing) b.Style = (Style)Application.Current.Resources["AccentButtonStyle"];
+            else b.ClearValue(FrameworkElement.StyleProperty);
+        }
+        b.Click += (_, _) => { editing = !editing; Apply(); };
+        b.Loaded += (_, _) => Apply();
+        Apply();
+        return b;
+    }
+
     public static WrapPanel Row(params UIElement[] items)
     {
         var r = new WrapPanel();

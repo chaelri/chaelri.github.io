@@ -1,5 +1,6 @@
 namespace ClickFlow;
 
+using System.Numerics;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -83,9 +84,11 @@ public sealed class MacroEditor : UserControl, IDisposable
         var delay = Theme.Num(0, 86400, 1, macro.RepeatDelay);
         delay.ValueChanged += (_, e) => { if (double.IsNaN(e.NewValue)) return; macro.RepeatDelay = e.NewValue; store.Touch(); UpdateStats(); };
         var gap = new Border { Width = 14 };
+        var edit = Theme.EditToggle(new[] { repeat, delay }, "Unlock Repeat and Pause to change them");
+        edit.Margin = new Thickness(8, 0, 0, 0);
         inner.Children.Add(Theme.Row(
             Theme.Label("Repeat"), repeat, Theme.Label("times (0 = until stopped)", color: Theme.Muted),
-            gap, Theme.Label("Pause between repeats"), delay, Theme.Label("s", color: Theme.Muted)));
+            gap, Theme.Label("Pause between repeats"), delay, Theme.Label("s", color: Theme.Muted), edit));
         var card = Theme.Card(inner);
         card.Margin = new Thickness(0, 0, 0, 14);
         return card;
@@ -187,12 +190,130 @@ public sealed class MacroEditor : UserControl, IDisposable
     public void MoveStep(Step s, int delta)
     {
         int i = macro.Steps.IndexOf(s), j = i + delta;
-        if (i < 0 || j < 0 || j >= macro.Steps.Count) return;
-        macro.Steps.RemoveAt(i);
-        macro.Steps.Insert(j, s);
-        store.Changed();
-        RebuildSteps();
+        if (i < 0 || j < 0 || j >= macro.Steps.Count || dragging != null || settling) return;
+        Reorder(i, j);
         BringIntoView(cards[j]);
+    }
+
+    /// Moves step i to j, moving its existing card instead of rebuilding them all.
+    void Reorder(int from, int to)
+    {
+        var card = cards[from];
+        macro.Steps.RemoveAt(from);
+        macro.Steps.Insert(to, card.Step);
+        cards.RemoveAt(from);
+        cards.Insert(to, card);
+        stepsBox.Children.Move((uint)from, (uint)to);
+        for (int k = Math.Min(from, to); k <= Math.Max(from, to); k++) cards[k].Renumber(k);
+        store.Changed();
+    }
+
+    // ---------- drag to reorder ----------
+    // The grip on a card captures the pointer. While dragging, the card follows the pointer and
+    // the cards it passes slide out of its way (Translation only, so nothing is laid out again);
+    // on release it glides into its slot, and only then is the order changed for real.
+
+    StepCard? dragging;
+    UIElement? dragGrip;
+    bool settling;
+    int dragFrom, dragTo;
+    double[] tops = Array.Empty<double>(), heights = Array.Empty<double>();
+    double startY, startOffset, pointerY;
+    DispatcherTimer? autoScroll;
+    const int SlideMs = 150;
+
+    static Vector3Transition Slide() => new() { Duration = TimeSpan.FromMilliseconds(SlideMs) };
+
+    public void DragStart(StepCard card, UIElement grip, PointerRoutedEventArgs e)
+    {
+        if (dragging != null || settling || cards.Count < 2 || !e.GetCurrentPoint(grip).Properties.IsLeftButtonPressed) return;
+        dragFrom = dragTo = cards.IndexOf(card);
+        if (dragFrom < 0 || !grip.CapturePointer(e.Pointer)) return;
+        e.Handled = true;
+        tops = cards.Select(c => c.TransformToVisual(stepsBox).TransformPoint(default).Y).ToArray();
+        heights = cards.Select(c => c.ActualHeight).ToArray();
+        dragging = card;
+        dragGrip = grip;
+        startY = pointerY = e.GetCurrentPoint(scroll).Position.Y;
+        startOffset = scroll.VerticalOffset;
+        foreach (var c in cards) c.TranslationTransition = c == card ? null : Slide();
+        Canvas.SetZIndex(card, 1);
+        card.Opacity = 0.9;
+        if (autoScroll == null)
+        {
+            autoScroll = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
+            autoScroll.Tick += (_, _) => AutoScroll();
+        }
+        autoScroll.Start();
+    }
+
+    public void DragMove(PointerRoutedEventArgs e)
+    {
+        if (dragging == null) return;
+        e.Handled = true;
+        pointerY = e.GetCurrentPoint(scroll).Position.Y;
+        Follow();
+    }
+
+    /// Holding a card near the top or bottom edge scrolls the list, faster the closer it is.
+    void AutoScroll()
+    {
+        const double edge = 56;
+        double h = scroll.ActualHeight, speed = 0;
+        if (pointerY < edge) speed = -(edge - pointerY);
+        else if (pointerY > h - edge) speed = pointerY - (h - edge);
+        if (speed != 0) scroll.ChangeView(null, Math.Clamp(scroll.VerticalOffset + Math.Clamp(speed, -edge, edge) / 2.5, 0, scroll.ScrollableHeight), null, true);
+        Follow();
+    }
+
+    void Follow()
+    {
+        if (dragging == null) return;
+        int n = cards.Count;
+        double dy = pointerY - startY + scroll.VerticalOffset - startOffset;
+        dy = Math.Clamp(dy, tops[0] - tops[dragFrom], tops[n - 1] + heights[n - 1] - heights[dragFrom] - tops[dragFrom]);
+        dragging.Translation = new Vector3(0, (float)dy, 0);
+
+        double centre = tops[dragFrom] + dy + heights[dragFrom] / 2;
+        int to = 0;
+        for (int i = 0; i < n; i++) if (i != dragFrom && tops[i] + heights[i] / 2 < centre) to++;
+        if (to == dragTo) return;
+        dragTo = to;
+        float shift = (float)(heights[dragFrom] + stepsBox.Spacing);
+        for (int i = 0; i < n; i++)
+        {
+            if (i == dragFrom) continue;
+            float t = dragFrom < i && i <= to ? -shift : to <= i && i < dragFrom ? shift : 0;
+            cards[i].Translation = new Vector3(0, t, 0);
+        }
+    }
+
+    public void DragEnd(bool commit)
+    {
+        if (dragging is not { } card) return;
+        dragging = null;
+        autoScroll?.Stop();
+        dragGrip?.ReleasePointerCaptures();
+        int from = dragFrom, to = commit ? dragTo : dragFrom;
+        // Where its slot is now: the cards it passed have slid out of the way by its height.
+        double slot = to > from ? tops[to] + heights[to] - heights[from] : to < from ? tops[to] : tops[from];
+        if (!commit) foreach (var c in cards) c.Translation = default;
+        card.TranslationTransition = Slide();
+        card.Translation = new Vector3(0, (float)(slot - tops[from]), 0);
+        settling = true;
+        var done = DispatcherQueue.CreateTimer();
+        done.Interval = TimeSpan.FromMilliseconds(SlideMs + 20);
+        done.IsRepeating = false;
+        done.Tick += (_, _) =>
+        {
+            // Swap the slide for the real order in one go: same frame, so nothing jumps.
+            foreach (var c in cards) { c.TranslationTransition = null; c.Translation = default; }
+            Canvas.SetZIndex(card, 0);
+            card.Opacity = 1;
+            if (to != from) Reorder(from, to);
+            settling = false;
+        };
+        done.Start();
     }
 
     public void Duplicate(Step s)
