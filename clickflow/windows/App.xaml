@@ -6,6 +6,33 @@
       <ResourceDictionary.MergedDictionaries>
         <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
       </ResourceDictionary.MergedDictionaries>
+
+      <!-- Softer controls: rounder, roomier, an even border instead of the hard underline,
+           and a full accent ring while typing. -->
+      <CornerRadius x:Key="ControlCornerRadius">10</CornerRadius>
+      <CornerRadius x:Key="OverlayCornerRadius">14</CornerRadius>
+      <Thickness x:Key="TextControlThemePadding">12,7,10,7</Thickness>
+      <x:Double x:Key="TextControlThemeMinHeight">36</x:Double>
+      <Thickness x:Key="TextControlBorderThemeThickness">1</Thickness>
+      <Thickness x:Key="TextControlBorderThemeThicknessFocused">2</Thickness>
+      <Thickness x:Key="ComboBoxPadding">12,6,0,7</Thickness>
+
+      <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Light">
+          <SolidColorBrush x:Key="TextControlBorderBrush" Color="#1F000000" />
+          <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="#38000000" />
+          <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#0A6EE6" />
+          <SolidColorBrush x:Key="ComboBoxBorderBrush" Color="#1F000000" />
+          <SolidColorBrush x:Key="ComboBoxBorderBrushPointerOver" Color="#38000000" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Dark">
+          <SolidColorBrush x:Key="TextControlBorderBrush" Color="#24FFFFFF" />
+          <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="#3DFFFFFF" />
+          <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#60A5FA" />
+          <SolidColorBrush x:Key="ComboBoxBorderBrush" Color="#24FFFFFF" />
+          <SolidColorBrush x:Key="ComboBoxBorderBrushPointerOver" Color="#3DFFFFFF" />
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
     </ResourceDictionary>
   </Application.Resources>
 </Application>

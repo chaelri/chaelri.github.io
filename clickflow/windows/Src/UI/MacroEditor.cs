@@ -99,7 +99,7 @@ public sealed class MacroEditor : UserControl, IDisposable
             Theme.Label("Repeat"), repeat, Theme.Label("times (0 = until stopped)", color: Theme.Muted),
             gap, Theme.Label("Pause between repeats"), delay, Theme.Label("s", color: Theme.Muted), edit));
         // The brand gradient along the top edge.
-        inner.Children.Insert(0, new Border { Height = 3, Margin = new Thickness(-14, -10, -14, 6), CornerRadius = new CornerRadius(8, 8, 0, 0), Background = Theme.BrandGradient() });
+        inner.Children.Insert(0, new Border { Height = 3, Margin = new Thickness(-14, -10, -14, 6), CornerRadius = new CornerRadius(12, 12, 0, 0), Background = Theme.BrandGradient() });
         card = Theme.Card(inner);
         card.BackgroundTransition = new BrushTransition { Duration = TimeSpan.FromMilliseconds(220) };
         resting = card.BorderBrush;

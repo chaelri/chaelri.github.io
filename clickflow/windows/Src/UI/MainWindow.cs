@@ -192,6 +192,11 @@ public sealed class MainWindow : Window
         Key(root, VirtualKey.N, VirtualKeyModifiers.Control, () => Select(store.NewMacro().Id));
         Key(root, VirtualKey.F, VirtualKeyModifiers.Control, () => search.Focus(FocusState.Keyboard));
         root.KeyboardAcceleratorPlacementMode = KeyboardAcceleratorPlacementMode.Hidden;
+        // A small bounce whenever a text or number box takes focus.
+        root.GotFocus += (_, e) =>
+        {
+            if (e.OriginalSource is TextBox or PasswordBox) Anim.Pop((UIElement)e.OriginalSource, 0.02f);
+        };
         return root;
     }
 
@@ -718,7 +723,7 @@ sealed class MacroRow : Grid
     {
         Id = id;
         Padding = new Thickness(10, 7, 10, 9);
-        CornerRadius = new CornerRadius(6);
+        CornerRadius = new CornerRadius(10);
         BorderThickness = new Thickness(1);
         ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });

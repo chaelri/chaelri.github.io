@@ -118,7 +118,7 @@ public static class Theme
         Background = fill is { } f ? Solid(f) : Res("CardBackgroundFillColorDefaultBrush"),
         BorderBrush = edge is { } e ? Solid(e) : Res("CardStrokeColorDefaultBrush"),
         BorderThickness = new Thickness(1),
-        CornerRadius = new CornerRadius(8),
+        CornerRadius = new CornerRadius(12),
         Padding = padding ?? new Thickness(14, 10, 14, 12),
     };
 
