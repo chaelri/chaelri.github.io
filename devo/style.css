@@ -14127,3 +14127,25 @@ body:not(.light) .nr-page-btn:disabled {
   background: #1b2238 !important;
   border-color: transparent !important;
 }
+
+/* Saved notes: plain navy card like the rest (Charlie, 2026-10-23: no pink
+   rule/wash). Inside the Notes card, which is already #1b2238, a note sits
+   one step darker so it still reads as its own item. */
+body:not(.light) .verse-note-inline {
+  border-left: none;
+  border-radius: 14px;
+  padding: 12px 16px;
+  background: #1b2238;
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 15px;
+  line-height: 22px;
+}
+body:not(.light) #output .verse .comments .comment {
+  border-left: none;
+  border-radius: 12px;
+  padding: 10px 14px;
+  background: rgba(17, 26, 47, 0.9);
+  color: rgba(255, 255, 255, 0.92) !important;
+  font-size: 15px;
+  line-height: 22px;
+}

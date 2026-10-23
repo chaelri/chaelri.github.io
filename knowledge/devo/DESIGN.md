@@ -45,7 +45,7 @@ A full-width row separated from the body by a slightly darker band: small icon +
 
 ## Notes
 
-Saved notes read as a quote: `2px` pink rule on the left (`rgba(200,48,134,0.6)`), `rgba(200,48,134,0.07)` wash, radius `0 10px 10px 0`, `14px/1.5`, `pre-wrap`. Same look inline under the verse (`.verse-note-inline`) and inside the Notes card (`.comment`).
+Saved notes are a plain navy card: `#1b2238`, `14px` radius, `12px 16px` padding, `15px/22px` text, no pink rule or wash (Charlie dropped the pink 2026-10-23). Inside the Notes card a note sits one step darker (`rgba(17,26,47,0.9)`, `12px` radius) so it still reads as its own item.
 
 ## Inputs
 
