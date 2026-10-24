@@ -846,16 +846,16 @@ function _nrRenderBeats(data, sections) {
           ? `<span class="nr-to"><span class="nr-to-word">to</span>${_nrFaceImg(beat.to, data.cast, "nr-to-face")}<span class="nr-to-name">${_nrEsc(beat.to)}</span></span>`
           : "";
         const divine = _nrIsDivine(speaker);
-        const mark = _nrFaceImg(speaker, data.cast, "nr-face")
+        const avatar = _nrFaceImg(speaker, data.cast, "nr-face")
           || (divine ? _NR_CROSS_SVG : _nrEsc(_nrInitials(speaker)));
         return headings + `<div class="nr-pageable nr-line nr-line-say ${isRun ? "nr-run" : ""}" ${delay}>
           <div class="nr-avatar ${divine ? "nr-avatar-divine" : ""}" style="background:${tone.bg};border-color:${tone.ring};color:${tone.ink}">
-            ${isRun ? "" : mark}
+            ${isRun ? "" : avatar}
           </div>
           <div class="nr-bubble-wrap">
             ${isRun ? "" : `<div class="nr-who" style="color:${tone.ink}">${_nrEsc(speaker)}${to}</div>`}
             <div class="nr-bubble" data-rk="${rk}" data-rv="${beatVerse || ""}" style="background:${tone.bg};border-color:${tone.ring}">
-              ${_nrMarkInnerQuotes(_nrEsc(beat.text))}
+              ${mark(_nrMarkInnerQuotes(_nrEsc(beat.text)))}
               ${chip}
             </div>
           </div>
