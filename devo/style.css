@@ -14392,3 +14392,34 @@ body:not(.light) #reflectContent ol.refl-unified > li { padding: 16px; }
   image-rendering: crisp-edges;
 }
 .light .nr-to-face { background: rgba(0, 0, 0, 0.06); }
+
+/* Faces and places inside Retell narration (2026-10-24). A named person gets
+   their 18px pixel face and their speaker colour; a place gets a pill with a
+   pixel icon for its kind. */
+.nr-nm { font-weight: 700; white-space: nowrap; }
+.nr-nm-face {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  vertical-align: -3px;
+  margin-right: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+.light .nr-nm { color: #1a1a2e !important; }
+.light .nr-nm-face { background: rgba(0, 0, 0, 0.06); }
+.nr-place {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px 0 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #f3e3b5;
+  font-weight: 700;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+.nr-place img { width: 16px; height: 16px; image-rendering: pixelated; image-rendering: crisp-edges; }
+.light .nr-place { background: rgba(0, 0, 0, 0.06); color: #6b4f1a; }

@@ -308,6 +308,130 @@ const _NR_CAST_RULES = `- "skin": 0 lightest … 3 darkest. Most people in Israe
 - A group ("the men of Israel", "the elders") gets one typical member.
 - Leave out God, the Lord, Jesus, the Holy Spirit and the angel of the Lord.`;
 
+/* ── Faces and places inside the narration ─────────────────────────────────
+   A name the chapter's cast knows gets its small face and colour; a place the
+   Retell call listed gets a pill with a pixel icon for its kind. Matching runs
+   over text only (never inside tags), longest name first, so "King David"
+   marks David once and "Absalom" never matches inside a longer name. */
+const _NR_PLACE_KINDS = ["city", "house", "water", "river", "sea", "mountain", "wilderness", "field", "temple", "palace", "camp", "land"];
+
+const _nrPlaceIconCache = new Map();
+function _nrPlaceIconURL(kind) {
+  if (!_NR_PLACE_KINDS.includes(kind)) kind = "land";
+  if (_nrPlaceIconCache.has(kind)) return _nrPlaceIconCache.get(kind);
+  let url = "";
+  try {
+    const cv = document.createElement("canvas");
+    cv.width = cv.height = 16;
+    const ctx = cv.getContext("2d");
+    const r = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(x, y, w, h); };
+    const wall = "#c9b07a", wallD = "#8f7a4a", wood = "#4a2f1a", water = "#3a86d0", waterL = "#8cc4f2";
+    switch (kind) {
+      case "city":
+        r(1, 6, 14, 9, wall); r(1, 4, 4, 2, wall); r(11, 4, 4, 2, wall);
+        for (const x of [1, 3, 11, 13]) r(x, 3, 1, 1, wall);
+        r(6, 9, 4, 6, wood); r(1, 14, 14, 1, wallD); r(14, 4, 1, 11, wallD);
+        break;
+      case "house":
+        r(2, 6, 12, 9, wall); r(1, 5, 14, 2, "#b0503a"); r(6, 10, 3, 5, wood); r(10, 8, 2, 2, "#1a1420"); r(13, 6, 1, 9, wallD);
+        break;
+      case "water":
+        r(7, 2, 2, 2, water); r(6, 4, 4, 2, water); r(5, 6, 6, 3, water); r(4, 9, 8, 3, water); r(5, 12, 6, 1, water); r(6, 13, 4, 1, water);
+        r(6, 8, 1, 1, waterL); r(5, 9, 1, 2, waterL);
+        break;
+      case "river":
+      case "sea":
+        r(0, 3, 16, 11, kind === "sea" ? "#2f6fa8" : water);
+        for (const [y, o] of [[5, 0], [8, 3], [11, 1]]) for (let x = o; x < 16; x += 6) r(x, y, 3, 1, waterL);
+        break;
+      case "mountain":
+        for (let y = 0; y < 11; y++) r(7 - y * 0.7, 3 + y, 2 + y * 1.4, 1, y < 3 ? "#f2efe6" : "#8a7f6a");
+        r(0, 14, 16, 1, "#6a604e");
+        break;
+      case "wilderness":
+        r(0, 11, 16, 4, "#d8c08a"); r(3, 9, 6, 2, "#d8c08a"); r(10, 10, 5, 1, "#c4a86a");
+        r(11, 2, 3, 3, "#f2c230"); r(7, 5, 1, 4, "#4f9a62"); r(6, 6, 1, 1, "#4f9a62"); r(8, 7, 1, 1, "#4f9a62");
+        break;
+      case "field":
+        r(0, 12, 16, 3, "#8a6a3a");
+        for (const x of [2, 6, 10, 14]) { r(x, 5, 1, 7, "#c9a227"); r(x - 1, 3, 3, 3, "#e8c14a"); }
+        break;
+      case "temple":
+      case "palace":
+        r(1, 3, 14, 2, kind === "palace" ? "#c9a227" : "#e9e4d8"); r(3, 1, 10, 2, kind === "palace" ? "#c9a227" : "#e9e4d8");
+        for (const x of [2, 6, 10, 13]) r(x, 5, 2, 8, "#d8cfb8");
+        r(1, 13, 14, 2, "#a89f88");
+        break;
+      case "camp":
+        for (let y = 0; y < 11; y++) r(8 - y, 3 + y, y * 2 + 1, 1, y % 4 ? "#b49a6a" : "#8f7a4a");
+        r(7, 9, 2, 5, "#3a2a1a");
+        break;
+      default: // land: a map pin
+        r(5, 2, 6, 6, "#db2777"); r(4, 3, 8, 4, "#db2777"); r(6, 8, 4, 2, "#db2777"); r(7, 10, 2, 3, "#db2777");
+        r(7, 4, 2, 2, "#fff");
+    }
+    url = cv.toDataURL("image/png");
+  } catch { /* no canvas: the place still shows as a plain tag */ }
+  _nrPlaceIconCache.set(kind, url);
+  return url;
+}
+
+function _nrEscRe(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
+
+// Built once per render. People: proper names only (capitalised, not a group
+// like "Absalom and the men of Israel", not God), from the cast plus everyone
+// who speaks or is spoken to.
+function _nrMarker(data, tones) {
+  // "Jonathan and Ahimaaz" speaks as a pair; in the narration each name is
+  // marked on its own, wearing the pair's traits unless they have their own.
+  const cast = { ...(data.cast || {}) };
+  const names = new Set();
+  const add = (n) => {
+    names.add(n);
+    const parts = String(n).split(/\s*(?:,|\band\b)\s*/).map((p) => p.trim()).filter((p) => /^[A-Z]\w+$/.test(p));
+    if (parts.length > 1) for (const p of parts) { names.add(p); if (!cast[p] && cast[n]) cast[p] = cast[n]; }
+  };
+  for (const n of Object.keys(data.cast || {})) add(n);
+  for (const b of data.beats || []) { if (b.speaker) add(b.speaker); if (b.to) add(b.to); }
+  const people = [...names].map((n) => String(n).trim()).filter((n) =>
+    /^[A-Z]/.test(n) && !/\band\b|,|’s\b|'s\b/.test(n) && !_nrIsDivine(n) && n.length > 1);
+  const places = Object.entries(data.places || {})
+    .map(([n, k]) => [String(n).trim(), String(k || "").toLowerCase()])
+    .filter(([n]) => /^[A-Z]/.test(n) && n.length > 1 && !people.includes(n));
+  const kindOf = new Map(places);
+  const all = [...people, ...places.map(([n]) => n)].sort((a, b) => b.length - a.length);
+  if (!all.length) return (html) => html;
+  const re = new RegExp(`(?<![\\w’'-])(${all.map((n) => _nrEscRe(_nrEsc(n))).join("|")})(?![\\w-])`, "g");
+  const byEsc = new Map(all.map((n) => [_nrEsc(n), n]));
+  return (html) => html.split(/(<[^>]+>)/).map((part) => part.startsWith("<") ? part : part.replace(re, (m) => {
+    const name = byEsc.get(m) || m;
+    if (kindOf.has(name)) {
+      const icon = _nrPlaceIconURL(kindOf.get(name));
+      return `<span class="nr-place">${icon ? `<img src="${icon}" alt="" aria-hidden="true">` : ""}${m}</span>`;
+    }
+    const tone = _nrToneFor(name, tones);
+    return `<span class="nr-nm" style="color:${tone.ink}">${_nrFaceImg(name, cast, "nr-nm-face")}${m}</span>`;
+  })).join("");
+}
+
+// Retells saved before places existed: one short call lists the chapter's
+// places so their tags appear too. Stored even when empty, so it never repeats.
+async function _nrFetchPlaces(book, chapter, versesText) {
+  const raw = await callGemini(
+    `List every named place in ${book} ${chapter} below — towns, cities, regions, rivers, mountains, wells, valleys — spelled exactly as written in the text. Return ONLY a JSON object, no markdown fence:
+{"places": {"<place exactly as written>": "${_NR_PLACE_KINDS.join(" | ")}"}}
+"water" is a spring, well or pool; "land" is a region or country. No people, no peoples ("the Philistines").
+
+${versesText}`,
+    { temperature: 0.1 },
+  );
+  const text = String(raw || "");
+  const s = text.indexOf("{"), e = text.lastIndexOf("}");
+  if (s === -1 || e <= s) return null;
+  const data = JSON.parse(text.slice(s, e + 1));
+  return data && typeof data.places === "object" ? data.places : null;
+}
+
 function _nrEsc(s) {
   return String(s ?? "").replace(
     /[&<>"']/g,
@@ -575,10 +699,13 @@ Return ONLY a JSON object, no markdown fence, no commentary:
     { "type": "narration", "text": "...", "verses": "1-3" },
     { "type": "dialogue", "speaker": "The Lord", "to": "Gideon", "text": "...", "verses": "2" }
   ],
+  "places": { "Harod": "water" },
   "cast": {
     "Gideon": ${_NR_CAST_SHAPE}
   }
 }
+
+"places" — every named place in the chapter (towns, regions, rivers, mountains, wells), spelled exactly as in the text, with its kind: ${_NR_PLACE_KINDS.join(" | ")}. "water" is a spring, well or pool; "land" a region or country. No people.
 
 "cast" — one entry for every name you use as a "speaker" or "to", spelled exactly the same, describing how to draw them as a small pixel-art portrait:
 ${_NR_CAST_RULES}
@@ -677,6 +804,7 @@ function _nrParse(raw) {
 function _nrRenderBeats(data, sections) {
   const tones = {};
   let lastSpeaker = null;
+  const mark = _nrMarker(data, tones);
 
   // Same section headings the reader shows, from the same cache — a chapter
   // titled in one place is titled identically in the other. Sorted and
@@ -742,7 +870,7 @@ function _nrRenderBeats(data, sections) {
       if (!beat.text) return "";
       lastSpeaker = null;
       return headings + `<div class="nr-pageable nr-line nr-narr${beat._cont && !headings ? " nr-cont" : ""}" data-rk="${rk}" data-rv="${beatVerse || ""}" ${delay}>
-        <p>${_nrMarkInnerQuotes(_nrEsc(beat.text))}</p>
+        <p>${mark(_nrMarkInnerQuotes(_nrEsc(beat.text)))}</p>
         ${chip}
       </div>`;
     })
@@ -1331,10 +1459,15 @@ async function openNarrate() {
       data = _nrParse(raw);
       _nrPutCached(cacheKey, data);
     }
-    if (!data.cast && navigator.onLine !== false) {
+    if ((!data.cast || !data.places) && navigator.onLine !== false) {
       const names = [...new Set(data.beats.flatMap((b) => [b.speaker, b.to]).filter((n) => n && !_nrIsDivine(n)))];
-      const cast = names.length ? await _nrFetchCast(names, bookName, payload.chapter).catch(() => null) : null;
-      if (cast) { data.cast = cast; _nrPutCached(cacheKey, data); }
+      const [cast, places] = await Promise.all([
+        !data.cast && names.length ? _nrFetchCast(names, bookName, payload.chapter).catch(() => null) : null,
+        !data.places ? _nrFetchPlaces(bookName, payload.chapter, payload.versesText).catch(() => null) : null,
+      ]);
+      if (cast) data.cast = cast;
+      if (places) data.places = places;
+      if (cast || places) _nrPutCached(cacheKey, data);
     }
 
     // Stage 3 — swap loading for the scroll. The beats stagger themselves in
