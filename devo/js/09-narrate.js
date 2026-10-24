@@ -1253,8 +1253,14 @@ window.addEventListener("resize", () => {
 function _nrLoadingHTML(ref) {
   const bubble = (side) => `<div class="nr-skel-say ${side}">
       <div class="nr-skel-av"></div>
-      <div class="nr-skel-bub"><span></span><span></span></div>
+      <div class="nr-skel-body">
+        <div class="nr-skel-who"></div>
+        <div class="nr-skel-bub"><span></span><span></span></div>
+      </div>
     </div>`;
+  // The payload carries the book in capitals ("2 SAMUEL"); the status line
+  // reads as a sentence.
+  const name = String(ref).toLowerCase().replace(/(^|\s)([a-z])/g, (m, sp, ch) => sp + ch.toUpperCase());
   return `<div class="nr-loading">
     <div class="nr-skel" aria-hidden="true">
       <div class="nr-skel-logline"><span></span><span></span></div>
@@ -1265,7 +1271,7 @@ function _nrLoadingHTML(ref) {
       <div class="nr-skel-narr"><span></span><span></span></div>
     </div>
     <div class="nr-loading-status" role="status" aria-live="polite">
-      ${sparkleLoaderHTML(`Reading all ${_nrEsc(ref)}, finding who speaks.`)}
+      ${sparkleLoaderHTML(`Reading all of ${_nrEsc(name)}, finding who speaks.`)}
     </div>
   </div>`;
 }

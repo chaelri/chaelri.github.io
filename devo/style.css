@@ -12962,19 +12962,22 @@ body.nr-locked { overflow: hidden; }
 }
 .light .nr-loading-sub { color: rgba(0, 0, 0, 0.45); }
 
-.nr-skel { display: flex; flex-direction: column; gap: 26px; text-align: left; }
+/* The loading skeleton is the finished Retell's own layout in outline: the
+   logline with its pink rule, a grey section heading, narration lines, then
+   speech turns as avatar square + name + tinted bubble, all on the left.
+   Neutral grey with a soft white sweep — the colour arrives with the real
+   content, the way the bubbles carry each speaker's tone. */
+.nr-skel { display: flex; flex-direction: column; text-align: left; }
 .nr-skel span,
 .nr-skel-head,
 .nr-skel-av,
-.nr-skel-bub {
+.nr-skel-who {
   display: block;
-  border-radius: 8px;
-  /* One travelling highlight over a flat base — the gradient is 3× the width
-     so the sweep reads as a pass of light rather than a colour cycle. */
+  border-radius: 7px;
   background: linear-gradient(
       100deg,
       rgba(255, 255, 255, 0.05) 30%,
-      rgba(219, 39, 119, 0.16) 50%,
+      rgba(255, 255, 255, 0.11) 50%,
       rgba(255, 255, 255, 0.05) 70%
     )
     0 0 / 300% 100%;
@@ -12983,11 +12986,11 @@ body.nr-locked { overflow: hidden; }
 .light .nr-skel span,
 .light .nr-skel-head,
 .light .nr-skel-av,
-.light .nr-skel-bub {
+.light .nr-skel-who {
   background-image: linear-gradient(
     100deg,
     rgba(0, 0, 0, 0.05) 30%,
-    rgba(219, 39, 119, 0.14) 50%,
+    rgba(0, 0, 0, 0.10) 50%,
     rgba(0, 0, 0, 0.05) 70%
   );
 }
@@ -12996,31 +12999,32 @@ body.nr-locked { overflow: hidden; }
   to { background-position: 0 0; }
 }
 
-.nr-skel span { height: 12px; margin-bottom: 10px; }
+.nr-skel span { height: 13px; margin-bottom: 14px; }
 .nr-skel span:last-child { margin-bottom: 0; }
 
-.nr-skel-logline { padding-left: 12px; border-left: 2px solid rgba(219, 39, 119, 0.25); }
+.nr-skel-logline {
+  margin: 0 0 26px;
+  padding: 4px 0 4px 14px;
+  border-left: 2px solid rgba(219, 39, 119, 0.55);
+}
 .nr-skel-logline span:last-child { width: 62%; }
-.nr-skel-head { height: 11px; width: 45%; border-radius: 999px; }
+.nr-skel-head { height: 10px; width: 42%; margin: 6px 0 18px; }
+.nr-skel-narr { margin: 0 0 22px; }
 .nr-skel-narr span:last-child { width: 74%; }
 
-/* Mirrors .nr-line-say: avatar, then the bubble it speaks from. */
-.nr-skel-say { display: flex; gap: 10px; align-items: flex-start; }
-.nr-skel-say-alt { flex-direction: row-reverse; }
-.nr-skel-av {
-  flex: 0 0 34px;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-}
+/* Mirrors .nr-line-say: 48px avatar square, name, bubble with the clipped
+   top-left corner. The tint is one of the speaker tones. */
+.nr-skel-say { display: flex; gap: 10px; align-items: flex-start; margin: 0 0 22px; }
+.nr-skel-av { flex: 0 0 48px; width: 48px; height: 48px; border-radius: 12px; }
+.nr-skel-body { flex: 1 1 auto; min-width: 0; }
+.nr-skel-who { width: 34%; height: 10px; margin: 3px 0 9px 2px; }
 .nr-skel-bub {
-  flex: 1 1 auto;
-  padding: 14px 16px;
-  border-radius: 16px;
+  padding: 15px;
+  border-radius: 5px 16px 16px 16px;
+  background: rgba(96, 165, 250, 0.10);
 }
-.nr-skel-bub span { background: rgba(255, 255, 255, 0.07); animation: none; }
+.nr-skel-say-alt .nr-skel-bub { background: rgba(52, 211, 153, 0.09); }
 .nr-skel-bub span:last-child { width: 55%; }
-.light .nr-skel-bub span { background: rgba(0, 0, 0, 0.07); }
 
 .nr-loading-status {
   display: flex;
@@ -13032,7 +13036,7 @@ body.nr-locked { overflow: hidden; }
   .nr-skel span,
   .nr-skel-head,
   .nr-skel-av,
-  .nr-skel-bub { animation: none; }
+  .nr-skel-who { animation: none; }
 }
 .nr-error { color: rgba(230, 237, 247, 0.75); font-size: 14px; }
 .nr-retry {
