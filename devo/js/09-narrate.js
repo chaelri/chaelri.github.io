@@ -510,6 +510,9 @@ function _nrRenderBeats(data, sections) {
     ${html}
     <div class="nr-pageable nr-end">
       <span>End of ${_nrEsc(data.title || "the chapter")}</span>
+      <button type="button" class="nr-reflect-btn" id="nrReflect">
+        <span class="material-symbols-outlined">edit_note</span> Reflect
+      </button>
     </div>`;
 }
 
@@ -1593,6 +1596,12 @@ document.addEventListener("click", (e) => {
 
 document.addEventListener("click", (e) => {
   if (e.target.closest?.("#nrClose")) closeNarrate();
+  // End of the retelling → straight on to reflecting on the same chapter.
+  // Opens once the overlay has dropped, so the two don't animate over each other.
+  if (e.target.closest?.("#nrReflect")) {
+    closeNarrate();
+    setTimeout(() => openReflectModal(), 450);
+  }
   if (e.target.closest?.("#nrPrev")) _nrStepPage(-1);
   if (e.target.closest?.("#nrNext")) {
     if (document.getElementById("nrNext")?.classList.contains("nr-page-done")) closeNarrate();

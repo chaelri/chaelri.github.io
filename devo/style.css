@@ -14287,3 +14287,75 @@ body:not(.light) .audio-lib-book-dl {
   color: #f472b6 !important;
 }
 body:not(.light) .audio-lib-book-dl:hover:not(:disabled) { background: #222b45 !important; }
+
+/* ── Guided Reflection: one question per chapter (2026-10-24) ──────────────
+   A line from the chapter (what you saw), the question (how it lands on
+   you), then one big notes box. No "Question N" numbering — there's one. */
+#aiReflection ol.refl-unified > li,
+#reflectContent ol.refl-unified > li { padding-inline-start: 0; }
+#aiReflection ol.refl-unified > li::before,
+#reflectContent ol.refl-unified > li::before { content: none; display: none; }
+.refl-obs {
+  font-size: 14px;
+  line-height: 21px;
+  color: rgba(255, 255, 255, 0.6);
+  margin: 0 0 12px;
+}
+.refl-obs::before {
+  content: "From the chapter";
+  display: block;
+  margin-bottom: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+}
+.refl-obs .reflection-link { margin-left: 6px; white-space: nowrap; }
+.light .refl-obs { color: rgba(0, 0, 0, 0.6); }
+.light .refl-obs::before { color: rgba(0, 0, 0, 0.45); }
+#aiReflection .refl-q,
+#reflectContent .refl-q {
+  font-size: 16px !important;
+  line-height: 24px !important;
+  font-weight: 600 !important;
+  margin: 0 0 4px !important;
+}
+#aiReflection .refl-unified textarea,
+#reflectContent .refl-unified textarea {
+  min-height: 200px;
+  margin-top: 12px !important;
+  font-size: 15px;
+  line-height: 22px;
+}
+#reflectContent .refl-unified > li { margin-bottom: 24px; }
+/* Loading skeleton for the single card. */
+.refl-skel--one .refl-skel-item { grid-template-columns: 1fr; grid-template-areas: "q" "box"; }
+.refl-skel--one .refl-skel-box { height: 200px; }
+
+/* Retell → Reflect, at the end of the retelling. Same filled navy button as
+   the reader's own Study / Reflect / Retell row. */
+.nr-end { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+.nr-reflect-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 22px;
+  border: none;
+  border-radius: 999px;
+  background: #1b2238;
+  color: rgba(255, 255, 255, 0.92);
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0;
+  text-transform: none;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.12s ease;
+}
+.nr-reflect-btn:hover { background: #222b45; }
+.nr-reflect-btn:active { transform: scale(0.97); }
+.nr-reflect-btn .material-symbols-outlined { font-size: 20px; }
+.light .nr-reflect-btn { background: #ececf4; color: #1f2029; }
+.light .nr-reflect-btn:hover { background: #e2e2ee; }

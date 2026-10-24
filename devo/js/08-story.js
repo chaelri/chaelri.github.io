@@ -983,17 +983,9 @@ async function openReflectModal() {
       modalRetryBtn.disabled = true;
       modalRetryBtn.classList.add("ai-refl-retry-spinning");
       try {
-        const existing = (await loadAIFromStorage()) || {};
-        await saveAIToStorage({ ...existing, reflectionHTML: null, answers: {} });
-        await renderAIReflectionQuestions(window.__aiPayload);
-        const updated = (await loadAIFromStorage()) || {};
-        await saveAIToStorage({
-          ...updated,
-          reflectionHTML:
-            !_isAiFailHTML(reflectionEl.innerHTML) && reflectionEl.innerHTML !== "<p>Failed to generate reflection questions.</p>"
-              ? reflectionEl.innerHTML
-              : null,
-        });
+        // New question, same notes — the modal's textareas already mirror
+        // into #aiReflection on every keystroke, which is where it reads them.
+        await _refreshReflectionQuestion();
         // Re-open the modal so it picks up the fresh questions.
         modal.hidden = true;
         openReflectModal();

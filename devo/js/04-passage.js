@@ -1942,6 +1942,21 @@ async function runAIForCurrentPassage() {
   ) {
     aiContextSummaryEl.innerHTML = cached.contextHTML;
     const reflMount = document.getElementById("aiReflection");
+    // A chapter cached with the old three questions and nothing written yet
+    // gets the one-question card. With answers it stays as it was until the
+    // refresh button folds them into one notes box.
+    const id = devotionId();
+    const oldUnanswered =
+      !cached.reflectionHTML.includes("refl-unified") &&
+      ![0, 1, 2].some((i) => (localStorage.getItem(`reflection-${id}-${i}`) || "").split("A: ")[1]?.trim());
+    if (oldUnanswered) {
+      _contextLoading = false;
+      await renderAIReflectionQuestions(window.__aiPayload);
+      _reflectionLoading = false;
+      applyReflectionVisibility();
+      await _saveCurrentAI();
+      return;
+    }
     reflMount.innerHTML = cached.reflectionHTML;
     _ensureReflectionRetryUI(reflMount);
     applyReflectionVisibility();
@@ -2228,7 +2243,7 @@ function _ensureReflectionRetryUI(mount) {
   if (!mount.dataset.retryWired) {
     mount.dataset.retryWired = "1";
 
-    // Click → smart retry: only regenerate questions WITHOUT an answer.
+    // Click → a different question; the notes stay.
     mount.addEventListener("click", async (e) => {
       const btn = e.target.closest(".ai-refl-retry");
       if (!btn || !mount.contains(btn)) return;
@@ -2237,7 +2252,7 @@ function _ensureReflectionRetryUI(mount) {
       btn.disabled = true;
       btn.classList.add("ai-refl-retry-spinning");
       try {
-        await _smartRetryReflections();
+        await _refreshReflectionQuestion();
       } catch (err) {
         console.error("[reflection retry]", err);
       } finally {
@@ -2281,8 +2296,8 @@ function _ensureReflectionRetryUI(mount) {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "ai-refl-retry";
-    btn.setAttribute("aria-label", "Regenerate reflection questions");
-    btn.title = "Regenerate questions";
+    btn.setAttribute("aria-label", "Different question");
+    btn.title = "Different question";
     btn.innerHTML = `<span class="material-symbols-outlined">refresh</span>`;
     mount.insertBefore(btn, mount.firstChild);
   }
@@ -2295,142 +2310,66 @@ function _ensureReflectionRetryUI(mount) {
   _refreshRetryButtonState(mount);
 }
 
-// Reads the current answer state and updates the retry button:
-//   - all 3 textareas have non-empty values → disabled + tooltip "All
-//     questions answered"
-//   - otherwise → enabled + default tooltip
+// The refresh button is always live. With one question there's nothing to
+// "finish" — swapping the question is how you get a different lesson out of
+// the same chapter, and the notes you've written stay where they are.
 function _refreshRetryButtonState(mount) {
-  if (!mount) return;
-  const btn = mount.querySelector(".ai-refl-retry");
-  if (!btn) return;
-  const tas = [...mount.querySelectorAll('textarea[id^="reflection-"]')];
-  if (tas.length === 0) {
-    btn.disabled = false;
-    btn.title = "Regenerate questions";
-    btn.classList.remove("ai-refl-retry-done");
-    return;
-  }
-  const allAnswered = tas.every((t) => (t.value || "").trim().length > 0);
-  if (allAnswered) {
-    btn.disabled = true;
-    btn.title = "All questions answered ✓";
-    btn.classList.add("ai-refl-retry-done");
+  const btn = mount?.querySelector(".ai-refl-retry");
+  if (!btn || btn.classList.contains("ai-refl-retry-spinning")) return;
+  btn.disabled = false;
+  btn.title = "Different question";
+  btn.classList.remove("ai-refl-retry-done");
+}
+
+// Swaps the question for a fresh one from another lesson in the chapter and
+// carries the notes across. Also the upgrade path for a chapter cached with
+// the old three questions: their answers are joined into the one notes box
+// and the leftover reflection-<id>-1/-2 keys are removed, so the notes app
+// doesn't keep listing questions that are no longer on screen.
+async function _refreshReflectionQuestion() {
+  const mount = document.getElementById("aiReflection");
+  const payload = window.__aiPayload;
+  if (!mount || !payload) return;
+
+  const oldAreas = [...mount.querySelectorAll('textarea[id^="reflection-"]')];
+  const notes = oldAreas
+    .map((ta) => (ta.value || "").trim())
+    .filter(Boolean)
+    .join("\n\n");
+  const oldQuestions = [...mount.querySelectorAll("li > p")]
+    .map((p) => p.textContent.trim())
+    .filter(Boolean);
+
+  const r = await _fetchUnifiedReflection({
+    ...payload,
+    avoid: [...oldQuestions, ..._getRecentReflQs()],
+  });
+  if (!r) throw new Error("no reflection returned");
+
+  const id = `reflection-${devotionId()}-0`;
+  oldAreas.forEach((ta) => {
+    if (ta.id && ta.id !== id) localStorage.removeItem(ta.id);
+  });
+
+  mount.innerHTML = _unifiedReflectionHTML(r);
+  _appendRecentReflQs([r.question]);
+  const ta = mount.querySelector("textarea");
+  ta.id = id;
+  ta.value = notes;
+  _wireReflectionTextarea(ta);
+  _normalizeReflectionLinks(mount);
+  if (notes) {
+    localStorage.setItem(id, `Q: ${r.question}\nA: ${notes}`);
   } else {
-    btn.disabled = false;
-    btn.title = "Regenerate unanswered questions";
-    btn.classList.remove("ai-refl-retry-done");
+    localStorage.removeItem(id);
   }
-}
+  if (typeof autoExpand === "function") autoExpand(ta);
 
-// Smart retry: regenerates ONLY questions without an answer. Falls back to
-// full regen when no answers exist yet (or structure is missing).
-async function _smartRetryReflections() {
-  const mount = document.getElementById("aiReflection");
-  if (!mount) return;
-  const payload = window.__aiPayload;
-  if (!payload) throw new Error("no aiPayload");
-
-  const ol = mount.querySelector("ol");
-  const lis = ol ? [...ol.children].filter((el) => el.tagName === "LI") : [];
-  if (!ol || lis.length === 0) {
-    // No structured questions yet — full regen.
-    return await _fullRetryReflections();
-  }
-
-  const slots = lis.map((li) => {
-    const ta = li.querySelector("textarea");
-    const question = li.querySelector("p")?.textContent?.trim() || "";
-    const answer = (ta?.value || "").trim();
-    return { li, ta, question, answer, answered: !!answer };
-  });
-
-  const unansweredIdx = slots
-    .map((s, i) => (s.answered ? -1 : i))
-    .filter((i) => i >= 0);
-
-  if (unansweredIdx.length === 0) return;
-  if (unansweredIdx.length === slots.length) {
-    return await _fullRetryReflections();
-  }
-
-  const answeredQuestions = slots.filter((s) => s.answered).map((s) => s.question);
-  const newLis = await _fetchReflectionLis({
-    book: payload.book,
-    chapter: payload.chapter,
-    versesText: payload.versesText,
-    count: unansweredIdx.length,
-    excludeQuestions: answeredQuestions,
-    recentPriorQs: _getRecentReflQs(),
-    angles: _pickAnglesForPassage(payload.book, payload.chapter),
-  });
-  if (!newLis || newLis.length === 0) {
-    return await _fullRetryReflections();
-  }
-
-  // Snapshot answers BEFORE swap so we can restore them after.
-  const answersById = {};
-  mount.querySelectorAll('textarea[id^="reflection-"]').forEach((ta) => {
-    if (ta.id && ta.value) answersById[ta.id] = ta.value;
-  });
-
-  // In-place swap. If AI returned fewer than requested, only swap what we got.
-  const swapCount = Math.min(unansweredIdx.length, newLis.length);
-  for (let n = 0; n < swapCount; n++) {
-    const targetIdx = unansweredIdx[n];
-    const targetLi = ol.children[targetIdx];
-    if (targetLi) ol.replaceChild(newLis[n], targetLi);
-  }
-
-  // Re-key textarea ids positionally (matches initializeReflections format).
-  mount.querySelectorAll("textarea").forEach((ta, i) => {
-    ta.id = `reflection-${devotionId()}-${i}`;
-  });
-
-  // Wire input listeners on the NEW textareas only (existing ones already
-  // have listeners from the previous initializeReflections pass). Wire link
-  // click handlers on new lis only.
-  for (let n = 0; n < swapCount; n++) {
-    const idx = unansweredIdx[n];
-    const li = ol.children[idx];
-    const ta = li.querySelector("textarea");
-    if (ta) _wireReflectionTextarea(ta);
-    _normalizeReflectionLinks(li);
-  }
-
-  // Restore answers by id (preserved textareas stay populated; new ones
-  // don't have a saved value yet).
-  Object.entries(answersById).forEach(([id, value]) => {
-    const ta = mount.querySelector(`#${CSS.escape(id)}`);
-    if (ta) ta.value = value;
-  });
-
-  // Persist updated reflection HTML so a reload reflects the new state.
-  const updated = (await loadAIFromStorage()) || {};
-  await saveAIToStorage({
-    ...updated,
-    reflectionHTML:
-      !_isAiFailHTML(mount.innerHTML) && mount.innerHTML !== "<p>Failed to generate reflection questions.</p>"
-        ? mount.innerHTML
-        : null,
-  });
-}
-
-// Full-regenerate path used when no answers exist or partial fails.
-async function _fullRetryReflections() {
-  const mount = document.getElementById("aiReflection");
-  if (!mount) return;
-  const payload = window.__aiPayload;
-  if (!payload) return;
   const existing = (await loadAIFromStorage()) || {};
-  await saveAIToStorage({ ...existing, reflectionHTML: null, answers: {} });
-  await renderAIReflectionQuestions(payload);
-  const updated = (await loadAIFromStorage()) || {};
   await saveAIToStorage({
-    ...updated,
-    reflectionHTML:
-      !_isAiFailHTML(mount.innerHTML) && mount.innerHTML !== "<p>Failed to generate reflection questions.</p>"
-        ? mount.innerHTML
-        : null,
+    ...existing,
+    reflectionHTML: mount.innerHTML,
+    answers: notes ? { [id]: notes } : {},
   });
 }
 
@@ -2440,8 +2379,10 @@ async function _fullRetryReflections() {
 function _wireReflectionTextarea(area) {
   if (!area || area.dataset.wiredInput === "1") return;
   area.dataset.wiredInput = "1";
-  const questionText = area.previousElementSibling?.textContent || "Question";
   area.addEventListener("input", async () => {
+    // Read the question now, not at wire time — refresh swaps it under the
+    // same textarea.
+    const questionText = area.previousElementSibling?.textContent || "Question";
     const formattedEntry = `Q: ${questionText}\nA: ${area.value}`;
     localStorage.setItem(area.id, formattedEntry);
     localStorage.setItem(`reflection-time-${devotionId()}`, String(Date.now()));
@@ -2510,53 +2451,21 @@ function _normalizeReflectionLinks(scope) {
   });
 }
 
-// Reflection angles the prompt rotates through so consecutive chapters don't
-// all hit the same shape. _pickAnglesForPassage picks 3 of these
-// deterministically per book+chapter so retries on the same chapter use the
-// same angle mix (the AI rephrases within them) but neighboring chapters get
-// distinctly different mixes.
-//
-// EVERY angle here is anchored to the chapter the reader is actually on. The
-// gospel lens (`christ`) is deliberately the ONLY one that reaches outside the
-// chapter, and _pickAnglesForPassage only lets it into the pool on ~1 in 3
-// chapters — see the note there for why.
-// Every angle anchors in the chapter AND lands on the reader. Earlier versions
-// let `observe` and `tension` stop at analysis ("what feels unfair about
-// Gideon's punishment of Succoth?") — a fine study question, but it gives the
-// reader nothing to carry into their own day, which is the whole point here.
-const _REFLECTION_ANGLES = [
-  { id: "observe",   label: "WHAT ACTUALLY HAPPENS",  desc: "Point at something specific in the chapter — a person's choice, an action, a number, an object, a word — then ask where the reader recognises that same thing in their own life. The detail is the anchor; the reader is the destination. Unanswerable by anyone who didn't read THIS chapter." },
-  { id: "character", label: "CHARACTER OF GOD",       desc: "What God does or says IN THIS CHAPTER and what it shows about who He is — then ask what that means for how the reader relates to Him right now. Point at the actual verse where He acts, not a general truth pulled from anywhere." },
-  { id: "heart",     label: "HEART PRINCIPLE",        desc: "An internal posture this chapter exposes — pride, fear, trust, complacency, longing, resentment. Name the real attitude as it shows up in the chapter, then ask the reader where the same thing shows up in them." },
-  { id: "tension",   label: "HONEST TENSION",         desc: "Something hard, strange, or uncomfortable here — but don't stop at 'what's odd about this'. Ask how the reader actually sits with it, or when they've felt the same pull themselves. Good for laws, judgment, and violence. Never resolve the tension for them." },
-  { id: "action",    label: "THIS WEEK",              desc: "One small, doable thing this week that follows from this chapter's own principle. An INVITATION, never an assignment — 'what's one thing you could…', not 'you must…'. Never a rule to keep or a box to tick." },
-  { id: "prayer",    label: "PRAYER-SHAPED",          desc: "A question the reader could pray honestly in one breath — a felt confession, longing, thanksgiving, or cry, sparked by something specific in this chapter. Visceral, not polished." },
-  { id: "christ",    label: "GOSPEL LENS",            desc: "ONLY if this chapter itself pictures something Jesus completes (sacrifice, priest, temple, passover, rest, ransom, king). Name the concrete thing in THIS chapter that carries the picture, then ask what it means for the reader today. If the chapter has no such picture, use CHARACTER OF GOD instead — do NOT force a Jesus connection." },
+// Every chapter teaches more than one thing. Each question (and each refresh)
+// draws one of these lenses at random, so the same chapter can hand the
+// reader a different lesson on another day instead of the same one forever.
+const _REFLECTION_LENSES = [
+  { id: "god",      label: "WHAT GOD IS LIKE",   desc: "Something God does, says, allows, or withholds in this chapter, and what it shows about Him." },
+  { id: "choice",   label: "A CHOICE SOMEONE MAKES", desc: "A decision a person or group makes here — wise or foolish — and where the reader faces the same kind of choice." },
+  { id: "heart",    label: "WHAT'S IN THE HEART", desc: "An attitude the chapter exposes — pride, fear, trust, jealousy, loyalty, impatience, grief — and where the reader carries it too." },
+  { id: "people",   label: "HOW PEOPLE TREAT EACH OTHER", desc: "Loyalty, betrayal, advice, kindness, rivalry, family — what the chapter shows about relationships, landed on one of the reader's own." },
+  { id: "promise",  label: "SOMETHING TO HOLD ON TO", desc: "A promise, a truth, or a moment of God's care in this chapter the reader could lean on in what they're facing now." },
+  { id: "warning",  label: "A WARNING",          desc: "Where something goes wrong in this chapter and the quiet cause behind it — then where that same cause could be starting in the reader." },
+  { id: "step",     label: "ONE SMALL STEP",     desc: "One small, doable thing this week that follows from what happens in this chapter. An invitation, never an assignment." },
 ];
 
-function _hashStr(s) {
-  let h = 0;
-  for (let i = 0; i < (s || "").length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
-  return Math.abs(h);
-}
-
-function _pickAnglesForPassage(book, chapter) {
-  const seed = _hashStr(`${book || ""}-${chapter || ""}`);
-  // The gospel lens only enters the pool on ~1 in 3 chapters. Every chapter
-  // getting a "how does Jesus fulfill this" question was the exact failure
-  // Charlie flagged — the questions drifted so far into NT language that they
-  // stopped being about the chapter he'd just read. The New-Covenant guard in
-  // the prompt is what stops OT law being asked as still-binding; it was never
-  // meant to make every question point at the New Testament.
-  const pool = _REFLECTION_ANGLES.filter(
-    (a) => a.id !== "christ" || seed % 3 === 0,
-  );
-  const picked = [];
-  for (let i = 0; i < 3 && pool.length; i++) {
-    const idx = (Math.floor(seed / Math.pow(7, i))) % pool.length;
-    picked.push(pool.splice(idx, 1)[0]);
-  }
-  return picked;
+function _pickReflectionLens() {
+  return _REFLECTION_LENSES[Math.floor(Math.random() * _REFLECTION_LENSES.length)];
 }
 
 // Rolling buffer of the last ~15 reflection questions the user has seen
@@ -2587,226 +2496,84 @@ function _appendRecentReflQs(questions) {
   try { localStorage.setItem(_RECENT_REFL_KEY, JSON.stringify(arr)); } catch {}
 }
 
-// AI fetch for reflection <li> items. Returns an array of detached <li>
-// elements (so caller can swap them into an existing <ol>). Used by both
-// renderAIReflectionQuestions (count=3) and _smartRetryReflections (count<3).
-async function _fetchReflectionLis({ book, chapter, versesText, count = 3, excludeQuestions = [], recentPriorQs = [], angles = null }) {
-  const exclusionBlock = excludeQuestions.length
-    ? `\nALREADY-ASKED QUESTIONS (DO NOT duplicate, paraphrase, or rehash these — they have been answered already):\n${excludeQuestions.map((q) => `- ${q}`).join("\n")}\n`
+// One question for the whole chapter: what the reader saw in the text, then
+// how it lands in their own life. Comes back as JSON and the markup is built
+// here, so the model can't break the layout or style its own words.
+async function _fetchUnifiedReflection({ book, chapter, versesText, avoid = [] }) {
+  const lens = _pickReflectionLens();
+  const avoidBlock = avoid.length
+    ? `\nDON'T REPEAT — these were already asked (this chapter or recent ones). Pick a different lesson and phrase it differently:\n${avoid.slice(-15).map((q) => `- ${q}`).join("\n")}\n`
     : "";
 
-  const priorBlock = recentPriorQs.length
-    ? `\nRECENTLY ASKED ACROSS THE READER'S PRIOR CHAPTERS (vary tone, opening words, sentence shape, and angle from these — DO NOT echo their phrasings):\n${recentPriorQs.map((q) => `- ${q}`).join("\n")}\n`
-    : "";
+  const prompt = `You write ONE guided-reflection question for someone who just read a whole Bible chapter. It goes: what they saw in the text → how it applies to their life.
 
-  const pickedAngles = angles && angles.length === 3 ? angles : _pickAnglesForPassage(book, chapter);
-  const angleBlock = `\nREQUIRED ANGLE COVERAGE FOR THIS BATCH (each numbered question must clearly land on ONE of these angles; ALL three angles must appear across the ${count > 1 ? count : 3}-question set):\n${pickedAngles.map((a, i) => `${i + 1}. ${a.label} — ${a.desc}`).join("\n")}\n`;
+Return ONLY a JSON object, no markdown fence, no commentary:
+{"observe": "...", "verses": "1-5", "question": "..."}
 
-  const prompt = `
-IMPORTANT OUTPUT RULES (STRICT):
-- Respond with RAW HTML ONLY
-- DO NOT use code blocks
-- DO NOT use backticks
-- DO NOT write the word html
-- The FIRST character must be "<"
-- Use ONE outer div only
-- EACH question must be followed by a <textarea> for the user's answer
-- Textareas must be empty and user-editable
+"observe" — one plain sentence (max 25 words) saying what actually happens or is said in the chapter that this lesson comes from. A fact from the text, not the lesson. Can sum up a stretch of the chapter.
+"verses" — the verse or range "observe" points at, digits only ("7" or "12-14"). Must exist in the passage below.
+"question" — one question (max 22 words), straight to the reader ("you"), about how that applies to their life now.
 
+THE LESSON TO USE — ${lens.label}: ${lens.desc}
+This chapter has many lessons; this is the one to draw out today. If the chapter genuinely has nothing for it, use the strongest other lesson in the chapter.
+${avoidBlock}
+RULES:
+- About THIS chapter. The observation must name a real person, action, place, or words from it. If the question could be pasted onto another chapter, rewrite it.
+- It lands on the reader: something they've felt, done, wanted, a person in their life, a situation they're in. Not a study question about the text.
+- Friendly and plain, like a friend over coffee. A 16-year-old understands every word. ONE question, one idea — never "X, and what could you do about it?" tacked on.
+- Invite, never prescribe: no "you must", "you should", "commit to". "I don't know yet" is an allowed answer.
+- No sermon before the question, no answer, never speak as God.
+- New covenant: never ask the reader to keep an Old Testament ceremonial, food, sacrifice, or civil law. Ask about what it shows about God or the heart instead.
+- Don't drift to Jesus or the cross unless this chapter itself pictures it.
+- Banned words: theological, implications, in light of, considering, ultimate, wrestle with, grapple, reflect on, sovereign, providence.
 
-ALLOWED TAGS:
-div, p, ol, li, textarea, a
-
-BANNED (DO NOT USE):
-- strong, em, b, i, span, mark, code — DO NOT wrap any words in styling tags
-- DO NOT highlight or style quoted Bible phrases — just write them as plain text in the sentence
-
-
-ROLE:
-You generate DISCUSSION AND REFLECTION QUESTIONS.
-You must NOT give answers.
-You must NOT speak as God.
-
-
-RULE 1 — STAY IN THIS CHAPTER (THE MOST IMPORTANT RULE):
-
-Every question must be about the chapter printed at the bottom of this prompt. The reader just finished reading it. If a question could have been asked of a completely different chapter, it is WRONG — rewrite it.
-
-Concretely:
-- Each question must name something that actually appears in THIS chapter — a person, a place, an object, an action, a number, a command, a phrase.
-- Do NOT open with a theological statement and then ask something generic. That is the single most common failure. Emit the question only — a short factual clause from the chapter is fine inside the question itself, a mini-sermon in front of it is not.
-- Do NOT drift to the New Testament, the cross, or "your identity in Christ" unless THIS chapter itself carries that picture AND you still name the concrete thing in this chapter that carries it. Most chapters do not. That is fine — a question about what God does in this chapter is a good question on its own.
-
-❌ BAD (this is the failure mode — all three could be pasted onto any chapter):
-- "Jesus is the ultimate fulfillment of God's provision for His people. How does His finished work on the cross make you feel secure in God's promises for you today?"
-- "God's faithfulness to Israel in giving them land is a shadow of our inheritance in Christ. What are you praying for this week that God has already promised you in Him?"
-- "You are set apart for God's purposes, just as the Levites were. Who are you becoming in Christ now that you are free from the old system?"
-
-✅ GOOD (same chapter — Joshua 21, the Levite towns and the closing summary):
-- "Why do you think God scattered the Levites across every tribe instead of giving them one territory?"
-- "Which promise are you still waiting on, when v. 45 says not one of God's promises failed?"
-- "What has God actually given you that you keep counting as less than what others got?"
-
-
-RULE 2 — NEW COVENANT GUARD (narrow, but non-negotiable):
-
-The reader lives after the resurrection, under the new covenant (Mark 7:19, Acts 10:9–16, Colossians 2:16–17, Hebrews 8–10). So NEVER ask the reader to literally perform, keep, or avoid something under an OT ceremonial, dietary, sacrificial, or civil law:
-
-❌ "What unclean food will you avoid this week?"
-❌ "How will you keep yourself ceremonially clean?"
-❌ "Which offering will you bring this week?"
-❌ Anything implying the reader is still bound by those laws.
-
-This guard is ONLY about not putting the reader back under the law. It is NOT an instruction to point every question at the New Testament. When a law-heavy chapter comes up, ask about what the law shows regarding God, or the heart behind it, or what's genuinely hard about reading it today — all while staying inside the chapter per RULE 1.
-
-Universal moral commands (love, honesty, purity, prayer, generosity, justice), wisdom literature, narrative, and all NT passages need no redirection at all — ask about them directly.
-
-
-RULE 3 — IT HAS TO LAND ON THE READER:
-
-The reader isn't studying this chapter for an exam. They just read it and want something to sit with. So the chapter detail is the ANCHOR of the question; the reader's own life is the DESTINATION. A question that only asks them to analyse the text has failed, even when it's a good observation.
-
-Every question must reach one of these: something they've actually felt, done, or wanted; a relationship or situation they're in now; an attitude they'd recognise in themselves; something they could bring to God honestly.
-
-These examples are all from Judges 8 (Gideon) purely to show the shape — never lift their wording or their subject matter into a different chapter.
-
-❌ BAD (analysis — nothing for the reader to answer from their own life):
-- "What feels strange or unfair about Gideon's harsh punishment of Succoth and Peniel in vv. 16–17?"
-- "Why do you think Gideon made an ephod from the gold in v. 27?"
-- "What does Gideon's refusal to rule in v. 23 show about leadership?"
-
-✅ GOOD (same chapter, same verses — now the reader is in it):
-- "When have you wanted someone to pay for failing you, like Gideon made Succoth pay in vv. 16–17?"
-- "What good thing in your life could quietly turn into the ephod of v. 27?"
-- "Where are you tempted to take credit that Gideon handed back to God in v. 23?"
-
-Note what stayed: the concrete detail, the verse link, the honesty. Only the destination moved.
-
-
-RULE 4 — INVITE, DON'T PRESCRIBE:
-
-Reverent about Scripture, never legalistic with the reader. This is a conversation, not an audit.
-
-- No "you must", "you should", "make sure you", "commit to".
-- No spiritual performance checklists, no scorekeeping, no implied guilt for a wrong answer.
-- "I don't know yet" must be a legitimate answer to every question you write.
-- Ask what's true of them, not what they ought to do about it. When you do point at an action (THIS WEEK angle), offer it — "what's one thing you could…" — and keep it small enough to actually happen.
-
-
-TASK:
-Generate EXACTLY ${count} numbered questions based on the passage.
-${angleBlock}${exclusionBlock}${priorBlock}
-FRESHNESS RULE (STRICT — defeats user fatigue from reading similar OT chapters back-to-back):
-- Across THIS batch, the 3 questions must use AT LEAST 2 DIFFERENT opening words. Don't open all three with "What" / "How" / "Where".
-- Sentence shapes within this batch must differ — don't make all three follow the same "X — and Y?" or "What's one Z?" template.
-- If RECENTLY-ASKED-ACROSS-PRIOR-CHAPTERS is present above, your questions must read distinctly from those — different angle, different opening, different rhythm. Avoid stock phrases the AI tends to lean on (e.g., "set apart", "what does this reveal about", "reflect on", "consider how", "wrestle with").
-- Each question must feel earned by THIS specific chapter — name a concrete detail (a person, an action, an object, a number, a place) from the passage so the question can't have been asked of any other chapter.
-
-
-CRITICAL LINKING RULE (MUST FOLLOW):
-- EVERY verse reference MUST be written as an <a> link
-- Link format: <a href="#X" class="reflection-link">v. X</a> or <a href="#X" class="reflection-link">vv. X–Y</a>
-- Use "v." for ONE verse and "vv." ONLY for a range. "vv. 41" for a single verse is wrong — write "v. 41"
-- The verse you link must be the verse the question is actually about, and it MUST exist in the passage printed below
-- The href MUST always point to the FIRST verse in the reference
-- DO NOT include any verse numbers outside of <a> tags
-- STRICTOR RULE: DO NOT include parentheses around the link or the text inside the link (e.g., write "v. 5", NOT "(v. 5)" and NOT "<a>(v. 5)</a>")
-- A RANGE IS ONE SINGLE LINK. The dash lives INSIDE the anchor text: <a href="#16" class="reflection-link">vv. 16–17</a>. NEVER split it into two links with a dash between them — "vv. 16" — "17" is WRONG, it renders as two separate chips and loses the range
-- Only when a question points at genuinely SEPARATE verses (not a span) does each get its own link, e.g. "v. 3" and "v. 9"
-- Final output must contain ZERO plain-text verse references and ZERO parentheses surrounding verse links
-
-
-QUESTION STYLE (STRICT — FOLLOW EXACTLY):
-- CONVERSATIONAL tone — like a friend asking over coffee, NOT a preacher, pastor, theologian, or textbook author
-- HARD MAX: 20 WORDS PER QUESTION. Count the words. If 21+, rewrite shorter.
-- Address the reader directly ("you", "your") — ALWAYS second person
-- ONE single idea per question. If you're tempted to use "considering…", "in light of…", "given that…" — STOP and split into two questions or pick one angle
-- Use plain, everyday English. A 16-year-old should understand every word without a dictionary
-- Prefer CONCRETE over abstract. "What would you do if…" beats "What does this teach you about…"
-- If the THIS WEEK angle is in the required set above, that question offers one small step for this week. At most ONE question does this — the rest stay reflective
-- VARY the opening — don't start every question with "What" or "How"
-- Openings that pull the reader in beat openings that point at the page: "When have you…", "Where are you…", "What would it take for you to…", "Who in your life…" all land better than "What does this show about…"
-- Before emitting each question, check it against RULE 3: can the reader answer this from their own life, or only by re-reading the chapter? If it's the second one, rewrite it
-
-BANNED WORDS / PHRASES (do not use any of these):
-- theological, implications, undeserving, unified, turning towards, in light of, considering, ultimate, collective response, encompassing, holistic, grapple, wrestle with, challenge your understanding, sovereign, providence, salvific, eschatological
-
-FORBIDDEN PATTERNS:
-- A theological statement followed by a generic question ("Jesus is X. How does that make you feel Y?") — emit the question ONLY, never a mini-sermon in front of it
-- Sliding to the cross / "in Christ" / "your inheritance" / "the old system" when this chapter never raised it — see RULE 1
-- "What does X teach you about Y?" — school-quiz phrasing, don't use
-- "How does X challenge your understanding of Y?" — academic, don't use
-- Compound questions with "and" connecting two different concepts
-- Questions that restate the verse before asking (just ask the question)
-
-GOOD EXAMPLES (write like these):
-- "Where in your life are you running from something God is asking you to do? vv. 1–3"
-- "What's one thing you're stubbornly holding onto that God is calling you to let go of? v. 5"
-- "How would your week look if you took v. 8 seriously starting tomorrow?"
-- "Who in your life needs the same mercy God gave Nineveh — and what's stopping you? v. 10"
-- "Name one habit you'd cut this week if you really believed v. 9 applied to you."
-
-BAD EXAMPLES (do NOT write like these):
-- "Jesus is the ultimate fulfillment of God's provision for His people. How does His finished work on the cross make you feel secure in God's promises for you today?" — sermon-then-generic-question, and nothing in it came from the chapter
-- "What does their collective response, from the common people to the king, teach you about the power of a unified turning towards God?" — too long, academic, multi-concept
-- "Considering God's ultimate compassion, how does this passage challenge your understanding of mercy, even to those who might seem undeserving?" — 3 concepts crammed in, jargon
-
-PERSONALIZATION RULE (STRICT):
-- ALL questions MUST be directly addressed to the reader
-- Never use "people today", "believers", "society", "we as a community"
-
-DO NOT:
-- Provide answers
-- Preach or moralize
-- Explain theology
-- Use parentheses around the verse link (write "v. 5" not "(v. 5)")
-
-STRUCTURE:
-- NO title
-- NO intro sentence
-- An <ol> with EXACTLY ${count} <li> items
-- Inside each <li>:
-  - A single <p> containing the full question text (including the verse link)
-  - A <textarea> immediately after the <p>
-
-
-SELF-CHECK EACH QUESTION BEFORE EMITTING IT:
-1. Could this exact question be asked of a different chapter of the Bible? → If YES, REWRITE. Name something from THIS chapter.
-2. Does it start with a statement instead of the question itself? → If YES, delete the statement and keep only the question.
-3. Does it mention Jesus, the cross, or "in Christ" without this chapter carrying that picture? → If YES, REWRITE around what this chapter actually says.
-4. Does it ask the reader to keep an OT ceremonial / dietary / sacrificial / civil law? → If YES, REWRITE. They are not under it.
-5. Is it over 20 words? → If YES, cut it down.
-
+SHAPE ONLY — these are from other chapters. Never reuse their subject or wording:
+{"observe": "Boaz tells his workers to leave extra grain on purpose so Ruth can gather it without shame.", "verses": "15-16", "question": "Who could you help this week in a way that lets them keep their dignity?"}
+{"observe": "Joseph is thrown into prison for refusing Potiphar's wife, yet the Lord is with him there.", "verses": "20-23", "question": "Where does doing the right thing feel like it cost you, right now?"}
 
 PASSAGE:
 ${book} ${chapter}
 
-${versesText}
-`;
+${versesText}`;
 
-  const res = await aiFetch(GEMINI_PROXY, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ task: "summary", contents: [{ parts: [{ text: prompt }] }] }),
-  });
-  const data = await res.json();
-  let rawHTML = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-  if (!rawHTML) return [];
+  const raw = await callGemini(prompt, { temperature: 0.9 });
+  const text = String(raw || "");
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start === -1 || end <= start) return null;
+  let data;
+  try {
+    data = JSON.parse(text.slice(start, end + 1));
+  } catch {
+    return null;
+  }
+  const question = String(data?.question || "").trim();
+  if (!question) return null;
+  return {
+    question,
+    observe: String(data.observe || "").trim(),
+    verses: String(data.verses || "").replace(/[^\d,\-–]/g, ""),
+  };
+}
 
-  rawHTML = rawHTML.replace(/\s*style="[^"]*"/gi, "");
-  const tmp = document.createElement("div");
-  tmp.innerHTML = rawHTML;
-  tmp.querySelectorAll("li").forEach((li) => {
-    if (!li.querySelector("textarea")) {
-      const ta = document.createElement("textarea");
-      ta.setAttribute("placeholder", "Write your thoughts here...");
-      li.appendChild(ta);
-    }
-  });
-  tmp.querySelectorAll("ol > textarea, ul > textarea, div > textarea").forEach((ta) => {
-    if (!ta.closest("li")) ta.remove();
-  });
-  return [...tmp.querySelectorAll("li")];
+// The one-card layout. The question <p> sits directly before the textarea —
+// initializeReflections, the immersive reflection panel and the reflect modal
+// all read the question from there, and the notes app from the Q: line.
+function _unifiedReflectionHTML({ observe, verses, question }) {
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+  const first = (verses.match(/\d+/) || [])[0];
+  const chip = first
+    ? ` <a href="#${first}" class="reflection-link">${/[-–,]/.test(verses) ? "vv." : "v."} ${esc(verses.replace(/-/g, "–"))}</a>`
+    : "";
+  return `
+    <button type="button" class="ai-refl-retry" aria-label="Different question" title="Different question">
+      <span class="material-symbols-outlined">refresh</span>
+    </button>
+    <ol class="refl-unified"><li>
+      ${observe ? `<div class="refl-obs">${esc(observe)}${chip}</div>` : ""}
+      <p class="refl-q">${esc(question)}</p>
+      <textarea placeholder="What you noticed, and how it applies to you…"></textarea>
+    </li></ol>`;
 }
 
 async function renderAIReflectionQuestions({ book, chapter, versesText }) {
@@ -2818,64 +2585,40 @@ async function renderAIReflectionQuestions({ book, chapter, versesText }) {
   mount.classList.add("ai-fade-in");
   _ensureReflectionRetryUI(mount);
 
-  // Skeleton of what's actually coming — three numbered questions, each with
-  // its answer box — instead of three anonymous grey bars. The wait is long
-  // enough (a full Gemini call) that the shape of the panel is worth showing.
+  // Skeleton of the one card that's coming — a line from the chapter, the
+  // question, then the notes box.
   mount.innerHTML = `
-  <div class="refl-skel" aria-hidden="true">
-    ${[1, 2, 3]
-      .map(
-        (n, i) => `<div class="refl-skel-item" style="animation-delay:${i * 90}ms">
-          <span class="refl-skel-num"></span>
-          <div class="refl-skel-q">
-            <span></span><span></span><span class="refl-skel-short"></span>
-          </div>
-          <div class="refl-skel-box"></div>
-        </div>`,
-      )
-      .join("")}
+  <div class="refl-skel refl-skel--one" aria-hidden="true">
+    <div class="refl-skel-item">
+      <div class="refl-skel-q">
+        <span class="refl-skel-short"></span><span></span><span class="refl-skel-short"></span>
+      </div>
+      <div class="refl-skel-box"></div>
+    </div>
   </div>
-  <div class="refl-skel-status">${sparkleLoaderHTML("Writing your questions…")}</div>
+  <div class="refl-skel-status">${sparkleLoaderHTML("Finding something to reflect on…")}</div>
 `;
 
   try {
-    const recentPriorQs = _getRecentReflQs();
-    const angles = _pickAnglesForPassage(book, chapter);
-    const lis = await _fetchReflectionLis({ book, chapter, versesText, count: 3, recentPriorQs, angles });
-    if (!lis || lis.length === 0) {
-      mount.innerHTML = aiFailHTML("Reflection questions", null, _reflRetry);
+    const r = await _fetchUnifiedReflection({ book, chapter, versesText, avoid: _getRecentReflQs() });
+    if (!r) {
+      mount.innerHTML = aiFailHTML("Reflection", null, _reflRetry);
       return true;
     }
-    // Track the new questions in the cross-chapter rolling buffer so the next
-    // chapter's prompt knows to vary from them. Only the initial render writes
-    // here — retries operate within a single chapter and shouldn't pollute the
-    // cross-chapter signal.
-    const newQuestionTexts = lis
-      .map((li) => li.querySelector("p")?.textContent?.trim())
-      .filter(Boolean);
-    _appendRecentReflQs(newQuestionTexts);
+    // Rolling cross-chapter buffer so the next chapter's question doesn't
+    // open the same way.
+    _appendRecentReflQs([r.question]);
 
-    const olHtml = `<ol>${lis.map((li) => li.outerHTML).join("")}</ol>`;
-    mount.innerHTML = `
-      <button type="button" class="ai-refl-retry" aria-label="Regenerate reflection questions" title="Regenerate questions">
-        <span class="material-symbols-outlined">refresh</span>
-      </button>
-      ${olHtml}
-    `;
-
+    mount.innerHTML = _unifiedReflectionHTML(r);
+    const ta = mount.querySelector("textarea");
+    ta.id = `reflection-${devotionId()}-0`;
     setTimeout(restoreSavedReflectionAnswers, 0);
-
-    mount.querySelectorAll("textarea").forEach((ta, i) => {
-      ta.id = `reflection-${devotionId()}-${i}`;
-    });
-
     _normalizeReflectionLinks(mount);
-
     initializeReflections();
     _refreshRetryButtonState(mount);
   } catch (e) {
     console.error(e);
-    mount.innerHTML = aiFailHTML("Reflection questions", e, _reflRetry);
+    mount.innerHTML = aiFailHTML("Reflection", e, _reflRetry);
   }
   return true;
 }

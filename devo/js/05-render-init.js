@@ -675,9 +675,6 @@ const initializeReflections = () => {
 
   if (textAreas.length > 0) {
     textAreas.forEach((area) => {
-      // 1. Find the question text (the <li> right before the textarea)
-      const questionText =
-        area.previousElementSibling?.textContent || "Question";
 
       // 2. Load existing data from localStorage
       const savedData = localStorage.getItem(area.id);
@@ -692,6 +689,9 @@ const initializeReflections = () => {
       area.addEventListener("input", async () => {
         // Made async to await saveAIToStorage
         // Save in the specific format you requested (Q&A) to localStorage
+        // Read the question at save time — the refresh button swaps it
+        // under the same textarea.
+        const questionText = area.previousElementSibling?.textContent || "Question";
         const formattedEntry = `Q: ${questionText}\nA: ${area.value}`;
         localStorage.setItem(area.id, formattedEntry);
         // Save timestamp for this devotion session so notes can group by correct day
