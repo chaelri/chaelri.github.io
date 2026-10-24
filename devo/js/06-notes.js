@@ -184,7 +184,7 @@ function _renderNotesList(filter = "") {
     session.reflection.forEach(n => {
       const firstAnswer = n.QAs?.[0]?.raw?.split("\nA: ")?.[1]?.trim() || "";
       const answerPreview = firstAnswer.length > 60 ? firstAnswer.slice(0, 60) + "…" : firstAnswer;
-      timelineItems.push({ icon: "self_improvement", label: n.title, sub: "Reflection", preview: answerPreview });
+      timelineItems.push({ icon: "volunteer_activism", label: n.title, sub: "Reflection", preview: answerPreview });
     });
     session.standalone.forEach(n => {
       timelineItems.push({ icon: "edit_note", label: n.title || "Untitled note", sub: n.preview ? _escHtml(n.preview.slice(0, 40)) : "" });

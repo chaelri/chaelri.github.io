@@ -511,7 +511,7 @@ function _nrRenderBeats(data, sections) {
     <div class="nr-pageable nr-end">
       <span>End of ${_nrEsc(data.title || "the chapter")}</span>
       <button type="button" class="nr-reflect-btn" id="nrReflect">
-        <span class="material-symbols-outlined">edit_note</span> Reflect
+        <span class="material-icons">volunteer_activism</span> Reflect
       </button>
     </div>`;
 }

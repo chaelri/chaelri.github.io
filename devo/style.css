@@ -14361,6 +14361,6 @@ body:not(.light) #reflectContent ol.refl-unified > li { padding: 16px; }
 }
 .nr-reflect-btn:hover { background: #222b45; }
 .nr-reflect-btn:active { transform: scale(0.97); }
-.nr-reflect-btn .material-symbols-outlined { font-size: 20px; }
+.nr-reflect-btn .material-icons { font-size: 18px; color: #db2777; }
 .light .nr-reflect-btn { background: #ececf4; color: #1f2029; }
 .light .nr-reflect-btn:hover { background: #e2e2ee; }
