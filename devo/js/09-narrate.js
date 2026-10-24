@@ -74,6 +74,240 @@ function _nrInitials(name) {
   return (parts[0][0] + parts[1][0]).toUpperCase();
 }
 
+/* ── Pixel faces ────────────────────────────────────────────────────────────
+   Each speaker gets a 16×16 pixel bust drawn in code from a handful of traits
+   the Retell call returns in "cast" (sex, age, skin, hair, beard, headwear,
+   robe). No image generation — a face is ~250 fillRects into a 16px canvas,
+   turned into a data URL once per look. A name with no traits (older cached
+   retells, a listener the model skipped) gets traits from a hash of the name,
+   so it still looks the same every time. */
+const _NR_FACE_SKIN = [["#f2c9a0", "#d9a47a"], ["#d9a066", "#b07848"], ["#b0784a", "#8a5530"], ["#7a4e2e", "#5c3820"]];
+const _NR_FACE_HAIR = { black: "#2b2024", brown: "#5a3a24", auburn: "#8a3b1e", grey: "#9a9aa0", white: "#e8e6e0" };
+const _NR_FACE_CLOTH = {
+  purple: "#6b4f8a", crimson: "#8a1f45", red: "#8a2b2b", blue: "#2f5fb3", navy: "#3d4f7a",
+  teal: "#2f7a8a", green: "#2f6b5a", brown: "#8a5a2b", sand: "#d8c08a", grey: "#77737a",
+  white: "#e9e4d8", black: "#2a2730", gold: "#c9a227",
+};
+const _NR_FACE_FIXED = {
+  eye: "#1a1420", white: "#f4f0ea", gold: "#f2c230", goldShade: "#b8860b", jewel: "#d42a4a",
+  metal: "#b08d57", metalShade: "#7a5f36", linen: "#f2efe6", blue: "#2f5fb3", glow: "#fff4c2",
+};
+const _NR_TRAIT_VALUES = {
+  sex: ["m", "f"], age: ["young", "adult", "old"], hair: Object.keys(_NR_FACE_HAIR),
+  style: ["short", "long", "bald"], beard: ["none", "short", "full", "long"],
+  head: ["none", "crown", "turban", "helmet", "veil", "priest"],
+};
+
+function _nrHash(s) {
+  let h = 2166136261;
+  for (const ch of String(s)) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+  return h >>> 0;
+}
+
+function _nrNameKey(name) {
+  return String(name || "").trim().toLowerCase().replace(/^the\s+/, "");
+}
+
+// A stable guess from the name alone. Women are read off the words a chapter
+// uses for them ("the woman of Tekoa", "his mother"); everyone else defaults
+// to a man, which is what most named speakers in the narratives are.
+function _nrHashTraits(name) {
+  const h = _nrHash(_nrNameKey(name));
+  const pick = (arr, shift) => arr[(h >>> shift) % arr.length];
+  const female = /\b(woman|women|wife|wives|mother|daughter|queen|maid|girl|sister|widow|she)\b/i.test(name);
+  const age = pick(["young", "adult", "adult", "old"], 3);
+  return {
+    sex: female ? "f" : "m",
+    age,
+    skin: 1 + ((h >>> 6) % 2),
+    hair: age === "old" ? pick(["grey", "white"], 8) : pick(["black", "brown", "black", "auburn"], 8),
+    style: female ? "long" : age === "old" && (h >>> 11) % 3 === 0 ? "bald" : "short",
+    beard: female ? "none" : age === "young" ? pick(["none", "short"], 13) : pick(["short", "full", "long"], 13),
+    head: female ? pick(["veil", "none"], 16) : pick(["none", "turban", "turban"], 16),
+    cloth: pick(Object.keys(_NR_FACE_CLOTH), 19),
+    robe: pick(Object.keys(_NR_FACE_CLOTH), 23),
+  };
+}
+
+// The model's traits, checked value by value; anything missing or unknown
+// falls back to the hashed guess for that one field.
+function _nrTraitsFor(name, cast) {
+  const base = _nrHashTraits(name);
+  const key = _nrNameKey(name);
+  let got = null;
+  if (cast && typeof cast === "object") {
+    for (const [k, v] of Object.entries(cast)) if (_nrNameKey(k) === key) { got = v; break; }
+  }
+  if (!got || typeof got !== "object") return base;
+  const t = { ...base };
+  for (const [field, allowed] of Object.entries(_NR_TRAIT_VALUES)) {
+    const v = String(got[field] ?? "").toLowerCase();
+    if (allowed.includes(v)) t[field] = v;
+  }
+  const skin = parseInt(got.skin, 10);
+  if (skin >= 0 && skin <= 3) t.skin = skin;
+  for (const field of ["cloth", "robe"]) {
+    const v = String(got[field] ?? "").toLowerCase();
+    if (_NR_FACE_CLOTH[v]) t[field] = v;
+  }
+  if (t.sex === "f") t.beard = "none";
+  return t;
+}
+
+function _nrFaceGrid(t) {
+  const G = Array.from({ length: 16 }, () => Array(16).fill(null));
+  const set = (r, c, v) => { if (r >= 0 && r < 16 && c >= 0 && c < 16) G[r][c] = v; };
+  const rect = (r0, c0, r1, c1, v) => { for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) set(r, c, v); };
+
+  if (t.divine) {
+    rect(1, 6, 14, 9, "glow"); rect(4, 2, 7, 13, "glow");
+    rect(2, 7, 13, 8, "gold"); rect(5, 3, 6, 12, "gold");
+    for (let r = 2; r <= 13; r++) set(r, 7, "white");
+    rect(5, 3, 5, 12, "white");
+    return G;
+  }
+
+  const veil = t.head === "veil";
+  const long = t.style === "long" && !veil;
+  rect(14, 2, 15, 13, "robe");
+  for (const r of [14, 15]) { set(r, 2, "robeShade"); set(r, 13, "robeShade"); }
+  rect(13, 6, 13, 9, "skinShade"); set(14, 7, "skinShade"); set(14, 8, "skinShade");
+  if (veil) {
+    rect(2, 4, 2, 11, "cloth"); rect(3, 3, 15, 12, "cloth"); rect(12, 2, 15, 13, "cloth");
+    for (let r = 3; r <= 15; r++) set(r, 12, "clothShade");
+  }
+  if (long) rect(4, 3, 13, 12, "hair");
+
+  const c0 = veil ? 5 : 4, c1 = veil ? 10 : 11, r0 = veil ? 6 : 5;
+  rect(r0, c0, 12, c1, "skin");
+  if (!veil) { set(12, 4, long ? "hair" : null); set(12, 11, long ? "hair" : null); }
+  for (let r = r0; r <= 12; r++) set(r, c1, "skinShade");
+  if (!veil) { set(8, 3, "skin"); set(9, 3, "skin"); set(8, 12, "skinShade"); set(9, 12, "skinShade"); }
+  rect(12, c0 + 1, 12, c1 - 1, "skinShade");
+
+  if (!veil) {
+    if (t.style === "bald") {
+      rect(4, 5, 4, 10, "skin"); rect(3, 6, 3, 9, "skin"); set(4, 10, "skinShade");
+      for (const [r, c] of [[6, 4], [7, 4], [6, 11], [7, 11]]) set(r, c, "hair");
+    } else {
+      rect(2, 5, 2, 10, "hair"); rect(3, 4, 4, 11, "hair");
+      for (const [r, c] of [[5, 4], [5, 11], [6, 4], [6, 11]]) set(r, c, "hair");
+      if (t.age === "young") { set(5, 5, "hair"); set(5, 6, "hair"); }
+    }
+  }
+
+  for (const c of [5, 6, 9, 10]) set(7, c, "brow");
+  set(8, 6, "eye"); set(8, 9, "eye");
+  set(10, 8, "skinShade");
+  if (t.age === "old") { set(9, 5, "skinShade"); set(6, 7, "skinShade"); set(6, 8, "skinShade"); }
+  set(11, 7, "mouth"); set(11, 8, "mouth");
+
+  if (t.beard !== "none" && t.sex !== "f") {
+    if (t.beard === "short") {
+      rect(10, 6, 10, 9, "hair"); rect(12, 5, 12, 10, "hair");
+      for (const [r, c] of [[10, 4], [11, 4], [10, 11], [11, 11], [11, 5], [11, 10]]) set(r, c, "hair");
+    } else {
+      rect(10, 4, 12, 11, "hair"); rect(13, 5, 13, 10, "hair");
+      if (t.beard === "long") { rect(14, 5, 14, 10, "hair"); rect(15, 6, 15, 9, "hair"); }
+    }
+    set(11, 7, "mouth"); set(11, 8, "mouth");
+  }
+
+  if (t.head === "crown") {
+    rect(3, 4, 3, 11, "gold"); rect(4, 4, 4, 11, "goldShade");
+    for (const c of [4, 6, 9, 11]) set(2, c, "gold");
+    set(1, 4, "gold"); set(1, 11, "gold"); set(3, 7, "jewel"); set(3, 8, "jewel");
+  } else if (t.head === "turban") {
+    rect(2, 3, 5, 12, "cloth"); set(2, 3, null); set(2, 12, null); rect(1, 5, 1, 10, "cloth");
+    for (let c = 4; c <= 11; c++) set(c % 2 ? 3 : 5, c, "clothShade");
+    for (let r = 2; r <= 5; r++) set(r, 12, "clothShade");
+  } else if (t.head === "helmet") {
+    rect(2, 4, 5, 11, "metal"); rect(1, 6, 1, 9, "metal"); rect(5, 4, 5, 11, "metalShade");
+    for (let r = 6; r <= 9; r++) { set(r, 4, "metalShade"); set(r, 11, "metalShade"); }
+    set(6, 7, "metal"); set(6, 8, "metal"); rect(0, 6, 0, 9, "jewel");
+  } else if (t.head === "priest") {
+    rect(0, 5, 4, 10, "linen"); rect(4, 4, 4, 11, "linen"); rect(3, 5, 3, 10, "blue");
+    for (let r = 0; r <= 4; r++) set(r, 10, "white");
+  }
+  return G;
+}
+
+function _nrDarken(hex, k = 0.72) {
+  const n = parseInt(hex.slice(1), 16);
+  const f = (v) => Math.round(v * k).toString(16).padStart(2, "0");
+  return "#" + f(n >> 16) + f((n >> 8) & 255) + f(n & 255);
+}
+
+function _nrFaceColor(role, t) {
+  const hair = _NR_FACE_HAIR[t.hair] || _NR_FACE_HAIR.black;
+  const cloth = _NR_FACE_CLOTH[t.cloth] || _NR_FACE_CLOTH.grey;
+  const robe = _NR_FACE_CLOTH[t.robe] || _NR_FACE_CLOTH.grey;
+  switch (role) {
+    case "skin": return _NR_FACE_SKIN[t.skin]?.[0] || _NR_FACE_SKIN[1][0];
+    case "skinShade": return _NR_FACE_SKIN[t.skin]?.[1] || _NR_FACE_SKIN[1][1];
+    case "hair": return hair;
+    case "brow": return _nrDarken(hair, 0.8);
+    case "cloth": return cloth;
+    case "clothShade": return _nrDarken(cloth);
+    case "robe": return robe;
+    case "robeShade": return _nrDarken(robe);
+    case "mouth": return t.sex === "f" ? "#c4475a" : "#7a2e33";
+    default: return _NR_FACE_FIXED[role];
+  }
+}
+
+const _nrFaceCache = new Map();
+function _nrFaceURL(t) {
+  const key = JSON.stringify(t);
+  if (_nrFaceCache.has(key)) return _nrFaceCache.get(key);
+  let url = "";
+  try {
+    const cv = document.createElement("canvas");
+    cv.width = cv.height = 16;
+    const ctx = cv.getContext("2d");
+    const G = _nrFaceGrid(t);
+    for (let r = 0; r < 16; r++) for (let c = 0; c < 16; c++) {
+      if (!G[r][c]) continue;
+      ctx.fillStyle = _nrFaceColor(G[r][c], t);
+      ctx.fillRect(c, r, 1, 1);
+    }
+    url = cv.toDataURL("image/png");
+  } catch { /* no canvas — the avatar falls back to initials */ }
+  _nrFaceCache.set(key, url);
+  return url;
+}
+
+function _nrFaceImg(name, cast, cls) {
+  const url = _nrFaceURL(_nrIsDivine(name) ? { divine: true } : _nrTraitsFor(name, cast));
+  return url ? `<img class="${cls}" src="${url}" alt="" aria-hidden="true">` : "";
+}
+
+// Older cached retells have no "cast". One short call fills it in for the
+// names that appear, so their faces match what a fresh retell would draw.
+async function _nrFetchCast(names, book, chapter) {
+  const raw = await callGemini(
+    `For a pixel-art portrait of each person below, as they appear in ${book} ${chapter}, return ONLY a JSON object:
+{"cast": {"<name exactly as given>": ${_NR_CAST_SHAPE}}}
+${_NR_CAST_RULES}
+
+NAMES:
+${names.map((n) => `- ${n}`).join("\n")}`,
+    { temperature: 0.2 },
+  );
+  const text = String(raw || "");
+  const s = text.indexOf("{"), e = text.lastIndexOf("}");
+  if (s === -1 || e <= s) return null;
+  const data = JSON.parse(text.slice(s, e + 1));
+  return data && typeof data.cast === "object" ? data.cast : null;
+}
+
+const _NR_CAST_SHAPE = `{"sex": "m|f", "age": "young|adult|old", "skin": 0-3, "hair": "black|brown|auburn|grey|white", "style": "short|long|bald", "beard": "none|short|full|long", "head": "none|crown|turban|helmet|veil|priest", "cloth": "colour", "robe": "colour"}`;
+const _NR_CAST_RULES = `- "skin": 0 lightest … 3 darkest. Most people in Israel and its neighbours are 1 or 2; Cushites 3.
+- "head": kings and queens "crown"; priests "priest"; commanders and soldiers "helmet"; women "veil" (or "none" with long hair); elders, counsellors and prophets usually "turban".
+- "cloth" (turban/veil colour) and "robe": one of purple, crimson, red, blue, navy, teal, green, brown, sand, grey, white, black, gold. Royalty purple or crimson; priests white or blue. Give people in the same scene different robe colours.
+- A group ("the men of Israel", "the elders") gets one typical member.
+- Leave out God, the Lord, Jesus, the Holy Spirit and the angel of the Lord.`;
+
 function _nrEsc(s) {
   return String(s ?? "").replace(
     /[&<>"']/g,
@@ -340,8 +574,14 @@ Return ONLY a JSON object, no markdown fence, no commentary:
   "beats": [
     { "type": "narration", "text": "...", "verses": "1-3" },
     { "type": "dialogue", "speaker": "The Lord", "to": "Gideon", "text": "...", "verses": "2" }
-  ]
+  ],
+  "cast": {
+    "Gideon": ${_NR_CAST_SHAPE}
+  }
 }
+
+"cast" — one entry for every name you use as a "speaker" or "to", spelled exactly the same, describing how to draw them as a small pixel-art portrait:
+${_NR_CAST_RULES}
 
 BEAT TYPES:
 - "narration" — the chapter's own narrative text, outside of anyone's speech.
@@ -474,9 +714,12 @@ function _nrRenderBeats(data, sections) {
         // long speech reads as one continuous turn instead of a stutter.
         const isRun = speaker === lastSpeaker;
         lastSpeaker = speaker;
-        const to = beat.to ? `<span class="nr-to">to ${_nrEsc(beat.to)}</span>` : "";
+        const to = beat.to
+          ? `<span class="nr-to"><span class="nr-to-word">to</span>${_nrFaceImg(beat.to, data.cast, "nr-to-face")}<span class="nr-to-name">${_nrEsc(beat.to)}</span></span>`
+          : "";
         const divine = _nrIsDivine(speaker);
-        const mark = divine ? _NR_CROSS_SVG : _nrEsc(_nrInitials(speaker));
+        const mark = _nrFaceImg(speaker, data.cast, "nr-face")
+          || (divine ? _NR_CROSS_SVG : _nrEsc(_nrInitials(speaker)));
         return headings + `<div class="nr-pageable nr-line nr-line-say ${isRun ? "nr-run" : ""}" ${delay}>
           <div class="nr-avatar ${divine ? "nr-avatar-divine" : ""}" style="background:${tone.bg};border-color:${tone.ring};color:${tone.ink}">
             ${isRun ? "" : mark}
@@ -1081,6 +1324,11 @@ async function openNarrate() {
       );
       data = _nrParse(raw);
       _nrPutCached(cacheKey, data);
+    }
+    if (!data.cast && navigator.onLine !== false) {
+      const names = [...new Set(data.beats.flatMap((b) => [b.speaker, b.to]).filter((n) => n && !_nrIsDivine(n)))];
+      const cast = names.length ? await _nrFetchCast(names, bookName, payload.chapter).catch(() => null) : null;
+      if (cast) { data.cast = cast; _nrPutCached(cacheKey, data); }
     }
 
     // Stage 3 — swap loading for the scroll. The beats stagger themselves in

@@ -14364,3 +14364,27 @@ body:not(.light) #reflectContent ol.refl-unified > li { padding: 16px; }
 .nr-reflect-btn .material-icons { font-size: 18px; color: #db2777; }
 .light .nr-reflect-btn { background: #ececf4; color: #1f2029; }
 .light .nr-reflect-btn:hover { background: #e2e2ee; }
+
+/* Retell speaker faces (2026-10-24): a 16px pixel bust drawn in code from the
+   cast traits, shown at 3× in a rounded square on the speaker's tone. The
+   listener ("to Absalom") gets the same face at 1×, beside their name. */
+.nr-avatar { width: 48px; height: 48px; border-radius: 12px; overflow: hidden; }
+.nr-avatar:has(.nr-face) { border-color: transparent !important; }
+.nr-face {
+  width: 48px;
+  height: 48px;
+  display: block;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+.nr-to { opacity: 1; display: inline-flex; align-items: center; gap: 4px; }
+.nr-to-word, .nr-to-name { opacity: 0.6; }
+.nr-to-face {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+.light .nr-to-face { background: rgba(0, 0, 0, 0.06); }
