@@ -14291,8 +14291,13 @@ body:not(.light) .audio-lib-book-dl:hover:not(:disabled) { background: #222b45 !
 /* ── Guided Reflection: one question per chapter (2026-10-24) ──────────────
    A line from the chapter (what you saw), the question (how it lands on
    you), then one big notes box. No "Question N" numbering — there's one. */
-#aiReflection ol.refl-unified > li,
-#reflectContent ol.refl-unified > li { padding-inline-start: 0; }
+/* Dark mode the li is a card with 16px padding all round (the old rule
+   widened the left side for the "Question N" counter); light mode it isn't
+   a card, so no inset. */
+body:not(.light) #aiReflection ol.refl-unified > li,
+body:not(.light) #reflectContent ol.refl-unified > li { padding: 16px; }
+.light #aiReflection ol.refl-unified > li,
+.light #reflectContent ol.refl-unified > li { padding-inline-start: 0; }
 #aiReflection ol.refl-unified > li::before,
 #reflectContent ol.refl-unified > li::before { content: none; display: none; }
 .refl-obs {

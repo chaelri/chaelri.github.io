@@ -2458,7 +2458,7 @@ const _REFLECTION_LENSES = [
   { id: "god",      label: "WHAT GOD IS LIKE",   desc: "Something God does, says, allows, or withholds in this chapter, and what it shows about Him." },
   { id: "choice",   label: "A CHOICE SOMEONE MAKES", desc: "A decision a person or group makes here — wise or foolish — and where the reader faces the same kind of choice." },
   { id: "heart",    label: "WHAT'S IN THE HEART", desc: "An attitude the chapter exposes — pride, fear, trust, jealousy, loyalty, impatience, grief — and where the reader carries it too." },
-  { id: "people",   label: "HOW PEOPLE TREAT EACH OTHER", desc: "Loyalty, betrayal, advice, kindness, rivalry, family — what the chapter shows about relationships, landed on one of the reader's own." },
+  { id: "people",   label: "HOW PEOPLE TREAT EACH OTHER", desc: "Loyalty, betrayal, advice, kindness, rivalry, family — what the chapter shows about relationships, turned on how the reader themselves treats people or responds to them." },
   { id: "promise",  label: "SOMETHING TO HOLD ON TO", desc: "A promise, a truth, or a moment of God's care in this chapter the reader could lean on in what they're facing now." },
   { id: "warning",  label: "A WARNING",          desc: "Where something goes wrong in this chapter and the quiet cause behind it — then where that same cause could be starting in the reader." },
   { id: "step",     label: "ONE SMALL STEP",     desc: "One small, doable thing this week that follows from what happens in this chapter. An invitation, never an assignment." },
@@ -2499,7 +2499,21 @@ function _appendRecentReflQs(questions) {
 // One question for the whole chapter: what the reader saw in the text, then
 // how it lands in their own life. Comes back as JSON and the markup is built
 // here, so the model can't break the layout or style its own words.
-async function _fetchUnifiedReflection({ book, chapter, versesText, avoid = [] }) {
+// A question about an unnamed "someone" leaves the reader inventing a person
+// before they can answer, so one that slips past the prompt gets one re-roll.
+const _VAGUE_OTHER_RE = /\b(someone|somebody|anyone|others|a person who|people who|those (who|around))\b/i;
+
+async function _fetchUnifiedReflection(opts) {
+  const first = await _fetchUnifiedReflectionOnce(opts);
+  if (!first || !_VAGUE_OTHER_RE.test(first.question)) return first;
+  for (let i = 0; i < 2; i++) {
+    const next = await _fetchUnifiedReflectionOnce(opts).catch(() => null);
+    if (next && !_VAGUE_OTHER_RE.test(next.question)) return next;
+  }
+  return first;
+}
+
+async function _fetchUnifiedReflectionOnce({ book, chapter, versesText, avoid = [] }) {
   const lens = _pickReflectionLens();
   const avoidBlock = avoid.length
     ? `\nDON'T REPEAT — these were already asked (this chapter or recent ones). Pick a different lesson and phrase it differently:\n${avoid.slice(-15).map((q) => `- ${q}`).join("\n")}\n`
@@ -2512,15 +2526,18 @@ Return ONLY a JSON object, no markdown fence, no commentary:
 
 "observe" — one plain sentence (max 25 words) saying what actually happens or is said in the chapter that this lesson comes from. A fact from the text, not the lesson. Can sum up a stretch of the chapter.
 "verses" — the verse or range "observe" points at, digits only ("7" or "12-14"). Must exist in the passage below.
-"question" — one question (max 22 words), straight to the reader ("you"), about how that applies to their life now.
+"question" — one question (max 22 words), straight to the reader ("you"), about how that applies to their life now. It is about the reader's OWN heart, habits or choices — the words "someone", "others", "those who" never appear in it.
 
 THE LESSON TO USE — ${lens.label}: ${lens.desc}
 This chapter has many lessons; this is the one to draw out today. If the chapter genuinely has nothing for it, use the strongest other lesson in the chapter.
 ${avoidBlock}
 RULES:
 - About THIS chapter. The observation must name a real person, action, place, or words from it. If the question could be pasted onto another chapter, rewrite it.
-- It lands on the reader: something they've felt, done, wanted, a person in their life, a situation they're in. Not a study question about the text.
+- It lands on the reader THEMSELVES: their own habits, reactions, choices, fears, trust in God. Not a study question about the text.
+- Answerable by ANY reader from their own life, today. Never assume a situation they may not be in — that someone hurt them, betrayed them, is struggling, is grieving, that they lead people, that they're in a conflict.
+- No vague third parties: never "someone", "someone who…", "a person who…", "others", "those around you". If people matter, ask about the reader's own side ("When you're given advice you don't like, what do you usually do?"), not about an imagined person they'd have to invent.
 - Friendly and plain, like a friend over coffee. A 16-year-old understands every word. ONE question, one idea — never "X, and what could you do about it?" tacked on.
+- Vary how it opens. Don't default to "When you…".
 - Invite, never prescribe: no "you must", "you should", "commit to". "I don't know yet" is an allowed answer.
 - No sermon before the question, no answer, never speak as God.
 - New covenant: never ask the reader to keep an Old Testament ceremonial, food, sacrifice, or civil law. Ask about what it shows about God or the heart instead.
@@ -2528,7 +2545,7 @@ RULES:
 - Banned words: theological, implications, in light of, considering, ultimate, wrestle with, grapple, reflect on, sovereign, providence.
 
 SHAPE ONLY — these are from other chapters. Never reuse their subject or wording:
-{"observe": "Boaz tells his workers to leave extra grain on purpose so Ruth can gather it without shame.", "verses": "15-16", "question": "Who could you help this week in a way that lets them keep their dignity?"}
+{"observe": "Boaz tells his workers to leave extra grain on purpose so Ruth can gather it without shame.", "verses": "15-16", "question": "When you help, do you do it quietly, or do you like it to be noticed?"}
 {"observe": "Joseph is thrown into prison for refusing Potiphar's wife, yet the Lord is with him there.", "verses": "20-23", "question": "Where does doing the right thing feel like it cost you, right now?"}
 
 PASSAGE:
