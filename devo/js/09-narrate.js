@@ -213,6 +213,109 @@ function _nrSplitSpeech(beats) {
   return out;
 }
 
+/* ── Bite-sized beats ──────────────────────────────────────────────────────
+   The model hands back a beat per verse range, and in long chapters a single
+   narration beat or speech can run a whole paragraph (2 Samuel 17). Read on a
+   phone that's a wall of text, so each beat is cut at sentence ends into
+   blobs of a sentence or two. Done at render, not in the prompt, so cached
+   chapters get it too and the words can't change.
+
+   Never cut inside quoted speech — the inner-quote colouring needs both marks
+   in one blob, and half a quote reads as a typo. A sentence that is still too
+   long on its own is cut at a semicolon, the next natural pause in NASB. */
+const _NR_BLOB_TARGET = 150; // chars a blob grows to before the next sentence starts a new one
+const _NR_BLOB_SOLO = 230;   // a single sentence longer than this is cut at "; "
+
+function _nrCutPoints(text, isEnd, ignoreQuotes = false) {
+  const cuts = [];
+  let dbl = 0;
+  let sgl = 0;
+  let straight = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    const prev = text[i - 1] || " ";
+    const next = text[i + 1] || " ";
+    if (c === "“") dbl++;
+    else if (c === "”") dbl = Math.max(0, dbl - 1);
+    else if (c === '"') straight = !straight;
+    // ’ is also the apostrophe in "David’s", so only count it as a closing
+    // mark when a quote is open and no letter follows.
+    else if (c === "‘" && /[\s“(—-]/.test(prev)) sgl++;
+    else if (c === "’" && sgl > 0 && !/[A-Za-z]/.test(next)) sgl--;
+
+    if (!isEnd(c, next)) continue;
+    let j = i + 1;
+    // Closing marks that hug the punctuation belong to this sentence.
+    while (j < text.length && /[”’"')]/.test(text[j])) {
+      if (text[j] === "”") dbl = Math.max(0, dbl - 1);
+      else if (text[j] === "’" && sgl > 0) sgl--;
+      else if (text[j] === '"') straight = !straight;
+      j++;
+    }
+    i = j - 1;
+    if (j < text.length && /\s/.test(text[j]) && (ignoreQuotes || (!dbl && !sgl && !straight))) cuts.push(j);
+  }
+  // A mark that never closes (the model dropped one, or the quote runs on
+  // into the next beat) would freeze every cut after it — so cut as if there
+  // were no quotes at all.
+  if (!ignoreQuotes && (dbl || sgl || straight)) return _nrCutPoints(text, isEnd, true);
+  return cuts;
+}
+
+function _nrSliceAt(text, cuts) {
+  const out = [];
+  let from = 0;
+  for (const at of cuts) {
+    out.push(text.slice(from, at).trim());
+    from = at;
+  }
+  out.push(text.slice(from).trim());
+  return out.filter(Boolean);
+}
+
+function _nrSplitBlobs(text) {
+  const t = String(text || "").trim();
+  if (t.length <= _NR_BLOB_TARGET + 40) return [t];
+
+  const sentences = _nrSliceAt(t, _nrCutPoints(t, (c) => /[.?!]/.test(c))).flatMap((s) =>
+    s.length > _NR_BLOB_SOLO ? _nrSliceAt(s, _nrCutPoints(s, (c) => c === ";")) : [s],
+  );
+
+  const blobs = [];
+  let cur = "";
+  for (const s of sentences) {
+    if (cur && cur.length + s.length + 1 > _NR_BLOB_TARGET) {
+      blobs.push(cur);
+      cur = s;
+    } else {
+      cur = cur ? `${cur} ${s}` : s;
+    }
+  }
+  if (cur) {
+    // A trailing scrap ("And it was so.") rides with the blob before it
+    // instead of standing alone as a one-line bubble.
+    if (blobs.length && cur.length < 45) blobs[blobs.length - 1] += ` ${cur}`;
+    else blobs.push(cur);
+  }
+  return blobs;
+}
+
+/* Expands every beat into its blobs. The first blob keeps the beat's original
+   index as its reaction key, so reactions saved before the split still land
+   on the start of the same beat; later blobs get "<index>.<n>". */
+function _nrExpandBeats(beats) {
+  return beats.flatMap((beat, i) => {
+    const texts = beat.text && beat.type !== "beat" ? _nrSplitBlobs(beat.text) : [beat.text];
+    return texts.map((text, k) => ({
+      ...beat,
+      text,
+      _key: k ? `${i}.${k}` : String(i),
+      _cont: k > 0,
+      _last: k === texts.length - 1,
+    }));
+  });
+}
+
 /* Verse tags on a beat become the same chips used in reflection questions, so
    tapping one opens the peek sheet instead of leaving the retelling. */
 function _nrVerseChip(ref) {
@@ -343,13 +446,15 @@ function _nrRenderBeats(data, sections) {
     .filter((s) => s.verse && s.title)
     .sort((a, b) => a.verse - b.verse);
 
-  const html = data.beats
+  const html = _nrExpandBeats(data.beats)
     .map((beat, i) => {
       const delay = `style="animation-delay:${Math.min(i * 55, 900)}ms"`;
-      const chip = _nrVerseChip(beat.verses);
+      // One chip per beat, on its last blob — on every blob it repeats down
+      // the page like a stutter.
+      const chip = beat._last ? _nrVerseChip(beat.verses) : "";
       // The handle a reaction hangs off. Index is part of it because a beat's
       // verse range is not unique — a long verse splits into several beats.
-      const rk = _nrEsc(_nrBeatKey(i, beat.verses));
+      const rk = _nrEsc(_nrBeatKey(beat._key, beat.verses));
 
       // Emit every heading this beat has reached. A beat covering "9-12"
       // consumes a section starting at 9 AND one starting at 11 — otherwise a
@@ -393,7 +498,7 @@ function _nrRenderBeats(data, sections) {
 
       if (!beat.text) return "";
       lastSpeaker = null;
-      return headings + `<div class="nr-pageable nr-line nr-narr" data-rk="${rk}" data-rv="${beatVerse || ""}" ${delay}>
+      return headings + `<div class="nr-pageable nr-line nr-narr${beat._cont && !headings ? " nr-cont" : ""}" data-rk="${rk}" data-rv="${beatVerse || ""}" ${delay}>
         <p>${_nrMarkInnerQuotes(_nrEsc(beat.text))}</p>
         ${chip}
       </div>`;
@@ -957,7 +1062,8 @@ async function openNarrate() {
   // actually doing rather than "loading".
   scroll.innerHTML = _nrLoadingHTML(`${bookName} ${payload.chapter}`);
 
-  const cacheKey = `${_NR_CACHE_PREFIX}${payload.book}_${payload.chapter}`;
+  // Per version: the text is verbatim, so an Easy retell is wrong under NASB.
+  const cacheKey = `${_NR_CACHE_PREFIX}${currentVersion}_${payload.book}_${payload.chapter}`;
 
   try {
     let data = await _nrGetCached(cacheKey);

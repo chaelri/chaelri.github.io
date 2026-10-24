@@ -13077,6 +13077,10 @@ body.nr-locked { overflow: hidden; }
 }
 .light .nr-narr { color: #23242e; }
 .nr-narr p { margin: 0; }
+/* The next blob of the same narration beat (long beats are cut into a
+   sentence or two each) sits closer, so the pieces still read as one
+   passage rather than separate scenes. */
+.nr-narr.nr-cont { margin-top: -8px; }
 
 /* A turn beat is the pause between scenes — centred, spaced, quieter. */
 .nr-turn {
