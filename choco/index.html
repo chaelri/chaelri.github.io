@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Heavenly Choco Cake</title>
+  <meta name="description" content="Steamed chocolate cake, step by step. No oven needed.">
+  <meta name="theme-color" content="#d6ecff">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Pixelify+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="sky" aria-hidden="true"></div>
+
+  <header class="hero mx-auto max-w-xl px-4 pt-10 pb-6 text-center">
+    <div class="halo-cake" aria-hidden="true">
+      <span class="wing wing-l" data-sprite="wing" data-scale="7"></span>
+      <div class="cake-bob">
+        <span class="halo" data-sprite="halo" data-scale="9"></span>
+        <span data-sprite="cake" data-scale="9"></span>
+      </div>
+      <span class="wing wing-r" data-sprite="wing" data-scale="7"></span>
+    </div>
+
+    <p class="kicker mt-6">LVL 1 · NO OVEN</p>
+    <h1 class="title mt-3">Steamed<br>Choco Cake</h1>
+    <p class="sub mt-4">A soft, fudgy little cake that cooks in a steamer, then gets a glossy coat of dark chocolate ganache. Heaven in a foil tin.</p>
+
+    <ul class="stats mt-6">
+      <li><b>15</b><span>min prep</span></li>
+      <li><b>40</b><span>min steam</span></li>
+      <li><b>11</b><span>ingredients</span></li>
+    </ul>
+
+    <a class="btn btn-pink mt-7" href="#steps">Start quest</a>
+  </header>
+
+  <main class="mx-auto max-w-xl px-4 pb-32 space-y-10">
+
+    <section id="inventory" class="card">
+      <div class="card-head">
+        <h2>Inventory</h2>
+        <div class="scale" role="group" aria-label="Batch size">
+          <button type="button" data-scale-btn="1">x1</button>
+          <button type="button" data-scale-btn="2">x2</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <p class="hint">Tap an item once it's on your counter.</p>
+        <h3 class="group-title">Cake</h3>
+        <ul class="inv" data-group="cake"></ul>
+        <h3 class="group-title">Ganache</h3>
+        <ul class="inv" data-group="ganache"></ul>
+        <p class="hint mt-4">Tools: saucepan, 2 bowls, whisk, spatula, a small foil tin, foil, a steamer.</p>
+        <p class="hint" data-x2-note hidden>x2: split the batter between two tins. Each one still steams for about 40 min.</p>
+      </div>
+    </section>
+
+    <section id="steps" class="card">
+      <div class="card-head">
+        <h2>Quest</h2>
+        <button type="button" class="link-btn" data-reset-steps>reset</button>
+      </div>
+      <div class="card-body">
+        <div class="meter" aria-live="polite">
+          <div class="meter-label"><span>CAKE METER</span><span data-meter-text>0/10</span></div>
+          <div class="meter-bar" data-meter></div>
+        </div>
+        <ol class="steps" data-steps></ol>
+      </div>
+    </section>
+
+    <section id="timer" class="card">
+      <div class="card-head">
+        <h2>Steamer</h2>
+        <span data-sprite="pot" data-scale="4"></span>
+      </div>
+      <div class="card-body text-center">
+        <p class="hint">Steam over medium heat. When it dings, do the toothpick test.</p>
+        <div class="clock" data-clock>40:00</div>
+        <p class="clock-msg" data-clock-msg>ready when you are</p>
+        <div class="timer-row">
+          <button type="button" class="btn btn-ghost" data-t="-5">-5</button>
+          <button type="button" class="btn btn-mint" data-t="go">Start</button>
+          <button type="button" class="btn btn-ghost" data-t="+5">+5</button>
+        </div>
+        <button type="button" class="link-btn mt-4" data-t="reset">reset to 40:00</button>
+      </div>
+    </section>
+
+    <section id="tips" class="card">
+      <div class="card-head"><h2>Secret tips</h2></div>
+      <div class="card-body">
+        <ul class="tips" data-tips></ul>
+      </div>
+    </section>
+
+    <footer class="credits">
+      <span data-sprite="star" data-scale="3"></span>
+      <p>Recipe and demo from <b>Yummy.ph</b>'s "Steamed Chocolate Cake" video. Demo by Catalina Altomonte, video by Riell Santos.</p>
+      <p>This pixel page is a fan-made cheat sheet, not affiliated with Yummy.ph.</p>
+    </footer>
+  </main>
+
+  <nav class="dock" aria-label="Sections">
+    <a href="#inventory"><span data-sprite="bag" data-scale="3"></span>Items</a>
+    <a href="#steps"><span data-sprite="whisk" data-scale="3"></span>Steps</a>
+    <a href="#timer"><span data-sprite="pot" data-scale="3"></span>Timer</a>
+  </nav>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

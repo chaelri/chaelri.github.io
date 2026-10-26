@@ -48,6 +48,15 @@ Personal site for **Tita Sherill Obillo**, Nissan Marketing Professional at Niss
   - Footer states it is not an official Nissan Philippines website.
 - **Full docs:** See `knowledge/sherill/SUMMARY.md` and `sherill/README.md`.
 
+### choco/  🟢
+
+Step-by-step page for Yummy.ph's **Steamed Chocolate Cake** video, in a pastel 8-bit "heavenly" style: an inventory checklist (x1/x2 batch), 10 quest steps with a cake meter, and a 40-minute steam timer with chiptune chime. Built 2026-10-26.
+
+- **Tech:** vanilla ES module + Tailwind v4 browser CDN + hand-written CSS, Press Start 2P + Pixelify Sans. Every sprite is a string grid rendered to crisp-edged SVG by `sprite()` in `app.js` — no image assets.
+- **Entry:** `index.html`, `app.js` (sprites, recipe data, timer), `style.css`.
+- **Deploy:** GitHub Pages at `/choco/`. Not linked from the root hub page.
+- **Quirks:** Amounts were read from the video's on-screen captions; tips tagged "bonus" are additions, not from the video. Timer is wall-clock (`end` timestamp in localStorage) so it survives reloads and background tabs.
+
 ### kain/  🟢
 
 Photo-first food log for Charlie & Karla — snap the plate, Gemini reads it, and the day's **calories / sugar / sodium** count down from goals (1,500 kcal shared target; 50 g sugar and 2,000 mg sodium per the DOH). Workouts and step counts add calories back. Built 2026-09-05 to replace the deleted `bududiet/`.
