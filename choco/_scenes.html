@@ -1,0 +1,18 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Choco scenes contact sheet</title>
+<style>
+  body { margin: 0; background: #22120b; display: grid; grid-template-columns: repeat(5, 160px); gap: 4px; padding: 4px; }
+  canvas { width: 160px; height: 96px; image-rendering: pixelated; }
+</style>
+<script type="module">
+  // Every scene at five moments, for eyeballing the art without waiting on the loop.
+  import { SCENES, W, H } from './scenes.js';
+  const TS = [0.1, 0.3, 0.5, 0.7, 0.95];
+  SCENES.forEach(scene => TS.forEach(t => {
+    const cv = Object.assign(document.createElement('canvas'), { width: W, height: H });
+    scene(cv.getContext('2d'), t);
+    document.body.append(cv);
+  }));
+  document.title = 'SCENES OK';
+</script>

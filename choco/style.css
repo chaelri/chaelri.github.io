@@ -352,6 +352,64 @@ body {
   color: var(--pink-soft);
 }
 .step-body { grid-column: 1 / -1; }
+
+/* ---------- animated step scenes ---------- */
+.scene {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 0;
+  margin: 2px 0 12px;
+  border: 0;
+  cursor: pointer;
+  background: var(--choco-950);
+  box-shadow: 0 0 0 3px var(--choco-950), 0 0 0 6px var(--choco-600);
+}
+.scene canvas {
+  display: block;
+  width: 100%;
+  aspect-ratio: 5 / 3;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+.scene-tag {
+  position: absolute;
+  left: 6px; top: 6px;
+  font-family: var(--pixel);
+  font-size: 8px;
+  padding: 4px 6px;
+  color: var(--choco-900);
+  background: var(--gold);
+  box-shadow: 0 2px 0 var(--choco-950);
+}
+.scene::after {
+  content: 'tap to replay';
+  position: absolute;
+  right: 6px; bottom: 6px;
+  font-family: var(--pixel);
+  font-size: 7px;
+  color: var(--cream);
+  background: rgba(34, 18, 11, .65);
+  padding: 3px 5px;
+  opacity: 0;
+  transition: opacity .2s steps(2);
+}
+.scene:hover::after, .scene:focus-visible::after { opacity: 1; }
+
+/* cards pop in, 8-bit style */
+.step { opacity: 0; transform: translateY(18px) scale(.97); transition: opacity .35s steps(4), transform .35s steps(4); }
+.step.in { opacity: 1; transform: none; }
+.step.in .step-num { animation: pop .5s steps(4) .1s both; }
+.step.just-done .step-check { animation: pop .4s steps(3); }
+.step.just-done .step-num { animation: hop .5s steps(4); }
+@keyframes pop {
+  0% { transform: scale(.4); }
+  60% { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
+@keyframes hop {
+  40% { transform: translateY(-8px); }
+}
 .step p { margin: 0; color: var(--cream); }
 .step .amt { color: var(--gold); font-weight: 700; }
 .step-check {
@@ -454,6 +512,7 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .step { opacity: 1; transform: none; transition: none; }
   *, *::before, *::after { animation: none !important; }
   html { scroll-behavior: auto; }
 }

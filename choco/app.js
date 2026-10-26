@@ -1,4 +1,5 @@
 // Steamed Choco Cake — recipe read from Yummy.ph's video, drawn as 8-bit sprites.
+import { mountScenes, replay } from './scenes.js';
 
 // ---------- pixel sprites ----------
 const PAL = {
@@ -405,15 +406,41 @@ function renderSteps() {
       </div>
       <button type="button" class="step-check" data-step="${i}" aria-pressed="${done.has(i)}" aria-label="Mark step ${i + 1} done"></button>
       <div class="step-body">
+        <button type="button" class="scene" data-replay aria-label="Replay step ${i + 1} animation">
+          <canvas data-scene="${i}" role="img" aria-label="Animation: ${s.title}"></canvas>
+          <span class="scene-tag">STAGE ${i + 1}</span>
+        </button>
         <p>${fillAmounts(s.text)}</p>
         ${s.timer ? '<button type="button" class="btn btn-mint btn-sm" data-goto-timer>Start 40-min timer</button>' : ''}
       </div>
     </li>`).join('');
 
+  mountScenes(ol);
+  revealSteps(ol);
+  updateSteps();
+}
+
+// toggling a step only flips classes, so the scenes keep playing
+function updateSteps() {
+  document.querySelectorAll('.step').forEach((li, i) => {
+    li.classList.toggle('is-done', done.has(i));
+    li.querySelector('.step-check').setAttribute('aria-pressed', String(done.has(i)));
+  });
   const n = done.size;
   document.querySelector('[data-meter-text]').textContent = n === STEPS.length ? 'CAKE GET!' : `${n}/${STEPS.length}`;
   document.querySelector('[data-meter]').innerHTML =
     STEPS.map((_, i) => `<span class="${i < n ? 'on' : ''}"></span>`).join('');
+}
+
+// cards pop in as they scroll into view
+const revealIO = 'IntersectionObserver' in window
+  ? new IntersectionObserver(entries => {
+      for (const e of entries) if (e.isIntersecting) { e.target.classList.add('in'); revealIO.unobserve(e.target); }
+    }, { threshold: 0.15 })
+  : null;
+
+function revealSteps(root) {
+  root.querySelectorAll('.step').forEach(li => revealIO ? revealIO.observe(li) : li.classList.add('in'));
 }
 
 document.addEventListener('click', e => {
@@ -427,13 +454,24 @@ document.addEventListener('click', e => {
       else { blip(880); burst(b, 6); }
     }
     store.set('steps', [...done]);
-    renderSteps();
+    updateSteps();
+    if (done.has(i)) {
+      const li = b.closest('.step');
+      li.classList.remove('just-done');
+      void li.offsetWidth; // restart the hop
+      li.classList.add('just-done');
+    }
     return;
   }
   if (e.target.closest('[data-reset-steps]')) {
     done = new Set();
     store.set('steps', []);
-    renderSteps();
+    updateSteps();
+    return;
+  }
+  const rp = e.target.closest('[data-replay]');
+  if (rp) {
+    replay(rp.querySelector('canvas'));
     return;
   }
   if (e.target.closest('[data-goto-timer]')) {
