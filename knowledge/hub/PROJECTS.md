@@ -55,7 +55,7 @@ Step-by-step page for Yummy.ph's **Steamed Chocolate Cake** video, in a pastel 8
 - **Tech:** vanilla ES module + Tailwind v4 browser CDN + hand-written CSS, Press Start 2P + Pixelify Sans. Every sprite is a string grid rendered to crisp-edged SVG by `sprite()` in `app.js` — no image assets.
 - **Entry:** `index.html`, `app.js` (sprites, recipe data, timer), `style.css`.
 - **Deploy:** GitHub Pages at `/choco/`. Not linked from the root hub page.
-- **Step scenes (2026-10-26):** each step has an animated 80x48 canvas scene in `scenes.js` (`draw(ctx, t)`, action finishes by t≈0.88 then holds; 12 fps, only visible canvases tick). Ticking a step flips classes via `updateSteps()` instead of re-rendering, so the scenes don't restart. `_scenes.html` is a contact sheet of every scene at five moments — use it to check art headlessly (the live loop never settles under `--virtual-time-budget`).
+- **Step scenes (2026-10-26):** each step has an animated 80x48 canvas scene in `scenes.js` (`draw(ctx, t)`, action finishes by t≈0.88 then holds; 12 fps, only visible canvases tick). The quest is a left-to-right scroll-snap carousel (Prev/Next, swipe, pips, arrow keys); ticking a step slides to the next. Scenes ignore `prefers-reduced-motion` on purpose: Charlie's Windows has Animation effects off, which froze the whole page. Cups/tbsp toggle folds cups into tbsp (1 cup = 16). `_scenes.html` is a contact sheet of every scene at five moments — use it to check art headlessly (the live loop never settles under `--virtual-time-budget`).
 - **Quirks:** Amounts were read from the video's on-screen captions; tips tagged "bonus" are additions, not from the video. Timer is wall-clock (`end` timestamp in localStorage) so it survives reloads and background tabs.
 
 ### kain/  🟢

@@ -233,6 +233,24 @@ const SPRITES = {
     '...g....',
     '...g....',
   ],
+  arR: [
+    'K...',
+    'KK..',
+    'KKK.',
+    'KKKK',
+    'KKK.',
+    'KK..',
+    'K...',
+  ],
+  arL: [
+    '...K',
+    '..KK',
+    '.KKK',
+    'KKKK',
+    '.KKK',
+    '..KK',
+    '...K',
+  ],
   bag: [
     '..KKKK..',
     '.K....K.',
@@ -244,6 +262,8 @@ const SPRITES = {
     'KKKKKKKK',
   ],
 };
+
+SPRITES.cakeBlink = SPRITES.cake.map(r => r.replace(/E/g, 'D'));
 
 function sprite(name, scale = 4, cls = '') {
   const rows = SPRITES[name];
@@ -292,8 +312,8 @@ const INGREDIENTS = [
   { id: 'salt',    group: 'cake',    icon: 'salt',    name: 'salt',                 amount: [[1, 'pinch']] },
   { id: 'egg',     group: 'cake',    icon: 'egg',     name: '',                     amount: [[1, 'large egg']] },
   { id: 'vanilla', group: 'cake',    icon: 'vanilla', name: 'vanilla',              amount: [[0.5, 'tsp']] },
-  { id: 'cream',   group: 'ganache', icon: 'cream',   name: 'all-purpose cream',    amount: [[1, 'cup']] },
-  { id: 'choco',   group: 'ganache', icon: 'choco',   name: 'dark chocolate chunks', amount: [[1, 'cup']] },
+  { id: 'cream',   group: 'ganache', icon: 'cream',   name: 'all-purpose cream',    amount: [[1, 'cup']], spoonNote: n => `${n === 1 ? 'one' : n} 250 ml pack${n > 1 ? 's' : ''}` },
+  { id: 'choco',   group: 'ganache', icon: 'choco',   name: 'dark chocolate chunks', amount: [[1, 'cup']], spoonNote: n => `about ${170 * n} g` },
 ];
 
 const STEPS = [
@@ -337,12 +357,21 @@ function fmtQty(q) {
   return (whole ? String(whole) : '') + (FRAC[frac] || '');
 }
 
+let units = store.get('units', 'cups');
+
+// spoons mode folds cups into tablespoons: 1 cup = 16 tbsp
 function fmtAmount(parts, scale) {
-  return parts.map(([q, unit]) => {
-    const n = q * scale;
-    const u = n > 1 && PLURAL[unit] ? PLURAL[unit] : unit;
-    return `${fmtQty(n)} ${u}`;
-  }).join(' + ');
+  let list = parts.map(([q, u]) => [q * scale, u]);
+  if (units === 'spoons') {
+    const tbsp = list.reduce((n, [q, u]) => n + (u === 'cup' ? q * 16 : u === 'tbsp' ? q : 0), 0);
+    list = list.filter(([, u]) => u !== 'cup' && u !== 'tbsp');
+    if (tbsp) list.unshift([tbsp, 'tbsp']);
+  }
+  return list.map(([n, unit]) => `${fmtQty(n)} ${n > 1 && PLURAL[unit] ? PLURAL[unit] : unit}`).join(' + ');
+}
+
+function noteFor(ing) {
+  return units === 'spoons' && ing.spoonNote ? ing.spoonNote(scale) : '';
 }
 
 // ---------- inventory ----------
@@ -356,7 +385,9 @@ function renderInventory() {
       <li>
         <button type="button" class="inv-item${have.has(i.id) ? ' is-on' : ''}" data-inv="${i.id}" aria-pressed="${have.has(i.id)}">
           <span class="inv-icon">${sprite(i.icon, 4)}</span>
-          <span class="inv-text"><b>${fmtAmount(i.amount, scale)}</b> ${i.name}</span>
+          <b class="inv-amt">${fmtAmount(i.amount, scale)}</b>
+          ${i.name ? `<span class="inv-name">${i.name}</span>` : ''}
+          ${noteFor(i) ? `<span class="inv-note">${noteFor(i)}</span>` : ''}
           <span class="tick" aria-hidden="true"></span>
         </button>
       </li>`).join('');
@@ -364,7 +395,11 @@ function renderInventory() {
   document.querySelectorAll('[data-scale-btn]').forEach(b => {
     b.setAttribute('aria-pressed', String(Number(b.dataset.scaleBtn) === scale));
   });
+  document.querySelectorAll('[data-units]').forEach(b => {
+    b.setAttribute('aria-pressed', String(b.dataset.units === units));
+  });
   document.querySelector('[data-x2-note]').hidden = scale !== 2;
+  document.querySelector('[data-spoon-note]').hidden = units !== 'spoons';
 }
 
 document.addEventListener('click', e => {
@@ -374,6 +409,14 @@ document.addEventListener('click', e => {
     have.has(id) ? have.delete(id) : (have.add(id), blip(660));
     store.set('inv', [...have]);
     renderInventory();
+    return;
+  }
+  const ub = e.target.closest('[data-units]');
+  if (ub) {
+    units = ub.dataset.units;
+    store.set('units', units);
+    renderInventory();
+    renderSteps();
     return;
   }
   const sb = e.target.closest('[data-scale-btn]');
@@ -391,48 +434,101 @@ let done = new Set(store.get('steps', []));
 function fillAmounts(text) {
   return text.replace(/\{(\w+)\}/g, (_, id) => {
     const ing = INGREDIENTS.find(i => i.id === id);
-    return `<b class="amt">${fmtAmount(ing.amount, scale)}</b>`;
+    const note = noteFor(ing);
+    return `<b class="amt">${fmtAmount(ing.amount, scale)}</b>${note ? ` (${note})` : ''}`;
   });
 }
 
 function renderSteps() {
   const ol = document.querySelector('[data-steps]');
   ol.innerHTML = STEPS.map((s, i) => `
-    <li class="step${done.has(i) ? ' is-done' : ''}">
+    <li class="step">
       <div class="step-num">${i + 1}</div>
       <div class="step-top">
         <span class="step-icon">${sprite(s.icon, 3)}</span>
         <h3>${s.title}</h3>
       </div>
-      <button type="button" class="step-check" data-step="${i}" aria-pressed="${done.has(i)}" aria-label="Mark step ${i + 1} done"></button>
+      <button type="button" class="step-check" data-step="${i}" aria-label="Mark step ${i + 1} done"></button>
       <div class="step-body">
         <button type="button" class="scene" data-replay aria-label="Replay step ${i + 1} animation">
           <canvas data-scene="${i}" role="img" aria-label="Animation: ${s.title}"></canvas>
           <span class="scene-tag">STAGE ${i + 1}</span>
         </button>
         <p>${fillAmounts(s.text)}</p>
-        ${s.timer ? '<button type="button" class="btn btn-mint btn-sm" data-goto-timer>Start 40-min timer</button>' : ''}
+        <div class="step-actions">
+          ${s.timer ? '<button type="button" class="btn btn-ghost btn-sm" data-goto-timer>40-min timer</button>' : ''}
+          <button type="button" class="btn btn-mint btn-sm btn-done" data-step="${i}"></button>
+        </div>
       </div>
     </li>`).join('');
 
   mountScenes(ol);
   revealSteps(ol);
   updateSteps();
+  requestAnimationFrame(() => goTo(pos, false));
 }
 
 // toggling a step only flips classes, so the scenes keep playing
 function updateSteps() {
   document.querySelectorAll('.step').forEach((li, i) => {
-    li.classList.toggle('is-done', done.has(i));
-    li.querySelector('.step-check').setAttribute('aria-pressed', String(done.has(i)));
+    const isDone = done.has(i);
+    li.classList.toggle('is-done', isDone);
+    li.querySelector('.step-check').setAttribute('aria-pressed', String(isDone));
+    li.querySelector('.btn-done').textContent = isDone ? 'Undo' : i === STEPS.length - 1 ? 'Done!' : 'Done, next';
   });
   const n = done.size;
   document.querySelector('[data-meter-text]').textContent = n === STEPS.length ? 'CAKE GET!' : `${n}/${STEPS.length}`;
-  document.querySelector('[data-meter]').innerHTML =
-    STEPS.map((_, i) => `<span class="${i < n ? 'on' : ''}"></span>`).join('');
+  document.querySelector('[data-meter]').innerHTML = STEPS.map((_, i) =>
+    `<button type="button" class="${done.has(i) ? 'on' : ''}${i === pos ? ' cur' : ''}" data-go="${i}" aria-label="Go to step ${i + 1}"${i === pos ? ' aria-current="step"' : ''}></button>`).join('');
+  document.querySelector('[data-pos]').textContent = `${pos + 1} / ${STEPS.length}`;
+  document.querySelector('[data-nav="-1"]').disabled = pos === 0;
+  document.querySelector('[data-nav="1"]').disabled = pos === STEPS.length - 1;
 }
 
-// cards pop in as they scroll into view
+// ---------- quest carousel: one step at a time, left to right ----------
+function firstOpen() {
+  for (let i = 0; i < STEPS.length; i++) if (!done.has(i)) return i;
+  return STEPS.length - 1;
+}
+let pos = Math.min(STEPS.length - 1, Math.max(0, store.get('pos', firstOpen())));
+
+function track() { return document.querySelector('[data-steps]'); }
+
+function setPos(i) {
+  if (i === pos) return;
+  pos = i;
+  store.set('pos', pos);
+  updateSteps();
+  const cv = track().children[pos]?.querySelector('canvas');
+  if (cv) replay(cv); // each step's scene starts from the top when you arrive
+}
+
+function goTo(i, smooth = true) {
+  const ol = track();
+  i = Math.max(0, Math.min(STEPS.length - 1, i));
+  ol.scrollTo({ left: i * ol.clientWidth, behavior: smooth ? 'smooth' : 'auto' });
+  setPos(i);
+}
+
+let settle;
+track().addEventListener('scroll', () => {
+  clearTimeout(settle);
+  settle = setTimeout(() => {
+    const ol = track();
+    setPos(Math.round(ol.scrollLeft / ol.clientWidth));
+  }, 90);
+}, { passive: true });
+
+addEventListener('resize', () => goTo(pos, false));
+
+addEventListener('keydown', e => {
+  if (e.target.closest('input, textarea') || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return;
+  const r = document.getElementById('steps').getBoundingClientRect();
+  if (r.bottom < 0 || r.top > innerHeight) return;
+  goTo(pos + (e.key === 'ArrowRight' ? 1 : -1));
+});
+
+// cards pop in the first time they slide into view
 const revealIO = 'IntersectionObserver' in window
   ? new IntersectionObserver(entries => {
       for (const e of entries) if (e.isIntersecting) { e.target.classList.add('in'); revealIO.unobserve(e.target); }
@@ -447,26 +543,34 @@ document.addEventListener('click', e => {
   const b = e.target.closest('[data-step]');
   if (b) {
     const i = Number(b.dataset.step);
+    const li = b.closest('.step');
     if (done.has(i)) done.delete(i);
     else {
       done.add(i);
       if (done.size === STEPS.length) { fanfare(); burst(b); }
-      else { blip(880); burst(b, 6); }
+      else {
+        blip(880); burst(b, 6);
+        if (i < STEPS.length - 1) setTimeout(() => goTo(i + 1), 450); // checked → slide to the next step
+      }
     }
     store.set('steps', [...done]);
     updateSteps();
     if (done.has(i)) {
-      const li = b.closest('.step');
       li.classList.remove('just-done');
       void li.offsetWidth; // restart the hop
       li.classList.add('just-done');
     }
     return;
   }
+  const nav = e.target.closest('[data-nav]');
+  if (nav) { goTo(pos + Number(nav.dataset.nav)); return; }
+  const go = e.target.closest('[data-go]');
+  if (go) { goTo(Number(go.dataset.go)); return; }
   if (e.target.closest('[data-reset-steps]')) {
     done = new Set();
     store.set('steps', []);
     updateSteps();
+    goTo(0);
     return;
   }
   const rp = e.target.closest('[data-replay]');
@@ -474,11 +578,30 @@ document.addEventListener('click', e => {
     replay(rp.querySelector('canvas'));
     return;
   }
+  const hero = e.target.closest('[data-hero]');
+  if (hero) {
+    const box = hero.closest('.halo-cake');
+    box.classList.remove('jump');
+    void box.offsetWidth;
+    box.classList.add('jump');
+    blip(990);
+    burst(hero, 10);
+    return;
+  }
   if (e.target.closest('[data-goto-timer]')) {
     document.getElementById('timer').scrollIntoView({ behavior: 'smooth' });
     if (!timer.end) startTimer();
   }
 });
+
+// hero cake blinks every few seconds
+const heroCake = document.querySelector('.hero-cake');
+function blink() {
+  heroCake.innerHTML = sprite('cakeBlink', 9);
+  setTimeout(() => { heroCake.innerHTML = sprite('cake', 9); }, 140);
+  setTimeout(blink, 2200 + Math.random() * 2600);
+}
+setTimeout(blink, 1600);
 
 // ---------- steam timer (wall-clock based, survives reloads + background tabs) ----------
 const DEFAULT_MS = 40 * 60 * 1000;
@@ -595,7 +718,6 @@ function fanfare() {
 
 // ---------- sparkles ----------
 function burst(el, count = 14) {
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const r = el.getBoundingClientRect();
   for (let i = 0; i < count; i++) {
     const s = document.createElement('span');

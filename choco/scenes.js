@@ -379,7 +379,8 @@ export const SCENES = [
 ];
 
 // ---------- runner ----------
-const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+// The scenes ARE the step instructions, so they play even with reduce-motion on
+// (Windows "Animation effects" off sets it for every site). Tap replays from the start.
 const live = new Set();
 const io = 'IntersectionObserver' in window
   ? new IntersectionObserver(entries => {
@@ -399,20 +400,19 @@ export function mountScenes(root) {
   root.querySelectorAll('canvas[data-scene]').forEach(cv => {
     cv.width = W; cv.height = H;
     cv._t0 = performance.now();
-    draw(cv, reduced ? 0.95 : 0);
+    draw(cv, 0);
     if (io) io.observe(cv); else live.add(cv);
   });
 }
 
 export function replay(cv) {
   cv._t0 = performance.now();
-  if (reduced) draw(cv, 0.95);
 }
 
 let last = 0;
 function frame(now) {
   requestAnimationFrame(frame);
-  if (reduced || now - last < 1000 / FPS) return;
+  if (now - last < 1000 / FPS) return;
   last = now;
   for (const cv of live) {
     const elapsed = Math.floor((now - cv._t0) / (1000 / FPS)) * (1000 / FPS);

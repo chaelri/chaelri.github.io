@@ -6,9 +6,12 @@
   <title>Heavenly Choco Cake</title>
   <meta name="description" content="Steamed chocolate cake, step by step. No oven needed.">
   <meta name="theme-color" content="#d6ecff">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Pixelify+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
   <link rel="stylesheet" href="style.css">
 </head>
@@ -16,13 +19,17 @@
   <div id="sky" aria-hidden="true"></div>
 
   <header class="hero mx-auto max-w-xl px-4 pt-10 pb-6 text-center">
-    <div class="halo-cake" aria-hidden="true">
-      <span class="wing wing-l" data-sprite="wing" data-scale="7"></span>
-      <div class="cake-bob">
+    <div class="halo-cake">
+      <span class="hero-spark s1" data-sprite="star" data-scale="3" aria-hidden="true"></span>
+      <span class="hero-spark s2" data-sprite="star" data-scale="2" aria-hidden="true"></span>
+      <span class="hero-spark s3" data-sprite="star" data-scale="3" aria-hidden="true"></span>
+      <span class="hero-spark s4" data-sprite="star" data-scale="2" aria-hidden="true"></span>
+      <span class="wing wing-l" data-sprite="wing" data-scale="7" aria-hidden="true"></span>
+      <button type="button" class="cake-bob" data-hero aria-label="Poke the cake">
         <span class="halo" data-sprite="halo" data-scale="9"></span>
-        <span data-sprite="cake" data-scale="9"></span>
-      </div>
-      <span class="wing wing-r" data-sprite="wing" data-scale="7"></span>
+        <span class="hero-cake" data-sprite="cake" data-scale="9"></span>
+      </button>
+      <span class="wing wing-r" data-sprite="wing" data-scale="7" aria-hidden="true"></span>
     </div>
 
     <p class="kicker mt-6">LVL 1 · NO OVEN</p>
@@ -50,6 +57,14 @@
       </div>
       <div class="card-body">
         <p class="hint">Tap an item once it's on your counter.</p>
+        <div class="units">
+          <span>Measure in</span>
+          <div class="seg" role="group" aria-label="Units">
+            <button type="button" data-units="cups">cups</button>
+            <button type="button" data-units="spoons">tbsp / tsp</button>
+          </div>
+        </div>
+        <p class="hint" data-spoon-note hidden>No measuring cup? 1 cup = 16 tbsp, 1 tbsp = 3 tsp. Use level spoons.</p>
         <h3 class="group-title">Cake</h3>
         <ul class="inv" data-group="cake"></ul>
         <h3 class="group-title">Ganache</h3>
@@ -69,7 +84,12 @@
           <div class="meter-label"><span>CAKE METER</span><span data-meter-text>0/10</span></div>
           <div class="meter-bar" data-meter></div>
         </div>
-        <ol class="steps" data-steps></ol>
+        <ol class="steps" data-steps aria-label="Recipe steps, swipe or use Prev and Next"></ol>
+        <div class="quest-nav">
+          <button type="button" class="btn btn-ghost nav-btn" data-nav="-1" aria-label="Previous step"><span data-sprite="arL" data-scale="2"></span>Prev</button>
+          <span class="quest-pos" data-pos aria-live="polite">1 / 10</span>
+          <button type="button" class="btn btn-pink nav-btn" data-nav="1" aria-label="Next step">Next<span data-sprite="arR" data-scale="2"></span></button>
+        </div>
       </div>
     </section>
 
