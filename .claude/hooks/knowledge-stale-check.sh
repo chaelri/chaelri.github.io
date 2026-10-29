@@ -60,8 +60,8 @@ case "$tool_name" in
 esac
 
 # Threshold: skip trivially small edits (< 5 lines total in old + new)
-old_lines=$(printf "%s" "$old" | grep -c '^' 2>/dev/null || echo 0)
-new_lines=$(printf "%s" "$new" | grep -c '^' 2>/dev/null || echo 0)
+old_lines=$(printf "%s" "$old" | grep -c '^' 2>/dev/null || true)
+new_lines=$(printf "%s" "$new" | grep -c '^' 2>/dev/null || true)
 total_lines=$((old_lines + new_lines))
 [ "$total_lines" -lt 5 ] && exit 0
 
@@ -77,6 +77,14 @@ arrow_funcs=$(printf "%s\n%s" "$old" "$new" | \
 
 all_ids=$(printf "%s\n%s" "$identifiers" "$arrow_funcs" | sort -u | grep -v '^$' || true)
 
+# Only this project's MDs (+ hub) — matching every MD in the repo on a
+# shared basename like index.html flagged 40 unrelated docs per edit.
+proj="${rel_path%%/*}"
+scope=()
+[ -d "$CLAUDE_PROJECT_DIR/knowledge/$proj" ] && scope+=("$CLAUDE_PROJECT_DIR/knowledge/$proj")
+[ "$rel_path" = "$proj" ] && scope+=("$CLAUDE_PROJECT_DIR/knowledge/hub")
+[ ${#scope[@]} -eq 0 ] && exit 0
+
 # Match against knowledge MDs:
 # 1. If we extracted identifiers, search for those (whole-word match)
 # 2. If no identifiers (e.g., CSS edit), fall back to basename match
@@ -85,7 +93,7 @@ if [ -n "$all_ids" ]; then
   # Build pattern of identifiers; -w ensures whole-word
   while IFS= read -r id; do
     [ -z "$id" ] && continue
-    found=$(grep -rlw -F "$id" "$CLAUDE_PROJECT_DIR/knowledge" 2>/dev/null || true)
+    found=$(grep -rlw -F "$id" "${scope[@]}" 2>/dev/null || true)
     if [ -n "$found" ]; then
       matches=$(printf "%s\n%s" "$matches" "$found")
     fi
@@ -97,7 +105,7 @@ if [ -z "$(echo "$matches" | grep -v '^$' || true)" ]; then
   basename=$(basename "$file_path")
   # Only fall back if the file is "documented" — otherwise the edit is
   # probably in a file the knowledge MDs don't care about.
-  matches=$(grep -rl -F -e "$basename" -e "$rel_path" "$CLAUDE_PROJECT_DIR/knowledge" 2>/dev/null || true)
+  matches=$(grep -rl -F -e "$basename" -e "$rel_path" "${scope[@]}" 2>/dev/null || true)
 fi
 
 # Dedupe and clean

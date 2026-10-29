@@ -4,10 +4,8 @@ The cockpit wraps `claude -p` (headless mode) with mode-based workflows, knowled
 
 ## Knowledge
 
-@../knowledge/cockpit/AGENTS.md
-
-@../knowledge/cockpit/HOOKS.md
-
+- On demand: `../knowledge/cockpit/AGENTS.md`
+- On demand: `../knowledge/cockpit/HOOKS.md`
 @./README.md
 
 ## Quick reminders

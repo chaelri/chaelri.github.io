@@ -10,13 +10,23 @@ When Charlie says **"restore my setup"** / **"set up this laptop"** / **"i got a
 
 ## Hub Map (every project at a glance)
 
-@knowledge/hub/PROJECTS.md
+@knowledge/hub/INDEX.md
 
-## Cockpit / Agents / Hooks (always-on conventions)
+## Agents / Hooks reference (read on demand)
 
-@knowledge/cockpit/AGENTS.md
+`knowledge/cockpit/AGENTS.md` and `knowledge/cockpit/HOOKS.md` — read only when Charlie asks to create an agent, hook, or cockpit mode.
 
-@knowledge/cockpit/HOOKS.md
+## Lean usage (Pro plan since 2026-11)
+
+Charlie is on Claude Pro: tight 5-hour and weekly limits. Spend tokens like they're scarce.
+
+- **Read narrowly.** Grep first, then Read with `offset`/`limit`. Never read a whole big file (PROJECTS.md, devo DECISIONS.md, a 3k-line JS chunk) to find one thing.
+- **No subagents, Workflows, or parallel fan-out** unless Charlie asks. Do the search yourself; a subagent re-reads everything from scratch.
+- **Knowledge MDs are on demand.** Project `CLAUDE.md` files import only `SUMMARY.md`; open the other MDs in `knowledge/<project>/` only when the task needs them.
+- **Don't re-read files you just edited**, don't dump long command output (pipe through `tail`/`head`/`grep`), and don't screenshot-verify when a quick check or test suffices.
+- **Skip extras he didn't ask for:** no knowledge-MD sync, no README/doc rewrites, no extra polish passes. Update `knowledge/` only when a change makes a doc wrong.
+- **Short replies.** Result + what to check, no recap of every step.
+- Visible-progress rules (TODO list, progress bars, shell monitor) still apply, but keep them proportionate: a TODO list only for 3+ items, the shell monitor only for jobs over a couple of minutes.
 
 ## Project-specific knowledge
 

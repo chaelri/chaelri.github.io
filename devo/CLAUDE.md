@@ -6,21 +6,14 @@ This file auto-loads when Claude opens any session inside or below `chaelri.gith
 
 @../knowledge/devo/SUMMARY.md
 
-@../knowledge/devo/ARCHITECTURE.md
-
-@../knowledge/devo/KEY_FILES.md
-
-@../knowledge/devo/PATTERNS.md
-
-@../knowledge/devo/TTS.md
-
-@../knowledge/devo/AI_FEATURES.md
-
-@../knowledge/devo/COMMON_TASKS.md
-
-@../knowledge/devo/DECISIONS.md
-
-@../knowledge/devo/DESIGN.md
+- On demand: `../knowledge/devo/ARCHITECTURE.md`
+- On demand: `../knowledge/devo/KEY_FILES.md`
+- On demand: `../knowledge/devo/PATTERNS.md`
+- On demand: `../knowledge/devo/TTS.md`
+- On demand: `../knowledge/devo/AI_FEATURES.md`
+- On demand: `../knowledge/devo/COMMON_TASKS.md`
+- On demand: `../knowledge/devo/DECISIONS.md`
+- On demand: `../knowledge/devo/DESIGN.md`
 
 ## Quick reminders
 

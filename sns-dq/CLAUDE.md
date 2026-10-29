@@ -7,7 +7,7 @@ the deep knowledge MDs so future sessions don't have to re-investigate.
 
 @../knowledge/sns-dq/SUMMARY.md
 
-@../knowledge/sns-dq/DECISIONS.md
+- On demand: `../knowledge/sns-dq/DECISIONS.md`
 
 ## Scope-specific reminders
 

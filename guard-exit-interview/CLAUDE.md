@@ -2,13 +2,10 @@
 
 @../knowledge/guard-exit-interview/SUMMARY.md
 
-@../knowledge/guard-exit-interview/ARCHITECTURE.md
-
-@../knowledge/guard-exit-interview/KEY_FILES.md
-
-@../knowledge/guard-exit-interview/PATTERNS.md
-
-@../knowledge/guard-exit-interview/DECISIONS.md
+- On demand: `../knowledge/guard-exit-interview/ARCHITECTURE.md`
+- On demand: `../knowledge/guard-exit-interview/KEY_FILES.md`
+- On demand: `../knowledge/guard-exit-interview/PATTERNS.md`
+- On demand: `../knowledge/guard-exit-interview/DECISIONS.md`
 
 ## 🚨 CRITICAL: Dual-Repo Push
 

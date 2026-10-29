@@ -2,11 +2,9 @@
 
 @../knowledge/devo-mobile/SUMMARY.md
 
-@../knowledge/devo-mobile/ARCHITECTURE.md
-
-@../knowledge/devo-mobile/KEY_FILES.md
-
-@../knowledge/devo-mobile/DECISIONS.md
+- On demand: `../knowledge/devo-mobile/ARCHITECTURE.md`
+- On demand: `../knowledge/devo-mobile/KEY_FILES.md`
+- On demand: `../knowledge/devo-mobile/DECISIONS.md`
 
 ## Quick reminders
 

@@ -2,9 +2,8 @@
 
 @../knowledge/monthsary/SUMMARY.md
 
-@../knowledge/monthsary/ARCHITECTURE.md
-
-@../knowledge/monthsary/DECISIONS.md
+- On demand: `../knowledge/monthsary/ARCHITECTURE.md`
+- On demand: `../knowledge/monthsary/DECISIONS.md`
 
 ## Quick reminders
 

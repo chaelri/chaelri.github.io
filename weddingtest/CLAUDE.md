@@ -14,13 +14,10 @@
 
 @../knowledge/weddingtest/SUMMARY.md
 
-@../knowledge/weddingtest/ARCHITECTURE.md
-
-@../knowledge/weddingtest/KEY_FILES.md
-
-@../knowledge/weddingtest/PATTERNS.md
-
-@../knowledge/weddingtest/DECISIONS.md
+- On demand: `../knowledge/weddingtest/ARCHITECTURE.md`
+- On demand: `../knowledge/weddingtest/KEY_FILES.md`
+- On demand: `../knowledge/weddingtest/PATTERNS.md`
+- On demand: `../knowledge/weddingtest/DECISIONS.md`
 
 ## Quick reminders
 

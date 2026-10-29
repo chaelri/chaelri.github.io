@@ -2,13 +2,10 @@
 
 @../knowledge/tayo/SUMMARY.md
 
-@../knowledge/tayo/ARCHITECTURE.md
-
-@../knowledge/tayo/KEY_FILES.md
-
-@../knowledge/tayo/PATTERNS.md
-
-@../knowledge/tayo/DECISIONS.md
+- On demand: `../knowledge/tayo/ARCHITECTURE.md`
+- On demand: `../knowledge/tayo/KEY_FILES.md`
+- On demand: `../knowledge/tayo/PATTERNS.md`
+- On demand: `../knowledge/tayo/DECISIONS.md`
 
 ## Quick reminders
 
