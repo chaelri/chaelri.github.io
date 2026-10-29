@@ -74,6 +74,17 @@ bool isPressed = false;         // latched state (for press/release/toggle)
 WiFiClientSecure streamClient;
 unsigned long lastStreamAttempt = 0;
 const unsigned long STREAM_RECONNECT_MS = 1500;
+// The first event of every stream is a snapshot of whatever /servo/command
+// already holds — e.g. a "click" tapped while the board was offline. Acting on
+// it would fire a stale click on boot/reconnect (and press the PC power button),
+// so the snapshot is cleared, never executed. Only commands that arrive live run.
+bool skipSnapshot = true;
+
+// --- WiFi reconnect ----------------------------------------------------------
+// wifiMulti.run() is what roams between the saved APs; without calling it from
+// loop(), a drop after boot never moves to another network.
+unsigned long lastWifiAttempt = 0;
+const unsigned long WIFI_RETRY_MS = 5000;
 
 void publishState() {
   if (WiFi.status() != WL_CONNECTED) return;
@@ -141,6 +152,7 @@ void connectStream() {
     "Cache-Control: no-cache\r\n" +
     "Connection: keep-alive\r\n\r\n";
   streamClient.print(req);
+  skipSnapshot = true;
   Serial.println("Stream connected — listening on /servo/command");
 }
 
@@ -153,6 +165,14 @@ void handleStreamData(const String& line) {
   val.trim();
   val.replace("\"", "");
   val.trim();
+  if (skipSnapshot) {
+    skipSnapshot = false;
+    if (val.length() > 0 && val != "null") {
+      Serial.println("ignored stale command: " + val);
+      clearCommand();
+    }
+    return;
+  }
   if (val.length() == 0 || val == "null") return;
   Serial.println(">>> " + val);
   if      (val == "click")   { doClick();   clearCommand(); }
@@ -195,6 +215,7 @@ void setup() {
   wifiMulti.addAP("CharLa", "Kahitano1!");
   wifiMulti.addAP("CAYNO", "lokomoko");
   wifiMulti.addAP("Chaelri", "charlie24");
+  wifiMulti.addAP("GFiber_3DAAA", "F09C2D58");
 
   Serial.print("Connecting to WiFi");
   while (wifiMulti.run() != WL_CONNECTED) { delay(300); Serial.print("."); }
@@ -207,6 +228,17 @@ void setup() {
 }
 
 void loop() {
+  if (WiFi.status() != WL_CONNECTED) {
+    if (millis() - lastWifiAttempt >= WIFI_RETRY_MS) {
+      lastWifiAttempt = millis();
+      Serial.println("WiFi lost — rescanning saved networks");
+      if (wifiMulti.run() == WL_CONNECTED)
+        Serial.println("WiFi: " + WiFi.SSID() + " · " + WiFi.localIP().toString());
+    }
+    delay(1);
+    return;
+  }
+
   if (streamClient.connected()) {
     processStream();
   } else if (millis() - lastStreamAttempt >= STREAM_RECONNECT_MS) {
