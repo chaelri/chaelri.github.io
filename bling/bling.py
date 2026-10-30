@@ -40,6 +40,7 @@ button:hover{background:var(--cyan)}button:active{transform:translate(4px,4px);b
 .done .card{animation:none}.done h1{animation:none;color:var(--cyan)}.done .coin,.done button{animation:none}
 </style></head><body>
 <div class="stars" id="stars"></div>
+__AUDIO__
 <div class="card">
  <svg class="coin" viewBox="0 0 16 16" shape-rendering="crispEdges">
   <rect x="5" y="1" width="6" height="1" fill="#000"/><rect x="3" y="2" width="2" height="1" fill="#000"/><rect x="11" y="2" width="2" height="1" fill="#000"/>
@@ -55,14 +56,18 @@ button:hover{background:var(--cyan)}button:active{transform:translate(4px,4px);b
 </div>
 <script>
 const s=document.getElementById('stars');for(let i=0;i<40;i++){const e=document.createElement('i');e.style.left=Math.random()*100+'vw';e.style.top=Math.random()*100+'vh';e.style.animationDelay=Math.random()+'s';s.appendChild(e)}
-async function ack(){document.body.classList.add('done');document.querySelector('h1').textContent='NOTED!';document.getElementById('ok').textContent='✔ OK';
+async function ack(){const a=document.getElementById('snd');if(a)a.pause();document.body.classList.add('done');document.querySelector('h1').textContent='NOTED!';document.getElementById('ok').textContent='✔ OK';
  try{await fetch('/ack',{method:'POST'})}catch(e){} setTimeout(()=>window.close(),700)}
 document.getElementById('ok').onclick=ack;addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' ')ack()});
-</script></body></html>'''.replace('__TITLE__', html.escape(TITLE)).replace('__MSG__', html.escape(MSG))
+</script></body></html>'''.replace('__AUDIO__', '<audio id="snd" src="/sound.mp3" autoplay loop></audio>' if os.path.exists(os.path.join(HOME, 'sound.mp3')) else '').replace('__TITLE__', html.escape(TITLE)).replace('__MSG__', html.escape(MSG))
 
 class H(http.server.BaseHTTPRequestHandler):
     def log_message(self, *a): pass
     def do_GET(self):
+        if self.path.startswith('/sound.mp3'):
+            data = open(os.path.join(HOME, 'sound.mp3'), 'rb').read()
+            self.send_response(200); self.send_header('Content-Type', 'audio/mpeg'); self.send_header('Content-Length', str(len(data)))
+            self.end_headers(); self.wfile.write(data); return
         self.send_response(200); self.send_header('Content-Type', 'text/html; charset=utf-8'); self.end_headers(); self.wfile.write(PAGE.encode())
     def do_POST(self):
         acked.set(); self.send_response(204); self.end_headers()
@@ -145,13 +150,15 @@ def quit_browser(profile):
 
 srv = http.server.ThreadingHTTPServer(('127.0.0.1', PORT), H)
 threading.Thread(target=srv.serve_forever, daemon=True).start()
-threading.Thread(target=ring, daemon=True).start()
+# ~/bling/sound.mp3 (if present) loops in the page instead of the system chimes.
+if not os.path.exists(os.path.join(HOME, 'sound.mp3')):
+    threading.Thread(target=ring, daemon=True).start()
 X, Y, W, Hh = screen()
 w, h = 760, 560
 # Fresh profile each time: the browser otherwise restores the last window spot and ignores --window-position.
 PROFILE = tempfile.mkdtemp(prefix='bling-chrome-')
 args = [f'--app=http://127.0.0.1:{PORT}/', f'--window-size={w},{h}', f'--window-position={X + (W - w) // 2},{Y + (Hh - h) // 2}',
-        '--user-data-dir=' + PROFILE, '--no-first-run', '--no-default-browser-check']
+        '--user-data-dir=' + PROFILE, '--no-first-run', '--no-default-browser-check', '--autoplay-policy=no-user-gesture-required']
 cmd = browser()
 subprocess.Popen(cmd + ([f'http://127.0.0.1:{PORT}/'] if cmd == ['xdg-open'] else args))
 acked.wait(3600)
