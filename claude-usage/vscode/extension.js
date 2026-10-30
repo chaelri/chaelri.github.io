@@ -368,7 +368,7 @@ async function pickSession() {
 /// What the webview is handed. Everything display-shaped is computed here, in
 /// the extension host, so the page stays a renderer — the reset strings already
 /// carry the user's locale, and the page never has to know the API's shape.
-/// Flag file read by ~/bling/on-stop.sh (a Claude Code Stop hook): while it
+/// Flag file read by bling/on_stop.py (a Claude Code Stop hook): while it
 /// exists, every finished reply pops the 8-bit bling alert.
 const BLING_FLAG = path.join(os.homedir(), 'bling', 'enabled');
 
