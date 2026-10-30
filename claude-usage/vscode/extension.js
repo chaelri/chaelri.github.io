@@ -368,8 +368,25 @@ async function pickSession() {
 /// What the webview is handed. Everything display-shaped is computed here, in
 /// the extension host, so the page stays a renderer — the reset strings already
 /// carry the user's locale, and the page never has to know the API's shape.
+/// Flag file read by ~/bling/on-stop.sh (a Claude Code Stop hook): while it
+/// exists, every finished reply pops the 8-bit bling alert.
+const BLING_FLAG = path.join(os.homedir(), 'bling', 'enabled');
+
+function toggleBling() {
+    try {
+        if (fs.existsSync(BLING_FLAG)) fs.unlinkSync(BLING_FLAG);
+        else {
+            fs.mkdirSync(path.dirname(BLING_FLAG), { recursive: true });
+            fs.writeFileSync(BLING_FLAG, '');
+        }
+    } catch (err) {
+        vscode.window.showErrorMessage('Bling toggle failed: ' + err.message);
+    }
+}
+
 function snapshot() {
     return {
+        bling: fs.existsSync(BLING_FLAG),
         error: state.error,
         loading: state.loading,
         updated: updatedText(),
@@ -397,6 +414,10 @@ class UsagePanel {
         view.webview.html = page();
         view.webview.onDidReceiveMessage((message) => {
             if (message === 'refresh') refresh();
+            if (message === 'bling') {
+                toggleBling();
+                this.post();
+            }
             if (message === 'deploy' && deploy.url) {
                 vscode.env.openExternal(vscode.Uri.parse(deploy.url));
             }
@@ -497,6 +518,16 @@ function page() {
   .row .foot { margin-top: 5px; font-size: 11px; display: flex; justify-content: space-between; gap: 8px; }
   .row .foot span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
+  /* Bling switch: a full-width row so it reads as a setting, not a link. */
+  button.bling {
+    margin: 14px 0 0; padding: 6px 0; width: 100%; display: flex; align-items: center; justify-content: space-between;
+    color: var(--vscode-foreground); font-size: 12px;
+  }
+  button.bling:hover { text-decoration: none; background: none; }
+  .bling .sw { width: 28px; height: 16px; border-radius: 99px; background: var(--track); position: relative; flex: none; transition: background .15s; }
+  .bling .sw i { position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 99px; background: var(--vscode-foreground); transition: left .15s; }
+  .bling.on .sw { background: var(--link); }
+  .bling.on .sw i { left: 14px; background: var(--vscode-editor-background, #fff); }
   .footer { margin-top: 16px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 11px; }
   button {
     font: inherit; font-size: 11px; color: var(--link);
@@ -618,7 +649,13 @@ function page() {
           .join('')
       : '';
 
+  const blingHtml = (on) =>
+    '<button class="bling' + (on ? ' on' : '') + '" data-send="bling" role="switch" aria-checked="' + !!on + '" ' +
+    'title="Pop a ringing alert after every Claude reply">' +
+    '<span class="lbl">Bling alert on every reply</span><span class="sw"><i></i></span></button>';
+
   const footerHtml = (data) =>
+    blingHtml(data.bling) +
     deployHtml(data.deploy) +
     '<div class="footer"><span class="muted">' + esc(data.updated) + '</span>' +
     '<button data-send="refresh">Refresh</button></div>';
