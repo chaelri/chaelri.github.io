@@ -4,6 +4,7 @@
 import html, http.server, os, platform, shutil, subprocess, sys, tempfile, threading, time
 TITLE = sys.argv[1] if len(sys.argv) > 1 else 'DONE!'
 MSG = sys.argv[2] if len(sys.argv) > 2 else 'Task finished.'
+FOLDER = sys.argv[3] if len(sys.argv) > 3 else ''  # project to bring forward in VS Code on GOT IT
 PORT = 48797
 OS = platform.system()  # 'Darwin', 'Windows', 'Linux'
 HOME = os.path.join(os.path.expanduser('~'), 'bling')
@@ -161,7 +162,25 @@ args = [f'--app=http://127.0.0.1:{PORT}/', f'--window-size={w},{h}', f'--window-
         '--user-data-dir=' + PROFILE, '--no-first-run', '--no-default-browser-check', '--autoplay-policy=no-user-gesture-required']
 cmd = browser()
 subprocess.Popen(cmd + ([f'http://127.0.0.1:{PORT}/'] if cmd == ['xdg-open'] else args))
+def focus_vscode():
+    """Bring VS Code forward: the window for FOLDER when known (the `code` CLI focuses an already-open folder), else the app."""
+    code = shutil.which('code') or shutil.which('code.cmd')
+    for c in ('/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code',
+              os.path.join(os.environ.get('LOCALAPPDATA', ''), 'Programs', 'Microsoft VS Code', 'bin', 'code.cmd')):
+        if not code and os.path.exists(c):
+            code = c
+    if FOLDER and os.path.isdir(FOLDER) and code:
+        subprocess.Popen([code, FOLDER], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    elif OS == 'Darwin':
+        subprocess.Popen(['open', '-a', 'Visual Studio Code'])
+    elif OS == 'Windows':
+        os.startfile('vscode://')
+    elif code:
+        subprocess.Popen([code])
+
 acked.wait(3600)
+if acked.is_set():
+    focus_vscode()
 time.sleep(1); srv.shutdown()
 quit_browser(PROFILE); time.sleep(1)
 shutil.rmtree(PROFILE, ignore_errors=True)

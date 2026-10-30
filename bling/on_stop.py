@@ -36,16 +36,17 @@ def main():
     sys.path.insert(0, HERE)
     from summary import summarise
     try:
-        title, msg = summarise(json.load(sys.stdin))
+        d = json.load(sys.stdin)
+        title, msg = summarise(d)
     except Exception:
-        title, msg = 'CLAUDE REPLIED!', 'New response.'
+        d, title, msg = {}, 'CLAUDE REPLIED!', 'New response.'
     log = open(os.path.join(HOME, 'last.log'), 'w')  # errors from the alert land here
     kw = {'stdin': subprocess.DEVNULL, 'stdout': log, 'stderr': log}
     if WINDOWS:
         kw['creationflags'] = 0x00000008 | 0x00000200  # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
     else:
         kw['start_new_session'] = True
-    subprocess.Popen([sys.executable, os.path.join(HERE, 'bling.py'), title, msg], **kw)
+    subprocess.Popen([sys.executable, os.path.join(HERE, 'bling.py'), title, msg, d.get('cwd', '')], **kw)
 
 if __name__ == '__main__':
     main()
