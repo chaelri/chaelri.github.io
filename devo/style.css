@@ -14423,3 +14423,24 @@ body:not(.light) #reflectContent ol.refl-unified > li { padding: 16px; }
 }
 .nr-place img { width: 16px; height: 16px; image-rendering: pixelated; image-rendering: crisp-edges; }
 .light .nr-place { background: rgba(0, 0, 0, 0.06); color: #6b4f1a; }
+
+/* Book/chapter picker on phones: fill the whole screen (no strip of page
+   showing underneath) and push the header below the status bar / notch. */
+@media (max-width: 640px) {
+  .bc-sheet-panel,
+  body:not(.light) .bc-sheet-panel {
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .bc-sheet-header,
+  body:not(.light) .bc-sheet-header {
+    padding-top: calc(14px + env(safe-area-inset-top, 0px));
+  }
+}
+@supports not (height: 1dvh) {
+  @media (max-width: 640px) {
+    .bc-sheet-panel, body:not(.light) .bc-sheet-panel { height: 100vh; max-height: 100vh; }
+  }
+}
