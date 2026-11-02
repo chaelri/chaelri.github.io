@@ -251,7 +251,7 @@ function _scWaves(k) { // v5-7: waves of death, torrents; He heard from His temp
 function _scStorm(k) { // v8-16: the earth shook; He rode on a cherub; lightning
   k.sky(["#07070d", "#110d18", "#1a1222", "#24131d"], 0, 40);
   // Smoke out of His nostrils, fire from His mouth: rolling black clouds.
-  for (let i = 0; i < 10; i++) k.cloud(((8 + i * 14 + k.t * 3) % 140) - 6, 4 + (i % 2) * 2, 18, "#1c1a24", "#0f0d14");
+  for (let i = 0; i < 10; i++) k.cloud(((8 + i * 16 + k.t * 3) % 160) - 16, 4 + (i % 2) * 2, 18, "#1c1a24", "#0f0d14");
   // The cherub's wings spread across the dark.
   const flap = Math.sin(k.t * 3) * 3;
   for (let side of [-1, 1]) {
@@ -328,6 +328,11 @@ function _scScroll(k) { // v21-28: clean hands; His ordinances were before me
   k.rect(21, 25, 8, 1, "#6fb0e0");
   k.px(21 + (k.f % 8), 25, "#cfe8ff");
   k.sprite(_SC_KNEEL, _SC_PAL, 40, 21 + (Math.floor(k.t * 0.8) % 2));
+  // Dust motes drifting up through the lamplight.
+  for (let i = 0; i < 8; i++) {
+    const q = (k.t * 0.15 + i / 8) % 1;
+    k.px(62 + ((i * 37) % 44) + Math.round(Math.sin(k.t + i) * 2), 30 - q * 26, q > 0.8 ? "#5a4a5a" : "#c9a87a");
+  }
   // The lamp on its stand.
   k.rect(100, 14, 2, 16, "#c9a046");
   k.rect(96, 29, 10, 1, "#c9a046");
@@ -355,16 +360,18 @@ function _scLamp(k) { // v29-30: You are my lamp; by my God I leap over a wall
   }
   for (let x = 60; x < 86; x += 4) k.rect(x, 16, 2, 2, "#5a4a42");
   // The leap, on a loop: run up, clear the wall, land on the far side.
-  const p = (k.t * 0.32) % 1;
+  // 0–0.75 of the cycle is the jump; the rest he stands where he landed.
+  const p = Math.min(((k.t * 0.3) % 1) / 0.75, 1);
   const at = (q) => [37 + q * 60, 26 - Math.sin(q * Math.PI) * 24];
-  for (let q = Math.max(0, p - 0.18); q < p; q += 0.03) { const [x, y] = at(q); k.px(x + 3, y + 12, "#ffe9a0"); }
-  if (p < 0.94) { const [x, y] = at(p); k.sprite(_SC_DAVID, _SC_PAL, x, y); }
+  if (p < 1) for (let q = Math.max(0, p - 0.18); q < p; q += 0.03) { const [x, y] = at(q); k.px(x + 3, y + 12, "#ffe9a0"); }
+  const [dx, dy] = at(p);
+  k.sprite(_SC_DAVID, _SC_PAL, dx, dy);
   k.ridge(() => 38, "#1a1414");
 }
 
 function _scHeights(k) { // v31-37: feet like hinds' feet; my arms bend a bow of bronze
   k.sky(["#4a7ec0", "#7fa9d8", "#b6d3ea", "#f0dcb0"], 0, 30);
-  k.cloud(((20 + k.t * 2) % 150) - 12, 6, 18, "#ffffff");
+  k.cloud(((20 + k.t * 2) % 160) - 16, 6, 18, "#ffffff");
   k.ridge((x) => 18 + Math.abs(((x + 10) % 50) - 25) * 0.7, "#8a97b8");
   k.ridge((x) => 10 + Math.abs(x - 96) * 0.6 + Math.sin(x) * 0.8, "#6a5a6a", 40, 66, 128);
   k.rect(92, 10, 9, 2, "#f2f4ff");
