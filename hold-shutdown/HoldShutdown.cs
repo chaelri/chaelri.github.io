@@ -24,6 +24,7 @@ static class Program
         bool created;
         Mutex mutex = new Mutex(true, "HoldShutdown.SingleInstance", out created);
         if (!created) return;
+        if (args.Length == 2 && args[0] == "--preview") { Overlay.Preview(args[1]); return; }
         Native.SetProcessDPIAware();
         Application.EnableVisualStyles();
         Application.Run(new App(Config.Parse(args)));
@@ -351,8 +352,8 @@ class EdgeGlow : Form
             using (Graphics g = Graphics.FromImage(bmp))
             {
                 g.Clear(Color.Transparent);
-                Color edge = Color.FromArgb(230, 255, 30, 50);
-                Color clear = Color.FromArgb(0, 255, 30, 50);
+                Color edge = Color.FromArgb(210, 255, 84, 112);
+                Color clear = Color.FromArgb(0, 255, 84, 112);
                 // top, bottom, left, right gradients
                 using (LinearGradientBrush lb = new LinearGradientBrush(new Rectangle(0, 0, w, t), edge, clear, LinearGradientMode.Vertical))
                     g.FillRectangle(lb, 0, 0, w, t);
@@ -363,7 +364,7 @@ class EdgeGlow : Form
                 using (LinearGradientBrush lb = new LinearGradientBrush(new Rectangle(w - t, 0, t, h), clear, edge, LinearGradientMode.Horizontal))
                     g.FillRectangle(lb, w - t, 0, t, h);
                 // hard bright line right at the edge
-                using (Pen p = new Pen(Color.FromArgb(255, 255, 70, 85), 6))
+                using (Pen p = new Pen(Color.FromArgb(230, 255, 110, 140), 4))
                     g.DrawRectangle(p, 3, 3, w - 6, h - 6);
             }
 
@@ -419,6 +420,27 @@ class Overlay : Form
         }
     }
 
+    public static void Preview(string path)
+    {
+        using (Overlay o = new Overlay())
+        using (Bitmap strip = new Bitmap(S * 4, S))
+        using (Graphics sg = Graphics.FromImage(strip))
+        {
+            sg.Clear(Color.FromArgb(60, 70, 90));
+            double[] ps = { 0.15, 0.55, 0.92, 1 };
+            for (int i = 0; i < 4; i++)
+                using (Bitmap b = new Bitmap(S, S))
+                using (Graphics g = Graphics.FromImage(b))
+                {
+                    g.SmoothingMode = SmoothingMode.AntiAlias;
+                    g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
+                    o.Draw(g, ps[i], 1, 1.3 + i, i == 3 ? Mode.TestDone : Mode.Charging, 5 * (1 - ps[i]), true);
+                    sg.DrawImage(b, i * S, 0);
+                }
+            strip.Save(path);
+        }
+    }
+
     public void HideOverlay()
     {
         if (visible) { Native.ShowWindow(Handle, 0); visible = false; }
@@ -450,115 +472,167 @@ class Overlay : Form
         if (!visible) { Native.ShowWindow(Handle, 4 /*SW_SHOWNOACTIVATE*/); visible = true; }
     }
 
+    // Cozy "little planet" style: sticker outlines, cream + pastel, a sleepy planet face.
+    static readonly Color Navy = Color.FromArgb(34, 38, 75);
+    static readonly Color Cream = Color.FromArgb(255, 246, 228);
+    static readonly Color Sky = Color.FromArgb(142, 197, 255);
+    static readonly Color SkyDeep = Color.FromArgb(104, 160, 240);
+    static readonly Color Sun = Color.FromArgb(255, 212, 92);
+    static readonly Color Rose = Color.FromArgb(255, 122, 156);
+    static readonly Color Mint = Color.FromArgb(126, 222, 170);
+
+    static GraphicsPath RoundRect(float x, float y, float w, float h, float r)
+    {
+        GraphicsPath p = new GraphicsPath();
+        float d = r * 2;
+        p.AddArc(x, y, d, d, 180, 90);
+        p.AddArc(x + w - d, y, d, d, 270, 90);
+        p.AddArc(x + w - d, y + h - d, d, d, 0, 90);
+        p.AddArc(x, y + h - d, d, d, 90, 90);
+        p.CloseFigure();
+        return p;
+    }
+
+    static GraphicsPath StarPath(float cx, float cy, float r, double rot, int points, float inner)
+    {
+        GraphicsPath p = new GraphicsPath();
+        PointF[] pts = new PointF[points * 2];
+        for (int i = 0; i < pts.Length; i++)
+        {
+            double ang = rot + i * Math.PI / points - Math.PI / 2;
+            float rr = (i % 2 == 0) ? r : r * inner;
+            pts[i] = new PointF(cx + (float)(Math.Cos(ang) * rr), cy + (float)(Math.Sin(ang) * rr));
+        }
+        p.AddPolygon(pts);
+        return p;
+    }
+
     void Draw(Graphics g, double p, double a, double time, Mode mode, double remaining, bool test)
     {
         float c = S / 2f;
-        Color cool = Color.FromArgb(0, 220, 255);
-        Color hot = Color.FromArgb(255, 60, 90);
-        Color col;
-        if (mode == Mode.TestDone) col = Color.FromArgb(70, 230, 140);
-        else if (mode == Mode.ShuttingDown) col = hot;
-        else col = Lerp(cool, hot, p);
+        bool doneMode = mode != Mode.Charging;
+        Color fill = mode == Mode.TestDone ? Mint : Lerp(Sun, Rose, p);
 
-        // final-second urgency pulse: the ring breathes and shockwaves go out
+        // gentle float; wobbles faster near the end
         bool urgent = mode == Mode.Charging && remaining < 1.2 && p > 0;
-        float breathe = urgent ? (float)(Math.Sin(time * 18) * 2.5) : 0f;
+        float bob = (float)Math.Sin(time * (urgent ? 14 : 3)) * (urgent ? 2.2f : 1.5f);
 
-        // shockwaves
-        if (urgent || mode != Mode.Charging)
+        // twinkling sparkles
+        double[] sAng = { -2.4, -0.7, 0.5, 2.6 };
+        float[] sRad = { 84, 88, 82, 86 };
+        for (int i = 0; i < sAng.Length; i++)
         {
-            for (int i = 0; i < 2; i++)
-            {
-                double ph = (time * (mode == Mode.Charging ? 1.6 : 1.0) + i * 0.5) % 1.0;
-                float r = 74 + (float)(ph * 48);
-                using (Pen sw = new Pen(A(Color.FromArgb(150, col), a * (1 - ph)), 2.5f))
-                    g.DrawEllipse(sw, c - r, c - r, r * 2, r * 2);
-            }
+            float tw = (float)(0.55 + 0.45 * Math.Sin(time * 3.2 + i * 1.7));
+            float sx = c + (float)(Math.Cos(sAng[i]) * sRad[i]);
+            float sy = c + (float)(Math.Sin(sAng[i]) * sRad[i]);
+            using (GraphicsPath sp = StarPath(sx, sy, 6.5f * tw, 0, 4, 0.32f))
+            using (SolidBrush sb = new SolidBrush(A(Color.FromArgb(235, Cream), a * tw)))
+                g.FillPath(sb, sp);
         }
 
-        // backdrop disc
-        float br = 72 + breathe;
-        using (GraphicsPath gp = new GraphicsPath())
-        {
-            gp.AddEllipse(c - br, c - br, br * 2, br * 2);
-            using (PathGradientBrush pg = new PathGradientBrush(gp))
-            {
-                pg.CenterColor = A(Color.FromArgb(215, 10, 12, 18), a);
-                pg.SurroundColors = new Color[] { A(Color.FromArgb(150, 18, 22, 32), a) };
-                g.FillPath(pg, gp);
-            }
-        }
+        // soft backdrop so it reads on any wallpaper
+        using (SolidBrush bd = new SolidBrush(A(Color.FromArgb(120, Navy), a)))
+            g.FillEllipse(bd, c - 70, c - 70, 140, 140);
 
-        // rotating outer tick ring (lights up with progress)
-        int ticks = 36;
-        double spin = time * (40 + 260 * p);
-        for (int i = 0; i < ticks; i++)
-        {
-            double ang = (i * 360.0 / ticks + spin) * Math.PI / 180;
-            bool lit = (double)i / ticks < p;
-            float r1 = 84 + breathe, r2 = lit ? 94 + breathe : 90 + breathe;
-            using (Pen tp = new Pen(A(lit ? Color.FromArgb(220, col) : Color.FromArgb(50, 255, 255, 255), a), lit ? 2.5f : 1.5f))
-            {
-                tp.StartCap = tp.EndCap = LineCap.Round;
-                g.DrawLine(tp,
-                    c + (float)(Math.Cos(ang) * r1), c + (float)(Math.Sin(ang) * r1),
-                    c + (float)(Math.Cos(ang) * r2), c + (float)(Math.Sin(ang) * r2));
-            }
-        }
+        // orbit track (sticker: navy outline under cream)
+        float rr = 56;
+        RectangleF orbit = new RectangleF(c - rr, c - rr, rr * 2, rr * 2);
+        using (Pen o = new Pen(A(Navy, a), 15)) g.DrawEllipse(o, orbit);
+        using (Pen t = new Pen(A(Color.FromArgb(255, Cream), a), 10)) g.DrawEllipse(t, orbit);
 
-        // track
-        float rr = 60;
-        RectangleF ring = new RectangleF(c - rr, c - rr, rr * 2, rr * 2);
-        using (Pen track = new Pen(A(Color.FromArgb(40, 255, 255, 255), a), 9))
-            g.DrawEllipse(track, ring);
-
-        // progress arc with glow
+        // progress fill
         float sweep = (float)(360 * p);
-        if (sweep > 0.5f)
+        if (sweep > 1)
         {
-            float[] widths = { 26, 18, 9 };
-            int[] alphas = { 35, 70, 255 };
-            for (int i = 0; i < widths.Length; i++)
+            using (Pen pf = new Pen(A(fill, a), 10))
             {
-                using (Pen pp = new Pen(A(Color.FromArgb(alphas[i], col), a), widths[i]))
-                {
-                    pp.StartCap = pp.EndCap = LineCap.Round;
-                    g.DrawArc(pp, ring, -90, sweep);
-                }
+                pf.StartCap = pf.EndCap = LineCap.Round;
+                g.DrawArc(pf, orbit, -90, sweep);
             }
-            // bright head
-            double ha = (-90 + sweep) * Math.PI / 180;
-            float hx = c + (float)(Math.Cos(ha) * rr), hy = c + (float)(Math.Sin(ha) * rr);
-            using (SolidBrush hb = new SolidBrush(A(Color.FromArgb(255, 255, 255, 255), a)))
-                g.FillEllipse(hb, hx - 4.5f, hy - 4.5f, 9, 9);
         }
 
-        // center text
-        StringFormat sf = new StringFormat();
-        sf.Alignment = StringAlignment.Center;
-        sf.LineAlignment = StringAlignment.Center;
-        string big, small;
-        if (mode == Mode.TestDone) { big = "TEST OK"; small = "would shut down now"; }
-        else if (mode == Mode.ShuttingDown) { big = "BYE"; small = "shutting down"; }
-        else { big = remaining.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture); small = test ? "TEST  hold to shut down" : "hold to shut down"; }
-
-        using (Font fb = new Font("Segoe UI Semibold", mode == Mode.Charging ? 24 : 17, FontStyle.Bold, GraphicsUnit.Pixel))
-        using (Font fs = new Font("Segoe UI", 9.5f, FontStyle.Regular, GraphicsUnit.Pixel))
-        using (SolidBrush tb = new SolidBrush(A(Color.FromArgb(255, 245, 248, 255), a)))
-        using (SolidBrush sb = new SolidBrush(A(Color.FromArgb(190, col), a)))
+        // little star riding the orbit
+        double ha = (-90 + Math.Max(sweep, 0)) * Math.PI / 180;
+        float hx = c + (float)(Math.Cos(ha) * rr), hy = c + (float)(Math.Sin(ha) * rr);
+        using (GraphicsPath st = StarPath(hx, hy, 11, time * 1.5, 5, 0.5f))
         {
-            // power glyph above the number
-            if (mode == Mode.Charging)
+            using (Pen so = new Pen(A(Navy, a), 3.5f)) { so.LineJoin = LineJoin.Round; g.DrawPath(so, st); }
+            using (SolidBrush sf = new SolidBrush(A(Sun, a))) g.FillPath(sf, st);
+        }
+
+        // the planet
+        float pr = 31, py = c + bob;
+        RectangleF planet = new RectangleF(c - pr, py - pr, pr * 2, pr * 2);
+        using (GraphicsPath pp = new GraphicsPath())
+        {
+            pp.AddEllipse(planet);
+            using (LinearGradientBrush lg = new LinearGradientBrush(planet, A(Sky, a), A(SkyDeep, a), 60f))
+                g.FillPath(lg, pp);
+            // craters
+            using (SolidBrush cr = new SolidBrush(A(Color.FromArgb(70, 255, 255, 255), a)))
             {
-                using (Pen pw = new Pen(A(Color.FromArgb(200, col), a), 2.2f))
+                g.FillEllipse(cr, c + 12, py - 22, 9, 7);
+                g.FillEllipse(cr, c - 22, py + 10, 7, 6);
+            }
+            using (Pen po = new Pen(A(Navy, a), 3.5f)) g.DrawPath(po, pp);
+        }
+
+        // face: eyes get sleepier as the hold fills, closed when done
+        double sleepy = doneMode ? 1 : Math.Max(0, (p - 0.55) / 0.45);
+        using (Pen fp = new Pen(A(Navy, a), 2.6f))
+        using (SolidBrush fb = new SolidBrush(A(Navy, a)))
+        using (SolidBrush blush = new SolidBrush(A(Color.FromArgb(150, Rose), a)))
+        {
+            fp.StartCap = fp.EndCap = LineCap.Round;
+            float ey = py - 1;
+            for (int s = -1; s <= 1; s += 2)
+            {
+                float ex = c + s * 11;
+                if (sleepy >= 0.95)
+                    g.DrawArc(fp, ex - 4.5f, ey - 3, 9, 6, 20, 140);          // closed, content
+                else
                 {
-                    pw.StartCap = pw.EndCap = LineCap.Round;
-                    g.DrawArc(pw, c - 7, c - 33, 14, 14, -55, 290);
-                    g.DrawLine(pw, c, c - 36, c, c - 27);
+                    float eh = 8f * (float)(1 - sleepy * 0.75);
+                    g.FillEllipse(fb, ex - 3, ey - eh / 2, 6, eh);
+                }
+                g.FillEllipse(blush, ex - 5 + s * 3, py + 6, 9, 5);
+            }
+            g.DrawArc(fp, c - 4, py + 3, 8, 6, 20, 140);                     // small smile
+        }
+
+        // floating z's once asleep
+        if (doneMode)
+        {
+            using (Font zf = new Font("Segoe UI Black", 12, FontStyle.Regular, GraphicsUnit.Pixel))
+            {
+                for (int i = 0; i < 2; i++)
+                {
+                    double ph = (time * 0.7 + i * 0.5) % 1.0;
+                    using (SolidBrush zb = new SolidBrush(A(Cream, a * (1 - ph))))
+                        g.DrawString("z", zf, zb, c + 22 + (float)(ph * 10) + i * 4, py - 36 - (float)(ph * 22));
                 }
             }
-            g.DrawString(big, fb, tb, new RectangleF(0, c - 16, S, 32), sf);
-            g.DrawString(small, fs, sb, new RectangleF(0, c + 14, S, 16), sf);
+        }
+
+        // pill label
+        string label;
+        if (mode == Mode.TestDone) label = "test ok  good night";
+        else if (mode == Mode.ShuttingDown) label = "good night";
+        else label = remaining.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + (test ? "  test" : "");
+        using (Font lf = new Font("Segoe UI Black", 12, FontStyle.Regular, GraphicsUnit.Pixel))
+        {
+            SizeF ts = g.MeasureString(label, lf);
+            float pw = ts.Width + 20, ph = 24, px = c - pw / 2, pyy = c + 78;
+            using (GraphicsPath pill = RoundRect(px, pyy, pw, ph, ph / 2))
+            {
+                using (SolidBrush pb = new SolidBrush(A(Cream, a))) g.FillPath(pb, pill);
+                using (Pen po = new Pen(A(Navy, a), 3f)) g.DrawPath(po, pill);
+            }
+            StringFormat sf = new StringFormat();
+            sf.Alignment = StringAlignment.Center;
+            sf.LineAlignment = StringAlignment.Center;
+            using (SolidBrush lb = new SolidBrush(A(Navy, a)))
+                g.DrawString(label, lf, lb, new RectangleF(px, pyy + 1, pw, ph), sf);
         }
     }
 
