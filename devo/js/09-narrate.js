@@ -515,7 +515,15 @@ function _nrPoetryLines(text, names, minHits) {
       return known ? `${p}\n` : m;
     });
 }
-function _nrBr(html) { return String(html).replace(/\n/g, "<br>"); }
+// Poetry lines as blocks with a hanging indent, so a line that wraps on a
+// narrow page shows its continuation indented — the way printed Bibles tell a
+// wrapped line from a new one. The verse number rides on the first line.
+function _nrLines(prefix, html, poetic) {
+  if (!poetic && !String(html).includes("\n")) return prefix + html;
+  return String(html).split("\n")
+    .map((line, i) => `<span class="nr-pl">${i ? "" : prefix}${line}</span>`)
+    .join("");
+}
 
 function _nrStripSpeechMarks(text) {
   return String(text || "")
@@ -1021,7 +1029,7 @@ function _nrRenderBeats(data, sections) {
           <div class="nr-bubble-wrap">
             <div class="nr-who" style="color:${tone.ink}">${_nrEsc(speaker)}${to}</div>
             <div class="nr-bubble" data-rk="${rk}" data-rv="${beatVerse || ""}" style="background:${tone.bg};border-color:${tone.ring}">
-              ${chip}${_nrBr(mark(_nrMarkInnerQuotes(_nrEsc(_nrPoetryLines(_nrStripSpeechMarks(beat.text), poetryNames, poetic ? 0 : 1)))))}
+              ${_nrLines(chip, mark(_nrMarkInnerQuotes(_nrEsc(_nrPoetryLines(_nrStripSpeechMarks(beat.text), poetryNames, poetic ? 0 : 1)))), poetic)}
             </div>
           </div>
         </div>`;
@@ -1035,7 +1043,7 @@ function _nrRenderBeats(data, sections) {
       if (!beat.text) return "";
       lastSpeaker = null;
       return headings + `<div class="nr-pageable nr-line nr-narr${beat._cont && !headings ? " nr-cont" : ""}" data-rk="${rk}" data-rv="${beatVerse || ""}" ${delay}>
-        <p>${chip}${_nrBr(mark(_nrMarkInnerQuotes(_nrEsc(_nrPoetryLines(beat.text, poetryNames, poetic ? 0 : 2)))))}</p>
+        <p>${_nrLines(chip, mark(_nrMarkInnerQuotes(_nrEsc(_nrPoetryLines(beat.text, poetryNames, poetic ? 0 : 2)))), false)}</p>
       </div>`;
     })
     .join("");

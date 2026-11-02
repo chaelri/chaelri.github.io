@@ -14645,3 +14645,10 @@ body:not(.light) #reflectContent ol.refl-unified > li { padding: 16px; }
 }
 .nr-narr .nr-chip.nr-vnum { margin: 0 5px 0 0; }
 .nr-chip.nr-vnum:hover { opacity: 1; transform: none; }
+
+/* Poetry lines (_nrLines): hanging indent for the wrapped part of a line. */
+.nr-pl {
+  display: block;
+  padding-left: 1.1em;
+  text-indent: -1.1em;
+}
