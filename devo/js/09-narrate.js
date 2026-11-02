@@ -1273,13 +1273,18 @@ function _nrBookTurn(delta, target) {
   const gap = parseFloat(cs.columnGap) || 0;
   const W = scroll.clientWidth, H = scroll.clientHeight, half = W / 2;
   const bg = getComputedStyle(shell).backgroundColor;
+  // The card no longer clips (its close + arrows sit outside it), so each page
+  // copy carries the card's rounded corners on its outer edge itself —
+  // otherwise the corners flash square for the length of the turn.
+  const rad = getComputedStyle(shell).borderTopLeftRadius || "0px";
   const realCv = [...scroll.querySelectorAll("canvas")];
 
   const page = (idx, side) => {
     const d = document.createElement("div");
     d.className = "nr-curl-page nr-leaf-page";
     d.style.cssText = `width:${half}px;height:${H}px;background:${bg};` +
-      `padding:${pt}px ${side === "L" ? gap / 2 : pr}px 0 ${side === "L" ? pl : gap / 2}px;`;
+      `padding:${pt}px ${side === "L" ? gap / 2 : pr}px 0 ${side === "L" ? pl : gap / 2}px;` +
+      `border-radius:${side === "L" ? `${rad} 0 0 ${rad}` : `0 ${rad} ${rad} 0`};`;
     (_nrPages[idx] || []).forEach((el) => {
       const c = el.cloneNode(true);
       c.removeAttribute("id");
