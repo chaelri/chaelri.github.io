@@ -100,6 +100,7 @@ gemini-proxy/.credentials.md
 # Local OAuth token stores — never commit (GitHub push protection blocks these)
 gemini-proxy/.gmail-creds-*.json
 gemini-proxy/.drive-creds.json
+gemini-proxy/.drive-creds-*.json
 gemini-proxy/.drive-client.json
 
 # ClickFlow build output
