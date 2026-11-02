@@ -72,7 +72,8 @@ class App : ApplicationContext
     IntPtr hook;
 
     volatile bool gameRunning;
-    bool holding, fired, paused;
+    const double GoodnightSecs = 3.0;
+    bool holding, fired, paused, executed;
     double alpha, shownProgress;
     ToolStripMenuItem testItem, pauseItem;
 
@@ -207,11 +208,20 @@ class App : ApplicationContext
 
         if (done.IsRunning)
         {
+            // 1) "shutting down..." screen stays up for GoodnightSecs
+            // 2) then the real shutdown runs (screen stays until Windows takes over)
+            //    or, in test mode, "test ok" shows and fades out
             double dt = done.Elapsed.TotalSeconds;
-            if (dt > 1.8) alpha = Math.Max(0, alpha - 0.08);
-            overlay.Render(cur, 1.0, alpha, t, cfg.Test ? Overlay.Mode.TestDone : Overlay.Mode.ShuttingDown, 0, cfg.Test);
-            Blink(cur, 1.0, cfg.Test ? 3.0 : 8.0);
-            if (alpha <= 0 && dt > 1.8) { done.Reset(); Hide(); }
+            if (dt >= GoodnightSecs && !executed)
+            {
+                executed = true;
+                if (!cfg.Test && !ExecuteShutdown()) { done.Reset(); Hide(); return; }
+            }
+            bool testResult = cfg.Test && dt >= GoodnightSecs;
+            if (testResult && dt > GoodnightSecs + 1.8) alpha = Math.Max(0, alpha - 0.08);
+            overlay.Render(cur, 1.0, alpha, t, testResult ? Overlay.Mode.TestDone : Overlay.Mode.ShuttingDown, 0, cfg.Test);
+            Blink(cur, 1.0, testResult ? 1.5 : 2.5);
+            if (alpha <= 0) { done.Reset(); Hide(); }
             return;
         }
 
@@ -266,18 +276,24 @@ class App : ApplicationContext
     void Fire()
     {
         done.Restart();
+        executed = false;
         alpha = 1;
-        if (cfg.Test) return;
+    }
+
+    bool ExecuteShutdown()
+    {
         try
         {
-            ProcessStartInfo psi = new ProcessStartInfo("shutdown", "/s /t 1");
+            ProcessStartInfo psi = new ProcessStartInfo("shutdown", "/s /t 0");
             psi.CreateNoWindow = true;
             psi.UseShellExecute = false;
             Process.Start(psi);
+            return true;
         }
         catch (Exception e)
         {
             tray.ShowBalloonTip(4000, "Hold Shutdown", "Shutdown failed: " + e.Message, ToolTipIcon.Error);
+            return false;
         }
     }
 
@@ -616,8 +632,8 @@ class Overlay : Form
 
         // pill label
         string label;
-        if (mode == Mode.TestDone) label = "test ok  good night";
-        else if (mode == Mode.ShuttingDown) label = "good night";
+        if (mode == Mode.TestDone) label = "test ok, no shutdown";
+        else if (mode == Mode.ShuttingDown) label = "shutting down" + new string('.', 1 + (int)(time * 2.5) % 3);
         else label = remaining.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + (test ? "  test" : "");
         using (Font lf = new Font("Segoe UI Black", 12, FontStyle.Regular, GraphicsUnit.Pixel))
         {
