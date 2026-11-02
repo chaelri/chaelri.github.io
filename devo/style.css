@@ -14525,3 +14525,65 @@ body:not(.light) #reflectContent ol.refl-unified > li { padding: 16px; }
   -webkit-backface-visibility: hidden;
 }
 .nr-book-leaf .nr-leaf-back { transform: rotateY(180deg); }
+
+/* Spread = just the book. No header bar or footer: the title becomes a
+   running head on the left page, page numbers sit in the bottom outer
+   corners (set by _nrGoToPage), and the close + turn buttons float outside
+   the card on the backdrop. */
+.nr-shell.nr-spread {
+  max-width: min(900px, calc(100vw - 200px));
+  overflow: visible;
+}
+.nr-spread .nr-bar {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 0;
+  padding: 0;
+  border: none;
+  z-index: 4;
+}
+.nr-spread .nr-bar-title {
+  position: absolute;
+  top: 18px;
+  left: 36px;
+}
+.nr-spread .nr-bar-title strong {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: rgba(226, 232, 240, 0.45);
+}
+.light .nr-spread .nr-bar-title strong { color: rgba(26, 26, 46, 0.45); }
+.nr-spread .nr-close {
+  position: absolute;
+  top: 0;
+  right: -62px;
+}
+.nr-spread .nr-scroll { padding-top: 46px; padding-bottom: 40px; }
+.nr-spread .nr-pager {
+  position: absolute;
+  inset: 0 -84px;
+  z-index: 4;
+  padding: 0;
+  border: none;
+  justify-content: space-between;
+  pointer-events: none;
+}
+.nr-spread .nr-page-btn { pointer-events: auto; }
+.nr-spread .nr-page-btn:disabled { opacity: 0; pointer-events: none; }
+.nr-spread .nr-page-ind { display: none; }
+.nr-shell.nr-spread::before,
+.nr-shell.nr-spread::after {
+  position: absolute;
+  bottom: 16px;
+  z-index: 2;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: rgba(226, 232, 240, 0.4);
+  pointer-events: none;
+}
+.nr-shell.nr-spread::before { content: attr(data-pl); left: 36px; }
+.nr-shell.nr-spread::after { content: attr(data-pr); right: 36px; }
+.light .nr-shell.nr-spread::before,
+.light .nr-shell.nr-spread::after { color: rgba(26, 26, 46, 0.4); }

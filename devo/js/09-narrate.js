@@ -1204,6 +1204,12 @@ function _nrGoToPage(idx, animate = true) {
     !spread && scroll.scrollHeight > scroll.clientHeight + 2,
   );
 
+  // Spread: printed page numbers in the bottom outer corners (CSS reads these).
+  const shellEl = scroll.closest(".nr-shell");
+  if (shellEl) {
+    shellEl.dataset.pl = spread ? String(_nrPageIdx + 1) : "";
+    shellEl.dataset.pr = spread && _nrPageIdx + 1 < _nrPages.length ? String(_nrPageIdx + 2) : "";
+  }
   const ind = document.getElementById("nrPageInd");
   if (ind) {
     const last = Math.min(_nrPageIdx + shown.length, _nrPages.length);
