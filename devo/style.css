@@ -14706,3 +14706,16 @@ body:not(.light) #reflectContent ol.refl-unified > li { padding: 16px; }
 .nr-heads span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .nr-head-r { text-align: right; }
 .light .nr-heads { color: rgba(26, 26, 46, 0.42); }
+
+/* Poetry that breathes (long speeches): each verse is a small stanza. Its
+   first line sits at the margin, the lines answering it are indented (the
+   printed-Bible layout of Hebrew parallelism) and a touch softer, and verses
+   get air between them. Wrapped parts still hang one step further in. */
+.nr-song-text .nr-pl + .nr-pl {
+  padding-left: 2.3em;
+  text-indent: -1.1em;
+  color: rgba(230, 235, 243, 0.8);
+}
+.light .nr-song-text .nr-pl + .nr-pl { color: rgba(31, 36, 51, 0.78); }
+.nr-song { padding-bottom: 6px; }
+.nr-song.nr-run { padding-top: 14px; }
