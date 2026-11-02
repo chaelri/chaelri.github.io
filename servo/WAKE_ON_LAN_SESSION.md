@@ -34,8 +34,11 @@ describes Charlie's original setup (`servo/`). Use it as the reference implement
 - Copy `servo/pc-power/listener.ps1`, `install.ps1` and `README.md` into `servokarla/pc-power/` and change
   every value in the table. Copy `wol-power.ino` and change `PC_MAC`, `PC_PORT`, `PC_TOKEN`, the
   three RTDB URLs, `STREAM_PATH`, the ping/off strings and the startup log lines.
-- **WiFi:** ask which WiFi network(s) the ESP32 should join (SSID + password) and replace the
-  `wifiMulti.addAP(...)` lines. The ESP32 must be on the **same router/LAN as this PC**.
+- **WiFi:** Karla and Charlie are on the **same WiFi/LAN**, so keep the same `wifiMulti.addAP(...)` lines
+  from `wol-power.ino`. Don't ask for credentials. Because both PCs share one LAN, every broadcast reaches
+  both PCs. That's why the separate port (40511), token and `KARLA-*` messages matter: Charlie's listener
+  must never answer Karla's ESP32. Magic packets are safe on a shared LAN, because only the NIC with the
+  matching MAC wakes, so `PC_MAC` must be Karla's.
 - **No Cloud Scheduler, heartbeat or `/servo-poweron` copy.** Karla only needs the phone page and
   the ESP32. Don't build those unless asked.
 
