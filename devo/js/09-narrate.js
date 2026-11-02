@@ -477,13 +477,14 @@ const _NR_POETRY_OPENERS_SET = new Set(_NR_POETRY_OPENERS.split("|"));
 const _NR_POETRY_MIDKEEP = new Set(["I", "O", "He", "His", "Him", "Himself", "You", "Your", "Yours", "Yourself",
   "Me", "Mine", "Lord", "God", "Most", "High", "Almighty", "Spirit", "Holy", "One", "Name", "Rock", "Redeemer", "Shepherd"]);
 // Every word that appears lowercase anywhere in the loaded Bible, built once.
+// Hyphenated place names don't count ("Moresheth-gath" would make Gath common).
 let _nrLowerSet = null;
 function _nrLowerWords() {
   if (_nrLowerSet) return _nrLowerSet;
   if (typeof bibleData === "undefined" || !bibleData) return null;
   const set = new Set();
   const walk = (o) => {
-    if (typeof o === "string") { for (const m of o.matchAll(/\b[a-z][a-z’']+/g)) set.add(m[0].replace(/[’']/g, "")); }
+    if (typeof o === "string") { for (const m of o.matchAll(/(?<![-\w])[a-z][a-z’']+(?!-)/g)) set.add(m[0].replace(/[’']/g, "")); }
     else if (o && typeof o === "object") for (const v of Object.values(o)) walk(v);
   };
   walk(bibleData);
