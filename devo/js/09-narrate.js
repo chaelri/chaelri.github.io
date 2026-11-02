@@ -447,6 +447,20 @@ function _nrEsc(s) {
    sentence ("If I say, “…,” then take him"), and breaking them out would cut
    the sentence in half. Colour matches the reader's nested quotes so inner
    speech reads the same way throughout the app. */
+// A speech bubble already says "this is speech", so the speech's own quote
+// marks are dropped: the opening/closing pair around the whole bubble, and the
+// orphans poetry leaves (NASB re-opens every stanza with “ and closes only the
+// last). A balanced “…” pair inside — someone quoted within the speech — stays.
+function _nrStripSpeechMarks(text) {
+  return String(text || "")
+    .trim()
+    .replace(/^["“]\s*/, "")
+    .replace(/\s*["”]$/, "")
+    .replace(/“(?=[^”]*?(?:“|$))/g, "")
+    .replace(/(?<=(?:^|”)[^“]*)”/g, "")
+    .trim();
+}
+
 function _nrMarkInnerQuotes(escaped) {
   return String(escaped)
     .replace(/“([^”]+)”/g, '<span class="nr-inner">“$1”</span>')
@@ -861,7 +875,7 @@ function _nrRenderBeats(data, sections) {
           <div class="nr-bubble-wrap">
             <div class="nr-who" style="color:${tone.ink}">${_nrEsc(speaker)}${to}</div>
             <div class="nr-bubble" data-rk="${rk}" data-rv="${beatVerse || ""}" style="background:${tone.bg};border-color:${tone.ring}">
-              ${mark(_nrMarkInnerQuotes(_nrEsc(beat.text)))}
+              ${mark(_nrMarkInnerQuotes(_nrEsc(_nrStripSpeechMarks(beat.text))))}
               ${chip}
             </div>
           </div>
