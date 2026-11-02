@@ -13120,6 +13120,10 @@ body.nr-locked { overflow: hidden; }
   letter-spacing: 0.4px;
 }
 .nr-run .nr-avatar { border-color: transparent !important; background: none !important; }
+/* Runs carry the face and name in the markup (shown again when the run opens a
+   page — see _nrSetPageTop); hidden mid-run. */
+.nr-run .nr-avatar { visibility: hidden; }
+.nr-run .nr-who { display: none; }
 
 .nr-bubble-wrap { min-width: 0; flex: 1 1 auto; }
 .nr-who {

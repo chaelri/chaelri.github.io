@@ -854,12 +854,12 @@ function _nrRenderBeats(data, sections) {
         const divine = _nrIsDivine(speaker);
         const avatar = _nrFaceImg(speaker, data.cast, "nr-face")
           || (divine ? _NR_CROSS_SVG : _nrEsc(_nrInitials(speaker)));
-        return headings + `<div class="nr-pageable nr-line nr-line-say ${isRun ? "nr-run" : ""}" ${delay}>
+        return headings + `<div class="nr-pageable nr-line nr-line-say ${isRun ? "nr-run" : ""}" ${isRun ? 'data-run="1"' : ""} ${delay}>
           <div class="nr-avatar ${divine ? "nr-avatar-divine" : ""}" style="background:${tone.bg};border-color:${tone.ring};color:${tone.ink}">
-            ${isRun ? "" : avatar}
+            ${avatar}
           </div>
           <div class="nr-bubble-wrap">
-            ${isRun ? "" : `<div class="nr-who" style="color:${tone.ink}">${_nrEsc(speaker)}${to}</div>`}
+            <div class="nr-who" style="color:${tone.ink}">${_nrEsc(speaker)}${to}</div>
             <div class="nr-bubble" data-rk="${rk}" data-rv="${beatVerse || ""}" style="background:${tone.bg};border-color:${tone.ring}">
               ${mark(_nrMarkInnerQuotes(_nrEsc(beat.text)))}
               ${chip}
@@ -929,6 +929,13 @@ let _nrPageIdx = 0;
 // right-hand page). Pagination is unchanged — it measures at one column's
 // width — and the pager steps two pages at a time.
 const _nrSpreadMQ = window.matchMedia?.("(min-width: 1024px) and (hover: hover)");
+// A beat that opens a page. A continued speech run normally hides its face
+// and name; at the top of a page it shows them again, or you lose track of
+// who is still talking.
+function _nrSetPageTop(el, on) {
+  el.classList.toggle("nr-page-top", on);
+  if (el.dataset.run) el.classList.toggle("nr-run", !on);
+}
 function _nrIsSpread() {
   return !!document.querySelector(".nr-shell.nr-spread");
 }
@@ -950,6 +957,7 @@ function _nrPaginate(keepIndex = 0, animate = true) {
   items.forEach((el) => {
     el.style.removeProperty("display");
     el.style.removeProperty("break-before");
+    _nrSetPageTop(el, false);
   });
 
   // Spread mode: measure as a single column exactly one page wide, by padding
@@ -996,14 +1004,19 @@ function _nrPaginate(keepIndex = 0, animate = true) {
 
   items.forEach((el) => {
     const top = el.offsetTop;
-    if (pageTop === null) pageTop = top;
+    if (pageTop === null) {
+      _nrSetPageTop(el, true);
+      pageTop = el.offsetTop;
+    }
     // Break BEFORE the element that would overflow, never through it. The
     // `page.length` guard means a single beat taller than the screen still
     // gets its own page rather than an empty one — that page scrolls.
     if (page.length && top + el.offsetHeight - pageTop > avail) {
       _nrPages.push(page);
       page = [];
-      pageTop = top;
+      // Measure it as it will show: name and face back, no run overlap.
+      _nrSetPageTop(el, true);
+      pageTop = el.offsetTop;
     }
     page.push(el);
   });
@@ -1035,7 +1048,7 @@ function _nrGoToPage(idx, animate = true) {
       el.style.breakBefore = spread && p === _nrPageIdx + 1 && j === 0 ? "column" : "";
       // A page's first beat sits flush at the top — the paginator measured it
       // from its border box, so a leftover top margin would spill it over.
-      el.classList.toggle("nr-page-top", shown.includes(p) && j === 0);
+      _nrSetPageTop(el, j === 0);
     }),
   );
   const visible = shown.flatMap((p) => _nrPages[p] || []);
