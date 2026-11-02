@@ -813,6 +813,8 @@ function _nrRenderBeats(data, sections) {
     .map((s) => ({ verse: parseInt(s?.verse, 10), title: String(s?.title || "").trim() }))
     .filter((s) => s.verse && s.title)
     .sort((a, b) => a.verse - b.verse);
+  // Hand-drawn 8-bit banners (12-scenes.js), placed like headings.
+  const scenes = typeof _nrScenesFor === "function" ? _nrScenesFor(_nrKeyBase) : [];
 
   const html = _nrExpandBeats(data.beats)
     .map((beat, i) => {
@@ -833,6 +835,10 @@ function _nrRenderBeats(data, sections) {
         const sec = pending.shift();
         headings += `<h3 class="nr-pageable nr-heading" ${delay}>${_nrEsc(sec.title)}</h3>`;
         lastSpeaker = null; // a new section restarts the speaker run
+      }
+      while (scenes.length && beatVerse && scenes[0].verse <= beatVerse) {
+        headings += _nrSceneHTML(_nrKeyBase, scenes.shift());
+        lastSpeaker = null;
       }
 
       if (beat.type === "dialogue" && beat.text) {

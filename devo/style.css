@@ -14465,3 +14465,22 @@ body:not(.light) #reflectContent ol.refl-unified > li { padding: 16px; }
     .bc-sheet-panel, body:not(.light) .bc-sheet-panel { height: 100vh; max-height: 100vh; }
   }
 }
+
+/* Hand-drawn 8-bit scene banners (js/12-scenes.js). The fixed aspect ratio
+   gives the banner its height before the image decodes, so pagination
+   measures it correctly. */
+.nr-scene {
+  margin: 4px 0 18px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  aspect-ratio: 128 / 40;
+}
+.nr-scene img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: crisp-edges;
+  image-rendering: pixelated;
+}
+.light .nr-scene { border-color: rgba(0, 0, 0, 0.1); }

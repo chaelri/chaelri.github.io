@@ -47,6 +47,7 @@ const CORE_ASSETS = [
   "./js/09-narrate.js",
   "./js/10-creator-canvas.js",
   "./js/11-boot.js",
+  "./js/12-scenes.js",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
   "./icons/icon-maskable-512.png",

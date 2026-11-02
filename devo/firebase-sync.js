@@ -280,6 +280,7 @@ function _injectAppScript() {
     "js/09-narrate.js",
     "js/10-creator-canvas.js",
     "js/11-boot.js",
+    "js/12-scenes.js",
   ];
   for (const src of files) {
     const s = document.createElement("script");
