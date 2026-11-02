@@ -1238,9 +1238,12 @@ function _nrPaginate(keepIndex = 0, animate = true) {
 
   items.forEach((el) => {
     const top = el.offsetTop;
+    // A page is measured from the outer edge of its first beat's margin, so a
+    // top margin the CSS fails to clear still counts against the page.
+    const outerTop = (n) => n.offsetTop - (parseFloat(getComputedStyle(n).marginTop) || 0);
     if (pageTop === null) {
       _nrSetPageTop(el, true);
-      pageTop = el.offsetTop;
+      pageTop = outerTop(el);
     }
     // Break BEFORE the element that would overflow, never through it. The
     // `page.length` guard means a single beat taller than the screen still
@@ -1250,7 +1253,7 @@ function _nrPaginate(keepIndex = 0, animate = true) {
       page = [];
       // Measure it as it will show: name and face back, no run overlap.
       _nrSetPageTop(el, true);
-      pageTop = el.offsetTop;
+      pageTop = outerTop(el);
     }
     page.push(el);
   });

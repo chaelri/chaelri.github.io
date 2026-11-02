@@ -14722,3 +14722,7 @@ body:not(.light) #reflectContent ol.refl-unified > li { padding: 16px; }
 /* A verse's first line wraps deeper than its answering lines start, so the
    wrapped part ("…and came / down") never reads as a parallel line. */
 .nr-song-text .nr-pl:first-child { padding-left: 2.3em; text-indent: -2.3em; }
+/* A page's first beat sits flush (dark-mode headings carry a 30px top margin
+   via body:not(.light) .nr-heading, which outranked the plain rule and spilled
+   the last beat of a page into a hidden third column). */
+:is(.nr-scroll, .nr-leaf-page) .nr-pageable.nr-page-top { margin-top: 0 !important; }
