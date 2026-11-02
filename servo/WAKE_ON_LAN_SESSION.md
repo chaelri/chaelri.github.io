@@ -2,6 +2,93 @@
 
 Commit: `7732485d` "servo: Wake-on-LAN firmware + PC shutdown listener (no servo, same RTDB commands)"
 
+---
+
+## FOR CLAUDE ON KARLA'S PC: start here
+
+You were asked to read this file. Your job is to set up the same thing for **this** PC
+(Karla's) and her own ESP32-C3. Call it **servokarla**. Everything below this section
+describes Charlie's original setup (`servo/`). Use it as the reference implementation.
+
+### Hard rules
+
+- **Never touch Charlie's setup.** Don't edit anything under `servo/`, and don't read from
+  or write to RTDB `/servo/*`. Karla's ESP32 must not be able to wake or shut down Charlie's PC,
+  and Charlie's must not affect hers.
+- Use a separate namespace everywhere:
+
+| Thing | Charlie (`servo`) | Karla (`servokarla`) |
+|---|---|---|
+| Repo folder | `servo/` | `servokarla/` (new) |
+| Firmware | `servo/firmware/wol-power/wol-power.ino` | `servokarla/firmware/wol-power-karla/wol-power-karla.ino` (the sketch folder name must match the `.ino` name) |
+| RTDB root | `/servo/command`, `/servo/state`, `/servo/auto` | `/servokarla/command`, `/servokarla/state`, `/servokarla/auto` (same Firebase project `test-database-55379`) |
+| UDP port | 40510 | **40511** |
+| Token | `k7Qm2vXe9Rt4` | **generate a new random 12-char token**, put it in both firmware and listener |
+| Ping/off messages | `SERVO-PING` / `SERVO-OFF` | `KARLA-PING` / `KARLA-OFF` (replies `KARLA-PONG` / `KARLA-BYE`) |
+| PC MAC | `E0:D5:5E:6D:49:E3` | **this PC's wired NIC MAC** (from `Get-NetAdapter`) |
+| Scheduled task | "Servo PC power listener" | "Servokarla PC power listener" |
+| Install dir | `%ProgramData%\servo-power` | `%ProgramData%\servokarla-power` |
+| Firewall rule | "Servo PC power listener (UDP 40510)" | "Servokarla PC power listener (UDP 40511)" |
+| Phone page | `servo/index.html` (writes `servo/command`) | `servokarla/index.html`: copy it and change the ref to `servokarla/command` (and any other `servo/` refs) |
+
+- Copy `servo/pc-power/listener.ps1`, `install.ps1` and `README.md` into `servokarla/pc-power/` and change
+  every value in the table. Copy `wol-power.ino` and change `PC_MAC`, `PC_PORT`, `PC_TOKEN`, the
+  three RTDB URLs, `STREAM_PATH`, the ping/off strings and the startup log lines.
+- **WiFi:** ask which WiFi network(s) the ESP32 should join (SSID + password) and replace the
+  `wifiMulti.addAP(...)` lines. The ESP32 must be on the **same router/LAN as this PC**.
+- **No Cloud Scheduler, heartbeat or `/servo-poweron` copy.** Karla only needs the phone page and
+  the ESP32. Don't build those unless asked.
+
+### Step 1: check this PC first and show the results before building anything
+
+Run these checks, then show the user a short checklist (OK / NOT OK / UNKNOWN for each):
+
+```powershell
+# 1. Wired NIC present and connected (WoL needs Ethernet, not WiFi)
+Get-NetAdapter -Physical | Select-Object Name, InterfaceDescription, MediaType, Status, MacAddress
+# 2. NIC wake settings (names vary by driver; look for Wake on Magic Packet, Enable PME, Wake on pattern)
+Get-NetAdapterAdvancedProperty -Name "<wired NIC name>" | Where-Object DisplayName -match "Wake|PME|Shutdown" | Select-Object DisplayName, DisplayValue
+Get-NetAdapterPowerManagement -Name "<wired NIC name>" | Select-Object WakeOnMagicPacket, DeviceSleepOnDisconnect
+# 3. Is the NIC allowed to wake the PC?
+powercfg /devicequery wake_armed
+# 4. Fast Startup (0 = off). On some boards, Fast Startup on blocks WoL from shutdown.
+(Get-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Power").HiberbootEnabled
+```
+
+**BIOS settings can't be read from Windows.** Ask Karla whether both of these are set:
+- **Wake on LAN on**: often named "Wake on LAN", "Power On By PCI-E", "Resume by PCI-E/PCI Device" or "PME Event Wake Up".
+- **ErP / EuP disabled**: "ErP Ready" = Disabled. If ErP is on, the NIC and USB lose power when the PC is off, so neither WoL nor the ESP32 works.
+
+**If either one is not set, or she isn't sure,** suggest restarting straight into the BIOS to change them
+(tell her first, because it restarts the PC right away):
+
+```powershell
+shutdown /r /fw /t 0
+```
+
+Windows-side items (NIC wake settings, PME) get fixed by `install.ps1`. If Fast Startup is on,
+suggest turning it off (`powercfg /h off`, or Control Panel > Power Options > "Turn on fast startup").
+
+### Step 2: build and flash
+
+1. Create the `servokarla/` files (see the table above).
+2. Flash the ESP32-C3: find its COM port (`Get-CimInstance Win32_SerialPort` or Device Manager). If
+   `arduino-cli` is missing: `winget install ArduinoSA.CLI`, then
+   `arduino-cli core update-index` and `arduino-cli core install esp32:esp32`. Then:
+   ```powershell
+   arduino-cli compile --fqbn esp32:esp32:esp32c3:CDCOnBoot=cdc --upload -p COM<N> servokarla\firmware\wol-power-karla
+   ```
+3. Run `servokarla\pc-power\install.ps1` as Administrator (UAC prompt: tell the user to click Yes).
+4. Test safely: write `"press"` to `/servokarla/command`. The ESP32 should ping the PC, get `KARLA-PONG`,
+   set `/servokarla/state = true` and clear the command. `press` never shuts down.
+5. Leave `click` testing to Karla: `click` with the PC on should shut it down, and `click` with it off should wake it.
+   If waking fails, check whether the ESP32's LED stays lit while the PC is off. If it goes dark, the USB ports
+   lose power at shutdown (ErP still on, or the board doesn't support it), so power the ESP32 from a separate USB charger.
+6. Commit and push (repo convention). Add a short entry to `knowledge/servokarla/LOG.md`, created from
+   `knowledge/_templates/LOG.md`, plus `servokarla/CLAUDE.md` containing `@../knowledge/servokarla/LOG.md`.
+
+---
+
 ## Goal
 
 The ESP32-C3 used to drive a servo that physically pressed the PC power button.
