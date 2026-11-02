@@ -1281,8 +1281,8 @@ function _nrBookTurn(delta, target) {
 
   const page = (idx, side) => {
     const d = document.createElement("div");
-    d.className = "nr-curl-page nr-leaf-page";
-    d.style.cssText = `width:${half}px;height:${H}px;background:${bg};` +
+    d.className = `nr-curl-page nr-leaf-page nr-side-${side}`;
+    d.style.cssText = `width:${half}px;height:${H}px;background-color:${bg};` +
       `padding:${pt}px ${side === "L" ? gap / 2 : pr}px 0 ${side === "L" ? pl : gap / 2}px;` +
       `border-radius:${side === "L" ? `${rad} 0 0 ${rad}` : `0 ${rad} ${rad} 0`};`;
     (_nrPages[idx] || []).forEach((el) => {

@@ -14587,3 +14587,43 @@ body:not(.light) #reflectContent ol.refl-unified > li { padding: 16px; }
 .nr-shell.nr-spread::after { content: attr(data-pr); right: 36px; }
 .light .nr-shell.nr-spread::before,
 .light .nr-shell.nr-spread::after { color: rgba(26, 26, 46, 0.4); }
+
+/* The open book: a spine shadow where the pages curve into the binding, and a
+   few page edges stacked under the cover at the sides and bottom. The turning
+   leaf carries the same half of the shading (.nr-side-L/R) so a turn doesn't
+   flash flat. */
+.nr-shell.nr-spread {
+  background-image: linear-gradient(90deg,
+    rgba(255, 255, 255, 0.015) 0%, rgba(0, 0, 0, 0) 30%,
+    rgba(0, 0, 0, 0) 42%, rgba(0, 0, 0, 0.16) 48.2%, rgba(0, 0, 0, 0.42) 50%,
+    rgba(0, 0, 0, 0.16) 51.8%, rgba(0, 0, 0, 0) 58%,
+    rgba(0, 0, 0, 0) 70%, rgba(255, 255, 255, 0.015) 100%);
+  box-shadow:
+    -3px 3px 0 -1px #0f1626, 3px 3px 0 -1px #0f1626,
+    -6px 6px 0 -2px #0c1220, 6px 6px 0 -2px #0c1220,
+    -9px 9px 0 -3px #0a0f1b, 9px 9px 0 -3px #0a0f1b,
+    0 30px 70px rgba(0, 0, 0, 0.55);
+}
+.light .nr-shell.nr-spread {
+  background-image: linear-gradient(90deg,
+    rgba(0, 0, 0, 0) 42%, rgba(60, 40, 10, 0.08) 48.2%, rgba(60, 40, 10, 0.22) 50%,
+    rgba(60, 40, 10, 0.08) 51.8%, rgba(0, 0, 0, 0) 58%);
+  box-shadow:
+    -3px 3px 0 -1px #efe8d8, 3px 3px 0 -1px #efe8d8,
+    -6px 6px 0 -2px #e6dcc6, 6px 6px 0 -2px #e6dcc6,
+    -9px 9px 0 -3px #dccfb4, 9px 9px 0 -3px #dccfb4,
+    0 30px 70px rgba(0, 0, 0, 0.18);
+}
+.nr-spread .nr-scroll { column-rule: none; }
+.nr-leaf-page.nr-side-L {
+  background-image: linear-gradient(90deg, rgba(0, 0, 0, 0) 84%, rgba(0, 0, 0, 0.16) 96.4%, rgba(0, 0, 0, 0.42) 100%);
+}
+.nr-leaf-page.nr-side-R {
+  background-image: linear-gradient(90deg, rgba(0, 0, 0, 0.42) 0%, rgba(0, 0, 0, 0.16) 3.6%, rgba(0, 0, 0, 0) 16%);
+}
+.light .nr-leaf-page.nr-side-L {
+  background-image: linear-gradient(90deg, rgba(0, 0, 0, 0) 84%, rgba(60, 40, 10, 0.08) 96.4%, rgba(60, 40, 10, 0.22) 100%);
+}
+.light .nr-leaf-page.nr-side-R {
+  background-image: linear-gradient(90deg, rgba(60, 40, 10, 0.22) 0%, rgba(60, 40, 10, 0.08) 3.6%, rgba(0, 0, 0, 0) 16%);
+}
