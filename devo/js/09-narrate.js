@@ -493,7 +493,10 @@ function _nrLowerWords() {
 function _nrPoetryLines(text, names, minHits) {
   let hits = 0;
   const out = String(text || "").replace(/([,;:])\s+(?=([A-Z][A-Za-z’']*))/g, (m, p, w) => {
-    if (_NR_POETRY_KEEP.has(w) || names.has(w)) return m;
+    // "My savior, You save me" stays one line, but after ; or : "You" opens
+    // the next one ("…from my enemies; You also raise me…").
+    const keep = _NR_POETRY_KEEP.has(w) && !(p !== "," && (w === "You" || w === "Your"));
+    if (keep || names.has(w)) return m;
     hits++;
     return `${p}\n`;
   });
