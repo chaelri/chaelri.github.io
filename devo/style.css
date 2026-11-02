@@ -14652,3 +14652,57 @@ body:not(.light) #reflectContent ol.refl-unified > li { padding: 16px; }
   padding-left: 1.1em;
   text-indent: -1.1em;
 }
+
+/* Long speeches set as poetry (songIdx in _nrRenderBeats): no bubble, a rule
+   in the speaker's colour, face + name only where the speech starts or a page
+   opens mid-speech (the .nr-run toggle from _nrSetPageTop). */
+.nr-song {
+  margin: 0 0 14px;
+  padding: 2px 0 2px 16px;
+  border-left: 2px solid var(--nr-song, rgba(255, 255, 255, 0.2));
+  font-size: 15.5px;
+  line-height: 1.65;
+  color: #e6ebf3;
+}
+.light .nr-song { color: #1f2433; }
+.nr-song-who {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 8px -2px;
+}
+.nr-song-face {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  image-rendering: pixelated;
+  background: rgba(255, 255, 255, 0.06);
+}
+.nr-song.nr-run { margin-top: -14px; padding-top: 6px; }
+.nr-song.nr-run .nr-song-who { display: none; }
+:is(#nrScroll, .nr-curl-page) .nr-song.nr-reacted {
+  background: linear-gradient(90deg, rgba(var(--nr-rc), 0.09), rgba(var(--nr-rc), 0));
+  border-radius: 0 12px 12px 0;
+}
+
+/* Running heads on the spread (_nrRunningHeads); they replace the bar title. */
+.nr-spread .nr-bar-title { display: none; }
+.nr-heads {
+  position: absolute;
+  top: 18px;
+  left: 36px;
+  right: 36px;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 64px;
+  pointer-events: none;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: rgba(226, 232, 240, 0.42);
+}
+.nr-heads span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nr-head-r { text-align: right; }
+.light .nr-heads { color: rgba(26, 26, 46, 0.42); }

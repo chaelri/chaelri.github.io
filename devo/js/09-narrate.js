@@ -984,7 +984,25 @@ function _nrRenderBeats(data, sections) {
   // Scene banners colour their figures from the same cast traits as the faces.
   if (typeof _scCast !== "undefined") _scCast = data.cast || null;
 
-  const html = _nrExpandBeats(data.beats)
+  const expanded = _nrExpandBeats(data.beats);
+  // A long speech by one speaker (a psalm, a sermon: 8+ verses running) is
+  // set as poetry on the page rather than a stack of chat bubbles — face and
+  // name once, then the lines beside a rule in the speaker's colour.
+  const songIdx = new Set();
+  for (let i = 0; i < expanded.length;) {
+    const b = expanded[i];
+    if (b.type !== "dialogue" || !b.text) { i++; continue; }
+    let j = i;
+    const verses = new Set();
+    while (j < expanded.length && expanded[j].type === "dialogue" && expanded[j].speaker === b.speaker) {
+      verses.add(String(expanded[j].verses));
+      j++;
+    }
+    if (verses.size >= 8) for (let k = i; k < j; k++) songIdx.add(k);
+    i = j;
+  }
+
+  const html = expanded
     .map((beat, i) => {
       const delay = `style="animation-delay:${Math.min(i * 55, 900)}ms"`;
       // One chip per beat, on its last blob — on every blob it repeats down
@@ -1007,6 +1025,19 @@ function _nrRenderBeats(data, sections) {
       while (scenes.length && beatVerse && scenes[0].verse <= beatVerse) {
         headings += _nrSceneHTML(_nrKeyBase, scenes.shift());
         lastSpeaker = null;
+      }
+
+      if (beat.type === "dialogue" && beat.text && songIdx.has(i)) {
+        const speaker = beat.speaker || "Someone";
+        const tone = _nrToneFor(speaker, tones);
+        const isRun = speaker === lastSpeaker;
+        lastSpeaker = speaker;
+        const face = _nrFaceImg(speaker, data.cast, "nr-song-face");
+        const to = beat.to ? `<span class="nr-to"><span class="nr-to-word">to</span>${_nrFaceImg(beat.to, data.cast, "nr-to-face")}<span class="nr-to-name">${_nrEsc(beat.to)}</span></span>` : "";
+        return headings + `<div class="nr-pageable nr-line nr-song ${isRun ? "nr-run" : ""}" ${isRun ? 'data-run="1"' : ""} data-rk="${rk}" data-rv="${beatVerse || ""}" style="--nr-song:${tone.ring};animation-delay:${Math.min(i * 55, 900)}ms">
+          <div class="nr-who nr-song-who" style="color:${tone.ink}">${face}${_nrEsc(speaker)}${to}</div>
+          <div class="nr-song-text">${_nrLines(chip, mark(_nrMarkInnerQuotes(_nrEsc(_nrPoetryLines(_nrStripSpeechMarks(beat.text), poetryNames, poetic ? 0 : 1)))), true)}</div>
+        </div>`;
       }
 
       if (beat.type === "dialogue" && beat.text) {
@@ -1102,6 +1133,43 @@ function _nrSetPageTop(el, on) {
   el.classList.toggle("nr-page-top", on);
   if (el.dataset.run) el.classList.toggle("nr-run", !on);
 }
+// Spread running heads, like a printed Bible's: the left page carries the
+// chapter and its verse range, the right page the section it is in and its
+// range. "Section" is the last heading at or before the page's first beat.
+function _nrRunningHeads(scroll, spread, shown) {
+  const shell = scroll.closest(".nr-shell");
+  if (!shell) return;
+  let heads = shell.querySelector(".nr-heads");
+  if (!spread) { heads?.remove(); return; }
+  if (!heads) {
+    heads = document.createElement("div");
+    heads.className = "nr-heads";
+    heads.innerHTML = '<span class="nr-head-l"></span><span class="nr-head-r"></span>';
+    shell.appendChild(heads);
+  }
+  const all = [...scroll.querySelectorAll(".nr-pageable")];
+  const sectionAt = (el) => {
+    let title = "";
+    for (const n of all) {
+      if (n.classList.contains("nr-heading")) title = n.textContent.trim();
+      if (n === el) break;
+    }
+    return title;
+  };
+  const range = (page) => {
+    const vs = (page || []).map((e) => parseInt(e.dataset.rv, 10)).filter((v) => v > 0);
+    if (!vs.length) return "";
+    const lo = Math.min(...vs), hi = Math.max(...vs);
+    return lo === hi ? `${lo}` : `${lo}–${hi}`;
+  };
+  const title = document.getElementById("nrTitle")?.textContent.trim() || "";
+  const [L, Rp] = shown.map((p) => _nrPages[p]);
+  const rl = range(L), rr = range(Rp);
+  heads.querySelector(".nr-head-l").textContent = rl ? `${title}:${rl}` : title;
+  const sec = Rp?.length ? sectionAt(Rp[0]) : "";
+  heads.querySelector(".nr-head-r").textContent = [sec, rr && `${title.replace(/^.*\s(\d+)$/, "$1")}:${rr}`].filter(Boolean).join(" · ");
+}
+
 function _nrIsSpread() {
   return !!document.querySelector(".nr-shell.nr-spread");
 }
@@ -1248,6 +1316,7 @@ function _nrGoToPage(idx, animate = true) {
     !spread && scroll.scrollHeight > scroll.clientHeight + 2,
   );
 
+  _nrRunningHeads(scroll, spread, shown);
   // Spread: printed page numbers in the bottom outer corners (CSS reads these).
   const shellEl = scroll.closest(".nr-shell");
   if (shellEl) {
