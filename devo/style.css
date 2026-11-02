@@ -14595,8 +14595,8 @@ body:not(.light) #reflectContent ol.refl-unified > li { padding: 16px; }
 .nr-shell.nr-spread {
   background-image: linear-gradient(90deg,
     rgba(255, 255, 255, 0.015) 0%, rgba(0, 0, 0, 0) 30%,
-    rgba(0, 0, 0, 0) 42%, rgba(0, 0, 0, 0.16) 48.2%, rgba(0, 0, 0, 0.42) 50%,
-    rgba(0, 0, 0, 0.16) 51.8%, rgba(0, 0, 0, 0) 58%,
+    rgba(0, 0, 0, 0) 45%, rgba(0, 0, 0, 0.06) 48.8%, rgba(0, 0, 0, 0.2) 50%,
+    rgba(0, 0, 0, 0.06) 51.2%, rgba(0, 0, 0, 0) 55%,
     rgba(0, 0, 0, 0) 70%, rgba(255, 255, 255, 0.015) 100%);
   box-shadow:
     -3px 3px 0 -1px #0f1626, 3px 3px 0 -1px #0f1626,
@@ -14606,8 +14606,8 @@ body:not(.light) #reflectContent ol.refl-unified > li { padding: 16px; }
 }
 .light .nr-shell.nr-spread {
   background-image: linear-gradient(90deg,
-    rgba(0, 0, 0, 0) 42%, rgba(60, 40, 10, 0.08) 48.2%, rgba(60, 40, 10, 0.22) 50%,
-    rgba(60, 40, 10, 0.08) 51.8%, rgba(0, 0, 0, 0) 58%);
+    rgba(0, 0, 0, 0) 42%, rgba(60, 40, 10, 0.03) 48.2%, rgba(60, 40, 10, 0.1) 50%,
+    rgba(60, 40, 10, 0.03) 51.8%, rgba(0, 0, 0, 0) 58%);
   box-shadow:
     -3px 3px 0 -1px #efe8d8, 3px 3px 0 -1px #efe8d8,
     -6px 6px 0 -2px #e6dcc6, 6px 6px 0 -2px #e6dcc6,
@@ -14616,14 +14616,14 @@ body:not(.light) #reflectContent ol.refl-unified > li { padding: 16px; }
 }
 .nr-spread .nr-scroll { column-rule: none; }
 .nr-leaf-page.nr-side-L {
-  background-image: linear-gradient(90deg, rgba(0, 0, 0, 0) 84%, rgba(0, 0, 0, 0.16) 96.4%, rgba(0, 0, 0, 0.42) 100%);
+  background-image: linear-gradient(90deg, rgba(0, 0, 0, 0) 90%, rgba(0, 0, 0, 0.06) 97.6%, rgba(0, 0, 0, 0.2) 100%);
 }
 .nr-leaf-page.nr-side-R {
-  background-image: linear-gradient(90deg, rgba(0, 0, 0, 0.42) 0%, rgba(0, 0, 0, 0.16) 3.6%, rgba(0, 0, 0, 0) 16%);
+  background-image: linear-gradient(90deg, rgba(0, 0, 0, 0.2) 0%, rgba(0, 0, 0, 0.06) 2.4%, rgba(0, 0, 0, 0) 10%);
 }
 .light .nr-leaf-page.nr-side-L {
-  background-image: linear-gradient(90deg, rgba(0, 0, 0, 0) 84%, rgba(60, 40, 10, 0.08) 96.4%, rgba(60, 40, 10, 0.22) 100%);
+  background-image: linear-gradient(90deg, rgba(0, 0, 0, 0) 84%, rgba(60, 40, 10, 0.03) 96.4%, rgba(60, 40, 10, 0.1) 100%);
 }
 .light .nr-leaf-page.nr-side-R {
-  background-image: linear-gradient(90deg, rgba(60, 40, 10, 0.22) 0%, rgba(60, 40, 10, 0.08) 3.6%, rgba(0, 0, 0, 0) 16%);
+  background-image: linear-gradient(90deg, rgba(60, 40, 10, 0.1) 0%, rgba(60, 40, 10, 0.03) 3.6%, rgba(0, 0, 0, 0) 16%);
 }
