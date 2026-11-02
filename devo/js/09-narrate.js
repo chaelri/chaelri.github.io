@@ -473,6 +473,23 @@ function _nrPoetryDensity(texts, names) {
   }
   return len ? (hits * 1000) / len : 0;
 }
+const _NR_POETRY_OPENERS_SET = new Set(_NR_POETRY_OPENERS.split("|"));
+const _NR_POETRY_MIDKEEP = new Set(["I", "O", "He", "His", "Him", "Himself", "You", "Your", "Yours", "Yourself",
+  "Me", "Mine", "Lord", "God", "Most", "High", "Almighty", "Spirit", "Holy", "One", "Name", "Rock", "Redeemer", "Shepherd"]);
+// Every word that appears lowercase anywhere in the loaded Bible, built once.
+let _nrLowerSet = null;
+function _nrLowerWords() {
+  if (_nrLowerSet) return _nrLowerSet;
+  if (typeof bibleData === "undefined" || !bibleData) return null;
+  const set = new Set();
+  const walk = (o) => {
+    if (typeof o === "string") { for (const m of o.matchAll(/\b[a-z][a-z’']+/g)) set.add(m[0].replace(/[’']/g, "")); }
+    else if (o && typeof o === "object") for (const v of Object.values(o)) walk(v);
+  };
+  walk(bibleData);
+  _nrLowerSet = set;
+  return set;
+}
 function _nrPoetryLines(text, names, minHits) {
   let hits = 0;
   const out = String(text || "").replace(/([,;:])\s+(?=([A-Z][A-Za-z’']*))/g, (m, p, w) => {
@@ -484,8 +501,16 @@ function _nrPoetryLines(text, names, minHits) {
   return out
     .replace(/([.!?][”’"]?)\s+(?=[A-Z“‘])/g, "$1\n")
     // Lines with no punctuation before them still open on a capital:
-    // "were trembling And were shaken", "came down With thick darkness".
-    .replace(new RegExp(`([a-z’'])\\s+(?=(?:${_NR_POETRY_OPENERS})\\b)`, "g"), "$1\n");
+    // "were trembling And were shaken", "before Him Coals of fire". A
+    // capitalised word mid-sentence starts a line when it is an ordinary word
+    // (seen lowercase somewhere in the Bible) — Sheol, Jordan, Most High and
+    // the pronouns for God never do.
+    .replace(/([a-z’',;:])\s+(?=([A-Z][a-z’']+)\b)/g, (m, p, w) => {
+      if (_NR_POETRY_MIDKEEP.has(w) || names.has(w)) return m;
+      const lower = _nrLowerWords();
+      const known = lower ? lower.has(w.toLowerCase().replace(/[’']/g, "")) : _NR_POETRY_OPENERS_SET.has(w);
+      return known ? `${p}\n` : m;
+    });
 }
 function _nrBr(html) { return String(html).replace(/\n/g, "<br>"); }
 
@@ -731,6 +756,7 @@ function _nrExpandBeats(beats) {
           verses: part.verses,
           _key: k ? `${i}.${k}` : String(i),
           _cont: k > 0,
+          _first: j === 0,
           _last: j === texts.length - 1,
         });
       });
@@ -793,6 +819,15 @@ function _nrVerseChip(ref) {
   if (!first) return "";
   const label = /[-–,]/.test(clean) ? `vv. ${clean}` : `v. ${clean}`;
   return `<a href="#${first}" class="reflection-link nr-chip">${_nrEsc(label)}</a>`;
+}
+
+// The printed-Bible verse number at the start of a verse: small, quiet, still
+// a tap target for the verse peek (it keeps the .nr-chip class for that).
+function _nrVerseNum(ref) {
+  const clean = String(ref || "").trim().replace(/\s*[-–]\s*/, "–");
+  if (!/^\d/.test(clean)) return "";
+  const first = clean.match(/\d+/)[0];
+  return `<a href="#${first}" class="reflection-link nr-chip nr-vnum">${_nrEsc(clean)}</a>`;
 }
 
 function _nrBuildPrompt(book, chapter, versesText) {
@@ -943,7 +978,7 @@ function _nrRenderBeats(data, sections) {
       const delay = `style="animation-delay:${Math.min(i * 55, 900)}ms"`;
       // One chip per beat, on its last blob — on every blob it repeats down
       // the page like a stutter.
-      const chip = beat._last ? _nrVerseChip(beat.verses) : "";
+      const chip = beat._first ? _nrVerseNum(beat.verses) : "";
       // The handle a reaction hangs off. Index is part of it because a beat's
       // verse range is not unique — a long verse splits into several beats.
       const rk = _nrEsc(_nrBeatKey(beat._key, beat.verses));
@@ -983,8 +1018,7 @@ function _nrRenderBeats(data, sections) {
           <div class="nr-bubble-wrap">
             <div class="nr-who" style="color:${tone.ink}">${_nrEsc(speaker)}${to}</div>
             <div class="nr-bubble" data-rk="${rk}" data-rv="${beatVerse || ""}" style="background:${tone.bg};border-color:${tone.ring}">
-              ${_nrBr(mark(_nrMarkInnerQuotes(_nrEsc(_nrPoetryLines(_nrStripSpeechMarks(beat.text), poetryNames, poetic ? 0 : 1)))))}
-              ${chip}
+              ${chip}${_nrBr(mark(_nrMarkInnerQuotes(_nrEsc(_nrPoetryLines(_nrStripSpeechMarks(beat.text), poetryNames, poetic ? 0 : 1)))))}
             </div>
           </div>
         </div>`;
@@ -998,8 +1032,7 @@ function _nrRenderBeats(data, sections) {
       if (!beat.text) return "";
       lastSpeaker = null;
       return headings + `<div class="nr-pageable nr-line nr-narr${beat._cont && !headings ? " nr-cont" : ""}" data-rk="${rk}" data-rv="${beatVerse || ""}" ${delay}>
-        <p>${_nrBr(mark(_nrMarkInnerQuotes(_nrEsc(_nrPoetryLines(beat.text, poetryNames, poetic ? 0 : 2)))))}</p>
-        ${chip}
+        <p>${chip}${_nrBr(mark(_nrMarkInnerQuotes(_nrEsc(_nrPoetryLines(beat.text, poetryNames, poetic ? 0 : 2)))))}</p>
       </div>`;
     })
     .join("");
