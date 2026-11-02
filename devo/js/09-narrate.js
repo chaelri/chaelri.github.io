@@ -496,7 +496,8 @@ function _nrPoetryLines(text, names, minHits) {
   const out = String(text || "").replace(/([,;:])\s+(?=([A-Z][A-Za-z’']*))/g, (m, p, w) => {
     // "My savior, You save me" stays one line, but after ; or : "You" opens
     // the next one ("…from my enemies; You also raise me…").
-    const keep = _NR_POETRY_KEEP.has(w) && !(p !== "," && (w === "You" || w === "Your"));
+    // After ; or : any capital opens a line ("…of the earth; I crushed…").
+    const keep = _NR_POETRY_KEEP.has(w) && p === ",";
     if (keep || names.has(w)) return m;
     hits++;
     return `${p}\n`;
