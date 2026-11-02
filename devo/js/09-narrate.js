@@ -677,15 +677,73 @@ function _nrSplitBlobs(text) {
    on the start of the same beat; later blobs get "<index>.<n>". */
 function _nrExpandBeats(beats) {
   return beats.flatMap((beat, i) => {
-    const texts = beat.text && beat.type !== "beat" ? _nrSplitBlobs(beat.text) : [beat.text];
-    return texts.map((text, k) => ({
-      ...beat,
-      text,
-      _key: k ? `${i}.${k}` : String(i),
-      _cont: k > 0,
-      _last: k === texts.length - 1,
-    }));
+    // A beat spanning several verses (a whole psalm is one speech) is first
+    // cut at each verse, so every bubble carries its own verse chip instead of
+    // one "vv. 2-51" on the last. Then long verses split into blobs as before.
+    const parts = (beat.text && beat.type !== "beat" && _nrSplitByVerse(beat.text, beat.verses))
+      || [{ text: beat.text, verses: beat.verses }];
+    const out = [];
+    parts.forEach((part) => {
+      const texts = part.text && beat.type !== "beat" ? _nrSplitBlobs(part.text) : [part.text];
+      texts.forEach((text, j) => {
+        const k = out.length;
+        out.push({
+          ...beat,
+          text,
+          verses: part.verses,
+          _key: k ? `${i}.${k}` : String(i),
+          _cont: k > 0,
+          _last: j === texts.length - 1,
+        });
+      });
+    });
+    return out;
   });
+}
+
+// Words with their offsets, normalised for matching ("LORD’s" → "lords").
+function _nrWords(text) {
+  const out = [];
+  for (const m of String(text).matchAll(/[A-Za-z0-9’']+/g)) {
+    out.push({ w: m[0].toLowerCase().replace(/[’']/g, ""), at: m.index });
+  }
+  return out;
+}
+
+// Cuts a multi-verse beat where each verse begins, found by matching the
+// verse's opening words (from the chapter text) in order. A verse whose start
+// can't be found merges into the one before ("12-13"). Null when the beat is a
+// single verse or nothing could be located — the caller keeps it whole.
+function _nrSplitByVerse(text, ref) {
+  const m = String(ref || "").match(/^\s*(\d+)\s*[-–]\s*(\d+)\s*$/);
+  if (!m) return null;
+  const a = +m[1], b = +m[2];
+  if (!(b > a) || b - a > 200) return null;
+  const words = _nrWords(text);
+  const cuts = [{ at: 0, verse: a }];
+  let wi = 0;
+  for (let v = a + 1; v <= b; v++) {
+    const open = _nrWords(_nrVerseTextFor(v)).slice(0, 4).map((x) => x.w);
+    if (open.length < 2) continue;
+    let hit = -1;
+    for (let i = wi; i + open.length <= words.length; i++) {
+      if (open.every((w, n) => words[i + n].w === w)) { hit = i; break; }
+    }
+    if (hit < 0) continue;
+    let at = words[hit].at;
+    while (at > 0 && /[“"‘(]/.test(text[at - 1])) at--; // the verse's opening quote goes with it
+    cuts.push({ at, verse: v });
+    wi = hit + open.length;
+  }
+  if (cuts.length < 2) return null;
+  return cuts.map((c, n) => {
+    const end = n + 1 < cuts.length ? cuts[n + 1].at : text.length;
+    const last = n + 1 < cuts.length ? cuts[n + 1].verse - 1 : b;
+    return {
+      text: text.slice(c.at, end).trim(),
+      verses: last > c.verse ? `${c.verse}-${last}` : String(c.verse),
+    };
+  }).filter((p) => p.text);
 }
 
 /* Verse tags on a beat become the same chips used in reflection questions, so
