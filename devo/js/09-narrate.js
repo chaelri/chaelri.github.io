@@ -992,6 +992,7 @@ function _nrRenderBeats(data, sections) {
   // set as poetry on the page rather than a stack of chat bubbles — face and
   // name once, then the lines beside a rule in the speaker's colour.
   const songIdx = new Set();
+  const songPoetic = new Set();
   for (let i = 0; i < expanded.length;) {
     const b = expanded[i];
     if (b.type !== "dialogue" || !b.text) { i++; continue; }
@@ -1001,7 +1002,12 @@ function _nrRenderBeats(data, sections) {
       verses.add(String(expanded[j].verses));
       j++;
     }
-    if (verses.size >= 8) for (let k = i; k < j; k++) songIdx.add(k);
+    if (verses.size >= 8) {
+      // A poem inside a prose chapter (David's lament in 2 Sam 1) is judged
+      // as a whole, so a verse with no comma-capital still gets its lines.
+      const runPoetic = _nrPoetryDensity(expanded.slice(i, j).map((x) => x.text), poetryNames) >= 4;
+      for (let k = i; k < j; k++) { songIdx.add(k); if (runPoetic) songPoetic.add(k); }
+    }
     i = j;
   }
 
@@ -1039,7 +1045,7 @@ function _nrRenderBeats(data, sections) {
         const to = beat.to ? `<span class="nr-to"><span class="nr-to-word">to</span>${_nrFaceImg(beat.to, data.cast, "nr-to-face")}<span class="nr-to-name">${_nrEsc(beat.to)}</span></span>` : "";
         return headings + `<div class="nr-pageable nr-line nr-song ${isRun ? "nr-run" : ""}" ${isRun ? 'data-run="1"' : ""} data-rk="${rk}" data-rv="${beatVerse || ""}" style="--nr-song:${tone.ring};animation-delay:${Math.min(i * 55, 900)}ms">
           <div class="nr-who nr-song-who" style="color:${tone.ink}">${face}${_nrEsc(speaker)}${to}</div>
-          <div class="nr-song-text">${_nrLines(chip, mark(_nrMarkInnerQuotes(_nrEsc(_nrPoetryLines(_nrStripSpeechMarks(beat.text), poetryNames, poetic ? 0 : 1)))), true)}</div>
+          <div class="nr-song-text">${_nrLines(chip, mark(_nrMarkInnerQuotes(_nrEsc(_nrPoetryLines(_nrStripSpeechMarks(beat.text), poetryNames, poetic || songPoetic.has(i) ? 0 : 1)))), true)}</div>
         </div>`;
       }
 
