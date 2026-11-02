@@ -4,7 +4,7 @@
 // Build: powershell -File build.ps1   (uses the .NET Framework csc, C# 5 syntax only)
 //
 // Args: --armed            real shutdown (default is test mode)
-//       --button right|middle|x1|x2   (default right = mouse button 2)
+//       --button right|middle|x1|x2   (default x1 = back side button)
 //       --seconds 5
 
 using System;
@@ -33,7 +33,7 @@ static class Program
 
 class Config
 {
-    public string Button = "right";
+    public string Button = "x1";
     public double Seconds = 5.0;
     public double ShowDelay = 0.35; // don't flash the ring on normal clicks
     public bool Test = true;
