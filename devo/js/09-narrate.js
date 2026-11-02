@@ -1045,7 +1045,7 @@ function _nrRenderBeats(data, sections) {
         const to = beat.to ? `<span class="nr-to"><span class="nr-to-word">to</span>${_nrFaceImg(beat.to, data.cast, "nr-to-face")}<span class="nr-to-name">${_nrEsc(beat.to)}</span></span>` : "";
         return headings + `<div class="nr-pageable nr-line nr-song ${isRun ? "nr-run" : ""}" ${isRun ? 'data-run="1"' : ""} data-rk="${rk}" data-rv="${beatVerse || ""}" style="--nr-song:${tone.ring};animation-delay:${Math.min(i * 55, 900)}ms">
           <div class="nr-who nr-song-who" style="color:${tone.ink}">${face}${_nrEsc(speaker)}${to}</div>
-          <div class="nr-song-text">${_nrLines(chip, mark(_nrMarkInnerQuotes(_nrEsc(_nrPoetryLines(_nrStripSpeechMarks(beat.text), poetryNames, poetic || songPoetic.has(i) ? 0 : 1)))), true)}</div>
+          <div class="nr-song-text">${_nrLines(chip, mark(_nrMarkInnerQuotes(_nrEsc(_nrPoetryLines(_nrStripSpeechMarks(beat.text), poetryNames, poetic || songPoetic.has(i) ? 0 : 1)))), poetic || songPoetic.has(i))}</div>
         </div>`;
       }
 
