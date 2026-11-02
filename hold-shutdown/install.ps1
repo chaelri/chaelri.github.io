@@ -7,8 +7,10 @@ $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 $dir = Join-Path $env:LOCALAPPDATA 'HoldShutdown'
 $exe = Join-Path $dir 'HoldShutdown.exe'
 
-& "$here\build.ps1"
 Get-Process HoldShutdown -ErrorAction SilentlyContinue | Stop-Process -Force
+Start-Sleep -Milliseconds 500
+& "$here\build.ps1"
+if ($LASTEXITCODE -ne 0) { throw "build failed" }
 New-Item -ItemType Directory -Force $dir | Out-Null
 Copy-Item "$here\bin\HoldShutdown.exe" $exe -Force
 
