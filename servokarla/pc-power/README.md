@@ -30,3 +30,6 @@ where the driver has it).
   keep his listener from answering this board, and the magic packet only wakes this MAC.
 - The token in `listener.ps1` and `wol-power-karla.ino` must match.
 - If the NIC or MAC changes, update `PC_MAC` in the firmware.
+- Turn Fast Startup off (`HiberbootEnabled=0`). With it on, Start > Shut down is a hybrid
+  hibernate and the Realtek NIC often won't wake from it. The board (Colorful BATTLE-AX
+  B450M-T M.2 V14) has WoL in BIOS but no ErP setting, and no S3 sleep.
