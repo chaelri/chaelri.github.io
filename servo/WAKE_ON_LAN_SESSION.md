@@ -92,12 +92,16 @@ At boot, the serial monitor (115200) shows the WiFi SSID and IP, then "PC is on 
 - After flashing and installing, sent `press` through Firebase. The ESP32 picked it up, pinged the PC,
   got `SERVO-PONG`, set `/servo/state = true` and cleared the command. The PC stayed on, as expected.
 
-## Not tested yet (left for Charlie, since it turns the PC off)
+## Click test (done by Charlie, 2026-11-02)
 
-1. With the PC on, send `click` from the phone page. The PC should shut down.
-2. With the PC off, send `click` again. It should boot through WoL.
-3. If step 2 fails, check whether the ESP32's LED stays lit while the PC is off. If it goes
-   dark, the USB ports lose power at shutdown, so power the ESP32 from a separate USB charger.
+`click` with the PC on shut it down. `click` with the PC off woke it through WoL. Both work.
+
+## Scheduler safety
+
+The 5:55/3:55 Cloud Scheduler job calls `gemini-proxy /servo-poweron`. That endpoint only writes `click`
+if `/servo/pc.lastSeen` is over 6 minutes old. `servo/pc-heartbeat` writes it every minute from 5:50 to 5:55,
+from 3:50 to 3:55, and at boot, so a PC that's already on gets skipped. If the heartbeat fails while the PC is on,
+the `click` shuts the PC down. Making `/servo-poweron` send `press` (wake only) would remove that risk.
 
 ## Caveats
 
