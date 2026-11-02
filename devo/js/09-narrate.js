@@ -1060,12 +1060,11 @@ function _nrStepPage(delta) {
   if (next < 0 || next >= _nrPages.length) return;
   if (_nrCurl?.dragging) return;
   _nrCurlFinishNow();
-  const c = _nrReduceMotion() ? null : _nrCurlBuild(delta > 0 ? "next" : "prev", false);
-  if (!c) {
-    _nrGoToPage(next);
-    return;
-  }
-  _nrCurlTween(c, true);
+  // Buttons and arrow keys switch straight to the page (with its stagger).
+  // The paper curl is kept for swipes only: played on a click it cloned both
+  // pages every turn, lagged, and left the two pages' text overlapping along
+  // the fold.
+  _nrGoToPage(next);
 }
 
 /* ── Page curl ─────────────────────────────────────────────────────────────
@@ -1107,6 +1106,14 @@ function _nrPaperBg(el, scroll) {
   const curtain = document.getElementById("nrCurtain");
   const or = ov.getBoundingClientRect();
   const sr = scroll.getBoundingClientRect();
+  // On tablets/desktops the page sits on the card (.nr-shell), and the
+  // overlay behind it is translucent — painting a clone with that let the
+  // page underneath show through. Use the card's solid fill there.
+  const shellBg = getComputedStyle(scroll.closest(".nr-shell") || ov).backgroundColor;
+  if (shellBg && !/rgba\(.*,\s*0\)$|transparent/.test(shellBg) && window.matchMedia("(min-width: 768px)").matches) {
+    el.style.backgroundColor = shellBg;
+    return;
+  }
   el.style.backgroundColor = getComputedStyle(ov).backgroundColor;
   if (curtain) el.style.backgroundImage = getComputedStyle(curtain).backgroundImage;
   el.style.backgroundSize = `${or.width}px ${or.height}px`;
@@ -1126,6 +1133,12 @@ function _nrPageClone(scroll, idx, opaque) {
   [...clone.querySelectorAll(".nr-pageable")].forEach((n, i) => {
     if (keep.has(real[i])) n.style.removeProperty("display");
     else n.remove();
+  });
+  // cloneNode copies a canvas blank — paint the scene banners across.
+  const realCv = [...scroll.querySelectorAll("canvas")];
+  clone.querySelectorAll("canvas").forEach((cv, i) => {
+    const src = realCv.find((r) => r.dataset.base === cv.dataset.base && r.dataset.i === cv.dataset.i) || realCv[i];
+    try { cv.getContext("2d").drawImage(src, 0, 0); } catch { /* left blank */ }
   });
   clone.style.width = `${scroll.clientWidth}px`;
   clone.style.height = `${scroll.clientHeight}px`;

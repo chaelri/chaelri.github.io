@@ -14476,7 +14476,8 @@ body:not(.light) #reflectContent ol.refl-unified > li { padding: 16px; }
   border: 1px solid rgba(255, 255, 255, 0.08);
   aspect-ratio: 128 / 40;
 }
-.nr-scene img {
+.nr-scene img,
+.nr-scene canvas {
   display: block;
   width: 100%;
   height: 100%;
