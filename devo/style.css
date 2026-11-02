@@ -13733,7 +13733,10 @@ body.nr-locked { overflow: hidden; }
   overflow: hidden;
 }
 .light .nr-spread .nr-scroll { column-rule-color: rgba(0, 0, 0, 0.08); }
-.nr-spread .nr-scroll.nr-measure { column-count: 1; }
+/* Measuring must NOT be a multicol container at all — even column-count: 1
+   with a fixed height wraps overflow into extra columns, so every beat would
+   measure as near the top and the chapter would collapse to two pages. */
+.nr-spread .nr-scroll.nr-measure { column-count: auto; column-width: auto; }
 .nr-spread .nr-scroll .nr-pageable { break-inside: avoid; }
 .nr-spread .nr-bar { padding-left: 36px; padding-right: 28px; }
 .nr-scroll .nr-page-top { margin-top: 0; }
