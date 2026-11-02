@@ -25,6 +25,7 @@ function _scKit(ctx, seed, t = 0) {
   const rnd = _scRng(seed);
   const k = {
     rnd,
+    pal: _SC_PAL,             // the main figure's colours (set per draw)
     t,                        // seconds — scenes animate off this
     f: Math.floor(t * 8),     // 8-bit frame counter
     px(x, y, c) { ctx.fillStyle = c; ctx.fillRect(Math.round(x), Math.round(y), 1, 1); },
@@ -214,7 +215,7 @@ function _scRock(k) { // v1-4: my rock, my fortress, my deliverer
   k.px(51, k.f % 4 < 2 ? 0 : 1, "#db2777");
   k.rect(39, 16, 15, 2, "#4a3a3a");
   // David on the rock beside it, arms raised; the lyre set down at his feet.
-  k.sprite(Math.floor(k.t * 2) % 2 ? _SC_PRAISE_B : _SC_PRAISE, _SC_PAL, 54, 6);
+  k.sprite(Math.floor(k.t * 2) % 2 ? _SC_PRAISE_B : _SC_PRAISE, k.pal, 54, 6);
   k.sprite(_SC_LYRE, _SC_PAL, 64, 17);
   k.notes(66, 15, "#f7d154");
   k.ridge((x) => 35 + Math.sin(x / 3), "#1c1420", 40, 0, 128);
@@ -242,7 +243,7 @@ function _scWaves(k) { // v5-7: waves of death, torrents; He heard from His temp
     if (Math.cos(x / 6 + k.t * 1.6) > 0.55) { k.px(x, y, "#cfe3ff"); k.px(x + 1, y - 1, "#9cc0f0"); }
   }
   // David, only head and hands above the water, crying out.
-  k.sprite((Math.floor(k.t * 3) % 2 ? _SC_PRAISE_B : _SC_PRAISE).slice(0, 7), _SC_PAL, 56, 13 + k.pulse(1.6, 1.2));
+  k.sprite((Math.floor(k.t * 3) % 2 ? _SC_PRAISE_B : _SC_PRAISE).slice(0, 7), k.pal, 56, 13 + k.pulse(1.6, 1.2));
   k.ridge((x) => 21 + Math.sin(x / 2.4 + k.t * 3) * 1.2, "#1f3d6b", 23, 52, 70);
   // Now and then the storm flashes.
   if (k.f % 37 < 2) k.bolt(18 + (Math.floor(k.f / 37) * 41) % 80, 0, 18, "#dfe8ff", _scRng(k.f));
@@ -305,7 +306,7 @@ function _scRescue(k) { // v17-20: drew me out of many waters, into a broad plac
   k.rect(108, 22, 2, 7, "#5c3a1e");
   k.disc(109, 19, 4, "#3f7a2e");
   k.disc(111, 21, 3, "#4f8a36");
-  k.sprite(Math.floor(k.t * 2) % 2 ? _SC_PRAISE_B : _SC_PRAISE, _SC_PAL, 36, 14 - Math.round((Math.sin(k.t * 1.2) + 1) * 1.5));
+  k.sprite(Math.floor(k.t * 2) % 2 ? _SC_PRAISE_B : _SC_PRAISE, k.pal, 36, 14 - Math.round((Math.sin(k.t * 1.2) + 1) * 1.5));
   // Water streaming off him as he is drawn up.
   for (let x = 37; x < 45; x += 2) k.px(x, 24 + Math.floor((x * 3 + k.t * 10) % 7), "#cfe3ff");
 }
@@ -327,7 +328,7 @@ function _scScroll(k) { // v21-28: clean hands; His ordinances were before me
   k.rect(20, 26, 10, 4, "#a0886a");
   k.rect(21, 25, 8, 1, "#6fb0e0");
   k.px(21 + (k.f % 8), 25, "#cfe8ff");
-  k.sprite(_SC_KNEEL, _SC_PAL, 40, 21 + (Math.floor(k.t * 0.8) % 2));
+  k.sprite(_SC_KNEEL, k.pal, 40, 21 + (Math.floor(k.t * 0.8) % 2));
   // Dust motes drifting up through the lamplight.
   for (let i = 0; i < 8; i++) {
     const q = (k.t * 0.15 + i / 8) % 1;
@@ -365,7 +366,7 @@ function _scLamp(k) { // v29-30: You are my lamp; by my God I leap over a wall
   const at = (q) => [37 + q * 60, 26 - Math.sin(q * Math.PI) * 24];
   if (p < 1) for (let q = Math.max(0, p - 0.18); q < p; q += 0.03) { const [x, y] = at(q); k.px(x + 3, y + 12, "#ffe9a0"); }
   const [dx, dy] = at(p);
-  k.sprite(_SC_DAVID, _SC_PAL, dx, dy);
+  k.sprite(_SC_DAVID, k.pal, dx, dy);
   k.ridge(() => 38, "#1a1414");
 }
 
@@ -381,7 +382,7 @@ function _scHeights(k) { // v31-37: feet like hinds' feet; my arms bend a bow of
   k.sprite(_SC_DEER, _SC_DEER_PAL, ((70 + k.t * 12) % 150) - 12, 6 - Math.round(Math.abs(Math.sin(k.t * 3)) * 4));
   k.sprite(_SC_DEER, _SC_DEER_PAL, ((40 + k.t * 12) % 150) - 12, 13 - Math.round(Math.abs(Math.sin(k.t * 3 + 1)) * 4));
   // David on the summit with the bronze bow drawn.
-  k.sprite(_SC_DAVID, _SC_PAL, 28, 14);
+  k.sprite(_SC_DAVID, k.pal, 28, 14);
   for (let y = 0; y < 11; y++) k.px(37 + Math.round(Math.sin((y / 10) * Math.PI) * 2), 15 + y, "#c58a3a");
   // Draw, loose, draw again.
   const ap = (k.t * 0.6) % 1;
@@ -405,7 +406,7 @@ function _scVictory(k) { // v38-46: enemies crushed like dust; foreigners submit
   k.sprite(_SC_FALLEN, enemy, 26, 36, true);
   k.line(14, 32, 22, 30, "#9a9aa0");
   // David standing, a broken spear at his feet; foreigners bowing before him.
-  k.sprite(_SC_DAVID, _SC_PAL, 54, 20);
+  k.sprite(_SC_DAVID, k.pal, 54, 20);
   k.rect(50, 30, 4, 1, "#6b4a2b");
   const nations = [
     { g: "#e8e0c8", s: "#9a6a3a", o: "#2a8a8a", O: "#1f6a6a" },
@@ -435,7 +436,7 @@ function _scForever(k) { // v47-51: the LORD lives; lovingkindness to David's de
   k.rect(18, 22, 2, 4, "#ffd27a");
   k.ridge(() => 34, "#1a1226");
   // David crowned, singing; the lyre in hand.
-  k.sprite(Math.floor(k.t * 2) % 2 ? _SC_PRAISE_B : _SC_PRAISE, _SC_PAL, 56, 22);
+  k.sprite(Math.floor(k.t * 2) % 2 ? _SC_PRAISE_B : _SC_PRAISE, k.pal, 56, 22);
   k.sprite(_SC_LYRE, _SC_PAL, 66, 28);
   k.notes(68, 26, "#f7d154");
   k.notes(50, 24, "#ffe9a0");
@@ -464,12 +465,32 @@ function _nrScenesFor(base) {
 // loop stops itself once no banner is left in the DOM.
 const _scReduce = window.matchMedia?.("(prefers-reduced-motion: reduce)");
 let _scRaf = 0, _scLast = 0;
+// The banner figure wears the same colours as the speaker's pixel face: skin,
+// hair/beard, robe, and what is on his head (crown gold, turban linen,
+// helmet bronze). _nrRenderBeats sets _scCast to the chapter's cast.
+let _scCast = null;
+function _scPalFor(name) {
+  if (typeof _nrTraitsFor !== "function" || typeof _nrFaceColor !== "function") return _SC_PAL;
+  const t = _nrTraitsFor(name, _scCast);
+  const c = (role) => _nrFaceColor(role, t);
+  const top = { crown: _NR_FACE_FIXED.gold, turban: c("cloth"), helmet: _NR_FACE_FIXED.metal,
+    priest: _NR_FACE_FIXED.linen, veil: c("cloth") }[t.head] || c("hair");
+  return {
+    ..._SC_PAL,
+    s: c("skin"), h: c("hair"),
+    b: t.beard === "none" ? c("skinShade") : c("hair"),
+    t: c("robe"), T: c("robeShade"), w: c("cloth"), c: top,
+  };
+}
+
 function _scDraw(cv, t) {
   const scene = (_NR_SCENES[cv.dataset.base] || [])[+cv.dataset.i];
   if (!scene) return;
   const ctx = cv.getContext("2d");
   ctx.clearRect(0, 0, _SC_W, _SC_H);
-  scene.draw(_scKit(ctx, 1000 + scene.verse, t));
+  const k = _scKit(ctx, 1000 + scene.verse, t);
+  k.pal = _scPalFor(scene.who || "David");
+  scene.draw(k);
 }
 function _scTick(now) {
   const cvs = document.querySelectorAll("canvas.nr-scene-cv");

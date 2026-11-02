@@ -451,6 +451,44 @@ function _nrEsc(s) {
 // marks are dropped: the opening/closing pair around the whole bubble, and the
 // orphans poetry leaves (NASB re-opens every stanza with “ and closes only the
 // last). A balanced “…” pair inside — someone quoted within the speech — stays.
+// Poetry (psalms, songs, prophecy) is printed as lines, and the NASB starts
+// each line with a capital even mid-sentence: "…in whom I take refuge, My
+// shield and the horn…". A capitalised word after , ; : that isn't a name or
+// "I"/"Lord"/"God" marks a new line. A bubble needs one such break to count as
+// poetry, narration two (prose has the odd ", Then"). When it is poetry, new
+// sentences start new lines too. Breaks are "\n", turned into <br> after the
+// text is escaped and marked.
+const _NR_POETRY_KEEP = new Set(["I", "O", "You", "Your", "Lord", "LORD", "God", "GOD", "Most", "Almighty"]);
+const _NR_POETRY_OPENERS = "And|But|For|With|Nor|Or|Yet|So|Then|When|Who|Which|That|Because|In|On|Like|As|To|From|Through|Therefore|Even|Indeed|Surely|Yes|How|Why|Let|May|Until|Out|Upon|Over|Under|By|Of|At|All|Every|The|A|An|My|They|It|Their|There|This|These|Now|Behold|Blessed|Great|Strangers|Foreigners";
+// How poetic a whole chapter is: comma-then-capital line starts per 1000
+// characters. A psalm chapter runs ~10+, prose with a quoted poem ~1.
+function _nrPoetryDensity(texts, names) {
+  let hits = 0, len = 0;
+  for (const t of texts) {
+    const str = String(t || "");
+    len += str.length;
+    for (const m of str.matchAll(/[,;:]\s+([A-Z][A-Za-z’']*)/g)) {
+      if (!_NR_POETRY_KEEP.has(m[1]) && !names.has(m[1])) hits++;
+    }
+  }
+  return len ? (hits * 1000) / len : 0;
+}
+function _nrPoetryLines(text, names, minHits) {
+  let hits = 0;
+  const out = String(text || "").replace(/([,;:])\s+(?=([A-Z][A-Za-z’']*))/g, (m, p, w) => {
+    if (_NR_POETRY_KEEP.has(w) || names.has(w)) return m;
+    hits++;
+    return `${p}\n`;
+  });
+  if (hits < minHits) return text;
+  return out
+    .replace(/([.!?][”’"]?)\s+(?=[A-Z“‘])/g, "$1\n")
+    // Lines with no punctuation before them still open on a capital:
+    // "were trembling And were shaken", "came down With thick darkness".
+    .replace(new RegExp(`([a-z’'])\\s+(?=(?:${_NR_POETRY_OPENERS})\\b)`, "g"), "$1\n");
+}
+function _nrBr(html) { return String(html).replace(/\n/g, "<br>"); }
+
 function _nrStripSpeechMarks(text) {
   return String(text || "")
     .trim()
@@ -888,6 +926,18 @@ function _nrRenderBeats(data, sections) {
   // Hand-drawn 8-bit banners (12-scenes.js), placed like headings.
   const scenes = typeof _nrScenesFor === "function" ? _nrScenesFor(_nrKeyBase) : [];
 
+  // Names never start a poetry line ("…to You, Lord, among the nations").
+  const poetryNames = new Set(
+    [...Object.keys(data.cast || {}), ...Object.keys(data.places || {})]
+      .flatMap((n) => String(n).split(/\s+/))
+      .filter((w) => /^[A-Z]/.test(w)),
+  );
+  // A poetic chapter breaks every bubble into lines; elsewhere a bubble has to
+  // show the pattern itself (a song quoted inside a story).
+  const poetic = _nrPoetryDensity((data.beats || []).map((b) => b.text), poetryNames) >= 4;
+  // Scene banners colour their figures from the same cast traits as the faces.
+  if (typeof _scCast !== "undefined") _scCast = data.cast || null;
+
   const html = _nrExpandBeats(data.beats)
     .map((beat, i) => {
       const delay = `style="animation-delay:${Math.min(i * 55, 900)}ms"`;
@@ -933,7 +983,7 @@ function _nrRenderBeats(data, sections) {
           <div class="nr-bubble-wrap">
             <div class="nr-who" style="color:${tone.ink}">${_nrEsc(speaker)}${to}</div>
             <div class="nr-bubble" data-rk="${rk}" data-rv="${beatVerse || ""}" style="background:${tone.bg};border-color:${tone.ring}">
-              ${mark(_nrMarkInnerQuotes(_nrEsc(_nrStripSpeechMarks(beat.text))))}
+              ${_nrBr(mark(_nrMarkInnerQuotes(_nrEsc(_nrPoetryLines(_nrStripSpeechMarks(beat.text), poetryNames, poetic ? 0 : 1)))))}
               ${chip}
             </div>
           </div>
@@ -948,7 +998,7 @@ function _nrRenderBeats(data, sections) {
       if (!beat.text) return "";
       lastSpeaker = null;
       return headings + `<div class="nr-pageable nr-line nr-narr${beat._cont && !headings ? " nr-cont" : ""}" data-rk="${rk}" data-rv="${beatVerse || ""}" ${delay}>
-        <p>${mark(_nrMarkInnerQuotes(_nrEsc(beat.text)))}</p>
+        <p>${_nrBr(mark(_nrMarkInnerQuotes(_nrEsc(_nrPoetryLines(beat.text, poetryNames, poetic ? 0 : 2)))))}</p>
         ${chip}
       </div>`;
     })
@@ -1189,11 +1239,91 @@ function _nrStepPage(delta) {
   if (next < 0 || next >= _nrPages.length) return;
   if (_nrCurl?.dragging) return;
   _nrCurlFinishNow();
+  if (_nrIsSpread()) { _nrBookTurn(delta, next); return; }
   // Buttons and arrow keys switch straight to the page (with its stagger).
   // The paper curl is kept for swipes only: played on a click it cloned both
   // pages every turn, lagged, and left the two pages' text overlapping along
   // the fold.
   _nrGoToPage(next);
+}
+
+/* ── Book turn (two-page spread) ───────────────────────────────────────────
+   One leaf turns over the spine. The real scroll jumps to the new spread at
+   once; a stage over it holds just three page-sized clones: the leaf's front
+   (the page being turned), its back (the page it becomes), and the page on
+   the far side that stays put until the leaf lands on it. Only the beats of
+   those pages are cloned — a handful of nodes, not the whole chapter. */
+let _nrBookAnim = null;
+function _nrBookTurn(delta, target) {
+  const scroll = document.getElementById("nrScroll");
+  const shell = scroll?.closest(".nr-shell");
+  const from = _nrPageIdx;
+  if (_nrBookAnim) { _nrBookAnim.finish(); _nrBookAnim = null; }
+  if (!scroll || !shell || _nrReduceMotion() || !document.body.animate) { _nrGoToPage(target); return; }
+
+  const sr = scroll.getBoundingClientRect(), hr = shell.getBoundingClientRect();
+  const cs = getComputedStyle(scroll);
+  const pl = parseFloat(cs.paddingLeft), pr = parseFloat(cs.paddingRight), pt = parseFloat(cs.paddingTop);
+  const gap = parseFloat(cs.columnGap) || 0;
+  const W = scroll.clientWidth, H = scroll.clientHeight, half = W / 2;
+  const bg = getComputedStyle(shell).backgroundColor;
+  const realCv = [...scroll.querySelectorAll("canvas")];
+
+  const page = (idx, side) => {
+    const d = document.createElement("div");
+    d.className = "nr-curl-page nr-leaf-page";
+    d.style.cssText = `width:${half}px;height:${H}px;background:${bg};` +
+      `padding:${pt}px ${side === "L" ? gap / 2 : pr}px 0 ${side === "L" ? pl : gap / 2}px;`;
+    (_nrPages[idx] || []).forEach((el) => {
+      const c = el.cloneNode(true);
+      c.removeAttribute("id");
+      c.querySelectorAll("[id]").forEach((n) => n.removeAttribute("id"));
+      c.style.display = "";
+      c.style.breakBefore = "";
+      c.style.animation = "none";
+      c.style.opacity = "1";
+      d.appendChild(c);
+      const cvs = c.matches("canvas") ? [c] : [...c.querySelectorAll("canvas")];
+      cvs.forEach((cv) => {
+        const src = realCv.find((r) => r.dataset.base === cv.dataset.base && r.dataset.i === cv.dataset.i);
+        try { if (src) cv.getContext("2d").drawImage(src, 0, 0); } catch { /* blank */ }
+      });
+    });
+    return d;
+  };
+
+  const fwd = delta > 0;
+  const stage = document.createElement("div");
+  stage.className = "nr-book-stage";
+  stage.style.cssText = `left:${sr.left - hr.left}px;top:${sr.top - hr.top}px;width:${W}px;height:${H}px;`;
+  // The page on the far side, until the leaf covers it.
+  const still = page(fwd ? from : from + 1, fwd ? "L" : "R");
+  still.style.left = fwd ? "0" : `${half}px`;
+  const leaf = document.createElement("div");
+  leaf.className = "nr-book-leaf";
+  leaf.style.cssText = `left:${fwd ? half : 0}px;width:${half}px;height:${H}px;transform-origin:${fwd ? "left" : "right"} center;`;
+  const front = page(fwd ? from + 1 : from, fwd ? "R" : "L");
+  const back = page(fwd ? target : target + 1, fwd ? "L" : "R");
+  front.classList.add("nr-leaf-front");
+  back.classList.add("nr-leaf-back");
+  leaf.append(front, back);
+  stage.append(still, leaf);
+  shell.appendChild(stage);
+
+  _nrGoToPage(target, false);
+
+  const end = fwd ? -180 : 180;
+  _nrBookAnim = leaf.animate(
+    [{ transform: "rotateY(0deg)" }, { transform: `rotateY(${end / 2}deg)`, offset: 0.5 }, { transform: `rotateY(${end}deg)` }],
+    { duration: 620, easing: "cubic-bezier(0.45, 0.05, 0.35, 1)", fill: "forwards" },
+  );
+  // The shading that sells the curve: darkest when the leaf stands upright.
+  [front, back].forEach((f) => f.animate(
+    [{ filter: "brightness(1)" }, { filter: "brightness(0.72)" }, { filter: "brightness(1)" }],
+    { duration: 620, easing: "ease-in-out" },
+  ));
+  const done = () => { stage.remove(); if (_nrBookAnim && _nrBookAnim.playState !== "running") _nrBookAnim = null; };
+  _nrBookAnim.finished.then(done, done);
 }
 
 /* ── Page curl ─────────────────────────────────────────────────────────────

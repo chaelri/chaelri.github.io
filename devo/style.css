@@ -14499,3 +14499,29 @@ body:not(.light) #reflectContent ol.refl-unified > li { padding: 16px; }
   image-rendering: pixelated;
 }
 .light .nr-scene { border-color: rgba(0, 0, 0, 0.1); }
+
+/* Book turn on the two-page spread (_nrBookTurn). */
+.nr-book-stage {
+  position: absolute;
+  z-index: 3;
+  pointer-events: none;
+  perspective: 4200px;
+}
+.nr-leaf-page {
+  position: absolute;
+  top: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+.nr-leaf-page .nr-page-top { margin-top: 0; }
+.nr-book-leaf {
+  position: absolute;
+  top: 0;
+  transform-style: preserve-3d;
+}
+.nr-book-leaf .nr-leaf-page {
+  left: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.nr-book-leaf .nr-leaf-back { transform: rotateY(180deg); }
