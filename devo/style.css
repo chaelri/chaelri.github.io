@@ -14726,3 +14726,7 @@ body:not(.light) #reflectContent ol.refl-unified > li { padding: 16px; }
    via body:not(.light) .nr-heading, which outranked the plain rule and spilled
    the last beat of a page into a hidden third column). */
 :is(.nr-scroll, .nr-leaf-page) .nr-pageable.nr-page-top { margin-top: 0 !important; }
+/* Inline chips (places, names) inherit text-indent and shift their own
+   content by it; inside a hanging-indent poetry line that dragged them over
+   the words around them. */
+.nr-pl * { text-indent: 0; }

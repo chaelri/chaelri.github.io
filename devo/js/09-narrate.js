@@ -976,7 +976,9 @@ function _nrRenderBeats(data, sections) {
   const poetryNames = new Set(
     [...Object.keys(data.cast || {}), ...Object.keys(data.places || {})]
       .flatMap((n) => String(n).split(/\s+/))
-      .filter((w) => /^[A-Z]/.test(w)),
+      // Only real proper nouns: "The Book of Jashar" must not make "The" a
+      // name, or "…of the mighty, The bow of Jonathan" never breaks.
+      .filter((w) => /^[A-Z]/.test(w) && !_nrLowerWords()?.has(w.toLowerCase().replace(/[’']/g, ""))),
   );
   // A poetic chapter breaks every bubble into lines; elsewhere a bubble has to
   // show the pattern itself (a song quoted inside a story).
