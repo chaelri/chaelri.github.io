@@ -72,7 +72,7 @@ class App : ApplicationContext
     IntPtr hook;
 
     volatile bool gameRunning;
-    const double GoodnightSecs = 1.5;
+    const double GoodnightSecs = 0.5;
     bool holding, fired, paused, executed;
     double alpha, shownProgress;
     ToolStripMenuItem testItem, pauseItem;
