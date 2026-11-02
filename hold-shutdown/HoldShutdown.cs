@@ -5,7 +5,7 @@
 //
 // Args: --armed            real shutdown (default is test mode)
 //       --button right|middle|x1|x2   (default x1 = back side button)
-//       --seconds 5
+//       --seconds 3
 
 using System;
 using System.Diagnostics;
@@ -35,7 +35,7 @@ static class Program
 class Config
 {
     public string Button = "x1";
-    public double Seconds = 5.0;
+    public double Seconds = 3.0;
     public double ShowDelay = 0.35; // don't flash the ring on normal clicks
     public bool Test = true;
 
