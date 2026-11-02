@@ -13710,6 +13710,27 @@ body.nr-locked { overflow: hidden; }
   .nr-scroll { max-width: none; }
 }
 
+/* Laptops/desktops: a 420px phone-width card leaves most of the screen empty
+   and pages turn every few lines. Widen to a book-like measure (~65ch), bump
+   the type, and give the margins room. Pagination re-runs on resize, so
+   pages simply hold more. */
+@media (min-width: 1024px) and (hover: hover) {
+  .nr-overlay { padding: 40px 0; }
+  .nr-shell { max-width: 700px; }
+  .nr-bar { padding: 20px 32px 16px; }
+  .nr-bar-title strong { font-size: 19px; }
+  .nr-scroll { padding: 30px 44px 28px; }
+  .nr-logline { font-size: 17px; }
+  .nr-narr { font-size: 17.5px; }
+  .nr-turn { font-size: 16.5px; }
+  .nr-bubble { font-size: 17px; }
+  .nr-who { font-size: 13.5px; }
+  .nr-to { font-size: 12.5px; }
+  .nr-pager { padding-left: 32px; padding-right: 32px; }
+  .nr-page-btn { cursor: pointer; transition: transform 0.15s ease, filter 0.15s ease; }
+  .nr-page-btn:not(:disabled):hover { transform: scale(1.06); filter: brightness(1.12); }
+}
+
 /* Section headings through the passage, the way a printed study Bible carries
    them. They arrive after the verses are already on screen, so they open
    rather than appear: the row expands 0fr → 1fr while the text fades and
