@@ -114,6 +114,8 @@ function _scKit(ctx, seed, t = 0) {
       }
     },
   };
+  // The scene kit (skies, terrain, props, poses) lives in 13-scenes-2sa.js.
+  if (typeof _scExtras !== "undefined") Object.assign(k, _scExtras);
   return k;
 }
 
@@ -480,6 +482,9 @@ function _scPalFor(name) {
     s: c("skin"), h: c("hair"),
     b: t.beard === "none" ? c("skinShade") : c("hair"),
     t: c("robe"), T: c("robeShade"), w: c("cloth"), c: top,
+    // Kit sprites: C = crown points (only on a crown), L = long hair/veil.
+    C: t.head === "crown" ? _NR_FACE_FIXED.gold : null,
+    L: t.sex === "f" || t.style === "long" || t.head === "veil" ? (t.head === "veil" ? c("cloth") : c("hair")) : null,
   };
 }
 

@@ -281,6 +281,7 @@ function _injectAppScript() {
     "js/10-creator-canvas.js",
     "js/11-boot.js",
     "js/12-scenes.js",
+    "js/13-scenes-2sa.js",
   ];
   for (const src of files) {
     const s = document.createElement("script");
