@@ -14719,3 +14719,6 @@ body:not(.light) #reflectContent ol.refl-unified > li { padding: 16px; }
 .light .nr-song-text .nr-pl + .nr-pl { color: rgba(31, 36, 51, 0.78); }
 .nr-song { padding-bottom: 6px; }
 .nr-song.nr-run { padding-top: 14px; }
+/* A verse's first line wraps deeper than its answering lines start, so the
+   wrapped part ("…and came / down") never reads as a parallel line. */
+.nr-song-text .nr-pl:first-child { padding-left: 2.3em; text-indent: -2.3em; }
