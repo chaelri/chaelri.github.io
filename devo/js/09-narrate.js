@@ -924,6 +924,14 @@ function _nrPutCached(key, data) {
    current page. */
 let _nrPages = [];
 let _nrPageIdx = 0;
+// Laptops/desktops read the retelling as an open book: two phone-sized pages
+// side by side (CSS columns on #nrScroll, a forced column break before the
+// right-hand page). Pagination is unchanged — it measures at one column's
+// width — and the pager steps two pages at a time.
+const _nrSpreadMQ = window.matchMedia?.("(min-width: 1024px) and (hover: hover)");
+function _nrIsSpread() {
+  return !!document.querySelector(".nr-shell.nr-spread");
+}
 
 function _nrPaginate(keepIndex = 0, animate = true) {
   const scroll = document.getElementById("nrScroll");
@@ -939,7 +947,26 @@ function _nrPaginate(keepIndex = 0, animate = true) {
     return;
   }
 
-  items.forEach((el) => el.style.removeProperty("display"));
+  items.forEach((el) => {
+    el.style.removeProperty("display");
+    el.style.removeProperty("break-before");
+  });
+
+  // Spread mode: measure as a single column exactly one page wide, by padding
+  // the other column's width (plus the gap) off the right.
+  const spread = !!_nrSpreadMQ?.matches;
+  scroll.closest(".nr-shell")?.classList.toggle("nr-spread", spread);
+  const unmeasure = () => {
+    scroll.classList.remove("nr-measure");
+    scroll.style.removeProperty("padding-right");
+  };
+  if (spread) {
+    scroll.classList.add("nr-measure");
+    const c0 = getComputedStyle(scroll);
+    const inner = scroll.clientWidth - parseFloat(c0.paddingLeft) - parseFloat(c0.paddingRight);
+    const gap = parseFloat(c0.columnGap) || 0;
+    scroll.style.paddingRight = `${parseFloat(c0.paddingRight) + (inner + gap) / 2}px`;
+  }
 
   // Measure with the pager laid out. It starts hidden and is only revealed
   // once the page count is known, so measuring while it is hidden hands every
@@ -950,12 +977,14 @@ function _nrPaginate(keepIndex = 0, animate = true) {
 
   const cs = getComputedStyle(scroll);
   const avail =
-    scroll.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+    scroll.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom)
+    - (spread ? 6 : 0); // slack so a column never spills into a hidden third
 
   // A zero height means the overlay hasn't been laid out yet (measured during
   // the rise, or while still display:none). Paginating against it puts every
   // beat on its own page — 58 pages for one chapter — so retry instead.
   if (avail <= 0) {
+    unmeasure();
     if (pager) pager.hidden = pagerWasHidden;
     setTimeout(() => _nrPaginate(keepIndex, animate), 160);
     return;
@@ -979,6 +1008,7 @@ function _nrPaginate(keepIndex = 0, animate = true) {
     page.push(el);
   });
   if (page.length) _nrPages.push(page);
+  unmeasure();
 
   if (pager) pager.hidden = _nrPages.length < 2;
   _nrGoToPage(Math.min(keepIndex, _nrPages.length - 1), animate);
@@ -993,18 +1023,27 @@ function _nrGoToPage(idx, animate = true) {
   // The picker is positioned against a beat that is about to be hidden.
   _nrClosePicker();
 
+  const spread = _nrIsSpread();
   _nrPageIdx = Math.max(0, Math.min(idx, _nrPages.length - 1));
+  if (spread) _nrPageIdx -= _nrPageIdx % 2; // a spread always opens on a left page
+  const shown = spread ? [_nrPageIdx, _nrPageIdx + 1] : [_nrPageIdx];
 
   _nrPages.forEach((pg, p) =>
-    pg.forEach((el) => {
-      el.style.display = p === _nrPageIdx ? "" : "none";
+    pg.forEach((el, j) => {
+      el.style.display = shown.includes(p) ? "" : "none";
+      // The right-hand page starts its own column.
+      el.style.breakBefore = spread && p === _nrPageIdx + 1 && j === 0 ? "column" : "";
+      // A page's first beat sits flush at the top — the paginator measured it
+      // from its border box, so a leftover top margin would spill it over.
+      el.classList.toggle("nr-page-top", shown.includes(p) && j === 0);
     }),
   );
+  const visible = shown.flatMap((p) => _nrPages[p] || []);
 
   // Replay the stagger for the page you just landed on — otherwise only the
   // first page ever animates and later pages just appear.
   if (animate) {
-    _nrPages[_nrPageIdx].forEach((el, k) => {
+    visible.forEach((el, k) => {
       el.style.animation = "none";
       el.style.removeProperty("opacity");
       void el.offsetWidth;
@@ -1016,7 +1055,7 @@ function _nrGoToPage(idx, animate = true) {
     // .nr-line rests at opacity 0 until nrBeatIn plays — so without this a
     // page that's already on screen (a curl that just landed, a re-pack)
     // blinks out and staggers back in.
-    _nrPages[_nrPageIdx].forEach((el) => {
+    visible.forEach((el) => {
       el.style.animation = "none";
       el.style.opacity = "1";
     });
@@ -1027,11 +1066,16 @@ function _nrGoToPage(idx, animate = true) {
   // is locked so the screen can't drift half a beat out of frame.
   scroll.classList.toggle(
     "nr-scrollable-page",
-    scroll.scrollHeight > scroll.clientHeight + 2,
+    !spread && scroll.scrollHeight > scroll.clientHeight + 2,
   );
 
   const ind = document.getElementById("nrPageInd");
-  if (ind) ind.textContent = `${_nrPageIdx + 1} / ${_nrPages.length}`;
+  if (ind) {
+    const last = Math.min(_nrPageIdx + shown.length, _nrPages.length);
+    ind.textContent = last > _nrPageIdx + 1
+      ? `${_nrPageIdx + 1}–${last} / ${_nrPages.length}`
+      : `${_nrPageIdx + 1} / ${_nrPages.length}`;
+  }
   const prev = document.getElementById("nrPrev");
   const next = document.getElementById("nrNext");
   if (prev) prev.disabled = _nrPageIdx === 0;
@@ -1039,7 +1083,7 @@ function _nrGoToPage(idx, animate = true) {
   // On the last page the arrow becomes a green check that closes the
   // retelling — a dead, greyed-out arrow was the end of the chapter saying
   // nothing about what to do next.
-  const atEnd = _nrPageIdx >= _nrPages.length - 1;
+  const atEnd = _nrPageIdx + shown.length >= _nrPages.length;
   if (next) {
     next.disabled = false;
     next.classList.toggle("nr-page-done", atEnd);
@@ -1056,7 +1100,7 @@ function _nrGoToPage(idx, animate = true) {
 // stagger animation on a page that never changed. Step through here so an
 // out-of-range move is simply ignored.
 function _nrStepPage(delta) {
-  const next = _nrPageIdx + delta;
+  const next = _nrPageIdx + delta * (_nrIsSpread() ? 2 : 1);
   if (next < 0 || next >= _nrPages.length) return;
   if (_nrCurl?.dragging) return;
   _nrCurlFinishNow();
@@ -1148,7 +1192,7 @@ function _nrPageClone(scroll, idx, opaque) {
 
 function _nrCurlBuild(dir, cornerTop) {
   const scroll = document.getElementById("nrScroll");
-  if (!scroll || !_nrPages.length) return null;
+  if (!scroll || !_nrPages.length || _nrIsSpread()) return null; // no curl on a two-page spread
   const target = _nrPageIdx + (dir === "next" ? 1 : -1);
   if (target < 0 || target >= _nrPages.length) return null;
   _nrClosePicker();

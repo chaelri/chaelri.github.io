@@ -13716,20 +13716,27 @@ body.nr-locked { overflow: hidden; }
    pages simply hold more. */
 @media (min-width: 1024px) and (hover: hover) {
   .nr-overlay { padding: 40px 0; }
-  .nr-shell { max-width: 700px; }
-  .nr-bar { padding: 20px 32px 16px; }
-  .nr-bar-title strong { font-size: 19px; }
-  .nr-scroll { padding: 30px 44px 28px; }
-  .nr-logline { font-size: 17px; }
-  .nr-narr { font-size: 17.5px; }
-  .nr-turn { font-size: 16.5px; }
-  .nr-bubble { font-size: 17px; }
-  .nr-who { font-size: 13.5px; }
-  .nr-to { font-size: 12.5px; }
-  .nr-pager { padding-left: 32px; padding-right: 32px; }
   .nr-page-btn { cursor: pointer; transition: transform 0.15s ease, filter 0.15s ease; }
   .nr-page-btn:not(:disabled):hover { transform: scale(1.06); filter: brightness(1.12); }
 }
+
+/* Laptops/desktops: an open book. Two phone-sized pages side by side, a
+   gutter rule down the middle (spread is toggled by _nrPaginate). */
+.nr-shell.nr-spread { max-width: 900px; }
+.nr-spread .nr-scroll {
+  column-count: 2;
+  column-gap: 64px;
+  column-fill: auto;
+  column-rule: 1px solid rgba(255, 255, 255, 0.07);
+  padding-left: 36px;
+  padding-right: 36px;
+  overflow: hidden;
+}
+.light .nr-spread .nr-scroll { column-rule-color: rgba(0, 0, 0, 0.08); }
+.nr-spread .nr-scroll.nr-measure { column-count: 1; }
+.nr-spread .nr-scroll .nr-pageable { break-inside: avoid; }
+.nr-spread .nr-bar { padding-left: 36px; padding-right: 28px; }
+.nr-scroll .nr-page-top { margin-top: 0; }
 
 /* Section headings through the passage, the way a printed study Bible carries
    them. They arrive after the verses are already on screen, so they open
