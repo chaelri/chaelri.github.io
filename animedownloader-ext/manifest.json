@@ -93,7 +93,7 @@
     },
     {
       "matches": ["*://animeheaven.me/gate.php*", "*://*.animeheaven.me/gate.php*"],
-      "js": ["vendor/anime4k-webgpu.js", "content/animeheaven-upscale.js"],
+      "js": ["vendor/anime4k-webgpu.js", "content/animeheaven-upscale.js", "content/animeheaven-resume.js"],
       "run_at": "document_end"
     },
     {

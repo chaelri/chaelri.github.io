@@ -50,6 +50,7 @@
   let ctx = null;
   let gen = 0; // bumps on every rebuild, so an old frame loop stops itself
   let frame = null; // { input, preset, pipe, bind, vw, vh, view:[x,y,w,h] }
+  let lastDraw = 0;
 
   const BLIT = `
     @group(0) @binding(0) var samp: sampler;
@@ -107,6 +108,7 @@
     pass.draw(3);
     pass.end();
     device.queue.submit([enc.finish()]);
+    lastDraw = performance.now();
     canvas.classList.add("is-live");
   };
 
@@ -203,6 +205,16 @@
   };
   new ResizeObserver(() => rebuildSoon()).observe(vid);
   vid.addEventListener("loadedmetadata", () => rebuildSoon(0));
+  // The frame loop can go quiet while the video keeps playing (a source
+  // reload, a dropped frame callback), leaving the canvas frozen over a moving
+  // picture. Playing, visible, not drawn for 3 s: rebuild.
+  setInterval(() => {
+    if (broken || vid.paused || vid.seeking || vid.readyState < 3) return;
+    if (document.visibilityState !== "visible" || document.fullscreenElement === vid) return;
+    if (performance.now() - lastDraw < 3000) return;
+    lastDraw = performance.now(); // at most one rebuild per 3 s
+    rebuildSoon(0);
+  }, 1000);
   // a seek while paused presents one frame; make sure it is drawn
   vid.addEventListener("seeked", () => draw(gen));
 
