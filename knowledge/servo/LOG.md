@@ -14,6 +14,10 @@ Chronological notes for ongoing work in `servo/`. **Newest first.** Append-only 
 
 ---
 
+## 2026-11-03 — WiFi self-recovery on the WoL board
+
+The board was seen powered but off WiFi while the network was fine. `wol-power.ino` now runs at 8.5 dBm TX power, because the C3 SuperMini antenna often fails to associate at full power. When WiFi is down it retries every 5 s, resets the radio after 1 min and reboots after 3 min. When WiFi is up but Firebase goes quiet, it reconnects the stream after 90 s, resets the radio after 3 min and reboots after 6 min. A 60 s task watchdog catches hangs. There is deliberately no daily reboot: a reboot near 5:55/3:55 would drop that click as a stale snapshot.
+
 ## 2026-11-02 — Wake-on-LAN replaces the servo press
 
 The ESP32-C3 now runs `servo/firmware/wol-power/wol-power.ino` instead of `servo-sweep.ino`. It uses the same `/servo/command` path and commands, so Cloud Scheduler, `/servo-poweron`, the heartbeat and the phone page didn't change. A `click` broadcasts a UDP ping (port 40510). If `servo/pc-power/listener.ps1` answers, the PC is on and gets told to shut down. If nothing answers, the ESP32 sends a magic packet to `E0:D5:5E:6D:49:E3`. `press` only wakes the PC, `release` only shuts it down, and auto mode only wakes. The Intel I211 adapter had **Enable PME off**, which blocks waking from a full shutdown, so `install.ps1` turns it on. It was flashed with `arduino-cli compile --fqbn esp32:esp32:esp32c3:CDCOnBoot=cdc --upload -p COM3`. Charlie tested `click` both ways and it shut the PC down and woke it. Full notes: `servo/WAKE_ON_LAN_SESSION.md`.
