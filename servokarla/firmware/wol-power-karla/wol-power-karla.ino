@@ -36,6 +36,7 @@
 #include <Wire.h>
 #include <U8g2lib.h>
 #include <time.h>
+#include <esp_task_wdt.h>
 
 // --- PC ----------------------------------------------------------------------
 // MAC of Karla's wired NIC (Realtek PCIe GbE, "Ethernet"). Get-NetAdapter shows it.
@@ -93,6 +94,26 @@ bool skipSnapshot = true;
 
 unsigned long lastWifiAttempt = 0;
 const unsigned long WIFI_RETRY_MS = 5000;
+
+// --- Staying online (escalating recovery, same as servo/wol-power) -------------
+//  - low TX power: the C3's small antenna often can't associate at full power
+//  - offline:  retry every 5 s, reset the radio after 1 min, reboot after 3 min
+//  - "connected" but no internet (stream dead, Firebase unreachable): reconnect
+//    the stream, reset the radio after 3 min, reboot after 6 min
+//  - hardware watchdog: reboots if anything hangs for 60 s
+unsigned long wifiLostSince = 0;          // 0 = connected
+bool radioResetDone = false;
+const unsigned long WIFI_RADIO_RESET_MS = 60000;
+const unsigned long WIFI_REBOOT_MS      = 180000;
+
+unsigned long lastStreamActivity = 0;     // last byte from Firebase (keep-alive every ~30 s)
+unsigned long streamConnectedAt = 0;
+const unsigned long STREAM_STALE_MS      = 90000;
+const unsigned long CLOUD_RADIO_RESET_MS = 180000;
+const unsigned long CLOUD_REBOOT_MS      = 360000;
+bool cloudRadioResetDone = false;
+
+const uint32_t WDT_TIMEOUT_MS = 60000;
 unsigned long lastDraw = 0;
 
 const char* DOW[] = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
@@ -367,6 +388,7 @@ void connectStream() {
     "Connection: keep-alive\r\n\r\n";
   streamClient.print(req);
   skipSnapshot = true;
+  streamConnectedAt = millis();
   Serial.println("Stream connected — listening on /servokarla/command");
 }
 
@@ -397,6 +419,7 @@ void handleStreamData(const String& line) {
 void processStream() {
   while (streamClient.connected() && streamClient.available()) {
     String line = streamClient.readStringUntil('\n');
+    lastStreamActivity = millis();
     line.trim();
     if (line.startsWith("data:")) handleStreamData(line.substring(5));
   }
@@ -416,9 +439,84 @@ void pollAuto() {
   http.end();
 }
 
+// --- WiFi recovery -----------------------------------------------------------
+void radioUp() {
+  WiFi.persistent(false);
+  WiFi.mode(WIFI_STA);
+  WiFi.setTxPower(WIFI_POWER_8_5dBm);   // small C3 antenna: full power often fails
+  WiFi.setSleep(false);
+  WiFi.setAutoReconnect(true);
+}
+
+void resetRadio() {
+  Serial.println("WiFi: resetting radio");
+  streamClient.stop();
+  WiFi.disconnect(true, true);
+  WiFi.mode(WIFI_OFF);
+  delay(500);
+  radioUp();
+}
+
+void reboot(const char* why) {
+  Serial.printf("REBOOT: %s\n", why);
+  delay(200);
+  ESP.restart();
+}
+
+void onConnected() {
+  Serial.println("WiFi: " + WiFi.SSID() + " · " + WiFi.localIP().toString() +
+                 " · RSSI " + String(WiFi.RSSI()));
+  WiFi.setSleep(false);
+  udp.stop();
+  udp.begin(PC_PORT);     // replies from the PC come back to this port
+  wifiLostSince = 0;
+  radioResetDone = false;
+  lastStreamActivity = millis();   // give the cloud a fresh grace period
+  cloudRadioResetDone = false;
+}
+
+// Returns true when WiFi is up. Otherwise retries, escalating the longer it's down.
+bool keepWifi() {
+  if (WiFi.status() == WL_CONNECTED) {
+    if (wifiLostSince) onConnected();
+    return true;
+  }
+  if (!wifiLostSince) { wifiLostSince = millis(); Serial.println("WiFi lost"); }
+  unsigned long down = millis() - wifiLostSince;
+  if (down >= WIFI_REBOOT_MS) reboot("WiFi down 3 min");
+  if (!radioResetDone && down >= WIFI_RADIO_RESET_MS) { radioResetDone = true; resetRadio(); }
+  if (millis() - lastWifiAttempt >= WIFI_RETRY_MS) {
+    lastWifiAttempt = millis();
+    Serial.println("WiFi: rescanning saved networks");
+    if (wifiMulti.run(8000) == WL_CONNECTED) { onConnected(); return true; }
+  }
+  return false;
+}
+
+// WiFi says connected but Firebase has gone quiet: the link is up but useless.
+void keepCloud() {
+  unsigned long quiet = millis() - lastStreamActivity;
+  if (quiet >= CLOUD_REBOOT_MS) reboot("no Firebase for 6 min");
+  if (!cloudRadioResetDone && quiet >= CLOUD_RADIO_RESET_MS) {
+    cloudRadioResetDone = true;
+    resetRadio();
+    return;
+  }
+  if (quiet < 10000) cloudRadioResetDone = false;
+  unsigned long since = millis() - max(lastStreamActivity, streamConnectedAt);
+  if (streamClient.connected() && since >= STREAM_STALE_MS) {
+    Serial.println("Stream silent 90 s — reconnecting");
+    streamClient.stop();
+  }
+}
+
 // ----------------------------------------------------------------------------
 void setup() {
   Serial.begin(115200);
+
+  esp_task_wdt_config_t wdt = { .timeout_ms = WDT_TIMEOUT_MS, .idle_core_mask = 0, .trigger_panic = true };
+  if (esp_task_wdt_reconfigure(&wdt) != ESP_OK) esp_task_wdt_init(&wdt);
+  esp_task_wdt_add(NULL);
 
   Wire.setPins(OLED_SDA, OLED_SCL);   // before begin(), or U8g2 uses the default pins
   oled.begin();
@@ -430,13 +528,20 @@ void setup() {
   wifiMulti.addAP("Chaelri", "charlie24");
   wifiMulti.addAP("GFiber_3DAAA", "F09C2D58");
 
+  radioUp();
   Serial.print("Connecting to WiFi");
-  while (wifiMulti.run() != WL_CONNECTED) { delay(300); Serial.print("."); }
+  unsigned long t0 = millis();
+  bool radioReset = false;
+  while (wifiMulti.run(8000) != WL_CONNECTED) {
+    esp_task_wdt_reset();
+    Serial.print(".");
+    if (!radioReset && millis() - t0 >= WIFI_RADIO_RESET_MS) { radioReset = true; resetRadio(); }
+    if (millis() - t0 >= WIFI_REBOOT_MS) reboot("no WiFi at boot");
+    delay(300);
+  }
   Serial.println();
-  Serial.println("WiFi: " + WiFi.SSID() + " · " + WiFi.localIP().toString());
   drawBoot(WiFi.SSID().c_str());
-  WiFi.setSleep(false);
-  udp.begin(PC_PORT);     // replies from the PC come back to this port
+  onConnected();
   configTzTime("PST-8", "pool.ntp.org", "time.google.com");   // Manila, UTC+8
 
   checkPc(true);
@@ -446,18 +551,11 @@ void setup() {
 }
 
 void loop() {
+  esp_task_wdt_reset();
   if (millis() - lastDraw >= 150) { lastDraw = millis(); draw(); }
 
-  if (WiFi.status() != WL_CONNECTED) {
-    if (millis() - lastWifiAttempt >= WIFI_RETRY_MS) {
-      lastWifiAttempt = millis();
-      Serial.println("WiFi lost — rescanning saved networks");
-      if (wifiMulti.run() == WL_CONNECTED)
-        Serial.println("WiFi: " + WiFi.SSID() + " · " + WiFi.localIP().toString());
-    }
-    delay(1);
-    return;
-  }
+  if (!keepWifi()) { delay(10); return; }
+  keepCloud();
 
   if (streamClient.connected()) {
     processStream();
