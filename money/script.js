@@ -866,10 +866,12 @@ function inputBlock(label, id, value, type = "text", extra = "") {
   </div>`;
 }
 
-function monthSelect(id, value, includeOngoing, minKey) {
+function monthSelect(id, value, includeOngoing, minKey, span = HORIZON) {
   const opts = [];
   if (includeOngoing) opts.push(`<option value="">Ongoing (no end)</option>`);
-  timeline().forEach((k) => {
+  const keys = [];
+  for (let i = 0, k = appData.startMonth; i < span; i++, k = addMonths(k, 1)) keys.push(k);
+  keys.forEach((k) => {
     if (minKey && cmpKey(k, minKey) < 0) return;
     const label = `${monthName(k)} ${keyParts(k).y}`;
     opts.push(`<option value="${k}" ${k === value ? "selected" : ""}>${label}</option>`);
@@ -927,7 +929,7 @@ window.openItemModal = function (who, kind, id) {
 
   // end month (installment)
   body += `<div class="space-y-1" id="f-end-wrap"><label class="text-[10px] font-bold uppercase text-slate-500 ml-1">Runs until <span class="text-amber-400">(installment)</span></label>
-    <select id="f-end" class="w-full bg-slate-900 rounded-2xl py-4 px-5 text-base font-bold text-white focus:outline-none">${monthSelect("f-end", end, true, start)}</select></div>`;
+    <select id="f-end" class="w-full bg-slate-900 rounded-2xl py-4 px-5 text-base font-bold text-white focus:outline-none">${monthSelect("f-end", end, true, start, 180)}</select></div>`;
 
   // auto-complete day of month
   const ddVal = it ? (dueDayFor(it) ?? "") : "";
