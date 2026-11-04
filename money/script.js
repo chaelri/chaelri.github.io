@@ -343,26 +343,26 @@ function historyChangeHtml(line) {
   const c = parseLogLine(line);
   if (c.kind === "note") return `<p class="px-4 py-2 text-[11px] font-semibold text-slate-400">${escapeHtml(c.title)}</p>`;
   const look = {
-    add: ["add_circle", "text-emerald-300"],
-    remove: ["remove_circle", "text-rose-300"],
-    done: ["check_circle", "text-emerald-300"],
-    edit: ["edit", "text-indigo-300"],
+    add: ["add", "from-emerald-500 to-teal-600"],
+    remove: ["remove", "from-rose-500 to-pink-600"],
+    done: ["check", "from-emerald-500 to-teal-600"],
+    edit: ["edit", "from-blue-500 to-indigo-600"],
   }[c.kind];
   const a = pesoValue(c.prev), b = pesoValue(c.next);
   const diff = a != null && b != null ? b - a : null;
   const chip = (value, cls) => `<span class="inline-block max-w-[9.5rem] truncate rounded-lg px-2 py-1 text-[11px] font-black ${cls}">${escapeHtml(capitalize(value))}</span>`;
   const isEmpty = (v) => /^none$/i.test(String(v));
-  const values = isEmpty(c.prev) ? chip(`Added ${c.next}`, "bg-emerald-500/15 text-emerald-200")
-    : isEmpty(c.next) || c.next === "Removed" ? chip(`Removed ${c.prev}`, "bg-rose-500/15 text-rose-200")
-    : `${chip(c.prev, "bg-slate-900/60 text-slate-400")}<span class="material-icons text-indigo-300 flex-shrink-0" style="font-size:14px">arrow_forward</span>${chip(c.next, "bg-indigo-500/25 text-white")}`;
+  const values = isEmpty(c.prev) ? chip(`Added ${c.next}`, "bg-gradient-to-r from-emerald-500 to-teal-600 text-white")
+    : isEmpty(c.next) || c.next === "Removed" ? chip(`Removed ${c.prev}`, "bg-gradient-to-r from-rose-500 to-pink-600 text-white")
+    : `${chip(c.prev, "bg-slate-700 text-slate-200")}<span class="material-icons text-slate-400 flex-shrink-0" style="font-size:14px">arrow_forward</span>${chip(c.next, "bg-gradient-to-r from-indigo-600 to-violet-700 text-white")}`;
   const diffHtml = diff ? `<span class="text-[10px] font-black ${diff > 0 ? "text-emerald-300" : "text-rose-300"} flex-shrink-0">${signedPeso(diff)}</span>` : "";
   return `<div class="px-4 py-2 flex flex-wrap items-center gap-x-3 gap-y-1">
-    <span class="material-icons ${look[1]} flex-shrink-0" style="font-size:17px">${look[0]}</span>
+    <span class="w-7 h-7 rounded-lg bg-gradient-to-br ${look[1]} flex items-center justify-center flex-shrink-0"><span class="material-icons text-white" style="font-size:15px">${look[0]}</span></span>
     <div class="min-w-0 flex-1" style="flex-basis:9rem">
       <p class="text-[12px] font-bold text-white truncate">${escapeHtml(c.title)}</p>
       <p class="text-[10px] font-semibold text-slate-500 truncate">${escapeHtml(c.tag)}${c.meta ? ` · ${escapeHtml(c.meta)}` : ""}</p>
     </div>
-    <div class="flex items-center gap-1.5 ml-6 md:ml-0">${values}${diffHtml}</div>
+    <div class="flex items-center gap-1.5 ml-10 md:ml-0">${values}${diffHtml}</div>
   </div>`;
 }
 // Pages are counted in single changes, so every page has a predictable height.
@@ -373,7 +373,7 @@ function historyPageCount() { return Math.max(1, Math.ceil(historyLines().length
 function historyPagerHtml() {
   const pages = historyPageCount();
   if (pages < 2) return "";
-  const button = (delta, icon, label, disabled) => `<button onclick="moveHistoryPage(${delta})" ${disabled ? "disabled" : ""} class="flex items-center gap-0.5 rounded-lg px-2.5 py-1.5 text-[11px] font-black ${disabled ? "bg-slate-800/40 text-slate-600" : "bg-indigo-500/20 text-indigo-200 border border-indigo-400/30"}">${delta < 0 ? `<span class="material-icons" style="font-size:17px">${icon}</span>${label}` : `${label}<span class="material-icons" style="font-size:17px">${icon}</span>`}</button>`;
+  const button = (delta, icon, label, disabled) => `<button onclick="moveHistoryPage(${delta})" ${disabled ? "disabled" : ""} class="flex items-center gap-0.5 rounded-lg px-2.5 py-1.5 text-[11px] font-black ${disabled ? "bg-slate-800 text-slate-600" : "bg-gradient-to-r from-indigo-600 to-violet-700 text-white"}">${delta < 0 ? `<span class="material-icons" style="font-size:17px">${icon}</span>${label}` : `${label}<span class="material-icons" style="font-size:17px">${icon}</span>`}</button>`;
   return `<div class="flex items-center justify-between gap-3 px-4 py-2 border-t border-slate-700/40">
     ${button(-1, "chevron_left", "Newer", historyPage === 0)}
     <p class="text-[11px] font-bold text-slate-400">Page ${historyPage + 1} of ${pages}</p>
@@ -388,7 +388,7 @@ function historyRowsHtml() {
   for (const { e, line } of historyLines().slice(start, start + HISTORY_PAGE_SIZE)) {
     if (e !== last) {
       const when = new Date(e.ts).toLocaleString("en-PH", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
-      rows += `<div class="flex items-center justify-between gap-3 px-4 py-1.5 bg-slate-900/40 border-t border-slate-700/40">
+      rows += `<div class="flex items-center justify-between gap-3 px-4 py-1.5 bg-slate-900 border-t border-slate-700">
         <p class="text-[10px] font-black text-slate-300">${when}</p>
         <p class="text-[10px] font-bold text-slate-500">${escapeHtml(e.device || "Unknown device")}</p>
       </div>`;
