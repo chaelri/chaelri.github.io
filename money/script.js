@@ -1032,7 +1032,7 @@ function renderBudget() {
 window.openMore = function () {
   const body = $("more-body");
   const inst = installmentsCardHtml() || `<div class="glass-card rounded-2xl p-6 text-center text-[12px] text-slate-500">No installments yet — add an expense with a "runs until" month.</div>`;
-  body.innerHTML = inst + projectionCardHtml();
+  body.innerHTML = inst + paymentLoadCardHtml() + projectionCardHtml();
   body.querySelectorAll("details").forEach((d) => (d.open = true));
   const ov = $("more-overlay");
   ov.classList.add("open");
@@ -1053,6 +1053,67 @@ function monthsPaidCount(it) {
 
 // Installments as an inline expandable card (same pattern as Accounts).
 // Progress is driven by ACTUAL checked payments so ticking a month updates it live.
+// Total installments due in month k.
+function paymentLoadIn(k) {
+  return allInstallments().reduce((sum, it) => sum + (itemActiveIn(it, k) ? amountIn(it, k) : 0), 0);
+}
+// One row per month from now to the last installment. Months with nothing changing are merged.
+function paymentLoadRows() {
+  const insts = allInstallments();
+  const first = currentKey();
+  const last = insts.reduce((max, it) => (cmpKey(it.end, max) > 0 ? it.end : max), first);
+  const rows = [];
+  for (let k = first; cmpKey(k, last) <= 0; k = addMonths(k, 1)) {
+    const total = paymentLoadIn(k);
+    const next = addMonths(k, 1);
+    const ending = insts.filter((it) => it.end === k).map((it) => it.name);
+    const starting = insts.filter((it) => it.start === next).map((it) => it.name);
+    const change = cmpKey(k, last) === 0 ? -total : paymentLoadIn(next) - total;
+    const prev = rows[rows.length - 1];
+    if (prev && prev.total === total && prev.change === 0) {
+      Object.assign(prev, { to: k, ending, starting, change });
+    } else {
+      rows.push({ from: k, to: k, total, ending, starting, change });
+    }
+  }
+  return rows;
+}
+function paymentLoadCardHtml() {
+  if (!allInstallments().length) return "";
+  const rows = paymentLoadRows();
+  const peak = Math.max(...rows.map((r) => r.total), 1);
+  const html = rows.map((r, i) => {
+    const label = r.from === r.to ? monthShort(r.from) : `${monthShort(r.from)} → ${monthShort(r.to)}`;
+    const lastRow = i === rows.length - 1;
+    const stat = lastRow
+      ? `<span class="rounded-lg px-2 py-1 text-[11px] font-black text-white bg-gradient-to-r from-emerald-500 to-teal-600">All paid</span>`
+      : r.change < 0
+        ? `<span class="rounded-lg px-2 py-1 text-[11px] font-black text-white bg-gradient-to-r from-emerald-500 to-teal-600 flex items-center gap-0.5"><span class="material-icons" style="font-size:14px">arrow_downward</span>${peso(-r.change)} lighter</span>`
+        : r.change > 0
+          ? `<span class="rounded-lg px-2 py-1 text-[11px] font-black text-white bg-gradient-to-r from-rose-500 to-pink-600 flex items-center gap-0.5"><span class="material-icons" style="font-size:14px">arrow_upward</span>${peso(r.change)} heavier</span>`
+          : `<span class="rounded-lg px-2 py-1 text-[11px] font-black text-slate-200 bg-slate-700">Same</span>`;
+    const notes = [
+      r.ending.length ? `Done: ${r.ending.join(", ")}` : "",
+      r.starting.length ? `Starts next: ${r.starting.join(", ")}` : "",
+    ].filter(Boolean).map((t) => `<p class="text-[10px] font-semibold text-slate-400 leading-snug">${escapeHtml(t)}</p>`).join("");
+    return `<div class="px-3 py-2.5 border-t border-slate-700/40 space-y-1.5">
+      <div class="flex items-center justify-between gap-3">
+        <div class="min-w-0"><p class="text-[11px] font-bold text-slate-400">${label}</p><p class="text-base font-black text-white leading-tight">${peso(r.total)}<span class="text-[11px] font-bold text-slate-400"> /mo</span></p></div>
+        <div class="flex-shrink-0">${stat}</div>
+      </div>
+      <div class="h-1.5 bg-slate-900 rounded-full overflow-hidden"><div class="h-full bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full" style="width:${Math.round((r.total / peak) * 100)}%"></div></div>
+      ${notes}
+    </div>`;
+  }).join("");
+  return `<details class="glass-card rounded-2xl overflow-hidden border border-indigo-500/15 md:col-span-2">
+    <summary class="flex items-center gap-3 px-5 py-4 cursor-pointer list-none">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center"><span class="material-icons text-white" style="font-size:18px">monitor_weight</span></div>
+      <div><h3 class="text-sm font-black text-white uppercase tracking-wide">Payment Load</h3><p class="text-[10px] text-slate-400">Installments due each month, and the change after paying it</p></div>
+    </summary>
+    <div>${html}</div>
+  </details>`;
+}
+
 function installmentsCardHtml() {
   // Nearest end date first; finished ones drop to the bottom.
   const isDone = (it) => paymentCount(it) - monthsPaidCount(it) <= 0;
