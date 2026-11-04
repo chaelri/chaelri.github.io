@@ -652,7 +652,7 @@ function page() {
 
   function heroHtml(limit) {
     return '<div class="hero ' + level(limit.percent) + '">' +
-      '<div class="top"><div class="pct">' + (limit.estimate ? '~' : '') + Math.round(limit.percent) + '<small>%</small></div>' +
+      '<div class="top"><div class="pct">' + Math.round(limit.percent) + '<small>%</small></div>' +
       '<div class="name muted">' + esc(limit.label) + '</div></div>' +
       meter(limit.percent) + clockHtml(limit) + footHtml(limit) + '</div>';
   }
@@ -660,7 +660,7 @@ function page() {
   function rowHtml(limit) {
     return '<div class="row ' + level(limit.percent) + '">' +
       '<div class="top"><div class="name">' + esc(limit.label) + '</div>' +
-      '<div class="pct">' + (limit.estimate ? '~' : '') + Math.round(limit.percent) + '%</div></div>' +
+      '<div class="pct">' + Math.round(limit.percent) + '%</div></div>' +
       meter(limit.percent) + clockHtml(limit) + footHtml(limit) + '</div>';
   }
 
@@ -720,8 +720,8 @@ function page() {
   function proHtml(data, session, weekly) {
     if (!data.proFactor || (!session && !weekly)) return '';
     const scaled = (limit) =>
-      limit && Object.assign({}, limit, { estimate: true, percent: limit.percent * data.proFactor });
-    return '<hr><div class="pro"><div class="shead muted">Same usage on Pro \\u00b7 estimate</div>' +
+      limit && Object.assign({}, limit, { percent: limit.percent * data.proFactor });
+    return '<hr><div class="pro"><div class="shead muted">If Pro</div>' +
       (session ? heroHtml(scaled(session)) : '') +
       (session && weekly ? '<hr>' : '') +
       (weekly ? rowHtml(scaled(weekly)) : '') + '</div>';
