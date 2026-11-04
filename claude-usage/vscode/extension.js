@@ -31,6 +31,9 @@ const USAGE_URL = 'https://api.anthropic.com/api/oauth/usage';
 const USAGE_HOST = 'api.anthropic.com';
 const USAGE_PATH = '/api/oauth/usage';
 const PROFILE_PATH = '/api/oauth/profile';
+// The plan becomes Pro on this date (local midnight), so the estimate ends then
+// even if the tier hasn't flipped yet; the meters are the real ones from here.
+const PRO_START = new Date(2026, 10, 11).getTime();
 const KEYCHAIN_SERVICE = 'Claude Code-credentials';
 const SETTINGS_URL = 'https://claude.ai/settings/usage';
 const GIT_OUTPUT_NAME = 'Claude Usage — Git';
@@ -410,7 +413,7 @@ function snapshot() {
         updated: updatedText(),
         deploy: deploy,
         sessions: sessions,
-        proFactor: state.proFactor,
+        proFactor: Date.now() < PRO_START ? state.proFactor : null,
         limits: state.limits.map((limit) => ({
             kind: String(limit.kind || ''),
             label: shortLabelFor(limit),
