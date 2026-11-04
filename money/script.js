@@ -422,7 +422,11 @@ function emptyData() {
 // =============================
 // Data accessors
 // =============================
-function getItems(who, kind) { return (appData.items?.[who]?.[kind] || []).filter(Boolean); }
+function getItems(who, kind) {
+  const items = (appData.items?.[who]?.[kind] || []).filter(Boolean);
+  const fund = who === "charlie" && kind === "expenses" ? projectFundItem() : null;
+  return fund ? [...items, fund] : items;
+}
 function itemActiveIn(it, k) {
   if (!it.recurring) return it.start === k;
   if (cmpKey(k, it.start) < 0) return false;
@@ -434,6 +438,7 @@ function everyMonths(it) { return Number(it.every) || 1; }
 // Number of payments between an item's start and end.
 function paymentCount(it) { return Math.ceil(monthsInclusive(it.start, it.end) / everyMonths(it)); }
 function amountIn(it, k) {
+  if (it.virtual) return projectTransfer(activeProject(), projectPlan(activeProject()), k);
   const ov = appData.overrides?.[k]?.[it.id];
   return ov != null ? Number(ov) : Number(it.amount) || 0;
 }
@@ -538,7 +543,7 @@ function allInstallments() {
   const out = [];
   for (const who of ["charlie", "karla"]) {
     for (const it of getItems(who, "expenses")) {
-      if (it.recurring && it.end) out.push({ ...it, who });
+      if (it.recurring && it.end && !it.virtual) out.push({ ...it, who });
     }
   }
   return out;
@@ -693,7 +698,7 @@ function itemRowHtml(it, k, kind, who, opts = {}) {
       <span class="inst-bar-count text-[9px] font-bold text-slate-500 flex-shrink-0">${paidM}/${total}</span>
     </div>`;
   }
-  return `<div onclick="openItemModal('${who}','${kind}','${it.id}')"
+  return `<div ${it.virtual ? "" : `onclick="openItemModal('${who}','${kind}','${it.id}')"`}
     class="item-row flex items-center gap-3 py-2.5 px-3 rounded-xl transition-colors cursor-pointer ${settled ? "opacity-60" : ""}">
     <button onclick="togglePaidQuick(event,'${it.id}','${kind}')" title="${kind === "income" ? "Mark received" : "Mark paid"}" class="paid-check ${settled ? "is-paid bg-emerald-500 border-emerald-500" : "border-slate-600"} w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 border">
       <span class="material-icons check-icon text-white" style="font-size:16px">check</span>
@@ -1061,6 +1066,12 @@ function monthsPaidCount(it) {
 const PROJECT_ID = "urdaneta";
 const PROJECT_MOVED_ID = "proj_urdaneta_fund";
 function activeProject() { return appData?.projects?.[PROJECT_ID] || null; }
+// The fund transfer shows as a row in each planned month. It's generated from the project, not saved as an item.
+function projectFundItem() {
+  const p = activeProject();
+  if (!p) return null;
+  return { id: PROJECT_MOVED_ID, name: "Pag-IBIG Fund (Urdaneta House)", amount: projectPlan(p).monthly, recurring: true, start: p.fundStart, end: p.payoffMonth, virtual: true };
+}
 // Month-by-month loan balance from the statement, split into interest and insurance.
 function projectLoanSchedule(p) {
   const rate = p.rate / 12;
@@ -1088,18 +1099,14 @@ function projectTransfer(p, plan, k) {
   return k === p.fundStart ? p.fundFirst : plan.monthly;
 }
 function projectMoved(k) { return isPaid(PROJECT_MOVED_ID, k); }
-// Planned transfers leave main money; anything already moved is out of the account balances.
+// Transfers run through the monthly fund row, so only the leftover after the payoff comes back to main money.
 function projectFundEffect(k) {
   const p = activeProject();
-  if (!p) return 0;
+  if (!p || cmpKey(k, p.payoffMonth) < 0) return 0;
   const plan = projectPlan(p);
-  let effect = 0, total = 0;
-  for (let m = p.fundStart; cmpKey(m, p.payoffMonth) <= 0; m = addMonths(m, 1)) {
-    const amount = projectTransfer(p, plan, m);
-    total += amount;
-    if (cmpKey(m, k) <= 0 && !projectMoved(m)) effect -= amount;
-  }
-  return cmpKey(k, p.payoffMonth) >= 0 ? effect + total - plan.payoff : effect;
+  let total = 0;
+  for (let m = p.fundStart; cmpKey(m, p.payoffMonth) <= 0; m = addMonths(m, 1)) total += projectTransfer(p, plan, m);
+  return total - plan.payoff;
 }
 function projectSpendLimit(p, k) {
   const limit = p.spendByMonth?.[k];
@@ -1114,15 +1121,16 @@ function projectMonths(p, plan) {
   for (let k = currentKey(); cmpKey(k, p.payoffMonth) <= 0; k = addMonths(k, 1)) {
     const t = monthTotals(k);
     const start = main;
-    const left = t.toReceive - t.toPay;
     const spend = projectSpendLimit(p, k);
     const planned = projectTransfer(p, plan, k);
     const moved = projectMoved(k);
     const toFund = moved ? 0 : planned;
+    const bills = t.toPay - toFund; // the fund row sits in toPay but has its own column here
+    const left = t.toReceive - bills;
     main += left - spend - toFund;
     spendTotal += spend;
     fund += toFund;
-    rows.push({ k, start, moneyIn: t.toReceive, bills: t.toPay, left, spend, planned, moved, toFund, toMain: left - spend - toFund, main, fund });
+    rows.push({ k, start, moneyIn: t.toReceive, bills, left, spend, planned, moved, toFund, toMain: left - spend - toFund, main, fund });
   }
   const last = rows[rows.length - 1];
   if (last && last.k === p.payoffMonth) {
@@ -1198,7 +1206,7 @@ function salaryIn(k) {
 }
 function expensesIn(k) {
   return ["charlie", "karla"].reduce((sum, who) => sum + getItems(who, "expenses")
-    .filter((it) => itemActiveIn(it, k))
+    .filter((it) => itemActiveIn(it, k) && !it.virtual)
     .reduce((s, it) => s + itemAmts(it, k).total, 0), 0);
 }
 const LOAD_TIGHT_BELOW = 20000;
