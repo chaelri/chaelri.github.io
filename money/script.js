@@ -1022,13 +1022,27 @@ function statsGridHtml(t) {
   );
 }
 
+// The projected banner gets its own color each year.
+const BANNER_GRADIENTS = [
+  "from-indigo-600 to-violet-700", // 2026
+  "from-blue-600 to-cyan-700", // 2027
+  "from-emerald-600 to-teal-700", // 2028
+  "from-rose-600 to-pink-700", // 2029
+  "from-amber-600 to-orange-700", // 2030
+  "from-fuchsia-600 to-purple-700", // 2031
+];
+function bannerGradient(k) {
+  const n = BANNER_GRADIENTS.length;
+  return BANNER_GRADIENTS[(((keyParts(k).y - 2026) % n) + n) % n];
+}
+
 function renderBudget() {
   const k = selectedKey;
   const t = monthTotals(k);
   const projected = runningFundsAt(k);
 
   const summary = `<section class="md:col-span-2 rounded-3xl overflow-hidden relative shadow-xl">
-    <div class="absolute inset-0 bg-gradient-to-br from-indigo-600 to-violet-700"></div>
+    <div class="absolute inset-0 bg-gradient-to-br ${bannerGradient(k)}"></div>
     <div class="ambient-glow" style="top:-30px;right:60px"></div>
     <div class="relative p-6 md:p-7 space-y-5">
       <div>
