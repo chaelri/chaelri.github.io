@@ -1071,7 +1071,7 @@ function expensesIn(k) {
 }
 const LOAD_TIGHT_BELOW = 20000;
 const LOAD_STATES = {
-  short: { label: "Short", color: "#f43f5e", icon: "warning" },
+  short: { label: "Short", color: "#e11d48", icon: "warning" },
   tight: { label: "Tight", color: "#c67f0a", icon: "error_outline" },
   goods: { label: "Goods", color: "#0ea371", icon: "check_circle" },
 };
