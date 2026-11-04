@@ -163,6 +163,7 @@ function namesById(...sources) {
   for (const d of sources) {
     for (const { it } of Object.values(flatItems(d))) {
       names[it.id] = it.name;
+      names[PROJECT_MOVED_ID] = "Pag-IBIG fund transfer";
       for (const c of asList(it.children)) names[c.id] = c.name;
     }
   }
@@ -409,6 +410,7 @@ function normalize(d) {
   }
   d.paid = d.paid || {};
   d.overrides = d.overrides || {};
+  d.projects = d.projects || {};
   d.spend = d.spend || {}; // per-month actual spending logged against a sub-expense: spend[k][childId] = [{id,label,amount}]
   return d;
 }
@@ -501,7 +503,7 @@ function monthTotals(k) {
 function runningFundsAt(k) {
   let bal = accountsTotal();
   for (const mk of timeline()) { bal += monthTotals(mk).netPending; if (mk === k) break; }
-  return bal;
+  return bal + projectFundEffect(k);
 }
 
 // Current cash on hand right now = the account balances you maintain.
@@ -1032,7 +1034,7 @@ function renderBudget() {
 window.openMore = function () {
   const body = $("more-body");
   const inst = installmentsCardHtml() || `<div class="glass-card rounded-2xl p-6 text-center text-[12px] text-slate-500">No installments yet — add an expense with a "runs until" month.</div>`;
-  body.innerHTML = paymentLoadCardHtml() + inst + projectionCardHtml();
+  body.innerHTML = projectCardHtml() + paymentLoadCardHtml() + inst + projectionCardHtml();
   body.querySelectorAll("details").forEach((d) => (d.open = true));
   const ov = $("more-overlay");
   ov.classList.add("open");
@@ -1053,6 +1055,136 @@ function monthsPaidCount(it) {
 
 // Installments as an inline expandable card (same pattern as Accounts).
 // Progress is driven by ACTUAL checked payments so ticking a month updates it live.
+// =============================
+// Project: pay off a loan from a fund kept out of main money
+// =============================
+const PROJECT_ID = "urdaneta";
+const PROJECT_MOVED_ID = "proj_urdaneta_fund";
+function activeProject() { return appData?.projects?.[PROJECT_ID] || null; }
+// Month-by-month loan balance from the statement, split into interest and insurance.
+function projectLoanSchedule(p) {
+  const rate = p.rate / 12;
+  const schedule = {};
+  let balance = p.loanBalance, cost = 0, k = p.balanceAsOf;
+  while (balance > 0.01) {
+    const interest = balance * rate;
+    balance = Math.max(0, balance + interest - (p.monthly - p.insurance));
+    cost += interest + p.insurance;
+    schedule[k] = { balance, cost };
+    k = addMonths(k, 1);
+  }
+  return { schedule, totalCost: cost, lastMonth: addMonths(k, -1) };
+}
+function projectPlan(p) {
+  const { schedule, totalCost, lastMonth } = projectLoanSchedule(p);
+  const end = schedule[p.payoffMonth] || schedule[lastMonth];
+  const payoff = Math.round(end.balance);
+  const months = monthsInclusive(p.fundStart, p.payoffMonth) - 1;
+  const monthly = Math.ceil((payoff - p.fundFirst) / months / 1000) * 1000;
+  return { payoff, saved: Math.round(totalCost - end.cost), monthly, lastMonth };
+}
+function projectTransfer(p, plan, k) {
+  if (cmpKey(k, p.fundStart) < 0 || cmpKey(k, p.payoffMonth) > 0) return 0;
+  return k === p.fundStart ? p.fundFirst : plan.monthly;
+}
+function projectMoved(k) { return isPaid(PROJECT_MOVED_ID, k); }
+// Planned transfers leave main money; anything already moved is out of the account balances.
+function projectFundEffect(k) {
+  const p = activeProject();
+  if (!p) return 0;
+  const plan = projectPlan(p);
+  let effect = 0, total = 0;
+  for (let m = p.fundStart; cmpKey(m, p.payoffMonth) <= 0; m = addMonths(m, 1)) {
+    const amount = projectTransfer(p, plan, m);
+    total += amount;
+    if (cmpKey(m, k) <= 0 && !projectMoved(m)) effect -= amount;
+  }
+  return cmpKey(k, p.payoffMonth) >= 0 ? effect + total - plan.payoff : effect;
+}
+function projectSpendLimit(p, k) {
+  const limit = p.spendByMonth?.[k];
+  return limit != null ? Number(limit) : Number(p.spendDefault) || 0;
+}
+function projectMonths(p, plan) {
+  const rows = [];
+  let main = accountsTotal(), fund = 0, spendTotal = 0;
+  for (let m = p.fundStart; cmpKey(m, p.payoffMonth) <= 0; m = addMonths(m, 1)) {
+    if (projectMoved(m)) fund += projectTransfer(p, plan, m);
+  }
+  for (let k = currentKey(); cmpKey(k, p.payoffMonth) <= 0; k = addMonths(k, 1)) {
+    const t = monthTotals(k);
+    const start = main;
+    const left = t.toReceive - t.toPay;
+    const spend = projectSpendLimit(p, k);
+    const planned = projectTransfer(p, plan, k);
+    const moved = projectMoved(k);
+    const toFund = moved ? 0 : planned;
+    main += left - spend - toFund;
+    spendTotal += spend;
+    fund += toFund;
+    rows.push({ k, start, moneyIn: t.toReceive, bills: t.toPay, left, spend, planned, moved, toFund, toMain: left - spend - toFund, main, fund });
+  }
+  const last = rows[rows.length - 1];
+  if (last && last.k === p.payoffMonth) {
+    last.leftover = last.fund - plan.payoff;
+    last.main += last.leftover;
+    last.fund = 0;
+  }
+  return rows;
+}
+window.toggleProjectMoved = async function (k) {
+  appData.paid[k] = appData.paid[k] || {};
+  appData.paid[k][PROJECT_MOVED_ID] = !appData.paid[k][PROJECT_MOVED_ID];
+  await syncSet();
+  renderAll();
+  window.openMore();
+};
+function wholePeso(n) {
+  const v = Math.round(n);
+  return `${v < 0 ? "-" : ""}₱${Math.abs(v).toLocaleString("en-PH")}`;
+}
+function projectCardHtml() {
+  const p = activeProject();
+  if (!p) return "";
+  const plan = projectPlan(p);
+  const rows = projectMonths(p, plan);
+  const last = rows[rows.length - 1];
+  const tile = (label, value) => `<div class="rounded-xl bg-slate-900 px-3 py-2.5 min-w-0"><p class="text-[10px] font-bold text-slate-400">${label}</p><p class="text-sm font-black text-white truncate">${value}</p></div>`;
+  const body = rows.map((r) => {
+    const goal = r.k === p.payoffMonth;
+    const cell = (v, cls = "") => `<td class="px-2 py-2 text-right whitespace-nowrap ${cls}">${v}</td>`;
+    const moved = r.planned ? `<button onclick="toggleProjectMoved('${r.k}')" aria-label="Moved to fund, ${monthShort(r.k)}" class="w-5 h-5 rounded flex items-center justify-center ${r.moved ? "bg-emerald-600" : "bg-slate-700"}"><span class="material-icons text-white" style="font-size:14px">${r.moved ? "check" : ""}</span></button>` : "";
+    return `<tr class="border-t border-slate-700/50 ${goal ? "bg-indigo-600 font-black" : ""}">
+      <td class="px-2 py-2 whitespace-nowrap font-bold">${monthShort(r.k)}</td>
+      ${cell(wholePeso(r.start))}${cell(wholePeso(r.moneyIn))}${cell(wholePeso(r.bills))}${cell(wholePeso(r.left))}${cell(wholePeso(r.spend))}
+      ${cell(r.planned ? wholePeso(r.planned) : "—")}
+      ${cell(r.toMain >= 0 ? wholePeso(r.toMain) : `Uses ${wholePeso(-r.toMain)}`)}
+      ${cell(wholePeso(r.main), "font-black")}${cell(wholePeso(r.fund))}
+      <td class="px-2 py-2">${moved}</td>
+    </tr>`;
+  }).join("");
+  const head = ["Month", "Main money start", "Money in", "Bills", "Left after bills", "Left to spend", "To fund", "To main money", "Main money end", "Fund", "Moved"];
+  return `<section class="glass-card rounded-2xl overflow-hidden md:col-span-2 p-4 space-y-3">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center flex-shrink-0"><span class="material-icons text-white" style="font-size:18px">home</span></div>
+      <div class="min-w-0"><h3 class="text-sm font-black text-white uppercase tracking-wide">${escapeHtml(p.name)}</h3><p class="text-[10px] text-slate-400">${monthShort(p.fundStart)} → ${monthShort(p.payoffMonth)}. Updates when /money changes.</p></div>
+    </div>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+      ${tile("Payoff estimate", wholePeso(plan.payoff))}
+      ${tile("Main money after", wholePeso(last?.main ?? 0))}
+      ${tile("Fund plan", `${wholePeso(p.fundFirst)} + ${wholePeso(plan.monthly)}/mo`)}
+      ${tile("Estimated savings", wholePeso(plan.saved))}
+    </div>
+    <div class="overflow-x-auto custom-scrollbar">
+      <table class="w-full text-[11px] font-semibold text-slate-100" style="min-width:880px">
+        <thead><tr class="text-[10px] text-slate-400">${head.map((h, i) => `<th class="px-2 py-2 font-bold ${i ? "text-right" : "text-left"}">${h}</th>`).join("")}</tr></thead>
+        <tbody>${body}</tbody>
+      </table>
+    </div>
+    <p class="text-[10px] font-semibold text-slate-400">Main money end assumes you spend the full limit. Tick Moved after transferring to the separate fund account, and update your account balance. The exact payoff is on Pag-IBIG's Payment Order Form.</p>
+  </section>`;
+}
+
 // Total installments due in month k.
 function paymentLoadIn(k) {
   return allInstallments().reduce((sum, it) => sum + (itemActiveIn(it, k) ? amountIn(it, k) : 0), 0);
