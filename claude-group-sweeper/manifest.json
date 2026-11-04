@@ -1,0 +1,9 @@
+{
+  "manifest_version": 3,
+  "name": "Claude Group Sweeper",
+  "version": "1.0.0",
+  "description": "Ungroups finished Claude in Chrome tab groups so they stop piling up as saved groups. Tabs stay open.",
+  "permissions": ["tabGroups", "alarms", "storage"],
+  "background": { "service_worker": "background.js", "type": "module" },
+  "action": { "default_title": "Sweep idle Claude tab groups now" }
+}

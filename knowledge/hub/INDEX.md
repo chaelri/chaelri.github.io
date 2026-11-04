@@ -13,6 +13,7 @@ One line per project. Full detail (tech, deploy, quirks) lives in `knowledge/hub
 - `pocket-remote/` — battery ESP32-C3 + OLED remote for autoclicker + aircon
 - `clickflow/` — macOS click-macro app (swiftc, `./build.sh install`) + Windows C# port
 - `hold-shutdown/` — Windows tray app: hold back side button 3s to shut down (ring + red screen-edge blink), skipped while VALORANT runs; `build.ps1` (csc)
+- `claude-group-sweeper/` — unpacked Chrome extension: ungroups finished Claude in Chrome tab groups so they stop piling up as saved groups
 - `claude-terminal/` — Windows taskbar "Claude" terminal window (VS Code + local extension)
 - `laro/rambulan/`, `laro/karera/` — offline three.js brawl royale + kart racer, phones as controllers (local)
 - `phone-drop/` — iPhone → Mac file receiver via QR (local)
