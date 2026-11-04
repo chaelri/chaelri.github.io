@@ -526,8 +526,8 @@ function page() {
   .hero.hot .pct { color: var(--hot); }
   /* Time, not usage: neutral so it never reads as a second usage figure, and
      it keeps that colour when the usage bar above turns warn or hot. */
-  .hero .meter.clock { height: 4px; margin: 0 0 6px; }
-  .hero .meter.clock > i { background: var(--vscode-descriptionForeground); opacity: .7; }
+  .hero .meter.clock, .row .meter.clock { height: 4px; margin: 4px 0 6px; }
+  .meter.clock > i { background: var(--vscode-descriptionForeground); opacity: .7; }
   .hero .foot { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; }
   .hero .foot span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
@@ -622,14 +622,15 @@ function page() {
   // CSP does not police CSSOM, so el.style.width is allowed.
   const meter = (p) => '<div class="meter"><i data-pct="' + Math.min(100, p) + '"></i></div>';
 
-  // How far through the 5-hour window we are: full means the reset has arrived.
-  const SESSION_WINDOW_MS = 5 * 60 * 60 * 1000;
-  const elapsedPct = (resetsAt) =>
-    Math.max(0, Math.min(100, (1 - (resetsAt - Date.now()) / SESSION_WINDOW_MS) * 100));
+  // How far through the limit's window we are: full means the reset has arrived.
+  const HOUR_MS = 60 * 60 * 1000;
+  const windowMs = (kind) => (kind === 'session' ? 5 : 7 * 24) * HOUR_MS;
+  const elapsedPct = (resetsAt, span) =>
+    Math.max(0, Math.min(100, (1 - (resetsAt - Date.now()) / span) * 100));
   const clockHtml = (limit) =>
     limit.resetsAt
-      ? '<div class="meter clock" data-resets="' + limit.resetsAt + '">' +
-        '<i data-pct="' + elapsedPct(limit.resetsAt) + '"></i></div>'
+      ? '<div class="meter clock" data-resets="' + limit.resetsAt + '" data-span="' + windowMs(limit.kind) + '">' +
+        '<i data-pct="' + elapsedPct(limit.resetsAt, windowMs(limit.kind)) + '"></i></div>'
       : '';
   ${remainingText.toString()}
 
@@ -652,7 +653,7 @@ function page() {
     return '<div class="row ' + level(limit.percent) + '">' +
       '<div class="top"><div class="name">' + esc(limit.label) + '</div>' +
       '<div class="pct">' + (limit.estimate ? '~' : '') + Math.round(limit.percent) + '%</div></div>' +
-      meter(limit.percent) + footHtml(limit) + '</div>';
+      meter(limit.percent) + clockHtml(limit) + footHtml(limit) + '</div>';
   }
 
   // No row at all when there's nothing to say — a repo with no Actions, or no
@@ -756,14 +757,15 @@ function page() {
   // the next poll to bring the fresh window in.
   let refreshedFor = null;
   function tick() {
-    const clocks = root.querySelectorAll('.meter.clock');
-    if (!clocks.length) return;
-    const resetsAt = Number(clocks[0].dataset.resets);
-    for (const clock of clocks) clock.firstElementChild.style.width = elapsedPct(resetsAt) + '%';
-    for (const left of root.querySelectorAll('.hero .left')) left.textContent = remainingText(resetsAt);
-    if (Date.now() >= resetsAt && refreshedFor !== resetsAt) {
-      refreshedFor = resetsAt;
-      vscode.postMessage('refresh');
+    for (const clock of root.querySelectorAll('.meter.clock')) {
+      const resetsAt = Number(clock.dataset.resets);
+      clock.firstElementChild.style.width = elapsedPct(resetsAt, Number(clock.dataset.span)) + '%';
+      const left = clock.parentElement.querySelector('.left');
+      if (left) left.textContent = remainingText(resetsAt);
+      if (Date.now() >= resetsAt && refreshedFor !== resetsAt) {
+        refreshedFor = resetsAt;
+        vscode.postMessage('refresh');
+      }
     }
   }
   setInterval(tick, 30000);
