@@ -845,3 +845,8 @@ details.item-parent[open] > summary .parent-caret { transform: rotate(90deg); }
 .pending-bar {
   box-shadow: 0 0 12px rgba(139, 92, 246, 0.25);
 }
+
+/* Pag-IBIG fund row: white details on the green box */
+.fund-row .paid-check:not(.is-paid) { border-color: #fff !important; }
+.fund-row .text-amber-400\/80,
+.fund-row .inst-bar-count { color: #fff !important; }
