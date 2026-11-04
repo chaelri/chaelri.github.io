@@ -272,21 +272,6 @@ function logChanges() {
   saveDailySnapshot(before).catch((e) => console.error(e));
 }
 
-function timeAgo(ts) {
-  const mins = Math.floor((Date.now() - ts) / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return new Date(ts).toLocaleDateString("en-PH", { month: "short", day: "numeric" });
-}
-function lastChangeText() {
-  const e = historyEntries[0];
-  if (!e) return "Last change: none logged yet";
-  const lines = asList(e.changes);
-  const more = lines.length > 1 ? ` +${lines.length - 1} more` : "";
-  return `Last change: ${timeAgo(e.ts)} · ${lines[0] || ""}${more}`;
-}
 // Log lines are plain text, so older entries render the same way as new ones.
 function parseLogLine(line) {
   const metaOf = (t) => {
@@ -405,10 +390,9 @@ function historyCardHtml() {
   </details>`;
 }
 function refreshHistoryUi() {
-  const rows = $("history-rows"), count = $("history-count"), last = $("last-change");
+  const rows = $("history-rows"), count = $("history-count");
   if (rows) rows.innerHTML = historyRowsHtml();
   if (count) count.textContent = historyLines().length;
-  if (last) last.textContent = lastChangeText();
 }
 window.openHistory = function () {
   const card = $("history-card");
@@ -1038,7 +1022,6 @@ function renderBudget() {
       <div>
         <p class="text-[10px] font-black uppercase tracking-[0.3em] text-white/60">Projected · end of ${monthName(k)}</p>
         <p id="sum-projected" class="text-4xl md:text-5xl font-black text-white mt-1 leading-none">${peso(projected)}</p>
-        <button id="last-change" onclick="openHistory()" class="block w-full text-left truncate text-[11px] font-semibold text-white/60 mt-3">${escapeHtml(lastChangeText())}</button>
       </div>
       <div id="sum-stats" class="grid grid-cols-2 md:grid-cols-4 gap-3">${statsGridHtml(t)}</div>
     </div>
