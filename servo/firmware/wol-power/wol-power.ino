@@ -56,7 +56,10 @@ bool pcOn = false;              // result of the last ping (published as /servo/
 IPAddress pcAddr;               // who answered the last ping
 
 // --- SSE command stream ------------------------------------------------------
-WiFiClientSecure streamClient;
+// A fresh client per attempt: a failed TLS connect must not leave state behind.
+WiFiClientSecure* stream = nullptr;
+int streamFails = 0;                      // connects in a row with no data back
+const int STREAM_FAIL_REBOOT = 6;         // ~2 min of failures, then start clean
 unsigned long lastStreamAttempt = 0;
 const unsigned long STREAM_RECONNECT_MS = 1500;
 // The first stream event is a snapshot of whatever /servo/command already held
@@ -186,18 +189,38 @@ void doRelease() {         // shut down only
 }
 
 // --- Firebase command stream -------------------------------------------------
+void dropStream() {
+  if (!stream) return;
+  stream->stop();
+  delete stream;
+  stream = nullptr;
+}
+
+bool streamUp() { return stream && stream->connected(); }
+
 void connectStream() {
-  streamClient.stop();
-  streamClient.setInsecure();
-  streamClient.setTimeout(15000);
-  if (!streamClient.connect(FB_HOST, 443)) { Serial.println("Stream connect failed"); return; }
+  dropStream();
+  stream = new WiFiClientSecure();
+  stream->setInsecure();
+  stream->setTimeout(15000);
+  stream->setHandshakeTimeout(20);
+  unsigned long t0 = millis();
+  if (!stream->connect(FB_HOST, 443)) {
+    char err[100] = "";
+    int code = stream->lastError(err, sizeof(err) - 1);
+    Serial.printf("Stream connect failed (%d in a row) after %lu ms: %d %s, heap %u\n",
+                  streamFails + 1, millis() - t0, code, err, ESP.getFreeHeap());
+    dropStream();
+    if (++streamFails >= STREAM_FAIL_REBOOT) reboot("Firebase unreachable");
+    return;
+  }
   String req =
     String("GET ") + STREAM_PATH + " HTTP/1.1\r\n" +
     "Host: " + FB_HOST + "\r\n" +
     "Accept: text/event-stream\r\n" +
     "Cache-Control: no-cache\r\n" +
     "Connection: keep-alive\r\n\r\n";
-  streamClient.print(req);
+  stream->print(req);
   skipSnapshot = true;
   streamConnectedAt = millis();
   Serial.println("Stream connected — listening on /servo/command");
@@ -218,6 +241,7 @@ void handleStreamData(const String& line) {
       Serial.println("ignored stale command: " + val);
       clearCommand();
     }
+    publishState();       // the one at boot may have failed before the cloud was up
     return;
   }
   if (val.length() == 0 || val == "null") return;
@@ -228,9 +252,10 @@ void handleStreamData(const String& line) {
 }
 
 void processStream() {
-  while (streamClient.connected() && streamClient.available()) {
-    String line = streamClient.readStringUntil('\n');
+  while (streamUp() && stream->available()) {
+    String line = stream->readStringUntil('\n');
     lastStreamActivity = millis();
+    streamFails = 0;
     line.trim();
     if (line.startsWith("data:")) handleStreamData(line.substring(5));
   }
@@ -261,7 +286,7 @@ void radioUp() {
 
 void resetRadio() {
   Serial.println("WiFi: resetting radio");
-  streamClient.stop();
+  dropStream();
   WiFi.disconnect(true, true);
   WiFi.mode(WIFI_OFF);
   delay(500);
@@ -315,9 +340,9 @@ void keepCloud() {
   }
   if (quiet < 10000) cloudRadioResetDone = false;
   unsigned long since = millis() - max(lastStreamActivity, streamConnectedAt);
-  if (streamClient.connected() && since >= STREAM_STALE_MS) {
+  if (streamUp() && since >= STREAM_STALE_MS) {
     Serial.println("Stream silent 90 s — reconnecting");
-    streamClient.stop();
+    dropStream();
   }
 }
 
@@ -360,14 +385,16 @@ void loop() {
   if (!keepWifi()) { delay(10); return; }
   keepCloud();
 
-  if (streamClient.connected()) {
+  if (streamUp()) {
     processStream();
   } else if (millis() - lastStreamAttempt >= STREAM_RECONNECT_MS) {
     lastStreamAttempt = millis();
     connectStream();
   }
 
-  if (millis() - lastAutoPoll >= AUTO_POLL_MS) { lastAutoPoll = millis(); pollAuto(); }
+  // Each poll is a blocking HTTPS call; while the stream is down it would only
+  // eat into the time left for reconnecting.
+  if (streamUp() && millis() - lastAutoPoll >= AUTO_POLL_MS) { lastAutoPoll = millis(); pollAuto(); }
   if (autoOn && millis() - lastAutoClick >= AUTO_INTERVAL_MS) {
     lastAutoClick = millis();
     doPress();            // auto never shuts the PC down
