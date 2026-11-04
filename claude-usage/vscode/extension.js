@@ -30,6 +30,7 @@ const path = require('path');
 const USAGE_URL = 'https://api.anthropic.com/api/oauth/usage';
 const USAGE_HOST = 'api.anthropic.com';
 const USAGE_PATH = '/api/oauth/usage';
+const PROFILE_PATH = '/api/oauth/profile';
 const KEYCHAIN_SERVICE = 'Claude Code-credentials';
 const SETTINGS_URL = 'https://claude.ai/settings/usage';
 const GIT_OUTPUT_NAME = 'Claude Usage — Git';
@@ -43,7 +44,7 @@ const SESSION_ID = /^[0-9a-fA-F-]{8,64}$/;
 let item = null;
 let panel = null;
 let timer = null;
-let state = { limits: [], error: null, loading: false, updatedAt: null };
+let state = { limits: [], error: null, loading: false, updatedAt: null, proFactor: null };
 let output = null;
 let deploy = { text: null, level: null, url: null };
 let deployTimer = null;
@@ -93,12 +94,12 @@ function accessToken() {
     });
 }
 
-function getUsage(token) {
+function getUsage(token, requestPath = USAGE_PATH) {
     return new Promise((resolve, reject) => {
         const req = https.request(
             {
                 host: USAGE_HOST,
-                path: USAGE_PATH,
+                path: requestPath,
                 method: 'GET',
                 headers: {
                     Authorization: 'Bearer ' + token,
@@ -128,6 +129,23 @@ function getUsage(token) {
         req.on('error', (err) => reject(err));
         req.end();
     });
+}
+
+/// Fable's weekly limit isn't used on this account, so it's left out everywhere.
+function isFable(limit) {
+    const model = limit.scope && limit.scope.model;
+    return /fable/i.test(String((model && model.display_name) || ''));
+}
+
+/// How many Pro plans this account's tier equals (default_claude_max_5x → 5), or
+/// null on Pro or an unknown tier. Read from the profile endpoint rather than
+/// the keychain copy, which only updates at sign-in: this is what drops the Pro
+/// estimate by itself the moment the plan actually changes.
+async function proFactor(token) {
+    const profile = await getUsage(token, PROFILE_PATH);
+    const tier = String((profile.organization && profile.organization.rate_limit_tier) || '');
+    const match = tier.match(/max_(\d+)x/);
+    return match ? Number(match[1]) : null;
 }
 
 /** Same labels the menu bar item uses, so the two read as one tool. */
@@ -392,6 +410,7 @@ function snapshot() {
         updated: updatedText(),
         deploy: deploy,
         sessions: sessions,
+        proFactor: state.proFactor,
         limits: state.limits.map((limit) => ({
             kind: String(limit.kind || ''),
             label: shortLabelFor(limit),
@@ -601,7 +620,7 @@ function page() {
   // inline style ATTRIBUTES, since nonces can't be written on one. A
   // style="width:7%" is therefore dropped outright and every meter reads empty.
   // CSP does not police CSSOM, so el.style.width is allowed.
-  const meter = (p) => '<div class="meter"><i data-pct="' + p + '"></i></div>';
+  const meter = (p) => '<div class="meter"><i data-pct="' + Math.min(100, p) + '"></i></div>';
 
   // How far through the 5-hour window we are: full means the reset has arrived.
   const SESSION_WINDOW_MS = 5 * 60 * 60 * 1000;
@@ -624,7 +643,7 @@ function page() {
 
   function heroHtml(limit) {
     return '<div class="hero ' + level(limit.percent) + '">' +
-      '<div class="top"><div class="pct">' + Math.round(limit.percent) + '<small>%</small></div>' +
+      '<div class="top"><div class="pct">' + (limit.estimate ? '~' : '') + Math.round(limit.percent) + '<small>%</small></div>' +
       '<div class="name muted">' + esc(limit.label) + '</div></div>' +
       meter(limit.percent) + clockHtml(limit) + footHtml(limit) + '</div>';
   }
@@ -632,7 +651,7 @@ function page() {
   function rowHtml(limit) {
     return '<div class="row ' + level(limit.percent) + '">' +
       '<div class="top"><div class="name">' + esc(limit.label) + '</div>' +
-      '<div class="pct">' + Math.round(limit.percent) + '%</div></div>' +
+      '<div class="pct">' + (limit.estimate ? '~' : '') + Math.round(limit.percent) + '%</div></div>' +
       meter(limit.percent) + footHtml(limit) + '</div>';
   }
 
@@ -687,6 +706,18 @@ function page() {
     });
   }
 
+  // The same meters at a Pro plan's size. Past 100% is the point: it means this
+  // much use would have hit the limit, so the number isn't capped.
+  function proHtml(data, session, weekly) {
+    if (!data.proFactor || (!session && !weekly)) return '';
+    const scaled = (limit) =>
+      limit && Object.assign({}, limit, { estimate: true, percent: limit.percent * data.proFactor });
+    return '<hr><div class="shead muted">Same usage on Pro \\u00b7 estimate</div>' +
+      (session ? heroHtml(scaled(session)) : '') +
+      (session && weekly ? '<hr>' : '') +
+      (weekly ? rowHtml(scaled(weekly)) : '');
+  }
+
   function render(data) {
     if (data.error) {
       root.innerHTML =
@@ -714,6 +745,7 @@ function page() {
       (session ? heroHtml(session) : '') +
       (session && rest.length ? '<hr>' : '') +
       rest.map(rowHtml).join('') +
+      proHtml(data, session, data.limits.find((l) => l.kind === 'weekly_all')) +
       sessionsHtml(data.sessions) +
       footerHtml(data);
     paint();
@@ -724,12 +756,11 @@ function page() {
   // the next poll to bring the fresh window in.
   let refreshedFor = null;
   function tick() {
-    const clock = root.querySelector('.meter.clock');
-    if (!clock) return;
-    const resetsAt = Number(clock.dataset.resets);
-    clock.firstElementChild.style.width = elapsedPct(resetsAt) + '%';
-    const left = root.querySelector('.hero .left');
-    if (left) left.textContent = remainingText(resetsAt);
+    const clocks = root.querySelectorAll('.meter.clock');
+    if (!clocks.length) return;
+    const resetsAt = Number(clocks[0].dataset.resets);
+    for (const clock of clocks) clock.firstElementChild.style.width = elapsedPct(resetsAt) + '%';
+    for (const left of root.querySelectorAll('.hero .left')) left.textContent = remainingText(resetsAt);
     if (Date.now() >= resetsAt && refreshedFor !== resetsAt) {
       refreshedFor = resetsAt;
       vscode.postMessage('refresh');
@@ -861,7 +892,10 @@ async function refresh() {
         const token = await accessToken();
         if (!token) throw new Error('No Claude Code login found — run `claude` once');
         const data = await getUsage(token);
-        state.limits = Array.isArray(data.limits) ? data.limits : [];
+        state.limits = (Array.isArray(data.limits) ? data.limits : []).filter((limit) => !isFable(limit));
+        // Optional extra: a failed profile read keeps the last answer and must
+        // not turn the real meters into an error.
+        state.proFactor = await proFactor(token).catch(() => state.proFactor);
         state.error = null;
         state.updatedAt = Date.now();
     } catch (err) {
