@@ -977,9 +977,13 @@ function installmentsCardHtml() {
       <div class="flex items-center justify-between gap-3">
         <div class="min-w-0">
           <div class="flex items-center gap-2"><p class="text-sm font-bold text-slate-200 truncate">${escapeHtml(it.name)}</p><span class="text-[9px] font-bold uppercase ${o.text}">${o.label}</span></div>
-          <p class="text-[10px] text-slate-500">${monthShort(it.start)} → ${monthShort(it.end)} · ${peso(monthly)}/mo · ${peso(remaining)} left</p>
+          <p class="text-[10px] text-slate-500">${monthShort(it.start)} → ${monthShort(it.end)}</p>
         </div>
         <span class="text-[10px] font-black px-2.5 py-1 rounded-lg ${urgency} uppercase flex-shrink-0">${monthsLeft === 0 ? "Done" : monthsLeft + " mo left"}</span>
+      </div>
+      <div class="flex items-end justify-between gap-3">
+        <p class="text-xl font-black text-white leading-none">${peso(monthly)}<span class="text-[11px] font-bold text-slate-400"> /mo</span></p>
+        <p class="text-sm font-black text-fuchsia-300 leading-none text-right">${peso(remaining)}<span class="text-[11px] font-bold text-slate-400"> left</span></p>
       </div>
       <div class="h-2 bg-slate-900/60 rounded-full overflow-hidden"><div class="h-full bg-gradient-to-r ${o.grad} rounded-full" style="width:${pct}%"></div></div>
     </div>`;
@@ -990,7 +994,7 @@ function installmentsCardHtml() {
         <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-fuchsia-600 flex items-center justify-center"><span class="material-icons text-white" style="font-size:18px">hourglass_top</span></div>
         <div><h3 class="text-sm font-black text-white uppercase tracking-wide">Installments</h3><p class="text-[10px] text-slate-400">${insts.length} running · ${peso(grandMonthly)}/mo</p></div>
       </div>
-      <p class="text-base font-black text-fuchsia-300">${peso(grandRemaining)}</p>
+      <div class="text-right"><p class="text-base font-black text-fuchsia-300 leading-none">${peso(grandRemaining)}</p><p class="text-[10px] text-slate-400 mt-1">total left</p></div>
     </summary>
     <div class="p-3 pt-0 space-y-1">${rows}</div>
   </details>`;
