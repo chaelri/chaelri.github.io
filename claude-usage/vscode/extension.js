@@ -512,6 +512,11 @@ function page() {
     background: var(--calm);
     transition: width 420ms cubic-bezier(.2,.8,.2,1), background-color 420ms ease;
   }
+  /* The Pro estimate is blue so it can't be misread as real usage. These sit
+     before the warn/hot rules so a limit about to be hit still turns those. */
+  .pro { --pro: var(--vscode-charts-blue, #4daafc); }
+  .pro .meter > i { background: var(--pro); }
+  .pro .shead, .pro .hero .pct, .pro .row .pct { color: var(--pro); }
   .warn .meter > i { background: var(--warn); }
   .hot .meter > i { background: var(--hot); }
 
@@ -716,10 +721,10 @@ function page() {
     if (!data.proFactor || (!session && !weekly)) return '';
     const scaled = (limit) =>
       limit && Object.assign({}, limit, { estimate: true, percent: limit.percent * data.proFactor });
-    return '<hr><div class="shead muted">Same usage on Pro \\u00b7 estimate</div>' +
+    return '<hr><div class="pro"><div class="shead muted">Same usage on Pro \\u00b7 estimate</div>' +
       (session ? heroHtml(scaled(session)) : '') +
       (session && weekly ? '<hr>' : '') +
-      (weekly ? rowHtml(scaled(weekly)) : '');
+      (weekly ? rowHtml(scaled(weekly)) : '') + '</div>';
   }
 
   function render(data) {
