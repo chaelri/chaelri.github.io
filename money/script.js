@@ -4,6 +4,10 @@ import {
   ref,
   onValue,
   set,
+  push,
+  get,
+  query,
+  limitToLast,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 // =============================
@@ -25,6 +29,9 @@ const firebaseApp = initializeApp(firebaseConfig);
 const db = getDatabase(firebaseApp);
 const DB_PATH = "money_joint_v1"; // shared by both phones
 const dbRef = ref(db, DB_PATH);
+const HISTORY_PATH = "money_joint_history_v1"; // change log: {ts, device, changes[]}
+const SNAPSHOT_PATH = "money_joint_snapshots_v1"; // full copy of the data, one per day, taken before that day's first change
+const historyRef = ref(db, HISTORY_PATH);
 
 // =============================
 // Constants
@@ -111,12 +118,204 @@ function showSync() { const b = $("sync-bar"); if (b) b.style.opacity = "1"; }
 function hideSync() { const b = $("sync-bar"); if (b) b.style.opacity = "0"; }
 let pendingEchoes = 0; // count of our own writes whose onValue echo should not re-render
 async function syncSet() {
+  logChanges();
   pendingEchoes++;
   showSync();
   try { await set(dbRef, appData); }
   catch (e) { pendingEchoes = Math.max(0, pendingEchoes - 1); console.error(e); toast("Sync failed", "error"); }
   finally { setTimeout(hideSync, 400); }
 }
+
+// =============================
+// History: every save is diffed against the last known data and logged
+// =============================
+const HISTORY_SHOWN = 100;
+const HISTORY_MAX_LINES = 40;
+let logBaseline = null; // last data known to be in Firebase
+let historyEntries = []; // newest first
+
+function clone(o) { return JSON.parse(JSON.stringify(o)); }
+function asList(v) { return (Array.isArray(v) ? v : Object.values(v || {})).filter(Boolean); }
+function deviceName() {
+  const ua = navigator.userAgent;
+  if (/iPhone/.test(ua)) return "iPhone";
+  if (/iPad/.test(ua)) return "iPad";
+  if (/Android/.test(ua)) return "Android";
+  if (/Macintosh/.test(ua)) return navigator.maxTouchPoints > 1 ? "iPad" : "Mac";
+  if (/Windows/.test(ua)) return "Windows";
+  return "Unknown device";
+}
+
+function flatItems(d) {
+  const out = {};
+  for (const who of ["charlie", "karla"]) {
+    for (const kind of ["income", "expenses"]) {
+      for (const it of asList(d.items?.[who]?.[kind])) out[it.id] = { it, who, kind };
+    }
+  }
+  return out;
+}
+function namesById(...sources) {
+  const names = {};
+  for (const d of sources) {
+    for (const { it } of Object.values(flatItems(d))) {
+      names[it.id] = it.name;
+      for (const c of asList(it.children)) names[c.id] = c.name;
+    }
+  }
+  return names;
+}
+function monthLabel(k) { return k ? monthShort(k) : "none"; }
+function ownerLabel(who) { return who === "karla" ? "Karla" : "Charlie"; }
+function spendTotal(v) { return asList(v).reduce((s, e) => s + (Number(e.amount) || 0), 0); }
+
+function fieldChanges(label, a, b) {
+  const lines = [];
+  if ((a.name || "") !== (b.name || "")) lines.push(`Renamed ${a.name || "unnamed"} to ${b.name || "unnamed"}`);
+  if ((Number(a.amount) || 0) !== (Number(b.amount) || 0) && !asList(b.children).length) {
+    lines.push(`${label}: ${peso(a.amount)} → ${peso(b.amount)}`);
+  }
+  if ((a.start || "") !== (b.start || "")) lines.push(`${label}: start ${monthLabel(a.start)} → ${monthLabel(b.start)}`);
+  if ((a.end || "") !== (b.end || "")) lines.push(`${label}: end ${monthLabel(a.end)} → ${monthLabel(b.end)}`);
+  if ((a.dueDay ?? null) !== (b.dueDay ?? null)) lines.push(`${label}: due day ${a.dueDay ?? "none"} → ${b.dueDay ?? "none"}`);
+  if (!!a.recurring !== !!b.recurring) lines.push(`${label}: ${b.recurring ? "now recurring" : "now one-time"}`);
+  return lines;
+}
+
+function describeChanges(before, after) {
+  const lines = [];
+  const names = namesById(before, after);
+  const nameOf = (id) => names[id] || id;
+
+  const accBefore = Object.fromEntries(asList(before.accounts).map((a) => [a.id, a]));
+  const accAfter = Object.fromEntries(asList(after.accounts).map((a) => [a.id, a]));
+  for (const [id, a] of Object.entries(accAfter)) {
+    const old = accBefore[id], label = `${a.name} (${ownerLabel(a.owner)})`;
+    if (!old) lines.push(`Added account ${label}: ${peso(a.amount)}`);
+    else if ((Number(old.amount) || 0) !== (Number(a.amount) || 0)) lines.push(`${label}: ${peso(old.amount)} → ${peso(a.amount)}`);
+    else if (old.name !== a.name) lines.push(`Renamed account ${old.name} to ${a.name}`);
+  }
+  for (const [id, a] of Object.entries(accBefore)) {
+    if (!accAfter[id]) lines.push(`Removed account ${a.name} (${ownerLabel(a.owner)}): ${peso(a.amount)}`);
+  }
+
+  const itemsBefore = flatItems(before), itemsAfter = flatItems(after);
+  for (const [id, { it, who, kind }] of Object.entries(itemsAfter)) {
+    const type = kind === "income" ? "income" : "expense";
+    const old = itemsBefore[id]?.it;
+    if (!old) { lines.push(`Added ${type}: ${it.name} ${peso(it.amount)} (${ownerLabel(who)}, ${monthLabel(it.start)})`); continue; }
+    lines.push(...fieldChanges(it.name, old, it));
+    const kidsBefore = Object.fromEntries(asList(old.children).map((c) => [c.id, c]));
+    const kidsAfter = Object.fromEntries(asList(it.children).map((c) => [c.id, c]));
+    for (const [cid, c] of Object.entries(kidsAfter)) {
+      if (!kidsBefore[cid]) lines.push(`Added to ${it.name}: ${c.name} ${peso(c.amount)}`);
+      else lines.push(...fieldChanges(`${it.name} / ${c.name}`, kidsBefore[cid], c));
+    }
+    for (const [cid, c] of Object.entries(kidsBefore)) {
+      if (!kidsAfter[cid]) lines.push(`Removed from ${it.name}: ${c.name} ${peso(c.amount)}`);
+    }
+  }
+  for (const [id, { it, kind }] of Object.entries(itemsBefore)) {
+    if (!itemsAfter[id]) lines.push(`Removed ${kind === "income" ? "income" : "expense"}: ${it.name} ${peso(it.amount)}`);
+  }
+
+  const months = (a, b) => [...new Set([...Object.keys(a || {}), ...Object.keys(b || {})])].sort();
+  for (const k of months(before.paid, after.paid)) {
+    const a = before.paid?.[k] || {}, b = after.paid?.[k] || {};
+    for (const id of Object.keys({ ...a, ...b })) {
+      if (!!a[id] === !!b[id]) continue;
+      const income = (itemsAfter[id] || itemsBefore[id])?.kind === "income";
+      lines.push(`${b[id] ? (income ? "Received" : "Paid") : (income ? "Not received" : "Unpaid")}: ${nameOf(id)} (${monthShort(k)})`);
+    }
+  }
+  for (const k of months(before.overrides, after.overrides)) {
+    const a = before.overrides?.[k] || {}, b = after.overrides?.[k] || {};
+    for (const id of Object.keys({ ...a, ...b })) {
+      if (a[id] === b[id]) continue;
+      if (b[id] == null) lines.push(`${nameOf(id)} (${monthShort(k)}): removed the ${peso(a[id])} monthly amount`);
+      else lines.push(`${nameOf(id)} (${monthShort(k)}): ${a[id] == null ? "usual amount" : peso(a[id])} → ${peso(b[id])}`);
+    }
+  }
+  for (const k of months(before.spend, after.spend)) {
+    const a = before.spend?.[k] || {}, b = after.spend?.[k] || {};
+    for (const id of Object.keys({ ...a, ...b })) {
+      const x = spendTotal(a[id]), y = spendTotal(b[id]);
+      if (x !== y) lines.push(`Spent on ${nameOf(id)} (${monthShort(k)}): ${peso(x)} → ${peso(y)}`);
+    }
+  }
+  return lines;
+}
+
+function snapshotDay() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+async function saveDailySnapshot(data) {
+  const dayRef = ref(db, `${SNAPSHOT_PATH}/${snapshotDay()}`);
+  if (!(await get(dayRef)).exists()) await set(dayRef, data);
+}
+// Logging must never get in the way of saving, so failures are only reported to the console.
+function logChanges() {
+  if (!logBaseline) { logBaseline = clone(appData); return; }
+  const before = logBaseline;
+  const lines = describeChanges(before, appData);
+  logBaseline = clone(appData);
+  if (!lines.length) return;
+  const changes = lines.length > HISTORY_MAX_LINES
+    ? [...lines.slice(0, HISTORY_MAX_LINES), `and ${lines.length - HISTORY_MAX_LINES} more`]
+    : lines;
+  push(historyRef, { ts: Date.now(), device: deviceName(), changes }).catch((e) => console.error(e));
+  saveDailySnapshot(before).catch((e) => console.error(e));
+}
+
+function timeAgo(ts) {
+  const mins = Math.floor((Date.now() - ts) / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return new Date(ts).toLocaleDateString("en-PH", { month: "short", day: "numeric" });
+}
+function lastChangeText() {
+  const e = historyEntries[0];
+  if (!e) return "Last change: none logged yet";
+  const lines = asList(e.changes);
+  const more = lines.length > 1 ? ` +${lines.length - 1} more` : "";
+  return `Last change: ${timeAgo(e.ts)} · ${lines[0] || ""}${more}`;
+}
+function historyRowsHtml() {
+  if (!historyEntries.length) return `<p class="px-4 py-5 text-[12px] text-slate-500">No changes logged yet.</p>`;
+  return historyEntries.map((e) => {
+    const when = new Date(e.ts).toLocaleString("en-PH", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+    const lines = asList(e.changes).map((l) => `<li class="text-[12px] font-semibold text-slate-200 leading-snug">${escapeHtml(l)}</li>`).join("");
+    return `<div class="px-4 py-3 border-t border-slate-700/40">
+      <p class="text-[10px] font-bold text-slate-500 mb-1">${when} · ${escapeHtml(e.device || "Unknown device")}</p>
+      <ul class="space-y-1">${lines}</ul>
+    </div>`;
+  }).join("");
+}
+function historyCardHtml() {
+  return `<details id="history-card" class="glass-card rounded-2xl overflow-hidden md:col-span-2">
+    <summary class="flex items-center gap-3 px-4 py-3.5 cursor-pointer list-none">
+      <span class="material-icons text-indigo-400">history</span>
+      <span class="flex-1 text-sm font-bold text-white">History</span>
+      <span id="history-count" class="text-[11px] font-bold text-slate-500">${historyEntries.length}</span>
+    </summary>
+    <div id="history-rows" class="max-h-96 overflow-y-auto custom-scrollbar">${historyRowsHtml()}</div>
+  </details>`;
+}
+function refreshHistoryUi() {
+  const rows = $("history-rows"), count = $("history-count"), last = $("last-change");
+  if (rows) rows.innerHTML = historyRowsHtml();
+  if (count) count.textContent = historyEntries.length;
+  if (last) last.textContent = lastChangeText();
+}
+window.openHistory = function () {
+  const card = $("history-card");
+  if (!card) return;
+  card.open = true;
+  card.scrollIntoView({ behavior: "smooth", block: "start" });
+};
 
 function normalize(d) {
   d = d || {};
@@ -719,6 +918,7 @@ function renderBudget() {
       <div>
         <p class="text-[10px] font-black uppercase tracking-[0.3em] text-white/60">Projected · end of ${monthName(k)}</p>
         <p id="sum-projected" class="text-4xl md:text-5xl font-black text-white mt-1 leading-none">${peso(projected)}</p>
+        <button id="last-change" onclick="openHistory()" class="block w-full text-left truncate text-[11px] font-semibold text-white/60 mt-3">${escapeHtml(lastChangeText())}</button>
       </div>
       <div id="sum-stats" class="grid grid-cols-2 md:grid-cols-4 gap-3">${statsGridHtml(t)}</div>
     </div>
@@ -728,7 +928,8 @@ function renderBudget() {
     summary +
     accountsCardHtml() +
     personSectionHtml("charlie") +
-    personSectionHtml("karla");
+    personSectionHtml("karla") +
+    historyCardHtml();
 }
 
 // Installments + projection live in the "More" sheet (header insights button), not the main page.
@@ -766,7 +967,9 @@ function installmentsCardHtml() {
     const monthsPaid = monthsPaidCount(it);
     const monthsLeft = Math.max(0, total - monthsPaid);
     const monthly = Number(it.amount) || 0;
-    const remaining = monthly * monthsLeft;
+    // Sum the unpaid months so a smaller final payment (a monthly override) is counted correctly.
+    let remaining = 0;
+    for (let k = it.start; cmpKey(k, it.end) <= 0; k = addMonths(k, 1)) if (!isPaid(it.id, k)) remaining += amountIn(it, k);
     const pct = total ? Math.round((monthsPaid / total) * 100) : 0;
     grandRemaining += remaining; if (monthsLeft > 0) grandMonthly += monthly;
     const urgency = monthsLeft === 0 ? "text-emerald-400 bg-emerald-500/15" : monthsLeft <= 6 ? "text-rose-400 bg-rose-500/15" : monthsLeft <= 12 ? "text-amber-400 bg-amber-500/15" : "text-slate-400 bg-slate-500/15";
@@ -1519,11 +1722,16 @@ document.addEventListener("keydown", (e) => {
 let firstLoad = true;
 function boot() {
   runIntro();
+  onValue(query(historyRef, limitToLast(HISTORY_SHOWN)), (snap) => {
+    historyEntries = Object.values(snap.val() || {}).sort((a, b) => b.ts - a.ts);
+    refreshHistoryUi();
+  }, (err) => console.error(err));
   onValue(dbRef, (snap) => {
     // Skip re-render for the echo of our own writes (appData is already current locally).
     if (!firstLoad && pendingEchoes > 0) { pendingEchoes--; return; }
     const val = snap.val();
     appData = val ? normalize(val) : emptyData();
+    logBaseline = clone(appData);
     if (reconcileAutoPaid()) syncSet();
     if (firstLoad) {
       firstLoad = false;
