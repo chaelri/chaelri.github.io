@@ -1071,7 +1071,7 @@ function expensesIn(k) {
 }
 const LOAD_TIGHT_BELOW = 20000;
 const LOAD_STATES = {
-  short: { label: "Short", color: "#e11d48", icon: "warning" },
+  heavy: { label: "Heavy", color: "#e11d48", icon: "warning" },
   tight: { label: "Tight", color: "#c67f0a", icon: "error_outline" },
   goods: { label: "Goods", color: "#0ea371", icon: "check_circle" },
 };
@@ -1082,11 +1082,11 @@ function paymentLoadMonths() {
   const months = [];
   for (let k = first; cmpKey(k, last) <= 0; k = addMonths(k, 1)) {
     const due = paymentLoadIn(k), salary = salaryIn(k), left = salary - expensesIn(k);
-    const prior = months[months.length - 1];
     months.push({
       k, due, salary, left,
-      change: prior ? due - prior.due : 0,
-      state: left < 0 ? "short" : left < LOAD_TIGHT_BELOW ? "tight" : "goods",
+      change: due - paymentLoadIn(addMonths(k, -1)),
+      balance: timeline().includes(k) ? runningFundsAt(k) : null,
+      state: left < 0 ? "heavy" : left < LOAD_TIGHT_BELOW ? "tight" : "goods",
       ending: insts.filter((it) => it.end === k).map((it) => it.name),
       starting: insts.filter((it) => it.start === k).map((it) => it.name),
     });
@@ -1095,22 +1095,26 @@ function paymentLoadMonths() {
 }
 let loadMonths = [];
 function loadReadoutHtml(m) {
+  // Heavy months are still fine while the bank balance stays positive; "Short" means it doesn't.
+  const short = m.balance != null && m.balance < 0;
   const state = LOAD_STATES[m.state];
   const firstGoods = loadMonths.find((x) => x.state === "goods");
   const stat = (label, value) => `<div class="min-w-0"><p class="text-[10px] font-bold text-slate-400">${label}</p><p class="text-sm font-black text-white truncate">${value}</p></div>`;
   const notes = [
+    m.state === "heavy" && !short ? "Covered by savings and the loan" : "",
     m.k === firstGoods?.k ? "First month with ₱20,000 or more left" : "",
     m.ending.length ? `Last payment: ${m.ending.join(", ")}` : "",
     m.starting.length ? `Starts: ${m.starting.join(", ")}` : "",
   ].filter(Boolean).map((t) => `<p class="text-[10px] font-semibold text-slate-300 leading-snug">${escapeHtml(t)}</p>`).join("");
   return `<div class="flex items-center justify-between gap-3">
       <p class="text-lg font-black text-white">${monthShort(m.k)}</p>
-      <span class="flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-black text-white" style="background:${state.color}"><span class="material-icons" style="font-size:14px">${state.icon}</span>${state.label}</span>
+      <span class="flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-black text-white" style="background:${state.color}"><span class="material-icons" style="font-size:14px">${state.icon}</span>${short ? "Short" : state.label}</span>
     </div>
-    <div class="grid grid-cols-3 gap-2">
+    <div class="grid grid-cols-2 gap-2">
       ${stat("Installments", peso(m.due))}
-      ${stat("Left from salary", `${m.left < 0 ? "-" : ""}${peso(Math.abs(m.left))}`)}
       ${stat("Vs last month", m.change ? signedPeso(m.change) : "Same")}
+      ${stat("Salary minus expenses", `${m.left < 0 ? "-" : ""}${peso(Math.abs(m.left))}`)}
+      ${stat("End-of-month balance", m.balance == null ? "Past 5-year view" : `${m.balance < 0 ? "-" : ""}${peso(Math.abs(m.balance))}`)}
     </div>
     ${notes}`;
 }
@@ -1148,9 +1152,9 @@ function paymentLoadCardHtml() {
   return `<section class="glass-card rounded-2xl overflow-hidden border border-indigo-500/15 md:col-span-2 p-4 space-y-3">
     <div class="flex items-center gap-3">
       <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center flex-shrink-0"><span class="material-icons text-white" style="font-size:18px">bar_chart</span></div>
-      <div class="min-w-0"><h3 class="text-sm font-black text-white uppercase tracking-wide">Payment Load</h3><p class="text-[10px] text-slate-400">Installments due each month. Bar color shows what's left from salary.</p></div>
+      <div class="min-w-0"><h3 class="text-sm font-black text-white uppercase tracking-wide">Payment Load</h3><p class="text-[10px] text-slate-400">Installments due each month. Bar color shows how much salary covers.</p></div>
     </div>
-    <div class="flex flex-wrap gap-x-3 gap-y-1">${legend}<span class="text-[10px] font-semibold text-slate-400">Short: below ₱0 · Tight: under ₱20,000 · Goods: ₱20,000 or more</span></div>
+    <div class="flex flex-wrap gap-x-3 gap-y-1">${legend}<span class="text-[10px] font-semibold text-slate-400">Heavy: salary alone isn't enough · Tight: under ₱20,000 left · Goods: ₱20,000 or more left</span></div>
     <div class="flex">
       <div class="relative flex-shrink-0" style="width:30px;height:${CHART_HEIGHT + 34}px">${axis}</div>
       <div class="overflow-x-auto custom-scrollbar flex-1 min-w-0 pb-1">
