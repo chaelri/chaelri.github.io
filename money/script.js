@@ -283,14 +283,99 @@ function lastChangeText() {
   const more = lines.length > 1 ? ` +${lines.length - 1} more` : "";
   return `Last change: ${timeAgo(e.ts)} · ${lines[0] || ""}${more}`;
 }
+// Log lines are plain text, so older entries render the same way as new ones.
+function parseLogLine(line) {
+  const metaOf = (t) => {
+    const m = t.match(/^(.*) \(([^()]+)\)$/);
+    return m ? { title: m[1], meta: m[2] } : { title: t, meta: "" };
+  };
+  const nameAmount = (t) => {
+    const m = t.match(/^(.*) (₱[\d,.]+)$/);
+    return m ? { name: m[1], amount: m[2] } : { name: t, amount: "" };
+  };
+  let m;
+  if ((m = line.match(/^Added (income|expense): (.+?)(?: \(([^()]+)\))?$/))) {
+    const x = nameAmount(m[2]);
+    return { kind: "add", tag: `Added ${m[1]}`, title: x.name, meta: m[3] || "", prev: "None", next: x.amount };
+  }
+  if ((m = line.match(/^Removed (income|expense): (.+)$/))) {
+    const x = nameAmount(m[2]);
+    return { kind: "remove", tag: `Removed ${m[1]}`, title: x.name, meta: "", prev: x.amount, next: "Removed" };
+  }
+  if ((m = line.match(/^(Added|Removed) account (.+): (₱[\d,.]+)$/))) {
+    const t = metaOf(m[2]), added = m[1] === "Added";
+    return { kind: added ? "add" : "remove", tag: `${m[1]} account`, title: t.title, meta: t.meta, prev: added ? "None" : m[3], next: added ? m[3] : "Removed" };
+  }
+  if ((m = line.match(/^(Added to|Removed from) (.+): (.+)$/))) {
+    const x = nameAmount(m[3]), added = m[1] === "Added to";
+    return { kind: added ? "add" : "remove", tag: `${m[1]} ${m[2]}`, title: x.name, meta: "", prev: added ? "None" : x.amount, next: added ? x.amount : "Removed" };
+  }
+  if ((m = line.match(/^(Paid|Unpaid|Received|Not received): (.+)$/))) {
+    const t = metaOf(m[2]), income = /Received|received/.test(m[1]), done = m[1] === "Paid" || m[1] === "Received";
+    const yes = income ? "Received" : "Paid", no = income ? "Not received" : "Unpaid";
+    return { kind: done ? "done" : "edit", tag: yes === "Paid" ? "Payment" : "Income", title: t.title, meta: t.meta, prev: done ? no : yes, next: done ? yes : no };
+  }
+  if ((m = line.match(/^Renamed (?:account )?(.+) to (.+)$/))) return { kind: "edit", tag: "Renamed", title: m[2], meta: "", prev: m[1], next: m[2] };
+  if ((m = line.match(/^(.+): (now recurring|now one-time)$/))) return { kind: "edit", tag: "Schedule", title: m[1], meta: "", prev: m[2] === "now recurring" ? "One-time" : "Recurring", next: m[2] === "now recurring" ? "Recurring" : "One-time" };
+  if ((m = line.match(/^(.+): (.+) → (.+)$/))) {
+    const t = metaOf(m[1]);
+    const f = m[2].match(/^(start|end|due day) (.+)$/);
+    const tag = f ? { start: "Start month", end: "End month", "due day": "Due day" }[f[1]] : t.title.startsWith("Spent on ") ? "Spending" : "Amount";
+    return { kind: "edit", tag, title: t.title.replace(/^Spent on /, ""), meta: t.meta, prev: f ? f[2] : m[2], next: m[3] };
+  }
+  if ((m = line.match(/^(.+): removed the (₱[\d,.]+) monthly amount$/))) {
+    const t = metaOf(m[1]);
+    return { kind: "edit", tag: "Amount", title: t.title, meta: t.meta, prev: m[2], next: "Usual amount" };
+  }
+  return { kind: "note", tag: "", title: line, meta: "", prev: "", next: "" };
+}
+function pesoValue(t) {
+  const m = String(t).match(/^₱([\d,.]+)$/);
+  return m ? Number(m[1].replace(/,/g, "")) : null;
+}
+function historyChangeHtml(line) {
+  const c = parseLogLine(line);
+  if (c.kind === "note") return `<p class="text-[12px] font-semibold text-slate-400 px-1">${escapeHtml(c.title)}</p>`;
+  const look = {
+    add: ["add_circle", "text-emerald-300", "bg-emerald-500/15"],
+    remove: ["remove_circle", "text-rose-300", "bg-rose-500/15"],
+    done: ["check_circle", "text-emerald-300", "bg-emerald-500/15"],
+    edit: ["edit", "text-indigo-300", "bg-indigo-500/15"],
+  }[c.kind];
+  const a = pesoValue(c.prev), b = pesoValue(c.next);
+  const diff = a != null && b != null ? b - a : null;
+  const diffHtml = diff ? `<span class="text-[11px] font-black ${diff > 0 ? "text-emerald-300" : "text-rose-300"} flex-shrink-0">${signedPeso(diff)}</span>` : "";
+  const box = (label, value, after) => `<div class="min-w-0 rounded-xl px-3 py-2.5 ${after ? "bg-indigo-500/20 border border-indigo-400/40" : "bg-slate-900/50 border border-slate-700/50"}">
+      <p class="text-[9px] font-black uppercase tracking-widest ${after ? "text-indigo-200" : "text-slate-500"}">${label}</p>
+      <p class="mt-1 text-sm md:text-base font-black break-words leading-tight ${after ? "text-white" : "text-slate-400"}">${escapeHtml(String(value).charAt(0).toUpperCase() + String(value).slice(1))}</p>
+    </div>`;
+  return `<div class="rounded-2xl bg-slate-800/50 border border-slate-700/40 p-3 space-y-2.5">
+    <div class="flex items-center gap-2.5">
+      <span class="w-8 h-8 rounded-xl ${look[2]} flex items-center justify-center flex-shrink-0"><span class="material-icons ${look[1]}" style="font-size:17px">${look[0]}</span></span>
+      <div class="min-w-0 flex-1">
+        <p class="text-[13px] font-bold text-white truncate">${escapeHtml(c.title)}</p>
+        <p class="text-[10px] font-semibold text-slate-400 truncate">${escapeHtml(c.tag)}${c.meta ? ` · ${escapeHtml(c.meta)}` : ""}</p>
+      </div>
+      ${diffHtml}
+    </div>
+    <div class="grid items-center gap-2" style="grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)">
+      ${box("Prev", c.prev, false)}
+      <span class="material-icons text-indigo-300" style="font-size:18px">arrow_forward</span>
+      ${box("Next", c.next, true)}
+    </div>
+  </div>`;
+}
 function historyRowsHtml() {
   if (!historyEntries.length) return `<p class="px-4 py-5 text-[12px] text-slate-500">No changes logged yet.</p>`;
   return historyEntries.map((e) => {
     const when = new Date(e.ts).toLocaleString("en-PH", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
-    const lines = asList(e.changes).map((l) => `<li class="text-[12px] font-semibold text-slate-200 leading-snug">${escapeHtml(l)}</li>`).join("");
-    return `<div class="px-4 py-3 border-t border-slate-700/40">
-      <p class="text-[10px] font-bold text-slate-500 mb-1">${when} · ${escapeHtml(e.device || "Unknown device")}</p>
-      <ul class="space-y-1">${lines}</ul>
+    const lines = asList(e.changes);
+    return `<div class="px-4 py-3.5 border-t border-slate-700/40 space-y-2.5">
+      <div class="flex items-center justify-between gap-3">
+        <p class="text-[11px] font-black text-slate-300">${when}</p>
+        <p class="text-[10px] font-bold text-slate-400 bg-slate-800 rounded-full px-2.5 py-1">${escapeHtml(e.device || "Unknown device")} · ${lines.length} ${lines.length === 1 ? "change" : "changes"}</p>
+      </div>
+      <div class="grid gap-2 md:grid-cols-2">${lines.map(historyChangeHtml).join("")}</div>
     </div>`;
   }).join("");
 }
@@ -301,7 +386,7 @@ function historyCardHtml() {
       <span class="flex-1 text-sm font-bold text-white">History</span>
       <span id="history-count" class="text-[11px] font-bold text-slate-500">${historyEntries.length}</span>
     </summary>
-    <div id="history-rows" class="max-h-96 overflow-y-auto custom-scrollbar">${historyRowsHtml()}</div>
+    <div id="history-rows" class="max-h-[32rem] overflow-y-auto custom-scrollbar">${historyRowsHtml()}</div>
   </details>`;
 }
 function refreshHistoryUi() {
