@@ -1052,7 +1052,9 @@ function monthsPaidCount(it) {
 // Installments as an inline expandable card (same pattern as Accounts).
 // Progress is driven by ACTUAL checked payments so ticking a month updates it live.
 function installmentsCardHtml() {
-  const insts = allInstallments();
+  // Nearest end date first; finished ones drop to the bottom.
+  const isDone = (it) => monthsInclusive(it.start, it.end) - monthsPaidCount(it) <= 0;
+  const insts = allInstallments().sort((a, b) => isDone(a) - isDone(b) || cmpKey(a.end, b.end) || a.name.localeCompare(b.name));
   if (!insts.length) return "";
   let grandRemaining = 0, grandMonthly = 0;
   const rows = insts.map((it) => {
