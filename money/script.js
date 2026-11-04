@@ -182,6 +182,7 @@ function fieldChanges(label, a, b) {
   if ((a.end || "") !== (b.end || "")) lines.push(`${label}: end ${monthLabel(a.end)} → ${monthLabel(b.end)}`);
   if ((a.dueDay ?? null) !== (b.dueDay ?? null)) lines.push(`${label}: due day ${a.dueDay ?? "none"} → ${b.dueDay ?? "none"}`);
   if (!!a.recurring !== !!b.recurring) lines.push(`${label}: ${b.recurring ? "now recurring" : "now one-time"}`);
+  if ((Number(a.every) || 1) !== (Number(b.every) || 1)) lines.push(`${label}: ${Number(b.every) === 3 ? "now quarterly" : "now monthly"}`);
   return lines;
 }
 
@@ -319,6 +320,7 @@ function parseLogLine(line) {
     return { kind: done ? "done" : "edit", tag: yes === "Paid" ? "Payment" : "Income", title: t.title, meta: t.meta, prev: done ? no : yes, next: done ? yes : no };
   }
   if ((m = line.match(/^Renamed (?:account )?(.+) to (.+)$/))) return { kind: "edit", tag: "Renamed", title: m[2], meta: "", prev: m[1], next: m[2] };
+  if ((m = line.match(/^(.+): (now quarterly|now monthly)$/))) return { kind: "edit", tag: "Schedule", title: m[1], meta: "", prev: m[2] === "now quarterly" ? "Monthly" : "Quarterly", next: m[2] === "now quarterly" ? "Quarterly" : "Monthly" };
   if ((m = line.match(/^(.+): (now recurring|now one-time)$/))) return { kind: "edit", tag: "Schedule", title: m[1], meta: "", prev: m[2] === "now recurring" ? "One-time" : "Recurring", next: m[2] === "now recurring" ? "Recurring" : "One-time" };
   if ((m = line.match(/^(.+): (.+) → (.+)$/))) {
     const t = metaOf(m[1]);
@@ -465,8 +467,12 @@ function itemActiveIn(it, k) {
   if (!it.recurring) return it.start === k;
   if (cmpKey(k, it.start) < 0) return false;
   if (it.end && cmpKey(k, it.end) > 0) return false;
-  return true;
+  return (monthsInclusive(it.start, k) - 1) % everyMonths(it) === 0;
 }
+// How many months between payments: 1 = monthly, 3 = quarterly.
+function everyMonths(it) { return Number(it.every) || 1; }
+// Number of payments between an item's start and end.
+function paymentCount(it) { return Math.ceil(monthsInclusive(it.start, it.end) / everyMonths(it)); }
 function amountIn(it, k) {
   const ov = appData.overrides?.[k]?.[it.id];
   return ov != null ? Number(ov) : Number(it.amount) || 0;
@@ -714,11 +720,12 @@ function itemRowHtml(it, k, kind, who, opts = {}) {
   const dd = dueDayFor(it);
   const tags = [];
   if (installment) tags.push(`<span class="text-[9px] font-bold text-amber-400/80">→ ${monthShort(it.end)}</span>`);
+  else if (it.recurring && everyMonths(it) === 3) tags.push(`<span class="text-[9px] font-bold text-indigo-300/90 uppercase tracking-wide flex items-center gap-0.5"><span class="material-icons" style="font-size:11px">autorenew</span>Quarterly</span>`);
   else if (it.recurring && dd != null) tags.push(`<span class="text-[9px] font-bold text-sky-300 uppercase tracking-wide flex items-center gap-0.5"><span class="material-icons" style="font-size:11px">event_available</span>${ordinal(dd)}</span>`);
   else if (it.recurring) tags.push(`<span class="text-[9px] font-bold text-indigo-300/90 uppercase tracking-wide flex items-center gap-0.5"><span class="material-icons" style="font-size:11px">autorenew</span>Recurring</span>`);
   let progress = "";
   if (installment) {
-    const total = monthsInclusive(it.start, it.end);
+    const total = paymentCount(it);
     const paidM = monthsPaidCount(it);
     const pct = total ? Math.round((paidM / total) * 100) : 0;
     progress = `<div class="flex items-center gap-2 mt-1.5 max-w-[220px]">
@@ -1077,21 +1084,21 @@ function monthsPaidCount(it) {
 // Progress is driven by ACTUAL checked payments so ticking a month updates it live.
 function installmentsCardHtml() {
   // Nearest end date first; finished ones drop to the bottom.
-  const isDone = (it) => monthsInclusive(it.start, it.end) - monthsPaidCount(it) <= 0;
+  const isDone = (it) => paymentCount(it) - monthsPaidCount(it) <= 0;
   const insts = allInstallments().sort((a, b) => isDone(a) - isDone(b) || cmpKey(a.end, b.end) || a.name.localeCompare(b.name));
   if (!insts.length) return "";
   let grandRemaining = 0, grandMonthly = 0;
   const rows = insts.map((it) => {
     const o = OWNERS[it.who];
-    const total = monthsInclusive(it.start, it.end);
+    const total = paymentCount(it);
     const monthsPaid = monthsPaidCount(it);
     const monthsLeft = Math.max(0, total - monthsPaid);
     const monthly = Number(it.amount) || 0;
     // Sum the unpaid months so a smaller final payment (a monthly override) is counted correctly.
     let remaining = 0;
-    for (let k = it.start; cmpKey(k, it.end) <= 0; k = addMonths(k, 1)) if (!isPaid(it.id, k)) remaining += amountIn(it, k);
+    for (let k = it.start; cmpKey(k, it.end) <= 0; k = addMonths(k, 1)) if (itemActiveIn(it, k) && !isPaid(it.id, k)) remaining += amountIn(it, k);
     const pct = total ? Math.round((monthsPaid / total) * 100) : 0;
-    grandRemaining += remaining; if (monthsLeft > 0) grandMonthly += monthly;
+    grandRemaining += remaining; if (monthsLeft > 0) grandMonthly += monthly / everyMonths(it);
     const urgency = monthsLeft === 0 ? "text-emerald-400 bg-emerald-500/15" : monthsLeft <= 6 ? "text-rose-400 bg-rose-500/15" : monthsLeft <= 12 ? "text-amber-400 bg-amber-500/15" : "text-slate-400 bg-slate-500/15";
     return `<div class="px-3 py-2.5 rounded-xl space-y-2">
       <div class="flex items-center justify-between gap-3">
@@ -1099,10 +1106,10 @@ function installmentsCardHtml() {
           <div class="flex items-center gap-2"><p class="text-sm font-bold text-slate-200 truncate">${escapeHtml(it.name)}</p><span class="text-[9px] font-bold uppercase ${o.text}">${o.label}</span></div>
           <p class="text-[10px] text-slate-500">${monthShort(it.start)} → ${monthShort(it.end)}</p>
         </div>
-        <span class="text-[10px] font-black px-2.5 py-1 rounded-lg ${urgency} uppercase flex-shrink-0">${monthsLeft === 0 ? "Done" : monthsLeft + " mo left"}</span>
+        <span class="text-[10px] font-black px-2.5 py-1 rounded-lg ${urgency} uppercase flex-shrink-0">${monthsLeft === 0 ? "Done" : monthsLeft + (everyMonths(it) === 3 ? " left" : " mo left")}</span>
       </div>
       <div class="flex items-end justify-between gap-3">
-        <p class="text-xl font-black text-white leading-none">${peso(monthly)}<span class="text-[11px] font-bold text-slate-400"> /mo</span></p>
+        <p class="text-xl font-black text-white leading-none">${peso(monthly)}<span class="text-[11px] font-bold text-slate-400"> ${everyMonths(it) === 3 ? "/qtr" : "/mo"}</span></p>
         <p class="text-sm font-black text-fuchsia-300 leading-none text-right">${peso(remaining)}<span class="text-[11px] font-bold text-slate-400"> left</span></p>
       </div>
       <div class="h-2 bg-slate-900/60 rounded-full overflow-hidden"><div class="h-full bg-gradient-to-r ${o.grad} rounded-full" style="width:${pct}%"></div></div>
@@ -1214,6 +1221,7 @@ window.openItemModal = function (who, kind, id) {
   activeEdit = { kind: "item", who, type: kind, id };
 
   const recurring = it ? it.recurring !== false : true;
+  const every = it ? everyMonths(it) : 1;
   const start = it ? it.start : selectedKey;
   const end = it && it.end ? it.end : "";
   const name = it ? it.name : "";
@@ -1244,11 +1252,18 @@ window.openItemModal = function (who, kind, id) {
 
   // recurring toggle
   body += `<div class="flex items-center justify-between bg-slate-900 rounded-2xl px-5 py-4">
-    <div><p class="text-sm font-bold text-white">Recurring</p><p class="text-[10px] text-slate-500">Repeats every month</p></div>
+    <div><p class="text-sm font-bold text-white">Recurring</p><p class="text-[10px] text-slate-500">Repeats on a schedule</p></div>
     <button type="button" id="f-recurring" data-on="${recurring}" onclick="toggleField(this)" class="w-14 h-8 rounded-full transition-colors ${recurring ? "bg-indigo-600" : "bg-slate-700"} relative flex-shrink-0">
       <span class="absolute top-1 ${recurring ? "left-7" : "left-1"} w-6 h-6 bg-white rounded-full transition-all"></span>
     </button>
   </div>`;
+
+  // how often a recurring item repeats
+  body += `<div class="space-y-1"><label class="text-[10px] font-bold uppercase text-slate-500 ml-1">Repeats</label>
+    <select id="f-every" class="w-full bg-slate-900 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none">
+      <option value="1" ${every === 1 ? "selected" : ""}>Every month</option>
+      <option value="3" ${every === 3 ? "selected" : ""}>Quarterly (every 3 months)</option>
+    </select></div>`;
 
   // start month
   body += `<div class="space-y-1"><label class="text-[10px] font-bold uppercase text-slate-500 ml-1">Starts</label>
@@ -1543,6 +1558,7 @@ window.saveModal = async function () {
     try { localStorage.setItem("money.lastOwner", who); } catch (e) {}
   }
   const recurring = $("f-recurring").dataset.on === "true";
+  const every = recurring && $("f-every")?.value === "3" ? 3 : null;
   const start = $("f-start").value;
   const end = $("f-end").value || null;
   const ddInput = $("f-dueday");
@@ -1555,6 +1571,7 @@ window.saveModal = async function () {
     if (it) {
       it.name = name;
       it.recurring = recurring;
+      it.every = every;
       it.start = start;
       it.end = recurring ? end : null;
       it.dueDay = dueDay;
@@ -1577,7 +1594,7 @@ window.saveModal = async function () {
       appData.paid[selectedKey][id] = on;
     }
   } else {
-    list.push({ id: generateId(), name, amount, start, end: recurring ? end : null, recurring, dueDay });
+    list.push({ id: generateId(), name, amount, start, end: recurring ? end : null, recurring, every, dueDay });
   }
   await syncSet();
   closeModal(); renderAll(); toast("Saved"); celebrate();
@@ -1649,7 +1666,7 @@ function updateInstallmentBar(btn, id) {
   if (!it || !it.recurring || !it.end) return;
   const row = btn.closest(".item-row");
   if (!row) return;
-  const total = monthsInclusive(it.start, it.end);
+  const total = paymentCount(it);
   const paidM = monthsPaidCount(it);
   const fill = row.querySelector(".inst-bar-fill");
   const cnt = row.querySelector(".inst-bar-count");
