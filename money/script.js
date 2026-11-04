@@ -130,7 +130,7 @@ async function syncSet() {
 // History: every save is diffed against the last known data and logged
 // =============================
 const HISTORY_SHOWN = 500;
-const HISTORY_PAGE_SIZE = 6;
+const HISTORY_PAGE_SIZE = 8;
 const HISTORY_MAX_LINES = 40;
 let logBaseline = null; // last data known to be in Firebase
 let historyEntries = []; // newest first
@@ -341,50 +341,40 @@ function pesoValue(t) {
 }
 function historyChangeHtml(line) {
   const c = parseLogLine(line);
-  if (c.kind === "note") return `<p class="text-[12px] font-semibold text-slate-400 px-1">${escapeHtml(c.title)}</p>`;
+  if (c.kind === "note") return `<p class="px-4 py-2 text-[11px] font-semibold text-slate-400">${escapeHtml(c.title)}</p>`;
   const look = {
-    add: ["add_circle", "text-emerald-300", "bg-emerald-500/15"],
-    remove: ["remove_circle", "text-rose-300", "bg-rose-500/15"],
-    done: ["check_circle", "text-emerald-300", "bg-emerald-500/15"],
-    edit: ["edit", "text-indigo-300", "bg-indigo-500/15"],
+    add: ["add_circle", "text-emerald-300"],
+    remove: ["remove_circle", "text-rose-300"],
+    done: ["check_circle", "text-emerald-300"],
+    edit: ["edit", "text-indigo-300"],
   }[c.kind];
   const a = pesoValue(c.prev), b = pesoValue(c.next);
   const diff = a != null && b != null ? b - a : null;
-  const diffHtml = diff ? `<span class="text-[11px] font-black ${diff > 0 ? "text-emerald-300" : "text-rose-300"} flex-shrink-0">${signedPeso(diff)}</span>` : "";
-  const box = (label, value, after) => `<div class="min-w-0 rounded-xl px-3 py-2.5 ${after ? "bg-indigo-500/20 border border-indigo-400/40" : "bg-slate-900/50 border border-slate-700/50"}">
-      <p class="text-[9px] font-black uppercase tracking-widest ${after ? "text-indigo-200" : "text-slate-500"}">${label}</p>
-      <p class="mt-1 text-sm md:text-base font-black break-words leading-tight ${after ? "text-white" : "text-slate-400"}">${escapeHtml(capitalize(value))}</p>
-    </div>`;
-  const single = (label, value, tone) => `<div class="rounded-xl px-3 py-2.5 border ${tone === "add" ? "bg-emerald-500/15 border-emerald-400/30" : "bg-rose-500/15 border-rose-400/30"}">
-      <p class="text-[9px] font-black uppercase tracking-widest ${tone === "add" ? "text-emerald-200" : "text-rose-200"}">${label}</p>
-      <p class="mt-1 text-sm md:text-base font-black break-words leading-tight text-white">${escapeHtml(capitalize(value))}</p>
-    </div>`;
+  const chip = (value, cls) => `<span class="inline-block max-w-[9.5rem] truncate rounded-lg px-2 py-1 text-[11px] font-black ${cls}">${escapeHtml(capitalize(value))}</span>`;
   const isEmpty = (v) => /^none$/i.test(String(v));
-  const compare = isEmpty(c.prev) ? single("Added", c.next, "add")
-    : isEmpty(c.next) || c.next === "Removed" ? single("Removed", c.prev, "remove")
-    : `<div class="grid items-center gap-2" style="grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)">
-      ${box("Prev", c.prev, false)}
-      <span class="material-icons text-indigo-300" style="font-size:18px">arrow_forward</span>
-      ${box("Next", c.next, true)}
-    </div>`;
-  return `<div class="rounded-2xl bg-slate-800/50 border border-slate-700/40 p-3 space-y-2.5">
-    <div class="flex items-center gap-2.5">
-      <span class="w-8 h-8 rounded-xl ${look[2]} flex items-center justify-center flex-shrink-0"><span class="material-icons ${look[1]}" style="font-size:17px">${look[0]}</span></span>
-      <div class="min-w-0 flex-1">
-        <p class="text-[13px] font-bold text-white truncate">${escapeHtml(c.title)}</p>
-        <p class="text-[10px] font-semibold text-slate-400 truncate">${escapeHtml(c.tag)}${c.meta ? ` · ${escapeHtml(c.meta)}` : ""}</p>
-      </div>
-      ${diffHtml}
+  const values = isEmpty(c.prev) ? chip(`Added ${c.next}`, "bg-emerald-500/15 text-emerald-200")
+    : isEmpty(c.next) || c.next === "Removed" ? chip(`Removed ${c.prev}`, "bg-rose-500/15 text-rose-200")
+    : `${chip(c.prev, "bg-slate-900/60 text-slate-400")}<span class="material-icons text-indigo-300 flex-shrink-0" style="font-size:14px">arrow_forward</span>${chip(c.next, "bg-indigo-500/25 text-white")}`;
+  const diffHtml = diff ? `<span class="text-[10px] font-black ${diff > 0 ? "text-emerald-300" : "text-rose-300"} flex-shrink-0">${signedPeso(diff)}</span>` : "";
+  return `<div class="px-4 py-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+    <span class="material-icons ${look[1]} flex-shrink-0" style="font-size:17px">${look[0]}</span>
+    <div class="min-w-0 flex-1" style="flex-basis:9rem">
+      <p class="text-[12px] font-bold text-white truncate">${escapeHtml(c.title)}</p>
+      <p class="text-[10px] font-semibold text-slate-500 truncate">${escapeHtml(c.tag)}${c.meta ? ` · ${escapeHtml(c.meta)}` : ""}</p>
     </div>
-    ${compare}
+    <div class="flex items-center gap-1.5 ml-6 md:ml-0">${values}${diffHtml}</div>
   </div>`;
 }
-function historyPageCount() { return Math.max(1, Math.ceil(historyEntries.length / HISTORY_PAGE_SIZE)); }
+// Pages are counted in single changes, so every page has a predictable height.
+function historyLines() {
+  return historyEntries.flatMap((e) => asList(e.changes).map((line) => ({ e, line })));
+}
+function historyPageCount() { return Math.max(1, Math.ceil(historyLines().length / HISTORY_PAGE_SIZE)); }
 function historyPagerHtml() {
   const pages = historyPageCount();
   if (pages < 2) return "";
-  const button = (delta, icon, label, disabled) => `<button onclick="moveHistoryPage(${delta})" ${disabled ? "disabled" : ""} class="flex items-center gap-1 rounded-xl px-3.5 py-2 text-[12px] font-black ${disabled ? "bg-slate-800/40 text-slate-600" : "bg-indigo-500/20 text-indigo-200 border border-indigo-400/30"}">${delta < 0 ? `<span class="material-icons" style="font-size:17px">${icon}</span>${label}` : `${label}<span class="material-icons" style="font-size:17px">${icon}</span>`}</button>`;
-  return `<div class="flex items-center justify-between gap-3 px-4 py-3 border-t border-slate-700/40">
+  const button = (delta, icon, label, disabled) => `<button onclick="moveHistoryPage(${delta})" ${disabled ? "disabled" : ""} class="flex items-center gap-0.5 rounded-lg px-2.5 py-1.5 text-[11px] font-black ${disabled ? "bg-slate-800/40 text-slate-600" : "bg-indigo-500/20 text-indigo-200 border border-indigo-400/30"}">${delta < 0 ? `<span class="material-icons" style="font-size:17px">${icon}</span>${label}` : `${label}<span class="material-icons" style="font-size:17px">${icon}</span>`}</button>`;
+  return `<div class="flex items-center justify-between gap-3 px-4 py-2 border-t border-slate-700/40">
     ${button(-1, "chevron_left", "Newer", historyPage === 0)}
     <p class="text-[11px] font-bold text-slate-400">Page ${historyPage + 1} of ${pages}</p>
     ${button(1, "chevron_right", "Older", historyPage >= pages - 1)}
@@ -394,18 +384,19 @@ function historyRowsHtml() {
   if (!historyEntries.length) return `<p class="px-4 py-5 text-[12px] text-slate-500">No changes logged yet.</p>`;
   historyPage = Math.min(historyPage, historyPageCount() - 1);
   const start = historyPage * HISTORY_PAGE_SIZE;
-  const cards = historyEntries.slice(start, start + HISTORY_PAGE_SIZE).map((e) => {
-    const when = new Date(e.ts).toLocaleString("en-PH", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
-    const lines = asList(e.changes);
-    return `<div class="rounded-2xl bg-slate-900/30 p-3 space-y-2.5">
-      <div class="flex items-center justify-between gap-3">
-        <p class="text-[11px] font-black text-slate-300">${when}</p>
-        <p class="text-[10px] font-bold text-slate-400 bg-slate-800 rounded-full px-2.5 py-1">${escapeHtml(e.device || "Unknown device")} · ${lines.length} ${lines.length === 1 ? "change" : "changes"}</p>
-      </div>
-      <div class="space-y-2">${lines.map(historyChangeHtml).join("")}</div>
-    </div>`;
-  }).join("");
-  return `<div class="grid gap-3 p-3 border-t border-slate-700/40 md:grid-cols-2 items-start">${cards}</div>${historyPagerHtml()}`;
+  let last = null, rows = "";
+  for (const { e, line } of historyLines().slice(start, start + HISTORY_PAGE_SIZE)) {
+    if (e !== last) {
+      const when = new Date(e.ts).toLocaleString("en-PH", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+      rows += `<div class="flex items-center justify-between gap-3 px-4 py-1.5 bg-slate-900/40 border-t border-slate-700/40">
+        <p class="text-[10px] font-black text-slate-300">${when}</p>
+        <p class="text-[10px] font-bold text-slate-500">${escapeHtml(e.device || "Unknown device")}</p>
+      </div>`;
+      last = e;
+    }
+    rows += historyChangeHtml(line);
+  }
+  return `<div>${rows}</div>${historyPagerHtml()}`;
 }
 window.setHistoryOpen = function (open) { historyOpen = open; };
 window.moveHistoryPage = function (delta) {
@@ -418,7 +409,7 @@ function historyCardHtml() {
     <summary class="flex items-center gap-3 px-4 py-3.5 cursor-pointer list-none">
       <span class="material-icons text-indigo-400">history</span>
       <span class="flex-1 text-sm font-bold text-white">History</span>
-      <span id="history-count" class="text-[11px] font-bold text-slate-500">${historyEntries.length}</span>
+      <span id="history-count" class="text-[11px] font-bold text-slate-500">${historyLines().length}</span>
     </summary>
     <div id="history-rows">${historyRowsHtml()}</div>
   </details>`;
@@ -426,7 +417,7 @@ function historyCardHtml() {
 function refreshHistoryUi() {
   const rows = $("history-rows"), count = $("history-count"), last = $("last-change");
   if (rows) rows.innerHTML = historyRowsHtml();
-  if (count) count.textContent = historyEntries.length;
+  if (count) count.textContent = historyLines().length;
   if (last) last.textContent = lastChangeText();
 }
 window.openHistory = function () {
