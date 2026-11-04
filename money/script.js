@@ -129,10 +129,13 @@ async function syncSet() {
 // =============================
 // History: every save is diffed against the last known data and logged
 // =============================
-const HISTORY_SHOWN = 100;
+const HISTORY_SHOWN = 500;
+const HISTORY_PAGE_SIZE = 6;
 const HISTORY_MAX_LINES = 40;
 let logBaseline = null; // last data known to be in Firebase
 let historyEntries = []; // newest first
+let historyPage = 0; // 0 = newest
+let historyOpen = false; // keeps the section open across re-renders
 
 function clone(o) { return JSON.parse(JSON.stringify(o)); }
 function asList(v) { return (Array.isArray(v) ? v : Object.values(v || {})).filter(Boolean); }
@@ -374,28 +377,48 @@ function historyChangeHtml(line) {
     ${compare}
   </div>`;
 }
+function historyPageCount() { return Math.max(1, Math.ceil(historyEntries.length / HISTORY_PAGE_SIZE)); }
+function historyPagerHtml() {
+  const pages = historyPageCount();
+  if (pages < 2) return "";
+  const button = (delta, icon, label, disabled) => `<button onclick="moveHistoryPage(${delta})" ${disabled ? "disabled" : ""} class="flex items-center gap-1 rounded-xl px-3.5 py-2 text-[12px] font-black ${disabled ? "bg-slate-800/40 text-slate-600" : "bg-indigo-500/20 text-indigo-200 border border-indigo-400/30"}">${delta < 0 ? `<span class="material-icons" style="font-size:17px">${icon}</span>${label}` : `${label}<span class="material-icons" style="font-size:17px">${icon}</span>`}</button>`;
+  return `<div class="flex items-center justify-between gap-3 px-4 py-3 border-t border-slate-700/40">
+    ${button(-1, "chevron_left", "Newer", historyPage === 0)}
+    <p class="text-[11px] font-bold text-slate-400">Page ${historyPage + 1} of ${pages}</p>
+    ${button(1, "chevron_right", "Older", historyPage >= pages - 1)}
+  </div>`;
+}
 function historyRowsHtml() {
   if (!historyEntries.length) return `<p class="px-4 py-5 text-[12px] text-slate-500">No changes logged yet.</p>`;
-  return historyEntries.map((e) => {
+  historyPage = Math.min(historyPage, historyPageCount() - 1);
+  const start = historyPage * HISTORY_PAGE_SIZE;
+  const cards = historyEntries.slice(start, start + HISTORY_PAGE_SIZE).map((e) => {
     const when = new Date(e.ts).toLocaleString("en-PH", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
     const lines = asList(e.changes);
-    return `<div class="px-4 py-3.5 border-t border-slate-700/40 space-y-2.5">
+    return `<div class="rounded-2xl bg-slate-900/30 p-3 space-y-2.5">
       <div class="flex items-center justify-between gap-3">
         <p class="text-[11px] font-black text-slate-300">${when}</p>
         <p class="text-[10px] font-bold text-slate-400 bg-slate-800 rounded-full px-2.5 py-1">${escapeHtml(e.device || "Unknown device")} · ${lines.length} ${lines.length === 1 ? "change" : "changes"}</p>
       </div>
-      <div class="grid gap-2 md:grid-cols-2">${lines.map(historyChangeHtml).join("")}</div>
+      <div class="space-y-2">${lines.map(historyChangeHtml).join("")}</div>
     </div>`;
   }).join("");
+  return `<div class="grid gap-3 p-3 border-t border-slate-700/40 md:grid-cols-2 items-start">${cards}</div>${historyPagerHtml()}`;
 }
+window.setHistoryOpen = function (open) { historyOpen = open; };
+window.moveHistoryPage = function (delta) {
+  historyPage = Math.max(0, Math.min(historyPageCount() - 1, historyPage + delta));
+  refreshHistoryUi();
+  $("history-card")?.scrollIntoView({ behavior: "smooth", block: "start" });
+};
 function historyCardHtml() {
-  return `<details id="history-card" class="glass-card rounded-2xl overflow-hidden md:col-span-2">
+  return `<details id="history-card" ${historyOpen ? "open" : ""} ontoggle="setHistoryOpen(this.open)" class="glass-card rounded-2xl overflow-hidden md:col-span-2">
     <summary class="flex items-center gap-3 px-4 py-3.5 cursor-pointer list-none">
       <span class="material-icons text-indigo-400">history</span>
       <span class="flex-1 text-sm font-bold text-white">History</span>
       <span id="history-count" class="text-[11px] font-bold text-slate-500">${historyEntries.length}</span>
     </summary>
-    <div id="history-rows" class="max-h-[32rem] overflow-y-auto custom-scrollbar">${historyRowsHtml()}</div>
+    <div id="history-rows">${historyRowsHtml()}</div>
   </details>`;
 }
 function refreshHistoryUi() {
@@ -408,6 +431,7 @@ window.openHistory = function () {
   const card = $("history-card");
   if (!card) return;
   card.open = true;
+  historyOpen = true;
   card.scrollIntoView({ behavior: "smooth", block: "start" });
 };
 
