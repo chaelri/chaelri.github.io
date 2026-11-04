@@ -394,13 +394,6 @@ function refreshHistoryUi() {
   if (rows) rows.innerHTML = historyRowsHtml();
   if (count) count.textContent = historyLines().length;
 }
-window.openHistory = function () {
-  const card = $("history-card");
-  if (!card) return;
-  card.open = true;
-  historyOpen = true;
-  card.scrollIntoView({ behavior: "smooth", block: "start" });
-};
 
 function normalize(d) {
   d = d || {};
