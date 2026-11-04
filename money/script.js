@@ -796,7 +796,10 @@ function personSectionHtml(who) {
   const expTot = who === "charlie" ? t.cE : t.kE;
   const net = incTot - expTot;
   const incHtml = groupedRowsHtml(income, k, "income", who);
-  const expHtml = groupedRowsHtml(expenses, k, "expenses", who);
+  // The fund transfer sits at the top so it isn't lost among the bank groups.
+  const fund = expenses.find((it) => it.virtual);
+  const fundHtml = fund ? `<div class="rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-700 mb-1.5">${itemRowHtml(fund, k, "expenses", who)}</div>` : "";
+  const expHtml = fundHtml + groupedRowsHtml(expenses.filter((it) => !it.virtual), k, "expenses", who);
   return `<div class="glass-card rounded-2xl overflow-hidden border ${o.ring}">
     <div class="flex items-center justify-between px-5 py-4 bg-gradient-to-r ${o.grad} bg-opacity-10">
       <div class="flex items-center gap-3">
