@@ -1032,7 +1032,7 @@ function renderBudget() {
 window.openMore = function () {
   const body = $("more-body");
   const inst = installmentsCardHtml() || `<div class="glass-card rounded-2xl p-6 text-center text-[12px] text-slate-500">No installments yet — add an expense with a "runs until" month.</div>`;
-  body.innerHTML = inst + paymentLoadCardHtml() + projectionCardHtml();
+  body.innerHTML = paymentLoadCardHtml() + inst + projectionCardHtml();
   body.querySelectorAll("details").forEach((d) => (d.open = true));
   const ov = $("more-overlay");
   ov.classList.add("open");
@@ -1057,61 +1057,115 @@ function monthsPaidCount(it) {
 function paymentLoadIn(k) {
   return allInstallments().reduce((sum, it) => sum + (itemActiveIn(it, k) ? amountIn(it, k) : 0), 0);
 }
-// One row per month from now to the last installment. Months with nothing changing are merged.
-function paymentLoadRows() {
+// What's left from regular salary in month k after every expense. One-time income
+// (loans, back pay, 13th month) is left out so the chart shows the normal monthly picture.
+function salaryIn(k) {
+  return ["charlie", "karla"].reduce((sum, who) => sum + getItems(who, "income")
+    .filter((it) => it.recurring && itemActiveIn(it, k))
+    .reduce((s, it) => s + itemAmts(it, k).total, 0), 0);
+}
+function expensesIn(k) {
+  return ["charlie", "karla"].reduce((sum, who) => sum + getItems(who, "expenses")
+    .filter((it) => itemActiveIn(it, k))
+    .reduce((s, it) => s + itemAmts(it, k).total, 0), 0);
+}
+const LOAD_TIGHT_BELOW = 20000;
+const LOAD_STATES = {
+  short: { label: "Short", color: "#f43f5e", icon: "warning" },
+  tight: { label: "Tight", color: "#c67f0a", icon: "error_outline" },
+  goods: { label: "Goods", color: "#0ea371", icon: "check_circle" },
+};
+function paymentLoadMonths() {
   const insts = allInstallments();
   const first = currentKey();
   const last = insts.reduce((max, it) => (cmpKey(it.end, max) > 0 ? it.end : max), first);
-  const rows = [];
+  const months = [];
   for (let k = first; cmpKey(k, last) <= 0; k = addMonths(k, 1)) {
-    const total = paymentLoadIn(k);
-    const next = addMonths(k, 1);
-    const ending = insts.filter((it) => it.end === k).map((it) => it.name);
-    const starting = insts.filter((it) => it.start === next).map((it) => it.name);
-    const change = cmpKey(k, last) === 0 ? -total : paymentLoadIn(next) - total;
-    const prev = rows[rows.length - 1];
-    if (prev && prev.total === total && prev.change === 0) {
-      Object.assign(prev, { to: k, ending, starting, change });
-    } else {
-      rows.push({ from: k, to: k, total, ending, starting, change });
-    }
+    const due = paymentLoadIn(k), salary = salaryIn(k), left = salary - expensesIn(k);
+    const prior = months[months.length - 1];
+    months.push({
+      k, due, salary, left,
+      change: prior ? due - prior.due : 0,
+      state: left < 0 ? "short" : left < LOAD_TIGHT_BELOW ? "tight" : "goods",
+      ending: insts.filter((it) => it.end === k).map((it) => it.name),
+      starting: insts.filter((it) => it.start === k).map((it) => it.name),
+    });
   }
-  return rows;
+  return months;
 }
+let loadMonths = [];
+function loadReadoutHtml(m) {
+  const state = LOAD_STATES[m.state];
+  const firstGoods = loadMonths.find((x) => x.state === "goods");
+  const stat = (label, value) => `<div class="min-w-0"><p class="text-[10px] font-bold text-slate-400">${label}</p><p class="text-sm font-black text-white truncate">${value}</p></div>`;
+  const notes = [
+    m.k === firstGoods?.k ? "First month with ₱20,000 or more left" : "",
+    m.ending.length ? `Last payment: ${m.ending.join(", ")}` : "",
+    m.starting.length ? `Starts: ${m.starting.join(", ")}` : "",
+  ].filter(Boolean).map((t) => `<p class="text-[10px] font-semibold text-slate-300 leading-snug">${escapeHtml(t)}</p>`).join("");
+  return `<div class="flex items-center justify-between gap-3">
+      <p class="text-lg font-black text-white">${monthShort(m.k)}</p>
+      <span class="flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-black text-white" style="background:${state.color}"><span class="material-icons" style="font-size:14px">${state.icon}</span>${state.label}</span>
+    </div>
+    <div class="grid grid-cols-3 gap-2">
+      ${stat("Installments", peso(m.due))}
+      ${stat("Left from salary", `${m.left < 0 ? "-" : ""}${peso(Math.abs(m.left))}`)}
+      ${stat("Vs last month", m.change ? signedPeso(m.change) : "Same")}
+    </div>
+    ${notes}`;
+}
+window.selectLoadMonth = function (k) {
+  const m = loadMonths.find((x) => x.k === k);
+  const box = $("load-readout");
+  if (!m || !box) return;
+  box.innerHTML = loadReadoutHtml(m);
+  document.querySelectorAll("#load-bars button").forEach((b) => { b.style.opacity = b.dataset.k === k ? "1" : "0.75"; });
+};
 function paymentLoadCardHtml() {
   if (!allInstallments().length) return "";
-  const rows = paymentLoadRows();
-  const peak = Math.max(...rows.map((r) => r.total), 1);
-  const html = rows.map((r, i) => {
-    const label = r.from === r.to ? monthShort(r.from) : `${monthShort(r.from)} → ${monthShort(r.to)}`;
-    const lastRow = i === rows.length - 1;
-    const stat = lastRow
-      ? `<span class="rounded-lg px-2 py-1 text-[11px] font-black text-white bg-gradient-to-r from-emerald-500 to-teal-600">All paid</span>`
-      : r.change < 0
-        ? `<span class="rounded-lg px-2 py-1 text-[11px] font-black text-white bg-gradient-to-r from-emerald-500 to-teal-600 flex items-center gap-0.5"><span class="material-icons" style="font-size:14px">arrow_downward</span>${peso(-r.change)} lighter</span>`
-        : r.change > 0
-          ? `<span class="rounded-lg px-2 py-1 text-[11px] font-black text-white bg-gradient-to-r from-rose-500 to-pink-600 flex items-center gap-0.5"><span class="material-icons" style="font-size:14px">arrow_upward</span>${peso(r.change)} heavier</span>`
-          : `<span class="rounded-lg px-2 py-1 text-[11px] font-black text-slate-200 bg-slate-700">Same</span>`;
-    const notes = [
-      r.ending.length ? `Done: ${r.ending.join(", ")}` : "",
-      r.starting.length ? `Starts next: ${r.starting.join(", ")}` : "",
-    ].filter(Boolean).map((t) => `<p class="text-[10px] font-semibold text-slate-400 leading-snug">${escapeHtml(t)}</p>`).join("");
-    return `<div class="px-3 py-2.5 border-t border-slate-700/40 space-y-1.5">
-      <div class="flex items-center justify-between gap-3">
-        <div class="min-w-0"><p class="text-[11px] font-bold text-slate-400">${label}</p><p class="text-base font-black text-white leading-tight">${peso(r.total)}<span class="text-[11px] font-bold text-slate-400"> /mo</span></p></div>
-        <div class="flex-shrink-0">${stat}</div>
-      </div>
-      <div class="h-1.5 bg-slate-900 rounded-full overflow-hidden"><div class="h-full bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full" style="width:${Math.round((r.total / peak) * 100)}%"></div></div>
-      ${notes}
-    </div>`;
+  loadMonths = paymentLoadMonths();
+  const salary = loadMonths[0].salary;
+  const peak = Math.max(...loadMonths.map((m) => m.due), salary);
+  const step = 50000;
+  const top = Math.ceil(peak / step) * step;
+  const CHART_HEIGHT = 170;
+  const y = (v) => Math.round((v / top) * CHART_HEIGHT);
+  const ticks = [];
+  for (let v = 0; v <= top; v += step * 2) ticks.push(v);
+  const axis = ticks.map((v) => `<span class="absolute right-1.5 text-[9px] font-bold text-slate-400" style="bottom:${y(v) + 19}px">${v ? `${v / 1000}k` : "0"}</span>`).join("");
+  const grid = ticks.map((v) => `<div class="absolute left-0 right-0 bg-slate-700/60" style="height:1px;bottom:${y(v)}px"></div>`).join("");
+  const selected = loadMonths.find((m) => m.state === "goods") || loadMonths[0];
+  const bars = loadMonths.map((m) => {
+    const { y: year, m: month } = keyParts(m.k);
+    const isJan = month === 0 || m.k === loadMonths[0].k;
+    return `<button type="button" data-k="${m.k}" aria-label="${monthShort(m.k)}, ${peso(m.due)}, ${LOAD_STATES[m.state].label}" onclick="selectLoadMonth('${m.k}')" onmouseenter="selectLoadMonth('${m.k}')" class="relative flex-shrink-0 h-full" style="width:18px;opacity:${m.k === selected.k ? 1 : 0.75}">
+      <span class="absolute bottom-0 left-px right-px" style="height:${Math.max(y(m.due), 2)}px;background:${LOAD_STATES[m.state].color};border-radius:4px 4px 0 0"></span>
+      <span class="absolute left-0 right-0 text-center text-[9px] font-bold text-slate-400" style="top:${CHART_HEIGHT + 3}px">${MONTHS_SHORT[month][0]}</span>
+      ${isJan ? `<span class="absolute left-0 whitespace-nowrap text-[9px] font-black text-slate-300" style="top:${CHART_HEIGHT + 15}px">${year}</span>` : ""}
+    </button>`;
   }).join("");
-  return `<details class="glass-card rounded-2xl overflow-hidden border border-indigo-500/15 md:col-span-2">
-    <summary class="flex items-center gap-3 px-5 py-4 cursor-pointer list-none">
-      <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center"><span class="material-icons text-white" style="font-size:18px">monitor_weight</span></div>
-      <div><h3 class="text-sm font-black text-white uppercase tracking-wide">Payment Load</h3><p class="text-[10px] text-slate-400">Installments due each month, and the change after paying it</p></div>
-    </summary>
-    <div>${html}</div>
-  </details>`;
+  const legend = Object.entries(LOAD_STATES).map(([, s]) => `<span class="flex items-center gap-1 text-[10px] font-semibold text-slate-300"><span class="w-2.5 h-2.5 rounded-sm" style="background:${s.color}"></span>${s.label}</span>`).join("");
+  return `<section class="glass-card rounded-2xl overflow-hidden border border-indigo-500/15 md:col-span-2 p-4 space-y-3">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center flex-shrink-0"><span class="material-icons text-white" style="font-size:18px">bar_chart</span></div>
+      <div class="min-w-0"><h3 class="text-sm font-black text-white uppercase tracking-wide">Payment Load</h3><p class="text-[10px] text-slate-400">Installments due each month. Bar color shows what's left from salary.</p></div>
+    </div>
+    <div class="flex flex-wrap gap-x-3 gap-y-1">${legend}<span class="text-[10px] font-semibold text-slate-400">Short: below ₱0 · Tight: under ₱20,000 · Goods: ₱20,000 or more</span></div>
+    <div class="flex">
+      <div class="relative flex-shrink-0" style="width:30px;height:${CHART_HEIGHT + 34}px">${axis}</div>
+      <div class="overflow-x-auto custom-scrollbar flex-1 min-w-0 pb-1">
+        <div class="relative" style="width:${loadMonths.length * 18}px;height:${CHART_HEIGHT + 30}px">
+          <div class="absolute left-0 right-0 top-0" style="height:${CHART_HEIGHT}px">
+            ${grid}
+            <div class="absolute left-0 right-0" style="bottom:${y(salary)}px;border-top:1px dashed #cbd5e1"></div>
+            <div id="load-bars" class="absolute inset-x-0 top-0 flex" style="height:${CHART_HEIGHT}px">${bars}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="text-[10px] font-semibold text-slate-400">Dashed line: monthly salary, ${peso(salary)}. Swipe for later months, tap a bar for details.</p>
+    <div id="load-readout" class="rounded-xl bg-slate-900 p-3 space-y-2">${loadReadoutHtml(selected)}</div>
+  </section>`;
 }
 
 function installmentsCardHtml() {
