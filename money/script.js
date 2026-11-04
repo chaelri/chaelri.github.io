@@ -329,6 +329,7 @@ function parseLogLine(line) {
   }
   return { kind: "note", tag: "", title: line, meta: "", prev: "", next: "" };
 }
+function capitalize(t) { const v = String(t); return v.charAt(0).toUpperCase() + v.slice(1); }
 function pesoValue(t) {
   const m = String(t).match(/^₱([\d,.]+)$/);
   return m ? Number(m[1].replace(/,/g, "")) : null;
@@ -347,7 +348,19 @@ function historyChangeHtml(line) {
   const diffHtml = diff ? `<span class="text-[11px] font-black ${diff > 0 ? "text-emerald-300" : "text-rose-300"} flex-shrink-0">${signedPeso(diff)}</span>` : "";
   const box = (label, value, after) => `<div class="min-w-0 rounded-xl px-3 py-2.5 ${after ? "bg-indigo-500/20 border border-indigo-400/40" : "bg-slate-900/50 border border-slate-700/50"}">
       <p class="text-[9px] font-black uppercase tracking-widest ${after ? "text-indigo-200" : "text-slate-500"}">${label}</p>
-      <p class="mt-1 text-sm md:text-base font-black break-words leading-tight ${after ? "text-white" : "text-slate-400"}">${escapeHtml(String(value).charAt(0).toUpperCase() + String(value).slice(1))}</p>
+      <p class="mt-1 text-sm md:text-base font-black break-words leading-tight ${after ? "text-white" : "text-slate-400"}">${escapeHtml(capitalize(value))}</p>
+    </div>`;
+  const single = (label, value, tone) => `<div class="rounded-xl px-3 py-2.5 border ${tone === "add" ? "bg-emerald-500/15 border-emerald-400/30" : "bg-rose-500/15 border-rose-400/30"}">
+      <p class="text-[9px] font-black uppercase tracking-widest ${tone === "add" ? "text-emerald-200" : "text-rose-200"}">${label}</p>
+      <p class="mt-1 text-sm md:text-base font-black break-words leading-tight text-white">${escapeHtml(capitalize(value))}</p>
+    </div>`;
+  const isEmpty = (v) => /^none$/i.test(String(v));
+  const compare = isEmpty(c.prev) ? single("Added", c.next, "add")
+    : isEmpty(c.next) || c.next === "Removed" ? single("Removed", c.prev, "remove")
+    : `<div class="grid items-center gap-2" style="grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)">
+      ${box("Prev", c.prev, false)}
+      <span class="material-icons text-indigo-300" style="font-size:18px">arrow_forward</span>
+      ${box("Next", c.next, true)}
     </div>`;
   return `<div class="rounded-2xl bg-slate-800/50 border border-slate-700/40 p-3 space-y-2.5">
     <div class="flex items-center gap-2.5">
@@ -358,11 +371,7 @@ function historyChangeHtml(line) {
       </div>
       ${diffHtml}
     </div>
-    <div class="grid items-center gap-2" style="grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)">
-      ${box("Prev", c.prev, false)}
-      <span class="material-icons text-indigo-300" style="font-size:18px">arrow_forward</span>
-      ${box("Next", c.next, true)}
-    </div>
+    ${compare}
   </div>`;
 }
 function historyRowsHtml() {
