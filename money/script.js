@@ -339,9 +339,10 @@ function pesoValue(t) {
   const m = String(t).match(/^₱([\d,.]+)$/);
   return m ? Number(m[1].replace(/,/g, "")) : null;
 }
-function historyChangeHtml(line) {
+function historyChangeHtml(line, e) {
   const c = parseLogLine(line);
-  if (c.kind === "note") return `<p class="px-4 py-2 text-[11px] font-semibold text-slate-400">${escapeHtml(c.title)}</p>`;
+  const when = new Date(e.ts).toLocaleString("en-PH", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  if (c.kind === "note") return `<div class="h-[76px] md:h-[52px] px-4 flex items-center border-t border-slate-700/40"><p class="text-[11px] font-semibold text-slate-400">${escapeHtml(c.title)}</p></div>`;
   const look = {
     add: ["add", "from-emerald-500 to-teal-600"],
     remove: ["remove", "from-rose-500 to-pink-600"],
@@ -356,13 +357,13 @@ function historyChangeHtml(line) {
     : isEmpty(c.next) || c.next === "Removed" ? chip(`Removed ${c.prev}`, "bg-gradient-to-r from-rose-500 to-pink-600 text-white")
     : `${chip(c.prev, "bg-slate-700 text-slate-200")}<span class="material-icons text-slate-400 flex-shrink-0" style="font-size:14px">arrow_forward</span>${chip(c.next, "bg-gradient-to-r from-indigo-600 to-violet-700 text-white")}`;
   const diffHtml = diff ? `<span class="text-[10px] font-black ${diff > 0 ? "text-emerald-300" : "text-rose-300"} flex-shrink-0">${signedPeso(diff)}</span>` : "";
-  return `<div class="px-4 py-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+  return `<div class="h-[76px] md:h-[52px] px-4 flex flex-wrap md:flex-nowrap items-center content-center gap-x-3 gap-y-1 border-t border-slate-700/40">
     <span class="w-7 h-7 rounded-lg bg-gradient-to-br ${look[1]} flex items-center justify-center flex-shrink-0"><span class="material-icons text-white" style="font-size:15px">${look[0]}</span></span>
-    <div class="min-w-0 flex-1" style="flex-basis:9rem">
+    <div class="min-w-0 flex-1">
       <p class="text-[12px] font-bold text-white truncate">${escapeHtml(c.title)}</p>
-      <p class="text-[10px] font-semibold text-slate-500 truncate">${escapeHtml(c.tag)}${c.meta ? ` · ${escapeHtml(c.meta)}` : ""}</p>
+      <p class="text-[10px] font-semibold text-slate-500 truncate">${when} · ${escapeHtml(c.tag)}${c.meta ? ` · ${escapeHtml(c.meta)}` : ""} · ${escapeHtml(e.device || "Unknown device")}</p>
     </div>
-    <div class="flex items-center gap-1.5 ml-10 md:ml-0">${values}${diffHtml}</div>
+    <div class="flex items-center gap-1.5 basis-full md:basis-auto pl-10 md:pl-0 flex-shrink-0">${values}${diffHtml}</div>
   </div>`;
 }
 // Pages are counted in single changes, so every page has a predictable height.
@@ -384,25 +385,14 @@ function historyRowsHtml() {
   if (!historyEntries.length) return `<p class="px-4 py-5 text-[12px] text-slate-500">No changes logged yet.</p>`;
   historyPage = Math.min(historyPage, historyPageCount() - 1);
   const start = historyPage * HISTORY_PAGE_SIZE;
-  let last = null, rows = "";
-  for (const { e, line } of historyLines().slice(start, start + HISTORY_PAGE_SIZE)) {
-    if (e !== last) {
-      const when = new Date(e.ts).toLocaleString("en-PH", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
-      rows += `<div class="flex items-center justify-between gap-3 px-4 py-1.5 bg-slate-900 border-t border-slate-700">
-        <p class="text-[10px] font-black text-slate-300">${when}</p>
-        <p class="text-[10px] font-bold text-slate-500">${escapeHtml(e.device || "Unknown device")}</p>
-      </div>`;
-      last = e;
-    }
-    rows += historyChangeHtml(line);
-  }
-  return `<div>${rows}</div>${historyPagerHtml()}`;
+  const rows = historyLines().slice(start, start + HISTORY_PAGE_SIZE).map(({ e, line }) => historyChangeHtml(line, e)).join("");
+  // Fixed height: every row is the same size and a short last page keeps its empty space.
+  return `<div class="h-[608px] md:h-[416px]">${rows}</div>${historyPagerHtml()}`;
 }
 window.setHistoryOpen = function (open) { historyOpen = open; };
 window.moveHistoryPage = function (delta) {
   historyPage = Math.max(0, Math.min(historyPageCount() - 1, historyPage + delta));
   refreshHistoryUi();
-  $("history-card")?.scrollIntoView({ behavior: "smooth", block: "start" });
 };
 function historyCardHtml() {
   return `<details id="history-card" ${historyOpen ? "open" : ""} ontoggle="setHistoryOpen(this.open)" class="glass-card rounded-2xl overflow-hidden md:col-span-2">
