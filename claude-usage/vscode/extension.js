@@ -398,6 +398,7 @@ function snapshot() {
             percent: Math.max(0, Math.min(100, Number(limit.percent) || 0)),
             reset: resetText(limit.resets_at),
             remaining: remainingText(limit.resets_at),
+            resetsAt: Date.parse(limit.resets_at) || null,
         })),
     };
 }
@@ -504,6 +505,10 @@ function page() {
   .hero .meter { height: 8px; margin: 9px 0 6px; }
   .hero.warn .pct { color: var(--warn); }
   .hero.hot .pct { color: var(--hot); }
+  /* Time, not usage: neutral so it never reads as a second usage figure, and
+     it keeps that colour when the usage bar above turns warn or hot. */
+  .hero .meter.clock { height: 4px; margin: 0 0 6px; }
+  .hero .meter.clock > i { background: var(--vscode-descriptionForeground); opacity: .7; }
   .hero .foot { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; }
   .hero .foot span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
@@ -598,19 +603,30 @@ function page() {
   // CSP does not police CSSOM, so el.style.width is allowed.
   const meter = (p) => '<div class="meter"><i data-pct="' + p + '"></i></div>';
 
+  // How far through the 5-hour window we are: full means the reset has arrived.
+  const SESSION_WINDOW_MS = 5 * 60 * 60 * 1000;
+  const elapsedPct = (resetsAt) =>
+    Math.max(0, Math.min(100, (1 - (resetsAt - Date.now()) / SESSION_WINDOW_MS) * 100));
+  const clockHtml = (limit) =>
+    limit.resetsAt
+      ? '<div class="meter clock" data-resets="' + limit.resetsAt + '">' +
+        '<i data-pct="' + elapsedPct(limit.resetsAt) + '"></i></div>'
+      : '';
+  ${remainingText.toString()}
+
   // A limit with no window running has no reset time; drop the line rather than
   // leave an empty one holding space open.
   const footHtml = (limit) =>
     limit.reset || limit.remaining
       ? '<div class="foot muted"><span>' + esc(limit.reset || '') + '</span>' +
-        '<span>' + esc(limit.remaining || '') + '</span></div>'
+        '<span class="left">' + esc(limit.remaining || '') + '</span></div>'
       : '';
 
   function heroHtml(limit) {
     return '<div class="hero ' + level(limit.percent) + '">' +
       '<div class="top"><div class="pct">' + Math.round(limit.percent) + '<small>%</small></div>' +
       '<div class="name muted">' + esc(limit.label) + '</div></div>' +
-      meter(limit.percent) + footHtml(limit) + '</div>';
+      meter(limit.percent) + clockHtml(limit) + footHtml(limit) + '</div>';
   }
 
   function rowHtml(limit) {
@@ -702,6 +718,24 @@ function page() {
       footerHtml(data);
     paint();
   }
+
+  // Usage only changes on a poll, but the clock moves on its own, so the bar
+  // and countdown tick here. One refresh when the window ends, not a wait for
+  // the next poll to bring the fresh window in.
+  let refreshedFor = null;
+  function tick() {
+    const clock = root.querySelector('.meter.clock');
+    if (!clock) return;
+    const resetsAt = Number(clock.dataset.resets);
+    clock.firstElementChild.style.width = elapsedPct(resetsAt) + '%';
+    const left = root.querySelector('.hero .left');
+    if (left) left.textContent = remainingText(resetsAt);
+    if (Date.now() >= resetsAt && refreshedFor !== resetsAt) {
+      refreshedFor = resetsAt;
+      vscode.postMessage('refresh');
+    }
+  }
+  setInterval(tick, 30000);
 
   root.addEventListener('click', (event) => {
     const button = event.target.closest('[data-send]');
