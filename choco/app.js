@@ -412,7 +412,7 @@ const PLURAL = { cup: 'cups', pinch: 'pinches', 'large egg': 'large eggs' };
 
 function fmtQty(q) {
   const whole = Math.floor(q), frac = +(q - whole).toFixed(2);
-  return (whole ? String(whole) : '') + (FRAC[frac] || '');
+  return [whole || '', FRAC[frac] || ''].filter(Boolean).join(' ');
 }
 
 let units = store.get('units', 'cups');
