@@ -3,7 +3,7 @@ import { mountScenes, replay } from './scenes.js';
 
 // ---------- pixel sprites ----------
 const PAL = {
-  K: '#3a2216', // outline
+  K: '#0f0e17', // outline
   D: '#4a2a1b', // sponge
   C: '#5e3624', // crumb
   M: '#6b3d26', // ganache
@@ -27,9 +27,64 @@ const PAL = {
   S: '#d8dbe8', // steel
   s: '#aab0c9',
   g: '#c9a27a', // wood
+  R: '#ff4d5e', // hp red
+  T: '#3fa9ff', // energy blue
+  O: '#ff9a3c', // flame
 };
 
 const SPRITES = {
+  helm: [
+    '......RRR.....',
+    '.....KKKK.....',
+    '...KKSSSSKK...',
+    '..KSSWSSSSsK..',
+    '.KSSSSSSSSSsK.',
+    'KSSSSSSSSSSSsK',
+    'KKKKKKKKKKKKKK',
+  ],
+  heart: [
+    '.KK...KK.',
+    'KRRK.KRRK',
+    'KRWRKRRRK',
+    'KRRRRRRRK',
+    '.KRRRRRK.',
+    '..KRRRK..',
+    '...KRK...',
+    '....K....',
+  ],
+  shield: [
+    'KKKKKKKKK',
+    'KSSSSSSsK',
+    'KSSSSSSsK',
+    'KSSSSSSsK',
+    '.KSSSSsK.',
+    '.KSSSSsK.',
+    '..KSSsK..',
+    '...KKK...',
+  ],
+  bolt: [
+    '....KKKK.',
+    '...KTTK..',
+    '..KTTK...',
+    '.KTTTTTK.',
+    '.KKKTTK..',
+    '...KTK...',
+    '..KTK....',
+    '..KK.....',
+  ],
+  torch: [
+    '...O...',
+    '..OYO..',
+    '.OOYOO.',
+    '.OYWYO.',
+    '..OYO..',
+    'KKKKKKK',
+    'KgggggK',
+    '.KgggK.',
+    '..KgK..',
+    '..KgK..',
+    '..KKK..',
+  ],
   cake: [
     '...KKKKKKKK...',
     '.KKGGMMMMMMKK.',
@@ -194,12 +249,12 @@ const SPRITES = {
     '.......g',
   ],
   whisk: [
-    '..KKK...',
-    '.K.K.K..',
-    'K..K..K.',
-    'K..K..K.',
-    '.K.K.K..',
-    '..KKK...',
+    '..SSS...',
+    '.S.S.S..',
+    'S..S..S.',
+    'S..S..S.',
+    '.S.S.S..',
+    '..SSS...',
     '...g....',
     '...g....',
   ],
@@ -318,38 +373,41 @@ const INGREDIENTS = [
 
 const STEPS = [
   { icon: 'butter', title: 'Melt the butter',
-    text: 'In a saucepan over low heat, melt {butter} butter.' },
+    text: 'In a saucepan over low heat, melt {butter} butter. Keep it gentle, no browning.' },
   { icon: 'milk', title: 'Milk + sugar',
-    text: 'Pour in {milk} fresh milk and {sugar} sugar. Stir until the sugar dissolves, then take it off the heat.' },
+    text: 'Pour in {milk} fresh milk and {sugar} sugar. Stir until no grit is left on the spoon. Take it off the heat and cool for 2 minutes, until warm and not hot.' },
   { icon: 'flour', title: 'Dry team',
-    text: 'In a bowl, whisk {flour} flour, {cocoa} cocoa powder, {bp} baking powder and {salt} of salt until even.' },
+    text: 'Sift {flour} flour, {cocoa} cocoa powder, {bp} baking powder and {salt} of salt through a strainer into a bowl. Cocoa loves to clump, so do not skip this.' },
   { icon: 'egg', title: 'Egg + vanilla',
-    text: 'In a bigger bowl, beat {egg} with {vanilla} vanilla.' },
+    text: 'In a bigger bowl, beat {egg} with {vanilla} vanilla until evenly pale yellow.' },
   { icon: 'whisk', title: 'Wet team unite',
-    text: 'Slowly pour the butter-sugar mixture into the egg while whisking.' },
+    text: 'Slowly pour the warm butter-sugar mixture into the egg in a thin stream, whisking the whole time so the egg does not scramble.' },
   { icon: 'cocoa', title: 'Make the batter',
-    text: 'Add the flour-cocoa mixture and whisk until smooth, glossy and lump-free.' },
+    text: 'Add the dry mix in two batches. Whisk gently, and stop as soon as it is smooth and glossy with no dry streaks. Overmixing makes the cake tough.' },
   { icon: 'tin', title: 'Tin + foil hat',
-    text: 'Pour the batter into a small foil tin. Cover the top tightly with foil and crimp the edges.' },
+    text: 'Grease a small foil tin and pour in the batter. Tap the tin on the counter 3 times to pop the bubbles. Cover tightly with foil and crimp the edges.' },
   { icon: 'pot', title: 'Steam it', timer: true,
-    text: 'Set the tin in a hot steamer, cover, and steam for 40 minutes, or until a toothpick inserted comes out clean.' },
+    text: 'Set the tin in a steamer that is already hot, cover, and keep a steady medium heat. Do not open the lid for the first 30 minutes. Toothpick test at 35 minutes, then every 5 until it comes out clean or with a few moist crumbs (about 40 minutes).' },
   { icon: 'cream', title: 'Ganache time',
-    text: 'Heat {cream} all-purpose cream over low heat until it just scalds. Add {choco} dark chocolate chunks and stir until silky.' },
-  { icon: 'spatula', title: 'Frost + float',
-    text: 'Turn the cake out onto a plate and spread the ganache over the top and sides. Swirl it. Ascend.' },
+    text: 'Let the cake rest 10 minutes. Heat {cream} all-purpose cream over low heat until it just scalds. Take it off the heat, add {choco} dark chocolate chunks, wait 1 minute, then stir until silky.' },
+  { icon: 'spatula', title: 'Frost + finish',
+    text: 'Run a knife around the edge and turn the cake out onto a plate. Spread the ganache over the top and sides, then swirl it.' },
 ];
 
 const TIPS = [
+  { tag: 'swap', text: 'Sugar is not just for sweetness, it keeps the cake moist and tender. Do not go below 6 tbsp per batch; 8 tbsp is the real recipe.' },
+  { tag: 'swap', text: 'More milk does not mean a moister cake. Too much makes it dense and gummy, so keep it at 10 tbsp per batch.' },
+  { tag: 'swap', text: 'Baking powder ran out? Never swap baking soda 1:1. Use 1/8 tsp soda per batch plus 1/2 tsp vinegar or calamansi juice in the wet mix, and steam right away.' },
+  { tag: 'swap', text: 'Cake flour works and is even softer. Use 1/2 cup + 1 tbsp per batch.' },
   { tag: 'video', text: 'The foil cover is not optional: it keeps lid drips off the batter so the top stays smooth.' },
   { tag: 'video', text: 'Toothpick test: poke the center. Clean or a few dry crumbs means done; wet batter means 5 more minutes.' },
   { tag: 'video', text: 'Scald, don\'t boil the cream: tiny bubbles at the edge, then add the chocolate.' },
-  { tag: 'bonus', text: 'Let the butter-milk mixture cool a minute before it meets the egg, so the egg doesn\'t scramble.' },
   { tag: 'bonus', text: 'Wrap the steamer lid in a kitchen towel to catch condensation as an extra safety net.' },
-  { tag: 'bonus', text: 'Let the cake rest about 10 minutes before unmolding. If the ganache is too runny, let it sit 5-10 minutes to thicken.' },
+  { tag: 'bonus', text: 'If the ganache is too runny, let it sit 5-10 minutes to thicken.' },
 ];
 
 // ---------- amounts ----------
-const FRAC = { 0.25: '¼', 0.5: '½', 0.75: '¾' };
+const FRAC = { 0.25: '1/4', 0.5: '1/2', 0.75: '3/4' }; // plain text: the pixel font's fraction glyphs look alike
 const PLURAL = { cup: 'cups', pinch: 'pinches', 'large egg': 'large eggs' };
 
 function fmtQty(q) {
@@ -372,6 +430,12 @@ function fmtAmount(parts, scale) {
 
 function noteFor(ing) {
   return units === 'spoons' && ing.spoonNote ? ing.spoonNote(scale) : '';
+}
+
+// ---------- HUD: steps, items, steam ----------
+function setBar(key, ratio, label) {
+  document.querySelector(`[data-hud-${key}]`).style.width = `${Math.round(ratio * 100)}%`;
+  document.querySelector(`[data-hud-${key}-text]`).textContent = label;
 }
 
 // ---------- inventory ----------
@@ -400,6 +464,7 @@ function renderInventory() {
   });
   document.querySelector('[data-x2-note]').hidden = scale !== 2;
   document.querySelector('[data-spoon-note]').hidden = units !== 'spoons';
+  setBar('items', have.size / INGREDIENTS.length, `ITEMS ${have.size}/${INGREDIENTS.length}`);
 }
 
 document.addEventListener('click', e => {
@@ -477,6 +542,7 @@ function updateSteps() {
     li.querySelector('.btn-done').textContent = isDone ? 'Undo' : i === STEPS.length - 1 ? 'Done!' : 'Done, next';
   });
   const n = done.size;
+  setBar('steps', n / STEPS.length, `STEPS ${n}/${STEPS.length}`);
   document.querySelector('[data-meter-text]').textContent = n === STEPS.length ? 'CAKE GET!' : `${n}/${STEPS.length}`;
   document.querySelector('[data-meter]').innerHTML = STEPS.map((_, i) =>
     `<button type="button" class="${done.has(i) ? 'on' : ''}${i === pos ? ' cur' : ''}" data-go="${i}" aria-label="Go to step ${i + 1}"${i === pos ? ' aria-current="step"' : ''}></button>`).join('');
@@ -597,8 +663,8 @@ document.addEventListener('click', e => {
 // hero cake blinks every few seconds
 const heroCake = document.querySelector('.hero-cake');
 function blink() {
-  heroCake.innerHTML = sprite('cakeBlink', 9);
-  setTimeout(() => { heroCake.innerHTML = sprite('cake', 9); }, 140);
+  heroCake.innerHTML = sprite('cakeBlink', 7);
+  setTimeout(() => { heroCake.innerHTML = sprite('cake', 7); }, 140);
   setTimeout(blink, 2200 + Math.random() * 2600);
 }
 setTimeout(blink, 1600);
@@ -646,7 +712,8 @@ function drawTimer() {
   if (ms === 0) msgEl.textContent = 'DING! toothpick test time';
   else if (running) msgEl.textContent = 'steaming... keep the water topped up';
   else msgEl.textContent = ms === DEFAULT_MS ? 'ready when you are' : 'paused';
-  document.title = running ? `${fmtClock(ms)} · Choco Cake` : 'Heavenly Choco Cake';
+  setBar('steam', Math.min(1, ms / DEFAULT_MS), fmtClock(ms));
+  document.title = running ? `${fmtClock(ms)} · Choco Cake` : 'Steamed Choco Cake';
 }
 
 function tick() {
@@ -734,31 +801,46 @@ function burst(el, count = 14) {
   }
 }
 
-// ---------- heavenly sky ----------
-function buildSky() {
-  const sky = document.getElementById('sky');
+// ---------- dungeon: drifting embers + swirling portal ----------
+function buildDungeon() {
   let html = '';
-  for (let i = 0; i < 7; i++) {
-    const top = 4 + i * 14 + Math.random() * 6;
-    const dur = 40 + Math.random() * 40;
-    const delay = -Math.random() * dur;
-    const sc = [3, 4, 5][i % 3];
-    html += `<span class="cloud" style="top:${top}%;animation-duration:${dur}s;animation-delay:${delay}s;opacity:${0.55 + (i % 3) * 0.15}">${sprite('cloud', sc)}</span>`;
+  for (let i = 0; i < 16; i++) {
+    const dur = 7 + Math.random() * 9;
+    html += `<span class="ember" style="left:${Math.random() * 98}%;animation-duration:${dur}s;animation-delay:${-Math.random() * dur}s"></span>`;
   }
-  for (let i = 0; i < 18; i++) {
-    html += `<span class="twinkle" style="left:${Math.random() * 96}%;top:${Math.random() * 96}%;animation-delay:${-Math.random() * 3}s">${sprite('star', 2)}</span>`;
-  }
-  sky.innerHTML = html;
+  document.getElementById('dungeon').innerHTML = html;
+}
+
+function runPortal() {
+  const cv = document.querySelector('[data-portal]');
+  const ctx = cv.getContext('2d');
+  const COLORS = ['#10256b', '#1f6dff', '#3fa9ff', '#5ff0ff', '#eafcff'];
+  let t = 0;
+  const paint = () => {
+    if (scrollY > 480 || document.hidden) return; // offscreen: save the phone's battery
+    t += 0.35;
+    ctx.clearRect(0, 0, 48, 48);
+    for (let y = 0; y < 48; y++) for (let x = 0; x < 48; x++) {
+      const dx = (x - 23.5) / 19, dy = (y - 23.5) / 23, r = Math.hypot(dx, dy);
+      if (r > 1) continue;
+      const band = Math.sin(Math.atan2(dy, dx) * 3 + r * 9 - t);
+      ctx.fillStyle = r > 0.9 ? '#0f0e17' : COLORS[Math.min(4, Math.floor((band + 1) * 1.6 + (1 - r) * 1.8))];
+      ctx.fillRect(x, y, 1, 1);
+    }
+  };
+  paint();
+  setInterval(paint, 90);
 }
 
 // ---------- tips ----------
 function renderTips() {
   document.querySelector('[data-tips]').innerHTML = TIPS.map(t => `
-    <li><span class="tag tag-${t.tag}">${t.tag === 'video' ? 'from video' : 'bonus'}</span><p>${t.text}</p></li>`).join('');
+    <li><span class="tag tag-${t.tag}">${{ video: 'from video', bonus: 'bonus', swap: 'lesson learned' }[t.tag]}</span><p>${t.text}</p></li>`).join('');
 }
 
 // ---------- boot ----------
-buildSky();
+buildDungeon();
+runPortal();
 hydrateSprites();
 renderInventory();
 renderSteps();

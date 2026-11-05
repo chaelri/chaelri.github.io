@@ -55,20 +55,36 @@ function line(ctx, x0, y0, x1, y1, c, th = 1) {
 // ---------- sets ----------
 const C = { x: 36, y: 24 };
 
+// stone floor seen from above
 function gingham(ctx) {
-  for (let y = 0; y < H; y += 4) {
-    for (let x = 0; x < W; x += 4) {
-      const a = (x / 4) % 2, b = (y / 4) % 2;
-      px(ctx, x, y, 4, 4, a && b ? '#ffb8d6' : a || b ? '#ffd3e6' : '#fff1f7');
+  px(ctx, 0, 0, W, H, '#1f2037');
+  for (let y = 0, row = 0; y < H; y += 8, row++) {
+    for (let x = -(row % 2) * 6, col = 0; x < W; x += 12, col++) {
+      const k = rnd(row * 31 + col);
+      px(ctx, x, y, 11, 7, k > 0.66 ? '#3a3d5f' : k > 0.33 ? '#34375a' : '#2d2f4f');
+      px(ctx, x, y, 11, 1, '#444870');
     }
   }
 }
 
+// brick wall, stone floor, two torches
 function sky(ctx) {
-  for (let y = 0; y < 38; y += 3) px(ctx, 0, y, W, 3, mix('#dccfff', '#ffd6ea', y / 38));
-  px(ctx, 0, 38, W, 10, '#f2c9a0');
-  px(ctx, 0, 38, W, 1, '#e0ad7f');
-  for (let x = 6; x < W; x += 17) px(ctx, x, 42, 6, 1, '#e7b88b');
+  px(ctx, 0, 0, W, 38, '#1a1a30');
+  for (let y = 0, row = 0; y < 38; y += 6, row++) {
+    for (let x = -(row % 2) * 7, col = 0; x < W; x += 14, col++) {
+      px(ctx, x, y, 13, 5, rnd(row * 17 + col) > 0.5 ? '#2d2f4f' : '#34375a');
+      px(ctx, x, y, 13, 1, '#444870');
+    }
+  }
+  for (const x of [9, 70]) {
+    disc(ctx, x, 12, 7, 7, 'rgba(255,154,60,.18)');
+    px(ctx, x - 1, 14, 3, 7, '#6b4a2e');
+    px(ctx, x - 2, 8, 5, 6, '#ff9a3c');
+    px(ctx, x - 1, 9, 3, 4, '#ffcf3f');
+  }
+  px(ctx, 0, 38, W, 10, '#2a2c48');
+  px(ctx, 0, 38, W, 1, '#0f0e17');
+  for (let x = 6; x < W; x += 17) px(ctx, x, 42, 6, 1, '#3a3d5f');
 }
 
 function pan(ctx) {
@@ -371,7 +387,6 @@ export const SCENES = [
       px(ctx, 39, y0 + 9, 3, 1, '#ff7fae');
     }
     if (fin > 0) {
-      ring(ctx, 40, y0 - 10, lerp(2, 9, fin), lerp(0.5, 2, fin), '#ffd86b');
       const tw = Math.floor(t * 30);
       for (let i = 0; i < 5; i++) if ((tw + i) % 3 === 0) sparkle(ctx, 10 + rnd(i) * 60, 4 + rnd(i + 7) * 14, i % 2 ? '#ffffff' : '#ffd86b');
     }
