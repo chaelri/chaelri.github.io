@@ -552,12 +552,9 @@ function page() {
     background: var(--calm);
     transition: width 420ms cubic-bezier(.2,.8,.2,1), background-color 420ms ease;
   }
-  /* The Pro estimate is blue so it can't be misread as real usage. These sit
-     before the warn/hot rules so a limit about to be hit still turns those. */
   .warn .meter > i { background: var(--warn); }
   .hot .meter > i { background: var(--hot); }
-  .meter > i.pro.pro { position: absolute; left: 0; top: 0; bottom: 0; background: var(--vscode-charts-blue, #4daafc); }
-  .meter > i.real { position: absolute; left: 0; top: 0; bottom: 0; }
+  .meter > i.pro.pro { background: var(--vscode-charts-blue, #4daafc); }
 
   /* Hero — the 5-hour window, the one that actually runs out mid-task. */
   .hero { margin-bottom: 4px; }
