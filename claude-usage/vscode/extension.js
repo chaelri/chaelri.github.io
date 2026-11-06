@@ -437,6 +437,7 @@ class UsagePanel {
         view.webview.html = page();
         view.webview.onDidReceiveMessage((message) => {
             if (message === 'refresh') refresh();
+            if (message === 'cursor') launchCursor();
             if (message === 'bling') {
                 toggleBling();
                 this.post();
@@ -551,6 +552,10 @@ function page() {
   .row .foot span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
   /* Bling switch: a full-width row so it reads as a setting, not a link. */
+  button.cursor-cli {
+    margin: 14px 0 0; padding: 6px 8px; width: 100%; color: var(--vscode-foreground); font-size: 12px;
+    border: 1px solid var(--track); border-radius: 4px; text-align: center;
+  }
   button.bling {
     margin: 14px 0 0; padding: 6px 0; width: 100%; display: flex; align-items: center; justify-content: space-between;
     color: var(--vscode-foreground); font-size: 12px;
@@ -699,6 +704,8 @@ function page() {
     '<span class="lbl">Bling alert on every reply</span><span class="sw"><i></i></span></button>';
 
   const footerHtml = (data) =>
+    '<button class="cursor-cli" data-send="cursor" title="New Cursor CLI session, pinned to Claude">' +
+    'Open Cursor CLI (Claude only)</button>' +
     blingHtml(data.bling) +
     deployHtml(data.deploy) +
     '<div class="footer"><span class="muted">' + esc(data.updated) + '</span>' +
@@ -929,6 +936,19 @@ function launchSession() {
     startTerminal(
         config.get('launchCommand', 'claude --dangerously-skip-permissions'),
         config.get('launchTerminalName', 'claude')
+    );
+}
+
+/// Fallback for when Claude Code hits its limit. The model is passed explicitly
+/// because `agent` otherwise uses whatever its config last held, and a bad or
+/// unavailable id makes it exit with an error rather than silently picking
+/// another model. Subagents follow it via exploreSubagentModel: "inherit" in
+/// ~/.cursor/cli-config.json.
+function launchCursor() {
+    const config = vscode.workspace.getConfiguration('claudeUsage');
+    startTerminal(
+        config.get('cursorCommand', 'agent --model claude-opus-5-5-medium'),
+        'cursor · claude'
     );
 }
 
@@ -1250,6 +1270,7 @@ function activate(context) {
         { dispose: () => output && output.dispose() },
         vscode.commands.registerCommand('claudeUsage.refresh', refresh),
         vscode.commands.registerCommand('claudeUsage.launch', launchSession),
+        vscode.commands.registerCommand('claudeUsage.launchCursor', launchCursor),
         vscode.commands.registerCommand('claudeUsage.resumeSession', pickSession),
         vscode.commands.registerCommand('claudeUsage.push', pushAll),
         vscode.commands.registerCommand('claudeUsage.openSettings', () =>
