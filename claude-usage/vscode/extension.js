@@ -27,6 +27,11 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
+// Until the plan drops to Pro, the blue fill shows the same use at Pro's size.
+// Remove once the downgrade is done: the meters are then the real thing.
+const PRO_FACTOR = 5;
+const PRO_END = new Date(2026, 10, 12).getTime();
+
 const USAGE_URL = 'https://api.anthropic.com/api/oauth/usage';
 const USAGE_HOST = 'api.anthropic.com';
 const USAGE_PATH = '/api/oauth/usage';
@@ -445,6 +450,7 @@ function snapshot() {
         updated: updatedText(),
         deploy: deploy,
         sessions: sessions,
+        proFactor: Date.now() < PRO_END ? PRO_FACTOR : null,
         cursor: cursorSnapshot(),
         cursorIcon: CURSOR_ICON,
         limits: state.limits.map((limit) => ({
@@ -550,6 +556,8 @@ function page() {
      before the warn/hot rules so a limit about to be hit still turns those. */
   .warn .meter > i { background: var(--warn); }
   .hot .meter > i { background: var(--hot); }
+  .meter > i.pro.pro { position: absolute; left: 0; top: 0; bottom: 0; background: var(--vscode-charts-blue, #4daafc); }
+  .meter > i.real { position: absolute; left: 0; top: 0; bottom: 0; }
 
   /* Hero — the 5-hour window, the one that actually runs out mid-task. */
   .hero { margin-bottom: 4px; }
@@ -669,7 +677,14 @@ function page() {
   // inline style ATTRIBUTES, since nonces can't be written on one. A
   // style="width:7%" is therefore dropped outright and every meter reads empty.
   // CSP does not police CSSOM, so el.style.width is allowed.
-  const meter = (p) => '<div class="meter"><i data-pct="' + Math.min(100, p) + '"></i></div>';
+  let proFactor = null;
+  const meter = (p, kind) => {
+    const pro = proFactor && (kind === 'session' || kind === 'weekly_all') ? p * proFactor : null;
+    if (pro === null) return '<div class="meter"><i data-pct="' + Math.min(100, p) + '"></i></div>';
+    return '<div class="meter" title="Blue is this use on Pro: full means Pro would be at its limit">' +
+      '<i class="pro" data-pct="' + Math.min(100, pro) + '"></i>' +
+      '<i class="real" data-pct="' + Math.min(100, p) + '"></i></div>';
+  };
 
   // How far through the limit's window we are: full means the reset has arrived.
   const HOUR_MS = 60 * 60 * 1000;
@@ -695,14 +710,14 @@ function page() {
     return '<div class="hero ' + level(limit.percent) + '">' +
       '<div class="top"><div class="pct">' + Math.round(limit.percent) + '<small>%</small></div>' +
       '<div class="name muted">' + esc(limit.label) + '</div></div>' +
-      meter(limit.percent) + clockHtml(limit) + footHtml(limit) + '</div>';
+      meter(limit.percent, limit.kind) + clockHtml(limit) + footHtml(limit) + '</div>';
   }
 
   function rowHtml(limit) {
     return '<div class="row ' + level(limit.percent) + '">' +
       '<div class="top"><div class="name">' + esc(limit.label) + '</div>' +
       '<div class="pct">' + Math.round(limit.percent) + '%</div></div>' +
-      meter(limit.percent) + clockHtml(limit) + footHtml(limit) + '</div>';
+      meter(limit.percent, limit.kind) + clockHtml(limit) + footHtml(limit) + '</div>';
   }
 
   // No row at all when there's nothing to say — a repo with no Actions, or no
@@ -774,6 +789,7 @@ function page() {
   }
 
   function render(data) {
+    proFactor = data.proFactor;
     if (data.error) {
       root.innerHTML =
         '<div class="notice"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">' +
