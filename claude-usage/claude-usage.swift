@@ -76,6 +76,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var lastUpdate: Date?
     private var loading = false
     private var errorText: String?
+    private var cursorUsage: [String: Any]?
 
     // Spike watch state.
     private var samples: [(date: Date, percent: Int)] = []
@@ -137,7 +138,61 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     // MARK: - fetching
 
+    /// Cursor has no plan %, so the menu shows what sessions on this Mac have used.
+    /// The script caches for 5 minutes. Off the main thread: it can take seconds.
+    private func refreshCursor() {
+        DispatchQueue.global(qos: .utility).async {
+            let task = Process()
+            let out = Pipe()
+            task.executableURL = URL(fileURLWithPath: "/Library/Developer/CommandLineTools/usr/bin/python3")
+            task.arguments = [NSHomeDirectory() + "/chaelri.github.io/cursor-bridge/cursor-usage.py"]
+            task.standardOutput = out
+            task.standardError = FileHandle.nullDevice
+            guard (try? task.run()) != nil else { return }
+            let data = out.fileHandleForReading.readDataToEndOfFile()
+            task.waitUntilExit()
+            guard let usage = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
+            DispatchQueue.main.async { self.cursorUsage = usage }
+        }
+    }
+
+    private func cursorLine(_ tally: [String: Any]) -> String {
+        let tokens = tally["tokens"] as? Double ?? 0
+        let cents = tally["cents"] as? Double ?? 0
+        let count = tokens >= 1_000_000 ? String(format: "%.1fM", tokens / 1_000_000)
+            : tokens >= 1000 ? "\(Int((tokens / 1000).rounded()))k" : "\(Int(tokens))"
+        return "\(count) · $" + String(format: "%.2f", cents / 100)
+    }
+
+    private func addCursorSection(to menu: NSMenu) {
+        guard let usage = cursorUsage, let today = usage["today"] as? [String: Any],
+              let week = usage["week"] as? [String: Any] else { return }
+        let header = NSMenuItem(title: "Cursor · this Mac", action: nil, keyEquivalent: "")
+        header.isEnabled = false
+        let icon = NSWorkspace.shared.icon(forFile: "/Applications/Cursor.app")
+        icon.size = NSSize(width: 16, height: 16)
+        header.image = icon
+        menu.addItem(header)
+        var lines = [
+            "Today    \(today["calls"] as? Int ?? 0) calls · \(cursorLine(today))",
+            "7 days   \(week["calls"] as? Int ?? 0) calls · \(cursorLine(week))",
+        ]
+        if let nonClaude = usage["nonClaude"] as? Int, nonClaude > 0 { lines.append("Non-Claude calls: \(nonClaude)") }
+        if let error = usage["error"] as? String { lines.append(error) }
+        for line in lines {
+            let row = NSMenuItem(title: line, action: nil, keyEquivalent: "")
+            row.isEnabled = false
+            row.attributedTitle = NSAttributedString(string: line, attributes: [
+                .font: NSFont.monospacedSystemFont(ofSize: 11, weight: .regular),
+                .foregroundColor: NSColor.secondaryLabelColor,
+            ])
+            menu.addItem(row)
+        }
+        menu.addItem(.separator())
+    }
+
     @objc private func refresh() {
+        refreshCursor()
         guard !loading else { return }
         guard let token = accessToken() else {
             errorText = "No Claude Code login found in the keychain."
@@ -208,6 +263,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     label = "Weekly · " + ((model?["display_name"] as? String) ?? "scoped")
                 default:              label = kind.replacingOccurrences(of: "_", with: " ").capitalized
                 }
+                if label.lowercased().contains("fable") { continue }  // same as the VS Code panel
                 out.append(Limit(label: label,
                                  percent: percent,
                                  resetsAt: date(row["resets_at"]),
@@ -474,6 +530,8 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 menu.addItem(.separator())
             }
         }
+
+        addCursorSection(to: menu)
 
         let updated: String
         if loading { updated = "Refreshing…" }

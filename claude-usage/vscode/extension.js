@@ -392,6 +392,53 @@ async function pickSession() {
 /// Flag file read by bling/on_stop.py (a Claude Code Stop hook): while it
 /// exists, every finished reply pops the 8-bit bling alert.
 const BLING_FLAG = path.join(os.homedir(), 'bling', 'enabled');
+const CURSOR_USAGE = path.join(os.homedir(), 'chaelri.github.io', 'cursor-bridge', 'cursor-usage.py');
+const CURSOR_ICON = 'data:image/png;base64,' + fs.readFileSync(path.join(__dirname, 'media', 'cursor.png')).toString('base64');
+
+let cursorUsage = null;
+
+/// Cursor has no plan %, so this is what sessions on this Mac have used. The
+/// script caches for 5 minutes, and a failure leaves the Claude meters alone.
+function refreshCursor() {
+    return new Promise((resolve) => {
+        execFile('/Library/Developer/CommandLineTools/usr/bin/python3', [CURSOR_USAGE], { timeout: 60000 }, (err, stdout) => {
+            try {
+                if (!err) cursorUsage = JSON.parse(stdout);
+            } catch (parseError) {
+                // Keep the last good numbers.
+            }
+            resolve();
+        });
+    });
+}
+
+function compactCount(n) {
+    if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+    if (n >= 1e3) return Math.round(n / 1e3) + 'k';
+    return String(n);
+}
+
+function cursorLine(t) {
+    return compactCount(t.tokens) + ' · $' + (t.cents / 100).toFixed(2);
+}
+
+function cursorSnapshot() {
+    if (!cursorUsage || !cursorUsage.today) return null;
+    const u = cursorUsage;
+    return {
+        icon: CURSOR_ICON,
+        today: u.today.calls + ' calls · ' + cursorLine(u.today),
+        week: u.week.calls + ' calls · ' + cursorLine(u.week),
+        sessions: u.sessions,
+        recent: u.recent.map((s) => ({
+            folder: s.folder,
+            line: cursorLine(s),
+            when: agoText(new Date(s.at).toISOString()),
+        })),
+        nonClaude: u.nonClaude,
+        error: u.error || null,
+    };
+}
 
 function toggleBling() {
     try {
@@ -413,6 +460,8 @@ function snapshot() {
         updated: updatedText(),
         deploy: deploy,
         sessions: sessions,
+        cursor: cursorSnapshot(),
+        cursorIcon: CURSOR_ICON,
         proFactor: Date.now() < PRO_START ? state.proFactor : null,
         limits: state.limits.map((limit) => ({
             kind: String(limit.kind || ''),
@@ -471,7 +520,7 @@ function page() {
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'nonce-${nonce}'; script-src 'nonce-${nonce}';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'nonce-${nonce}'; script-src 'nonce-${nonce}';">
 <style nonce="${nonce}">
   :root {
     /* Neutral grey reads as a recessed track against both a light and a dark
@@ -554,8 +603,14 @@ function page() {
   /* Bling switch: a full-width row so it reads as a setting, not a link. */
   button.cursor-cli {
     margin: 14px 0 0; padding: 6px 8px; width: 100%; color: var(--vscode-foreground); font-size: 12px;
-    border: 1px solid var(--track); border-radius: 4px; text-align: center;
+    border: 1px solid var(--track); border-radius: 4px;
+    display: flex; align-items: center; justify-content: center; gap: 7px;
   }
+  button.cursor-cli img, .chead img { width: 14px; height: 14px; }
+  .chead { display: flex; align-items: center; gap: 6px; }
+  .crow { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; padding: 3px 0; }
+  .crow .v { white-space: nowrap; }
+  .crow .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   button.bling {
     margin: 14px 0 0; padding: 6px 0; width: 100%; display: flex; align-items: center; justify-content: space-between;
     color: var(--vscode-foreground); font-size: 12px;
@@ -703,9 +758,24 @@ function page() {
     'title="Pop a ringing alert after every Claude reply">' +
     '<span class="lbl">Bling alert on every reply</span><span class="sw"><i></i></span></button>';
 
+  const crow = (label, value) =>
+    '<div class="crow"><span class="t">' + esc(label) + '</span><span class="v">' + esc(value) + '</span></div>';
+
+  /// Tokens and cost, not a %: Cursor has no limit to measure against here.
+  const cursorHtml = (c) => {
+    if (!c) return '';
+    return '<hr><div class="shead muted chead"><img src="' + c.icon + '" alt="">Cursor · this Mac</div>' +
+      crow('Today', c.today) + crow('7 days', c.week) +
+      c.recent.map((s) => '<div class="crow muted"><span class="t">' + esc(s.folder) + ' · ' + esc(s.when) +
+        '</span><span class="v">' + esc(s.line) + '</span></div>').join('') +
+      (c.nonClaude ? crow('Non-Claude calls', String(c.nonClaude)) : '') +
+      (c.error ? '<div class="crow muted"><span class="t">' + esc(c.error) + '</span></div>' : '');
+  };
+
   const footerHtml = (data) =>
+    cursorHtml(data.cursor) +
     '<button class="cursor-cli" data-send="cursor" title="New Cursor CLI session, pinned to Claude">' +
-    'Open Cursor CLI (Claude only)</button>' +
+    '<img src="' + data.cursorIcon + '" alt="">Open Cursor CLI (Claude only)</button>' +
     blingHtml(data.bling) +
     deployHtml(data.deploy) +
     '<div class="footer"><span class="muted">' + esc(data.updated) + '</span>' +
@@ -943,6 +1013,7 @@ async function refresh() {
     // Separate from the usage try/catch above: a GitHub outage must not be
     // reported as a usage error, and vice versa.
     await refreshSessions();
+    await refreshCursor();
     await refreshDeploy();
     render();
 }
