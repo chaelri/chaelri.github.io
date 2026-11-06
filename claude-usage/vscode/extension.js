@@ -1015,14 +1015,17 @@ function launchSession() {
 function launchCursor() {
     const config = vscode.workspace.getConfiguration('claudeUsage');
     startTerminal(
-        config.get('cursorCommand', 'clear && agent --force --approve-mcps --model claude-opus-5-5-medium'),
-        'cursor · claude'
+        config.get('cursorCommand', 'agent --force --approve-mcps --model claude-opus-5-5-medium'),
+        'cursor · claude',
+        true
     );
 }
 
 /// Shared by the new-session button and by resuming, so a resumed session gets
 /// the same scrubbed environment a fresh one does.
-function startTerminal(command, name) {
+/// direct runs the command as the terminal's own process, so no prompt or typed
+/// command appears above it. The terminal closes when the command exits.
+function startTerminal(command, name, direct) {
     const folders = vscode.workspace.workspaceFolders;
     // Multi-root takes the first folder; that's where a repo-wide session
     // belongs, and CLAUDE.md is read from the directory it starts in.
@@ -1050,9 +1053,10 @@ function startTerminal(command, name) {
         cwd: cwd,
         iconPath: new vscode.ThemeIcon('sparkle'),
         env: scrubbed,
+        ...(direct ? { shellPath: '/bin/zsh', shellArgs: ['-ilc', 'exec ' + command] } : {}),
     });
     terminal.show();
-    terminal.sendText(command, true);
+    if (!direct) terminal.sendText(command, true);
 }
 
 // MARK: - push everything to GitHub
