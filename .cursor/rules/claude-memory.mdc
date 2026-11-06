@@ -1,0 +1,10 @@
+---
+description: Shared memory with Claude Code
+alwaysApply: true
+---
+
+Charlie uses Claude Code and Cursor interchangeably, and both share one memory.
+
+At the start of every session, read `/Users/charliecayno/.claude/projects/-Users-charliecayno-chaelri-github-io/memory/MEMORY.md`. It is an index, one line per memory. Open the linked file in that same folder before acting on anything it mentions. These are Charlie's standing rules; follow them like project instructions.
+
+Save new memories to that same folder in the same format (one fact per file with frontmatter, plus a one-line pointer in MEMORY.md). Update an existing file rather than duplicating it.
