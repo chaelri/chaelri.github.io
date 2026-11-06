@@ -1,0 +1,1 @@
+../../.claude/commands/sync-knowledge.md

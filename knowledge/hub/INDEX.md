@@ -37,6 +37,7 @@ One line per project. Full detail (tech, deploy, quirks) lives in `knowledge/hub
 **Infra**
 - `gemini-proxy/` — Cloud Run Express proxy (Gemini, edge-tts, upload-drive) + local `drive-helper.mjs`
 - `cockpit/` — local FastAPI UI over `claude -p`
+- `cursor-bridge/` — Cursor CLI fallback: `hooks.json` (linked from `~/.cursor/hooks.json`) reuses the Claude Code guards, bling and shared memory
 - `functions/` + `firebase.json` — Firebase Functions/Hosting (public: `weddingbar/`)
 - `index.html` — root hub page
 

@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [{ "command": "/Users/charliecayno/chaelri.github.io/cursor-bridge/session-start.sh", "timeout": 10 }],
+    "beforeShellExecution": [{ "command": "/Users/charliecayno/chaelri.github.io/cursor-bridge/guard.sh", "timeout": 10, "failClosed": true }],
+    "afterFileEdit": [{ "command": "/Users/charliecayno/chaelri.github.io/cursor-bridge/after-edit.sh", "timeout": 10 }],
+    "stop": [{ "command": "/Users/charliecayno/chaelri.github.io/cursor-bridge/on-stop.sh", "timeout": 10 }]
+  }
+}

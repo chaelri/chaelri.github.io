@@ -901,6 +901,24 @@ function buildItem() {
     item.show();
 }
 
+/// Bling once per limit window at 90%, so there's time to run /handoff before
+/// Claude Code cuts off. Kept in memory: a window reload may ring once more.
+const warned = new Set();
+function warnNearLimit() {
+    for (const limit of state.limits) {
+        const percent = Number(limit.percent) || 0;
+        const label = shortLabelFor(limit);
+        const key = label + '|' + limit.resets_at;
+        if (percent < 90 || warned.has(key)) continue;
+        warned.add(key);
+        execFile('/Library/Developer/CommandLineTools/usr/bin/python3', [
+            path.join(os.homedir(), 'chaelri.github.io', 'bling', 'bling.py'),
+            'CLAUDE ' + Math.round(percent) + '%',
+            label + ': run /handoff, then Open Cursor CLI',
+        ], () => {});
+    }
+}
+
 async function refresh() {
     if (state.loading) return;
     state.loading = true;
@@ -913,6 +931,7 @@ async function refresh() {
         // Optional extra: a failed profile read keeps the last answer and must
         // not turn the real meters into an error.
         state.proFactor = await proFactor(token).catch(() => state.proFactor);
+        warnNearLimit();
         state.error = null;
         state.updatedAt = Date.now();
     } catch (err) {
@@ -947,7 +966,7 @@ function launchSession() {
 function launchCursor() {
     const config = vscode.workspace.getConfiguration('claudeUsage');
     startTerminal(
-        config.get('cursorCommand', 'agent --model claude-opus-5-5-medium'),
+        config.get('cursorCommand', 'agent --force --approve-mcps --model claude-opus-5-5-medium'),
         'cursor · claude'
     );
 }

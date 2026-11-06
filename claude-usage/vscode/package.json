@@ -107,8 +107,8 @@
         },
         "claudeUsage.cursorCommand": {
           "type": "string",
-          "default": "agent --model claude-opus-5-5-medium",
-          "description": "What the Open Cursor CLI button runs. Keep a Claude model id here; run 'agent models' to list them."
+          "default": "agent --force --approve-mcps --model claude-opus-5-5-medium",
+          "description": "What the Open Cursor CLI button runs. Keep a Claude model id here (agent models lists them). --force skips approvals and leans on the guard in cursor-bridge/."
         },
         "claudeUsage.launchTerminalName": {
           "type": "string",
