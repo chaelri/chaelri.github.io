@@ -178,6 +178,7 @@ def tasks_for(tasks_dir: Path):
             "progress": progress(text),
             "signals": signals(text),
             "tail": "\n".join(lines[-TAIL_LINES:]) or "(no output yet)",
+            "full": text,
         })
     return out
 
@@ -185,17 +186,140 @@ def tasks_for(tasks_dir: Path):
 def snapshot(all_projects: bool, cwd: Path):
     procs = live_processes()
     sess = sessions(all_projects, cwd)
-    return {
-        "now": time.time(),
-        "running": len(procs),
-        "processes": procs,
-        "sessions": [{
-            "project": s["project"],
-            "session": s["session"],
-            "short": s["session"][:8],
-            "tasks": tasks_for(s["tasks_dir"]),
-        } for s in sess[: (12 if all_projects else 3)]],
-    }
+    picked = [dict(s, tasks=tasks_for(s["tasks_dir"])) for s in sess[: (12 if all_projects else 3)]]
+    return {"now": time.time(), "jobs": build_jobs(procs, picked)}
+
+# ---------------------------------------------------------------- jobs (plain-language view)
+
+TRANSCRIPTS = Path.home() / ".claude" / "projects"
+RECENT = 3 * 3600        # finished jobs stay on the page this long
+QUIET = 30 * 60          # a running job silent this long gets flagged
+_scan = {}               # transcript path -> {"offset", "pending", "tasks"}
+BAR_LINE = re.compile(r"\[[#=>\-. ]*\]\s*(\d+)\s*/\s*(\d+)\s*(.*)")
+TASK_ID = re.compile(r"running in background with ID: (\w+)")
+
+
+def squash(cmd: str) -> str:
+    return re.sub(r"\s+", " ", cmd).strip()[:80]
+
+
+def job_names(project: str, session: str):
+    """Task id -> what Claude said the job was. Reads only what's new in the transcript."""
+    path = TRANSCRIPTS / project / f"{session}.jsonl"
+    st = _scan.setdefault(str(path), {"offset": 0, "pending": {}, "tasks": {}})
+    try:
+        with path.open("rb") as fh:
+            fh.seek(st["offset"])
+            chunk = fh.read()
+    except OSError:
+        return st["tasks"]
+    end = chunk.rfind(b"\n") + 1
+    st["offset"] += end
+    for raw in chunk[:end].split(b"\n"):
+        if b"run_in_background" not in raw and b"running in background with ID" not in raw:
+            continue
+        try:
+            row = json.loads(raw)
+        except ValueError:
+            continue
+        content = (row.get("message") or {}).get("content")
+        if row.get("type") not in ("user", "assistant") or not isinstance(content, list):
+            continue
+        for part in content:
+            if not isinstance(part, dict):
+                continue
+            if part.get("type") == "tool_use" and (part.get("input") or {}).get("run_in_background"):
+                st["pending"][part.get("id")] = part["input"]
+            elif part.get("type") == "tool_result":
+                body = part.get("content")
+                text = body if isinstance(body, str) else json.dumps(body)
+                m = TASK_ID.search(text or "")
+                call = st["pending"].get(part.get("tool_use_id"))
+                if m and call:
+                    st["tasks"][m.group(1)] = {"title": call.get("description") or "",
+                                               "command": call.get("command") or ""}
+    return st["tasks"]
+
+
+def seconds(etime: str) -> int:
+    """ps etime: [[dd-]hh:]mm:ss"""
+    days, _, rest = etime.rpartition("-")
+    total = 0
+    for part in rest.split(":"):
+        total = total * 60 + int(part)
+    return total + int(days or 0) * 86400
+
+
+def describe(text: str):
+    """Count, pass/fail tallies and the latest human line from a job's output."""
+    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+    body = [ln for ln in lines if not ln.startswith("[exited with code")]
+    count, latest = None, body[-1] if body else ""
+    for ln in reversed(body):
+        m = BAR_LINE.search(ln)
+        if m:
+            count = [int(m.group(1)), int(m.group(2))]
+            latest = re.sub(r"^(PASS|FAIL)\s+", "", m.group(3)).strip() or latest
+            break
+    else:
+        m = re.search(r"Components:\s*(\d+)\s*/\s*(\d+)", text[-4000:])
+        if m:
+            count = [int(m.group(1)), int(m.group(2))]
+    passed = len(re.findall(r"\bPASS\b", text))
+    failed = len(re.findall(r"\bFAIL\b", text))
+    code = re.findall(r"\[?exited with code (\d+)", text)
+    return count, latest[:160], passed, failed, (int(code[-1]) if code else None)
+
+
+def build_jobs(procs, sess):
+    now = time.time()
+    by_cmd = {}
+    for p in procs:
+        by_cmd.setdefault(squash(p["command"]), p)
+    jobs, used = [], set()
+    for s in sess:
+        names = job_names(s["project"], s["session"])
+        for t in s["tasks"]:
+            info = names.get(t["id"], {})
+            command = info.get("command", "")
+            text = t["full"]
+            if "shell-monitor" in command or "shell-monitor" in text[:200] or "s8889-progress" in command:
+                continue
+            count, latest, passed, failed, code = describe(text)
+            proc = by_cmd.get(squash(command)) if command else None
+            if proc:
+                used.add(proc["pid"])
+            running = bool(proc) or (t["writing"] and code is None)
+            if running:
+                state = "quiet" if t["age"] > QUIET else "running"
+            elif failed or (code not in (None, 0)):
+                state = "failed"
+            else:
+                state = "done"
+            if not running and t["age"] > RECENT:
+                continue
+            elapsed = seconds(proc["elapsed"]) if proc else None
+            left = None
+            if running and count and count[0] and elapsed:
+                left = round(elapsed / count[0] * (count[1] - count[0]))
+            jobs.append({"id": t["id"], "title": info.get("title") or "Background job", "state": state,
+                         "latest": latest, "count": count, "percent": t["progress"] if running else None,
+                         "passed": passed, "failed": failed, "elapsed": elapsed, "left": left,
+                         "age": t["age"], "code": code, "command": command, "tail": t["tail"]})
+    for p in procs:
+        hidden = "shell-monitor" in p["command"] or "s8889-progress" in p["command"]
+        elapsed = seconds(p["elapsed"])
+        if p["pid"] in used or hidden or elapsed < 60:      # under a minute = a quick foreground command
+            continue
+        folder = re.search(r"\bcd\s+([^\s;&]+)", p["command"])
+        title = f"Unnamed job in {folder.group(1).rstrip('/').rsplit('/', 1)[-1]}" if folder else "Unnamed job"
+        jobs.append({"id": p["pid"], "title": title, "state": "quiet" if elapsed > QUIET else "running",
+                     "latest": "", "count": None, "percent": None, "passed": 0, "failed": 0,
+                     "elapsed": elapsed, "left": None, "age": elapsed, "code": None,
+                     "command": p["command"], "tail": ""})
+    rank = {"failed": 0, "quiet": 1, "running": 2, "done": 3}
+    jobs.sort(key=lambda j: (rank[j["state"]], j["age"] if j["age"] is not None else 0))
+    return jobs
 
 # ---------------------------------------------------------------- server
 
@@ -246,125 +370,80 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
 
 PAGE = r"""<!doctype html>
-<html><head><meta charset="utf-8"><title>shell-monitor</title>
+<html><head><meta charset="utf-8"><title>Background Jobs</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
-  :root{--bg:#0b0e14;--panel:#111722;--line:#1e2836;--ink:#c8d3e0;--dim:#67748a;
-        --run:#7ee787;--idle:#4b5563;--warn:#e3b341;--bad:#f85149;--acc:#58a6ff}
+  :root{--bg:#f6f7f9;--card:#fff;--line:#e4e7ec;--ink:#111827;--soft:#667085;
+        --blue:#2563eb;--green:#16a34a;--amber:#b45309;--red:#dc2626;--track:#eceff3;--code:#f6f7f9}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#111317;--card:#1a1d23;--line:#2b2f37;
+        --ink:#f1f3f6;--soft:#9aa3b2;--blue:#60a5fa;--green:#4ade80;--amber:#fbbf24;--red:#f87171;--track:#2b2f37;--code:#14161b}}
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--ink);
-       font:13px/1.5 "SF Mono",ui-monospace,Menlo,Consolas,monospace}
-  header{position:sticky;top:0;z-index:5;background:#080b10;border-bottom:1px solid var(--line);
-         padding:10px 16px;display:flex;align-items:center;gap:14px}
-  .dot{width:9px;height:9px;border-radius:50%;background:var(--run);
-       box-shadow:0 0 8px var(--run);animation:pulse 1.6s infinite}
-  @keyframes pulse{50%{opacity:.35}}
-  .dot.off{background:var(--dim);box-shadow:none;animation:none}
-  h1{font-size:13px;margin:0;font-weight:600;letter-spacing:.02em}
-  .meta{color:var(--dim);font-size:12px;margin-left:auto}
-  main{padding:14px 16px 40px;max-width:1100px;margin:0 auto}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:8px;
-        margin-bottom:12px;overflow:hidden}
-  .card.live{border-color:#22402c}
-  .chead{display:flex;align-items:center;gap:10px;padding:9px 12px;
-         border-bottom:1px solid var(--line);background:#0d131d}
-  .id{color:var(--acc);font-weight:600}
-  .tag{font-size:10.5px;padding:1px 7px;border-radius:99px;border:1px solid var(--line);
-       color:var(--dim);text-transform:uppercase;letter-spacing:.06em}
-  .tag.run{color:var(--run);border-color:#22402c;background:#0e1c14}
-  .tag.done{color:var(--dim)}
-  .spin{color:var(--run)}
-  .right{margin-left:auto;color:var(--dim);font-size:11.5px}
-  pre{margin:0;padding:10px 12px;white-space:pre-wrap;word-break:break-word;
-      max-height:300px;overflow:auto;font-size:12px;color:#aebacb;background:#0b1017}
-  .bar{height:3px;background:#161d29}
-  .bar i{display:block;height:100%;background:linear-gradient(90deg,#2ea043,#7ee787);
-         transition:width .4s ease}
-  .sig{display:flex;flex-wrap:wrap;gap:6px;padding:8px 12px;border-top:1px solid var(--line)}
-  .sig span{font-size:11px;padding:1px 7px;border-radius:4px;background:#161d29;color:var(--dim)}
-  .sig span.bad{color:var(--bad);background:#201314}
-  .sig span.ok{color:var(--run);background:#0e1c14}
-  .proc{padding:9px 12px;border-bottom:1px solid var(--line)}
-  .proc:last-child{border-bottom:0}
-  .proc pre{background:transparent;padding:6px 0 0;max-height:120px;color:#8fa3ba}
-  .empty{color:var(--dim);padding:24px;text-align:center}
-  h2{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.1em;
-     margin:18px 0 8px;font-weight:600}
-</style></head><body>
-<header>
-  <span class="dot off" id="dot"></span>
-  <h1>shell-monitor</h1>
-  <span class="meta" id="meta">connecting…</span>
-</header>
-<main id="main"><div class="empty">loading…</div></main>
-<script>
-const TOKEN="__TOKEN__";
-const FRAMES="⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏";
-let tick=0;
-const esc=s=>s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
-const ago=s=>s<60?Math.round(s)+"s":s<3600?Math.round(s/60)+"m":Math.round(s/3600)+"h";
-const kb=n=>n<1024?n+" B":n<1048576?(n/1024).toFixed(1)+" KB":(n/1048576).toFixed(1)+" MB";
-
-function sigClass(t){
-  if(/ERROR|FAILED|Traceback|Failing:\s*[1-9]/.test(t))return "bad";
-  if(/Succeeded|Successfully|Passing:\s*[1-9]/.test(t))return "ok";
-  return "";
+  body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+  main{max-width:720px;margin:0 auto;padding:28px 16px 48px}
+  h1{font-size:24px;margin:0;font-weight:650}
+  .sum{color:var(--soft);margin:2px 0 24px}
+  h2{font-size:14px;font-weight:600;color:var(--soft);margin:24px 0 8px}
+  .job{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:10px}
+  .top{display:flex;align-items:flex-start;gap:12px;justify-content:space-between}
+  .title{font-size:17px;font-weight:600}
+  .pill{flex:none;font-size:13px;font-weight:600;white-space:nowrap}
+  .running .pill{color:var(--blue)}.done .pill{color:var(--green)}.quiet .pill{color:var(--amber)}.failed .pill{color:var(--red)}
+  .track{height:10px;background:var(--track);border-radius:6px;overflow:hidden;margin:12px 0 8px}
+  .track i{display:block;height:100%;background:var(--blue);border-radius:6px;transition:width .5s}
+  .track.wait i{width:30%;animation:slide 1.5s ease-in-out infinite alternate}
+  @keyframes slide{from{margin-left:0}to{margin-left:70%}}
+  .facts{color:var(--soft);font-size:14px}
+  .now{font-size:14px;margin-top:4px;overflow-wrap:anywhere}
+  details{margin-top:10px;font-size:13px}
+  summary{cursor:pointer;color:var(--soft)}
+  pre{background:var(--code);border:1px solid var(--line);border-radius:8px;padding:10px;margin:8px 0 0;max-height:260px;
+      overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.5 ui-monospace,Menlo,monospace}
+  .empty{color:var(--soft);padding:32px 0;text-align:center}
+</style></head><body><main>
+<h1>Background jobs</h1><p class="sum" id="sum">Connecting…</p><div id="list"></div>
+</main><script>
+const TOKEN="__TOKEN__",open_=new Set();let last="";
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const span=s=>s<60?"less than a minute":s<3600?Math.round(s/60)+" min":s<86400?(s/3600).toFixed(s<36000?1:0).replace(".0","")+" hours":Math.round(s/86400)+" days";
+const LABEL={running:"Running",quiet:"May be stuck",done:"Done",failed:"Needs a look"};
+function card(j){
+  const on=j.state==="running"||j.state==="quiet",bits=[];
+  let bar="";
+  if(on){
+    const pct=j.count?Math.round(j.count[0]*100/j.count[1]):j.percent;
+    bar=pct!=null?`<div class="track"><i style="width:${pct}%"></i></div>`:`<div class="track wait"><i></i></div>`;
+  }
+  if(j.count)bits.push(`${j.count[0]} of ${j.count[1]}`);
+  if(j.passed||j.failed)bits.push(`${j.passed} passed`,`${j.failed} failed`);
+  if(j.left!=null)bits.push(`about ${span(j.left)} left`);
+  else if(j.state==="running"&&j.elapsed!=null)bits.push(`running for ${span(j.elapsed)}`);
+  if(j.state==="quiet")bits.push(`no update for ${span(j.age)}`);
+  if(!on&&j.age!=null)bits.push(`finished ${span(j.age)} ago`);
+  if(!on&&j.code>0)bits.push(`stopped with an error`);
+  const tech=[j.command&&`Command\n${j.command}`,j.tail&&`Output\n${j.tail}`].filter(Boolean).join("\n\n");
+  return `<div class="job ${j.state}"><div class="top"><div class="title">${esc(j.title)}</div><div class="pill">${LABEL[j.state]}</div></div>
+    ${bar}${bits.length?`<div class="facts">${esc(bits.join(" · "))}</div>`:""}
+    ${j.latest?`<div class="now">Latest: ${esc(j.latest)}</div>`:""}
+    ${tech?`<details data-id="${esc(j.id)}" ${open_.has(String(j.id))?"open":""}><summary>Technical details</summary><pre>${esc(tech)}</pre></details>`:""}</div>`;
 }
-
-function taskCard(t){
-  const live=t.writing;
-  const spin=live?`<span class="spin">${FRAMES[tick%FRAMES.length]}</span>`:"";
-  const bar=t.progress!=null
-    ? `<div class="bar"><i style="width:${t.progress}%"></i></div>`:"";
-  const sig=t.signals.length
-    ? `<div class="sig">${t.signals.map(s=>`<span class="${sigClass(s)}">${esc(s)}</span>`).join("")}</div>`:"";
-  return `<div class="card ${live?"live":""}">
-    <div class="chead">
-      ${spin}<span class="id">${esc(t.id)}</span>
-      <span class="tag ${live?"run":"done"}">${live?"writing":"idle"}</span>
-      ${t.progress!=null?`<span class="tag">${t.progress}%</span>`:""}
-      <span class="right">${kb(t.size)} · ${ago(t.age)} ago</span>
-    </div>${bar}
-    <pre>${esc(t.tail)}</pre>${sig}</div>`;
-}
-
-function procCard(p){
-  return `<div class="proc">
-    <div class="chead" style="padding:0;border:0;background:none">
-      <span class="spin">${FRAMES[tick%FRAMES.length]}</span>
-      <span class="id">pid ${p.pid}</span>
-      <span class="tag run">running</span>
-      <span class="right">${esc(p.elapsed)}</span>
-    </div>
-    <pre>${esc(p.command)}</pre></div>`;
-}
-
+function section(name,jobs){return jobs.length?`<h2>${name}</h2>`+jobs.map(card).join(""):""}
+document.addEventListener("toggle",e=>{const d=e.target;if(d.tagName!=="DETAILS")return;
+  d.open?open_.add(d.dataset.id):open_.delete(d.dataset.id)},true);
 async function poll(){
-  tick++;
   try{
     const r=await fetch(`/api/state?token=${TOKEN}`,{cache:"no-store"});
-    if(!r.ok)throw new Error(r.status);
-    const d=await r.json();
-    document.getElementById("dot").className="dot"+(d.running?"":" off");
-    document.getElementById("meta").textContent=
-      `${d.running} running · ${new Date(d.now*1000).toLocaleTimeString()}`;
-    let html="";
-    if(d.processes.length){
-      html+=`<h2>live processes</h2><div class="card">${d.processes.map(procCard).join("")}</div>`;
-    }
-    for(const s of d.sessions){
-      if(!s.tasks.length)continue;
-      html+=`<h2>${esc(s.short)} · ${s.tasks.length} task${s.tasks.length>1?"s":""}</h2>`;
-      html+=s.tasks.map(taskCard).join("");
-    }
-    document.getElementById("main").innerHTML=
-      html||`<div class="empty">no background shells yet — they'll appear here the moment one starts</div>`;
-  }catch(e){
-    document.getElementById("meta").textContent="disconnected — is serve.py still running?";
-    document.getElementById("dot").className="dot off";
-  }
+    if(!r.ok)throw 0;
+    const {jobs}=await r.json();
+    const by=s=>jobs.filter(j=>s.includes(j.state));
+    const run=by(["running"]).length,look=by(["quiet","failed"]).length;
+    document.getElementById("sum").textContent=
+      (run?`${run} running`:"Nothing running")+(look?` · ${look} to look at`:"");
+    const html=section("Needs a look",by(["quiet","failed"]))+section("Running",by(["running"]))+section("Finished recently",by(["done"]).slice(0,10));
+    const out=html||`<div class="empty">Nothing in the background right now.</div>`;
+    if(out!==last&&!document.querySelector("pre:hover")){document.getElementById("list").innerHTML=out;last=out}
+  }catch(e){document.getElementById("sum").textContent="Lost connection to the monitor."}
 }
-poll();setInterval(poll,1000);
+poll();setInterval(poll,2000);
 </script></body></html>"""
 
 
