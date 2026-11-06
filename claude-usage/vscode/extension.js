@@ -30,10 +30,6 @@ const path = require('path');
 const USAGE_URL = 'https://api.anthropic.com/api/oauth/usage';
 const USAGE_HOST = 'api.anthropic.com';
 const USAGE_PATH = '/api/oauth/usage';
-const PROFILE_PATH = '/api/oauth/profile';
-// The plan becomes Pro on this date (local midnight), so the estimate ends then
-// even if the tier hasn't flipped yet; the meters are the real ones from here.
-const PRO_START = new Date(2026, 10, 11).getTime();
 const KEYCHAIN_SERVICE = 'Claude Code-credentials';
 const SETTINGS_URL = 'https://claude.ai/settings/usage';
 const GIT_OUTPUT_NAME = 'Claude Usage — Git';
@@ -47,7 +43,7 @@ const SESSION_ID = /^[0-9a-fA-F-]{8,64}$/;
 let item = null;
 let panel = null;
 let timer = null;
-let state = { limits: [], error: null, loading: false, updatedAt: null, proFactor: null };
+let state = { limits: [], error: null, loading: false, updatedAt: null };
 let output = null;
 let deploy = { text: null, level: null, url: null };
 let deployTimer = null;
@@ -138,17 +134,6 @@ function getUsage(token, requestPath = USAGE_PATH) {
 function isFable(limit) {
     const model = limit.scope && limit.scope.model;
     return /fable/i.test(String((model && model.display_name) || ''));
-}
-
-/// How many Pro plans this account's tier equals (default_claude_max_5x → 5), or
-/// null on Pro or an unknown tier. Read from the profile endpoint rather than
-/// the keychain copy, which only updates at sign-in: this is what drops the Pro
-/// estimate by itself the moment the plan actually changes.
-async function proFactor(token) {
-    const profile = await getUsage(token, PROFILE_PATH);
-    const tier = String((profile.organization && profile.organization.rate_limit_tier) || '');
-    const match = tier.match(/max_(\d+)x/);
-    return match ? Number(match[1]) : null;
 }
 
 /** Same labels the menu bar item uses, so the two read as one tool. */
@@ -462,7 +447,6 @@ function snapshot() {
         sessions: sessions,
         cursor: cursorSnapshot(),
         cursorIcon: CURSOR_ICON,
-        proFactor: Date.now() < PRO_START ? state.proFactor : null,
         limits: state.limits.map((limit) => ({
             kind: String(limit.kind || ''),
             label: shortLabelFor(limit),
@@ -564,9 +548,6 @@ function page() {
   }
   /* The Pro estimate is blue so it can't be misread as real usage. These sit
      before the warn/hot rules so a limit about to be hit still turns those. */
-  .pro { --pro: var(--vscode-charts-blue, #4daafc); }
-  .pro .meter > i { background: var(--pro); }
-  .pro .shead, .pro .hero .pct, .pro .row .pct { color: var(--pro); }
   .warn .meter > i { background: var(--warn); }
   .hot .meter > i { background: var(--hot); }
 
@@ -792,18 +773,6 @@ function page() {
     });
   }
 
-  // The same meters at a Pro plan's size. Past 100% is the point: it means this
-  // much use would have hit the limit, so the number isn't capped.
-  function proHtml(data, session, weekly) {
-    if (!data.proFactor || (!session && !weekly)) return '';
-    const scaled = (limit) =>
-      limit && Object.assign({}, limit, { percent: limit.percent * data.proFactor });
-    return '<hr><div class="pro"><div class="shead muted">If Pro</div>' +
-      (session ? heroHtml(scaled(session)) : '') +
-      (session && weekly ? '<hr>' : '') +
-      (weekly ? rowHtml(scaled(weekly)) : '') + '</div>';
-  }
-
   function render(data) {
     if (data.error) {
       root.innerHTML =
@@ -831,7 +800,6 @@ function page() {
       (session ? heroHtml(session) : '') +
       (session && rest.length ? '<hr>' : '') +
       rest.map(rowHtml).join('') +
-      proHtml(data, session, data.limits.find((l) => l.kind === 'weekly_all')) +
       sessionsHtml(data.sessions) +
       footerHtml(data);
     paint();
@@ -998,9 +966,6 @@ async function refresh() {
         if (!token) throw new Error('No Claude Code login found — run `claude` once');
         const data = await getUsage(token);
         state.limits = (Array.isArray(data.limits) ? data.limits : []).filter((limit) => !isFable(limit));
-        // Optional extra: a failed profile read keeps the last answer and must
-        // not turn the real meters into an error.
-        state.proFactor = await proFactor(token).catch(() => state.proFactor);
         warnNearLimit();
         state.error = null;
         state.updatedAt = Date.now();
