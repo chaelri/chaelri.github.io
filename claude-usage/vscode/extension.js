@@ -1002,7 +1002,7 @@ function launchSession() {
 function launchCursor() {
     const config = vscode.workspace.getConfiguration('claudeUsage');
     startTerminal(
-        config.get('cursorCommand', 'agent --force --approve-mcps --model claude-opus-5-5-medium'),
+        config.get('cursorCommand', 'clear && agent --force --approve-mcps --model claude-opus-5-5-medium'),
         'cursor · claude'
     );
 }
