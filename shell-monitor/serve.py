@@ -285,6 +285,8 @@ def build_jobs(procs, sess):
             text = t["full"]
             if "shell-monitor" in command or "shell-monitor" in text[:200] or "s8889-progress" in command:
                 continue
+            if not info:      # quick foreground commands land here too; only named jobs belong on the page
+                continue
             count, latest, passed, failed, code = describe(text)
             proc = by_cmd.get(squash(command)) if command else None
             if proc:
