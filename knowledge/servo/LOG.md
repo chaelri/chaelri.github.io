@@ -14,6 +14,10 @@ Chronological notes for ongoing work in `servo/`. **Newest first.** Append-only 
 
 ---
 
+## 2026-11-09 — WoL board pinned to CharLa WiFi
+
+The board went deaf again. It was on GFiber_3DAAA (RSSI -33) and could reach the PC on the LAN, but every Firebase connect failed after ~18 s with `-1 Generic error`. DNS was fine, and the PC reached the same Firebase IP through the same router, so GFiber seems to stall internet traffic from the board only. Reflashed with CharLa as the only WiFi network. The others are commented out because WiFiMulti always picks the strongest, which was GFiber. The board connected right away and cleared the stale `click`.
+
 ## 2026-11-04 — Board stayed deaf with WiFi up: Firebase stream connect kept failing
 
 Seen on one boot: WiFi fine (RSSI -31), LAN ping to the PC fine, but every Firebase stream connect failed about every 24 s, `/servo/state` stayed null and commands sat unread. The same firmware then connected within seconds on 8 later boots, so the failure did not reproduce and the root cause is unconfirmed. A diagnostic sketch ruled out TX power (8.5, 15 and 19.5 dBm all equal), DNS and TLS from a fresh client. The one lead: internet TCP stalled for the first ~10 s after joining WiFi on one boot, so a failed first connect may have stuck the reused global client. Now the stream uses a fresh client per attempt, reboots after 6 failed connects in a row (~2 min, tested by pointing at a dead host), skips the 2 s auto poll while down, and logs the error and heap. If it recurs, read the `Stream connect failed` line on COM3 before anything else. Opening the port can reset the board, which wipes the evidence.
