@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
-<meta name="theme-color" content="#0b1220">
+<meta name="theme-color" content="#2A1A14">
 <title>Karla's Applications</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -12,14 +12,14 @@
 <style>
 @font-face{font-family:"Editors Note";src:url("../devo/assets/EditorsNote-Italic.ttf") format("truetype");font-display:swap}
 :root{
-  --bg1:#121b33;--bg2:#0b1220;--sheet:#121829;--card:#1b2238;--inner:rgba(17,26,47,.9);--hover:#222b45;--sel:#2b3554;
-  --text:#e6edf7;--body:rgba(255,255,255,.92);--mute:rgba(255,255,255,.55);--label:rgba(255,255,255,.5);--line:rgba(255,255,255,.08);
-  --pink:#db2777;--pink-glow:rgba(219,39,119,.35);--gold:#f5c76b;--green:#5fd3a5;--amber:#f0b46a;
+  --bg1:#3a2519;--bg2:#2A1A14;--sheet:#3a271e;--card:#36241c;--inner:#24160f;--hover:#432d23;--sel:#4d3328;
+  --text:#FFF3E9;--body:rgba(255,243,233,.92);--mute:rgba(255,243,233,.6);--label:rgba(255,243,233,.5);--line:rgba(255,243,233,.08);
+  --pink:#D97757;--pink-glow:rgba(217,119,87,.35);--pink-hover:#c4643f;--gold:#D97757;--green:#FFF3E9;--amber:#D97757;
   --ease:cubic-bezier(.22,1,.36,1);--ease-out:cubic-bezier(.4,0,.2,1);
 }
 @media (prefers-color-scheme:light){:root{
-  --bg1:#f7f7fb;--bg2:#eef0f7;--sheet:#fff;--card:#fff;--inner:#f3f4fa;--hover:#f0f1f8;--sel:#e6e8f4;
-  --text:#18203a;--body:#232b45;--mute:#6b7290;--label:#8a90a8;--line:rgba(24,32,58,.08);--pink-glow:rgba(219,39,119,.22);--gold:#c98a1a;--green:#13976a;--amber:#b4661c}}
+  --bg1:#FFF8F2;--bg2:#FFF3E9;--sheet:#fffaf6;--card:#fffaf6;--inner:#f8e9dd;--hover:#f6e2d3;--sel:#f3d9c7;
+  --text:#2A1A14;--body:rgba(42,26,20,.9);--mute:rgba(42,26,20,.6);--label:rgba(42,26,20,.5);--line:rgba(42,26,20,.08);--pink-glow:rgba(217,119,87,.28);--green:#2A1A14}}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0}
 body{min-height:100vh;background:radial-gradient(circle at top,var(--bg1),var(--bg2)) fixed;color:var(--text);
@@ -46,7 +46,7 @@ a{color:inherit}
 @media (max-width:420px){.tab .l{letter-spacing:.6px;font-size:10px}.tab .n{font-size:20px}}
 
 /* cards */
-.card{background:var(--card);border-radius:14px;padding:16px;margin-bottom:12px;display:grid;grid-template-rows:1fr;
+.card{background:var(--card);box-shadow:0 1px 0 var(--line) inset;border-radius:14px;padding:16px;margin-bottom:12px;display:grid;grid-template-rows:1fr;
   animation:rise .42s var(--ease) both;transition:grid-template-rows .3s var(--ease-out),opacity .3s var(--ease-out),margin .3s var(--ease-out),padding .3s var(--ease-out)}
 .card>.in{min-height:0;overflow:hidden}
 .card.out{grid-template-rows:0fr;opacity:0;margin-bottom:0;padding-top:0;padding-bottom:0}
@@ -79,7 +79,7 @@ details[open] summary .chev{transform:rotate(90deg)}
 .btn:hover{background:var(--hover)}
 .btn:active{transform:scale(.97)}
 .btn.primary{background:var(--pink);color:#fff;box-shadow:0 6px 20px var(--pink-glow);flex:1;justify-content:center}
-.btn.primary:hover{background:#c81f6b}
+.btn.primary:hover{background:var(--pink-hover)}
 .btn.ghost{background:none;color:var(--mute)}
 .btn.ghost:hover{color:var(--text);background:var(--inner)}
 .spacer{flex:1}

@@ -18,6 +18,16 @@ Source of truth: `knowledge/devo/DESIGN.md` + `devo/style.css`. Charlie's bar is
 ```
 Light mode (`prefers-color-scheme:light`): bg `#f7f7fb→#eef0f7`, card `#fff`, inner `#f3f4fa`, sel `#e6e8f4`, text `#18203a`, mute `#6b7290`.
 
+### Alternate palette: "Claude warm" (3 colours, used by `karla-jobs/`)
+Same design system, swap only the tokens. Colours: dark brown `#2A1A14`, cream `#FFF3E9`, Claude orange `#D97757` (accent replaces pink everywhere, incl. sparkles and warnings).
+```css
+--bg1:#3a2519; --bg2:#2A1A14; --sheet:#3a271e; --card:#36241c; --inner:#24160f; --hover:#432d23; --sel:#4d3328;
+--text:#FFF3E9; --mute:rgba(255,243,233,.6); --label:rgba(255,243,233,.5);
+--pink:#D97757; --pink-glow:rgba(217,119,87,.35); --pink-hover:#c4643f;
+/* light: bg #FFF8F2→#FFF3E9, card #fffaf6, inner #f8e9dd, sel #f3d9c7, text #2A1A14 */
+```
+Ask which palette when Charlie doesn't say; default to devo navy.
+
 ## Type
 - Body: **Nunito** 400/600/700/800 from Google Fonts, `15px/22px`.
 - Display heading: **Editors Note italic** (`devo/assets/EditorsNote-Italic.ttf`, load with `@font-face` via a relative path), ~34px, one word in pink: `Hi <b>Karla</b>`.
