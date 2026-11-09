@@ -609,9 +609,12 @@ function page() {
      so the first reading lands without the panel jumping. */
   .skeleton { opacity: .4; }
   .skeleton .meter > i { width: 0; }
+  /* Logo sits above everything, same height as the hero percentage. */
+  .logo { display: block; width: 30px; height: 30px; margin: 4px auto 14px; }
 </style>
 </head>
 <body>
+<img class="logo" src="${CLAUDE_ICON}" alt="Claude">
 <div id="root"></div>
 <script nonce="${nonce}">
   const vscode = acquireVsCodeApi();
