@@ -178,6 +178,22 @@ def focus_vscode():
     elif code:
         subprocess.Popen([code])
 
+def hold_front(secs=10):
+    """macOS: a vscode:// link or `code` call opened just before the alert lands a few seconds late and pulls
+    VS Code forward over the alert. For the first few seconds, bring the alert's own Chrome back to the front."""
+    if OS != 'Darwin':
+        return
+    jxa = ("const se=Application('System Events');const want=%d;"
+           "const f=se.processes.whose({frontmost:true});"
+           "if(!f.length||f[0].unixId()!==want){const p=se.processes.whose({unixId:want});if(p.length)p[0].frontmost=true}")
+    end = time.time() + secs
+    while time.time() < end and not acked.is_set():
+        pid = subprocess.run(['pgrep', '-of', 'user-data-dir=' + PROFILE], capture_output=True, text=True).stdout.strip()
+        if pid:
+            subprocess.run(['osascript', '-l', 'JavaScript', '-e', jxa % int(pid)], capture_output=True)
+        acked.wait(0.5)
+
+threading.Thread(target=hold_front, daemon=True).start()
 acked.wait(3600)
 if acked.is_set():
     focus_vscode()
