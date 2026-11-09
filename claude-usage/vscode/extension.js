@@ -615,7 +615,7 @@ function page() {
   /* Root stretches to the panel's height; the footer block is pushed to the bottom. */
   #root { flex: 1; display: flex; flex-direction: column; }
   .bottom { margin-top: auto; padding-top: 16px; }
-  .logo { display: block; flex: none; width: 90px; height: 90px; margin: 4px auto 14px; }
+  .logo { display: block; flex: none; width: 60px; height: 60px; margin: 10px auto 32px; }
 </style>
 </head>
 <body>
