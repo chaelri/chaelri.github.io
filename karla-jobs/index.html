@@ -37,7 +37,7 @@ a{color:inherit}
 
 /* stats as tabs */
 .tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:22px}
-.tab{background:var(--card);border-radius:14px;padding:12px 10px;text-align:left;transition:background .2s;box-shadow:0 1px 0 rgba(255,243,233,.06) inset,0 6px 16px rgba(0,0,0,.3)}
+.tab{background:var(--card);border-radius:14px;padding:12px 10px;text-align:left;transition:background .2s;box-shadow:0 2px 8px rgba(0,0,0,.18)}
 .tab:hover{background:var(--hover)}
 .tab.on{background:var(--sel)}
 .tab .n{font-size:22px;font-weight:800;line-height:1}
@@ -46,7 +46,7 @@ a{color:inherit}
 @media (max-width:420px){.tab .l{letter-spacing:.6px;font-size:10px}.tab .n{font-size:20px}}
 
 /* cards: devo Quick Context shape */
-.card{background:var(--card);border-radius:14px;margin-bottom:14px;overflow:hidden;box-shadow:0 1px 0 rgba(255,243,233,.06) inset,0 10px 28px rgba(0,0,0,.38),0 2px 6px rgba(0,0,0,.25);display:grid;grid-template-rows:1fr;
+.card{background:var(--card);border-radius:14px;margin-bottom:14px;overflow:hidden;box-shadow:0 4px 14px rgba(0,0,0,.22);display:grid;grid-template-rows:1fr;
   animation:rise .42s var(--ease) both;transition:grid-template-rows .3s var(--ease-out),opacity .3s var(--ease-out),margin .3s var(--ease-out)}
 .card>.in{min-height:0;overflow:hidden}
 .card.out{grid-template-rows:0fr;opacity:0;margin-bottom:0}
@@ -69,11 +69,11 @@ a{color:inherit}
 .foot{display:flex;gap:8px;padding:0 16px 16px}
 .foot>*{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;height:44px;padding:0 10px;border-radius:12px;
   background:var(--hover);color:var(--mute);font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;text-decoration:none;
-  box-shadow:0 1px 0 rgba(255,243,233,.07) inset,0 4px 12px rgba(0,0,0,.35);transition:background .15s,color .15s,transform .12s,box-shadow .2s}
+  box-shadow:0 2px 6px rgba(0,0,0,.2);transition:background .15s,color .15s,transform .12s,box-shadow .2s}
 .foot>*:hover{color:var(--text);background:var(--sel)}
 .foot>*:active{transform:scale(.97)}
-.foot .go{flex:1.5;background:var(--pink);color:#fff;box-shadow:0 1px 0 rgba(255,255,255,.18) inset,0 8px 22px var(--pink-glow)}
-.foot .go:hover{background:var(--pink-hover);color:#fff;box-shadow:0 1px 0 rgba(255,255,255,.18) inset,0 12px 30px var(--pink-glow)}
+.foot .go{flex:1.5;background:var(--pink);color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.22)}
+.foot .go:hover{background:var(--pink-hover);color:#fff;box-shadow:0 3px 10px rgba(0,0,0,.26)}
 .foot .go .ic{font-size:13px}
 .foot .chev{font-size:16px;opacity:.6;letter-spacing:0}
 /* states */
