@@ -611,11 +611,11 @@ function page() {
      so the first reading lands without the panel jumping. */
   .skeleton { opacity: .4; }
   .skeleton .meter > i { width: 0; }
-  /* Logo sits above everything, same height as the hero percentage. */
+  /* Logo sits above everything, centered. */
   /* Root stretches to the panel's height; the footer block is pushed to the bottom. */
   #root { flex: 1; display: flex; flex-direction: column; }
   .bottom { margin-top: auto; padding-top: 16px; }
-  .logo { display: block; flex: none; width: 30px; height: 30px; margin: 4px auto 14px; }
+  .logo { display: block; flex: none; width: 90px; height: 90px; margin: 4px auto 14px; }
 </style>
 </head>
 <body>
