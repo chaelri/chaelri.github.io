@@ -47,7 +47,7 @@ h1{font-size:20px;margin:8px 0 4px}
 </main>
 <script type="module">
 import {initializeApp} from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
-import {getAuth,GoogleAuthProvider,signInWithPopup,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+import {getAuth,GoogleAuthProvider,signInWithPopup,onAuthStateChanged,signOut} from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
 import {getDatabase,ref,onValue,update} from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
 const app=initializeApp({apiKey:"AIzaSyB8ahT56WbEUaGAymsRNNA-DrfZnUnWIwk",authDomain:"test-database-55379.firebaseapp.com",databaseURL:"https://test-database-55379-default-rtdb.asia-southeast1.firebasedatabase.app",projectId:"test-database-55379",appId:"1:933688602756:web:392a3a4ce040cb9d4452d1"});
 const auth=getAuth(app),db=getDatabase(app);
@@ -55,9 +55,9 @@ const ALLOWED=["charliecayno@gmail.com","kasromantico@gmail.com"];
 const $=id=>document.getElementById(id);
 const TABS=[["queued","To approve"],["approved","Approved"],["applied","Applied"],["interview","Interview"],["all","All"]];
 let tab="queued",jobs={},who="";
-$("signin").onclick=async()=>{try{await signInWithPopup(auth,new GoogleAuthProvider())}catch(e){$("gerr").textContent=e.message}};
+$("signin").onclick=async()=>{try{const p=new GoogleAuthProvider();p.setCustomParameters({prompt:"select_account"});await signInWithPopup(auth,p)}catch(e){$("gerr").textContent=e.message}};
 onAuthStateChanged(auth,u=>{
-  if(!u||!ALLOWED.includes(u.email)){$("gate").hidden=false;$("app").hidden=true;if(u)$("gerr").textContent="This account isn't allowed.";return}
+  if(!u||!ALLOWED.includes(u.email)){$("gate").hidden=false;$("app").hidden=true;if(u){$("gerr").textContent=u.email+" isn't allowed. Sign in with Charlie's or Karla's Google account.";signOut(auth)}return}
   who=u.email.startsWith("charlie")?"charlie":"karla";
   $("gate").hidden=true;$("app").hidden=false;
   onValue(ref(db,"karlaJobs/jobs"),s=>{jobs=s.val()||{};render()});
