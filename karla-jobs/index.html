@@ -2,49 +2,126 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
+<meta name="theme-color" content="#0b1220">
 <title>Karla's Applications</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#f6f5f2;--card:#fff;--ink:#1d1d1b;--mute:#6b6a66;--line:#e4e2dc;--acc:#2f6f5e;--warn:#a0522d;--bad:#9b2c2c;--chip:#eef3f1}
-@media (prefers-color-scheme:dark){:root{--bg:#141413;--card:#1e1e1c;--ink:#ecebe7;--mute:#9a9893;--line:#2e2d2a;--acc:#6fbfa6;--warn:#e0a070;--bad:#e08080;--chip:#24302c}}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
-main{max-width:720px;margin:0 auto;padding:16px}
-h1{font-size:20px;margin:8px 0 4px}
-.sub{color:var(--mute);font-size:13px;margin-bottom:14px}
-.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
-.tabs button{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:6px 12px;font:inherit;font-size:13px;cursor:pointer}
-.tabs button.on{background:var(--acc);border-color:var(--acc);color:#fff}
-.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:10px}
-.t{font-weight:600;font-size:16px}
-.co{color:var(--mute);font-size:13px}
-.row{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
-.chip{background:var(--chip);border-radius:6px;padding:2px 8px;font-size:12px}
-.chip.warn{color:var(--warn)}
-.why{font-size:14px;margin:6px 0}
-.gap{font-size:13px;color:var(--warn)}
-.acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
-.acts button,.acts a{border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:8px;padding:7px 12px;font:inherit;font-size:13px;cursor:pointer;text-decoration:none}
-.acts .go{background:var(--acc);border-color:var(--acc);color:#fff}
-.st{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
-.st.queued{color:var(--warn)}.st.approved,.st.applied{color:var(--acc)}.st.interview,.st.offer{color:var(--acc)}.st.skipped,.st.rejected,.st.closed{color:var(--mute)}
-.empty{color:var(--mute);text-align:center;padding:30px 0}
-#gate{text-align:center;padding:60px 0}
-#gate button{background:var(--acc);color:#fff;border:0;border-radius:10px;padding:12px 20px;font:inherit;cursor:pointer}
-.note{width:100%;margin-top:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;padding:6px 8px;font:inherit;font-size:13px}
+@font-face{font-family:"Editors Note";src:url("../devo/assets/EditorsNote-Italic.ttf") format("truetype");font-display:swap}
+:root{
+  --bg1:#121b33;--bg2:#0b1220;--sheet:#121829;--card:#1b2238;--inner:rgba(17,26,47,.9);--hover:#222b45;--sel:#2b3554;
+  --text:#e6edf7;--body:rgba(255,255,255,.92);--mute:rgba(255,255,255,.55);--label:rgba(255,255,255,.5);--line:rgba(255,255,255,.08);
+  --pink:#db2777;--pink-glow:rgba(219,39,119,.35);--gold:#f5c76b;--green:#5fd3a5;--amber:#f0b46a;
+  --ease:cubic-bezier(.22,1,.36,1);--ease-out:cubic-bezier(.4,0,.2,1);
+}
+@media (prefers-color-scheme:light){:root{
+  --bg1:#f7f7fb;--bg2:#eef0f7;--sheet:#fff;--card:#fff;--inner:#f3f4fa;--hover:#f0f1f8;--sel:#e6e8f4;
+  --text:#18203a;--body:#232b45;--mute:#6b7290;--label:#8a90a8;--line:rgba(24,32,58,.08);--pink-glow:rgba(219,39,119,.22);--gold:#c98a1a;--green:#13976a;--amber:#b4661c}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0}
+body{min-height:100vh;background:radial-gradient(circle at top,var(--bg1),var(--bg2)) fixed;color:var(--text);
+  font:400 15px/22px Nunito,system-ui,-apple-system,sans-serif;padding:env(safe-area-inset-top) 0 calc(24px + env(safe-area-inset-bottom))}
+main{max-width:640px;margin:0 auto;padding:28px 16px}
+button{font:inherit;color:inherit;border:0;cursor:pointer;background:none}
+a{color:inherit}
+
+/* header */
+.hi{font-family:"Editors Note",Georgia,serif;font-style:italic;font-size:34px;line-height:1.1;margin:0;font-weight:400}
+.hi b{color:var(--pink);font-weight:400}
+.sub{color:var(--mute);font-size:13px;margin:6px 0 22px;display:flex;align-items:center;gap:6px}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green)}
+.dot.err{background:var(--amber);box-shadow:0 0 8px var(--amber)}
+
+/* stats as tabs */
+.tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:22px}
+.tab{background:var(--card);border-radius:14px;padding:12px 10px;text-align:left;transition:background .2s}
+.tab:hover{background:var(--hover)}
+.tab.on{background:var(--sel)}
+.tab .n{font-size:22px;font-weight:800;line-height:1}
+.tab .l{font-size:10.5px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--label);margin-top:6px;white-space:nowrap}
+.tab.on .n{color:var(--pink)}
+@media (max-width:420px){.tab .l{letter-spacing:.6px;font-size:10px}.tab .n{font-size:20px}}
+
+/* cards */
+.card{background:var(--card);border-radius:14px;padding:16px;margin-bottom:12px;display:grid;grid-template-rows:1fr;
+  animation:rise .42s var(--ease) both;transition:grid-template-rows .3s var(--ease-out),opacity .3s var(--ease-out),margin .3s var(--ease-out),padding .3s var(--ease-out)}
+.card>.in{min-height:0;overflow:hidden}
+.card.out{grid-template-rows:0fr;opacity:0;margin-bottom:0;padding-top:0;padding-bottom:0}
+@keyframes rise{from{opacity:0;transform:translateY(10px) scale(.96)}to{opacity:1;transform:none}}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.lbl{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--label)}
+.st{font-size:11px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;padding:3px 9px;border-radius:999px;background:var(--inner);color:var(--label)}
+.st.approved,.st.applied{color:var(--green)}.st.interview,.st.offer{color:var(--gold)}
+.t{font-size:18px;line-height:24px;font-weight:800;margin:0}
+.co{color:var(--mute);font-size:14px;margin-top:2px}
+.facts{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;margin:14px 0;background:var(--inner);border-radius:12px;padding:12px 14px}
+.facts .k{font-size:10.5px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--label)}
+.facts .v{font-size:14px;line-height:19px;font-weight:600;margin-top:2px}
+.facts .wide{grid-column:1/-1}
+.why{color:var(--body);margin:0}
+details{margin-top:12px}
+summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--amber)}
+summary::-webkit-details-marker{display:none}
+summary .chev{transition:transform .25s var(--ease);opacity:.7}
+details[open] summary .chev{transform:rotate(90deg)}
+.checks{margin:8px 0 0;padding:0;list-style:none}
+.checks li{position:relative;padding-left:16px;font-size:14px;line-height:20px;color:var(--body);margin:6px 0}
+.checks li:before{content:"";position:absolute;left:2px;top:8px;width:5px;height:5px;border-radius:50%;background:var(--amber)}
+.note{font-size:13px;color:var(--mute);margin-top:10px}
+
+/* actions */
+.acts{display:flex;gap:8px;margin-top:16px;align-items:center}
+.btn{height:44px;padding:0 18px;border-radius:12px;background:var(--inner);font-weight:700;font-size:14px;display:inline-flex;align-items:center;gap:6px;text-decoration:none;transition:background .2s,transform .12s}
+.btn:hover{background:var(--hover)}
+.btn:active{transform:scale(.97)}
+.btn.primary{background:var(--pink);color:#fff;box-shadow:0 6px 20px var(--pink-glow);flex:1;justify-content:center}
+.btn.primary:hover{background:#c81f6b}
+.btn.ghost{background:none;color:var(--mute)}
+.btn.ghost:hover{color:var(--text);background:var(--inner)}
+.spacer{flex:1}
+
+/* states */
+.empty{text-align:center;padding:48px 16px;color:var(--mute)}
+.empty .big{font-family:"Editors Note",Georgia,serif;font-style:italic;font-size:24px;color:var(--text);margin-bottom:6px}
+.sparkles{display:flex;justify-content:center;gap:8px;color:var(--gold);font-size:16px;margin-bottom:10px}
+.sparkles span{animation:pulse 1.2s ease-in-out infinite}
+.sparkles span:nth-child(2){animation-delay:.2s}.sparkles span:nth-child(3){animation-delay:.4s}
+@keyframes pulse{0%,100%{opacity:.25;transform:scale(.85)}50%{opacity:1;transform:scale(1)}}
+
+/* gate */
+#gate{min-height:70vh;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;gap:6px}
+#gate .btn{margin-top:18px;background:var(--card);height:48px;padding:0 22px}
+#gate .err{color:var(--amber);font-size:13px;max-width:320px;margin-top:10px}
+
+/* toast */
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translate(-50%,20px);opacity:0;pointer-events:none;
+  background:var(--sheet);color:var(--text);border-radius:14px;padding:10px 10px 10px 16px;display:flex;gap:14px;align-items:center;font-weight:600;font-size:14px;
+  box-shadow:0 12px 32px rgba(0,0,0,.35);transition:transform .35s var(--ease),opacity .35s var(--ease);max-width:calc(100% - 32px)}
+.toast.show{transform:translate(-50%,0);opacity:1;pointer-events:auto}
+.toast button{color:var(--pink);font-weight:800;padding:6px 10px;border-radius:8px}
+.toast button:hover{background:var(--inner)}
+@media (prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
 <main>
-  <div id="gate" hidden><h1>Karla's Applications</h1><p class="sub">Sign in with Google to continue.</p><button id="signin">Sign in</button><p id="gerr" class="gap"></p></div>
-  <div id="app" hidden>
-    <h1>Karla's Applications</h1>
-    <div class="sub" id="run"></div>
-    <div class="tabs" id="tabs"></div>
+  <section id="gate" hidden>
+    <h1 class="hi">Karla's <b>Applications</b></h1>
+    <p class="sub" style="justify-content:center">Sign in to see your job queue.</p>
+    <button class="btn" id="signin">Continue with Google</button>
+    <p class="err" id="gerr"></p>
+  </section>
+  <section id="app" hidden>
+    <h1 class="hi">Hi <b>Karla</b></h1>
+    <p class="sub" id="run"></p>
+    <nav class="tabs" id="tabs"></nav>
     <div id="list"></div>
-  </div>
+  </section>
 </main>
+<div class="toast" id="toast"><span id="tmsg"></span><button id="tundo">Undo</button></div>
 <script type="module">
 import {initializeApp} from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
 import {getAuth,GoogleAuthProvider,signInWithPopup,onAuthStateChanged,signOut} from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
@@ -53,44 +130,74 @@ const app=initializeApp({apiKey:"AIzaSyB8ahT56WbEUaGAymsRNNA-DrfZnUnWIwk",authDo
 const auth=getAuth(app),db=getDatabase(app);
 const ALLOWED=["charliecayno@gmail.com","kasromantico@gmail.com"];
 const $=id=>document.getElementById(id);
-const TABS=[["queued","To approve"],["approved","Approved"],["applied","Applied"],["interview","Interview"],["all","All"]];
-let tab="queued",jobs={},who="";
+const TABS=[["queued","To review"],["approved","Approved"],["applied","Applied"],["interview","Interviews"]];
+const LABEL={queued:"New",approved:"Approved",applied:"Applied",interview:"Interview",offer:"Offer",rejected:"Closed",skipped:"Skipped"};
+let tab="queued",jobs={},who="",loaded=false,toastT;
+
 $("signin").onclick=async()=>{try{const p=new GoogleAuthProvider();p.setCustomParameters({prompt:"select_account"});await signInWithPopup(auth,p)}catch(e){$("gerr").textContent=e.message}};
 onAuthStateChanged(auth,u=>{
-  if(!u||!ALLOWED.includes(u.email)){$("gate").hidden=false;$("app").hidden=true;if(u){$("gerr").textContent=u.email+" isn't allowed. Sign in with Charlie's or Karla's Google account.";signOut(auth)}return}
+  if(!u||!ALLOWED.includes(u.email)){$("gate").hidden=false;$("app").hidden=true;
+    if(u){$("gerr").textContent=u.email+" can't open this page. Use Charlie's or Karla's Google account.";signOut(auth)}return}
   who=u.email.startsWith("charlie")?"charlie":"karla";
-  $("gate").hidden=true;$("app").hidden=false;
-  onValue(ref(db,"karlaJobs/jobs"),s=>{jobs=s.val()||{};render()});
-  onValue(ref(db,"karlaJobs/lastRun"),s=>{const r=s.val();$("run").textContent=r?`Last search: ${new Date(r.at).toLocaleString("en-PH",{dateStyle:"medium",timeStyle:"short"})} - ${r.found} checked, ${r.queued} new${r.error?" - problem: "+r.error:""}`:"No search has run yet."});
+  if(who==="charlie")document.querySelector("#app .hi").innerHTML="Karla's <b>queue</b>";
+  $("gate").hidden=true;$("app").hidden=false;render();
+  onValue(ref(db,"karlaJobs/jobs"),s=>{jobs=s.val()||{};loaded=true;render()});
+  onValue(ref(db,"karlaJobs/lastRun"),s=>{const r=s.val();
+    $("run").innerHTML=r?`<span class="dot${r.error?" err":""}"></span>${r.error?"Last search had a problem":"Searched "+ago(r.at)} · ${r.found} jobs checked, ${r.queued} picked`:"The first search runs at 6 AM.";});
 });
+
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-function set(id,status){update(ref(db,"karlaJobs/jobs/"+id),{status,updatedAt:Date.now(),updatedBy:who})}
+function ago(t){const m=Math.round((Date.now()-t)/60000);if(m<60)return m<=1?"just now":m+" min ago";const h=Math.round(m/60);if(h<24)return h+"h ago";
+  return new Date(t).toLocaleDateString("en-PH",{month:"short",day:"numeric"})}
+const source=j=>/onlinejobs/.test(j.url||"")?"OnlineJobs.ph":/indeed/.test(j.url||"")?"Indeed":/linkedin/.test(j.url||"")?"LinkedIn":"JobStreet";
+const clean=s=>String(s||"").replace(/\s*\((top of range|exact hours)[^)]*\)/i,"").trim();
+const GROUP={queued:["queued"],approved:["approved"],applied:["applied","rejected"],interview:["interview","offer"]};
+const inTab=(j,k)=>GROUP[k].includes(j.status);
+
+function toast(msg,undo){$("tmsg").textContent=msg;$("toast").classList.add("show");$("tundo").onclick=()=>{undo();hideToast()};
+  clearTimeout(toastT);toastT=setTimeout(hideToast,5000)}
+function hideToast(){$("toast").classList.remove("show")}
+
+function set(id,status,msg){
+  const prev=jobs[id]?.status,card=document.querySelector(`[data-card="${id}"]`);
+  const go=()=>{const extra=status==="applied"?{appliedAt:Date.now()}:{};update(ref(db,"karlaJobs/jobs/"+id),{status,updatedAt:Date.now(),updatedBy:who,...extra})};
+  if(card&&!matchMedia("(prefers-reduced-motion:reduce)").matches){card.classList.add("out");setTimeout(go,280)}else go();
+  if(msg)toast(msg,()=>update(ref(db,"karlaJobs/jobs/"+id),{status:prev,updatedAt:Date.now(),updatedBy:who}));
+}
+
 function render(){
   const arr=Object.values(jobs).sort((a,b)=>(b.queuedAt||0)-(a.queuedAt||0));
-  const count=k=>k==="all"?arr.length:arr.filter(j=>j.status===k).length;
-  $("tabs").innerHTML=TABS.map(([k,l])=>`<button data-k="${k}" class="${k===tab?"on":""}">${l} (${count(k)})</button>`).join("");
-  $("tabs").querySelectorAll("button").forEach(b=>b.onclick=()=>{tab=b.dataset.k;render()});
-  const show=tab==="all"?arr:arr.filter(j=>j.status===tab);
-  if(!show.length){$("list").innerHTML=`<div class="empty">Nothing here yet.</div>`;return}
-  $("list").innerHTML=show.map(j=>`<div class="card">
-    <div class="st ${esc(j.status)}">${esc(j.status)}${j.appliedAt?" - "+new Date(j.appliedAt).toLocaleDateString("en-PH",{dateStyle:"medium"}):""}</div>
-    <div class="t">${esc(j.title)}</div><div class="co">${esc(j.company)}</div>
-    <div class="row"><span class="chip">${esc(j.pay||"Salary undisclosed")}</span><span class="chip">${esc(j.shift||"hours not stated")}</span><span class="chip">${esc(j.type||"")}</span>${j.cv?`<span class="chip">CV: ${esc(j.cv)}</span>`:""}</div>
-    ${j.why?`<div class="why">${esc(j.why)}</div>`:""}
-    ${j.gaps?`<div class="gap">Check: ${esc(j.gaps)}</div>`:""}
-    ${j.note?`<div class="co">Note: ${esc(j.note)}</div>`:""}
-    <div class="acts">
-      <a href="${esc(j.url)}" target="_blank" rel="noopener">Open ad</a>
-      ${j.status==="queued"?`<button class="go" data-a="approved" data-i="${esc(j.id)}">Approve</button><button data-a="skipped" data-i="${esc(j.id)}">Skip</button>`:""}
-      ${j.status==="approved"?`<button data-a="applied" data-i="${esc(j.id)}">I applied myself</button><button data-a="queued" data-i="${esc(j.id)}">Undo</button>`:""}
-      ${j.status==="applied"?`<button class="go" data-a="interview" data-i="${esc(j.id)}">Got interview</button><button data-a="rejected" data-i="${esc(j.id)}">Rejected</button>`:""}
-      ${j.status==="interview"?`<button class="go" data-a="offer" data-i="${esc(j.id)}">Got offer</button><button data-a="rejected" data-i="${esc(j.id)}">Rejected</button>`:""}
-      ${j.status==="skipped"?`<button data-a="queued" data-i="${esc(j.id)}">Undo</button>`:""}
-    </div></div>`).join("");
-  $("list").querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>{
-    const extra=b.dataset.a==="applied"?{appliedAt:Date.now()}:{};
-    set(b.dataset.i,b.dataset.a);if(extra.appliedAt)update(ref(db,"karlaJobs/jobs/"+b.dataset.i),extra);
-  });
+  $("tabs").innerHTML=TABS.map(([k,l])=>`<button class="tab${k===tab?" on":""}" data-k="${k}"><div class="n">${arr.filter(j=>inTab(j,k)).length}</div><div class="l">${l}</div></button>`).join("");
+  $("tabs").querySelectorAll(".tab").forEach(b=>b.onclick=()=>{tab=b.dataset.k;render()});
+  if(!loaded){$("list").innerHTML=`<div class="empty"><div class="sparkles"><span>✦</span><span>✦</span><span>✦</span></div>Loading your jobs…</div>`;return}
+  const show=arr.filter(j=>inTab(j,tab));
+  if(!show.length){$("list").innerHTML=`<div class="empty"><div class="big">${{queued:"All caught up",approved:"Nothing approved yet",applied:"No applications yet",interview:"No interviews yet"}[tab]}</div>${{queued:"New jobs arrive every morning at 6.",approved:"Approve a job and it waits here until it's sent.",applied:"Sent applications show up here.",interview:"When an employer replies, mark it here."}[tab]}</div>`;return}
+  $("list").innerHTML=show.map(card).join("");
+  $("list").querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>set(b.dataset.i,b.dataset.a,b.dataset.m));
+}
+
+function card(j){
+  const checks=String(j.gaps||"").split(/;\s*/).map(s=>s.trim()).filter(Boolean);
+  const id=esc(j.id),A=(a,label,cls,msg)=>`<button class="btn ${cls||""}" data-a="${a}" data-i="${id}" data-m="${esc(msg||"")}">${label}</button>`;
+  let acts="";
+  if(j.status==="queued")acts=A("approved","Approve","primary","Approved")+A("skipped","Skip","ghost","Skipped");
+  else if(j.status==="approved")acts=A("applied","I applied","primary","Marked as applied")+A("queued","Undo","ghost");
+  else if(j.status==="applied")acts=A("interview","Got an interview","primary","Nice! Moved to Interviews")+A("rejected","No reply / rejected","ghost","Marked as closed");
+  else if(j.status==="interview")acts=A("offer","Got an offer","primary","Congrats!")+A("rejected","Didn't push through","ghost","Marked as closed");
+  return `<article class="card" data-card="${id}"><div class="in">
+    <div class="top"><span class="lbl">${source(j)}${j.queuedAt?" · "+ago(j.queuedAt):""}</span><span class="st ${esc(j.status)}">${LABEL[j.status]||esc(j.status)}</span></div>
+    <h2 class="t">${esc(j.title)}</h2>
+    <div class="co">${esc(j.company)}</div>
+    <div class="facts">
+      <div><div class="k">Pay</div><div class="v">${esc(clean(j.pay)||"Not shown")}</div></div>
+      <div><div class="k">Type</div><div class="v">${esc(j.type||"—")}</div></div>
+      <div class="wide"><div class="k">Hours</div><div class="v">${esc(j.shift||"Not stated")}</div></div>
+    </div>
+    ${j.why?`<p class="why">${esc(j.why)}</p>`:""}
+    ${checks.length?`<details${j.status==="queued"?" open":""}><summary><span class="chev">›</span>Check in the ad before approving (${checks.length})</summary><ul class="checks">${checks.map(c=>`<li>${esc(c.charAt(0).toUpperCase()+c.slice(1))}</li>`).join("")}</ul></details>`:""}
+    ${j.note?`<div class="note">${esc(j.note)}</div>`:""}
+    <div class="acts">${acts}<span class="spacer"></span><a class="btn ghost" href="${esc(j.url)}" target="_blank" rel="noopener">Open ad ↗</a></div>
+  </div></article>`;
 }
 </script>
 </body>
