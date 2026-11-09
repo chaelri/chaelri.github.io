@@ -554,6 +554,7 @@ function page() {
   }
   button.cursor-cli img { width: 14px; height: 14px; }
   button.cursor-cli + button.cursor-cli { margin-top: 6px; }
+  button.cursor-cli:hover { text-decoration: none; }
   button.bling {
     margin: 14px 0 0; padding: 6px 0; width: 100%; display: flex; align-items: center; justify-content: space-between;
     color: var(--vscode-foreground); font-size: 12px;
