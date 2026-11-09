@@ -354,10 +354,10 @@ void setup() {
   if (esp_task_wdt_reconfigure(&wdt) != ESP_OK) esp_task_wdt_init(&wdt);
   esp_task_wdt_add(NULL);
 
-  wifiMulti.addAP("CharLa", "Kahitano1!");
+  // wifiMulti.addAP("CharLa", "Kahitano1!");
   // wifiMulti.addAP("CAYNO", "lokomoko");
   // wifiMulti.addAP("Chaelri", "charlie24");
-  // wifiMulti.addAP("GFiber_3DAAA", "F09C2D58");
+  wifiMulti.addAP("GFiber_3DAAA", "F09C2D58");
 
   radioUp();
   Serial.print("Connecting to WiFi");
