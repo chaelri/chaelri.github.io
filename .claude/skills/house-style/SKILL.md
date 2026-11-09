@@ -21,7 +21,7 @@ Light mode (`prefers-color-scheme:light`): bg `#f7f7fb→#eef0f7`, card `#fff`, 
 ### Alternate palette: "Claude warm" (3 colours, used by `karla-jobs/`)
 Same design system, swap only the tokens. Colours: dark brown `#2A1A14`, cream `#FFF3E9`, Claude orange `#D97757` (accent replaces pink everywhere, incl. sparkles and warnings).
 ```css
---bg1:#3a2519; --bg2:#2A1A14; --sheet:#3a271e; --card:#36241c; --inner:#24160f; --hover:#432d23; --sel:#4d3328;
+--bg1:#1f120c; --bg2:#0f0805; --sheet:#2A1A14; --card:#2A1A14; --inner:#1a0f0a; --hover:#34221a; --sel:#3e291f;
 --text:#FFF3E9; --mute:rgba(255,243,233,.6); --label:rgba(255,243,233,.5);
 --pink:#D97757; --pink-glow:rgba(217,119,87,.35); --pink-hover:#c4643f;
 /* light: bg #FFF8F2→#FFF3E9, card #fffaf6, inner #f8e9dd, sel #f3d9c7, text #2A1A14 */
