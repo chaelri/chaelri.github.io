@@ -21,7 +21,7 @@
       "activitybar": [
         {
           "id": "claudeUsage",
-          "title": "Claude usage",
+          "title": "✻ Claude Usage",
           "icon": "media/claude.svg"
         }
       ]
@@ -30,7 +30,7 @@
       "claudeUsage": [
         {
           "id": "claudeUsage.limits",
-          "name": "Plan usage",
+          "name": "✻ Claude Usage",
           "type": "webview"
         }
       ]
