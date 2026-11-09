@@ -45,45 +45,35 @@ a{color:inherit}
 .tab.on .n{color:var(--pink)}
 @media (max-width:420px){.tab .l{letter-spacing:.6px;font-size:10px}.tab .n{font-size:20px}}
 
-/* cards */
-.card{background:var(--card);box-shadow:0 1px 0 var(--line) inset;border-radius:14px;padding:16px;margin-bottom:12px;display:grid;grid-template-rows:1fr;
-  animation:rise .42s var(--ease) both;transition:grid-template-rows .3s var(--ease-out),opacity .3s var(--ease-out),margin .3s var(--ease-out),padding .3s var(--ease-out)}
+/* cards: devo Quick Context shape */
+.card{background:var(--card);border-radius:14px;margin-bottom:12px;overflow:hidden;display:grid;grid-template-rows:1fr;
+  animation:rise .42s var(--ease) both;transition:grid-template-rows .3s var(--ease-out),opacity .3s var(--ease-out),margin .3s var(--ease-out)}
 .card>.in{min-height:0;overflow:hidden}
-.card.out{grid-template-rows:0fr;opacity:0;margin-bottom:0;padding-top:0;padding-bottom:0}
+.card.out{grid-template-rows:0fr;opacity:0;margin-bottom:0}
 @keyframes rise{from{opacity:0;transform:translateY(10px) scale(.96)}to{opacity:1;transform:none}}
+.body{padding:16px}
 .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
 .lbl{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--label)}
-.st{font-size:11px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;padding:3px 9px;border-radius:999px;background:var(--inner);color:var(--label)}
-.st.approved,.st.applied{color:var(--green)}.st.interview,.st.offer{color:var(--gold)}
-.t{font-size:18px;line-height:24px;font-weight:800;margin:0}
-.co{color:var(--mute);font-size:14px;margin-top:2px}
-.facts{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;margin:14px 0;background:var(--inner);border-radius:12px;padding:12px 14px}
-.facts .k{font-size:10.5px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--label)}
-.facts .v{font-size:14px;line-height:19px;font-weight:600;margin-top:2px}
-.facts .wide{grid-column:1/-1}
-.psub{font-size:12px;color:var(--mute);margin-top:2px}
-.why{color:var(--body);margin:0}
-details{margin-top:12px}
-summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--amber)}
-summary::-webkit-details-marker{display:none}
-summary .chev{transition:transform .25s var(--ease);opacity:.7}
-details[open] summary .chev{transform:rotate(90deg)}
-.checks{margin:8px 0 0;padding:0;list-style:none}
-.checks li{position:relative;padding-left:16px;font-size:14px;line-height:20px;color:var(--body);margin:6px 0}
-.checks li:before{content:"";position:absolute;left:2px;top:8px;width:5px;height:5px;border-radius:50%;background:var(--amber)}
+.st{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--label)}
+.st.queued{color:var(--pink)}
+.t{font-size:16px;line-height:22px;font-weight:700;margin:0;color:var(--text)}
+.co{color:var(--mute);font-size:14px;line-height:20px}
+.txt{font-size:15px;line-height:22px;color:var(--body);margin:10px 0 0}
+.txt strong{font-weight:800;color:var(--text)}
+.h{font-size:16px;font-weight:700;margin:14px 0 4px;color:var(--text)}
+.bl{display:flex;margin-bottom:6px;padding-left:4px;font-size:15px;line-height:22px;color:var(--body)}
+.bl .d{width:16px;font-weight:700;color:var(--label);flex-shrink:0}
+.psub{font-size:12px;color:var(--mute)}
 .note{font-size:13px;color:var(--mute);margin-top:10px}
-
-/* actions */
-.acts{display:flex;gap:8px;margin-top:16px;align-items:center}
-.btn{height:44px;padding:0 18px;border-radius:12px;background:var(--inner);font-weight:700;font-size:14px;display:inline-flex;align-items:center;gap:6px;text-decoration:none;transition:background .2s,transform .12s}
-.btn:hover{background:var(--hover)}
-.btn:active{transform:scale(.97)}
-.btn.primary{background:var(--pink);color:#fff;box-shadow:0 6px 20px var(--pink-glow);flex:1;justify-content:center}
-.btn.primary:hover{background:var(--pink-hover)}
-.btn.ghost{background:none;color:var(--mute)}
-.btn.ghost:hover{color:var(--text);background:var(--inner)}
-.spacer{flex:1}
-
+/* footer band, like devo's DIG DEEPER row */
+.foot{display:flex;background:var(--inner)}
+.foot>*{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:14px 8px;font-size:11px;font-weight:700;letter-spacing:1.5px;
+  text-transform:uppercase;color:var(--mute);text-decoration:none;transition:background .15s,color .15s;min-height:46px}
+.foot>*:hover{background:var(--hover);color:var(--text)}
+.foot>*+*{box-shadow:-1px 0 0 var(--line)}
+.foot .go{color:var(--pink);flex:1.4}
+.foot .go .ic{font-size:13px}
+.foot .chev{font-size:16px;opacity:.4;letter-spacing:0}
 /* states */
 .empty{text-align:center;padding:48px 16px;color:var(--mute)}
 .empty .big{font-family:"Editors Note",Georgia,serif;font-style:italic;font-size:24px;color:var(--text);margin-bottom:6px}
@@ -94,7 +84,9 @@ details[open] summary .chev{transform:rotate(90deg)}
 
 /* gate */
 #gate{min-height:70vh;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;gap:6px}
+.btn{border-radius:12px;font-weight:700;font-size:14px;display:inline-flex;align-items:center;gap:8px;transition:background .2s}
 #gate .btn{margin-top:18px;background:var(--card);height:48px;padding:0 22px}
+#gate .btn:hover{background:var(--hover)}
 #gate .err{color:var(--amber);font-size:13px;max-width:320px;margin-top:10px}
 
 /* toast */
@@ -189,28 +181,31 @@ function render(){
 }
 
 function card(j){
-  const checks=String(j.gaps||"").split(/;\s*/).map(s=>s.trim()).filter(Boolean);
-  const id=esc(j.id),A=(a,label,cls,msg)=>`<button class="btn ${cls||""}" data-a="${a}" data-i="${id}" data-m="${esc(msg||"")}">${label}</button>`;
+  const checks=String(j.gaps||"").split(/;\s*/).map(x=>x.trim()).filter(Boolean);
+  const id=esc(j.id),pi=payInfo(j.pay);
+  const A=(a,label,cls,msg)=>`<button class="${cls||""}" data-a="${a}" data-i="${id}" data-m="${esc(msg||"")}">${label}</button>`;
+  const GO=l=>`<span class="ic">✦</span>${l}<span class="chev">›</span>`;
   let acts="";
-  if(j.status==="queued")acts=A("approved","Approve","primary","Approved")+A("skipped","Skip","ghost","Skipped");
-  else if(j.status==="approved")acts=A("applied","I applied","primary","Marked as applied")+A("queued","Undo","ghost");
-  else if(j.status==="applied")acts=A("interview","Got an interview","primary","Nice! Moved to Interviews")+A("rejected","No reply / rejected","ghost","Marked as closed");
-  else if(j.status==="interview")acts=A("offer","Got an offer","primary","Congrats!")+A("rejected","Didn't push through","ghost","Marked as closed");
+  if(j.status==="queued")acts=A("skipped","Skip","","Skipped")+A("approved",GO("Approve"),"go","Approved");
+  else if(j.status==="approved")acts=A("queued","Undo","")+A("applied",GO("I applied"),"go","Marked as applied");
+  else if(j.status==="applied")acts=A("rejected","Closed","","Marked as closed")+A("interview",GO("Interview"),"go","Moved to Interviews");
+  else if(j.status==="interview")acts=A("rejected","Closed","","Marked as closed")+A("offer",GO("Offer"),"go","Congrats!");
+  const cap=x=>x.charAt(0).toUpperCase()+x.slice(1);
   return `<article class="card" data-card="${id}"><div class="in">
-    <div class="top"><span class="lbl">${source(j)}${j.queuedAt?" · "+ago(j.queuedAt):""}</span><span class="st ${esc(j.status)}">${LABEL[j.status]||esc(j.status)}</span></div>
-    <h2 class="t">${esc(j.title)}</h2>
-    <div class="co">${esc(j.company)}</div>
-    <div class="facts">
-      ${(()=>{const pi=payInfo(j.pay);return `<div${pi.sub?' class="wide"':""}><div class="k">Pay${pi.sub?" · monthly estimate":""}</div><div class="v">${esc(pi.main)}</div>${pi.sub?`<div class="psub">${esc(pi.sub)}</div>`:""}</div>`})()}
-      <div><div class="k">Type</div><div class="v">${esc(j.type||"—")}</div></div>
-      <div class="wide"><div class="k">Hours</div><div class="v">${esc(j.shift||"Not stated")}</div></div>
+    <div class="body">
+      <div class="top"><span class="lbl">${source(j)}${j.queuedAt?" · "+ago(j.queuedAt):""}</span><span class="st ${esc(j.status)}">${LABEL[j.status]||esc(j.status)}</span></div>
+      <h2 class="t">${esc(j.title)}</h2>
+      <div class="co">${esc(j.company)}</div>
+      <p class="txt"><strong>${esc(pi.main)}</strong>${j.type?" · "+esc(j.type):""}<br>${esc(j.shift||"Hours not stated")}</p>
+      ${pi.sub?`<div class="psub">${esc(pi.sub)}</div>`:""}
+      ${j.why?`<p class="txt">${esc(j.why)}</p>`:""}
+      ${checks.length?`<div class="h">Check in the ad</div>${checks.map(c=>`<div class="bl"><span class="d">•</span><span>${esc(cap(c))}</span></div>`).join("")}`:""}
+      ${j.note?`<div class="note">${esc(j.note)}</div>`:""}
     </div>
-    ${j.why?`<p class="why">${esc(j.why)}</p>`:""}
-    ${checks.length?`<details${j.status==="queued"?" open":""}><summary><span class="chev">›</span>Check in the ad before approving (${checks.length})</summary><ul class="checks">${checks.map(c=>`<li>${esc(c.charAt(0).toUpperCase()+c.slice(1))}</li>`).join("")}</ul></details>`:""}
-    ${j.note?`<div class="note">${esc(j.note)}</div>`:""}
-    <div class="acts">${acts}<span class="spacer"></span><a class="btn ghost" href="${esc(j.url)}" target="_blank" rel="noopener">Open ad ↗</a></div>
+    <div class="foot">${acts}<a href="${esc(j.url)}" target="_blank" rel="noopener">Open ad ↗</a></div>
   </div></article>`;
 }
+
 </script>
 </body>
 </html>
