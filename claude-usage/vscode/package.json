@@ -70,11 +70,6 @@
     "menus": {
       "view/title": [
         {
-          "command": "claudeUsage.launch",
-          "when": "view == claudeUsage.limits",
-          "group": "navigation@0"
-        },
-        {
           "command": "claudeUsage.refresh",
           "when": "view == claudeUsage.limits",
           "group": "navigation@1"
