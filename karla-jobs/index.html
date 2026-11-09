@@ -61,6 +61,7 @@ a{color:inherit}
 .facts .k{font-size:10.5px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--label)}
 .facts .v{font-size:14px;line-height:19px;font-weight:600;margin-top:2px}
 .facts .wide{grid-column:1/-1}
+.psub{font-size:12px;color:var(--mute);margin-top:2px}
 .why{color:var(--body);margin:0}
 details{margin-top:12px}
 summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--amber)}
@@ -151,6 +152,17 @@ function ago(t){const m=Math.round((Date.now()-t)/60000);if(m<60)return m<=1?"ju
   return new Date(t).toLocaleDateString("en-PH",{month:"short",day:"numeric"})}
 const source=j=>/onlinejobs/.test(j.url||"")?"OnlineJobs.ph":/indeed/.test(j.url||"")?"Indeed":/linkedin/.test(j.url||"")?"LinkedIn":"JobStreet";
 const clean=s=>String(s||"").replace(/\s*\((top of range|exact hours)[^)]*\)/i,"").trim();
+function payInfo(raw){
+  const p=clean(raw);if(!p||/undisclosed|not shown|tbd/i.test(p))return {main:"Not shown"};
+  const usd=/\$|usd/i.test(p),nums=(p.replace(/,/g,"").match(/\d+(\.\d+)?k?/gi)||[]).map(n=>/k$/i.test(n)?parseFloat(n)*1000:parseFloat(n)).filter(n=>n>0);
+  if(!nums.length)return {main:p};
+  const per=/hour|hr\b|\/h\b/i.test(p)?"h":/week|wk/i.test(p)?"w":/year|annum|yr/i.test(p)?"y":/day/i.test(p)?"d":"m";
+  const mult={h:8*22,d:22,w:52/12,y:1/12,m:1}[per]*(usd?56:1);
+  if(per==="m"&&!usd)return {main:p.replace(/^PHP\s*/i,"₱").replace(/ per month/i," / mo")};
+  const fmt=n=>{const v=n*mult;return "₱"+(v>=10000?(Math.round(v/100)/10)+"k":Math.round(v).toLocaleString())};
+  const lo=nums[0],hi=nums[1];
+  return {main:(hi?fmt(lo)+" – "+fmt(hi):fmt(lo))+" / mo",sub:p+(per==="h"?" · 8h × 22 days":"")+(usd?" · $1 = ₱56":"")};
+}
 const GROUP={queued:["queued"],approved:["approved"],applied:["applied","rejected"],interview:["interview","offer"]};
 const inTab=(j,k)=>GROUP[k].includes(j.status);
 
@@ -189,7 +201,7 @@ function card(j){
     <h2 class="t">${esc(j.title)}</h2>
     <div class="co">${esc(j.company)}</div>
     <div class="facts">
-      <div><div class="k">Pay</div><div class="v">${esc(clean(j.pay)||"Not shown")}</div></div>
+      ${(()=>{const pi=payInfo(j.pay);return `<div${pi.sub?' class="wide"':""}><div class="k">Pay${pi.sub?" · monthly estimate":""}</div><div class="v">${esc(pi.main)}</div>${pi.sub?`<div class="psub">${esc(pi.sub)}</div>`:""}</div>`})()}
       <div><div class="k">Type</div><div class="v">${esc(j.type||"—")}</div></div>
       <div class="wide"><div class="k">Hours</div><div class="v">${esc(j.shift||"Not stated")}</div></div>
     </div>
