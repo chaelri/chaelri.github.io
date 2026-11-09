@@ -496,6 +496,7 @@ function page() {
   body {
     margin: 0;
     padding: 14px 16px 16px;
+    box-sizing: border-box; min-height: 100vh; display: flex; flex-direction: column;
     font-family: var(--vscode-font-family);
     font-size: var(--vscode-font-size);
     color: var(--vscode-foreground);
@@ -610,7 +611,10 @@ function page() {
   .skeleton { opacity: .4; }
   .skeleton .meter > i { width: 0; }
   /* Logo sits above everything, same height as the hero percentage. */
-  .logo { display: block; width: 30px; height: 30px; margin: 4px auto 14px; }
+  /* Root stretches to the panel's height; the footer block is pushed to the bottom. */
+  #root { flex: 1; display: flex; flex-direction: column; }
+  .bottom { margin-top: auto; padding-top: 16px; }
+  .logo { display: block; flex: none; width: 30px; height: 30px; margin: 4px auto 14px; }
 </style>
 </head>
 <body>
@@ -711,7 +715,7 @@ function page() {
     '<span class="lbl">Bling alert on every reply</span><span class="sw"><i></i></span></button>';
 
   const footerHtml = (data) =>
-    '<hr>' +
+    '<div class="bottom"><hr>' +
     '<button class="cursor-cli" data-send="claude" title="New Claude Code session">' +
     '<img src="' + data.claudeIcon + '" alt="">Claude</button>' +
     '<button class="cursor-cli" data-send="cursor" title="New Cursor CLI session, pinned to Claude">' +
@@ -719,7 +723,7 @@ function page() {
     blingHtml(data.bling) +
     deployHtml(data.deploy) +
     '<div class="footer"><span class="muted">' + esc(data.updated) + '</span>' +
-    '<button data-send="refresh">Refresh</button></div>';
+    '<button data-send="refresh">Refresh</button></div></div>';
 
   /// Applies every meter's fill after the markup lands. Deferred a frame so the
   /// element is laid out at width 0 first and the CSS transition has something
