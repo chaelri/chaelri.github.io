@@ -14,6 +14,10 @@ Chronological notes for ongoing work in `servo/`. **Newest first.** Append-only 
 
 ---
 
+## 2026-11-09 — Router reboot fixed it
+
+After Charlie power-cycled the GFiber router, the board connected to Firebase within ~2 min and published `state: true`. So the stalled Firebase connects (here and probably on 11-04) were a router-side fault, not the firmware. If the board goes deaf again with WiFi up, reboot the GFiber router first.
+
 ## 2026-11-09 — Back to GFiber only (CharLa can't work)
 
 CharLa gives out 192.168.1.x addresses, while the PC is wired to GFiber on 192.168.254.x. The board's UDP ping and its WoL magic packet are local broadcasts, so on CharLa it never saw the PC: a `click` meant to shut the PC down sent a wake packet instead. The board must be on the same network as the PC, so the firmware now uses GFiber_3DAAA only. The Firebase connect still failed on GFiber right after this flash, so the router-side fault is still open.
