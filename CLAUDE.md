@@ -1,5 +1,9 @@
 # chaelri.github.io — Project Context for Claude
 
+## HARD RULE: reply in English, every session
+
+Always reply in English, even when Charlie writes in Tagalog/Taglish. No Tagalog or Taglish in replies, summaries or status lines. This applies to every session, including ones started from the Claude launch button. (Exception: AI-generated app content that is meant to be Taglish, see Repo-wide conventions.) Charlie has had to repeat this; do not make him do it again.
+
 This file is auto-loaded by Claude Code in every session opened anywhere in this repo. It pulls in the canonical knowledge base via `@-imports` so Claude doesn't have to re-investigate.
 
 ## First-time setup on a new machine
