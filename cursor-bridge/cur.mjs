@@ -11,11 +11,12 @@ const out = process.stdout;
 const w = (s) => out.write(s);
 const cols = () => Math.max(40, out.columns || 80);
 const E = '\x1b[';
+const rgb = (hex) => (s) => `${E}38;2;${parseInt(hex.slice(0, 2), 16)};${parseInt(hex.slice(2, 4), 16)};${parseInt(hex.slice(4), 16)}m${s}${E}39m`;
+// Colours sampled from Claude Code 2.1.321 in a 24-bit terminal.
 const st = {
   dim: (s) => `${E}2m${s}${E}22m`, bold: (s) => `${E}1m${s}${E}22m`,
-  red: (s) => `${E}38;5;203m${s}${E}39m`, accent: (s) => `${E}38;5;173m${s}${E}39m`,
-  code: (s) => `${E}38;5;153m${s}${E}39m`, green: (s) => `${E}38;5;114m${s}${E}39m`,
-  grey: (s) => `${E}38;5;245m${s}${E}39m`,
+  red: rgb('ff6b80'), accent: rgb('d77757'), verb: rgb('eb9f7f'),
+  code: rgb('b1b9f9'), green: rgb('4eba65'), grey: rgb('999999'), rule: rgb('888888'), white: rgb('ffffff'),
 };
 const strip = (s) => s.replace(/\x1b\[[0-9;]*[A-Za-z]/g, '');
 const vlen = (s) => [...strip(s)].length;
@@ -74,23 +75,27 @@ function md(text, width) {
       i--;
       const n = Math.max(...rows.map((r) => r.length)), w = Array(n).fill(0);
       rows.forEach((r) => r.forEach((c, j) => { w[j] = Math.max(w[j], vlen(c)); }));
+      const bar = (l, m, r) => l + w.map((x) => '─'.repeat(x + 2)).join(m) + r;
+      const cell = (c, j, center) => { const pad = w[j] - vlen(c), lp = center ? Math.floor(pad / 2) : 0; return ' ' + ' '.repeat(lp) + c + ' '.repeat(pad - lp) + ' '; };
+      res.push(clip(bar('┌', '┬', '┐'), width));
       rows.forEach((r, ri) => {
-        res.push(clip(r.map((c, j) => (ri === 0 ? st.bold(c) : c) + ' '.repeat(w[j] - vlen(c))).join(st.dim(' │ ')), width));
-        if (ri === 0) res.push(st.dim(w.map((x) => '─'.repeat(x)).join('─┼─')).slice(0, width + 20));
+        if (ri > 0) res.push(clip(bar('├', '┼', '┤'), width));
+        res.push(clip('│' + w.map((_, j) => cell(r[j] ?? '', j, ri === 0)).join('│') + '│', width));
       });
+      res.push(clip(bar('└', '┴', '┘'), width));
       continue;
     }
-    if (/^\s*([-*_])\s*\1\s*\1[\s\1]*$/.test(l)) { res.push(st.dim('─'.repeat(Math.min(width, 40)))); continue; }
+    if (/^\s*([-*_])\s*\1\s*\1[\s\1]*$/.test(l)) { res.push(st.grey('─'.repeat(Math.min(width, 40)))); continue; }
     const h = l.match(/^#{1,6}\s+(.*)/);
     if (h) { res.push(...wrapStyled(st.bold(inline(h[1].replace(/\*\*/g, ''))), width)); continue; }
     const li = l.match(/^(\s*)([-*+]|\d+[.)])\s+(.*)/);
     if (li) {
-      const lead = li[1].replace(/\t/g, '  ') + (/\d/.test(li[2]) ? li[2] : '•') + ' ';
+      const lead = li[1].replace(/\t/g, '  ') + (/\d/.test(li[2]) ? li[2] : '-') + ' ';
       res.push(...wrapStyled(lead + inline(li[3]), width, ' '.repeat(lead.length)));
       continue;
     }
     const q = l.match(/^>\s?(.*)/);
-    if (q) { res.push(...wrapStyled(inline(q[1]), width - 2).map((x) => st.dim('▎ ') + st.grey(x))); continue; }
+    if (q) { res.push(...wrapStyled(inline(q[1]), width - 2).map((x) => st.grey('▎ ') + st.grey(x))); continue; }
     if (!l.trim()) { if (res.length && res[res.length - 1] !== '') res.push(''); continue; }
     res.push(...wrapStyled(inline(l), width));
   }
@@ -126,7 +131,7 @@ function header() {
   try { ver = fs.realpathSync(`${home}/.local/bin/cursor-agent`).match(/versions\/([\d.]+)/)?.[1] || ''; } catch {}
   const txt = [`${st.bold('Cursor CLI')}${ver ? ' ' + st.grey('v' + ver) : ''}`, st.grey(`${pretty(modelName).replace(/ · (low|medium|high|xhigh|max)\b/, '').replace(/ \d+[KM]\b.*$/, '')}${team}`), st.grey(cwdShort)];
   put('\n' + art.map((a, i) => `  ${a}  ${txt[i]}`).join('\n') + '\n\n');
-  if (chatId) put(st.dim(`  resuming ${chatId}\n\n`));
+  if (chatId) put(st.grey(`  resuming ${chatId}\n\n`));
 }
 
 // ---------- live region ----------
@@ -190,9 +195,9 @@ function runTurn(prompt) {
       if (running) s = s.replace(/^ran /, 'running ');
       s = s.charAt(0).toUpperCase() + s.slice(1);
       const failed = group.filter((g) => g.failed).length;
-      return '  ' + st.grey(s) + (failed ? st.red(` · ${failed} failed`) : '');
+      return '  ' + (running ? s + '…' : st.grey(s)) + (failed ? st.red(` · ${failed} failed`) : '');
     };
-    const flushText = () => { if (text.trim()) lastSeg = text; if (text.trim()) commit(md(text.trim(), cols() - 4).map((l, i) => (i ? '  ' : st.bold('● ')) + l).join('\n') + '\n'); text = ''; };
+    const flushText = () => { if (text.trim()) lastSeg = text; if (text.trim()) commit(md(text.trim(), cols() - 4).map((l, i) => (i ? '  ' : st.white('⏺') + ' ') + l).join('\n') + '\n'); text = ''; };
     const flushThink = () => { think = ''; };
     const flushGroup = () => { if (group.length) commit(groupSummary(false) + '\n'); group = []; };
 
@@ -201,20 +206,21 @@ function runTurn(prompt) {
       if (group.length) {
         lines.push(groupSummary(true));
         const last = group[group.length - 1];
-        lines.push('  ' + st.dim('⎿  ' + last.label.replace(/\s+/g, ' ')));
+        lines.push('  ' + st.grey('⎿  ' + last.label.replace(/\s+/g, ' ')));
         lines.push('');
       }
       if (think.trim()) {
         const tl = wrap(think.trim(), cols() - 6).slice(-4);
         lines.push(st.grey('∴ Thinking…'), ...tl.map((l) => '  ' + `${E}2;3m${l}${E}0m`), '');
       }
-      if (text.trim()) { lines.push(...md(text.trim(), cols() - 4).map((l, i) => (i ? '  ' : '● ') + l)); lines.push(''); }
+      if (text.trim()) { lines.push(...md(text.trim(), cols() - 4).map((l, i) => (i ? '  ' : st.white('⏺') + ' ') + l)); lines.push(''); }
       const secs = Math.floor((Date.now() - t0) / 1000);
       const tk = tokens ?? Math.round(chars / 4);
       const tks = tk >= 1000 ? (tk / 1000).toFixed(1) + 'k' : String(tk);
-      const box = boxLines();
+      const box = boxLines(true);
       const qd = queue.map((q) => '  ' + st.grey('⎿ queued: ' + q.replace(/\s+/g, ' ')));
-      const bottom = [st.accent(`${FRAMES[frame % FRAMES.length]} ${verb}…`) + st.dim(` (${secs}s · esc to interrupt${ed.buf.length || queue.length ? ' · ctrl+c to send now' : ''})`), ...qd, ''];
+      const bottom = [st.accent(FRAMES[frame % FRAMES.length]) + ' ' + st.verb(verb) + st.accent('…') + ' ' + st.grey(`(${secs}s${think.trim() ? ' · thinking' : ''})`), ...qd, ''];
+      box.lines[box.lines.length - 1] = FOOTER(true);
       drawLive(lines, [...bottom, ...box.lines], { row: bottom.length + box.row, col: box.col });
     };
     const timer = setInterval(() => { frame++; render(); }, 120);
@@ -288,7 +294,7 @@ function runTurn(prompt) {
 }
 
 // ---------- input editor (shared by the idle prompt and a running turn) ----------
-const FOOTER = () => st.red('  ▸▸ run everything on') + st.dim(' (cursor --force) · ! for shell · /help');
+const FOOTER = (busy) => '  ' + st.red('⏵⏵ run everything on') + st.grey(' (cursor --force)' + (busy ? ' · esc to interrupt' + (ed.buf.length || queue.length ? ' · ctrl+c to send now' : '') : ''));
 const hist = [], queue = [];
 const ed = { buf: [], pos: 0, hi: 0, draft: [], pasting: false, pasted: '' };
 // Clipboard image -> ~/.cursor/cur-images/*.png, shown as an [Image #n] token in the box.
@@ -301,9 +307,9 @@ function pasteImage() {
   ed.buf.splice(ed.pos, 0, ...tag); ed.pos += tag.length; return true;
 }
 // The box: rule, word-wrapped input rows, rule, footer. Returns the lines and where the cursor goes.
-function boxLines() {
+function boxLines(busy = false) {
   const { buf, pos } = ed, c = cols(), inner = c - 3;
-  const rule = st.dim('─'.repeat(c - 1));
+  const rule = st.rule('─'.repeat(c - 1));
   const starts = [0];
   for (let s0 = 0; buf.length - s0 > inner;) {
     let j = s0 + inner; while (j > s0 && buf[j - 1] !== ' ') j--;
@@ -312,7 +318,7 @@ function boxLines() {
   let crow = starts.length - 1; while (crow > 0 && starts[crow] > pos) crow--;
   let ccol = pos - starts[crow];
   if (ccol >= inner) { crow++; ccol = 0; if (crow >= starts.length) starts.push(buf.length); }
-  const rows = starts.map((a0, i) => (i ? '  ' : st.bold('❯ ')) + buf.slice(a0, starts[i + 1] ?? buf.length).join(''));
+  const rows = starts.map((a0, i) => (i ? '  ' : (busy ? st.grey('❯') : '❯') + ' ') + buf.slice(a0, starts[i + 1] ?? buf.length).join(''));
   return { lines: [rule, ...rows, rule, FOOTER()], row: 1 + crow, col: 2 + ccol };
 }
 // One key into the editor. Returns { submit } on Enter, 'redraw', 'ctrlc' / 'ctrld' on an empty box, or null.
@@ -350,7 +356,12 @@ function ask() {
     rl.once('line', (l) => { rl.close(); resolve(l); }); rl.once('close', () => process.exit(0));
   });
   return new Promise((resolve) => {
-    const draw = () => { const b = boxLines(); drawLive([], b.lines, b); };
+    const effort = (String(model || modelName).match(/\b(low|medium|high|xhigh|max)\b/i) || [])[1];
+    const draw = () => {
+      const b = boxLines(), tag = effort ? st.grey(`◐ ${effort.toLowerCase()} · /model`) : '';
+      const top = tag ? ' '.repeat(Math.max(0, cols() - 2 - vlen(tag))) + tag : '';
+      drawLive([], [top, ...b.lines], { row: b.row + 1, col: b.col });
+    };
     const done = () => { clearLive(); process.stdin.removeListener('keypress', onKey); process.stdout.removeListener('resize', draw); rawOff(); };
     const onKey = (str, key) => {
       const r = edKey(str, key);
@@ -366,7 +377,9 @@ const images = []; // pasted image files, numbered for the whole session
 function userBlock(msg) {
   const width = cols() - 2;
   const lines = wrap(msg, width - 4);
-  put(lines.map((l, i) => `${E}48;5;237m${i ? '  ' : `${E}38;5;245m❯${E}39m `}${E}97m${l}${E}39m${E}48;5;237m${' '.repeat(Math.max(0, width - 2 - vlen(l)))}${E}0m`).join('\n') + '\n\n');
+  const W = `${E}38;2;255;255;255m`, BG = `${E}48;2;55;55;55m`;
+  const sty = (l) => l.replace(/`([^`]+)`/g, (_, x) => `${E}38;2;177;185;249m${x}${W}`).replace(/\*\*([^*]+)\*\*/g, (_, x) => `${E}1m${x}${E}22m`);
+  put(lines.map((l, i) => { const t = sty(l); return `${BG}${i ? '  ' : `${E}38;2;153;153;153m❯${W} `}${W}${t}${' '.repeat(Math.max(0, width - 2 - vlen(t)))}${E}0m`; }).join('\n') + '\n\n');
 }
 
 const HELP = `  /model [id]    switch model (no id: list models)
@@ -385,18 +398,18 @@ async function main() {
     if (input === '/exit' || input === '/quit') process.exit(0);
     if (input === '/help') { put(HELP + '\n\n'); continue; }
     if (input === '/clear') { chatId = null; w(`${E}2J${E}3J${E}H`); row = 0; header(); continue; }
-    if (input === '/session') { put(st.dim(`  ${chatId || 'no chat yet'}\n\n`)); continue; }
-    if (input.startsWith('/resume')) { const id = input.split(/\s+/)[1]; if (id) { chatId = id; put(st.dim(`  resuming ${id}\n\n`)); } else put(st.dim('  usage: /resume <chatId>  (cursor-agent ls lists chats)\n\n')); continue; }
+    if (input === '/session') { put(st.grey(`  ${chatId || 'no chat yet'}\n\n`)); continue; }
+    if (input.startsWith('/resume')) { const id = input.split(/\s+/)[1]; if (id) { chatId = id; put(st.grey(`  resuming ${id}\n\n`)); } else put(st.grey('  usage: /resume <chatId>  (cursor-agent ls lists chats)\n\n')); continue; }
     if (input.startsWith('/model')) {
       const id = input.split(/\s+/)[1];
-      if (id) { model = id; modelName = id; put(st.dim(`  model → ${id}\n\n`)); }
-      else { const r = spawnSync('cursor-agent', ['--list-models'], { encoding: 'utf8' }); put(st.dim((r.stdout || r.stderr).split('\n').filter((l) => / - /.test(l)).map((l) => '  ' + l).join('\n')) + '\n\n'); }
+      if (id) { model = id; modelName = id; put(st.grey(`  model → ${id}\n\n`)); }
+      else { const r = spawnSync('cursor-agent', ['--list-models'], { encoding: 'utf8' }); put(st.grey((r.stdout || r.stderr).split('\n').filter((l) => / - /.test(l)).map((l) => '  ' + l).join('\n')) + '\n\n'); }
       continue;
     }
     userBlock(input);
     if (input.startsWith('!')) {
       const r = spawnSync(process.env.SHELL || 'zsh', ['-lc', input.slice(1)], { encoding: 'utf8' });
-      put(((r.stdout || '') + (r.stderr || '')).trimEnd().split('\n').map((l) => '  ' + st.dim('⎿ ') + l).join('\n') + '\n\n');
+      put(((r.stdout || '') + (r.stderr || '')).trimEnd().split('\n').map((l) => '  ' + st.grey('⎿ ') + l).join('\n') + '\n\n');
       continue;
     }
     const refs = [...input.matchAll(/\[Image #(\d+)\]/g)].map((m) => +m[1]).filter((n) => images[n - 1]);
