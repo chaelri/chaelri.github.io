@@ -388,6 +388,10 @@ const CLAUDE_ICON = 'data:image/svg+xml;base64,' + Buffer.from(
     fs.readFileSync(path.join(__dirname, 'media', 'claude.svg'), 'utf8').replace('fill="currentColor"', 'fill="#FFFFFF"')
 ).toString('base64');
 
+const CLAUDE_ICON_ORANGE = 'data:image/svg+xml;base64,' + Buffer.from(
+    fs.readFileSync(path.join(__dirname, 'media', 'claude.svg'), 'utf8').replace('fill="currentColor"', 'fill="#D97757"')
+).toString('base64');
+
 function toggleBling() {
     try {
         if (fs.existsSync(BLING_FLAG)) fs.unlinkSync(BLING_FLAG);
@@ -617,14 +621,14 @@ function page() {
   /* Root stretches to the panel's height; the footer block is pushed to the bottom. */
   #root { flex: 1; display: flex; flex-direction: column; }
   .bottom { margin-top: auto; padding-top: 16px; }
-  .logo { display: block; flex: none; width: 60px; height: 60px; margin: 10px auto 32px; animation: logo-spin 12s linear infinite, logo-pulse 3s ease-in-out infinite; }
+  .logo { display: block; flex: none; width: 60px; height: 60px; margin: 10px auto 32px; animation: logo-spin 40s linear infinite, logo-pulse 3s ease-in-out infinite; }
   @keyframes logo-spin { to { rotate: 360deg; } }
   @keyframes logo-pulse { 0%, 100% { scale: 1; } 50% { scale: 1.12; } }
   @media (prefers-reduced-motion: reduce) { .logo { animation: none; } }
 </style>
 </head>
 <body>
-<img class="logo" src="${CLAUDE_ICON}" alt="Claude">
+<img class="logo" src="${CLAUDE_ICON_ORANGE}" alt="Claude">
 <div id="root"></div>
 <script nonce="${nonce}">
   const vscode = acquireVsCodeApi();
