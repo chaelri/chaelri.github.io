@@ -601,7 +601,9 @@ Personal budget tracker ("CHALEE" branding) — daily expenses, category breakdo
 - **Tech:** vanilla JS (~82 KB), Tailwind, Material Icons, PWA.
 - **Entry:** `index.html` (~30 KB), `script.js` (~82 KB), `style.css`, `manifest.json`.
 - **Deploy:** GitHub Pages `/money/`. Last commit Apr 16.
-- **Quirks:** All data localStorage (no sync). Branded "CHALEE" for Charlie.
+- **Data:** joint Charlie + Karla budget in Firebase RTDB `test-database-55379` (asia-southeast1) at `money_joint_v1`, no auth; read it with `curl https://test-database-55379-default-rtdb.asia-southeast1.firebasedatabase.app/money_joint_v1.json`. Keys: `accounts`, `items`, `overrides`, `paid`, `projects`, `spend`, `startMonth`. Only `money.lastOwner` lives in localStorage.
+- **"Projected end of <month>"** = `runningFundsAt(k)` in `script.js`: account balances + each month's `netPending` (still to receive minus still to pay) up to month k + the project fund effect. Headless Chrome can't load the page (the Firebase socket stalls), so to answer it, fetch the JSON and run those functions in node.
+- **Quirks:** Branded "CHALEE" for Charlie.
 
 ### anohana/  🟡
 
