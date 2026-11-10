@@ -68,12 +68,20 @@ for (let i = 0; i < argv.length; i++) {
 let modelName = model || cfg.model?.displayNameShort || cfg.model?.displayName || 'default model';
 const cwdShort = process.cwd().replace(home, '~');
 
+function pretty(m) {
+  const x = String(m).match(/claude-(opus|sonnet|haiku|fable)-(\d+)-(\d+)(?:-([a-z]+))?(-fast)?/i);
+  if (x) return `${x[1][0].toUpperCase() + x[1].slice(1)} ${x[2]}.${x[3]}${x[4] ? ' · ' + x[4] : ''}${x[5] ? ' fast' : ''}`;
+  return String(m).replace(/^Claude /, '');
+}
 function header() {
   const team = cfg.authInfo?.teamName ? ` · ${cfg.authInfo.teamName}` : '';
   const clawd = (x) => `${E}38;2;215;119;87m${x}${E}39m`;
   const art = [clawd(' ▐▛███▜▌ '), clawd('▝▜█████▛▘'), clawd('  ▘▘ ▝▝  ')];
-  const txt = [`${st.bold('Cursor CLI')} ${st.dim('via cur')}`, st.grey(`${modelName}${team}`), st.grey(cwdShort)];
+  const txt = [`${st.bold('Cursor CLI')} ${st.dim('via cur')}`, st.grey(`${pretty(modelName)}${team}`), st.grey(cwdShort)];
+  const who = (cfg.authInfo?.displayName || '').split(' ')[0];
   w('\n' + art.map((a, i) => `  ${a}  ${txt[i]}`).join('\n') + '\n\n');
+  w(`  Welcome back${who ? ' ' + who : ''}! Same memory and hooks as Claude Code.\n`);
+  w(st.dim('  /help for commands · esc to interrupt · /model to switch\n\n'));
   if (chatId) w(st.dim(`  resuming ${chatId}\n\n`));
 }
 
@@ -143,7 +151,7 @@ function runTurn(prompt) {
       const secs = Math.floor((Date.now() - t0) / 1000);
       const tk = tokens ?? Math.round(chars / 4);
       const tks = tk >= 1000 ? (tk / 1000).toFixed(1) + 'k' : String(tk);
-      lines.push(st.accent(`${FRAMES[frame % FRAMES.length]} ${verb}…`) + st.dim(` (${secs}s · ↓ ${tks} tokens · esc to interrupt)`));
+      lines.push(st.accent(`${FRAMES[frame % FRAMES.length]} ${verb}…`) + st.dim(` (${secs}s · esc to interrupt)`));
       drawLive(lines);
     };
     const timer = setInterval(() => { frame++; render(); }, 120);
@@ -194,7 +202,7 @@ function runTurn(prompt) {
       const secs = Math.round((Date.now() - t0) / 1000);
       if (interrupted) commit('  ' + st.red('⎿  Interrupted') + '\n');
       else if (code && err.trim()) commit('  ' + st.red('⎿  ' + err.trim().split('\n').slice(-3).join('\n     ')) + '\n');
-      else commit(st.dim(`  ${secs}s · ${tokens ?? Math.round(chars / 4)} tokens\n`));
+      else commit(st.dim(`  ${secs}s\n`));
       resolve();
     });
   });
@@ -202,20 +210,52 @@ function runTurn(prompt) {
 
 // ---------- prompt box ----------
 function ask() {
+  if (!process.stdin.isTTY) return new Promise((resolve) => {
+    const rl = readline.createInterface({ input: process.stdin });
+    rl.once('line', (l) => { rl.close(); resolve(l); }); rl.once('close', () => process.exit(0));
+  });
   return new Promise((resolve) => {
-    const rule = st.dim('─'.repeat(cols()));
-    const footer = st.red('  ▸▸ run everything on') + st.dim(' · ! for shell · /help');
-    w(rule + '\n\n' + rule + '\n' + footer + `${E}2A\r`);
-    const rl = readline.createInterface({ input: process.stdin, output: out, terminal: true, historySize: 200, history: ask.hist });
-    let done = false;
-    rl.on('SIGINT', () => { if (rl.line) { rl.write(null, { ctrl: true, name: 'u' }); } else { rl.close(); w(`\r${E}J`); process.exit(0); } });
-    rl.question(st.bold('❯ '), (ans) => {
-      done = true; ask.hist = rl.history; rl.close();
-      const rows = Math.max(1, Math.ceil((2 + [...ans].length) / cols()));
-      w(`${E}${rows + 1}A\r${E}J`);
-      resolve(ans);
-    });
-    rl.on('close', () => { if (!done) process.exit(0); });
+    let buf = [], pos = 0, up = 0, hi = ask.hist.length, draft = [];
+    const draw = () => {
+      const c = cols(), inner = c - 3;
+      const rule = st.dim('─'.repeat(c - 1));
+      const n = Math.floor(buf.length / inner) + 1;
+      const rows = [];
+      for (let i = 0; i < n; i++) rows.push((i ? '  ' : st.bold('❯ ')) + buf.slice(i * inner, (i + 1) * inner).join(''));
+      const footer = st.red('  ▸▸ run everything on') + st.dim(' (cursor --force) · ! for shell · /help');
+      w('\r' + (up ? `${E}${up}A` : '') + `${E}J` + rule + '\n' + rows.join('\n') + '\n' + rule + '\n' + clip(footer, c - 1));
+      const crow = Math.floor(pos / inner), ccol = pos % inner;
+      w(`${E}${n + 2 - (1 + crow)}A\r` + `${E}${2 + ccol}C`);
+      up = 1 + crow;
+    };
+    const finish = (val) => {
+      w('\r' + (up ? `${E}${up}A` : '') + `${E}J`);
+      process.stdin.removeListener('keypress', onKey); process.stdout.removeListener('resize', draw);
+      process.stdin.setRawMode(false); process.stdin.pause();
+      resolve(val);
+    };
+    const onKey = (str, key = {}) => {
+      const k = key.name;
+      if (key.ctrl && k === 'c') { if (buf.length) { buf = []; pos = 0; } else { finish(''); process.exit(0); } }
+      else if (key.ctrl && k === 'd') { if (!buf.length) { finish(''); process.exit(0); } }
+      else if (k === 'return' || k === 'enter') { const v = buf.join(''); if (v.trim()) ask.hist.push(v); return finish(v); }
+      else if (k === 'backspace') { if (pos) { buf.splice(pos - 1, 1); pos--; } }
+      else if (k === 'delete') buf.splice(pos, 1);
+      else if (k === 'left') pos = Math.max(0, pos - 1);
+      else if (k === 'right') pos = Math.min(buf.length, pos + 1);
+      else if (k === 'home' || (key.ctrl && k === 'a')) pos = 0;
+      else if (k === 'end' || (key.ctrl && k === 'e')) pos = buf.length;
+      else if (key.ctrl && k === 'u') { buf.splice(0, pos); pos = 0; }
+      else if (key.ctrl && k === 'w') { let i = pos; while (i && buf[i - 1] === ' ') i--; while (i && buf[i - 1] !== ' ') i--; buf.splice(i, pos - i); pos = i; }
+      else if (k === 'up') { if (hi > 0) { if (hi === ask.hist.length) draft = buf; hi--; buf = [...ask.hist[hi]]; pos = buf.length; } }
+      else if (k === 'down') { if (hi < ask.hist.length) { hi++; buf = hi === ask.hist.length ? draft : [...ask.hist[hi]]; pos = buf.length; } }
+      else if (k === 'escape' || k === 'tab' || key.ctrl || key.meta) return;
+      else if (str) { const ch = [...str.replace(/[\r\n]+/g, ' ')].filter((x) => x >= ' '); buf.splice(pos, 0, ...ch); pos += ch.length; }
+      draw();
+    };
+    process.stdin.setRawMode(true); process.stdin.resume();
+    process.stdin.on('keypress', onKey); process.stdout.on('resize', draw);
+    draw();
   });
 }
 ask.hist = [];
