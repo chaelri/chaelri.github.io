@@ -235,13 +235,20 @@ function ask() {
     const draw = () => {
       const c = cols(), inner = c - 3;
       const rule = st.dim('─'.repeat(c - 1));
-      const n = Math.floor(buf.length / inner) + 1;
-      const rows = [];
-      for (let i = 0; i < n; i++) rows.push((i ? '  ' : st.bold('❯ ')) + buf.slice(i * inner, (i + 1) * inner).join(''));
+      // word-wrap: break after the last space that fits, hard-break only a word longer than the line
+      const starts = [0];
+      for (let st0 = 0; buf.length - st0 > inner;) {
+        let j = st0 + inner; while (j > st0 && buf[j - 1] !== ' ') j--;
+        st0 = j > st0 ? j : st0 + inner; starts.push(st0);
+      }
+      let crow = starts.length - 1; while (crow > 0 && starts[crow] > pos) crow--;
+      let ccol = pos - starts[crow];
+      if (ccol >= inner) { crow++; ccol = 0; if (crow >= starts.length) starts.push(buf.length); }
+      const n = starts.length;
+      const rows = starts.map((a0, i) => (i ? '  ' : st.bold('❯ ')) + buf.slice(a0, starts[i + 1] ?? buf.length).join(''));
       const footer = FOOTER();
       const gap = gapFor(n + 3);
       w('\r' + (up ? `${E}${up}A` : '') + `${E}J` + '\n'.repeat(gap) + rule + '\n' + rows.join('\n') + '\n' + rule + '\n' + clip(footer, c - 1));
-      const crow = Math.floor(pos / inner), ccol = pos % inner;
       w(`${E}${n + 2 - (1 + crow)}A\r` + `${E}${2 + ccol}C`);
       up = gap + 1 + crow;
     };
