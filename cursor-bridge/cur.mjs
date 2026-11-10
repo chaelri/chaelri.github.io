@@ -79,22 +79,34 @@ function header() {
   const art = [clawd(' ▐▛███▜▌ '), clawd('▝▜█████▛▘'), clawd('  ▘▘ ▝▝  ')];
   const txt = [`${st.bold('Cursor CLI')} ${st.dim('via cur')}`, st.grey(`${pretty(modelName)}${team}`), st.grey(cwdShort)];
   const who = (cfg.authInfo?.displayName || '').split(' ')[0];
-  w('\n' + art.map((a, i) => `  ${a}  ${txt[i]}`).join('\n') + '\n\n');
-  w(`  Welcome back${who ? ' ' + who : ''}! Same memory and hooks as Claude Code.\n`);
-  w(st.dim('  /help for commands · esc to interrupt · /model to switch\n\n'));
-  if (chatId) w(st.dim(`  resuming ${chatId}\n\n`));
+  put('\n' + art.map((a, i) => `  ${a}  ${txt[i]}`).join('\n') + '\n\n');
+  put(`  Welcome back${who ? ' ' + who : ''}! Same memory and hooks as Claude Code.\n`);
+  put(st.dim('  /help for commands · esc to interrupt · /model to switch\n\n'));
+  if (chatId) put(st.dim(`  resuming ${chatId}\n\n`));
 }
 
 // ---------- live region ----------
 let liveH = 0;
+// row = how far down the screen committed output has reached, so the live
+// region (spinner + input box) can sit pinned at the bottom with a gap above.
+let row = 0;
+const screenRows = () => out.rows || 30;
+function put(text) {
+  w(text);
+  const parts = text.split('\n'); parts.pop();
+  for (const l of parts) row += Math.max(1, Math.ceil(vlen(l) / cols()));
+  row = Math.min(row, screenRows());
+}
+const gapFor = (h) => Math.max(0, screenRows() - row - h);
 function clearLive() { if (liveH) { w('\r' + (liveH > 1 ? `${E}${liveH - 1}A` : '') + `${E}J`); liveH = 0; } }
 function drawLive(lines) {
   clearLive();
-  const max = Math.max(3, (out.rows || 30) - 4);
-  const shown = lines.slice(-max).map((l) => clip(l, cols() - 1));
+  const max = Math.max(3, screenRows() - 2);
+  let shown = lines.slice(-max).map((l) => clip(l, cols() - 1));
+  shown = [...Array(gapFor(shown.length)).fill(''), ...shown];
   w(shown.join('\n')); liveH = shown.length;
 }
-function commit(text) { clearLive(); w(text + '\n'); }
+function commit(text) { clearLive(); put(text + '\n'); }
 
 // ---------- one turn ----------
 const FRAMES = ['·', '✢', '✳', '✶', '✻', '✽', '✻', '✶', '✳', '✢'];
@@ -105,7 +117,7 @@ const KIND = {
   semSearchToolCall: ['search', 'searched', 'pattern'], lsToolCall: ['ls', 'listed', 'folder'],
   editToolCall: ['edit', 'edited', 'file'], writeToolCall: ['edit', 'wrote', 'file'], deleteToolCall: ['delete', 'deleted', 'file'],
   webSearchToolCall: ['web', 'searched the web', 'time'], webFetchToolCall: ['fetch', 'fetched', 'page'],
-  mcpToolCall: ['mcp', 'called', 'MCP tool'], updateTodosToolCall: ['todo', 'updated', 'todo list'], taskToolCall: ['task', 'ran', 'subagent'],
+  mcpToolCall: ['mcp', 'called', 'MCP tool'], getMcpToolsToolCall: ['mcpl', 'looked up', 'MCP tool list'], listMcpResourcesToolCall: ['mcpl', 'looked up', 'MCP tool list'], updateTodosToolCall: ['todo', 'updated', 'todo list'], taskToolCall: ['task', 'ran', 'subagent'],
 };
 const plural = (n, s) => `${n} ${s}${n === 1 || s.endsWith('time') ? '' : (s.endsWith('h') ? 'es' : 's')}`;
 const base = (p) => (p || '').split('/').pop();
@@ -118,7 +130,7 @@ function runTurn(prompt) {
     args.push(prompt);
     const child = spawn('cursor-agent', args, { stdio: ['ignore', 'pipe', 'pipe'] });
     const t0 = Date.now(), verb = VERBS[Math.floor(Math.random() * VERBS.length)];
-    let text = '', think = '', thinkT0 = 0, chars = 0, tokens = null, frame = 0, interrupted = false, err = '';
+    let lastSeg = '', text = '', think = '', thinkT0 = 0, chars = 0, tokens = null, frame = 0, interrupted = false, err = '';
     let group = []; // {kind, label, verbWord, noun, failed, done}
 
     const groupSummary = (running) => {
@@ -131,7 +143,7 @@ function runTurn(prompt) {
       const failed = group.filter((g) => g.failed).length;
       return '  ' + st.grey(s) + (failed ? st.red(` · ${failed} failed`) : '');
     };
-    const flushText = () => { if (text.trim()) commit(md(wrap(text.trim(), cols() - 4)).map((l, i) => (i ? '  ' : '● ') + l).join('\n') + '\n'); text = ''; };
+    const flushText = () => { if (text.trim()) lastSeg = text; if (text.trim()) commit(md(wrap(text.trim(), cols() - 4)).map((l, i) => (i ? '  ' : '● ') + l).join('\n') + '\n'); text = ''; };
     const flushThink = () => { if (think.trim()) commit(st.grey(`∴ Thought for ${Math.max(1, Math.round((Date.now() - thinkT0) / 1000))}s`) + '\n'); think = ''; };
     const flushGroup = () => { if (group.length) commit(groupSummary(false) + '\n'); group = []; };
 
@@ -152,6 +164,7 @@ function runTurn(prompt) {
       const tk = tokens ?? Math.round(chars / 4);
       const tks = tk >= 1000 ? (tk / 1000).toFixed(1) + 'k' : String(tk);
       lines.push(st.accent(`${FRAMES[frame % FRAMES.length]} ${verb}…`) + st.dim(` (${secs}s · esc to interrupt)`));
+      lines.push('', ...boxIdle());
       drawLive(lines);
     };
     const timer = setInterval(() => { frame++; render(); }, 120);
@@ -174,6 +187,7 @@ function runTurn(prompt) {
         }
         else if (ev.type === 'assistant' && ev.timestamp_ms) {
           const t = (ev.message?.content || []).map((c) => c.text || '').join('');
+          if (t && t.length > 8 && (t === text || t === lastSeg)) continue;
           if (t) { flushThink(); flushGroup(); text += t; chars += t.length; }
         } else if (ev.type === 'tool_call') {
           const [key, tc] = Object.entries(ev.tool_call || {}).find(([k]) => k.endsWith('ToolCall')) || ['', {}];
@@ -209,6 +223,8 @@ function runTurn(prompt) {
 }
 
 // ---------- prompt box ----------
+const FOOTER = () => st.red('  ▸▸ run everything on') + st.dim(' (cursor --force) · ! for shell · /help');
+const boxIdle = () => { const r = st.dim('─'.repeat(cols() - 1)); return [r, st.bold('❯ '), r, FOOTER()]; };
 function ask() {
   if (!process.stdin.isTTY) return new Promise((resolve) => {
     const rl = readline.createInterface({ input: process.stdin });
@@ -222,11 +238,12 @@ function ask() {
       const n = Math.floor(buf.length / inner) + 1;
       const rows = [];
       for (let i = 0; i < n; i++) rows.push((i ? '  ' : st.bold('❯ ')) + buf.slice(i * inner, (i + 1) * inner).join(''));
-      const footer = st.red('  ▸▸ run everything on') + st.dim(' (cursor --force) · ! for shell · /help');
-      w('\r' + (up ? `${E}${up}A` : '') + `${E}J` + rule + '\n' + rows.join('\n') + '\n' + rule + '\n' + clip(footer, c - 1));
+      const footer = FOOTER();
+      const gap = gapFor(n + 3);
+      w('\r' + (up ? `${E}${up}A` : '') + `${E}J` + '\n'.repeat(gap) + rule + '\n' + rows.join('\n') + '\n' + rule + '\n' + clip(footer, c - 1));
       const crow = Math.floor(pos / inner), ccol = pos % inner;
       w(`${E}${n + 2 - (1 + crow)}A\r` + `${E}${2 + ccol}C`);
-      up = 1 + crow;
+      up = gap + 1 + crow;
     };
     const finish = (val) => {
       w('\r' + (up ? `${E}${up}A` : '') + `${E}J`);
@@ -262,7 +279,7 @@ ask.hist = [];
 function userBlock(msg) {
   const width = cols() - 2;
   const lines = wrap(msg, width - 4);
-  w(lines.map((l, i) => `${E}48;5;237m${(i ? '  ' : '❯ ') + l}${' '.repeat(Math.max(0, width - 2 - vlen(l)))}${E}0m`).join('\n') + '\n\n');
+  put(lines.map((l, i) => `${E}48;5;237m${(i ? '  ' : '❯ ') + l}${' '.repeat(Math.max(0, width - 2 - vlen(l)))}${E}0m`).join('\n') + '\n\n');
 }
 
 const HELP = `  /model [id]    switch model (no id: list models)
@@ -273,26 +290,26 @@ const HELP = `  /model [id]    switch model (no id: list models)
 
 async function main() {
   if (process.stdin.isTTY) readline.emitKeypressEvents(process.stdin);
-  w(`${E}2J${E}H`); header();
+  w(`${E}2J${E}H`); row = 0; header();
   let next = firstPrompt;
   for (;;) {
     const input = (next ?? await ask()).trim(); next = null;
     if (!input) continue;
     if (input === '/exit' || input === '/quit') process.exit(0);
-    if (input === '/help') { w(HELP + '\n\n'); continue; }
-    if (input === '/clear') { chatId = null; w(`${E}2J${E}3J${E}H`); header(); continue; }
-    if (input === '/session') { w(st.dim(`  ${chatId || 'no chat yet'}\n\n`)); continue; }
-    if (input.startsWith('/resume')) { const id = input.split(/\s+/)[1]; if (id) { chatId = id; w(st.dim(`  resuming ${id}\n\n`)); } else w(st.dim('  usage: /resume <chatId>  (cursor-agent ls lists chats)\n\n')); continue; }
+    if (input === '/help') { put(HELP + '\n\n'); continue; }
+    if (input === '/clear') { chatId = null; w(`${E}2J${E}3J${E}H`); row = 0; header(); continue; }
+    if (input === '/session') { put(st.dim(`  ${chatId || 'no chat yet'}\n\n`)); continue; }
+    if (input.startsWith('/resume')) { const id = input.split(/\s+/)[1]; if (id) { chatId = id; put(st.dim(`  resuming ${id}\n\n`)); } else put(st.dim('  usage: /resume <chatId>  (cursor-agent ls lists chats)\n\n')); continue; }
     if (input.startsWith('/model')) {
       const id = input.split(/\s+/)[1];
-      if (id) { model = id; modelName = id; w(st.dim(`  model → ${id}\n\n`)); }
-      else { const r = spawnSync('cursor-agent', ['--list-models'], { encoding: 'utf8' }); w(st.dim((r.stdout || r.stderr).split('\n').filter((l) => / - /.test(l)).map((l) => '  ' + l).join('\n')) + '\n\n'); }
+      if (id) { model = id; modelName = id; put(st.dim(`  model → ${id}\n\n`)); }
+      else { const r = spawnSync('cursor-agent', ['--list-models'], { encoding: 'utf8' }); put(st.dim((r.stdout || r.stderr).split('\n').filter((l) => / - /.test(l)).map((l) => '  ' + l).join('\n')) + '\n\n'); }
       continue;
     }
     userBlock(input);
     if (input.startsWith('!')) {
       const r = spawnSync(process.env.SHELL || 'zsh', ['-lc', input.slice(1)], { encoding: 'utf8' });
-      w(((r.stdout || '') + (r.stderr || '')).trimEnd().split('\n').map((l) => '  ' + st.dim('⎿ ') + l).join('\n') + '\n\n');
+      put(((r.stdout || '') + (r.stderr || '')).trimEnd().split('\n').map((l) => '  ' + st.dim('⎿ ') + l).join('\n') + '\n\n');
       continue;
     }
     await runTurn(input);
