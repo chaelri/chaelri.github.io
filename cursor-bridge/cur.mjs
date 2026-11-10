@@ -142,15 +142,17 @@ function put(text) {
   row = Math.min(row, screenRows());
 }
 const gapFor = (h) => Math.max(0, screenRows() - row - h);
-function clearLive() { if (liveH) { w('\r' + (liveH > 1 ? `${E}${liveH - 1}A` : '') + `${E}J`); liveH = 0; } }
+let liveUp = 0; // rows the cursor sits above the live region's last line (it parks inside the input box)
+function clearLive() { if (liveH) { const u = liveH - 1 - liveUp; w('\r' + (u > 0 ? `${E}${u}A` : '') + `${E}J`); liveH = 0; liveUp = 0; } }
 // top = in-progress output, flows right under the chat; bottom = spinner + input box,
 // pinned to the last rows of the window; the gap goes between them.
-function drawLive(top, bottom = []) {
+function drawLive(top, bottom = [], cursor = null) {
   clearLive();
   const max = Math.max(1, screenRows() - bottom.length - 1);
   const t = top.slice(-max).map((l) => clip(l, cols() - 1)), b = bottom.map((l) => clip(l, cols() - 1));
   const shown = [...t, ...Array(gapFor(t.length + b.length)).fill(''), ...b];
-  w(shown.join('\n')); liveH = shown.length;
+  w(shown.join('\n')); liveH = shown.length; liveUp = 0;
+  if (cursor) { liveUp = b.length - 1 - cursor.row; w((liveUp ? `${E}${liveUp}A` : '') + '\r' + (cursor.col ? `${E}${cursor.col}C` : '')); }
 }
 function commit(text) { clearLive(); put(text + '\n'); }
 
@@ -210,14 +212,22 @@ function runTurn(prompt) {
       const secs = Math.floor((Date.now() - t0) / 1000);
       const tk = tokens ?? Math.round(chars / 4);
       const tks = tk >= 1000 ? (tk / 1000).toFixed(1) + 'k' : String(tk);
-      drawLive(lines, [st.accent(`${FRAMES[frame % FRAMES.length]} ${verb}…`) + st.dim(` (${secs}s · esc to interrupt)`), '', ...boxIdle()]);
+      const box = boxLines();
+      const qd = queue.map((q) => '  ' + st.grey('⎿ queued: ' + q.replace(/\s+/g, ' ')));
+      const bottom = [st.accent(`${FRAMES[frame % FRAMES.length]} ${verb}…`) + st.dim(` (${secs}s · esc to interrupt)`), ...qd, ''];
+      drawLive(lines, [...bottom, ...box.lines], { row: bottom.length + box.row, col: box.col });
     };
     const timer = setInterval(() => { frame++; render(); }, 120);
 
-    const onKey = (_s, key) => {
-      if (key && (key.name === 'escape' || (key.ctrl && key.name === 'c'))) { interrupted = true; child.kill('SIGTERM'); }
+    const stop = () => { if (!interrupted) { interrupted = true; child.kill('SIGTERM'); } };
+    const onKey = (str, key = {}) => {
+      if (!ed.pasting && key.name === 'escape') return stop();
+      const r = edKey(str, key);
+      if (r === 'ctrlc') return stop();
+      if (r && r.submit !== undefined) { if (r.submit.trim()) queue.push(r.submit); }
+      if (r) render();
     };
-    if (process.stdin.isTTY) { process.stdin.setRawMode(true); process.stdin.resume(); process.stdin.on('keypress', onKey); }
+    if (process.stdin.isTTY) { rawOn(); process.stdin.on('keypress', onKey); }
 
     let buf = '';
     child.stdout.on('data', (d) => {
@@ -260,7 +270,7 @@ function runTurn(prompt) {
     child.stderr.on('data', (d) => { err += d; });
     child.on('close', (code) => {
       clearInterval(timer);
-      if (process.stdin.isTTY) { process.stdin.removeListener('keypress', onKey); process.stdin.setRawMode(false); }
+      if (process.stdin.isTTY) { process.stdin.removeListener('keypress', onKey); rawOff(); }
       flushThink(); flushGroup(); flushText();
       const secs = Math.round((Date.now() - t0) / 1000);
       if (interrupted) commit('  ' + st.red('⎿  Interrupted') + '\n');
@@ -271,81 +281,81 @@ function runTurn(prompt) {
   });
 }
 
-// ---------- prompt box ----------
+// ---------- input editor (shared by the idle prompt and a running turn) ----------
 const FOOTER = () => st.red('  ▸▸ run everything on') + st.dim(' (cursor --force) · ! for shell · /help');
-const boxIdle = () => { const r = st.dim('─'.repeat(cols() - 1)); return [r, st.bold('❯ '), r, FOOTER()]; };
+const hist = [], queue = [];
+const ed = { buf: [], pos: 0, hi: 0, draft: [], pasting: false, pasted: '' };
+// Clipboard image -> ~/.cursor/cur-images/*.png, shown as an [Image #n] token in the box.
+function pasteImage() {
+  const dir = `${home}/.cursor/cur-images`; fs.mkdirSync(dir, { recursive: true });
+  const file = `${dir}/paste-${Date.now()}.png`;
+  const r = spawnSync('osascript', ['-e', `set f to open for access POSIX file "${file}" with write permission`, '-e', 'write (the clipboard as «class PNGf») to f', '-e', 'close access f'], { encoding: 'utf8' });
+  if (r.status !== 0 || !fs.existsSync(file) || !fs.statSync(file).size) { try { fs.unlinkSync(file); } catch {} return false; }
+  images.push(file); const tag = [...`[Image #${images.length}]`];
+  ed.buf.splice(ed.pos, 0, ...tag); ed.pos += tag.length; return true;
+}
+// The box: rule, word-wrapped input rows, rule, footer. Returns the lines and where the cursor goes.
+function boxLines() {
+  const { buf, pos } = ed, c = cols(), inner = c - 3;
+  const rule = st.dim('─'.repeat(c - 1));
+  const starts = [0];
+  for (let s0 = 0; buf.length - s0 > inner;) {
+    let j = s0 + inner; while (j > s0 && buf[j - 1] !== ' ') j--;
+    s0 = j > s0 ? j : s0 + inner; starts.push(s0);
+  }
+  let crow = starts.length - 1; while (crow > 0 && starts[crow] > pos) crow--;
+  let ccol = pos - starts[crow];
+  if (ccol >= inner) { crow++; ccol = 0; if (crow >= starts.length) starts.push(buf.length); }
+  const rows = starts.map((a0, i) => (i ? '  ' : st.bold('❯ ')) + buf.slice(a0, starts[i + 1] ?? buf.length).join(''));
+  return { lines: [rule, ...rows, rule, FOOTER()], row: 1 + crow, col: 2 + ccol };
+}
+// One key into the editor. Returns { submit } on Enter, 'redraw', 'ctrlc' / 'ctrld' on an empty box, or null.
+function edKey(str, key = {}) {
+  const k = key.name;
+  if (ed.pasting && k !== 'paste-end') { if (str) ed.pasted += (k === 'return' || k === 'enter') ? '\n' : str; return null; }
+  if (key.ctrl && k === 'c') { if (!ed.buf.length) return 'ctrlc'; ed.buf = []; ed.pos = 0; return 'redraw'; }
+  if (key.ctrl && k === 'd') return ed.buf.length ? null : 'ctrld';
+  if (k === 'return' || k === 'enter') { const v = ed.buf.join(''); ed.buf = []; ed.pos = 0; if (v.trim()) hist.push(v); ed.hi = hist.length; return { submit: v }; }
+  const { buf } = ed;
+  if (k === 'backspace') { if (ed.pos) { buf.splice(ed.pos - 1, 1); ed.pos--; } }
+  else if (k === 'delete') buf.splice(ed.pos, 1);
+  else if (k === 'left') ed.pos = Math.max(0, ed.pos - 1);
+  else if (k === 'right') ed.pos = Math.min(buf.length, ed.pos + 1);
+  else if (k === 'home' || (key.ctrl && k === 'a')) ed.pos = 0;
+  else if (k === 'end' || (key.ctrl && k === 'e')) ed.pos = buf.length;
+  else if (key.ctrl && k === 'u') { buf.splice(0, ed.pos); ed.pos = 0; }
+  else if (key.ctrl && k === 'w') { let i = ed.pos; while (i && buf[i - 1] === ' ') i--; while (i && buf[i - 1] !== ' ') i--; buf.splice(i, ed.pos - i); ed.pos = i; }
+  else if (k === 'up') { if (ed.hi > 0) { if (ed.hi === hist.length) ed.draft = buf; ed.hi--; ed.buf = [...hist[ed.hi]]; ed.pos = ed.buf.length; } }
+  else if (k === 'down') { if (ed.hi < hist.length) { ed.hi++; ed.buf = ed.hi === hist.length ? ed.draft : [...hist[ed.hi]]; ed.pos = ed.buf.length; } }
+  else if (k === 'paste-start') { ed.pasting = true; ed.pasted = ''; return null; }
+  else if (k === 'paste-end') { ed.pasting = false; if (!ed.pasted) { if (!pasteImage()) return null; } else { const ch = [...ed.pasted.replace(/\r\n?/g, '\n').replace(/\n/g, ' ')]; buf.splice(ed.pos, 0, ...ch); ed.pos += ch.length; } }
+  else if (key.ctrl && k === 'v') { if (!pasteImage()) return null; }
+  else if (k === 'escape' || k === 'tab' || key.ctrl || key.meta) return null;
+  else if (str) { const ch = [...str.replace(/[\r\n]+/g, ' ')].filter((x) => x >= ' '); buf.splice(ed.pos, 0, ...ch); ed.pos += ch.length; }
+  return 'redraw';
+}
+function rawOn() { if (process.stdin.isTTY) { process.stdin.setRawMode(true); process.stdin.resume(); w(`${E}?2004h`); } }
+function rawOff() { if (process.stdin.isTTY) { process.stdin.setRawMode(false); process.stdin.pause(); w(`${E}?2004l`); } }
+
 function ask() {
+  if (queue.length) return Promise.resolve(queue.shift());
   if (!process.stdin.isTTY) return new Promise((resolve) => {
     const rl = readline.createInterface({ input: process.stdin });
     rl.once('line', (l) => { rl.close(); resolve(l); }); rl.once('close', () => process.exit(0));
   });
   return new Promise((resolve) => {
-    let pasting = false, pasted = '';
-    // Clipboard image -> ~/.cursor/cur-images/*.png, shown as an [Image #n] token in the box.
-    const pasteImage = () => {
-      const dir = `${home}/.cursor/cur-images`; fs.mkdirSync(dir, { recursive: true });
-      const file = `${dir}/paste-${Date.now()}.png`;
-      const r = spawnSync('osascript', ['-e', `set f to open for access POSIX file "${file}" with write permission`, '-e', 'write (the clipboard as «class PNGf») to f', '-e', 'close access f'], { encoding: 'utf8' });
-      if (r.status !== 0 || !fs.existsSync(file) || !fs.statSync(file).size) { try { fs.unlinkSync(file); } catch {} return false; }
-      images.push(file); const tag = [...`[Image #${images.length}]`];
-      buf.splice(pos, 0, ...tag); pos += tag.length; return true;
+    const draw = () => { const b = boxLines(); drawLive([], b.lines, b); };
+    const done = () => { clearLive(); process.stdin.removeListener('keypress', onKey); process.stdout.removeListener('resize', draw); rawOff(); };
+    const onKey = (str, key) => {
+      const r = edKey(str, key);
+      if (r === 'ctrlc' || r === 'ctrld') { done(); process.exit(0); }
+      if (r && r.submit !== undefined) { done(); resolve(r.submit); return; }
+      if (r === 'redraw') draw();
     };
-    let buf = [], pos = 0, up = 0, hi = ask.hist.length, draft = [];
-    const draw = () => {
-      const c = cols(), inner = c - 3;
-      const rule = st.dim('─'.repeat(c - 1));
-      // word-wrap: break after the last space that fits, hard-break only a word longer than the line
-      const starts = [0];
-      for (let st0 = 0; buf.length - st0 > inner;) {
-        let j = st0 + inner; while (j > st0 && buf[j - 1] !== ' ') j--;
-        st0 = j > st0 ? j : st0 + inner; starts.push(st0);
-      }
-      let crow = starts.length - 1; while (crow > 0 && starts[crow] > pos) crow--;
-      let ccol = pos - starts[crow];
-      if (ccol >= inner) { crow++; ccol = 0; if (crow >= starts.length) starts.push(buf.length); }
-      const n = starts.length;
-      const rows = starts.map((a0, i) => (i ? '  ' : st.bold('❯ ')) + buf.slice(a0, starts[i + 1] ?? buf.length).join(''));
-      const footer = FOOTER();
-      const gap = gapFor(n + 3);
-      w('\r' + (up ? `${E}${up}A` : '') + `${E}J` + '\n'.repeat(gap) + rule + '\n' + rows.join('\n') + '\n' + rule + '\n' + clip(footer, c - 1));
-      w(`${E}${n + 2 - (1 + crow)}A\r` + `${E}${2 + ccol}C`);
-      up = gap + 1 + crow;
-    };
-    const finish = (val) => {
-      w('\r' + (up ? `${E}${up}A` : '') + `${E}J`);
-      process.stdin.removeListener('keypress', onKey); process.stdout.removeListener('resize', draw);
-      process.stdin.setRawMode(false); process.stdin.pause(); w(`${E}?2004l`);
-      resolve(val);
-    };
-    const onKey = (str, key = {}) => {
-      const k = key.name;
-      if (pasting && k !== 'paste-end') { if (str) pasted += (k === 'return' || k === 'enter') ? '\n' : str; return; }
-      if (key.ctrl && k === 'c') { if (buf.length) { buf = []; pos = 0; } else { finish(''); process.exit(0); } }
-      else if (key.ctrl && k === 'd') { if (!buf.length) { finish(''); process.exit(0); } }
-      else if (k === 'return' || k === 'enter') { const v = buf.join(''); if (v.trim()) ask.hist.push(v); return finish(v); }
-      else if (k === 'backspace') { if (pos) { buf.splice(pos - 1, 1); pos--; } }
-      else if (k === 'delete') buf.splice(pos, 1);
-      else if (k === 'left') pos = Math.max(0, pos - 1);
-      else if (k === 'right') pos = Math.min(buf.length, pos + 1);
-      else if (k === 'home' || (key.ctrl && k === 'a')) pos = 0;
-      else if (k === 'end' || (key.ctrl && k === 'e')) pos = buf.length;
-      else if (key.ctrl && k === 'u') { buf.splice(0, pos); pos = 0; }
-      else if (key.ctrl && k === 'w') { let i = pos; while (i && buf[i - 1] === ' ') i--; while (i && buf[i - 1] !== ' ') i--; buf.splice(i, pos - i); pos = i; }
-      else if (k === 'up') { if (hi > 0) { if (hi === ask.hist.length) draft = buf; hi--; buf = [...ask.hist[hi]]; pos = buf.length; } }
-      else if (k === 'down') { if (hi < ask.hist.length) { hi++; buf = hi === ask.hist.length ? draft : [...ask.hist[hi]]; pos = buf.length; } }
-      else if (k === 'paste-start') { pasting = true; pasted = ''; return; }
-      else if (k === 'paste-end') { pasting = false; if (!pasted) { if (!pasteImage()) return; } else { const ch = [...pasted.replace(/\r\n?/g, '\n').replace(/\n/g, ' ')]; buf.splice(pos, 0, ...ch); pos += ch.length; } }
-      else if (key.ctrl && k === 'v') { if (!pasteImage()) return; }
-      else if (k === 'escape' || k === 'tab' || key.ctrl || key.meta) return;
-      else if (str) { const ch = [...str.replace(/[\r\n]+/g, ' ')].filter((x) => x >= ' '); buf.splice(pos, 0, ...ch); pos += ch.length; }
-      draw();
-    };
-    process.stdin.setRawMode(true); process.stdin.resume(); w(`${E}?2004h`);
-    process.stdin.on('keypress', onKey); process.stdout.on('resize', draw);
+    rawOn(); process.stdin.on('keypress', onKey); process.stdout.on('resize', draw);
     draw();
   });
 }
-ask.hist = [];
 const images = []; // pasted image files, numbered for the whole session
 function userBlock(msg) {
   const width = cols() - 2;
