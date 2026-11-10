@@ -70,7 +70,8 @@ const cwdShort = process.cwd().replace(home, '~');
 
 function header() {
   const team = cfg.authInfo?.teamName ? ` · ${cfg.authInfo.teamName}` : '';
-  const art = [st.accent(' ▗▄▄▄▖ '), st.accent(' ▐▛▀▜▌ '), st.accent(' ▝▀▀▀▘ ')];
+  const clawd = (x) => `${E}38;2;215;119;87m${x}${E}39m`;
+  const art = [clawd(' ▐▛███▜▌ '), clawd('▝▜█████▛▘'), clawd('  ▘▘ ▝▝  ')];
   const txt = [`${st.bold('Cursor CLI')} ${st.dim('via cur')}`, st.grey(`${modelName}${team}`), st.grey(cwdShort)];
   w('\n' + art.map((a, i) => `  ${a}  ${txt[i]}`).join('\n') + '\n\n');
   if (chatId) w(st.dim(`  resuming ${chatId}\n\n`));
