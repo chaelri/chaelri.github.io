@@ -350,7 +350,7 @@ const images = []; // pasted image files, numbered for the whole session
 function userBlock(msg) {
   const width = cols() - 2;
   const lines = wrap(msg, width - 4);
-  put(lines.map((l, i) => `${E}48;5;237m${(i ? '  ' : '❯ ') + l}${' '.repeat(Math.max(0, width - 2 - vlen(l)))}${E}0m`).join('\n') + '\n\n');
+  put(lines.map((l, i) => `${E}48;5;237m${i ? '  ' : `${E}38;5;245m❯${E}39m `}${E}97m${l}${E}39m${E}48;5;237m${' '.repeat(Math.max(0, width - 2 - vlen(l)))}${E}0m`).join('\n') + '\n\n');
 }
 
 const HELP = `  /model [id]    switch model (no id: list models)
