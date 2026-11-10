@@ -109,7 +109,7 @@ function runTurn(prompt) {
     args.push(prompt);
     const child = spawn('cursor-agent', args, { stdio: ['ignore', 'pipe', 'pipe'] });
     const t0 = Date.now(), verb = VERBS[Math.floor(Math.random() * VERBS.length)];
-    let text = '', chars = 0, tokens = null, frame = 0, interrupted = false, err = '';
+    let text = '', think = '', thinkT0 = 0, chars = 0, tokens = null, frame = 0, interrupted = false, err = '';
     let group = []; // {kind, label, verbWord, noun, failed, done}
 
     const groupSummary = (running) => {
@@ -123,6 +123,7 @@ function runTurn(prompt) {
       return '  ' + st.grey(s) + (failed ? st.red(` · ${failed} failed`) : '');
     };
     const flushText = () => { if (text.trim()) commit(md(wrap(text.trim(), cols() - 4)).map((l, i) => (i ? '  ' : '● ') + l).join('\n') + '\n'); text = ''; };
+    const flushThink = () => { if (think.trim()) commit(st.grey(`∴ Thought for ${Math.max(1, Math.round((Date.now() - thinkT0) / 1000))}s`) + '\n'); think = ''; };
     const flushGroup = () => { if (group.length) commit(groupSummary(false) + '\n'); group = []; };
 
     const render = () => {
@@ -132,6 +133,10 @@ function runTurn(prompt) {
         const last = group[group.length - 1];
         lines.push('  ' + st.dim('⎿  ' + last.label.replace(/\s+/g, ' ')));
         lines.push('');
+      }
+      if (think.trim()) {
+        const tl = wrap(think.trim(), cols() - 6).slice(-4);
+        lines.push(st.grey('∴ Thinking…'), ...tl.map((l) => '  ' + `${E}2;3m${l}${E}0m`), '');
       }
       if (text.trim()) { lines.push(...md(wrap(text.trim(), cols() - 4)).map((l, i) => (i ? '  ' : '● ') + l)); lines.push(''); }
       const secs = Math.floor((Date.now() - t0) / 1000);
@@ -154,14 +159,18 @@ function runTurn(prompt) {
         const line = buf.slice(0, i); buf = buf.slice(i + 1);
         let ev; try { ev = JSON.parse(line); } catch { continue; }
         if (ev.type === 'system' && ev.subtype === 'init') { chatId = ev.session_id; if (ev.model) modelName = ev.model; }
+        else if (ev.type === 'thinking') {
+          if (ev.subtype === 'delta' && ev.text) { if (!think) thinkT0 = Date.now(); think += ev.text; chars += ev.text.length; }
+          else if (ev.subtype === 'completed') flushThink();
+        }
         else if (ev.type === 'assistant' && ev.timestamp_ms) {
           const t = (ev.message?.content || []).map((c) => c.text || '').join('');
-          if (t) { flushGroup(); text += t; chars += t.length; }
+          if (t) { flushThink(); flushGroup(); text += t; chars += t.length; }
         } else if (ev.type === 'tool_call') {
           const [key, tc] = Object.entries(ev.tool_call || {}).find(([k]) => k.endsWith('ToolCall')) || ['', {}];
           const a = tc.args || {};
           if (ev.subtype === 'started') {
-            flushText();
+            flushThink(); flushText(); chars += JSON.stringify(a).length;
             const [kind, verbWord, noun] = KIND[key] || ['other', 'used', key.replace(/ToolCall$/, '') + ' tool'];
             const label = kind === 'shell' ? '$ ' + (a.command || '') : (a.path ? base(a.path) : a.globPattern || a.pattern || a.query || a.url || a.toolName || '') || noun;
             group.push({ id: ev.call_id, kind, verbWord, noun, label, path: a.path });
@@ -180,7 +189,7 @@ function runTurn(prompt) {
     child.on('close', (code) => {
       clearInterval(timer);
       if (process.stdin.isTTY) { process.stdin.removeListener('keypress', onKey); process.stdin.setRawMode(false); }
-      flushGroup(); flushText();
+      flushThink(); flushGroup(); flushText();
       const secs = Math.round((Date.now() - t0) / 1000);
       if (interrupted) commit('  ' + st.red('⎿  Interrupted') + '\n');
       else if (code && err.trim()) commit('  ' + st.red('⎿  ' + err.trim().split('\n').slice(-3).join('\n     ')) + '\n');
