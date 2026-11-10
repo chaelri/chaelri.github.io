@@ -550,9 +550,9 @@ function page() {
   button.cursor-cli {
     margin: 14px 0 0; padding: 6px 8px; width: 100%; color: var(--vscode-foreground); font-size: 12px;
     border: 1px solid var(--track); border-radius: 4px;
-    display: flex; align-items: center; justify-content: center; gap: 7px;
+    display: flex; align-items: center; justify-content: flex-start; gap: 8px; padding-left: calc(50% - 38px);
   }
-  button.cursor-cli img { width: 14px; height: 14px; }
+  button.cursor-cli img { width: 16px; height: 16px; flex: none; object-fit: contain; }
   button.cursor-cli + button.cursor-cli { margin-top: 6px; }
   button.cursor-cli:hover { text-decoration: none; }
   button.cursor-cli.primary { background: #d97757; border-color: #d97757; color: #fff; font-weight: 600; }
