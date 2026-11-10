@@ -383,9 +383,9 @@ async function pickSession() {
 /// exists, every finished reply pops the 8-bit bling alert.
 const BLING_FLAG = path.join(os.homedir(), 'bling', 'enabled');
 const CURSOR_ICON = 'data:image/png;base64,' + fs.readFileSync(path.join(__dirname, 'media', 'cursor.png')).toString('base64');
-// Same asterisk as the activity bar icon, painted Claude orange for the button.
+// Same asterisk as the activity bar icon, painted white for the orange primary button.
 const CLAUDE_ICON = 'data:image/svg+xml;base64,' + Buffer.from(
-    fs.readFileSync(path.join(__dirname, 'media', 'claude.svg'), 'utf8').replace('fill="currentColor"', 'fill="#D97757"')
+    fs.readFileSync(path.join(__dirname, 'media', 'claude.svg'), 'utf8').replace('fill="currentColor"', 'fill="#FFFFFF"')
 ).toString('base64');
 
 function toggleBling() {
@@ -555,6 +555,8 @@ function page() {
   button.cursor-cli img { width: 14px; height: 14px; }
   button.cursor-cli + button.cursor-cli { margin-top: 6px; }
   button.cursor-cli:hover { text-decoration: none; }
+  button.cursor-cli.primary { background: #d97757; border-color: #d97757; color: #fff; font-weight: 600; }
+  button.cursor-cli.primary:hover { background: #c96a4b; border-color: #c96a4b; }
   button.bling {
     margin: 14px 0 0; padding: 6px 0; width: 100%; display: flex; align-items: center; justify-content: space-between;
     color: var(--vscode-foreground); font-size: 12px;
@@ -717,7 +719,7 @@ function page() {
 
   const footerHtml = (data) =>
     '<div class="bottom"><hr>' +
-    '<button class="cursor-cli" data-send="claude" title="New Claude Code session">' +
+    '<button class="cursor-cli primary" data-send="claude" title="New Claude Code session">' +
     '<img src="' + data.claudeIcon + '" alt="">Claude</button>' +
     '<button class="cursor-cli" data-send="cursor" title="New Cursor CLI session, pinned to Claude">' +
     '<img src="' + data.cursorIcon + '" alt="">Cursor</button>' +
