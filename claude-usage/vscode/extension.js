@@ -435,7 +435,6 @@ class UsagePanel {
         view.webview.onDidReceiveMessage((message) => {
             if (message === 'refresh') refresh();
             if (message === 'cursor') launchCursor();
-            if (message === 'cur') launchCur();
             if (message === 'claude') launchSession();
             if (message === 'bling') {
                 toggleBling();
@@ -722,8 +721,6 @@ function page() {
     '<img src="' + data.claudeIcon + '" alt="">Claude</button>' +
     '<button class="cursor-cli" data-send="cursor" title="New Cursor CLI session, pinned to Claude">' +
     '<img src="' + data.cursorIcon + '" alt="">Cursor</button>' +
-    '<button class="cursor-cli" data-send="cur" title="New Cursor chat in the Claude Code-style cur front end">' +
-    '<img src="' + data.cursorIcon + '" alt="">Cursor · Claude look</button>' +
     blingHtml(data.bling) +
     deployHtml(data.deploy) +
     '<div class="footer"><span class="muted">' + esc(data.updated) + '</span>' +
@@ -961,7 +958,8 @@ function launchSession() {
     );
 }
 
-/// Fallback for when Claude Code hits its limit. The model is passed explicitly
+/// Fallback for when Claude Code hits its limit. Runs cur, the Claude Code-style
+/// front end over cursor-agent (cursor-bridge/cur.mjs). The model is passed explicitly
 /// because `agent` otherwise uses whatever its config last held, and a bad or
 /// unavailable id makes it exit with an error rather than silently picking
 /// another model. Subagents follow it via exploreSubagentModel: "inherit" in
@@ -969,16 +967,10 @@ function launchSession() {
 function launchCursor() {
     const config = vscode.workspace.getConfiguration('claudeUsage');
     startTerminal(
-        config.get('cursorCommand', 'agent --force --approve-mcps --model claude-opus-5-5-medium'),
+        config.get('cursorCommand', 'cur --model claude-opus-5-5-medium'),
         'cursor · claude',
         true
     );
-}
-
-/// Same Cursor backend, drawn by cursor-bridge/cur.mjs to look like Claude Code.
-function launchCur() {
-    const config = vscode.workspace.getConfiguration('claudeUsage');
-    startTerminal(config.get('curCommand', 'cur --model claude-opus-5-5-medium'), 'cur · claude', true);
 }
 
 /// Shared by the new-session button and by resuming, so a resumed session gets
