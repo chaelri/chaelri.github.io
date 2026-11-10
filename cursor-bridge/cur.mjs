@@ -42,15 +42,60 @@ function wrap(text, width) {
   }
   return lines;
 }
-function md(lines) { // light markdown styling, line by line
-  let fence = false;
-  return lines.flatMap((l) => {
-    if (/^\s*```/.test(l)) { fence = !fence; return []; }
-    if (fence) return [st.code(l)];
+const inline = (t) => t
+  .replace(/\[([^\]]+)\]\((https?:[^)]+)\)/g, (_, x) => `\u0001${x}\u0002`)
+  .replace(/`([^`]+)`/g, (_, x) => st.code(x))
+  .replace(/\*\*([^*]+)\*\*/g, (_, x) => st.bold(x))
+  .replace(/(^|[^*\w])\*([^*\s][^*]*)\*(?!\w)/g, (_, p, x) => `${p}${E}3m${x}${E}23m`)
+  .replace(/\u0001/g, `${E}4m`).replace(/\u0002/g, `${E}24m`);
+// wrap one styled line; each output line re-opens styles still active at the break
+function wrapStyled(line, width, indent = '') {
+  const out = []; let cur = '', curLen = 0, open = '';
+  for (const word of line.split(/(?<= )/)) {
+    const wl = vlen(word);
+    if (curLen + wl > width && curLen > indent.length) { out.push(cur.trimEnd() + `${E}0m`); cur = indent + open; curLen = indent.length; }
+    cur += word; curLen += wl;
+    for (const m of word.matchAll(/\x1b\[([0-9;]*)m/g)) open = /^(0|22|23|24|39)$/.test(m[1]) ? '' : open + m[0];
+  }
+  out.push(cur.trimEnd());
+  return out;
+}
+function md(text, width) {
+  const src = text.split('\n'), res = [];
+  for (let i = 0; i < src.length; i++) {
+    const l = src[i];
+    if (/^\s*```/.test(l)) { // code block
+      i++; while (i < src.length && !/^\s*```/.test(src[i])) { res.push('  ' + st.code(clip(src[i], width - 2))); i++; }
+      continue;
+    }
+    if (/^\s*\|.*\|\s*$/.test(l)) { // table
+      const rows = [];
+      while (i < src.length && /^\s*\|.*\|\s*$/.test(src[i])) { if (!/^\s*\|[\s:|-]+\|\s*$/.test(src[i])) rows.push(src[i].trim().slice(1, -1).split('|').map((c) => inline(c.trim()))); i++; }
+      i--;
+      const n = Math.max(...rows.map((r) => r.length)), w = Array(n).fill(0);
+      rows.forEach((r) => r.forEach((c, j) => { w[j] = Math.max(w[j], vlen(c)); }));
+      rows.forEach((r, ri) => {
+        res.push(clip(r.map((c, j) => (ri === 0 ? st.bold(c) : c) + ' '.repeat(w[j] - vlen(c))).join(st.dim(' │ ')), width));
+        if (ri === 0) res.push(st.dim(w.map((x) => '─'.repeat(x)).join('─┼─')).slice(0, width + 20));
+      });
+      continue;
+    }
+    if (/^\s*([-*_])\s*\1\s*\1[\s\1]*$/.test(l)) { res.push(st.dim('─'.repeat(Math.min(width, 40)))); continue; }
     const h = l.match(/^#{1,6}\s+(.*)/);
-    if (h) return [st.bold(h[1])];
-    return [l.replace(/\*\*([^*]+)\*\*/g, (_, x) => st.bold(x)).replace(/`([^`]+)`/g, (_, x) => st.code(x)).replace(/^(\s*)[-*] /, '$1• ')];
-  });
+    if (h) { res.push(...wrapStyled(st.bold(inline(h[1].replace(/\*\*/g, ''))), width)); continue; }
+    const li = l.match(/^(\s*)([-*+]|\d+[.)])\s+(.*)/);
+    if (li) {
+      const lead = li[1].replace(/\t/g, '  ') + (/\d/.test(li[2]) ? li[2] : '•') + ' ';
+      res.push(...wrapStyled(lead + inline(li[3]), width, ' '.repeat(lead.length)));
+      continue;
+    }
+    const q = l.match(/^>\s?(.*)/);
+    if (q) { res.push(...wrapStyled(inline(q[1]), width - 2).map((x) => st.dim('▎ ') + st.grey(x))); continue; }
+    if (!l.trim()) { if (res.length && res[res.length - 1] !== '') res.push(''); continue; }
+    res.push(...wrapStyled(inline(l), width));
+  }
+  while (res.length && res[res.length - 1] === '') res.pop();
+  return res;
 }
 
 // ---------- config / args ----------
@@ -74,14 +119,13 @@ function pretty(m) {
   return String(m).replace(/^Claude /, '');
 }
 function header() {
-  const team = cfg.authInfo?.teamName ? ` · ${cfg.authInfo.teamName}` : '';
+  const team = cfg.authInfo?.teamName ? ` · Cursor ${cfg.authInfo.teamName}` : ' · Cursor';
   const clawd = (x) => `${E}38;2;215;119;87m${x}${E}39m`;
   const art = [clawd(' ▐▛███▜▌ '), clawd('▝▜█████▛▘'), clawd('  ▘▘ ▝▝  ')];
-  const txt = [`${st.bold('Cursor CLI')} ${st.dim('via cur')}`, st.grey(`${pretty(modelName)}${team}`), st.grey(cwdShort)];
-  const who = (cfg.authInfo?.displayName || '').split(' ')[0];
+  let ver = '';
+  try { ver = fs.realpathSync(`${home}/.local/bin/cursor-agent`).match(/versions\/([\d.]+)/)?.[1] || ''; } catch {}
+  const txt = [`${st.bold('Cursor CLI')}${ver ? ' ' + st.grey('v' + ver) : ''}`, st.grey(`${pretty(modelName).replace(/ · (low|medium|high|xhigh|max)\b/, '').replace(/ \d+[KM]\b.*$/, '')}${team}`), st.grey(cwdShort)];
   put('\n' + art.map((a, i) => `  ${a}  ${txt[i]}`).join('\n') + '\n\n');
-  put(`  Welcome back${who ? ' ' + who : ''}! Same memory and hooks as Claude Code.\n`);
-  put(st.dim('  /help for commands · esc to interrupt · /model to switch\n\n'));
   if (chatId) put(st.dim(`  resuming ${chatId}\n\n`));
 }
 
@@ -111,6 +155,7 @@ function commit(text) { clearLive(); put(text + '\n'); }
 // ---------- one turn ----------
 const FRAMES = ['·', '✢', '✳', '✶', '✻', '✽', '✻', '✶', '✳', '✢'];
 const VERBS = ['Working', 'Thinking', 'Tinkering', 'Pondering', 'Cooking', 'Brewing', 'Wrangling', 'Noodling', 'Puzzling', 'Crafting'];
+const PAST = { Working: 'Worked', Thinking: 'Thought', Tinkering: 'Tinkered', Pondering: 'Pondered', Cooking: 'Cooked', Brewing: 'Brewed', Wrangling: 'Wrangled', Noodling: 'Noodled', Puzzling: 'Puzzled', Crafting: 'Crafted' };
 const KIND = {
   shellToolCall: ['shell', 'ran', 'shell command'], readToolCall: ['read', 'read', 'file'],
   globToolCall: ['search', 'searched', 'pattern'], grepToolCall: ['search', 'searched', 'pattern'],
@@ -143,8 +188,8 @@ function runTurn(prompt) {
       const failed = group.filter((g) => g.failed).length;
       return '  ' + st.grey(s) + (failed ? st.red(` · ${failed} failed`) : '');
     };
-    const flushText = () => { if (text.trim()) lastSeg = text; if (text.trim()) commit(md(wrap(text.trim(), cols() - 4)).map((l, i) => (i ? '  ' : '● ') + l).join('\n') + '\n'); text = ''; };
-    const flushThink = () => { if (think.trim()) commit(st.grey(`∴ Thought for ${Math.max(1, Math.round((Date.now() - thinkT0) / 1000))}s`) + '\n'); think = ''; };
+    const flushText = () => { if (text.trim()) lastSeg = text; if (text.trim()) commit(md(text.trim(), cols() - 4).map((l, i) => (i ? '  ' : st.bold('● ')) + l).join('\n') + '\n'); text = ''; };
+    const flushThink = () => { think = ''; };
     const flushGroup = () => { if (group.length) commit(groupSummary(false) + '\n'); group = []; };
 
     const render = () => {
@@ -159,7 +204,7 @@ function runTurn(prompt) {
         const tl = wrap(think.trim(), cols() - 6).slice(-4);
         lines.push(st.grey('∴ Thinking…'), ...tl.map((l) => '  ' + `${E}2;3m${l}${E}0m`), '');
       }
-      if (text.trim()) { lines.push(...md(wrap(text.trim(), cols() - 4)).map((l, i) => (i ? '  ' : '● ') + l)); lines.push(''); }
+      if (text.trim()) { lines.push(...md(text.trim(), cols() - 4).map((l, i) => (i ? '  ' : '● ') + l)); lines.push(''); }
       const secs = Math.floor((Date.now() - t0) / 1000);
       const tk = tokens ?? Math.round(chars / 4);
       const tks = tk >= 1000 ? (tk / 1000).toFixed(1) + 'k' : String(tk);
@@ -220,7 +265,7 @@ function runTurn(prompt) {
       const secs = Math.round((Date.now() - t0) / 1000);
       if (interrupted) commit('  ' + st.red('⎿  Interrupted') + '\n');
       else if (code && err.trim()) commit('  ' + st.red('⎿  ' + err.trim().split('\n').slice(-3).join('\n     ')) + '\n');
-      else commit(st.dim(`  ${secs}s\n`));
+      else { const t = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }); commit(st.grey(`✻ ${PAST[verb]} for ${secs}s · done ${t}`) + '\n'); }
       resolve();
     });
   });
