@@ -21,12 +21,16 @@ When Charlie says **"restore my setup"** / **"set up this laptop"** / **"i got a
 Charlie is on Claude Pro: tight 5-hour and weekly limits. Spend tokens like they're scarce.
 
 - **Read narrowly.** Grep first, then Read with `offset`/`limit`. Never read a whole big file (PROJECTS.md, devo DECISIONS.md, a 3k-line JS chunk) to find one thing.
-- **No subagents, Workflows, or parallel fan-out** unless Charlie asks. Do the search yourself; a subagent re-reads everything from scratch.
+- **No subagents, Workflows, or parallel fan-out** unless Charlie asks. Do the search yourself; a subagent re-reads everything from scratch. Exception: the router cook agents below.
 - **Knowledge MDs are on demand.** Project `CLAUDE.md` files import only `SUMMARY.md`; open the other MDs in `knowledge/<project>/` only when the task needs them.
 - **Don't re-read files you just edited**, don't dump long command output (pipe through `tail`/`head`/`grep`), and don't screenshot-verify when a quick check or test suffices.
 - **Skip extras he didn't ask for:** no knowledge-MD sync, no README/doc rewrites, no extra polish passes. Update `knowledge/` only when a change makes a doc wrong.
 - **Short replies.** Result + what to check, no recap of every step.
 - Visible-progress rules (TODO list, progress bars, shell monitor) still apply, but keep them proportionate: a TODO list only for 3+ items, the shell monitor only for jobs over a couple of minutes.
+
+## Model routing (automatic, since 2026-11-10)
+
+Sessions default to Sonnet 5.5 (`.claude/settings.json`). At the start of every task, apply the `router` skill (`.claude/skills/router/SKILL.md`): line-cook work inline, big grunt work to `prep-cook` (Haiku), costly/risky work to `sous-chef` (Opus high), planning/audits/stuck bugs to `head-chef` (Opus max). Print one `router: <tier> (<why>)` line first.
 
 ## Project-specific knowledge
 
