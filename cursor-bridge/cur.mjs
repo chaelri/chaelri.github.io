@@ -194,7 +194,11 @@ function runTurn(prompt) {
           const a = tc.args || {};
           if (ev.subtype === 'started') {
             flushThink(); flushText(); chars += JSON.stringify(a).length;
-            const [kind, verbWord, noun] = KIND[key] || ['other', 'used', key.replace(/ToolCall$/, '') + ' tool'];
+            let [kind, verbWord, noun] = KIND[key] || ['other', 'used', key.replace(/ToolCall$/, '') + ' tool'];
+            const server = String(a.providerIdentifier || a.serverName || a.server || '');
+            const tool = String(a.toolName || a.name || '').replace(/^mcp__[^_]+(?:-[^_]+)*__/, '');
+            if (key === 'mcpToolCall' && /chrome/i.test(server + tool)) { kind = 'chrome'; verbWord = 'used'; noun = 'Claude in Chrome action'; }
+            if (key === 'mcpToolCall') a.toolName = (kind === 'chrome' ? 'Claude in Chrome · ' : (server ? server + ' · ' : '')) + tool;
             const label = kind === 'shell' ? '$ ' + (a.command || '') : (a.path ? base(a.path) : a.globPattern || a.pattern || a.query || a.url || a.toolName || '') || noun;
             group.push({ id: ev.call_id, kind, verbWord, noun, label, path: a.path });
           } else {
@@ -231,6 +235,16 @@ function ask() {
     rl.once('line', (l) => { rl.close(); resolve(l); }); rl.once('close', () => process.exit(0));
   });
   return new Promise((resolve) => {
+    let pasting = false, pasted = '';
+    // Clipboard image -> ~/.cursor/cur-images/*.png, shown as an [Image #n] token in the box.
+    const pasteImage = () => {
+      const dir = `${home}/.cursor/cur-images`; fs.mkdirSync(dir, { recursive: true });
+      const file = `${dir}/paste-${Date.now()}.png`;
+      const r = spawnSync('osascript', ['-e', `set f to open for access POSIX file "${file}" with write permission`, '-e', 'write (the clipboard as «class PNGf») to f', '-e', 'close access f'], { encoding: 'utf8' });
+      if (r.status !== 0 || !fs.existsSync(file) || !fs.statSync(file).size) { try { fs.unlinkSync(file); } catch {} return false; }
+      images.push(file); const tag = [...`[Image #${images.length}]`];
+      buf.splice(pos, 0, ...tag); pos += tag.length; return true;
+    };
     let buf = [], pos = 0, up = 0, hi = ask.hist.length, draft = [];
     const draw = () => {
       const c = cols(), inner = c - 3;
@@ -255,11 +269,12 @@ function ask() {
     const finish = (val) => {
       w('\r' + (up ? `${E}${up}A` : '') + `${E}J`);
       process.stdin.removeListener('keypress', onKey); process.stdout.removeListener('resize', draw);
-      process.stdin.setRawMode(false); process.stdin.pause();
+      process.stdin.setRawMode(false); process.stdin.pause(); w(`${E}?2004l`);
       resolve(val);
     };
     const onKey = (str, key = {}) => {
       const k = key.name;
+      if (pasting && k !== 'paste-end') { if (str) pasted += (k === 'return' || k === 'enter') ? '\n' : str; return; }
       if (key.ctrl && k === 'c') { if (buf.length) { buf = []; pos = 0; } else { finish(''); process.exit(0); } }
       else if (key.ctrl && k === 'd') { if (!buf.length) { finish(''); process.exit(0); } }
       else if (k === 'return' || k === 'enter') { const v = buf.join(''); if (v.trim()) ask.hist.push(v); return finish(v); }
@@ -273,16 +288,20 @@ function ask() {
       else if (key.ctrl && k === 'w') { let i = pos; while (i && buf[i - 1] === ' ') i--; while (i && buf[i - 1] !== ' ') i--; buf.splice(i, pos - i); pos = i; }
       else if (k === 'up') { if (hi > 0) { if (hi === ask.hist.length) draft = buf; hi--; buf = [...ask.hist[hi]]; pos = buf.length; } }
       else if (k === 'down') { if (hi < ask.hist.length) { hi++; buf = hi === ask.hist.length ? draft : [...ask.hist[hi]]; pos = buf.length; } }
+      else if (k === 'paste-start') { pasting = true; pasted = ''; return; }
+      else if (k === 'paste-end') { pasting = false; if (!pasted) { if (!pasteImage()) return; } else { const ch = [...pasted.replace(/\r\n?/g, '\n').replace(/\n/g, ' ')]; buf.splice(pos, 0, ...ch); pos += ch.length; } }
+      else if (key.ctrl && k === 'v') { if (!pasteImage()) return; }
       else if (k === 'escape' || k === 'tab' || key.ctrl || key.meta) return;
       else if (str) { const ch = [...str.replace(/[\r\n]+/g, ' ')].filter((x) => x >= ' '); buf.splice(pos, 0, ...ch); pos += ch.length; }
       draw();
     };
-    process.stdin.setRawMode(true); process.stdin.resume();
+    process.stdin.setRawMode(true); process.stdin.resume(); w(`${E}?2004h`);
     process.stdin.on('keypress', onKey); process.stdout.on('resize', draw);
     draw();
   });
 }
 ask.hist = [];
+const images = []; // pasted image files, numbered for the whole session
 function userBlock(msg) {
   const width = cols() - 2;
   const lines = wrap(msg, width - 4);
@@ -319,7 +338,8 @@ async function main() {
       put(((r.stdout || '') + (r.stderr || '')).trimEnd().split('\n').map((l) => '  ' + st.dim('⎿ ') + l).join('\n') + '\n\n');
       continue;
     }
-    await runTurn(input);
+    const refs = [...input.matchAll(/\[Image #(\d+)\]/g)].map((m) => +m[1]).filter((n) => images[n - 1]);
+    await runTurn(refs.length ? `${input}\n\n(Pasted images — read each file to see it: ${[...new Set(refs)].map((n) => `[Image #${n}] ${images[n - 1]}`).join(', ')})` : input);
   }
 }
 main();
