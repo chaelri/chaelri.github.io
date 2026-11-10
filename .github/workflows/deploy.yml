@@ -26,11 +26,19 @@ jobs:
         run: |
           echo "window.GOOGLE_TTS_KEY = '${{ secrets.GOOGLE_TTS_KEY }}';" > devo/config.js
 
+      # Pages aborts after 10 min of syncing files; keep the artifact small.
+      - name: Stage site
+        run: |
+          rsync -a --exclude='.git' --exclude='.github' --exclude='_site' \
+            --exclude='devo-mobile/' \
+            --exclude='elevate-eo-campus-unite-2026/assets/tickets/' \
+            --exclude='elevate-eo-campus-unite-2026/assets/tickets-all.zip' \
+            --exclude='elevate-eo-campus-unite-2026/assets/print-tickets.pdf' \
+            ./ _site/
+
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: '.'
+          path: '_site'
       - uses: actions/deploy-pages@v4
         id: deployment
-        with:
-          timeout: 1800000
