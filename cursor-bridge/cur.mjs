@@ -179,7 +179,7 @@ function runTurn(prompt) {
     args.push(prompt);
     const child = spawn('cursor-agent', args, { stdio: ['ignore', 'pipe', 'pipe'] });
     const t0 = Date.now(), verb = VERBS[Math.floor(Math.random() * VERBS.length)];
-    let lastSeg = '', text = '', think = '', thinkT0 = 0, chars = 0, tokens = null, frame = 0, interrupted = false, err = '';
+    let sendNow = false, lastSeg = '', text = '', think = '', thinkT0 = 0, chars = 0, tokens = null, frame = 0, interrupted = false, err = '';
     let group = []; // {kind, label, verbWord, noun, failed, done}
 
     const groupSummary = (running) => {
@@ -214,7 +214,7 @@ function runTurn(prompt) {
       const tks = tk >= 1000 ? (tk / 1000).toFixed(1) + 'k' : String(tk);
       const box = boxLines();
       const qd = queue.map((q) => '  ' + st.grey('⎿ queued: ' + q.replace(/\s+/g, ' ')));
-      const bottom = [st.accent(`${FRAMES[frame % FRAMES.length]} ${verb}…`) + st.dim(` (${secs}s · esc to interrupt)`), ...qd, ''];
+      const bottom = [st.accent(`${FRAMES[frame % FRAMES.length]} ${verb}…`) + st.dim(` (${secs}s · esc to interrupt${ed.buf.length || queue.length ? ' · ctrl+c to send now' : ''})`), ...qd, ''];
       drawLive(lines, [...bottom, ...box.lines], { row: bottom.length + box.row, col: box.col });
     };
     const timer = setInterval(() => { frame++; render(); }, 120);
@@ -222,6 +222,12 @@ function runTurn(prompt) {
     const stop = () => { if (!interrupted) { interrupted = true; child.kill('SIGTERM'); } };
     const onKey = (str, key = {}) => {
       if (!ed.pasting && key.name === 'escape') return stop();
+      // ctrl+c with something typed or queued: stop this reply and send that right away
+      if (!ed.pasting && key.ctrl && key.name === 'c' && (ed.buf.length || queue.length)) {
+        const v = ed.buf.join('');
+        if (v.trim()) { queue.unshift(v); hist.push(v); ed.hi = hist.length; }
+        ed.buf = []; ed.pos = 0; sendNow = true; render(); return stop();
+      }
       const r = edKey(str, key);
       if (r === 'ctrlc') return stop();
       if (r && r.submit !== undefined) { if (r.submit.trim()) queue.push(r.submit); }
@@ -273,7 +279,7 @@ function runTurn(prompt) {
       if (process.stdin.isTTY) { process.stdin.removeListener('keypress', onKey); rawOff(); }
       flushThink(); flushGroup(); flushText();
       const secs = Math.round((Date.now() - t0) / 1000);
-      if (interrupted) commit('  ' + st.red('⎿  Interrupted') + '\n');
+      if (interrupted) commit('  ' + st.red('⎿  Interrupted') + (sendNow ? st.grey(' · sending your message now') : '') + '\n');
       else if (code && err.trim()) commit('  ' + st.red('⎿  ' + err.trim().split('\n').slice(-3).join('\n     ')) + '\n');
       else { const t = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }); commit(st.grey(`✻ ${PAST[verb]} for ${secs}s · done ${t}`) + '\n'); }
       resolve();
