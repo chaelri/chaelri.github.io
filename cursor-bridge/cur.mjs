@@ -143,11 +143,13 @@ function put(text) {
 }
 const gapFor = (h) => Math.max(0, screenRows() - row - h);
 function clearLive() { if (liveH) { w('\r' + (liveH > 1 ? `${E}${liveH - 1}A` : '') + `${E}J`); liveH = 0; } }
-function drawLive(lines) {
+// top = in-progress output, flows right under the chat; bottom = spinner + input box,
+// pinned to the last rows of the window; the gap goes between them.
+function drawLive(top, bottom = []) {
   clearLive();
-  const max = Math.max(3, screenRows() - 2);
-  let shown = lines.slice(-max).map((l) => clip(l, cols() - 1));
-  shown = [...Array(gapFor(shown.length)).fill(''), ...shown];
+  const max = Math.max(1, screenRows() - bottom.length - 1);
+  const t = top.slice(-max).map((l) => clip(l, cols() - 1)), b = bottom.map((l) => clip(l, cols() - 1));
+  const shown = [...t, ...Array(gapFor(t.length + b.length)).fill(''), ...b];
   w(shown.join('\n')); liveH = shown.length;
 }
 function commit(text) { clearLive(); put(text + '\n'); }
@@ -208,9 +210,7 @@ function runTurn(prompt) {
       const secs = Math.floor((Date.now() - t0) / 1000);
       const tk = tokens ?? Math.round(chars / 4);
       const tks = tk >= 1000 ? (tk / 1000).toFixed(1) + 'k' : String(tk);
-      lines.push(st.accent(`${FRAMES[frame % FRAMES.length]} ${verb}…`) + st.dim(` (${secs}s · esc to interrupt)`));
-      lines.push('', ...boxIdle());
-      drawLive(lines);
+      drawLive(lines, [st.accent(`${FRAMES[frame % FRAMES.length]} ${verb}…`) + st.dim(` (${secs}s · esc to interrupt)`), '', ...boxIdle()]);
     };
     const timer = setInterval(() => { frame++; render(); }, 120);
 
