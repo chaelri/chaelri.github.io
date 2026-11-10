@@ -621,9 +621,9 @@ function page() {
   /* Root stretches to the panel's height; the footer block is pushed to the bottom. */
   #root { flex: 1; display: flex; flex-direction: column; }
   .bottom { margin-top: auto; padding-top: 16px; }
-  .logo { display: block; flex: none; width: 60px; height: 60px; margin: 10px auto 32px; animation: logo-spin 40s linear infinite, logo-pulse 3s ease-in-out infinite; }
+  .logo { display: block; flex: none; width: 60px; height: 60px; margin: 10px auto 32px; animation: logo-pulse 4s ease-in-out infinite; }
   @keyframes logo-spin { to { rotate: 360deg; } }
-  @keyframes logo-pulse { 0%, 100% { scale: 1; } 50% { scale: 1.12; } }
+  @keyframes logo-pulse { 0%, 100% { scale: 1; } 50% { scale: 1.06; } }
   @media (prefers-reduced-motion: reduce) { .logo { animation: none; } }
 </style>
 </head>
