@@ -94,7 +94,7 @@ textarea {
   flex: 1;
   font-size: 16px;
   padding: 12px 14px;
-  border-radius: 16px;
+  border-radius: 13px;
 
   background: rgba(17, 26, 47, 0.9);
   color: #e6edf7;
@@ -232,7 +232,7 @@ select:disabled {
 
 /* ---------- BIBLE ---------- */
 .bible {
-  border-radius: 18px;
+  border-radius: 21px;
   padding: 20px;
   max-width: 1200px;
 }
@@ -344,7 +344,7 @@ select:disabled {
   gap: 12px 14px;
   margin: 0 auto;
   padding: 1rem 16px 1rem;
-  border-radius: 18px;
+  border-radius: 21px;
   margin-top: 1rem;
   background: linear-gradient(360deg, #0b1220, #10172b);
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
@@ -373,7 +373,7 @@ select:disabled {
 .version-pill-group {
   display: flex;
   background: rgba(255,255,255,0.07);
-  border-radius: 12px;
+  border-radius: 13px;
   padding: 3px;
   gap: 2px;
   height: 44px;
@@ -390,7 +390,7 @@ select:disabled {
   letter-spacing: 0.8px;
   padding: 0 14px !important;
   height: 100%;
-  border-radius: 9px;
+  border-radius: 8px;
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
   white-space: nowrap;
@@ -488,7 +488,7 @@ select:disabled {
   display: inline-flex;
   align-items: center;
   background: linear-gradient(180deg, #18234a, #141f3a);
-  border-radius: 14px;
+  border-radius: 13px;
   padding: 8px 12px;
   margin: 6px 6px 6px 0;
 }
@@ -548,7 +548,7 @@ select:disabled {
 
 /* ---------- SUMMARY ---------- */
 .summary {
-  border-radius: 18px;
+  border-radius: 21px;
   padding: 2rem 1rem 20rem;
   position: relative; /* 🔓 remove sticky trap */
   max-height: none; /* 🔓 allow full height */
@@ -578,7 +578,7 @@ select:disabled {
 .summary-note {
   background: #00000063;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
-  border-radius: 12px;
+  border-radius: 13px;
   padding: 10px 12px;
   margin-bottom: 8px;
   opacity: 0.8;
@@ -613,7 +613,7 @@ select:disabled {
 .ai-loading-card {
   background: linear-gradient(135deg, #334155, #1e293b);
   padding: 20px 26px;
-  border-radius: 14px;
+  border-radius: 13px;
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
   color: #ffffff;
   font-family: inherit;
@@ -758,7 +758,7 @@ select:disabled {
 .inline-ai-card {
   position: relative;
   margin: 8px 0 0;
-  border-radius: 14px;
+  border-radius: 13px;
   overflow: hidden;
   animation: aiFadeSlideIn 0.4s ease-out;
 }
@@ -768,7 +768,7 @@ select:disabled {
 }
 .inline-ai-card.dig-deeper .ai-card-gradient {
   background: #1b2238;
-  border-radius: 12px;
+  border-radius: 13px;
 }
 .inline-ai-card.dig-deeper {
   border: 1.5px solid rgba(219,39,119,0.3);
@@ -965,7 +965,7 @@ select:disabled {
   margin: 10px 0 0 0px;
   background: #db2777;
   padding: 10px 44px 10px 12px;
-  border-radius: 12px;
+  border-radius: 13px;
   font-size: 16px;
   line-height: 1.4;
   color: #ffffff;
@@ -1017,7 +1017,7 @@ select:disabled {
 .ai-reflection li {
   background: rgba(15, 23, 42, 0.5);
   border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 14px;
+  border-radius: 13px;
   padding: 16px;
   counter-increment: refl-q;
 }
@@ -1043,7 +1043,7 @@ select:disabled {
   min-height: 80px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
+  border-radius: 8px;
   color: #e6edf7;
   font-size: 16px;
   line-height: 1.6;
@@ -1085,7 +1085,7 @@ select:disabled {
 .ai-shimmer {
   position: relative;
   overflow: hidden;
-  border-radius: 12px;
+  border-radius: 13px;
   background: #141f3a;
 }
 
@@ -1112,7 +1112,7 @@ select:disabled {
 .ai-shimmer-block {
   height: 14px;
   margin-bottom: 10px;
-  border-radius: 6px;
+  border-radius: 8px;
   background: #1b2646;
 }
 
@@ -1139,7 +1139,7 @@ select:disabled {
 .refl-skel-q { grid-area: q; display: flex; flex-direction: column; gap: 8px; }
 .refl-skel-q span { height: 13px; border-radius: 4px; }
 .refl-skel-short { width: 55%; }
-.refl-skel-box { grid-area: box; height: 74px; border-radius: 12px; }
+.refl-skel-box { grid-area: box; height: 74px; border-radius: 13px; }
 
 .refl-skel-num,
 .refl-skel-q span,
@@ -1190,7 +1190,7 @@ select:disabled {
 .landing-card {
   text-align: center;
   padding: 28px 32px;
-  border-radius: 20px;
+  border-radius: 21px;
   background: linear-gradient(135deg, #0f172a, #020617);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
   max-width: 360px;
@@ -1412,7 +1412,7 @@ select:disabled {
     var(--cm-hi-2) 60%,
     var(--cm-hi-3) 100%
   );
-  border-radius: 6px;
+  border-radius: 8px;
   transform-origin: left center;
   transform: translateY(-50%) scaleX(0);
   z-index: 0;
@@ -1506,7 +1506,7 @@ span.cm-intro-marker.material-symbols-outlined {
   border: none;
   background: transparent;
   color: rgba(219, 39, 119, 0.65);
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease, transform 0.12s ease;
   padding: 0;
@@ -1545,7 +1545,7 @@ span.cm-intro-marker.material-symbols-outlined {
 }
 .dash-fav-row {
   padding: 10px 14px;
-  border-radius: 10px;
+  border-radius: 8px;
   background: rgba(219, 39, 119, 0.08);
   border: 1px solid rgba(219, 39, 119, 0.12);
   cursor: pointer;
@@ -1603,7 +1603,7 @@ span.cm-intro-marker.material-symbols-outlined {
 
 .dashboard-item {
   background: #141f3a;
-  border-radius: 12px;
+  border-radius: 13px;
   padding: 12px 14px;
   cursor: pointer;
   transition: background-color 0.15s ease;
@@ -1651,7 +1651,7 @@ span.cm-intro-marker.material-symbols-outlined {
   opacity: 0.85;
   line-height: 1.4;
   display: block; /* Make it inline with the note-label */
-  border-radius: 12px;
+  border-radius: 13px;
   background: #00000063;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
   width: fit-content;
@@ -1819,7 +1819,7 @@ span.cm-intro-marker.material-symbols-outlined {
   height: auto;
   overflow: hidden;
   border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 10px;
+  border-radius: 8px;
   background: rgba(255,255,255,0.04);
   color: #e6edf7;
   font-size: 16px;
@@ -1963,7 +1963,7 @@ html {
 .lex-item {
   padding: 8px 12px;
   margin-bottom: 6px;
-  border-radius: 10px;
+  border-radius: 8px;
   background: rgba(255, 255, 255, 0.14);
   backdrop-filter: blur(4px);
   line-height: 1.4;
@@ -2063,7 +2063,7 @@ html {
   width: 100%;
   max-width: 600px;
   max-height: 90vh;
-  border-radius: 24px 24px 0 0;
+  border-radius: 21px 21px 0 0;
   display: flex;
   flex-direction: column;
   animation: slideUp 0.35s cubic-bezier(0.34, 1.2, 0.64, 1);
@@ -2091,7 +2091,7 @@ html {
 .summary-panel-icon {
   width: 36px;
   height: 36px;
-  border-radius: 10px;
+  border-radius: 8px;
   background: rgba(219, 39, 119, 0.15);
   display: flex;
   align-items: center;
@@ -2130,7 +2130,7 @@ html {
 /* Quick glance gradient card */
 .summary-quick-card {
   background: #1b2238;
-  border-radius: 20px;
+  border-radius: 21px;
   padding: 28px;
   margin-bottom: 32px;
   box-shadow: 0 12px 25px rgba(0, 0, 0, 0.35);
@@ -2260,7 +2260,7 @@ html {
 .modal-card {
   background: linear-gradient(180deg, #0f172a, #0c1425);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 20px;
+  border-radius: 21px;
   width: 100%;
   max-width: 500px;
   max-height: 80vh;
@@ -2312,7 +2312,7 @@ html {
 
 #modalContent::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.2);
-  border-radius: 10px;
+  border-radius: 8px;
 }
 
 .strong-num {
@@ -2737,7 +2737,7 @@ html {
   letter-spacing: 0px;
   border: 0.5px solid #ffffff57;
   padding: 4px;
-  border-radius: 6px;
+  border-radius: 8px;
   font-weight: bold;
   line-height: 12px;
   margin-left: auto;
@@ -2898,7 +2898,7 @@ body.light {
   margin-top: 10px;
   background: rgba(17, 26, 47, 0.9);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
+  border-radius: 13px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -2949,7 +2949,7 @@ body.light {
 }
 .chat-suggestion-chip {
   border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 10px;
+  border-radius: 8px;
   padding: 10px 14px;
   font-size: 16px;
   color: rgba(255,255,255,0.7);
@@ -2971,7 +2971,7 @@ body.light {
 }
 .chat-gen-img {
   width: 100%;
-  border-radius: 12px;
+  border-radius: 13px;
   animation: sceneFadeIn 0.6s ease-out;
 }
 .light .chat-img-chip {
@@ -2996,7 +2996,7 @@ body.light {
 }
 .chat-followup-chip {
   border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 10px;
+  border-radius: 8px;
   padding: 7px 12px;
   font-size: 10px;
   color: rgba(255,255,255,0.6);
@@ -3040,7 +3040,7 @@ body.light {
 .chat-msg {
   max-width: 85%;
   padding: 14px;
-  border-radius: 18px;
+  border-radius: 21px;
   font-size: 16px;
   line-height: 22px;
 }
@@ -3114,7 +3114,7 @@ body.light {
   flex: 1;
   background: rgba(255,255,255,0.07);
   border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 22px;
+  border-radius: 21px;
   font-size: 16px;
   padding: 10px 16px;
   min-height: 44px;
@@ -3132,7 +3132,7 @@ body.light {
 .chat-input-area .chat-send-btn {
   width: 44px;
   height: 44px;
-  border-radius: 22px;
+  border-radius: 21px;
   border: none;
   background: rgba(255,255,255,0.07);
   color: rgba(255,255,255,0.3);
@@ -3234,7 +3234,7 @@ body.light {
   align-items: center;
   gap: 5px;
   padding: 6px 12px;
-  border-radius: 20px;
+  border-radius: 21px;
   border: 1px solid rgba(255,255,255,0.1);
   background: rgba(255,255,255,0.05);
   color: inherit;
@@ -3491,7 +3491,7 @@ body.font-system textarea {
   left: 50%;
   transform: translateX(-50%);
   background: #db2777;
-  border-radius: 24px;
+  border-radius: 21px;
   padding: 10px 16px 10px;
   flex-direction: column;
   align-items: center;
@@ -3743,7 +3743,7 @@ body.font-system textarea {
   margin: 10px 16px 4px;
   padding: 8px 12px;
   background: rgba(255,255,255,0.06);
-  border-radius: 12px;
+  border-radius: 13px;
   border: 1px solid rgba(255,255,255,0.08);
 }
 .notes-search-bar .material-symbols-outlined { font-size: 16px; opacity: 0.4; }
@@ -3806,7 +3806,7 @@ body.font-system textarea {
 .notes-session-chip {
   font-size: 10px;
   padding: 2px 8px;
-  border-radius: 20px;
+  border-radius: 21px;
   background: rgba(255,255,255,0.07);
   border: 1px solid rgba(255,255,255,0.1);
   opacity: 0.7;
@@ -3825,7 +3825,7 @@ body.font-system textarea {
 .notes-session-standalone-card {
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 14px;
+  border-radius: 13px;
   padding: 18px 18px 16px;
   margin-bottom: 12px;
 }
@@ -3877,7 +3877,7 @@ body.font-system textarea {
 .notes-session-edit-btn {
   background: none;
   border: 1px solid rgba(200,48,134,0.35);
-  border-radius: 20px;
+  border-radius: 21px;
   color: #c83086;
   font-size: 10px;
   cursor: pointer;
@@ -3965,7 +3965,7 @@ body.font-system textarea {
   gap: 4px;
   font-size: 10px;
   padding: 2px 8px;
-  border-radius: 20px;
+  border-radius: 21px;
   font-weight: 500;
 }
 .notes-tag-verse { background: rgba(72,107,236,0.15); color: #7a9ff0; }
@@ -4051,7 +4051,7 @@ body.font-system textarea {
   background: rgba(255,255,255,0.04);
   border-left: 3px solid rgba(200,48,134,0.5);
   padding: 12px 16px;
-  border-radius: 0 12px 12px 0;
+  border-radius: 0 13px 13px 0;
   font-size: 16px;
   line-height: 1.6;
   opacity: 0.75;
@@ -4069,7 +4069,7 @@ body.font-system textarea {
 .notes-verse-items { display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; }
 .notes-verse-item {
   background: rgba(255,255,255,0.04);
-  border-radius: 12px;
+  border-radius: 13px;
   padding: 12px 14px;
   display: flex;
   flex-direction: column;
@@ -4088,7 +4088,7 @@ body.font-system textarea {
 }
 .notes-refl-a {
   background: rgba(255,255,255,0.04);
-  border-radius: 12px;
+  border-radius: 13px;
   padding: 12px 14px;
   font-size: 16px;
   line-height: 1.6;
@@ -4102,7 +4102,7 @@ body.font-system textarea {
   padding: 10px 18px;
   background: rgba(255,255,255,0.06);
   border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 20px;
+  border-radius: 21px;
   color: inherit;
   font-size: 16px;
   cursor: pointer;
@@ -4156,7 +4156,7 @@ body.font-system textarea {
   color: rgba(255,255,255,0.5);
   cursor: pointer;
   padding: 6px 10px;
-  border-radius: 6px;
+  border-radius: 8px;
   font-size: 16px;
   font-family: inherit;
   transition: background 0.15s, color 0.15s;
@@ -4169,7 +4169,7 @@ body.font-system textarea {
   background: transparent;
   border: 1px solid rgba(255,255,255,0.15);
   color: rgba(255,255,255,0.5);
-  border-radius: 20px;
+  border-radius: 21px;
   padding: 5px 12px;
   font-size: 16px;
 }
@@ -4232,7 +4232,7 @@ body.font-system textarea {
 .ne-verse-picker {
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 12px;
+  border-radius: 13px;
   padding: 12px;
   margin-bottom: 16px;
   display: flex;
@@ -4250,7 +4250,7 @@ body.font-system textarea {
   white-space: nowrap;
   background: rgba(255,255,255,0.06);
   border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 20px;
+  border-radius: 21px;
   color: inherit;
   font-size: 10px;
   padding: 6px 12px;
@@ -4284,7 +4284,7 @@ body.font-system textarea {
   align-self: flex-end;
   background: linear-gradient(135deg,#486bec,#c83086);
   border: none;
-  border-radius: 20px;
+  border-radius: 21px;
   color: #fff;
   font-size: 16px;
   font-weight: 600;
@@ -4296,7 +4296,7 @@ body.font-system textarea {
 .note-verse-block {
   background: rgba(255,255,255,0.04);
   border-left: 3px solid rgba(200,48,134,0.6);
-  border-radius: 0 12px 12px 0;
+  border-radius: 0 13px 13px 0;
   padding: 14px 16px;
   margin: 12px 0;
   cursor: pointer;
@@ -4352,7 +4352,7 @@ body.font-system textarea {
   z-index: 1000;
   background: #1a1f2e;
   border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 10px;
+  border-radius: 8px;
   max-height: 200px;
   overflow-y: auto;
   padding: 4px 0;
@@ -4382,7 +4382,7 @@ body.font-system textarea {
   z-index: 1001;
   background: #1a1f2e;
   border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 12px;
+  border-radius: 13px;
   padding: 12px 14px;
   box-shadow: 0 6px 24px rgba(0,0,0,0.5);
   max-width: 360px;
@@ -4440,7 +4440,7 @@ body.font-system textarea {
   transform: translateX(-50%);
   background: rgba(30,40,60,0.95);
   border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 24px;
+  border-radius: 21px;
   padding: 10px 20px;
   font-size: 16px;
   z-index: 10100;
@@ -4471,7 +4471,7 @@ body.font-system textarea {
 .dash-notes-card {
   background: rgba(219, 39, 119, 0.06);
   border: 1px solid rgba(219, 39, 119, 0.1);
-  border-radius: 10px;
+  border-radius: 8px;
   padding: 12px 14px;
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
@@ -4515,7 +4515,7 @@ body.font-system textarea {
   gap: 12px;
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 14px;
+  border-radius: 13px;
   padding: 14px 16px;
 }
 .dash-notif-info {
@@ -4550,7 +4550,7 @@ body.font-system textarea {
   position: absolute;
   inset: 0;
   background: rgba(255,255,255,0.12);
-  border-radius: 24px;
+  border-radius: 21px;
   cursor: pointer;
   transition: background 0.2s;
 }
@@ -4579,7 +4579,7 @@ body.font-system textarea {
   height: 28px;
   padding: 0 !important;
   border: none !important;
-  border-radius: 28px;
+  border-radius: 34px;
   background: rgba(255,255,255,0.12) !important;
   cursor: pointer;
   flex-shrink: 0;
@@ -4633,7 +4633,7 @@ body.font-system textarea {
 .notif-prompt-card {
   background: #151d30;
   border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 20px;
+  border-radius: 21px;
   padding: 28px 24px;
   max-width: 320px;
   width: 100%;
@@ -4680,7 +4680,7 @@ body.font-system textarea {
   width: 100%;
   padding: 13px !important;
   border: none;
-  border-radius: 14px;
+  border-radius: 13px;
   background: #db2777 !important;
   color: #fff;
   font-size: 16px;
@@ -4692,7 +4692,7 @@ body.font-system textarea {
   width: 100%;
   padding: 12px !important;
   border: none;
-  border-radius: 14px;
+  border-radius: 13px;
   background: rgba(255,255,255,0.06) !important;
   color: rgba(255,255,255,0.5);
   font-size: 16px;
@@ -4798,7 +4798,7 @@ body.font-system textarea {
   gap: 4px;
   background: rgba(200, 48, 134, 0.15);
   border: 1px solid rgba(200, 48, 134, 0.3);
-  border-radius: 20px;
+  border-radius: 21px;
   padding: 3px 9px 3px 7px;
   color: #e060a8;
   font-size: 10px;
@@ -5327,7 +5327,7 @@ body.font-system textarea {
   min-height: 0;
   resize: none;
   border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 14px;
+  border-radius: 13px;
   background: rgba(255,255,255,0.06);
   color: inherit;
   font-size: 16px;
@@ -5347,7 +5347,7 @@ body.font-system textarea {
 .tts-imm-refl-back-btn {
   flex: 0 0 auto !important;
   padding: 14px 18px !important;
-  border-radius: 14px !important;
+  border-radius: 13px !important;
   font-size: 16px !important;
   font-weight: 600 !important;
   cursor: pointer;
@@ -5367,7 +5367,7 @@ body.font-system textarea {
 .tts-imm-refl-copy-btn {
   flex: 1 !important;
   padding: 14px !important;
-  border-radius: 14px !important;
+  border-radius: 13px !important;
   font-size: 16px !important;
   font-weight: 700 !important;
   cursor: pointer;
@@ -5385,7 +5385,7 @@ body.font-system textarea {
 .tts-imm-refl-done-btn {
   flex: 0 0 auto !important;
   padding: 14px 16px !important;
-  border-radius: 14px !important;
+  border-radius: 13px !important;
   font-size: 16px !important;
   font-weight: 700 !important;
   border: none !important;
@@ -5453,7 +5453,7 @@ body.font-system textarea {
   gap: 6px;
   padding: 7px 14px;
   border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 20px;
+  border-radius: 21px;
   background: rgba(255,255,255,0.07);
   color: inherit;
   cursor: pointer;
@@ -5495,7 +5495,7 @@ body.font-system textarea {
   align-items: center;
   gap: 14px;
   padding: 14px 16px;
-  border-radius: 16px;
+  border-radius: 13px;
   border: 1px solid rgba(255,255,255,0.1);
   background: rgba(255,255,255,0.06);
   color: inherit;
@@ -5543,7 +5543,7 @@ body.font-system textarea {
 .tts-imm-context-start-btn {
   flex-shrink: 0;
   padding: 16px;
-  border-radius: 16px;
+  border-radius: 13px;
   border: none;
   background: linear-gradient(135deg, #c83086, #486bec);
   color: #fff;
@@ -5623,7 +5623,7 @@ body.font-system textarea {
   color: #e88fc8;
   background: rgba(200, 48, 134, 0.15);
   border: 1px solid rgba(200, 48, 134, 0.3);
-  border-radius: 6px;
+  border-radius: 8px;
   padding: 1px 6px;
   cursor: pointer;
   font-size: 0.9em;
@@ -5662,7 +5662,7 @@ body.font-system textarea {
   width: 100%;
   max-height: 65%;
   background: #1a1f35;
-  border-radius: 24px 24px 0 0;
+  border-radius: 21px 21px 0 0;
   padding: 24px 24px 40px;
   overflow-y: auto;
   scrollbar-width: none;
@@ -5832,7 +5832,7 @@ body.font-system textarea {
   margin-bottom: 1rem;
   background: rgba(219, 39, 119, 0.08) !important;
   border: 1px solid rgba(219, 39, 119, 0.22);
-  border-radius: 14px;
+  border-radius: 13px;
   color: inherit;
   cursor: pointer;
   text-align: left;
@@ -6067,7 +6067,7 @@ body.font-system textarea {
   height: auto;
   padding: 11px 13px;
   border: 1px solid rgba(219, 39, 119, 0.22);
-  border-radius: 12px;
+  border-radius: 13px;
   background: rgba(0, 0, 0, 0.20);
   color: inherit;
   font-family: inherit;
@@ -6138,7 +6138,7 @@ body.font-system textarea {
 .grat-item {
   padding: 12px 14px;
   border: 1px solid rgba(219, 39, 119, 0.18);
-  border-radius: 12px;
+  border-radius: 13px;
   background: rgba(219, 39, 119, 0.04);
   display: flex;
   flex-direction: column;
@@ -6341,7 +6341,7 @@ body.font-system textarea {
   font-size: 16px !important;
   font-weight: 600;
   padding: 14px 18px !important;
-  border-radius: 16px;
+  border-radius: 13px;
   border: 2px solid rgba(255,255,255,0.1) !important;
   background: rgba(255,255,255,0.06) !important;
   color: #fff;
@@ -6358,7 +6358,7 @@ body.font-system textarea {
   margin-top: 4px;
   padding: 14px !important;
   font-size: 16px !important;
-  border-radius: 16px !important;
+  border-radius: 13px !important;
 }
 
 /* Greeting edit button */
@@ -6405,7 +6405,7 @@ body.font-system textarea {
   width: fit-content;
   max-width: 440px;
   background: #1a2340;
-  border-radius: 20px;
+  border-radius: 21px;
   padding: 18px 22px 14px;
   transform: translateY(24px) scale(0.96);
   opacity: 0;
@@ -6427,7 +6427,7 @@ body.font-system textarea {
 .confirm-cancel, .confirm-ok {
   flex: 0 0 auto;
   padding: 9px 18px !important;
-  border-radius: 14px !important;
+  border-radius: 13px !important;
   font-size: 16px !important;
   font-weight: 600;
   min-width: 80px;
@@ -6540,7 +6540,7 @@ body.font-system textarea {
   height: 44px;
   padding: 0 16px !important;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 22px !important;
+  border-radius: 21px !important;
   background: rgba(255, 255, 255, 0.04);
   color: #e6edf7;
   font-family: inherit;
@@ -6574,7 +6574,7 @@ body.font-system textarea {
 .passage-end-reflect-btn {
   padding: 12px 32px !important;
   border: 1px solid rgba(255,255,255,0.08) !important;
-  border-radius: 12px !important;
+  border-radius: 13px !important;
   background: rgba(255,255,255,0.04) !important;
   color: #e6edf7 !important;
   font-size: 16px !important;
@@ -6713,7 +6713,7 @@ button#storyBtn { background: unset; }
 }
 .story-stack-card {
   position: absolute;
-  border-radius: 10px;
+  border-radius: 8px;
   border: 1px solid rgba(255,255,255,0.1);
   background: rgba(255,255,255,0.06);
   transition: transform 0.3s ease;
@@ -6809,7 +6809,7 @@ button#storyBtn { background: unset; }
   position: relative;
   margin: 12px 0 8px;
   padding: 16px 18px;
-  border-radius: 14px;
+  border-radius: 13px;
   background: rgba(219, 39, 119, 0.08);
   border: 1px solid rgba(219, 39, 119, 0.15);
   cursor: pointer;
@@ -6977,7 +6977,7 @@ button#storyBtn { background: unset; }
 /* ── Story scene image banner ── */
 .story-scene-banner {
   width: 100%;
-  border-radius: 20px;
+  border-radius: 21px;
   margin-bottom: 20px;
   flex-shrink: 0;
   max-height: 280px;
@@ -7001,7 +7001,7 @@ button#storyBtn { background: unset; }
 .story-scene-img {
   width: 100%;
   display: block;
-  border-radius: 16px;
+  border-radius: 13px;
   object-fit: cover;
   animation: var(--ken-burns, kenBurns1) 25s ease-in-out infinite alternate;
 }
@@ -7028,12 +7028,12 @@ button#storyBtn { background: unset; }
 /* ── Reflection completion scene ── */
 .refl-scene-wrap {
   margin-top: 12px;
-  border-radius: 12px;
+  border-radius: 13px;
   overflow: hidden;
 }
 .refl-scene-img {
   width: 100%;
-  border-radius: 12px;
+  border-radius: 13px;
   animation: sceneFadeIn 0.8s ease-out;
 }
 .story-nav-bar[hidden] { display: none; }
@@ -7053,7 +7053,7 @@ button#storyBtn { background: unset; }
   background: rgba(219, 39, 119, 0.12);
   color: #db2777;
   border: none;
-  border-radius: 12px;
+  border-radius: 13px;
   padding: 10px 18px;
   font-size: 16px;
   font-weight: 600;
@@ -7152,7 +7152,7 @@ button#storyBtn { background: unset; }
 }
 .story-chip {
   padding: 10px 16px;
-  border-radius: 16px;
+  border-radius: 13px;
   background: rgba(255,255,255,0.07);
   text-align: center;
 }
@@ -7376,7 +7376,7 @@ button#storyBtn { background: unset; }
 /* Teaching */
 .story-quote-card {
   padding: 22px;
-  border-radius: 24px;
+  border-radius: 21px;
   background: rgba(255,255,255,0.07);
   border: 1px solid rgba(255,255,255,0.08);
   margin-bottom: 22px;
@@ -7468,7 +7468,7 @@ button#storyBtn { background: unset; }
   gap: 8px;
   padding: 13px 16px;
   border: none;
-  border-radius: 12px;
+  border-radius: 13px;
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
@@ -7492,11 +7492,11 @@ button#storyBtn { background: unset; }
   margin-top: 16px;
 }
 .story-seg-expand .inline-ai-card {
-  border-radius: 16px;
+  border-radius: 13px;
   overflow: hidden;
 }
 .story-seg-expand .verse-chat-wrapper {
-  border-radius: 16px;
+  border-radius: 13px;
   overflow: hidden;
   border: 1px solid rgba(255,255,255,0.08);
 }
@@ -7564,7 +7564,7 @@ button#storyBtn { background: unset; }
   width: 100%;
   max-width: 280px;
   padding: 16px 24px;
-  border-radius: 16px;
+  border-radius: 13px;
   border: none;
   background: #db2777;
   color: #fff;
@@ -7682,7 +7682,7 @@ button#storyBtn { background: unset; }
   padding: 14px 16px;
   margin: 12px 0 0 !important;
   border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 12px;
+  border-radius: 13px;
   background: rgba(255,255,255,0.04);
   color: #e6edf7;
   font-size: 16px;
@@ -7769,7 +7769,7 @@ button#storyBtn { background: unset; }
   max-height: 55vh;
   background: #1a2236;
   border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 14px;
+  border-radius: 13px;
   padding: 16px 18px;
   box-shadow: 0 8px 32px rgba(0,0,0,0.45);
   animation: versePeekPop 0.2s ease-out;
@@ -8071,7 +8071,7 @@ button#storyBtn { background: unset; }
   font-weight: 700;
   letter-spacing: 0.3px;
   padding: 10px 20px;
-  border-radius: 12px;
+  border-radius: 13px;
   z-index: 10000;
   pointer-events: none;
   opacity: 0;
@@ -8195,7 +8195,7 @@ button#storyBtn { background: unset; }
 .sync-confirm-btn {
   flex: 1 !important;
   padding: 12px 0;
-  border-radius: 10px;
+  border-radius: 8px;
   border: none;
   font-size: 16px;
   font-weight: 700;
@@ -8285,7 +8285,7 @@ button#storyBtn { background: unset; }
 .soap-ref-content {
   display: none;
   padding: 14px;
-  border-radius: 12px;
+  border-radius: 13px;
   background: rgba(255,255,255,0.03);
   margin-bottom: 16px;
   font-size: 16px;
@@ -8391,7 +8391,7 @@ button#storyBtn { background: unset; }
   width: 100%;
   background: rgba(255,255,255,0.05);
   border: none;
-  border-radius: 14px;
+  border-radius: 13px;
   padding: 14px 16px;
   color: inherit;
   font-size: 16px;
@@ -8443,7 +8443,7 @@ button#storyBtn { background: unset; }
   align-items: flex-start;
   gap: 10px;
   padding: 12px;
-  border-radius: 12px;
+  border-radius: 13px;
   background: rgba(255,255,255,0.03);
   animation: aiFadeSlideIn 0.25s ease-out;
 }
@@ -8531,7 +8531,7 @@ button#storyBtn { background: unset; }
   justify-content: center;
   gap: 8px;
   padding: 13px;
-  border-radius: 14px;
+  border-radius: 13px;
   border: none;
   background: #db2777;
   color: #fff;
@@ -8561,7 +8561,7 @@ button#storyBtn { background: unset; }
   justify-content: center;
   gap: 6px;
   padding: 10px 12px;
-  border-radius: 10px;
+  border-radius: 8px;
   border: none;
   background: none;
   font-size: 16px;
@@ -8607,7 +8607,7 @@ button#storyBtn { background: unset; }
 }
 .soap-pill {
   padding: 6px 12px;
-  border-radius: 10px;
+  border-radius: 8px;
   text-align: center;
   border: 1px solid rgba(255,255,255,0.08);
   background: none;
@@ -8643,7 +8643,7 @@ button#storyBtn { background: unset; }
   width: 100%;
   background: rgba(255,255,255,0.06);
   border: none;
-  border-radius: 10px;
+  border-radius: 8px;
   padding: 12px 14px 36px 14px;
   color: inherit;
   font-size: 16px;
@@ -8684,7 +8684,7 @@ button#storyBtn { background: unset; }
   align-items: center;
   gap: 8px;
   padding: 10px 12px;
-  border-radius: 10px;
+  border-radius: 8px;
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(255,255,255,0.06);
 }
@@ -8759,7 +8759,7 @@ button#storyBtn { background: unset; }
 .soap-dash-card-text[contenteditable] {
   outline: none;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: 8px;
   padding: 2px 4px;
   margin: -2px -4px;
   transition: border-color 0.15s, background 0.15s;
@@ -8864,7 +8864,7 @@ button#storyBtn { background: unset; }
 }
 .soap-dash-pill {
   padding: 6px 12px;
-  border-radius: 10px;
+  border-radius: 8px;
   border: 1px solid rgba(255,255,255,0.08);
   background: none;
   color: rgba(255,255,255,0.45);
@@ -8918,7 +8918,7 @@ button#storyBtn { background: unset; }
 .soap-stack-card {
   position: absolute;
   inset: 0;
-  border-radius: 14px;
+  border-radius: 13px;
   border: 1px solid rgba(255,255,255,0.08);
   background: rgba(255,255,255,0.04);
   transition: transform 0.3s ease, opacity 0.3s;
@@ -9150,7 +9150,7 @@ button#storyBtn { background: unset; }
 }
 .soap-list-pill {
   padding: 6px 14px;
-  border-radius: 10px;
+  border-radius: 8px;
   border: 1px solid rgba(255,255,255,0.08);
   background: none;
   color: rgba(255,255,255,0.45);
@@ -9209,7 +9209,7 @@ button#storyBtn { background: unset; }
   align-items: flex-start;
   gap: 12px;
   padding: 14px 16px;
-  border-radius: 12px;
+  border-radius: 13px;
   background: rgba(255,255,255,0.03);
   border: 1px solid rgba(255,255,255,0.06);
   opacity: 0;
@@ -9240,7 +9240,7 @@ button#storyBtn { background: unset; }
   text-transform: uppercase;
   letter-spacing: 0.5px;
   padding: 2px 8px;
-  border-radius: 6px;
+  border-radius: 8px;
 }
 .soap-list-panel--application .soap-list-row-cat {
   color: #3b82f6;
@@ -9300,7 +9300,7 @@ button#storyBtn { background: unset; }
   padding: 16px 0 0;
 }
 .soap-list-hero-card {
-  border-radius: 16px;
+  border-radius: 13px;
   padding: 24px;
   display: flex;
   flex-direction: column;
@@ -9327,7 +9327,7 @@ button#storyBtn { background: unset; }
   background-position: center;
   opacity: 0;
   transition: opacity 0.8s ease;
-  border-radius: 16px;
+  border-radius: 13px;
 }
 .soap-hero-bg-loaded { opacity: 0.15; }
 .soap-list-hero-card > *:not(.soap-list-hero-bg) { position: relative; z-index: 1; }
@@ -9452,7 +9452,7 @@ button#storyBtn { background: unset; }
   align-items: center;
   gap: 6px;
   padding: 20px 12px;
-  border-radius: 14px;
+  border-radius: 13px;
   border: 1px solid rgba(255,255,255,0.06);
   background: rgba(255,255,255,0.03);
   cursor: pointer;
@@ -9530,7 +9530,7 @@ button#storyBtn { background: unset; }
   justify-content: center;
   gap: 6px;
   padding: 12px;
-  border-radius: 12px;
+  border-radius: 13px;
   border: 1px solid rgba(255,255,255,0.08);
   background: none;
   color: rgba(255,255,255,0.4);
@@ -9554,7 +9554,7 @@ button#storyBtn { background: unset; }
 .imgcr-select {
   flex: 1;
   padding: 10px 12px;
-  border-radius: 10px;
+  border-radius: 8px;
   border: 1px solid rgba(255,255,255,0.08);
   background: rgba(255,255,255,0.04);
   color: rgba(255,255,255,0.8);
@@ -9594,7 +9594,7 @@ button#storyBtn { background: unset; }
   justify-content: center;
   gap: 8px;
   padding: 14px;
-  border-radius: 14px;
+  border-radius: 13px;
   border: none;
   background: #db2777;
   color: #fff;
@@ -9619,7 +9619,7 @@ button#storyBtn { background: unset; }
 }
 .imgcr-preview img {
   width: 100%;
-  border-radius: 16px;
+  border-radius: 13px;
   padding: 4px;
   border: 1px solid rgba(219,39,119,0.4);
   animation: sceneFadeIn 0.6s ease-out;
@@ -9627,7 +9627,7 @@ button#storyBtn { background: unset; }
 .imgcr-preview .imgcr-shimmer {
   width: 100%;
   aspect-ratio: 9 / 16;
-  border-radius: 16px;
+  border-radius: 13px;
   background: linear-gradient(90deg, rgba(255,255,255,0.02) 25%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.02) 75%);
   background-size: 200% 100%;
   animation: sceneShimmer 1.5s ease-in-out infinite;
@@ -9649,7 +9649,7 @@ button#storyBtn { background: unset; }
   justify-content: center;
   gap: 6px;
   padding: 12px;
-  border-radius: 12px;
+  border-radius: 13px;
   border: 1px solid rgba(255,255,255,0.1);
   background: rgba(255,255,255,0.04);
   color: rgba(255,255,255,0.7);
@@ -9939,7 +9939,7 @@ button#storyBtn { background: unset; }
 .cm-tool-btn {
   width: 40px;
   height: 40px;
-  border-radius: 12px;
+  border-radius: 13px;
   border: 1px solid rgba(0,0,0,0.06);
   background: rgba(0,0,0,0.04);
   color: rgba(0,0,0,0.55);
@@ -10055,7 +10055,7 @@ button#storyBtn { background: unset; }
 .cm-listen-btn {
   width: 40px !important;
   height: 40px !important;
-  border-radius: 12px !important;
+  border-radius: 13px !important;
   border: 1px solid rgba(0,0,0,0.06) !important;
   background: rgba(0,0,0,0.04) !important;
   color: rgba(0,0,0,0.55) !important;
@@ -10088,7 +10088,7 @@ button#storyBtn { background: unset; }
    existing popover; only the number is the jump target. */
 .cm-verse-num {
   cursor: pointer;
-  border-radius: 6px;
+  border-radius: 8px;
   padding: 0 2px;
   transition: background 0.15s ease, transform 0.15s ease;
 }
@@ -10152,7 +10152,7 @@ body.tts-canvas-follow #cmPassage .cm-verse:not(.cm-verse-tts-active) > *:not(.c
   width: min(640px, 100%);
   max-height: 88vh;
   background: #fbfaf6;
-  border-radius: 18px 18px 0 0;
+  border-radius: 21px 21px 0 0;
   box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.25);
   display: flex;
   flex-direction: column;
@@ -10342,7 +10342,7 @@ body.tts-canvas-follow #cmPassage .cm-verse:not(.cm-verse-tts-active) > *:not(.c
 }
 .audio-lib-ch {
   aspect-ratio: 1;
-  border-radius: 6px;
+  border-radius: 8px;
   border: 1px solid rgba(0,0,0,0.08);
   background: rgba(255,255,255,0.6) !important;
   font: 600 11px/1 ui-monospace, "SF Mono", Menlo, monospace;
@@ -10366,7 +10366,7 @@ body.tts-canvas-follow #cmPassage .cm-verse:not(.cm-verse-tts-active) > *:not(.c
   justify-content: center;
   gap: 6px;
   padding: 9px 12px !important;
-  border-radius: 10px;
+  border-radius: 8px;
   border: 1px solid rgba(190,24,93,0.3);
   background: rgba(190,24,93,0.08) !important;
   color: #be185d !important;
@@ -10381,7 +10381,7 @@ body.tts-canvas-follow #cmPassage .cm-verse:not(.cm-verse-tts-active) > *:not(.c
 
 @media (min-width: 768px) {
   .audio-lib-modal { align-items: center; }
-  .audio-lib-panel { border-radius: 18px; max-height: 80vh; }
+  .audio-lib-panel { border-radius: 21px; max-height: 80vh; }
 }
 
 /* ── Canvas-mode Listen mini-player (sticky bottom-center) ───────────────────
@@ -10570,7 +10570,7 @@ body.tts-canvas-active .cm-listen-bar {
   letter-spacing: 0.1px;
   color: #1a1a2e;
   padding: 4px 10px;
-  border-radius: 7px;
+  border-radius: 8px;
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2),
               0 2px 4px rgba(0, 0, 0, 0.14);
   white-space: nowrap;
@@ -10821,7 +10821,7 @@ body.tts-canvas-active .cm-listen-bar {
     padding: 12px 14px;
     background: rgba(255, 255, 255, 0.55);
     border: 1px solid rgba(0, 0, 0, 0.06);
-    border-radius: 14px;
+    border-radius: 13px;
     backdrop-filter: blur(6px);
   }
 }
@@ -10883,7 +10883,7 @@ body.tts-canvas-active .cm-listen-bar {
   padding: 12px 14px;
   background: rgba(255, 255, 255, 0.55);
   border: 1px solid rgba(0, 0, 0, 0.06);
-  border-radius: 14px;
+  border-radius: 13px;
   backdrop-filter: blur(6px);
 }
 
@@ -11066,7 +11066,7 @@ body.tts-canvas-active .cm-listen-bar {
   gap: 6px;
   padding: 8px 10px;
   background: rgba(200, 48, 134, 0.04);
-  border-radius: 10px;
+  border-radius: 8px;
   transition: background 0.15s ease;
 }
 .cm-ctx-q {
@@ -11305,7 +11305,7 @@ body.tts-canvas-active .cm-listen-bar {
 .cm-note-modal[hidden] { display: none !important; }
 .cm-note-card {
   background: #fff;
-  border-radius: 16px;
+  border-radius: 13px;
   width: 100%;
   max-width: 440px;
   padding: 20px;
@@ -11324,7 +11324,7 @@ body.tts-canvas-active .cm-listen-bar {
   width: 100%;
   min-height: 120px;
   border: 1px solid rgba(0,0,0,0.1);
-  border-radius: 10px;
+  border-radius: 8px;
   padding: 10px 12px;
   font-family: inherit;
   font-size: 16px;
@@ -11373,7 +11373,7 @@ body.tts-canvas-active .cm-listen-bar {
 .cm-note-view-card {
   background: #fff;
   border: 1px solid rgba(0,0,0,0.08);
-  border-radius: 14px;
+  border-radius: 13px;
   padding: 14px 14px 12px;
   box-shadow: 0 12px 32px rgba(0,0,0,0.15);
 }
@@ -11396,7 +11396,7 @@ body.tts-canvas-active .cm-listen-bar {
   border: none;
   background: rgba(0,0,0,0.05);
   color: rgba(0,0,0,0.55);
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -11447,7 +11447,7 @@ body.tts-canvas-active .cm-listen-bar {
   z-index: 10060;
   background: #fff;
   border: 1px solid rgba(0,0,0,0.08);
-  border-radius: 14px;
+  border-radius: 13px;
   padding: 10px 12px;
   display: flex;
   flex-direction: column;
@@ -11545,7 +11545,7 @@ body.tts-canvas-active .cm-listen-bar {
 .cm-ai-modal[hidden] { display: none !important; }
 .cm-ai-card {
   background: #faf7f0;
-  border-radius: 16px;
+  border-radius: 13px;
   width: 100%;
   max-width: 560px;
   max-height: 85vh;
@@ -11629,7 +11629,7 @@ body.tts-canvas-active .cm-listen-bar {
   margin-top: 16px;
   background: rgba(26, 26, 46, 0.04);
   border: 1px solid rgba(26, 26, 46, 0.1);
-  border-radius: 10px;
+  border-radius: 8px;
   color: #1a1a2e;
   padding: 12px 14px;
 }
@@ -11710,7 +11710,7 @@ body.tts-canvas-active .cm-listen-bar {
   color: rgba(26, 26, 46, 0.85);
   font-size: 16px;
   padding: 10px 14px;
-  border-radius: 10px;
+  border-radius: 8px;
 }
 .cm-ai-body .chat-suggestion-chip:hover,
 .cm-ai-body .chat-followup-chip:hover {
@@ -11739,7 +11739,7 @@ body.tts-canvas-active .cm-listen-bar {
   transform: translateX(-50%);
   background: rgba(26, 26, 46, 0.95);
   color: #fff;
-  border-radius: 24px;
+  border-radius: 21px;
   padding: 10px 20px;
   font-size: 16px;
   font-weight: 500;
@@ -11862,7 +11862,7 @@ body.cfg-sheet-open .bc-picker-btn {
   width: 100%;
   padding: 12px 14px;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
+  border-radius: 13px;
   background: rgba(255, 255, 255, 0.04);
   color: #e6edf7;
   font-family: inherit;
@@ -11980,7 +11980,7 @@ body.cfg-sheet-open.light .bc-picker-btn .material-symbols-outlined { color: rgb
   padding: 10px 12px;
   background: rgba(11, 18, 32, 0.6);
   border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 12px;
+  border-radius: 13px;
   margin: 12px 18px 10px;
 }
 .bc-search-icon { font-size: 16px; color: rgba(255, 255, 255, 0.4); }
@@ -12013,13 +12013,13 @@ body.cfg-sheet-open.light .bc-picker-btn .material-symbols-outlined { color: rgb
   padding: 3px;
   background: rgba(11, 18, 32, 0.6);
   border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 12px;
+  border-radius: 13px;
   margin: 0 18px 12px;
 }
 .bc-tab {
   padding: 10px 12px;
   border: none;
-  border-radius: 9px;
+  border-radius: 8px;
   background: transparent;
   color: rgba(255, 255, 255, 0.55);
   font-family: inherit;
@@ -12055,7 +12055,7 @@ body.cfg-sheet-open.light .bc-picker-btn .material-symbols-outlined { color: rgb
   align-items: center;
   justify-content: space-between;
   padding: 12px 14px;
-  border-radius: 10px;
+  border-radius: 8px;
   cursor: pointer;
   transition: background 0.1s ease;
 }
@@ -12112,7 +12112,7 @@ body.cfg-sheet-open.light .bc-picker-btn .material-symbols-outlined { color: rgb
   align-items: center;
   justify-content: center;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
+  border-radius: 8px;
   background: rgba(255, 255, 255, 0.03);
   color: #e6edf7;
   font-family: inherit;
@@ -12276,7 +12276,7 @@ body.cfg-sheet-open.light .bc-picker-btn .material-symbols-outlined { color: rgb
   justify-content: center;
   gap: 8px;
   padding: 0 18px !important;
-  border-radius: 12px !important;
+  border-radius: 13px !important;
   font-family: inherit;
   font-size: 16px !important;
   font-weight: 600 !important;
@@ -12301,7 +12301,7 @@ body.cfg-sheet-open.light .bc-picker-btn .material-symbols-outlined { color: rgb
   /* !important needed to survive `.light button { background: white }` global trap. */
   background: rgba(219, 39, 119, 0.10) !important;
   border: 1px solid rgba(219, 39, 119, 0.28);
-  border-radius: 12px;
+  border-radius: 13px;
   cursor: pointer;
   font-family: inherit;
   text-align: left;
@@ -12418,7 +12418,7 @@ body.cfg-sheet-open.light .bc-picker-btn .material-symbols-outlined { color: rgb
   height: 44px;
   padding: 0 16px;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 22px;
+  border-radius: 21px;
   background: rgba(255, 255, 255, 0.04);
   color: #e6edf7;
   font-family: inherit;
@@ -12460,7 +12460,7 @@ body.cfg-sheet-open.light .bc-picker-btn .material-symbols-outlined { color: rgb
   height: 44px;
   padding: 0 16px;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 22px;
+  border-radius: 21px;
   background: rgba(255, 255, 255, 0.04);
   color: #e6edf7;
   font-family: inherit;
@@ -12513,7 +12513,7 @@ body.cfg-sheet-open.light .bc-picker-btn .material-symbols-outlined { color: rgb
   bottom: max(16px, env(safe-area-inset-bottom, 0px));
   background: #1b2238;
   border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 18px;
+  border-radius: 21px;
   padding: 6px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
   animation: mtSheetInUp 0.22s cubic-bezier(0.2, 0.9, 0.3, 1);
@@ -12531,7 +12531,7 @@ body.cfg-sheet-open.light .bc-picker-btn .material-symbols-outlined { color: rgb
   font-size: 16px;
   font-weight: 500;
   text-align: left;
-  border-radius: 12px;
+  border-radius: 13px;
   cursor: pointer;
   transition: background 0.12s ease;
 }
@@ -12563,7 +12563,7 @@ body.cfg-sheet-open.light .bc-picker-btn .material-symbols-outlined { color: rgb
   justify-content: space-between;
   gap: 12px;
   padding: 10px 16px;
-  border-radius: 12px;
+  border-radius: 13px;
 }
 .mt-sheet-row-left {
   display: flex;
@@ -12660,7 +12660,7 @@ body.cfg-sheet-open.light .bc-picker-btn .material-symbols-outlined { color: rgb
   font-weight: 600 !important;
   line-height: 1 !important;
   border: 1px solid rgba(190, 24, 93, 0.35);
-  border-radius: 12px !important;
+  border-radius: 13px !important;
   background: linear-gradient(135deg, rgba(190, 24, 93, 0.18), rgba(236, 72, 153, 0.18)) !important;
   color: inherit;
   cursor: pointer;
@@ -12730,7 +12730,7 @@ body.cfg-sheet-open.light .bc-picker-btn .material-symbols-outlined { color: rgb
   max-height: 240px;
   overflow-y: auto;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
+  border-radius: 8px;
   padding: 6px;
 }
 .light .devo-share-list { border-color: rgba(0, 0, 0, 0.1); }
@@ -12973,7 +12973,7 @@ body.nr-locked { overflow: hidden; }
 .nr-skel-av,
 .nr-skel-who {
   display: block;
-  border-radius: 7px;
+  border-radius: 8px;
   background: linear-gradient(
       100deg,
       rgba(255, 255, 255, 0.05) 30%,
@@ -13015,12 +13015,12 @@ body.nr-locked { overflow: hidden; }
 /* Mirrors .nr-line-say: 48px avatar square, name, bubble with the clipped
    top-left corner. The tint is one of the speaker tones. */
 .nr-skel-say { display: flex; gap: 10px; align-items: flex-start; margin: 0 0 22px; }
-.nr-skel-av { flex: 0 0 48px; width: 48px; height: 48px; border-radius: 12px; }
+.nr-skel-av { flex: 0 0 48px; width: 48px; height: 48px; border-radius: 13px; }
 .nr-skel-body { flex: 1 1 auto; min-width: 0; }
 .nr-skel-who { width: 34%; height: 10px; margin: 3px 0 9px 2px; }
 .nr-skel-bub {
   padding: 15px;
-  border-radius: 5px 16px 16px 16px;
+  border-radius: 5px 13px 13px 13px;
   background: rgba(96, 165, 250, 0.10);
 }
 .nr-skel-say-alt .nr-skel-bub { background: rgba(52, 211, 153, 0.09); }
@@ -13140,7 +13140,7 @@ body.nr-locked { overflow: hidden; }
 }
 .nr-bubble {
   border: 1px solid;
-  border-radius: 16px;
+  border-radius: 13px;
   border-top-left-radius: 5px;
   padding: 13px 15px;
   font-size: 16px;
@@ -13388,7 +13388,7 @@ body.nr-locked { overflow: hidden; }
      margin, which is what made two reacted cards touch. */
   padding-top: 12px;
   padding-bottom: 12px;
-  border-radius: 14px;
+  border-radius: 13px;
   background: rgba(var(--nr-rc), 0.09);
   box-shadow: 0 0 0 1px rgba(var(--nr-rc), 0.28);
 }
@@ -13585,7 +13585,7 @@ body.nr-locked { overflow: hidden; }
   flex-direction: column;
   background: #101828;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 20px 20px 0 0;
+  border-radius: 21px 21px 0 0;
   box-shadow: 0 -20px 50px rgba(0, 0, 0, 0.45);
   animation: nrSheetUp 0.28s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -13697,7 +13697,7 @@ body.nr-locked { overflow: hidden; }
     height: auto;
     flex: 1 1 auto;
     margin: 0 auto;
-    border-radius: 22px;
+    border-radius: 21px;
     border: 1px solid rgba(255, 255, 255, 0.08);
     background: #121b2c;
     box-shadow: 0 28px 70px rgba(0, 0, 0, 0.55);
@@ -13815,7 +13815,7 @@ body.nr-locked { overflow: hidden; }
   flex-wrap: wrap;
   gap: 8px 10px;
   padding: 12px 14px;
-  border-radius: 14px;
+  border-radius: 13px;
   background: rgba(148, 163, 184, 0.08);
   border: 1px solid rgba(148, 163, 184, 0.16);
   color: rgba(226, 232, 240, 0.78);
@@ -13960,7 +13960,7 @@ body.is-offline.tts-canvas-active #offlinePill { bottom: calc(84px + env(safe-ar
 .verse-note-inline {
   padding: 7px 12px;
   border-left: 2px solid rgba(200, 48, 134, 0.6);
-  border-radius: 0 10px 10px 0;
+  border-radius: 0 8px 8px 0;
   background: rgba(200, 48, 134, 0.07);
   color: rgba(255, 255, 255, 0.82);
   font-size: 16px;
@@ -14017,7 +14017,7 @@ body.is-offline.tts-canvas-active #offlinePill { bottom: calc(84px + env(safe-ar
 #output .verse .comments {
   margin-top: 8px;
   padding: 16px;
-  border-radius: 14px;
+  border-radius: 13px;
   background: #1b2238;
 }
 #output .verse .comments .comment {
@@ -14030,7 +14030,7 @@ body.is-offline.tts-canvas-active #offlinePill { bottom: calc(84px + env(safe-ar
   margin: 0 0 6px;
   padding: 7px 12px;
   border-left: 2px solid rgba(200, 48, 134, 0.6);
-  border-radius: 0 10px 10px 0;
+  border-radius: 0 8px 8px 0;
   background: rgba(200, 48, 134, 0.07);
   color: rgba(255, 255, 255, 0.82) !important;
   font-size: 16px;
@@ -14092,7 +14092,7 @@ body:not(.light) #reflectContent li,
 body:not(.light) #aiReflection ol > li {
   background: #1b2238;
   border: none;
-  border-radius: 14px;
+  border-radius: 13px;
   padding: 16px;
   margin-bottom: 12px;
 }
@@ -14138,7 +14138,7 @@ body:not(.light) .dash-fav-row,
 body:not(.light) .dash-notes-card {
   background: #1b2238;
   border-color: transparent;
-  border-radius: 14px;
+  border-radius: 13px;
 }
 body:not(.light) .dash-fav-row:hover,
 body:not(.light) .dash-notes-card:hover,
@@ -14176,7 +14176,7 @@ body:not(.light) .nr-page-btn:disabled {
    one step darker so it still reads as its own item. */
 body:not(.light) .verse-note-inline {
   border-left: none;
-  border-radius: 14px;
+  border-radius: 13px;
   padding: 12px 16px;
   background: #1b2238;
   color: rgba(255, 255, 255, 0.92);
@@ -14185,7 +14185,7 @@ body:not(.light) .verse-note-inline {
 }
 body:not(.light) #output .verse .comments .comment {
   border-left: none;
-  border-radius: 12px;
+  border-radius: 13px;
   padding: 10px 14px;
   background: rgba(17, 26, 47, 0.9);
   color: rgba(255, 255, 255, 0.92) !important;
@@ -14235,7 +14235,7 @@ body:not(.light) .bc-sheet-close:hover { background: #222b45 !important; }
 body:not(.light) .bc-current-passage {
   background: #1b2238 !important;
   border-color: transparent;
-  border-radius: 14px;
+  border-radius: 13px;
   padding: 16px;
 }
 body:not(.light) .bc-current-passage:hover { background: #222b45 !important; border-color: transparent; }
@@ -14251,14 +14251,14 @@ body:not(.light) .bc-current-ref { font-size: 26px; }
 body:not(.light) .bc-search {
   background: #1b2238;
   border-color: transparent;
-  border-radius: 14px;
+  border-radius: 13px;
   padding: 12px 14px;
 }
 body:not(.light) .bc-search:focus-within { border-color: transparent; }
-body:not(.light) .bc-tabs { background: #1b2238; border-color: transparent; border-radius: 14px; }
+body:not(.light) .bc-tabs { background: #1b2238; border-color: transparent; border-radius: 13px; }
 body:not(.light) .bc-tab.active { background: #2b3554; color: #fff; }
 body:not(.light) .bc-book { border-bottom: none; }
-body:not(.light) .bc-book-row { padding: 13px 14px; border-radius: 12px; }
+body:not(.light) .bc-book-row { padding: 13px 14px; border-radius: 13px; }
 body:not(.light) .bc-book-row:hover,
 body:not(.light) .bc-book-row.expanded { background: #1b2238; }
 body:not(.light) .bc-book-row.active,
@@ -14289,7 +14289,7 @@ body:not(.light) .audio-lib-summary { color: rgba(255,255,255,0.5); }
 body:not(.light) .audio-lib-activity {
   background: #1b2238;
   margin: 4px 18px 8px;
-  border-radius: 14px;
+  border-radius: 13px;
 }
 body:not(.light) .audio-lib-activity-summary::before { color: rgba(255,255,255,0.4); }
 body:not(.light) .audio-lib-activity-summary .material-symbols-outlined { color: #db2777; }
@@ -14306,7 +14306,7 @@ body:not(.light) .audio-lib-log-row[data-type="success"] { color: #4ade80; }
 body:not(.light) .audio-lib-log-row[data-type="retry"] { color: #fbbf24; }
 body:not(.light) .audio-lib-log-row[data-type="fail"] { color: #f87171; }
 body:not(.light) .audio-lib-list { padding: 0 6px; }
-body:not(.light) .audio-lib-book-row { border-radius: 12px; }
+body:not(.light) .audio-lib-book-row { border-radius: 13px; }
 body:not(.light) .audio-lib-book-row:hover { background: #1b2238 !important; }
 body:not(.light) .audio-lib-book-name { font-weight: 500; }
 body:not(.light) .audio-lib-book-bar { background: rgba(255,255,255,0.08); }
@@ -14407,7 +14407,7 @@ body:not(.light) #reflectContent ol.refl-unified > li { padding: 16px; }
 /* Retell speaker faces (2026-10-24): a 16px pixel bust drawn in code from the
    cast traits, shown at 3× in a rounded square on the speaker's tone. The
    listener ("to Absalom") gets the same face at 1×, beside their name. */
-.nr-avatar { width: 48px; height: 48px; border-radius: 12px; overflow: hidden; }
+.nr-avatar { width: 48px; height: 48px; border-radius: 13px; overflow: hidden; }
 .nr-avatar:has(.nr-face) { border-color: transparent !important; }
 .nr-face {
   width: 48px;
@@ -14485,7 +14485,7 @@ body:not(.light) #reflectContent ol.refl-unified > li { padding: 16px; }
    measures it correctly. */
 .nr-scene {
   margin: 4px 0 18px;
-  border-radius: 12px;
+  border-radius: 13px;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.08);
   aspect-ratio: 128 / 40;
@@ -14674,7 +14674,7 @@ body:not(.light) #reflectContent ol.refl-unified > li { padding: 16px; }
 .nr-song-face {
   width: 22px;
   height: 22px;
-  border-radius: 6px;
+  border-radius: 8px;
   image-rendering: pixelated;
   background: rgba(255, 255, 255, 0.06);
 }
@@ -14682,7 +14682,7 @@ body:not(.light) #reflectContent ol.refl-unified > li { padding: 16px; }
 .nr-song.nr-run .nr-song-who { display: none; }
 :is(#nrScroll, .nr-curl-page) .nr-song.nr-reacted {
   background: linear-gradient(90deg, rgba(var(--nr-rc), 0.09), rgba(var(--nr-rc), 0));
-  border-radius: 0 12px 12px 0;
+  border-radius: 0 13px 13px 0;
 }
 
 /* Running heads on the spread (_nrRunningHeads); they replace the bar title. */
