@@ -3,6 +3,7 @@
    Intentional failing demos: mark them with class "bad", "fail" or data-audit-skip and they are skipped. */
 (() => {
 const SKIP = '.bad,.fail,[data-audit-skip]';
+const __pe = document.createElement('style'); __pe.textContent='*{pointer-events:auto!important}'; document.head.appendChild(__pe); /* elementsFromPoint ignores pointer-events:none shapes */
 const parse = c => { const m = (c||'').match(/rgba?\(([^)]+)\)/); if (!m) return null; const p = m[1].split(/[ ,\/]+/).filter(Boolean).map(Number); return {r:p[0],g:p[1],b:p[2],a:p.length>3?p[3]:1}; };
 const over = (f,b) => ({r:f.r*f.a+b.r*(1-f.a),g:f.g*f.a+b.g*(1-f.a),b:f.b*f.a+b.b*(1-f.a),a:1});
 const L = c => { const v=[c.r,c.g,c.b].map(x=>{x/=255;return x<=.03928?x/12.92:Math.pow((x+.055)/1.055,2.4)}); return .2126*v[0]+.7152*v[1]+.0722*v[2]; };
@@ -32,6 +33,15 @@ document.querySelectorAll('body *').forEach(el => {
     const need=(size>=24||(bold&&size>=18.66))?3:4.5, rt=ratio(fg,bg);
     if (rt < need) add('CONTRAST', `${where} ${hex(fg)} on ${hex(bg)} ${rt.toFixed(2)}:1 need ${need} ${Math.round(size)}px ${name}${img?' (bg image: verify by eye)':''}`);
     else if (img) add('CHECK-BY-EYE (bg image)', `${where} ${name}`);
+    // painted background at sample points (stacking order, includes sibling shapes), catches text straddling a shape edge
+    { const rg=document.createRange(); rg.selectNodeContents(el); const t=rg.getBoundingClientRect(); const seenBg={}; let worst=99, wbg='';
+      for (let i=0;i<5;i++) for (let j=0;j<3;j++) { const x=t.left+2+(t.width-4)*i/4, y=t.top+2+(t.height-4)*(j+.5)/3; if(x<0||y<0||x>vw||y>innerHeight) continue;
+        const stack=document.elementsFromPoint(x,y); let k=stack.indexOf(el); if(k<0) continue; let pb=null;
+        for (k=k+1;k<stack.length;k++){ const c=parse(getComputedStyle(stack[k]).backgroundColor); if(c&&c.a>=.5){pb=c;break;} }
+        if(!pb) continue; const h=hex(pb); seenBg[h]=1; const rr=ratio(fg,pb); if(rr<worst){worst=rr;wbg=h;} }
+      const nb=Object.keys(seenBg).length;
+      if (nb>1) add('STRADDLES backgrounds (text across a shape edge)', `${where} ${name} "${(el.textContent||'').trim().slice(0,20)}" bgs ${Object.keys(seenBg).join('/')} worst ${worst.toFixed(2)}:1`);
+      else if (worst<need && wbg && wbg!==hex(bg)) add('CONTRAST (painted bg differs from ancestor bg)', `${where} ${name} ${hex(fg)} on ${wbg} ${worst.toFixed(2)}:1 need ${need}`); }
     if (!onScale(size)) add('SIZE off x1.618 scale', `${Math.round(size*10)/10}px`);
   }
   for (const p of SP) { const v = parseFloat(cs[p]); if (v > 0 && v % UNIT !== 0 && !(v < 3)) add('SPACING off 8px unit', `${p.replace(/Top|Right|Bottom|Left/,'')} ${Math.round(v*10)/10}px`); }
@@ -46,5 +56,6 @@ document.querySelectorAll('body *').forEach(el => {
 });
 const summary = {};
 for (const [t,o] of Object.entries(bucket)) summary[t] = Object.entries(o).sort((a,b)=>b[1]-a[1]).slice(0,25).map(([k,n])=>k+(n>1?' x'+n:''));
+__pe.remove();
 return JSON.stringify({textElements:textEls, viewport:vw, issueTypes:Object.keys(summary).length, ...summary}, null, 0);
 })()

@@ -43,7 +43,7 @@ h1,h2,h3{font-weight:700;text-transform:lowercase;letter-spacing:-.01em;line-hei
 .hero h1{font-size:clamp(3.2rem,13vw,9rem);line-height:.88;position:relative;z-index:2}
 .hero .sub{max-width:34ch;margin-top:28px;font-size:1.2rem;position:relative;z-index:2}
 .hero .meta{margin-top:32px;display:flex;gap:10px;flex-wrap:wrap;position:relative;z-index:2}
-.hero .hand{position:absolute;z-index:2;right:6%;bottom:36px}
+.hero .hand{position:absolute;z-index:2;right:calc(12% + 296px);bottom:40px}
 
 /* sections */
 section.sec{padding:72px 0;border-top:2px solid var(--ink);position:relative}
@@ -116,7 +116,10 @@ input[type=range]{accent-color:var(--green);width:100%}
 .cc{display:grid;gap:14px;margin-top:22px;grid-template-columns:1fr 1fr}
 @media(max-width:560px){.cc{grid-template-columns:1fr}}
 .cc label{display:flex;gap:10px;align-items:center;font:700 .7rem var(--font);letter-spacing:.15em;text-transform:uppercase}
-.cc input[type=color]{width:44px;height:44px;border:2px solid var(--ink);border-radius:50%;padding:0;background:none;cursor:pointer}
+.cc input[type=color]{-webkit-appearance:none;appearance:none;width:48px;height:48px;border:2px solid var(--ink);border-radius:50%;padding:0;background:none;cursor:pointer;overflow:hidden}
+.cc input[type=color]::-webkit-color-swatch-wrapper{padding:0}
+.cc input[type=color]::-webkit-color-swatch{border:0;border-radius:50%}
+.cc input[type=color]::-moz-color-swatch{border:0;border-radius:50%}
 .cc .out{grid-column:1/-1;border:2px solid var(--ink);border-radius:14px;padding:16px;font-weight:700}
 .badge{display:inline-block;padding:.2em .7em;border-radius:999px;border:2px solid var(--ink);font:700 .72rem var(--font);margin:4px 6px 0 0}
 .pass{background:var(--green);color:#fff}.fail{background:var(--red)}
@@ -349,7 +352,7 @@ document.querySelectorAll('.chk input').forEach(el => el.addEventListener('chang
 })); prog();
 
 /* meta + footer */
-$('#meta').innerHTML = `<span class="pill">updated ${S.meta.updated}</span><span class="pill">${S.sections.length + 1} chapters</span>`;
+$('#meta').innerHTML = `<span class="pill">updated ${S.meta.updated}</span><span class="pill">${S.sections.length + 2} chapters</span>`;
 $('#foot').innerHTML = `<b>${esc(S.meta.name)}</b><br>source: ${esc(S.meta.source)}<br>skill: <code>${esc(S.meta.skill)}</code>`;
 
 /* live spacing sliders */

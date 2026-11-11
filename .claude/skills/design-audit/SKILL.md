@@ -20,7 +20,9 @@ Contrast is part of the audit, not just spacing and size. Run both.
 - **SIZE off x1.618 scale**: font sizes not on the scale (web rem steps or slide px steps).
 - **SPACING off 8px unit**: padding, row/column gap, margin-top/bottom not a multiple of 8.
 - **RADIUS off scale**: corner radii outside 8/13/21/34 + pill.
+- **STRADDLES backgrounds / painted bg differs**: samples the real painted background under each text (stacking order, so sibling shapes count) and flags text that crosses a shape edge or sits on a different colour than its ancestors say. Fix by moving the text fully onto one background or giving it a solid shape.
 - **OVERFLOW**: anything wider than the viewport.
+- Also look at native form controls (`input[type=color]`, range, checkbox): style the inner swatch/thumb too, or the browser's square default shows inside a round frame.
 - **NOT CENTRED**: centred text whose text box is off its container's centre by > 2px.
 
 ## Rules for interpreting
