@@ -131,3 +131,9 @@ Mobile-first, 16px side gutter, mustard/green as the only large colour areas. Wo
 7. Shapes are flat, or deliberately liquid glass (never half and half); circles/rects/rounded rects used with purpose; no emoji decoration.
 8. One focal point; one accent annotation at most; plenty of white space.
 9. Looks hand-made: ink outlines, pills, hand marks. If it looks like a generic template, redo it.
+10. **Verified in Claude in Chrome (mandatory for every web/HTML design job).** Open the real page and check it against rules 3-5 and 8 before delivering; never ship on code review alone.
+    - Chrome blocks `file://`: serve the folder (`python3 -m http.server <port> --bind 127.0.0.1`), navigate to it, kill the server after.
+    - Run a JS audit: horizontal overflow, font sizes and radii on the x1.618 scale, text centred in pills/bars/circles (range rect vs box), collisions, equal card heights, aligned dividers/baselines, even table columns, row labels not wrapping.
+    - Take real screenshots of every section and look at them (uneven image sizes, cramped legends and cramped label-to-cell gaps only show by eye).
+    - `resize_window` may not change the viewport: test mobile (390px, 16px gutters, no sideways scroll) in a fixed-position iframe and measure inside it.
+    - Fix, re-check, then report what passed and what was fixed.

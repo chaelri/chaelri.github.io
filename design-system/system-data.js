@@ -197,7 +197,8 @@ h1,h2{font-weight:700;text-transform:lowercase;line-height:.95;letter-spacing:-.
     "contrast >= 3:1 large / 4.5:1 small; text on photos has a solid shape behind it",
     "shapes are flat, or deliberately liquid glass (never half and half); no emoji decoration",
     "one focal point; one handwritten accent at most; plenty of white space",
-    "looks hand-made (ink outlines, pills, hand marks). if it looks like a template, redo it"
+    "looks hand-made (ink outlines, pills, hand marks). if it looks like a template, redo it",
+    "verified in Claude in Chrome before delivering (every web design job): JS spacing audit, real screenshots of each section, 390px mobile check; fix, re-check, then report"
   ],
 
   extend: [
