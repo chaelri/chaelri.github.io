@@ -27,7 +27,7 @@ window.SYSTEM = {
   ],
 
   fonts: [
-    { role: "display + body", name: "Glacial Indifference", fallback: "Outfit", weights: "Bold + Regular. use Outfit in pptx (installed on this PC)" },
+    { role: "display + body", name: "Glacial Indifference", fallback: "Outfit", weights: "the workshop pick, not mandatory: any clean geometric/humanist sans that fits the subject. Bold + Regular. use Outfit in pptx (installed on this PC)" },
     { role: "handwriting accent", name: "Lemon Tuesday", fallback: "Caveat", weights: "small, slanted, green or rust" },
     { role: "serif (rare contrast)", name: "Playfair Display", fallback: "serif", weights: "never the main voice" }
   ],
@@ -49,11 +49,12 @@ window.SYSTEM = {
     },
     {
       id: "type", num: "02", title: "typography", kicker: "type", demo: "type",
-      lead: "lowercase, bold, tight. one highlighted word per heading. weight contrast beats color contrast.",
+      lead: "bold, tight, with weight contrast. the font itself is flexible; the roles and pairing are the rule.",
       rules: [
-        { t: "headings are lowercase + bold.", d: "line-height 0.9 to 1.0 for 2-3 line display text." },
-        { t: "highlight one word.", d: "green or mustard text, or a mustard block behind it." },
-        { t: "labels are UPPERCASE.", d: "bold, small, letter-spacing +200 to +300." },
+        { t: "fonts are picked by role, not by name.", d: "one display/body family, optionally one handwriting accent. Glacial Indifference + Lemon Tuesday is the workshop pick; any font that does the same job is fine." },
+        { t: "headings are bold + tight.", d: "line-height 0.9 to 1.0 for 2-3 line display text. lowercase is the workshop style, a choice and not a requirement." },
+        { t: "highlight a word when it helps.", d: "green or mustard text, or a mustard block behind it. optional." },
+        { t: "small labels are usually UPPERCASE.", d: "bold, small, wide letter-spacing. follow what suits the layout." },
         { t: "max 2 families.", d: "know the 3 classes (display, handwriting, monospace) and 3 strokes (sans, serif, slab). pair, don't pile." },
         { t: "hierarchy through weight.", d: "bold the key words, keep the rest regular." },
         { t: "judge size optically.", d: "fonts of the same point size look different. adjust by eye." }
@@ -63,6 +64,7 @@ window.SYSTEM = {
       id: "scale", num: "03", title: "size = golden ratio", kicker: "scale", demo: "scale",
       lead: "bigger = x 1.618. smaller = / 1.618. BIG next to smol. never mid-size everything.",
       rules: [
+        { t: "one ratio for everything.", d: "x 1.618 is the step between font sizes AND between corner radii (and spacing when you want a step bigger). pick sizes from the scale, not from habit (no 11/12/13/14/15 ladders)." },
         { t: "three steps per layout.", d: "pick a big, a medium, a small from the scale. no fourth." },
         { t: "slide scale (px @1920).", d: "160 / 99 / 61 / 38 / 23 / 14." },
         { t: "web scale (rem).", d: "6.854 / 4.236 / 2.618 / 1.618 / 1 / .618." }
@@ -74,7 +76,7 @@ window.SYSTEM = {
       rules: [
         { t: "center the text inside its container.", d: "both axes, optically. descenders and tight leading shift the box, so nudge it." },
         { t: "center the background shape inside its frame.", d: "a block behind text gets equal margins on every side." },
-        { t: "one spacing unit.", d: "8px (0.1in) and its multiples. equal padding everywhere." },
+        { t: "spacing is judged by eye.", d: "if it looks good it is good. 8px (0.1in) multiples are a handy starting point, not a law. equal padding where the layout is meant to feel even." },
         { t: "letter-spacing.", d: "wide for UPPERCASE labels, slightly tight for big display text." },
         { t: "line-spacing.", d: "0.9-1.0 for display, 1.3-1.4 for body." },
         { t: "keep phrases together.", d: "break lines by meaning. never split a thought, never justify." },
@@ -110,8 +112,9 @@ window.SYSTEM = {
       rules: [
         { t: "circles.", d: "big background elements (partly off-canvas), small dots as bullets, a filled circle as the background for short text." },
         { t: "squares / rectangles.", d: "parallel stripes, tables, flat color blocks behind text." },
-        { t: "rounded rectangles.", d: "chat bubbles, pill tags, buttons, text backgrounds, with a 2px ink outline." },
-        { t: "no blur shadows.", d: "if depth is needed, use a hard offset (4px 4px 0 ink)." },
+        { t: "rounded rectangles.", d: "chat bubbles, pill tags, buttons, text backgrounds. outline (2px ink in the workshop style) is optional, decided case by case." },
+        { t: "corner radii step by x 1.618.", d: "e.g. 8 / 13 / 21 / 34 px, plus full pill/circle. don't scatter 10/12/14." },
+        { t: "shadows are case by case.", d: "workshop style is flat: no blur, hard offset (4px 4px 0 ink) when depth is needed. soft shadows are fine when the design calls for it (glass, floating sheets)." },
         { t: "signature details.", d: "ink outlines, name pills on subjects, hand-drawn check / X / arrows, halftone dots, diagonal stripes, faint grid paper, tiny logo bottom-left." }
       ]
     },
@@ -124,7 +127,8 @@ window.SYSTEM = {
         { t: "grain.", d: "subtle noise over paper or dark photos." },
         { t: "paper design.", d: "torn-paper edges on photos." },
         { t: "glitch / neon.", d: "white + cyan + magenta offsets, or blurred outline text. black background only." },
-        { t: "text designs.", d: "repeated text, outline (no fill), curved text." }
+        { t: "text designs.", d: "repeated text, outline (no fill), curved text." },
+        { t: "liquid glass (a second style).", d: "Apple-style translucent surfaces: backdrop blur (about 16-32px) + saturate, a white tint at 8-20% alpha, a 1px light inner border (white at 25-40%), a soft highlight on the top edge, and a gentle soft shadow. gradients and blur are allowed here, that is the point. needs something colorful behind it to refract. keep text contrast >= 4.5:1 (add a darker tint or solid fallback behind text). don't mix glass with the flat/ink-outline style in the same component." }
       ]
     },
     {
@@ -153,8 +157,8 @@ window.SYSTEM = {
       id: "web", num: "11", title: "web / ui translation", kicker: "code", demo: "web",
       lead: "mobile-first. the system as css.",
       rules: [
-        { t: "buttons are pills.", d: "2px ink outline + hard offset shadow; hover shifts the offset." },
-        { t: "cards.", d: "2px solid ink, not blur shadows." },
+        { t: "buttons are pills.", d: "workshop style: 2px ink outline + hard offset shadow; hover shifts the offset. other treatments (glass, filled) are fine case by case." },
+        { t: "cards.", d: "workshop style: 2px solid ink, no blur. glass cards follow the liquid glass rule." },
         { t: "16px side gutter", d: "no horizontal scroll at phone width." },
         { t: "color areas.", d: "mustard and green are the only large fills." }
       ]
@@ -187,11 +191,11 @@ h1,h2{font-weight:700;text-transform:lowercase;line-height:.95;letter-spacing:-.
   checklist: [
     "background is paper (or green/ink on purpose), not white or grey",
     "one chosen palette (default or derived from the subject): <= 4 colors + ink",
-    "<= 2 font families; headings lowercase bold; one highlighted word per heading",
-    "sizes follow x1.618; clear BIG vs smol; <= 3 sizes per layout",
-    "text centered in its containers; equal padding; no split phrases; nothing collides",
+    "<= 2 font families picked by role; headings bold and tight",
+    "font sizes AND corner radii follow x1.618; clear BIG vs smol; <= 3 sizes per layout",
+    "text centered in its containers; spacing looks right by eye; no split phrases; nothing collides",
     "contrast >= 3:1 large / 4.5:1 small; text on photos has a solid shape behind it",
-    "shapes are flat; no blur shadows, no emoji decoration",
+    "shapes are flat, or deliberately liquid glass (never half and half); no emoji decoration",
     "one focal point; one handwritten accent at most; plenty of white space",
     "looks hand-made (ink outlines, pills, hand marks). if it looks like a template, redo it"
   ],
