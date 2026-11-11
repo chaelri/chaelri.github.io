@@ -85,9 +85,10 @@ section.sec{padding:72px 0;border-top:2px solid var(--ink);position:relative}
 .fonts th{font:700 .68rem var(--font);letter-spacing:.2em;text-transform:uppercase}
 
 /* scale */
-.sc{display:flex;gap:18px;align-items:flex-end;flex-wrap:wrap}
-.sc div{border-radius:50%;background:var(--mustard);border:2px solid var(--ink);display:grid;place-items:center;font-weight:700}
-.sc small{font-size:.65rem}
+.sc{display:flex;gap:24px;align-items:flex-end;flex-wrap:wrap}
+.sc figure{display:flex;flex-direction:column;align-items:center;gap:8px;margin:0}
+.sc i{display:block;box-sizing:border-box;border-radius:50%;background:var(--mustard);border:2px solid var(--ink)}
+.sc small{font:700 .72rem var(--font);letter-spacing:.1em}
 .sline{display:flex;align-items:baseline;gap:14px;border-top:2px solid var(--ink);padding:8px 0;font-weight:700;text-transform:lowercase;line-height:1}
 .sline small{font:400 .75rem var(--mono);flex:none;width:54px;opacity:.7}
 
@@ -260,7 +261,7 @@ const DEMOS = {
     const vals = [0,1,2,3,4,5].map(i => base / Math.pow(r, i));
     const px = [99, 61, 38, 23, 14, 9];
     return `<div class="demo paper" style="margin:0"><h4>x 1.618 / ÷ 1.618</h4>
-      <div class="sc">${vals.map((v, i) => `<div style="width:${Math.max(v * 1.5, 34)}px;height:${Math.max(v * 1.5, 34)}px"><small>${S.scale.labels[i]}</small></div>`).join('')}</div>
+      <div class="sc">${vals.map((v, i) => `<figure><i style="width:${(v * 2).toFixed(1)}px;height:${(v * 2).toFixed(1)}px"></i><small>${S.scale.labels[i]}</small></figure>`).join('')}</div>
       <div style="margin-top:26px">${px.map((p, i) => `<div class="sline"><small>${p}px</small><span style="font-size:${Math.min(p, 86)}px">${i === 0 ? 'BIG' : i < 3 ? 'text/1.618' : i < 5 ? 'smaller still' : 'super smol'}</span></div>`).join('')}</div></div>`;
   },
   spacing() {
