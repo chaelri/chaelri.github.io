@@ -14730,3 +14730,21 @@ body:not(.light) #reflectContent ol.refl-unified > li { padding: 16px; }
    content by it; inside a hanging-indent poetry line that dragged them over
    the words around them. */
 .nr-pl * { text-indent: 0; }
+
+/* ===== PWA status-bar override (iOS 26) =====
+   iOS 26 blends a grey scroll-edge fade under the status bar of a standalone
+   web app. A solid strip exactly as tall as the safe-area inset, above
+   everything, gives it nothing to blend with. Installed PWA only. */
+@media all and (display-mode: standalone) {
+  html { background-color: #0b1220; }
+  body::before {
+    content: "";
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: env(safe-area-inset-top, 0px);
+    background: #0b1220;
+    z-index: 2147483000;
+    pointer-events: none;
+  }
+  body.light::before { background: #faf9f6; }
+}
