@@ -55,7 +55,7 @@ window.SYSTEM = {
         { t: "fonts are picked by role, from the mood.", d: "one display/body family, optionally one accent. geometric sans = modern, humanist = friendly, serif = elegant, rounded = playful, mono = techy. Glacial Indifference + Lemon Tuesday is just the workshop sample." },
         { t: "headings are bold + tight.", d: "line-height 0.9 to 1.0 for 2-3 line display text. lowercase is a mood choice (playful, casual), not a requirement." },
         { t: "highlight a word when it helps.", d: "primary or shape color on the word, or a shape-color block behind it. optional." },
-        { t: "small labels are usually UPPERCASE.", d: "bold, small, wide letter-spacing. follow what suits the layout." },
+        { t: "small labels are usually UPPERCASE.", d: "bold, small, wide letter-spacing, for real labels only (column heads, buttons, captions that carry information). never as a decorative chip, see clarity." },
         { t: "max 2 families.", d: "know the 3 classes (display, handwriting, monospace) and 3 strokes (sans, serif, slab). pair, don't pile." },
         { t: "hierarchy through weight.", d: "bold the key words, keep the rest regular." },
         { t: "judge size optically.", d: "fonts of the same point size look different. adjust by eye." }
@@ -100,12 +100,13 @@ window.SYSTEM = {
       lead: "don't exchange clarity with design. if an effect hurts reading, the effect goes.",
       rules: [
         { t: "text on a busy photo gets a solid shape.", d: "a circle or rounded rectangle in paper, white or the shape color. not a faint overlay." },
+        { t: "no mini label chips.", d: "no tiny uppercase pills or tags above a title or under it (\"DESIGN SYSTEM · V1\", \"UPDATED 2026-11-11\", \"14 CHAPTERS\", section kickers, status dots). they carry no information the reader needs and read as AI filler. a label stays only when the person must act on or tell things apart by it (a button, a real status in a data row, a name on a photo)." },
         { t: "one focal point.", d: "the eye knows where to start in under a second." },
         { t: "group related, separate unrelated.", d: "at least 2 spacing units between groups." },
         { t: "no mid-line gaps.", d: "'taking students / to the next level', never 'taking      to the'." }
       ],
       dos: ["solid shape behind text on photos", "bold key words, regular rest", "ink on paper, light on primary or ink"],
-      donts: ["text straight on a busy photo", "justified text with gaps", "shape color on white for small text"]
+      donts: ["text straight on a busy photo", "justified text with gaps", "shape color on white for small text", "mini pill chips (version, date, count, kicker) as decoration"]
     },
     {
       id: "contrast", num: "07", title: "contrast & accessibility", kicker: "access", demo: "contrast",
@@ -128,10 +129,10 @@ window.SYSTEM = {
       rules: [
         { t: "circles.", d: "big background elements (partly off-canvas), small dots as bullets, a filled circle as the background for short text." },
         { t: "squares / rectangles.", d: "parallel stripes, tables, flat color blocks behind text." },
-        { t: "rounded rectangles.", d: "chat bubbles, pill tags, buttons, text backgrounds. outline, shadow or glass follow the chosen shape style. keep one style per piece." },
+        { t: "rounded rectangles.", d: "chat bubbles, buttons, text backgrounds, real status tags in data rows (never decorative chips). outline, shadow or glass follow the chosen shape style. keep one style per piece." },
         { t: "corner radii step by x 1.618.", d: "e.g. 8 / 13 / 21 / 34 px, plus full pill/circle. don't scatter 10/12/14." },
         { t: "shape style follows the mood.", d: "flat fills, outlined with a hard offset shadow (4px 4px 0 ink), soft rounded with a soft shadow, sharp with thin lines, or liquid glass. pick one and keep it consistent in the piece." },
-        { t: "workshop signature details (playful, hand-made mood).", d: "ink outlines, name pills on subjects, hand-drawn check / X / arrows, halftone dots, diagonal stripes, faint grid paper, tiny logo bottom-left." }
+        { t: "workshop signature details (playful, hand-made mood).", d: "ink outlines, name labels on subjects (only when they name someone), hand-drawn check / X / arrows, halftone dots, diagonal stripes, faint grid paper, tiny logo bottom-left." }
       ]
     },
     {
@@ -161,7 +162,7 @@ window.SYSTEM = {
       id: "recipes", num: "11", title: "layout recipes", kicker: "patterns", demo: "recipes",
       lead: "start from a recipe, then bend it.",
       rules: [
-        { t: "title slide.", d: "huge two-line title (lowercase if the mood suits), spaced-caps subtitle, one big circle partly off-canvas, tiny logo bottom-left." },
+        { t: "title slide.", d: "huge two-line title (lowercase if the mood suits), one plain subtitle line, one big circle partly off-canvas, tiny logo bottom-left." },
         { t: "section slide.", d: "full-bleed primary color, light title, 2-3 overlapping circles bottom-right." },
         { t: "do / don't.", d: "two equal samples, red X over the wrong one, check in the primary color over the right one." },
         { t: "content slide.", d: "one idea. heading with a highlighted word, a flat color block, one handwritten annotation." },
@@ -214,7 +215,7 @@ h1,h2{font-weight:700;line-height:.95;letter-spacing:-.01em}
     "text centered in its containers; every gap on the 8px unit and equal for equal elements; no split phrases; nothing collides",
     "contrast.py run on the chosen palette, no failing pair; contrast >= 3:1 large / 4.5:1 small; text on photos has a solid shape behind it",
     "shapes are flat, or deliberately liquid glass (never half and half); no emoji decoration",
-    "one focal point; one handwritten accent at most; plenty of white space",
+    "one focal point; one handwritten accent at most; plenty of white space; no decorative mini label chips (eyebrow, version, date, count)",
     "looks designed for this subject and mood, one consistent shape style. if it looks like a template or the last piece, redo it",
     "verified in Claude in Chrome before delivering (every web design job): JS spacing audit, real screenshots of each section, 390px mobile check; fix, re-check, then report"
   ],

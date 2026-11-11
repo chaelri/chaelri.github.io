@@ -25,6 +25,8 @@ document.querySelectorAll('body *').forEach(el => {
   const cs = getComputedStyle(el), r = el.getBoundingClientRect();
   if (!r.width || !r.height || cs.visibility==='hidden' || cs.display==='none') return;
   const where = sec(el), name = tag.toLowerCase()+(typeof el.className==='string'&&el.className.trim()?'.'+el.className.trim().split(/\s+/)[0]:'');
+  { const fs=parseFloat(cs.fontSize), ls=parseFloat(cs.letterSpacing)||0, tt=cs.textTransform==='uppercase', rad=parseFloat(cs.borderTopLeftRadius)||0, hasBox=(parseFloat(cs.borderTopWidth)>0||parseFloat(cs.backgroundColor.split(',')[3]||1)>0&&cs.backgroundColor!=='rgba(0, 0, 0, 0)'), interactive=!!el.closest('a,button,input,label,select,summary,[role=button],pre,code,th,td');
+    if (tt && fs<=14 && ls/fs>=.08 && rad>=r.height/2-1 && hasBox && !interactive && r.width<320) add('MINI LABEL CHIP (AI slop: remove unless it is a real status)', `${where} "${(el.textContent||'').trim().slice(0,28)}"`); }
   const own = [...el.childNodes].some(n => n.nodeType===3 && n.textContent.trim());
   if (own) {
     textEls++;

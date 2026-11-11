@@ -48,7 +48,7 @@ Rules:
 - Know the 3 classifications (display, handwriting, monospace) and 3 strokes (sans, serif, slab); use max 2 families per piece.
 - **Hierarchy through weight**: bold key words against regular text; weight contrast beats colour contrast.
 - Headings are **bold and tight** (workshop style is lowercase, e.g. "fix 2 spacing issues"; lowercase is a choice, not a requirement). A highlighted word (green or mustard text, or a mustard block behind it) is optional: "2 types of **character spacing**".
-- Small labels: usually UPPERCASE, bold, wide letter-spacing; follow what suits the layout.
+- Small labels: UPPERCASE, bold, wide letter-spacing, for real labels only (column heads, buttons, captions that carry information). Never as a decorative chip (see section 6).
 - Fonts differ in apparent size at the same point size: judge optically, not by number.
 
 ## 3. Type scale = golden ratio (x1.618)
@@ -76,6 +76,7 @@ Rules:
 - "Don't exchange clarity with design." If an effect hurts reading, remove the effect.
 - Text on a busy photo needs a solid shape behind it (circle or rounded rectangle in paper/white/mustard), not a faint overlay.
 - **Contrast & accessibility (check every chosen palette).** Ratio = (L_light + 0.05) / (L_dark + 0.05), L = relative luminance 0-1 (WCAG); 1:1 identical, 21:1 black on white. Text >= **4.5:1**; large text (>= 24px, or 19px bold) >= **3:1**; icons, outlines and button edges >= 3:1; aim for 7:1 (AAA) on long body text. Hue is not contrast: judge brightness, not color. Never use color alone for status (add a label/icon/underline). Since the mood picks the palette, compute the ratio for every text/background pair (ink on paper, light on primary, text on shape, accent on paper) before building; if a pair fails, darken the darker color or lighten the lighter one, never enlarge the text to dodge it. On photos/gradients measure the worst spot or use a solid shape. Body >= 16px, line-height >= 1.4, tap targets >= 44px, visible focus state. **Run the checker: `python3 .claude/skills/charlie-design/contrast.py paper=#.. ink=#.. primary=#.. shape=#.. accent=#..`** (WCAG math locally, cross-checked against the WebAIM API; exit 1 on a failing pair; `--pair FG BG` for one pair, `--offline` to skip the API). Live checker for people: `design-system/` section 07. When unsure, webaim.org/resources/contrastchecker.
+- **No mini label chips (AI slop).** No tiny uppercase pills/tags above or below a title or in a hero: version tags ("DESIGN SYSTEM · V1"), "UPDATED <date>", "14 CHAPTERS", section kickers/eyebrows, decorative status dots. They add nothing the reader needs. A label stays only when the person must act on it or tell things apart by it: a button, a real status in a data row, a name on a photo, a column head. Title + content + the shortest real label, nothing else.
 - One focal point per layout; the eye should know where to start in under a second.
 - Group related items; separate unrelated items by at least 2 spacing units.
 
@@ -83,9 +84,9 @@ Rules:
 
 - **Circles**: background elements (large, partly off-canvas, mustard/green/white), small dots as bullets, a filled circle as the background for a short text.
 - **Squares/rectangles**: parallel stripes (decorative lines), tables, flat colour blocks behind text.
-- **Rounded rectangles**: chat bubbles, pill labels/tags, buttons, text backgrounds, 2px ink outline.
+- **Rounded rectangles**: chat bubbles, buttons, text backgrounds, real status tags in data rows, 2px ink outline. Not decorative chips.
 - **Shape style follows the mood:** flat fills (workshop), outlined with hard offset shadow (`4px 4px 0 ink`, playful/bold), soft rounded + soft shadow (calm/friendly), sharp + thin lines (elegant/minimal), or liquid glass (section 8). Pick one and keep it consistent in the piece.
-- Workshop signature details (use when the mood is playful/hand-made): ink outline (2px), pill labels attached to subjects (name tags like `MAUI`, `KD`, `CHARLIE`), hand-drawn green check / red X, hand-drawn arrows, halftone dots and diagonal stripes inside comic-style panels, faint grid-paper background texture, small logo mark bottom-left.
+- Workshop signature details (use when the mood is playful/hand-made): ink outline (2px), name labels attached to subjects only when they actually name someone (`MAUI`, `KD`, `CHARLIE`), hand-drawn green check / red X, hand-drawn arrows, halftone dots and diagonal stripes inside comic-style panels, faint grid-paper background texture, small logo mark bottom-left.
 
 ## 8. Effects (use one per piece, on purpose)
 
@@ -101,13 +102,13 @@ Vectors/illustrations (flat, one palette) or real photos; cut-outs with a thick 
 
 Structure only. Colors, fonts and shape style come from the chosen mood, not from these descriptions.
 
-- **Title slide**: huge lowercase two-line title (bold, line-height 0.9), a small spaced-caps subtitle, one big circle partly off-canvas, tiny logo bottom-left.
+- **Title slide**: huge lowercase two-line title (bold, line-height 0.9), one plain subtitle line, one big circle partly off-canvas, tiny logo bottom-left.
 - **Section slide**: green full-bleed background, white lowercase title, 2-3 overlapping circles bottom-right.
 - **Comparison (do/don't)**: two equal samples side by side, hand-drawn red X over the wrong one and green check over the right one, short caption under each.
 - **Content slide**: one idea. Lowercase heading with a highlighted word at top-left, content in a flat colour block or free on paper, ONE accent annotation in handwriting.
-- **List**: pill tags or numbered circles, thin ink dividers, 4-5 items max per slide.
+- **List**: numbered circles or plain rows, thin ink dividers, 4-5 items max per slide.
 - **Photo grid**: mix of sizes (one big, rest small), consistent gutters, rounded corners, one colour-block tile.
-- **Poster (comic panel)**: grid paper background, angled/clipped panels with halftone or stripe fills, name pills, bordered rounded rectangles for the headline and date/venue.
+- **Poster (comic panel)**: grid paper background, angled/clipped panels with halftone or stripe fills, name labels on subjects, bordered rounded rectangles for the headline and date/venue.
 
 ## 11. Web / UI translation
 
@@ -145,7 +146,7 @@ Mobile-first, 16px side gutter, primary/shape as the only large colour areas. Bu
 5. Text is centred in its containers; every gap is on the 8px unit and equal for equal elements, and looks right by eye; no phrase split across lines; nothing collides.
 6. **`contrast.py` run on the chosen palette with no failing pair**, and contrast >= 3:1 (large) / 4.5:1 (small). Text on photos has a solid shape behind it.
 7. Shapes are flat, or deliberately liquid glass (never half and half); circles/rects/rounded rects used with purpose; no emoji decoration.
-8. One focal point; one accent annotation at most; plenty of white space.
+8. One focal point; one accent annotation at most; plenty of white space; **no decorative mini label chips** (eyebrow, version, date, count, kicker).
 9. Looks designed for THIS subject and mood, with one consistent shape style. If it looks like a generic template or like the last piece, redo it.
 10. **Verified in Claude in Chrome (mandatory for every web/HTML design job).** Open the real page and check it against rules 3-5 and 8 before delivering; never ship on code review alone.
     - Chrome blocks `file://`: serve the folder (`python3 -m http.server <port> --bind 127.0.0.1`), navigate to it, kill the server after.

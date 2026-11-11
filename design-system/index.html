@@ -210,10 +210,8 @@ footer{padding:48px 0;border-top:2px solid var(--ink);font-size:.9rem}
   <i class="circ" style="width:520px;height:520px;background:var(--mustard);right:-140px;top:-200px"></i>
   <i class="circ" style="width:240px;height:240px;background:var(--green);right:12%;bottom:-110px"></i>
   <div class="wrap">
-    <span class="pill">design system  ·  v1</span>
-    <h1 style="margin-top:22px">charlie's<br><span class="hl">design</span> system</h1>
+    <h1>charlie's<br><span class="hl">design</span> system</h1>
     <p class="sub">the rules Claude follows for every page, deck and graphic. color, fonts and shape style come from the mood; spacing and size never change. this page itself wears the workshop sample.</p>
-    <div class="meta" id="meta"></div>
     <span class="hand">follow ALL of it!</span>
   </div>
 </header>
@@ -298,7 +296,7 @@ const DEMOS = {
     return `<div class="demo paper" style="margin:0"><div class="shp">
       <div class="c"></div><div class="s"></div><div class="rr"></div><div class="stripes"></div>
       <div style="display:grid;gap:8px"><span class="bub">hi crush! 😍</span><span class="bub l">crush ka diyan. 😒</span></div>
-      <button class="btn">pill button</button><span class="pill">pill tag</span></div></div>`;
+      <button class="btn">pill button</button></div></div>`;
   },
   effects() {
     return `<div class="fx">
@@ -317,7 +315,7 @@ const DEMOS = {
   web() {
     const code = esc(S.css);
     return `<div style="position:relative"><button class="btn copy" onclick="copy(window.SYSTEM.css,'css copied')">copy</button><pre>${code}</pre></div>
-      <div class="demo paper" style="margin-top:16px"><h4>live</h4><div class="row" style="align-items:center"><button class="btn">primary button</button><span class="pill">tag</span><span class="label">label +250</span></div></div>`;
+      <div class="demo paper" style="margin-top:16px"><h4>live</h4><div class="row" style="align-items:center"><button class="btn">primary button</button><span class="label">label +250</span></div></div>`;
   }
 };
 
@@ -330,17 +328,17 @@ S.sections.forEach((s, i) => {
   const rules = (s.rules || []).map(r => `<li><div><b>${esc(r.t)}</b><span>${esc(r.d)}</span></div></li>`).join('');
   const dd = s.dos ? `<div class="cmp" style="margin-top:20px"><div class="demo paper" style="margin:0"><h4>do</h4>${s.dos.map(x => `<p>✓ ${esc(x)}</p>`).join('')}</div><div class="demo paper" style="margin:0"><h4>don't</h4>${s.donts.map(x => `<p>✗ ${esc(x)}</p>`).join('')}</div></div>` : '';
   main.insertAdjacentHTML('beforeend', `<section class="sec${dark ? ' dark' : ''}" id="${s.id}"><div class="wrap grid">
-    <div class="side"><div class="num">${s.num}</div><span class="pill">${esc(s.kicker)}</span><h2>${esc(s.title)}</h2><p class="lead">${esc(s.lead)}</p></div>
+    <div class="side"><div class="num">${s.num}</div><h2>${esc(s.title)}</h2><p class="lead">${esc(s.lead)}</p></div>
     <div>${demo ? `<div class="demo${s.demo === 'palette' || s.demo === 'web' ? ' paper' : ''}" style="${s.demo === 'type' || s.demo === 'scale' || s.demo === 'spacing' || s.demo === 'ratio' || s.demo === 'shapes' || s.demo === 'clarity' ? 'padding:0;border:0;background:none;overflow:visible' : ''}">${demo}</div>` : ''}${dd}<ul class="rules">${rules}</ul></div></div></section>`);
 });
 
 /* checklist + extend */
 const saved = (() => { try { return JSON.parse(localStorage.getItem('cds-checklist') || '[]'); } catch (e) { return []; } })();
 main.insertAdjacentHTML('beforeend', `<section class="sec dark" id="checklist"><div class="wrap grid">
-  <div class="side"><div class="num">12</div><span class="pill">pre-flight</span><h2>checklist</h2><p class="lead">run it before delivering anything. all of it.</p><div class="prog" id="prog" style="margin-top:20px"></div></div>
+  <div class="side"><div class="num">12</div><h2>checklist</h2><p class="lead">run it before delivering anything. all of it.</p><div class="prog" id="prog" style="margin-top:20px"></div></div>
   <div><ul class="chk">${S.checklist.map((c, i) => `<li><label><input type="checkbox" data-i="${i}" ${saved.includes(i) ? 'checked' : ''}><span>${esc(c)}</span></label></li>`).join('')}</ul></div></div></section>
 <section class="sec" id="extend"><div class="wrap grid">
-  <div class="side"><div class="num">+</div><span class="pill">fallback</span><h2>add more later</h2><p class="lead">Claude builds with this. this site is the written fallback, so the system survives without Claude.</p></div>
+  <div class="side"><div class="num">+</div><h2>add more later</h2><p class="lead">Claude builds with this. this site is the written fallback, so the system survives without Claude.</p></div>
   <div><ol class="steps" style="color:var(--ink)">${S.extend.map(e => `<li style="border-color:var(--ink)"><span>${esc(e)}</span></li>`).join('')}</ol>
   <div class="demo paper" style="margin-top:20px"><h4>where things live</h4><p><code>design-system/system-data.js</code> content (edit this)<br><code>design-system/index.html</code> renderer + demos<br><code>${esc(S.meta.skill)}</code> the skill Claude loads</p></div></div></div></section>`);
 
@@ -353,7 +351,6 @@ document.querySelectorAll('.chk input').forEach(el => el.addEventListener('chang
 })); prog();
 
 /* meta + footer */
-$('#meta').innerHTML = `<span class="pill">updated ${S.meta.updated}</span><span class="pill">${S.sections.length + 2} chapters</span>`;
 $('#foot').innerHTML = `<b>${esc(S.meta.name)}</b><br>source: ${esc(S.meta.source)}<br>skill: <code>${esc(S.meta.skill)}</code>`;
 
 /* live spacing sliders */
