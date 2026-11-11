@@ -273,7 +273,13 @@ const DEMOS = {
   clarity() {
     return `<div class="cmp" style="margin-bottom:6px">
       <figure>${CROSS}<div class="pic bad"><p>take your students to the next level</p></div><figcaption>text straight on a busy photo</figcaption></figure>
-      <figure>${CHECK}<div class="pic good"><p style="font-size:1.1rem">take your students to the next level</p></div><figcaption>solid shape behind the text</figcaption></figure></div>
+      <figure>${CHECK}<div class="pic good"><p style="font-size:1.1rem">take your students to the next level</p></div><figcaption>solid shape behind the text</figcaption></figure></div>`;
+  },
+  contrast() {
+    const pairs = [['#251F1B','#E9E4D9'],['#FFFFFF','#488162'],['#488162','#E3BE53'],['#A8341C','#E9E4D9'],['#E3BE53','#FFFFFF']];
+    return `<div class="demo paper" style="margin:0"><h4>how the number is made</h4>
+      <p style="margin:8px 0 14px;font-size:.95rem;line-height:1.5">ratio = (L<sub>light</sub> + 0.05) / (L<sub>dark</sub> + 0.05). L is the brightness of each color from 0 to 1. black on white = (1 + .05) / (0 + .05) = <b>21:1</b>.</p>
+      <div class="sw">${pairs.map(([f,b]) => { const r = ratio(f,b); return `<div class="swatch" style="background:${b};color:${f};cursor:default"><div><b>Aa text</b><small>${f} on ${b}</small></div><div><code>${r.toFixed(1)}:1</code><div class="cr">${r>=7?'AAA':r>=4.5?'AA text':r>=3?'large text only':'fails'}</div></div></div>`; }).join('')}</div></div>
       <div class="demo paper" style="margin-top:18px"><h4>contrast checker</h4>
         <div class="cc"><label>text <input type="color" id="fg" value="#251F1B"></label><label>background <input type="color" id="bgc" value="#E9E4D9"></label>
         <div class="out" id="ccout"></div></div></div>`;
@@ -351,7 +357,7 @@ if (ls) { const up = () => { const l = $('#live'); l.style.letterSpacing = ls.va
 /* contrast checker */
 const fg = $('#fg'), bgc = $('#bgc');
 if (fg) { const up = () => { const r = ratio(fg.value, bgc.value); const o = $('#ccout'); o.style.background = bgc.value; o.style.color = fg.value;
-  o.innerHTML = `${r.toFixed(2)}:1 — the quick brown fox <br><span class="badge ${r >= 3 ? 'pass' : 'fail'}">large text ≥ 3:1 ${r >= 3 ? 'pass' : 'fail'}</span><span class="badge ${r >= 4.5 ? 'pass' : 'fail'}">small text ≥ 4.5:1 ${r >= 4.5 ? 'pass' : 'fail'}</span>`; };
+  o.innerHTML = `${r.toFixed(2)}:1 — the quick brown fox <br><span class="badge ${r >= 3 ? 'pass' : 'fail'}">large text ≥ 3:1 ${r >= 3 ? 'pass' : 'fail'}</span><span class="badge ${r >= 4.5 ? 'pass' : 'fail'}">small text ≥ 4.5:1 ${r >= 4.5 ? 'pass' : 'fail'}</span><span class="badge ${r >= 7 ? 'pass' : 'fail'}">AAA ≥ 7:1 ${r >= 7 ? 'pass' : 'fail'}</span>`; };
   fg.oninput = bgc.oninput = up; up(); }
 
 /* nav highlight */

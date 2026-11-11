@@ -108,7 +108,22 @@ window.SYSTEM = {
       donts: ["text straight on a busy photo", "justified text with gaps", "shape color on white for small text"]
     },
     {
-      id: "shapes", num: "07", title: "shapes", kicker: "vocabulary", demo: "shapes",
+      id: "contrast", num: "07", title: "contrast & accessibility", kicker: "access", demo: "contrast",
+      lead: "contrast is how far apart two colors are in brightness. if people can't read it, it isn't design. every new palette gets checked, because the mood picks the colors now.",
+      rules: [
+        { t: "how it works.", d: "each color gets a relative luminance (0 = black, 1 = white, green counts most, blue least). ratio = (lighter + 0.05) / (darker + 0.05). it runs from 1:1 (identical) to 21:1 (black on white)." },
+        { t: "the thresholds (WCAG).", d: "normal text >= 4.5:1. large text (>= 24px, or >= 19px bold) >= 3:1. icons, outlines and button edges >= 3:1. 7:1 is the AAA level, aim for it on long body text." },
+        { t: "hue is not contrast.", d: "two colors can look different and still fail, e.g. mustard on white or light green on cream. judge brightness, not color. squint or desaturate to test." },
+        { t: "never use color alone.", d: "errors, success and links also need a label, icon or underline. about 1 in 12 men can't tell red from green." },
+        { t: "check every palette you pick.", d: "run each text/background pair of the chosen palette through the checker before building: ink on paper, light on primary, text on shape, accent on paper. if a pair fails, darken the darker color or lighten the lighter one, don't enlarge the text to dodge it." },
+        { t: "text on photos and gradients.", d: "measure against the worst spot behind the text, or put a solid shape behind it (see clarity)." },
+        { t: "other readability basics.", d: "body >= 16px, line-height 1.4 or more, tap targets >= 44px, visible focus state, never rely on hover alone." }
+      ],
+      dos: ["check every text/background pair of the chosen palette", "darken or lighten a failing color", "label status with text or an icon too"],
+      donts: ["light grey text on white", "color as the only signal", "bigger text to excuse a failing pair"]
+    },
+    {
+      id: "shapes", num: "08", title: "shapes", kicker: "vocabulary", demo: "shapes",
       lead: "flat fills only. circles, rectangles, rounded rectangles. each has a job.",
       rules: [
         { t: "circles.", d: "big background elements (partly off-canvas), small dots as bullets, a filled circle as the background for short text." },
@@ -120,7 +135,7 @@ window.SYSTEM = {
       ]
     },
     {
-      id: "effects", num: "08", title: "effects", kicker: "texture", demo: "effects",
+      id: "effects", num: "09", title: "effects", kicker: "texture", demo: "effects",
       lead: "one effect family per piece, on purpose.",
       rules: [
         { t: "clip mask.", d: "photo cut into a circle or blob." },
@@ -133,7 +148,7 @@ window.SYSTEM = {
       ]
     },
     {
-      id: "imagery", num: "09", title: "imagery", kicker: "images", demo: null,
+      id: "imagery", num: "10", title: "imagery", kicker: "images", demo: null,
       lead: "flat vectors in one palette, or real photos masked into shapes.",
       rules: [
         { t: "vectors", d: "flat, one palette (Canva Pro or vector stock)." },
@@ -143,7 +158,7 @@ window.SYSTEM = {
       ]
     },
     {
-      id: "recipes", num: "10", title: "layout recipes", kicker: "patterns", demo: "recipes",
+      id: "recipes", num: "11", title: "layout recipes", kicker: "patterns", demo: "recipes",
       lead: "start from a recipe, then bend it.",
       rules: [
         { t: "title slide.", d: "huge two-line title (lowercase if the mood suits), spaced-caps subtitle, one big circle partly off-canvas, tiny logo bottom-left." },
@@ -155,7 +170,7 @@ window.SYSTEM = {
       ]
     },
     {
-      id: "web", num: "11", title: "web / ui translation", kicker: "code", demo: "web",
+      id: "web", num: "12", title: "web / ui translation", kicker: "code", demo: "web",
       lead: "mobile-first. the system as css.",
       rules: [
         { t: "buttons follow the shape style.", d: "playful: pill with 2px ink outline + hard offset shadow, hover shifts the offset. calm: soft filled. elegant: sharp, thin line. glass per the liquid glass rule." },

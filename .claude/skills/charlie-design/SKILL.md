@@ -75,7 +75,7 @@ Rules:
 
 - "Don't exchange clarity with design." If an effect hurts reading, remove the effect.
 - Text on a busy photo needs a solid shape behind it (circle or rounded rectangle in paper/white/mustard), not a faint overlay.
-- Contrast: text >= **3:1** if large (>= 24px, or 19px bold), >= **4.5:1** if small. On light background use ink; on dark use white. Do not put green text on mustard or mustard on white for small text (fails). When unsure, use a contrast checker (webaim.org/resources/contrastchecker).
+- **Contrast & accessibility (check every chosen palette).** Ratio = (L_light + 0.05) / (L_dark + 0.05), L = relative luminance 0-1 (WCAG); 1:1 identical, 21:1 black on white. Text >= **4.5:1**; large text (>= 24px, or 19px bold) >= **3:1**; icons, outlines and button edges >= 3:1; aim for 7:1 (AAA) on long body text. Hue is not contrast: judge brightness, not color. Never use color alone for status (add a label/icon/underline). Since the mood picks the palette, compute the ratio for every text/background pair (ink on paper, light on primary, text on shape, accent on paper) before building; if a pair fails, darken the darker color or lighten the lighter one, never enlarge the text to dodge it. On photos/gradients measure the worst spot or use a solid shape. Body >= 16px, line-height >= 1.4, tap targets >= 44px, visible focus state. Live checker: `design-system/` section 07. When unsure, webaim.org/resources/contrastchecker.
 - One focal point per layout; the eye should know where to start in under a second.
 - Group related items; separate unrelated items by at least 2 spacing units.
 
