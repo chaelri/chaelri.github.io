@@ -143,7 +143,7 @@ window.SYSTEM = {
         { t: "grain.", d: "subtle noise over paper or dark photos." },
         { t: "paper design.", d: "torn-paper edges on photos." },
         { t: "glitch / neon.", d: "white + cyan + magenta offsets, or blurred outline text. black background only." },
-        { t: "text designs.", d: "repeated text, outline (no fill), curved text." },
+        { t: "text designs.", d: "repeated text, outline, curved text. outline text = stroke + paint-order: stroke fill with the fill set to the background color, never a transparent fill: modern fonts have overlapping contours and a transparent fill shows them as stray lines inside the letters (check in Chrome). stroke width at least 3px." },
         { t: "liquid glass (a second style).", d: "Apple-style translucent surfaces: backdrop blur (about 16-32px) + saturate, a white tint at 8-20% alpha, a 1px light inner border (white at 25-40%), a soft highlight on the top edge, and a gentle soft shadow. gradients and blur are allowed here, that is the point. needs something colorful behind it to refract. keep text contrast >= 4.5:1 (add a darker tint or solid fallback behind text). don't mix glass with the flat/ink-outline style in the same component." }
       ]
     },

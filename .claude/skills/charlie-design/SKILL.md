@@ -89,7 +89,7 @@ Rules:
 
 ## 8. Effects (use one per piece, on purpose)
 
-liquid glass (second style, see below), clip-mask (photo cut into a circle/blob shape), parallax (subject cut-out overlapping the heading), grain (subtle noise over paper/dark photos), paper design (torn-paper edges on photos), glitch (white + cyan + magenta offsets, on black), neon (blurred outline text, on black), text designs (repeated text, outline/no-fill stroke, curved text). Never stack more than one effect family.
+liquid glass (second style, see below), clip-mask (photo cut into a circle/blob shape), parallax (subject cut-out overlapping the heading), grain (subtle noise over paper/dark photos), paper design (torn-paper edges on photos), glitch (white + cyan + magenta offsets, on black), neon (blurred outline text, on black), text designs (repeated text, outline, curved text; **outline text = `-webkit-text-stroke` >= 3px + `paint-order: stroke fill` with the fill = the background colour, never `color: transparent`**: variable/modern fonts have overlapping contours that show as stray lines inside the letters). Never stack more than one effect family.
 
 **Liquid glass (Apple-style, a second style, not a lapse in the flat one):** translucent surfaces with backdrop blur (about 16-32px) + saturate, white tint at 8-20% alpha, 1px light inner border (white 25-40%), a soft highlight on the top edge, gentle soft shadow. Gradients and blur are allowed here, that is the point. Needs something colourful behind it to refract. Keep text contrast >= 4.5:1 (darker tint or solid fallback behind text). Don't mix glass with the flat/ink-outline style in the same component.
 
