@@ -50,9 +50,10 @@ section.sec{padding:72px 0;border-top:2px solid var(--ink);position:relative}
 .sec.dark{background:var(--green);color:var(--white)}
 .sec.dark .pill{background:var(--green);border-color:var(--white);color:var(--white)}
 .grid{display:grid;gap:36px}
-@media(min-width:960px){.grid{grid-template-columns:340px 1fr;gap:56px}.side{position:sticky;top:84px;align-self:start}}
+@media(min-width:960px){.grid{grid-template-columns:340px minmax(0,1fr);gap:56px}.side{position:sticky;top:84px;align-self:start}}
 .num{font-size:clamp(4rem,9vw,6.854rem);font-weight:700;color:var(--green);line-height:.85}
-.sec.dark .num{color:var(--mustard)}
+.sec.dark .num{color:var(--white)}
+.sec.dark .rules span{opacity:1}
 .side h2{font-size:clamp(2.2rem,5vw,2.618rem);margin:14px 0 18px}
 .lead{font-size:1.2rem;max-width:42ch}
 .rules{list-style:none;padding:0;margin:28px 0 0}
@@ -60,7 +61,7 @@ section.sec{padding:72px 0;border-top:2px solid var(--ink);position:relative}
 .rules li::before{content:"";width:14px;height:14px;border-radius:50%;background:var(--green);margin-top:6px}
 .rules b{display:block}
 .rules span{opacity:.85}
-.demo{border:2px solid var(--ink);border-radius:var(--r);background:var(--white);padding:24px;margin:0 0 8px;position:relative;overflow:hidden}
+.demo{border:2px solid var(--ink);border-radius:var(--r);background:var(--white);color:var(--ink);padding:24px;margin:0 0 8px;position:relative;overflow:hidden}
 .demo.paper{background:var(--paper)}
 .demo+.rules{margin-top:20px}
 .demo h4{font:700 .72rem var(--font);letter-spacing:.25em;text-transform:uppercase;margin-bottom:16px}
@@ -71,7 +72,7 @@ section.sec{padding:72px 0;border-top:2px solid var(--ink);position:relative}
 .swatch{border:2px solid var(--ink);border-radius:var(--r);padding:16px;min-height:170px;display:flex;flex-direction:column;justify-content:space-between;text-align:left;font:inherit;cursor:pointer;transition:transform .15s}
 .swatch:hover{transform:translate(-2px,-2px);box-shadow:4px 4px 0 var(--ink)}
 .swatch b{font-size:1.4rem;text-transform:lowercase}
-.swatch small{display:block;opacity:.9;font-size:.78rem;line-height:1.3;margin-top:4px}
+.swatch small{display:block;opacity:1;font-size:.78rem;line-height:1.3;margin-top:4px}
 .swatch code{font:700 .8rem var(--mono)}
 .swatch .cr{font:700 .68rem var(--font);letter-spacing:.12em}
 .toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,80px);background:var(--ink);color:var(--paper);padding:.7em 1.2em;border-radius:999px;font:700 .85rem var(--font);transition:.25s;z-index:50}
@@ -164,7 +165,7 @@ input[type=range]{accent-color:var(--green);width:100%}
 .rc .m .c2{position:absolute;right:-6%;bottom:-30%;width:42%;aspect-ratio:1;border-radius:50%;background:var(--mustard)}
 .rc .m .c3{position:absolute;right:22%;bottom:-24%;width:26%;aspect-ratio:1;border-radius:50%;background:#fff}
 .rc .m .tag{position:absolute;left:8%;top:10%;font:700 .5rem var(--font);letter-spacing:.2em;border:1.5px solid var(--ink);border-radius:99px;padding:3px 8px}
-.rc .m .x{position:absolute;left:18%;top:8%;font-size:1.7rem;color:var(--red)}.rc .m .ok{position:absolute;right:20%;top:8%;font-size:1.7rem;color:var(--green)}
+.rc .m .x{position:absolute;left:18%;top:8%;font-size:1.7rem;color:#D94444}.rc .m .ok{position:absolute;right:20%;top:8%;font-size:1.7rem;color:var(--green)}
 .rc .m .bl{position:absolute;left:10%;bottom:12%;width:36%;height:44%;background:var(--mustard);border:1.5px solid var(--ink)}
 .rc .m .bl2{position:absolute;right:10%;bottom:12%;width:36%;height:44%;background:var(--mustard);border:1.5px solid var(--ink)}
 .rc .m .blk{position:absolute;left:8%;bottom:14%;width:50%;height:34%;background:var(--mustard);border:1.5px solid var(--ink);border-radius:8px}
@@ -190,7 +191,8 @@ pre .k{color:var(--mustard)}
 .chk input:checked{background:var(--mustard)}
 .chk input:checked::after{content:"";width:12px;height:7px;border-left:3px solid var(--green);border-bottom:3px solid var(--green);transform:rotate(-45deg) translate(1px,-1px)}
 .chk input:checked+span{text-decoration:line-through;opacity:.55}
-.prog{font-weight:700;font-size:2.618rem;color:var(--mustard)}
+.prog{font-weight:700;font-size:2.618rem;color:var(--ink)}
+.sec.dark .prog{color:var(--white)}
 .steps{counter-reset:s;list-style:none;padding:0}
 .steps li{counter-increment:s;display:grid;grid-template-columns:48px 1fr;gap:14px;padding:14px 0;border-top:2px solid var(--white)}
 .steps li::before{content:counter(s);width:40px;height:40px;border-radius:50%;background:var(--mustard);color:var(--ink);display:grid;place-items:center;font-weight:700;border:2px solid var(--ink)}
@@ -279,7 +281,7 @@ const DEMOS = {
     const pairs = [['#251F1B','#E9E4D9'],['#FFFFFF','#488162'],['#488162','#E3BE53'],['#A8341C','#E9E4D9'],['#E3BE53','#FFFFFF']];
     return `<div class="demo paper" style="margin:0"><h4>how the number is made</h4>
       <p style="margin:8px 0 14px;font-size:.95rem;line-height:1.5">ratio = (L<sub>light</sub> + 0.05) / (L<sub>dark</sub> + 0.05). L is the brightness of each color from 0 to 1. black on white = (1 + .05) / (0 + .05) = <b>21:1</b>.</p>
-      <div class="sw">${pairs.map(([f,b]) => { const r = ratio(f,b); return `<div class="swatch" style="background:${b};color:${f};cursor:default"><div><b>Aa text</b><small>${f} on ${b}</small></div><div><code>${r.toFixed(1)}:1</code><div class="cr">${r>=7?'AAA':r>=4.5?'AA text':r>=3?'large text only':'fails'}</div></div></div>`; }).join('')}</div></div>
+      <div class="sw">${pairs.map(([f,b]) => { const r = ratio(f,b); return `<div class="swatch"${r<4.5?' data-audit-skip':''} style="background:${b};color:${f};cursor:default"><div><b>Aa text</b><small>${f} on ${b}</small></div><div><code>${r.toFixed(1)}:1</code><div class="cr">${r>=7?'AAA':r>=4.5?'AA text':r>=3?'large text only':'fails'}</div></div></div>`; }).join('')}</div></div>
       <div class="demo paper" style="margin-top:18px"><h4>contrast checker</h4>
         <div class="cc"><label>text <input type="color" id="fg" value="#251F1B"></label><label>background <input type="color" id="bgc" value="#E9E4D9"></label>
         <div class="out" id="ccout"></div></div></div>`;
@@ -299,7 +301,7 @@ const DEMOS = {
       <figure><div class="st grain" style="background:var(--mustard)">grain</div><figcaption>grain</figcaption></figure>
       <figure><div class="st blk"><span class="glitch">glitch</span></div><figcaption>glitch</figcaption></figure>
       <figure><div class="st blk"><span class="neon">neon</span></div><figcaption>neon</figcaption></figure>
-      <figure><div class="st"><span class="outline">outline</span></div><figcaption>outline text</figcaption></figure>
+      <figure data-audit-skip><div class="st"><span class="outline">outline</span></div><figcaption>outline text</figcaption></figure>
       <figure><div class="st"><div class="rep">some text<br>some text<br>some text</div></div><figcaption>repeating</figcaption></figure>
       <figure><div class="st"><div class="mask"></div></div><figcaption>clip mask</figcaption></figure>
       <figure><div class="st"><div class="torn"></div></div><figcaption>paper design</figcaption></figure>

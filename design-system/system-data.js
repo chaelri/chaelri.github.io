@@ -23,7 +23,7 @@ window.SYSTEM = {
     { name: "mustard", hex: "#E3BE53", use: "secondary, highlight blocks, big shapes", ink: "#251F1B" },
     { name: "rust", hex: "#A8341C", use: "accent. one small thing per layout", ink: "#FFFFFF" },
     { name: "white", hex: "#FFFFFF", use: "text on green, panels on paper", ink: "#251F1B" },
-    { name: "mark-red", hex: "#E35353", use: "the wrong X mark only", ink: "#251F1B" }
+    { name: "mark-red", hex: "#E35353", use: "the wrong X mark only", ink: "#160F0D" }
   ],
 
   fonts: [
