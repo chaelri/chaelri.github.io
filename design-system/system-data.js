@@ -27,7 +27,7 @@ window.SYSTEM = {
   ],
 
   fonts: [
-    { role: "display + body", name: "Glacial Indifference", fallback: "Outfit", weights: "Bold + Regular only" },
+    { role: "display + body", name: "Glacial Indifference", fallback: "Outfit", weights: "Bold + Regular. use Outfit in pptx (installed on this PC)" },
     { role: "handwriting accent", name: "Lemon Tuesday", fallback: "Caveat", weights: "small, slanted, green or rust" },
     { role: "serif (rare contrast)", name: "Playfair Display", fallback: "serif", weights: "never the main voice" }
   ],
@@ -39,6 +39,7 @@ window.SYSTEM = {
       id: "palette", num: "01", title: "color & theme", kicker: "tokens", demo: "palette",
       lead: "paper + ink + green + mustard is the default. rust is the spice. pick 3-4 colors per piece and stick to the theme.",
       rules: [
+        { t: "this palette is a default, not a rule.", d: "keep the structure (paper, ink, primary, shape color, accent) but derive the actual colors from the subject, e.g. a teal invitation gives teal + aqua + coral. re-check contrast after swapping." },
         { t: "paper, never white.", d: "the background is warm cream #E9E4D9. green or ink only when you mean it." },
         { t: "black on light, white on dark.", d: "general rule for text. transparent and alternate accents are the only exceptions." },
         { t: "contrast is accessibility.", d: ">= 3:1 for large text, >= 4.5:1 for small text. unsure? use a contrast checker." },
@@ -185,7 +186,7 @@ h1,h2{font-weight:700;text-transform:lowercase;line-height:.95;letter-spacing:-.
 
   checklist: [
     "background is paper (or green/ink on purpose), not white or grey",
-    "only palette colors: <= 4 colors + ink",
+    "one chosen palette (default or derived from the subject): <= 4 colors + ink",
     "<= 2 font families; headings lowercase bold; one highlighted word per heading",
     "sizes follow x1.618; clear BIG vs smol; <= 3 sizes per layout",
     "text centered in its containers; equal padding; no split phrases; nothing collides",

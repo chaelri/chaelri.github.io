@@ -13,6 +13,8 @@ Scope note: `house-style` (navy/Nunito/pink) is the devo-app look only. Everythi
 
 ## 1. Tokens
 
+**The palette below is the workshop default, NOT mandatory.** What is mandatory is the structure: 3-4 colors + ink, a warm/neutral paper background, one big shape color, one accent, and the contrast rules. For any project with its own subject (an invitation, a brand, a photo set), derive a matching palette from it and map it onto the same roles (paper / ink / primary / secondary-shape / accent). Example: the baptism deck uses paper `#F1EEE6`, ink `#14262B`, teal `#1F6B77` (primary), aqua `#A9D8DC` (shapes/highlight on dark), coral `#C4623B` (accent), taken from the teal invitation. Always re-check contrast after swapping colors.
+
 | Token | Hex | Use |
 |---|---|---|
 | paper | `#E9E4D9` | default background (warm cream, never pure white) |
@@ -27,7 +29,7 @@ Rules: pick 3-4 colours per piece and **stick to the theme** (paper + ink + gree
 
 ## 2. Typography
 
-- **Display/body: Glacial Indifference** (Bold + Regular only). Fallback when not installed: **Outfit** (Google Fonts), then system sans. Pair with at most one accent.
+- **Display/body: Glacial Indifference** (Bold + Regular only). Fallback when not installed: **Outfit** (Google Fonts), then system sans. Pair with at most one accent. **For pptx/Office files use Outfit** (Charlie's PC has Outfit + Caveat installed; Glacial Indifference is not installed, so Office/LibreOffice would swap in an ugly default). Never leave a deck in a font that is not installed on his machine.
 - **Accent/handwriting: Lemon Tuesday** for little annotations ("pro tip!", "when it started"), fallback **Caveat**. Small, slanted, often green or rust, paired with a hand-drawn arrow.
 - Serif (Playfair Display) only as a deliberate contrast, never the main voice.
 - Know the 3 classifications (display, handwriting, monospace) and 3 strokes (sans, serif, slab); use max 2 families per piece.
@@ -110,7 +112,9 @@ Mobile-first, 16px side gutter, mustard/green as the only large colour areas, bu
 ## 12. pptx / python-pptx / Canva notes
 
 - 13.333 x 7.5 in, background `E9E4D9`. Set run fonts to `Glacial Indifference` (Canva has it; PowerPoint falls back to Calibri if not installed, so mention it).
-- Build shapes (circles, rounded rects) with no outline except the 2px ink outline where the style calls for it; no shadows (`shape.shadow.inherit=False`).
+- Build shapes (circles, rounded rects) with no outline except the 2px ink outline where the style calls for it. **No shadows: `shape.shadow.inherit=False` is not enough in LibreOffice; also delete the shape's `p:style` element** (`el.remove(el.find(qn('p:style')))`).
+- List rows: put the divider, the dot and the text in one cell; center the dot on the text box's vertical middle; leave >= 0.1in between divider and 2-line text. Heading boxes must end before the next column starts (give the heading a width, let it wrap). Never place text over a circle unless the contrast is >= 3:1 (>= 4.5:1 small).
+- Verify by rendering: `soffice --headless --convert-to pdf` then look at it before delivering.
 - Lay out on a 12-col grid with 0.9in side margins; align text boxes to the same left edge.
 
 ## 13. Pre-flight checklist (run before delivering)
