@@ -206,7 +206,7 @@ footer{padding:48px 0;border-top:2px solid var(--ink);font-size:.9rem}
   <div class="wrap">
     <span class="pill">design system  ·  v1</span>
     <h1 style="margin-top:22px">charlie's<br><span class="hl">design</span> system</h1>
-    <p class="sub">how Claude builds every page, deck and graphic. made by hand, no AI, from the graphic design workshop.</p>
+    <p class="sub">the rules Claude follows for every page, deck and graphic. color, fonts and shape style come from the mood; spacing and size never change. this page itself wears the workshop sample.</p>
     <div class="meta" id="meta"></div>
     <span class="hand">follow ALL of it!</span>
   </div>
@@ -240,7 +240,7 @@ const DEMOS = {
         <div><b>${t.name}</b><small>${esc(t.use)}</small></div>
         <div><code>${t.hex}</code><div class="cr">${ratio(t.hex, t.ink).toFixed(1)}:1 text</div></div>
       </button>`).join('')}</div>
-      <p style="margin-top:14px;font-size:.85rem;opacity:.75">tap a swatch to copy its hex.</p>`;
+      <p style="margin-top:14px;font-size:.85rem;opacity:.75">sample only: the workshop set, showing how roles map to colors. claude picks a different palette for every mood. tap a swatch to copy its hex.</p>`;
   },
   type() {
     return `<div class="demo paper" style="margin:0">
