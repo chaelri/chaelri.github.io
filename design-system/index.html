@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>charlie's design system</title>
+<meta name="description" content="Charlie's design system: palette, type, spacing, shapes, effects and the checklist Claude follows for every UI.">
+<meta name="theme-color" content="#E9E4D9">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23E9E4D9'/%3E%3Ccircle cx='13' cy='17' r='9' fill='%23488162'/%3E%3Ccircle cx='22' cy='11' r='6' fill='%23E3BE53'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700&family=Caveat:wght@600&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#E9E4D9; --ink:#251F1B; --green:#488162; --mustard:#E3BE53; --rust:#A8341C; --white:#fff; --red:#E35353;
+  --soft:#D9D2C3;
+  --font:"Glacial Indifference","Outfit",system-ui,sans-serif; --hand:"Lemon Tuesday","Caveat",cursive; --mono:"JetBrains Mono",ui-monospace,monospace;
+  --u:.5rem; --r:20px;
+}
+*{box-sizing:border-box;margin:0}
+html{scroll-behavior:smooth}
+body{background:var(--paper);color:var(--ink);font:400 1.0625rem/1.5 var(--font);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+::selection{background:var(--mustard)}
+a{color:inherit}
+h1,h2,h3{font-weight:700;text-transform:lowercase;letter-spacing:-.01em;line-height:.95}
+.label{font:700 .72rem var(--font);letter-spacing:.25em;text-transform:uppercase}
+.hl{color:var(--green)} .hlm{color:var(--mustard)}
+.pill{display:inline-block;border:2px solid var(--ink);border-radius:999px;padding:.35em 1em;background:var(--paper);font:700 .72rem var(--font);letter-spacing:.2em;text-transform:uppercase;line-height:1}
+.hand{font-family:var(--hand);font-weight:600;color:var(--rust);font-size:1.6rem;line-height:1;transform:rotate(-4deg);display:inline-block}
+.wrap{max-width:1120px;margin:0 auto;padding:0 16px}
+.circ{position:absolute;border-radius:50%;pointer-events:none}
+
+/* header */
+.top{position:sticky;top:0;z-index:20;background:var(--paper);border-bottom:2px solid var(--ink)}
+.top .wrap{display:flex;gap:6px;align-items:center;overflow-x:auto;scrollbar-width:none;padding-top:10px;padding-bottom:10px}
+.top .wrap::-webkit-scrollbar{display:none}
+.top b{font-size:1rem;margin-right:10px;white-space:nowrap;text-transform:lowercase}
+.top a{flex:none;text-decoration:none;font:700 .68rem var(--font);letter-spacing:.2em;text-transform:uppercase;padding:.55em .9em;border:2px solid transparent;border-radius:999px}
+.top a:hover,.top a.on{border-color:var(--ink);background:var(--mustard)}
+
+/* hero */
+.hero{position:relative;overflow:hidden;padding:72px 0 88px}
+.hero h1{font-size:clamp(3.2rem,13vw,9rem);line-height:.88;position:relative;z-index:2}
+.hero .sub{max-width:34ch;margin-top:28px;font-size:1.2rem;position:relative;z-index:2}
+.hero .meta{margin-top:32px;display:flex;gap:10px;flex-wrap:wrap;position:relative;z-index:2}
+.hero .hand{position:absolute;z-index:2;right:6%;bottom:36px}
+
+/* sections */
+section.sec{padding:72px 0;border-top:2px solid var(--ink);position:relative}
+.sec.dark{background:var(--green);color:var(--white)}
+.sec.dark .pill{background:var(--green);border-color:var(--white);color:var(--white)}
+.grid{display:grid;gap:36px}
+@media(min-width:960px){.grid{grid-template-columns:340px 1fr;gap:56px}.side{position:sticky;top:84px;align-self:start}}
+.num{font-size:clamp(4rem,9vw,6.854rem);font-weight:700;color:var(--green);line-height:.85}
+.sec.dark .num{color:var(--mustard)}
+.side h2{font-size:clamp(2.2rem,5vw,2.618rem);margin:14px 0 18px}
+.lead{font-size:1.2rem;max-width:42ch}
+.rules{list-style:none;padding:0;margin:28px 0 0}
+.rules li{padding:16px 0;border-top:2px solid var(--ink);display:grid;grid-template-columns:18px 1fr;gap:14px}
+.rules li::before{content:"";width:14px;height:14px;border-radius:50%;background:var(--green);margin-top:6px}
+.rules b{display:block}
+.rules span{opacity:.85}
+.demo{border:2px solid var(--ink);border-radius:var(--r);background:var(--white);padding:24px;margin:0 0 8px;position:relative;overflow:hidden}
+.demo.paper{background:var(--paper)}
+.demo+.rules{margin-top:20px}
+.demo h4{font:700 .72rem var(--font);letter-spacing:.25em;text-transform:uppercase;margin-bottom:16px}
+.row{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end}
+
+/* palette */
+.sw{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}
+.swatch{border:2px solid var(--ink);border-radius:var(--r);padding:16px;min-height:170px;display:flex;flex-direction:column;justify-content:space-between;text-align:left;font:inherit;cursor:pointer;transition:transform .15s}
+.swatch:hover{transform:translate(-2px,-2px);box-shadow:4px 4px 0 var(--ink)}
+.swatch b{font-size:1.4rem;text-transform:lowercase}
+.swatch small{display:block;opacity:.9;font-size:.78rem;line-height:1.3;margin-top:4px}
+.swatch code{font:700 .8rem var(--mono)}
+.swatch .cr{font:700 .68rem var(--font);letter-spacing:.12em}
+.toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,80px);background:var(--ink);color:var(--paper);padding:.7em 1.2em;border-radius:999px;font:700 .85rem var(--font);transition:.25s;z-index:50}
+.toast.on{transform:translate(-50%,0)}
+
+/* type */
+.spec{font-size:clamp(3rem,9vw,5.2rem);font-weight:700;text-transform:lowercase;line-height:.9}
+.fonts{width:100%;border-collapse:collapse;margin-top:20px;font-size:.95rem}
+.fonts td,.fonts th{text-align:left;padding:10px 8px;border-top:2px solid var(--ink)}
+.fonts th{font:700 .68rem var(--font);letter-spacing:.2em;text-transform:uppercase}
+
+/* scale */
+.sc{display:flex;gap:18px;align-items:flex-end;flex-wrap:wrap}
+.sc div{border-radius:50%;background:var(--mustard);border:2px solid var(--ink);display:grid;place-items:center;font-weight:700}
+.sc small{font-size:.65rem}
+.sline{display:flex;align-items:baseline;gap:14px;border-top:2px solid var(--ink);padding:8px 0;font-weight:700;text-transform:lowercase;line-height:1}
+.sline small{font:400 .75rem var(--mono);flex:none;width:54px;opacity:.7}
+
+/* spacing */
+.cmp{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:620px){.cmp{grid-template-columns:1fr}}
+.cmp figure{text-align:center}
+.cmp svg{width:44px;height:44px;margin-bottom:6px}
+.frame{background:var(--mustard);aspect-ratio:1;border:2px solid var(--ink);position:relative;border-radius:8px}
+.frame .blk{position:absolute;background:var(--green);color:var(--white);border-radius:12px;font-weight:700;line-height:.9;font-size:1.35rem;text-transform:lowercase;display:flex;align-items:center;justify-content:center;text-align:center}
+.frame.bad .blk{left:6%;top:8%;width:70%;height:55%;align-items:flex-end;justify-content:flex-end;padding:0 6px 4px 0}
+.frame.good .blk{left:10%;top:10%;right:10%;bottom:10%}
+.cmp figcaption{margin-top:8px;font-size:.85rem}
+.sliders{display:grid;gap:12px;margin-top:22px}
+.sliders label{display:grid;grid-template-columns:120px 1fr 48px;gap:10px;align-items:center;font:700 .7rem var(--font);letter-spacing:.15em;text-transform:uppercase}
+input[type=range]{accent-color:var(--green);width:100%}
+.live{font-weight:700;font-size:2.6rem;text-transform:lowercase;padding:8px 0}
+
+/* clarity */
+.pic{height:200px;border-radius:14px;border:2px solid var(--ink);position:relative;overflow:hidden;background:
+ radial-gradient(circle at 20% 30%,#c8602b 0 18%,transparent 19%),radial-gradient(circle at 70% 60%,#1d5b4d 0 22%,transparent 23%),
+ repeating-linear-gradient(45deg,#e3be53 0 14px,#a8341c 14px 28px)}
+.pic p{position:absolute;inset:0;display:grid;place-items:center;font-weight:700;font-size:1.5rem;text-align:center;padding:12px;line-height:1}
+.pic.bad p{color:#fff;opacity:.9}
+.pic.good p{margin:auto;width:150px;height:150px;border-radius:50%;background:var(--paper);color:var(--ink);inset:auto;top:25px;left:calc(50% - 75px);display:grid}
+.cc{display:grid;gap:14px;margin-top:22px;grid-template-columns:1fr 1fr}
+@media(max-width:560px){.cc{grid-template-columns:1fr}}
+.cc label{display:flex;gap:10px;align-items:center;font:700 .7rem var(--font);letter-spacing:.15em;text-transform:uppercase}
+.cc input[type=color]{width:44px;height:44px;border:2px solid var(--ink);border-radius:50%;padding:0;background:none;cursor:pointer}
+.cc .out{grid-column:1/-1;border:2px solid var(--ink);border-radius:14px;padding:16px;font-weight:700}
+.badge{display:inline-block;padding:.2em .7em;border-radius:999px;border:2px solid var(--ink);font:700 .72rem var(--font);margin:4px 6px 0 0}
+.pass{background:var(--green);color:#fff}.fail{background:var(--red)}
+
+/* ratio */
+.rat{display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap}
+.rat div{border:3px solid;display:grid;place-items:center;font-weight:700;font-size:.8rem;border-radius:4px}
+
+/* shapes */
+.shp{display:flex;gap:18px;flex-wrap:wrap;align-items:center}
+.shp .c{width:110px;height:110px;border-radius:50%;background:var(--green)}
+.shp .s{width:110px;height:110px;background:var(--mustard)}
+.shp .rr{width:110px;height:110px;border-radius:24px;background:var(--rust)}
+.stripes{width:110px;height:110px;background:repeating-linear-gradient(90deg,var(--mustard) 0 12px,transparent 12px 26px)}
+.bub{background:var(--rust);color:#fff;padding:.5em 1em;border-radius:18px 18px 18px 4px;font-weight:700;font-size:.9rem}
+.bub.l{background:#fff;color:var(--ink);border:2px solid var(--ink);border-radius:18px 18px 4px 18px}
+.btn{font:700 .95rem var(--font);border:2px solid var(--ink);border-radius:999px;background:var(--mustard);color:var(--ink);padding:.8em 1.6em;box-shadow:4px 4px 0 var(--ink);cursor:pointer;transition:.12s;text-transform:lowercase}
+.btn:hover{transform:translate(2px,2px);box-shadow:2px 2px 0 var(--ink)}
+
+/* effects */
+.fx{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px}
+.fx figure{border:2px solid var(--ink);border-radius:16px;overflow:hidden;background:var(--paper)}
+.fx .st{height:150px;display:grid;place-items:center;position:relative;font-weight:700;font-size:2rem;text-transform:lowercase;overflow:hidden}
+.fx figcaption{padding:10px 14px;border-top:2px solid var(--ink);font:700 .68rem var(--font);letter-spacing:.2em;text-transform:uppercase;background:var(--paper)}
+.fx .blk{background:#000;color:#fff}
+.grain::after{content:"";position:absolute;inset:0;opacity:.35;mix-blend-mode:multiply;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.7'/%3E%3C/svg%3E")}
+.glitch{text-shadow:-3px 0 #00f0ff,3px 0 #ff00e5}
+.neon{color:#fff;text-shadow:0 0 6px #ff00e5,0 0 16px #ff00e5,0 0 34px #b300ff}
+.outline{color:transparent;-webkit-text-stroke:2px var(--ink)}
+.rep{line-height:.8;font-size:1.5rem;letter-spacing:.02em;text-align:center}
+.mask{width:120px;height:120px;background:linear-gradient(135deg,var(--green),var(--mustard));border-radius:63% 37% 54% 46%/55% 48% 52% 45%}
+.torn{width:150px;height:110px;background:linear-gradient(135deg,var(--mustard),var(--rust));clip-path:polygon(0 6%,8% 0,16% 7%,25% 1%,34% 6%,45% 0,57% 7%,68% 1%,80% 6%,92% 0,100% 5%,98% 40%,100% 62%,97% 100%,85% 95%,72% 100%,60% 94%,48% 100%,34% 95%,20% 100%,8% 94%,0 98%,3% 60%,0 35%)}
+.par{position:relative;display:grid;place-items:center;width:100%;height:100%}
+.par span{position:absolute;width:98px;height:98px;border-radius:50%;background:var(--mustard);border:2px solid var(--ink);left:calc(50% - 20px);top:34px}
+.par b{position:relative;z-index:2;font-size:2.2rem;mix-blend-mode:normal}
+.par span{z-index:1}
+
+/* recipes */
+.rc{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px}
+.rc figure{border:2px solid var(--ink);border-radius:14px;overflow:hidden}
+.rc .m{aspect-ratio:16/9;position:relative;overflow:hidden;font-weight:700;text-transform:lowercase;background:var(--paper)}
+.rc .m.green{background:var(--green);color:#fff}
+.rc .m .big{position:absolute;left:8%;top:22%;font-size:1.9rem;line-height:.85}.rc .m .big i{font-style:normal;color:var(--green)}
+.rc .m .mid{position:absolute;left:8%;top:30%;font-size:1.2rem;line-height:1}.rc .m .mid i{font-style:normal;color:var(--green)}
+.rc .m .c{position:absolute;right:-8%;top:-30%;width:55%;aspect-ratio:1;border-radius:50%;background:var(--mustard)}
+.rc .m .c2{position:absolute;right:-6%;bottom:-30%;width:42%;aspect-ratio:1;border-radius:50%;background:var(--mustard)}
+.rc .m .c3{position:absolute;right:22%;bottom:-24%;width:26%;aspect-ratio:1;border-radius:50%;background:#fff}
+.rc .m .tag{position:absolute;left:8%;top:10%;font:700 .5rem var(--font);letter-spacing:.2em;border:1.5px solid var(--ink);border-radius:99px;padding:3px 8px}
+.rc .m .x{position:absolute;left:18%;top:8%;font-size:1.7rem;color:var(--red)}.rc .m .ok{position:absolute;right:20%;top:8%;font-size:1.7rem;color:var(--green)}
+.rc .m .bl{position:absolute;left:10%;bottom:12%;width:36%;height:44%;background:var(--mustard);border:1.5px solid var(--ink)}
+.rc .m .bl2{position:absolute;right:10%;bottom:12%;width:36%;height:44%;background:var(--mustard);border:1.5px solid var(--ink)}
+.rc .m .blk{position:absolute;left:8%;bottom:14%;width:50%;height:34%;background:var(--mustard);border:1.5px solid var(--ink);border-radius:8px}
+.rc .m em{position:absolute;right:8%;top:14%;font:600 .95rem var(--hand);color:var(--rust);transform:rotate(-5deg);font-style:normal}
+.rc .m .g1,.rc .m .g2,.rc .m .g3,.rc .m .g4{position:absolute;border:1.5px solid var(--ink);border-radius:8px}
+.rc .m .g1{left:6%;top:10%;width:44%;height:80%;background:var(--green)}.rc .m .g2{left:53%;top:10%;width:41%;height:38%;background:var(--mustard)}
+.rc .m .g3{left:53%;top:52%;width:19%;height:38%;background:var(--rust)}.rc .m .g4{left:75%;top:52%;width:19%;height:38%;background:#fff}
+.rc .m .ln{position:absolute;left:8%;right:8%;height:2px;background:var(--ink)}
+.rc .m .ln:nth-child(1){top:20%}.rc .m .ln:nth-child(2){top:40%}.rc .m .ln:nth-child(3){top:60%}.rc .m .ln:nth-child(4){top:80%}
+.rc figcaption{padding:9px 14px;border-top:2px solid var(--ink);font:700 .68rem var(--font);letter-spacing:.2em;text-transform:uppercase;background:var(--paper)}
+
+/* code */
+pre{background:var(--ink);color:var(--paper);padding:20px;border-radius:var(--r);overflow:auto;font:400 .82rem/1.6 var(--mono);position:relative}
+pre .k{color:var(--mustard)}
+.copy{position:absolute;right:12px;top:12px}
+.copy.btn{padding:.4em 1em;font-size:.75rem;box-shadow:3px 3px 0 var(--paper)}
+
+/* checklist */
+.chk{list-style:none;padding:0}
+.chk li{border-top:2px solid var(--ink)}
+.chk label{display:grid;grid-template-columns:34px 1fr;gap:14px;padding:16px 0;cursor:pointer;align-items:start}
+.chk input{appearance:none;width:26px;height:26px;border:2px solid var(--ink);border-radius:50%;background:var(--paper);margin:0;cursor:pointer;display:grid;place-items:center;flex:none}
+.chk input:checked{background:var(--mustard)}
+.chk input:checked::after{content:"";width:12px;height:7px;border-left:3px solid var(--green);border-bottom:3px solid var(--green);transform:rotate(-45deg) translate(1px,-1px)}
+.chk input:checked+span{text-decoration:line-through;opacity:.55}
+.prog{font-weight:700;font-size:2.618rem;color:var(--mustard)}
+.steps{counter-reset:s;list-style:none;padding:0}
+.steps li{counter-increment:s;display:grid;grid-template-columns:48px 1fr;gap:14px;padding:14px 0;border-top:2px solid var(--white)}
+.steps li::before{content:counter(s);width:40px;height:40px;border-radius:50%;background:var(--mustard);color:var(--ink);display:grid;place-items:center;font-weight:700;border:2px solid var(--ink)}
+footer{padding:48px 0;border-top:2px solid var(--ink);font-size:.9rem}
+</style>
+</head>
+<body>
+<nav class="top"><div class="wrap" id="nav"><b>charlie's design system</b></div></nav>
+
+<header class="hero">
+  <i class="circ" style="width:520px;height:520px;background:var(--mustard);right:-140px;top:-200px"></i>
+  <i class="circ" style="width:240px;height:240px;background:var(--green);right:12%;bottom:-110px"></i>
+  <div class="wrap">
+    <span class="pill">design system  ·  v1</span>
+    <h1 style="margin-top:22px">charlie's<br><span class="hl">design</span> system</h1>
+    <p class="sub">how Claude builds every page, deck and graphic. made by hand, no AI, from the graphic design workshop.</p>
+    <div class="meta" id="meta"></div>
+    <span class="hand">follow ALL of it!</span>
+  </div>
+</header>
+
+<main id="main"></main>
+
+<footer><div class="wrap" id="foot"></div></footer>
+<div class="toast" id="toast">copied</div>
+
+<script src="system-data.js"></script>
+<script>
+const S = window.SYSTEM;
+const $ = (s, r = document) => r.querySelector(s);
+const esc = t => String(t).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const toast = m => { const t = $('#toast'); t.textContent = m; t.classList.add('on'); clearTimeout(toast.k); toast.k = setTimeout(() => t.classList.remove('on'), 1400); };
+const copy = async (t, m = 'copied') => { try { await navigator.clipboard.writeText(t); toast(m); } catch (e) { toast('copy failed'); } };
+window.copy = copy;
+
+/* contrast helpers (WCAG) */
+const lum = h => { const c = [1,3,5].map(i => parseInt(h.slice(i, i + 2), 16) / 255).map(v => v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4)); return .2126 * c[0] + .7152 * c[1] + .0722 * c[2]; };
+const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + .05) / (Math.min(x, y) + .05); };
+
+const CHECK = '<svg viewBox="0 0 60 50"><path d="M4 28 L21 46 L56 4" fill="none" stroke="#488162" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const CROSS = '<svg viewBox="0 0 60 50"><path d="M6 5 L54 46 M52 5 L9 46" fill="none" stroke="#E35353" stroke-width="8" stroke-linecap="round"/></svg>';
+
+const DEMOS = {
+  palette() {
+    return `<div class="sw">${S.tokens.map(t => `
+      <button class="swatch" style="background:${t.hex};color:${t.ink}" onclick="copy('${t.hex}','copied ${t.hex}')">
+        <div><b>${t.name}</b><small>${esc(t.use)}</small></div>
+        <div><code>${t.hex}</code><div class="cr">${ratio(t.hex, t.ink).toFixed(1)}:1 text</div></div>
+      </button>`).join('')}</div>
+      <p style="margin-top:14px;font-size:.85rem;opacity:.75">tap a swatch to copy its hex.</p>`;
+  },
+  type() {
+    return `<div class="demo paper" style="margin:0">
+      <h4>display</h4><div class="spec">graphic <span class="hl">design</span></div>
+      <div class="row" style="margin-top:24px"><span class="label">workshop  ·  uppercase label +300</span><span class="hand">pro tip!</span></div>
+      <p style="margin-top:14px"><b>bold</b> carries the key words, regular carries the rest.</p></div>
+      <table class="fonts"><tr><th>role</th><th>font</th><th>fallback</th><th>note</th></tr>
+      ${S.fonts.map(f => `<tr><td>${f.role}</td><td><b>${f.name}</b></td><td>${f.fallback}</td><td>${f.weights}</td></tr>`).join('')}</table>`;
+  },
+  scale() {
+    const r = S.scale.ratio, base = S.scale.base;
+    const vals = [0,1,2,3,4,5].map(i => base / Math.pow(r, i));
+    const px = [99, 61, 38, 23, 14, 9];
+    return `<div class="demo paper" style="margin:0"><h4>x 1.618 / ÷ 1.618</h4>
+      <div class="sc">${vals.map((v, i) => `<div style="width:${Math.max(v * 1.5, 34)}px;height:${Math.max(v * 1.5, 34)}px"><small>${S.scale.labels[i]}</small></div>`).join('')}</div>
+      <div style="margin-top:26px">${px.map((p, i) => `<div class="sline"><small>${p}px</small><span style="font-size:${Math.min(p, 86)}px">${i === 0 ? 'BIG' : i < 3 ? 'text/1.618' : i < 5 ? 'smaller still' : 'super smol'}</span></div>`).join('')}</div></div>`;
+  },
+  spacing() {
+    return `<div class="demo paper" style="margin:0"><h4>center the text. center the background.</h4>
+      <div class="cmp">
+        <figure>${CROSS}<div class="frame bad"><div class="blk">graphic<br>design</div></div><figcaption>block off-center, text pushed to a corner</figcaption></figure>
+        <figure>${CHECK}<div class="frame good"><div class="blk">graphic<br>design</div></div><figcaption>equal margins, text centered</figcaption></figure>
+      </div>
+      <div class="sliders">
+        <label>letter-spacing<input type="range" min="-3" max="30" value="0" id="ls"><output id="lso">0</output></label>
+        <label>line-height<input type="range" min="8" max="20" value="12" id="lh"><output id="lho">1.2</output></label>
+      </div>
+      <div class="live" id="live">workshop workshop workshop</div></div>`;
+  },
+  clarity() {
+    return `<div class="cmp" style="margin-bottom:6px">
+      <figure>${CROSS}<div class="pic bad"><p>take your students to the next level</p></div><figcaption>text straight on a busy photo</figcaption></figure>
+      <figure>${CHECK}<div class="pic good"><p style="font-size:1.1rem">take your students to the next level</p></div><figcaption>solid shape behind the text</figcaption></figure></div>
+      <div class="demo paper" style="margin-top:18px"><h4>contrast checker</h4>
+        <div class="cc"><label>text <input type="color" id="fg" value="#251F1B"></label><label>background <input type="color" id="bgc" value="#E9E4D9"></label>
+        <div class="out" id="ccout"></div></div></div>`;
+  },
+  ratio() {
+    const b = [['1:1','var(--green)','1/1',110],['4:5','var(--rust)','4/5',100],['9:16','var(--mustard)','9/16',84],['16:9','var(--ink)','16/9',170]];
+    return `<div class="demo paper" style="margin:0"><div class="rat">${b.map(x => `<div style="border-color:${x[1]};aspect-ratio:${x[2]};width:${x[3]}px">${x[0]}</div>`).join('')}</div></div>`;
+  },
+  shapes() {
+    return `<div class="demo paper" style="margin:0"><div class="shp">
+      <div class="c"></div><div class="s"></div><div class="rr"></div><div class="stripes"></div>
+      <div style="display:grid;gap:8px"><span class="bub">hi crush! 😍</span><span class="bub l">crush ka diyan. 😒</span></div>
+      <button class="btn">pill button</button><span class="pill">pill tag</span></div></div>`;
+  },
+  effects() {
+    return `<div class="fx">
+      <figure><div class="st grain" style="background:var(--mustard)">grain</div><figcaption>grain</figcaption></figure>
+      <figure><div class="st blk"><span class="glitch">glitch</span></div><figcaption>glitch</figcaption></figure>
+      <figure><div class="st blk"><span class="neon">neon</span></div><figcaption>neon</figcaption></figure>
+      <figure><div class="st"><span class="outline">outline</span></div><figcaption>outline text</figcaption></figure>
+      <figure><div class="st"><div class="rep">some text<br>some text<br>some text</div></div><figcaption>repeating</figcaption></figure>
+      <figure><div class="st"><div class="mask"></div></div><figcaption>clip mask</figcaption></figure>
+      <figure><div class="st"><div class="torn"></div></div><figcaption>paper design</figcaption></figure>
+      <figure><div class="st"><div class="par"><b>parallax</b><span></span></div></div><figcaption>parallax</figcaption></figure></div>`;
+  },
+  recipes() {
+    return `<div class="rc">${S.recipes.map(r => `<figure><div class="m ${r.bg}">${r.html}</div><figcaption>${r.name}</figcaption></figure>`).join('')}</div>`;
+  },
+  web() {
+    const code = esc(S.css);
+    return `<div style="position:relative"><button class="btn copy" onclick="copy(window.SYSTEM.css,'css copied')">copy</button><pre>${code}</pre></div>
+      <div class="demo paper" style="margin-top:16px"><h4>live</h4><div class="row" style="align-items:center"><button class="btn">primary button</button><span class="pill">tag</span><span class="label">label +250</span></div></div>`;
+  }
+};
+
+/* ---- build ---- */
+const nav = $('#nav'), main = $('#main');
+S.sections.forEach((s, i) => {
+  nav.insertAdjacentHTML('beforeend', `<a href="#${s.id}">${s.num} ${s.id}</a>`);
+  const dark = i % 4 === 2;
+  const demo = s.demo && DEMOS[s.demo] ? DEMOS[s.demo]() : '';
+  const rules = (s.rules || []).map(r => `<li><div><b>${esc(r.t)}</b><span>${esc(r.d)}</span></div></li>`).join('');
+  const dd = s.dos ? `<div class="cmp" style="margin-top:20px"><div class="demo paper" style="margin:0"><h4>do</h4>${s.dos.map(x => `<p>✓ ${esc(x)}</p>`).join('')}</div><div class="demo paper" style="margin:0"><h4>don't</h4>${s.donts.map(x => `<p>✗ ${esc(x)}</p>`).join('')}</div></div>` : '';
+  main.insertAdjacentHTML('beforeend', `<section class="sec${dark ? ' dark' : ''}" id="${s.id}"><div class="wrap grid">
+    <div class="side"><div class="num">${s.num}</div><span class="pill">${esc(s.kicker)}</span><h2>${esc(s.title)}</h2><p class="lead">${esc(s.lead)}</p></div>
+    <div>${demo ? `<div class="demo${s.demo === 'palette' || s.demo === 'web' ? ' paper' : ''}" style="${s.demo === 'type' || s.demo === 'scale' || s.demo === 'spacing' || s.demo === 'ratio' || s.demo === 'shapes' || s.demo === 'clarity' ? 'padding:0;border:0;background:none;overflow:visible' : ''}">${demo}</div>` : ''}${dd}<ul class="rules">${rules}</ul></div></div></section>`);
+});
+
+/* checklist + extend */
+const saved = (() => { try { return JSON.parse(localStorage.getItem('cds-checklist') || '[]'); } catch (e) { return []; } })();
+main.insertAdjacentHTML('beforeend', `<section class="sec dark" id="checklist"><div class="wrap grid">
+  <div class="side"><div class="num">12</div><span class="pill">pre-flight</span><h2>checklist</h2><p class="lead">run it before delivering anything. all of it.</p><div class="prog" id="prog" style="margin-top:20px"></div></div>
+  <div><ul class="chk">${S.checklist.map((c, i) => `<li><label><input type="checkbox" data-i="${i}" ${saved.includes(i) ? 'checked' : ''}><span>${esc(c)}</span></label></li>`).join('')}</ul></div></div></section>
+<section class="sec" id="extend"><div class="wrap grid">
+  <div class="side"><div class="num">+</div><span class="pill">fallback</span><h2>add more later</h2><p class="lead">Claude builds with this. this site is the written fallback, so the system survives without Claude.</p></div>
+  <div><ol class="steps" style="color:var(--ink)">${S.extend.map(e => `<li style="border-color:var(--ink)"><span>${esc(e)}</span></li>`).join('')}</ol>
+  <div class="demo paper" style="margin-top:20px"><h4>where things live</h4><p><code>design-system/system-data.js</code> content (edit this)<br><code>design-system/index.html</code> renderer + demos<br><code>${esc(S.meta.skill)}</code> the skill Claude loads</p></div></div></div></section>`);
+
+nav.insertAdjacentHTML('beforeend', '<a href="#checklist">12 checklist</a><a href="#extend">+ add more</a>');
+const prog = () => { const n = document.querySelectorAll('.chk input:checked').length; $('#prog').textContent = n + ' / ' + S.checklist.length; };
+document.querySelectorAll('.chk input').forEach(el => el.addEventListener('change', () => {
+  const ids = [...document.querySelectorAll('.chk input:checked')].map(x => +x.dataset.i);
+  try { localStorage.setItem('cds-checklist', JSON.stringify(ids)); } catch (e) {}
+  prog();
+})); prog();
+
+/* meta + footer */
+$('#meta').innerHTML = `<span class="pill">updated ${S.meta.updated}</span><span class="pill">${S.sections.length + 1} chapters</span>`;
+$('#foot').innerHTML = `<b>${esc(S.meta.name)}</b><br>source: ${esc(S.meta.source)}<br>skill: <code>${esc(S.meta.skill)}</code>`;
+
+/* live spacing sliders */
+const ls = $('#ls'), lh = $('#lh');
+if (ls) { const up = () => { const l = $('#live'); l.style.letterSpacing = ls.value / 100 + 'em'; l.style.lineHeight = lh.value / 10; $('#lso').textContent = ls.value; $('#lho').textContent = (lh.value / 10).toFixed(1); }; ls.oninput = lh.oninput = up; up(); }
+
+/* contrast checker */
+const fg = $('#fg'), bgc = $('#bgc');
+if (fg) { const up = () => { const r = ratio(fg.value, bgc.value); const o = $('#ccout'); o.style.background = bgc.value; o.style.color = fg.value;
+  o.innerHTML = `${r.toFixed(2)}:1 — the quick brown fox <br><span class="badge ${r >= 3 ? 'pass' : 'fail'}">large text ≥ 3:1 ${r >= 3 ? 'pass' : 'fail'}</span><span class="badge ${r >= 4.5 ? 'pass' : 'fail'}">small text ≥ 4.5:1 ${r >= 4.5 ? 'pass' : 'fail'}</span>`; };
+  fg.oninput = bgc.oninput = up; up(); }
+
+/* nav highlight */
+const links = [...nav.querySelectorAll('a')];
+const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) links.forEach(l => l.classList.toggle('on', l.getAttribute('href') === '#' + e.target.id)); }), { rootMargin: '-45% 0px -50% 0px' });
+document.querySelectorAll('section.sec').forEach(s => io.observe(s));
+</script>
+</body>
+</html>

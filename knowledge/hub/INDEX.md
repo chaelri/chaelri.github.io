@@ -25,6 +25,7 @@ One line per project. Full detail (tech, deploy, quirks) lives in `knowledge/hub
 - `elevate-eo-campus-unite-2026/` — event tickets/registration/raffle app
 - `rubiks/` — CFOP course with live 3D cube + scan-and-solve tab
 - `driving/` — three.js driving sim for LTO practice
+- `design-system/` — Charlie's design system website (palette, type, spacing, shapes, effects, checklist); data in `system-data.js`; Claude skill `charlie-design`
 - `devo/` — Bible devotional PWA (11 ordered chunks in `devo/js/`, RTDB sync for charlie/karla)
 - `guard-exit-interview/` — guard offboarding tracker; DUAL-REPO push (also `guard-exit-tracker`)
 - `monthsary/` — monthsary page with Google sign-in gate
