@@ -14738,9 +14738,9 @@ body:not(.light) #reflectContent ol.refl-unified > li { padding: 16px; }
 .top-actions-bar { padding: 4rem 16px 0; }
 @media all and (display-mode: standalone) {
   /* Start the brand a little below iOS's edge blur so it stays crisp at rest. */
-  .top-actions-bar { padding-top: calc(env(safe-area-inset-top, 0px) + 24px); }
+  .top-actions-bar { padding-top: calc(env(safe-area-inset-top, 0px) + 16px); }
   /* Extra room above every page so nothing rests under the iOS blur. */
-  .layout { padding-top: 36px; }
+  .layout { padding-top: 24px; }
   html { background-color: #0b1220; }
   body::before {
     content: "";
