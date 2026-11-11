@@ -37,10 +37,11 @@ window.SYSTEM = {
   sections: [
     {
       id: "palette", num: "01", title: "color & theme", kicker: "tokens", demo: "palette",
-      lead: "paper + ink + green + mustard is the default. rust is the spice. pick 3-4 colors per piece and stick to the theme.",
+      lead: "color is a set of roles (paper, ink, primary, shape, accent), not fixed values. ask the mood, pick 3-4 colors for it, keep them for the whole piece. the swatches are a sample.",
       rules: [
-        { t: "this palette is a default, not a rule.", d: "keep the structure (paper, ink, primary, shape color, accent) but derive the actual colors from the subject, e.g. a teal invitation gives teal + aqua + coral. re-check contrast after swapping." },
-        { t: "paper, never white.", d: "the background is warm cream #E9E4D9. green or ink only when you mean it." },
+        { t: "the system gives rules, not a theme.", d: "claude asks for the mood first, then picks the palette, fonts and shape style from it. only the roles are fixed: paper, ink, primary, shape, accent. spacing and size never change with the mood." },
+        { t: "the swatches below are one sample.", d: "the workshop set shows how roles map to colors. it is never the default answer. a teal invitation gives teal + aqua + coral; a calm mood gives something else entirely. re-check contrast after choosing." },
+        { t: "paper, never default white.", d: "the background is a tint matched to the mood (the sample uses warm cream #E9E4D9). primary or ink only when you mean it." },
         { t: "black on light, white on dark.", d: "general rule for text. transparent and alternate accents are the only exceptions." },
         { t: "contrast is accessibility.", d: ">= 3:1 for large text, >= 4.5:1 for small text. unsure? use a contrast checker." },
         { t: "use color theory.", d: "monochromatic (shades of one hue) or complementary (opposites). derive the palette from the subject photo when there is one." },
@@ -51,7 +52,7 @@ window.SYSTEM = {
       id: "type", num: "02", title: "typography", kicker: "type", demo: "type",
       lead: "bold, tight, with weight contrast. the font itself is flexible; the roles and pairing are the rule.",
       rules: [
-        { t: "fonts are picked by role, not by name.", d: "one display/body family, optionally one handwriting accent. Glacial Indifference + Lemon Tuesday is the workshop pick; any font that does the same job is fine." },
+        { t: "fonts are picked by role, from the mood.", d: "one display/body family, optionally one accent. geometric sans = modern, humanist = friendly, serif = elegant, rounded = playful, mono = techy. Glacial Indifference + Lemon Tuesday is just the workshop sample." },
         { t: "headings are bold + tight.", d: "line-height 0.9 to 1.0 for 2-3 line display text. lowercase is the workshop style, a choice and not a requirement." },
         { t: "highlight a word when it helps.", d: "green or mustard text, or a mustard block behind it. optional." },
         { t: "small labels are usually UPPERCASE.", d: "bold, small, wide letter-spacing. follow what suits the layout." },
@@ -76,7 +77,7 @@ window.SYSTEM = {
       rules: [
         { t: "center the text inside its container.", d: "both axes, optically. descenders and tight leading shift the box, so nudge it." },
         { t: "center the background shape inside its frame.", d: "a block behind text gets equal margins on every side." },
-        { t: "spacing is judged by eye.", d: "if it looks good it is good. 8px (0.1in) multiples are a handy starting point, not a law. equal padding where the layout is meant to feel even." },
+        { t: "spacing is strict.", d: "every gap, padding and margin is a multiple of the 8px unit (0.1in), stepping by x 1.618 for bigger gaps. equal things get equal gaps. then check by eye and nudge optically. equal padding where the layout is meant to feel even." },
         { t: "letter-spacing.", d: "wide for UPPERCASE labels, slightly tight for big display text." },
         { t: "line-spacing.", d: "0.9-1.0 for display, 1.3-1.4 for body." },
         { t: "keep phrases together.", d: "break lines by meaning. never split a thought, never justify." },
@@ -166,17 +167,18 @@ window.SYSTEM = {
   ],
 
   css: `:root{
-  --paper:#E9E4D9; --ink:#251F1B; --green:#488162; --mustard:#E3BE53; --rust:#A8341C; --white:#fff;
+  /* fill the palette from the mood */
+  --paper:/*bg*/; --ink:/*text*/; --primary:/*brand*/; --shape:/*big shapes*/; --accent:/*spice*/; --on-dark:#fff;
   --step-0:1rem; --step-1:1.618rem; --step-2:2.618rem; --step-3:4.236rem; --step-4:6.854rem;
   --u:.5rem;
-  --font:"Glacial Indifference","Outfit",system-ui,sans-serif; --hand:"Lemon Tuesday","Caveat",cursive;
+  --font:/*by role*/, system-ui, sans-serif; --accent-font:/*optional*/;
 }
 body{background:var(--paper);color:var(--ink);font:400 var(--step-0)/1.4 var(--font)}
-h1,h2{font-weight:700;text-transform:lowercase;line-height:.95;letter-spacing:-.01em}
+h1,h2{font-weight:700;line-height:.95;letter-spacing:-.01em}
 .label{font:700 .75rem var(--font);letter-spacing:.25em;text-transform:uppercase}
-.hl{background:var(--mustard);padding:0 .2em}
+.hl{background:var(--shape);padding:0 .2em}
 .pill{border:2px solid var(--ink);border-radius:999px;padding:.2em .8em;background:var(--paper)}
-.btn{border:2px solid var(--ink);border-radius:999px;background:var(--mustard);box-shadow:4px 4px 0 var(--ink)}
+.btn{border:2px solid var(--ink);border-radius:999px;background:var(--shape);box-shadow:4px 4px 0 var(--ink)}
 .btn:hover{transform:translate(2px,2px);box-shadow:2px 2px 0 var(--ink)}`,
 
   recipes: [
@@ -189,15 +191,16 @@ h1,h2{font-weight:700;text-transform:lowercase;line-height:.95;letter-spacing:-.
   ],
 
   checklist: [
-    "background is paper (or green/ink on purpose), not white or grey",
-    "one chosen palette (default or derived from the subject): <= 4 colors + ink",
+    "asked the mood; stated palette + fonts + shape style in one line; not the workshop sample unless fitting",
+    "background is the chosen paper (or primary/ink on purpose), not default white or grey",
+    "one chosen palette from the mood or subject: <= 4 colors + ink, each with a role",
     "<= 2 font families picked by role; headings bold and tight",
     "font sizes AND corner radii follow x1.618; clear BIG vs smol; <= 3 sizes per layout",
-    "text centered in its containers; spacing looks right by eye; no split phrases; nothing collides",
+    "text centered in its containers; every gap on the 8px unit and equal for equal elements; no split phrases; nothing collides",
     "contrast >= 3:1 large / 4.5:1 small; text on photos has a solid shape behind it",
     "shapes are flat, or deliberately liquid glass (never half and half); no emoji decoration",
     "one focal point; one handwritten accent at most; plenty of white space",
-    "looks hand-made (ink outlines, pills, hand marks). if it looks like a template, redo it",
+    "looks designed for this subject and mood, one consistent shape style. if it looks like a template or the last piece, redo it",
     "verified in Claude in Chrome before delivering (every web design job): JS spacing audit, real screenshots of each section, 390px mobile check; fix, re-check, then report"
   ],
 

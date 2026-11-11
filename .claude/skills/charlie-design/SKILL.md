@@ -1,6 +1,6 @@
 ---
 name: charlie-design
-description: Charlie's own graphic-design system (from his Graphic Design Workshop deck). Use for ANY visual output - web page, UI, slide deck, pptx, poster, graphic, README banner - and whenever Charlie says "maganda", "modern", "ayaw ko ng bulok/AI-looking", "design this", or asks for a presentation/page. Defines palette, type, spacing, hierarchy, shapes, effects and a pre-flight checklist. Follow ALL rules; do not fall back to generic defaults.
+description: Charlie's own graphic-design system (from his Graphic Design Workshop deck). Use for ANY visual output - web page, UI, slide deck, pptx, poster, graphic, README banner - and whenever Charlie says "maganda", "modern", "ayaw ko ng bulok/AI-looking", "design this", or asks for a presentation/page. Defines RULES (color roles, type roles, spacing, hierarchy, shapes, effects, checklist), not a fixed theme. ALWAYS ask Charlie for the mood first, then pick the palette, fonts and shape style yourself from that mood. Never reuse the workshop sample look by default.
 ---
 
 # Charlie's Design System
@@ -9,30 +9,42 @@ Source: Charlie's "Graphic Design Workshop" (58 slides, made by hand, no AI; Can
 
 Written fallback + live demos: `design-system/` (open `design-system/index.html`, published at `/design-system/`). All of its content lives in `design-system/system-data.js`. **When Charlie adds or changes a rule, update BOTH this file and `design-system/system-data.js`**, then commit + push.
 
+## 0. Ask the mood first (mandatory)
+
+This system gives **rules, not a theme**. Before designing anything, ask Charlie for the mood/subject unless he already stated it in the request. Ask with one short question (AskUserQuestion, 3-4 mood options + Other), for example: calm/soft, bold/loud, playful, elegant/luxury, techy/dark, warm/earthy, retro, minimal. Also ask what the piece is about if the subject is unclear.
+
+Then, from the mood + subject, **you choose and state in one line**: the palette (mapped to the roles in section 1), the font pair (by role, section 2) and the shape style (flat / outlined / soft / glass, section 7). **Mood only changes color, fonts and shape style. Spacing and size are strict and never change with the mood** (sections 3, 4 and 6 apply in full every time). Do not copy the workshop sample (cream + green + mustard + rust, Glacial/Outfit, ink outlines + pills) unless Charlie asks for "the workshop look" or the mood genuinely fits. Two pieces in a row should not look like the same theme. Charlie can correct the pick afterwards.
+
 Scope note: `house-style` (navy/Nunito/pink) is the devo-app look only. Everything else uses this skill.
 
-## 1. Tokens
+## 1. Color = roles, not values
 
-**The palette below is the workshop default, NOT mandatory.** What is mandatory is the structure: 3-4 colors + ink, a warm/neutral paper background, one big shape color, one accent, and the contrast rules. For any project with its own subject (an invitation, a brand, a photo set), derive a matching palette from it and map it onto the same roles (paper / ink / primary / secondary-shape / accent). Example: the baptism deck uses paper `#F1EEE6`, ink `#14262B`, teal `#1F6B77` (primary), aqua `#A9D8DC` (shapes/highlight on dark), coral `#C4623B` (accent), taken from the teal invitation. Always re-check contrast after swapping colors.
+A piece uses **3-4 colors + ink**, each with a job. The hex values come from the mood and subject, never from a fixed list.
 
-| Token | Hex | Use |
+| Role | Job | Constraint |
 |---|---|---|
-| paper | `#E9E4D9` | default background (warm cream, never pure white) |
-| ink | `#251F1B` | text and outlines on light (never `#000`) |
-| green | `#488162` | primary brand, highlight words, dark backgrounds |
-| mustard | `#E3BE53` | secondary, highlight blocks, big shapes |
-| rust | `#A8341C` | accent, sparingly (one small thing per layout) |
-| white | `#FFFFFF` | text on green, panels/cards on paper |
-| mark-red | `#E35353` | the "wrong" X marks only |
+| paper | background | warm/neutral tint matched to the mood; never pure white, or flat grey unless the mood is cold-minimal |
+| ink | text + outlines on light | a dark tint of the palette, never `#000` |
+| primary | brand color, highlight words, dark backgrounds | one hue; the biggest color area |
+| shape | big shapes, highlight blocks | second hue or a tint of the primary |
+| accent | the spice | one small thing per layout, strong contrast to the rest |
+| on-dark | text on primary/ink | usually white or paper |
+| mark-red | the "wrong" X mark only | fixed meaning, any red |
 
-Rules: pick 3-4 colours per piece and **stick to the theme** (paper + ink + green + mustard is the default; rust is the spice). When a design is built around a photo/subject, derive the palette from it (e.g. teal invitation -> teal + gold + paper) but keep the same structure. Dark mode: green (`#488162`) or ink background, white text. Neon/glitch (cyan `#00F0FF`, magenta `#FF00E5`, white) only on black and only as a deliberate effect.
+Rules:
+- Choose the palette by colour theory (monochromatic, analogous, complementary) from the **mood**, or from the subject/photo when there is one. Say the 3-4 hex values in one line before building.
+- Paper + ink + primary + shape + accent is the *structure*; the hues are free. Dark mode: primary or ink as background, light text.
+- Re-check contrast after choosing (section 6). Neon/glitch (cyan, magenta, white) only on black and only as a deliberate effect.
+- **Sample, not default:** the workshop set was paper `#E9E4D9`, ink `#251F1B`, green `#488162`, mustard `#E3BE53`, rust `#A8341C`. Another sample: baptism deck paper `#F1EEE6`, ink `#14262B`, teal `#1F6B77`, aqua `#A9D8DC`, coral `#C4623B`. Use them only to see how roles map; never as the answer.
 
 ## 2. Typography
 
-- **Fonts are picked by role, not by name.** One display/body family, optionally one handwriting accent. The workshop pick is below; any font that does the same job is fine.
-- **Display/body: Glacial Indifference** (Bold + Regular only). Fallback when not installed: **Outfit** (Google Fonts), then system sans. Pair with at most one accent. **For pptx/Office files use Outfit** (Charlie's PC has Outfit + Caveat installed; Glacial Indifference is not installed, so Office/LibreOffice would swap in an ugly default). Never leave a deck in a font that is not installed on his machine.
-- **Accent/handwriting: Lemon Tuesday** for little annotations ("pro tip!", "when it started"), fallback **Caveat**. Small, slanted, often green or rust, paired with a hand-drawn arrow.
-- Serif (Playfair Display) only as a deliberate contrast, never the main voice.
+- **Fonts are picked by role, not by name, and chosen from the mood.** One display/body family, optionally one accent. Geometric sans = clean/modern, humanist sans = friendly, serif display = elegant/editorial, rounded = playful, mono = techy. Pick a pair that fits and name it in your one-line pick.
+- **Display/body:** any family with Bold + Regular weights that suits the mood. Fallback to a system font of the same class.
+- **Accent (optional):** handwriting, italic serif, mono or a second display, small, for annotations only; paired with a hand-drawn arrow if handwriting.
+- A serif as main voice is fine when the mood is elegant; otherwise use it only as deliberate contrast.
+- **For pptx/Office files use a font installed on Charlie's PC** (known installed: Outfit, Caveat). Never leave a deck in a font that is not installed on his machine.
+- Workshop sample, for reference only: Glacial Indifference (fallback Outfit) + Lemon Tuesday (fallback Caveat).
 - Know the 3 classifications (display, handwriting, monospace) and 3 strokes (sans, serif, slab); use max 2 families per piece.
 - **Hierarchy through weight**: bold key words against regular text; weight contrast beats colour contrast.
 - Headings are **bold and tight** (workshop style is lowercase, e.g. "fix 2 spacing issues"; lowercase is a choice, not a requirement). A highlighted word (green or mustard text, or a mustard block behind it) is optional: "2 types of **character spacing**".
@@ -47,7 +59,7 @@ Rules: pick 3-4 colours per piece and **stick to the theme** (paper + ink + gree
 
 1. **Centre the text inside its container**, both axes, using optical centring (descenders and tight line-height shift the box; nudge until it looks centred).
 2. **Centre the background shape inside its frame** (a block behind text gets equal margins on all sides).
-3. Spacing is judged by eye: if it looks good it is good. 8px (0.1in) multiples are a handy start, not a law.
+3. **Spacing is strict.** Every gap, padding and margin is a multiple of the 8px unit (0.1in in pptx), stepping up by x1.618 where a bigger step is needed. Equal things get equal gaps. After it measures right, still check by eye and nudge optically (centring), then re-measure.
 4. Letter-spacing: wide for UPPERCASE labels, slightly tight for big display text. Line-spacing: 0.9-1.0 for 2-3 line display headings, 1.3-1.4 for body.
 5. **Keep phrases together on a line.** Never let a line break split a thought ("taking students / to the next level", not "taking      to the / students   next level"). Break lines by meaning; never justify text.
 6. Never let lines collide or overlap (the fix for stacked headings is leading, not smaller text).
@@ -72,8 +84,8 @@ Rules: pick 3-4 colours per piece and **stick to the theme** (paper + ink + gree
 - **Circles**: background elements (large, partly off-canvas, mustard/green/white), small dots as bullets, a filled circle as the background for a short text.
 - **Squares/rectangles**: parallel stripes (decorative lines), tables, flat colour blocks behind text.
 - **Rounded rectangles**: chat bubbles, pill labels/tags, buttons, text backgrounds, 2px ink outline.
-- Workshop style is flat fills. Shadows are case by case: default none, hard offset (`4px 4px 0 ink`) when depth is needed; soft shadows are fine when the design calls for it (glass, floating sheets). Outlines (2px ink) are likewise optional.
-- Signature details: ink outline (2px), pill labels attached to subjects (name tags like `MAUI`, `KD`, `CHARLIE`), hand-drawn green check / red X, hand-drawn arrows, halftone dots and diagonal stripes inside comic-style panels, faint grid-paper background texture, small logo mark bottom-left.
+- **Shape style follows the mood:** flat fills (workshop), outlined with hard offset shadow (`4px 4px 0 ink`, playful/bold), soft rounded + soft shadow (calm/friendly), sharp + thin lines (elegant/minimal), or liquid glass (section 8). Pick one and keep it consistent in the piece.
+- Workshop signature details (use when the mood is playful/hand-made): ink outline (2px), pill labels attached to subjects (name tags like `MAUI`, `KD`, `CHARLIE`), hand-drawn green check / red X, hand-drawn arrows, halftone dots and diagonal stripes inside comic-style panels, faint grid-paper background texture, small logo mark bottom-left.
 
 ## 8. Effects (use one per piece, on purpose)
 
@@ -87,6 +99,8 @@ Vectors/illustrations (flat, one palette) or real photos; cut-outs with a thick 
 
 ## 10. Layout recipes
 
+Structure only. Colors, fonts and shape style come from the chosen mood, not from these descriptions.
+
 - **Title slide**: huge lowercase two-line title (bold, line-height 0.9), a small spaced-caps subtitle, one big circle partly off-canvas, tiny logo bottom-left.
 - **Section slide**: green full-bleed background, white lowercase title, 2-3 overlapping circles bottom-right.
 - **Comparison (do/don't)**: two equal samples side by side, hand-drawn red X over the wrong one and green check over the right one, short caption under each.
@@ -99,22 +113,23 @@ Vectors/illustrations (flat, one palette) or real photos; cut-outs with a thick 
 
 ```css
 :root{
-  --paper:#E9E4D9; --ink:#251F1B; --green:#488162; --mustard:#E3BE53; --rust:#A8341C; --white:#fff;
+  /* palette: fill from the mood (section 0), roles from section 1 */
+  --paper:/*bg*/; --ink:/*dark text*/; --primary:/*brand*/; --shape:/*big shapes*/; --accent:/*spice*/; --on-dark:#fff;
   --step-0:1rem; --step-1:1.618rem; --step-2:2.618rem; --step-3:4.236rem; --step-4:6.854rem; /* x1.618 */
   --u:.5rem; /* spacing unit; use multiples */
-  --font:"Glacial Indifference","Outfit",system-ui,sans-serif; --hand:"Lemon Tuesday","Caveat",cursive;
+  --font:/*display+body by role*/, system-ui, sans-serif; --accent-font:/*optional*/;
 }
 body{background:var(--paper);color:var(--ink);font:400 var(--step-0)/1.4 var(--font)}
-h1,h2{font-weight:700;text-transform:lowercase;line-height:.95;letter-spacing:-.01em}
+h1,h2{font-weight:700;line-height:.95;letter-spacing:-.01em} /* lowercase only if the mood suits */
 .label{font:700 .75rem var(--font);letter-spacing:.25em;text-transform:uppercase}
-.hl{background:var(--mustard);padding:0 .2em}          /* highlight block behind one word */
-.pill{border:2px solid var(--ink);border-radius:999px;padding:.2em .8em;background:var(--paper)}
+.hl{background:var(--shape);padding:0 .2em}          /* highlight block behind one word */
+.pill{border-radius:999px;padding:.2em .8em}           /* outline/shadow per shape style */
 ```
-Mobile-first, 16px side gutter, mustard/green as the only large colour areas. Workshop-style buttons = pills with ink outline and a hard offset shadow (`4px 4px 0 var(--ink)`), hover = shift the offset; cards `2px solid var(--ink)`. Other treatments (glass, filled) are fine case by case.
+Mobile-first, 16px side gutter, primary/shape as the only large colour areas. Button and card treatment follows the chosen shape style (e.g. outlined pills with hard offset shadow `4px 4px 0 var(--ink)` and hover shift for playful; soft filled for calm; glass per section 8).
 
 ## 12. pptx / python-pptx / Canva notes
 
-- 13.333 x 7.5 in, background `E9E4D9`. Set run fonts to `Glacial Indifference` (Canva has it; PowerPoint falls back to Calibri if not installed, so mention it).
+- 13.333 x 7.5 in, background = the chosen paper colour. Set run fonts to the chosen display font only if installed (else Outfit); PowerPoint falls back to Calibri if not installed, so mention it.
 - Build shapes (circles, rounded rects) with no outline except the 2px ink outline where the style calls for it. **No shadows: `shape.shadow.inherit=False` is not enough in LibreOffice; also delete the shape's `p:style` element** (`el.remove(el.find(qn('p:style')))`).
 - List rows: put the divider, the dot and the text in one cell; center the dot on the text box's vertical middle; leave >= 0.1in between divider and 2-line text. Heading boxes must end before the next column starts (give the heading a width, let it wrap). Never place text over a circle unless the contrast is >= 3:1 (>= 4.5:1 small).
 - Verify by rendering: `soffice --headless --convert-to pdf` then look at it before delivering.
@@ -122,15 +137,16 @@ Mobile-first, 16px side gutter, mustard/green as the only large colour areas. Wo
 
 ## 13. Pre-flight checklist (run before delivering)
 
-1. Background is paper (or green/ink on purpose), not white/grey.
-2. Only palette colours; <= 4 colours + ink.
-3. <= 2 font families picked by role; headings bold and tight.
-4. Font sizes AND corner radii follow x1.618; clear BIG vs smol contrast; no more than 3 sizes per layout.
-5. Text is centred in its containers; spacing looks right by eye; no phrase split across lines; nothing collides.
+0. **Asked the mood** (or it was stated) and stated the palette + fonts + shape style in one line. Not the workshop sample unless requested or truly fitting.
+1. Background is the chosen paper (or primary/ink on purpose), not default white/grey.
+2. Only the chosen palette; <= 4 colours + ink, each with a role.
+3. <= 2 font families picked by role from the mood; headings bold and tight.
+4. Font sizes AND corner radii follow x1.618 exactly (no off-scale sizes); clear BIG vs smol contrast; no more than 3 sizes per layout.
+5. Text is centred in its containers; every gap is on the 8px unit and equal for equal elements, and looks right by eye; no phrase split across lines; nothing collides.
 6. Contrast >= 3:1 (large) / 4.5:1 (small). Text on photos has a solid shape behind it.
 7. Shapes are flat, or deliberately liquid glass (never half and half); circles/rects/rounded rects used with purpose; no emoji decoration.
 8. One focal point; one accent annotation at most; plenty of white space.
-9. Looks hand-made: ink outlines, pills, hand marks. If it looks like a generic template, redo it.
+9. Looks designed for THIS subject and mood, with one consistent shape style. If it looks like a generic template or like the last piece, redo it.
 10. **Verified in Claude in Chrome (mandatory for every web/HTML design job).** Open the real page and check it against rules 3-5 and 8 before delivering; never ship on code review alone.
     - Chrome blocks `file://`: serve the folder (`python3 -m http.server <port> --bind 127.0.0.1`), navigate to it, kill the server after.
     - Run a JS audit: horizontal overflow, font sizes and radii on the x1.618 scale, text centred in pills/bars/circles (range rect vs box), collisions, equal card heights, aligned dividers/baselines, even table columns, row labels not wrapping.
