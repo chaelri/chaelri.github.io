@@ -115,7 +115,7 @@ window.SYSTEM = {
         { t: "the thresholds (WCAG).", d: "normal text >= 4.5:1. large text (>= 24px, or >= 19px bold) >= 3:1. icons, outlines and button edges >= 3:1. 7:1 is the AAA level, aim for it on long body text." },
         { t: "hue is not contrast.", d: "two colors can look different and still fail, e.g. mustard on white or light green on cream. judge brightness, not color. squint or desaturate to test." },
         { t: "never use color alone.", d: "errors, success and links also need a label, icon or underline. about 1 in 12 men can't tell red from green." },
-        { t: "check every palette you pick.", d: "run each text/background pair of the chosen palette through the checker before building: ink on paper, light on primary, text on shape, accent on paper. if a pair fails, darken the darker color or lighten the lighter one, don't enlarge the text to dodge it." },
+        { t: "check every palette you pick.", d: "run each text/background pair of the chosen palette through the checker before building: ink on paper, light on primary, text on shape, accent on paper. if a pair fails, darken the darker color or lighten the lighter one, don't enlarge the text to dodge it. claude runs .claude/skills/charlie-design/contrast.py (local WCAG math, cross-checked with the WebAIM API) on every palette." },
         { t: "text on photos and gradients.", d: "measure against the worst spot behind the text, or put a solid shape behind it (see clarity)." },
         { t: "other readability basics.", d: "body >= 16px, line-height 1.4 or more, tap targets >= 44px, visible focus state, never rely on hover alone." }
       ],
@@ -212,7 +212,7 @@ h1,h2{font-weight:700;line-height:.95;letter-spacing:-.01em}
     "<= 2 font families picked by role; headings bold and tight",
     "font sizes AND corner radii follow x1.618; clear BIG vs smol; <= 3 sizes per layout",
     "text centered in its containers; every gap on the 8px unit and equal for equal elements; no split phrases; nothing collides",
-    "contrast >= 3:1 large / 4.5:1 small; text on photos has a solid shape behind it",
+    "contrast.py run on the chosen palette, no failing pair; contrast >= 3:1 large / 4.5:1 small; text on photos has a solid shape behind it",
     "shapes are flat, or deliberately liquid glass (never half and half); no emoji decoration",
     "one focal point; one handwritten accent at most; plenty of white space",
     "looks designed for this subject and mood, one consistent shape style. if it looks like a template or the last piece, redo it",
