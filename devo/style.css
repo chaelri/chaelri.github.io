@@ -14735,7 +14735,10 @@ body:not(.light) #reflectContent ol.refl-unified > li { padding: 16px; }
    iOS 26 blends a grey scroll-edge fade under the status bar of a standalone
    web app. A solid strip exactly as tall as the safe-area inset, above
    everything, gives it nothing to blend with. Installed PWA only. */
+.top-actions-bar { padding: 4rem 16px 0; }
 @media all and (display-mode: standalone) {
+  /* Start the brand a little below iOS's edge blur so it stays crisp at rest. */
+  .top-actions-bar { padding-top: calc(env(safe-area-inset-top, 0px) + 20px); }
   html { background-color: #0b1220; }
   body::before {
     content: "";
