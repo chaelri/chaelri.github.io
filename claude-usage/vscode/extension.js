@@ -27,11 +27,6 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-// Until the plan drops to Pro, the blue fill shows the same use at Pro's size.
-// Remove once the downgrade is done: the meters are then the real thing.
-const PRO_FACTOR = 5;
-const PRO_END = new Date(2026, 10, 12).getTime();
-
 const USAGE_URL = 'https://api.anthropic.com/api/oauth/usage';
 const USAGE_HOST = 'api.anthropic.com';
 const USAGE_PATH = '/api/oauth/usage';
@@ -412,7 +407,6 @@ function snapshot() {
         updated: updatedText(),
         deploy: deploy,
         sessions: sessions,
-        proFactor: Date.now() < PRO_END ? PRO_FACTOR : null,
         cursorIcon: CURSOR_ICON,
         claudeIcon: CLAUDE_ICON,
         limits: state.limits.map((limit) => ({
@@ -518,7 +512,6 @@ function page() {
   }
   .warn .meter > i { background: var(--warn); }
   .hot .meter > i { background: var(--hot); }
-  .meter > i.pro.pro { background: var(--vscode-charts-blue, #4daafc); }
 
   /* Hero — the 5-hour window, the one that actually runs out mid-task. */
   .hero { margin-bottom: 4px; }
@@ -647,14 +640,7 @@ function page() {
   // inline style ATTRIBUTES, since nonces can't be written on one. A
   // style="width:7%" is therefore dropped outright and every meter reads empty.
   // CSP does not police CSSOM, so el.style.width is allowed.
-  let proFactor = null;
-  const meter = (p, kind) => {
-    const pro = proFactor && (kind === 'session' || kind === 'weekly_all') ? p * proFactor : null;
-    if (pro === null) return '<div class="meter"><i data-pct="' + Math.min(100, p) + '"></i></div>';
-    return '<div class="meter" title="Blue is this use on Pro: full means Pro would be at its limit">' +
-      '<i class="pro" data-pct="' + Math.min(100, pro) + '"></i>' +
-      '<i class="real" data-pct="' + Math.min(100, p) + '"></i></div>';
-  };
+  const meter = (p) => '<div class="meter"><i data-pct="' + Math.min(100, p) + '"></i></div>';
 
   // How far through the limit's window we are: full means the reset has arrived.
   const HOUR_MS = 60 * 60 * 1000;
@@ -747,7 +733,6 @@ function page() {
   }
 
   function render(data) {
-    proFactor = data.proFactor;
     if (data.error) {
       root.innerHTML =
         '<div class="notice"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">' +
