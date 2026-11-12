@@ -56,6 +56,30 @@ document.querySelectorAll('body *').forEach(el => {
     if (t.width && Math.abs((t.left+t.width/2)-(r.left+r.width/2)) > 2 && cs.textAlign==='center') add('NOT CENTRED horizontally', `${where} ${name} off by ${Math.round((t.left+t.width/2)-(r.left+r.width/2))}px`);
   }
 });
+const __sx = scrollX, __sy = scrollY;
+/* FLUSH: content (text, buttons) closer than 8px to an edge of its filled box, where the fill ends against a different colour. Catches tinted rows/cells/panels with no padding. */
+document.querySelectorAll('body *').forEach(el => {
+  if (el === document.body || el.closest(SKIP)) return;
+  const cs = getComputedStyle(el), bg = parse(cs.backgroundColor); if (!bg || bg.a < .5 || cs.display === 'none' || cs.visibility === 'hidden') return;
+  const r = el.getBoundingClientRect(); if (r.width < 24 || r.height < 16) return;
+  const rg = document.createRange(); rg.selectNodeContents(el);
+  const rs = [...rg.getClientRects()].filter(x => x.width > 0 && x.height > 0); if (!rs.length) return;
+  const c = { left: Math.min(...rs.map(x=>x.left)), right: Math.max(...rs.map(x=>x.right)), top: Math.min(...rs.map(x=>x.top)), bottom: Math.max(...rs.map(x=>x.bottom)) };
+  const gap = { left: c.left - r.left, right: r.right - c.right, top: c.top - r.top, bottom: r.bottom - c.bottom };
+  const ptFor = (q, s) => s==='left' ? [q.left-3, (q.top+q.bottom)/2] : s==='right' ? [q.right+3, (q.top+q.bottom)/2] : s==='top' ? [(q.left+q.right)/2, q.top-3] : [(q.left+q.right)/2, q.bottom+3];
+  for (const side of ['left','right','top','bottom']) {
+    if (gap[side] >= 8) continue;
+    let [x,y] = ptFor(el.getBoundingClientRect(), side);
+    /* elementsFromPoint only sees the viewport: scroll the element into view first or below-the-fold boxes are silently skipped */
+    if (x<0||y<0||x>vw||y>innerHeight) { el.scrollIntoView({block:'center',inline:'nearest'}); [x,y] = ptFor(el.getBoundingClientRect(), side); if (x<0||y<0||x>vw||y>innerHeight) continue; }
+    const out = document.elementsFromPoint(x,y).find(e => !el.contains(e) && (parse(getComputedStyle(e).backgroundColor)||{a:0}).a >= .5);
+    const ob = out ? parse(getComputedStyle(out).backgroundColor) : null;
+    const diff = !ob || Math.abs(ob.r-bg.r)+Math.abs(ob.g-bg.g)+Math.abs(ob.b-bg.b) > 12;
+    if (diff) add('FLUSH (content touches the edge of its filled box)', `${sec(el)} ${tag(el)} ${side} gap ${Math.round(gap[side]*10)/10}px "${(el.textContent||'').trim().slice(0,22)}"`);
+  }
+});
+scrollTo(__sx, __sy);
+function tag(e){ return e.tagName.toLowerCase()+(typeof e.className==='string'&&e.className.trim()?'.'+e.className.trim().split(/\s+/)[0]:''); }
 const summary = {};
 for (const [t,o] of Object.entries(bucket)) summary[t] = Object.entries(o).sort((a,b)=>b[1]-a[1]).slice(0,25).map(([k,n])=>k+(n>1?' x'+n:''));
 __pe.remove();
