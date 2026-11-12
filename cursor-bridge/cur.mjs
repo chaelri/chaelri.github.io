@@ -218,8 +218,9 @@ function runTurn(prompt) {
       const tk = tokens ?? Math.round(chars / 4);
       const tks = tk >= 1000 ? (tk / 1000).toFixed(1) + 'k' : String(tk);
       const box = boxLines(true);
-      const qd = queue.map((q) => '  ' + st.grey('⎿ queued: ' + q.replace(/\s+/g, ' ')));
-      const bottom = [st.accent(FRAMES[frame % FRAMES.length]) + ' ' + st.verb(verb) + st.accent('…') + ' ' + st.grey(`(${secs}s${think.trim() ? ' · thinking' : ''})`), ...qd, ''];
+      const qd = queue.flatMap((q, i) => [...userRows(q.replace(/\s+/g, ' '), true), ...(i < queue.length - 1 ? [''] : [])]);
+      if (qd.length) qd.push('  ' + st.grey(sendNow ? 'sending now…' : 'ctrl+c or ctrl+enter to send now'), '');
+      const bottom = [...qd, st.accent(FRAMES[frame % FRAMES.length]) + ' ' + st.verb(verb) + st.accent('…') + ' ' + st.grey(`(${secs}s${think.trim() ? ' · thinking' : ''})`), ''];
       box.lines[box.lines.length - 1] = FOOTER(true);
       drawLive(lines, [...bottom, ...box.lines], { row: bottom.length + box.row, col: box.col });
     };
@@ -228,8 +229,8 @@ function runTurn(prompt) {
     const stop = () => { if (!interrupted) { interrupted = true; child.kill('SIGTERM'); } };
     const onKey = (str, key = {}) => {
       if (!ed.pasting && key.name === 'escape') return stop();
-      // ctrl+c with something typed or queued: stop this reply and send that right away
-      if (!ed.pasting && key.ctrl && key.name === 'c' && (ed.buf.length || queue.length)) {
+      // ctrl+c, or ctrl+enter (arrives as a bare \n), with something typed or queued: stop this reply and send that right away
+      if (!ed.pasting && ((key.ctrl && key.name === 'c') || key.name === 'enter') && (ed.buf.length || queue.length)) {
         const v = ed.buf.join('');
         if (v.trim()) { queue.unshift(v); hist.push(v); ed.hi = hist.length; }
         ed.buf = []; ed.pos = 0; sendNow = true; render(); return stop();
@@ -294,7 +295,7 @@ function runTurn(prompt) {
 }
 
 // ---------- input editor (shared by the idle prompt and a running turn) ----------
-const FOOTER = (busy) => '  ' + st.red('⏵⏵ run everything on') + st.grey(' (cursor --force)' + (busy ? ' · esc to interrupt' + (ed.buf.length || queue.length ? ' · ctrl+c to send now' : '') : ''));
+const FOOTER = (busy) => '  ' + st.red('⏵⏵ run everything on') + st.grey(' (cursor --force)' + (busy ? ' · esc to interrupt' + (ed.buf.length && !queue.length ? ' · ctrl+c to send now' : '') : ''));
 const hist = [], queue = [];
 const ed = { buf: [], pos: 0, hi: 0, draft: [], pasting: false, pasted: '' };
 // Clipboard image -> ~/.cursor/cur-images/*.png, shown as an [Image #n] token in the box.
@@ -374,13 +375,15 @@ function ask() {
   });
 }
 const images = []; // pasted image files, numbered for the whole session
-function userBlock(msg) {
+// A sent message as grey-backed rows; dim = a queued message, drawn at lower contrast.
+function userRows(msg, dim = false) {
   const width = cols() - 2;
   const lines = wrap(msg, width - 4);
-  const W = `${E}38;2;255;255;255m`, BG = `${E}48;2;55;55;55m`;
-  const sty = (l) => l.replace(/`([^`]+)`/g, (_, x) => `${E}38;2;177;185;249m${x}${W}`).replace(/\*\*([^*]+)\*\*/g, (_, x) => `${E}1m${x}${E}22m`);
-  put(lines.map((l, i) => { const t = sty(l); return `${BG}${i ? '  ' : `${E}38;2;153;153;153m❯${W} `}${W}${t}${' '.repeat(Math.max(0, width - 2 - vlen(t)))}${E}0m`; }).join('\n') + '\n\n');
+  const W = dim ? `${E}38;2;130;130;130m` : `${E}38;2;255;255;255m`, BG = dim ? `${E}48;2;40;40;40m` : `${E}48;2;55;55;55m`;
+  const sty = (l) => dim ? l : l.replace(/`([^`]+)`/g, (_, x) => `${E}38;2;177;185;249m${x}${W}`).replace(/\*\*([^*]+)\*\*/g, (_, x) => `${E}1m${x}${E}22m`);
+  return lines.map((l, i) => { const t = sty(l); return `${BG}${i ? '  ' : `${E}38;2;${dim ? '100;100;100' : '153;153;153'}m❯${W} `}${W}${t}${' '.repeat(Math.max(0, width - 2 - vlen(t)))}${E}0m`; });
 }
+function userBlock(msg) { put(userRows(msg).join('\n') + '\n\n'); }
 
 const HELP = `  /model [id]    switch model (no id: list models)
   /clear         start a new chat
