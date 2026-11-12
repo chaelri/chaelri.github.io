@@ -39,7 +39,7 @@ document.querySelectorAll('body *').forEach(el => {
     { const rg=document.createRange(); rg.selectNodeContents(el); const t=rg.getBoundingClientRect(); const seenBg={}; let worst=99, wbg='';
       for (let i=0;i<5;i++) for (let j=0;j<3;j++) { const x=t.left+2+(t.width-4)*i/4, y=t.top+2+(t.height-4)*(j+.5)/3; if(x<0||y<0||x>vw||y>innerHeight) continue;
         const stack=document.elementsFromPoint(x,y); let k=stack.indexOf(el); if(k<0) continue; let pb=null;
-        for (k=k+1;k<stack.length;k++){ const c=parse(getComputedStyle(stack[k]).backgroundColor); if(c&&c.a>=.5){pb=c;break;} }
+        for (;k<stack.length;k++){ const c=parse(getComputedStyle(stack[k]).backgroundColor); if(c&&c.a>=.5){pb=c;break;} } /* start AT the element: text directly inside a filled bubble/pill is painted on that element's own background */
         if(!pb) continue; const h=hex(pb); seenBg[h]=1; const rr=ratio(fg,pb); if(rr<worst){worst=rr;wbg=h;} }
       const nb=Object.keys(seenBg).length;
       if (nb>1) add('STRADDLES backgrounds (text across a shape edge)', `${where} ${name} "${(el.textContent||'').trim().slice(0,20)}" bgs ${Object.keys(seenBg).join('/')} worst ${worst.toFixed(2)}:1`);
