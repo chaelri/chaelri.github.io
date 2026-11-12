@@ -14,7 +14,7 @@ When Charlie says **"restore my setup"** / **"set up this laptop"** / **"i got a
 
 ## Hub Map (every project at a glance)
 
-@knowledge/hub/INDEX.md
+`knowledge/hub/INDEX.md`: read on demand when a task needs cross-project orientation.
 
 ## Agents / Hooks reference (read on demand)
 
@@ -34,7 +34,7 @@ Charlie is on Claude Pro: tight 5-hour and weekly limits. Spend tokens like they
 
 ## Model routing (automatic, since 2026-11-10)
 
-Sessions default to Sonnet 5.5 (`.claude/settings.json`). At the start of every task, apply the `router` skill (`.claude/skills/router/SKILL.md`): line-cook work inline, big grunt work to `prep-cook` (Haiku), costly/risky work to `sous-chef` (Opus high), planning/audits/stuck bugs to `head-chef` (Opus max). Print one `router: <tier> (<why>)` line first.
+Claude Code only; skip this in Cursor. Sessions default to Sonnet 5.5 (`.claude/settings.json`). At the start of every task, apply the `router` skill (`.claude/skills/router/SKILL.md`): line-cook work inline, big grunt work to `prep-cook` (Haiku), costly/risky work to `sous-chef` (Opus high), planning/audits/stuck bugs to `head-chef` (Opus max). Print one `router: <tier> (<why>)` line first.
 
 ## Project-specific knowledge
 
