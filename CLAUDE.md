@@ -34,7 +34,7 @@ Charlie is on Claude Pro: tight 5-hour and weekly limits. Spend tokens like they
 
 ## Model routing (automatic, since 2026-11-10)
 
-Claude Code only; skip this in Cursor. Sessions default to Sonnet 5.5 (`.claude/settings.json`). At the start of every task, apply the `router` skill (`.claude/skills/router/SKILL.md`): line-cook work inline, big grunt work to `prep-cook` (Haiku), costly/risky work to `sous-chef` (Opus high), planning/audits/stuck bugs to `head-chef` (Opus max). Print one `router: <tier> (<why>)` line first.
+Applies in Claude Code and Cursor. Claude Code sessions default to Sonnet 5.5 (`.claude/settings.json`); in Cursor the inline model is whatever the dropdown is set to (Charlie keeps it on Sonnet 5.5). At the start of every task, apply the `router` skill (`.claude/skills/router/SKILL.md`): line-cook work inline, big grunt work to `prep-cook` (Haiku), costly/risky work to `sous-chef` (Opus high), planning/audits/stuck bugs to `head-chef` (Opus max). Print one `router: <tier> (<why>)` line first.
 
 ## Project-specific knowledge
 
