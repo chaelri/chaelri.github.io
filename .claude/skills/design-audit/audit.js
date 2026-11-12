@@ -62,8 +62,12 @@ document.querySelectorAll('body *').forEach(el => {
   if (el === document.body || el.closest(SKIP)) return;
   const cs = getComputedStyle(el), bg = parse(cs.backgroundColor); if (!bg || bg.a < .5 || cs.display === 'none' || cs.visibility === 'hidden') return;
   const r = el.getBoundingClientRect(); if (r.width < 24 || r.height < 16) return;
-  const rg = document.createRange(); rg.selectNodeContents(el);
-  const rs = [...rg.getClientRects()].filter(x => x.width > 0 && x.height > 0); if (!rs.length) return;
+  /* real content only: text nodes + buttons/inputs/images. Wrapper boxes (a padded inner div) are not content, counting them flags every container. */
+  const rs = [];
+  const tw = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  for (let n; (n = tw.nextNode());) { if (!n.textContent.trim()) continue; const g = document.createRange(); g.selectNodeContents(n); rs.push(...[...g.getClientRects()].filter(x => x.width > 0 && x.height > 0)); }
+  el.querySelectorAll('button,input,select,textarea,img').forEach(c => { const q = c.getBoundingClientRect(); if (q.width > 0 && q.height > 0) rs.push(q); });
+  if (!rs.length) return;
   const c = { left: Math.min(...rs.map(x=>x.left)), right: Math.max(...rs.map(x=>x.right)), top: Math.min(...rs.map(x=>x.top)), bottom: Math.max(...rs.map(x=>x.bottom)) };
   const gap = { left: c.left - r.left, right: r.right - c.right, top: c.top - r.top, bottom: r.bottom - c.bottom };
   const ptFor = (q, s) => s==='left' ? [q.left-3, (q.top+q.bottom)/2] : s==='right' ? [q.right+3, (q.top+q.bottom)/2] : s==='top' ? [(q.left+q.right)/2, q.top-3] : [(q.left+q.right)/2, q.bottom+3];
