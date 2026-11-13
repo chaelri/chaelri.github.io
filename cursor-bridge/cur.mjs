@@ -219,7 +219,7 @@ function runTurn(prompt) {
       const tks = tk >= 1000 ? (tk / 1000).toFixed(1) + 'k' : String(tk);
       const box = boxLines(true);
       const qd = queue.flatMap((q, i) => [...userRows(q.replace(/\s+/g, ' '), true), ...(i < queue.length - 1 ? [''] : [])]);
-      if (qd.length) qd.push('  ' + st.grey(sendNow ? 'sending now…' : 'ctrl+c or ctrl+enter to send now'), '');
+      if (qd.length) qd.push('  ' + st.grey(sendNow ? 'sending now…' : 'ctrl+c to send now'), '');
       const bottom = [...qd, st.accent(FRAMES[frame % FRAMES.length]) + ' ' + st.verb(verb) + st.accent('…') + ' ' + st.grey(`(${secs}s${think.trim() ? ' · thinking' : ''})`), ''];
       box.lines[box.lines.length - 1] = FOOTER(true);
       drawLive(lines, [...bottom, ...box.lines], { row: bottom.length + box.row, col: box.col });
@@ -229,8 +229,8 @@ function runTurn(prompt) {
     const stop = () => { if (!interrupted) { interrupted = true; child.kill('SIGTERM'); } };
     const onKey = (str, key = {}) => {
       if (!ed.pasting && key.name === 'escape') return stop();
-      // ctrl+c, or ctrl+enter (arrives as a bare \n), with something typed or queued: stop this reply and send that right away
-      if (!ed.pasting && ((key.ctrl && key.name === 'c') || key.name === 'enter') && (ed.buf.length || queue.length)) {
+      // ctrl+c with something typed or queued: stop this reply and send that right away (enter / ctrl+enter just queue)
+      if (!ed.pasting && key.ctrl && key.name === 'c' && (ed.buf.length || queue.length)) {
         const v = ed.buf.join('');
         if (v.trim()) { queue.unshift(v); hist.push(v); ed.hi = hist.length; }
         ed.buf = []; ed.pos = 0; sendNow = true; render(); return stop();
