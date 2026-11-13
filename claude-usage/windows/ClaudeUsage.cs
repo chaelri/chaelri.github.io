@@ -28,6 +28,7 @@ static class Program
     static Control inv; // UI-thread marshaller
     static Popup popup;
     static string lastError;
+    static bool busy;
     static DateTime lastOk = DateTime.MinValue;
     static ArrayList rows = new ArrayList(); // each: object[] { label, percent(double), resetsAt(DateTime?) }
 
@@ -64,6 +65,7 @@ static class Program
     // ---------- data ----------
     static void Refresh()
     {
+        busy = true; if (popup != null) popup.Invalidate();
         ThreadPool.QueueUserWorkItem(delegate
         {
             string err = null; ArrayList newRows = new ArrayList();
@@ -121,6 +123,7 @@ static class Program
 
             inv.BeginInvoke((Action)delegate
             {
+                busy = false;
                 if (err == null) { rows = newRows; lastError = null; lastOk = DateTime.Now; }
                 else lastError = err;
                 Paint();
@@ -293,7 +296,7 @@ static class Program
                 }
                 // footer
                 using (var pen = new Pen(Line)) g.DrawLine(pen, pad, y, w - pad, y);
-                using (var br = new SolidBrush(Muted)) g.DrawString(lastOk == DateTime.MinValue ? "Not updated yet" : "Updated " + lastOk.ToString("h:mm tt"), f13, br, pad, y + P(16));
+                using (var br = new SolidBrush(Muted)) g.DrawString(busy ? "Updating..." : lastOk == DateTime.MinValue ? "Not updated yet" : "Updated " + lastOk.ToString("h:mm tt"), f13, br, pad, y + P(16));
                 int rx = w - pad;
                 for (int i = 2; i >= 0; i--)
                 {
@@ -315,7 +318,7 @@ static class Program
         protected override void OnMouseLeave(EventArgs e) { if (hover != -1) { hover = -1; Invalidate(); } }
         protected override void OnMouseUp(MouseEventArgs e)
         {
-            if (hover == 0) Refresh();
+            if (hover == 0) Program.Refresh(); // plain Refresh() would be Control.Refresh (a repaint) and do nothing
             else if (hover == 1) { Hide(); System.Diagnostics.Process.Start("https://claude.ai/settings/usage"); }
             else if (hover == 2) Application.Exit();
         }
