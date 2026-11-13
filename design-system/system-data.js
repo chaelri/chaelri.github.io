@@ -78,6 +78,7 @@ window.SYSTEM = {
         { t: "center the text inside its container.", d: "both axes, optically. descenders and tight leading shift the box, so nudge it." },
         { t: "center the background shape inside its frame.", d: "a block behind text gets equal margins on every side." },
         { t: "spacing is strict.", d: "every gap, padding and margin is a multiple of the 8px unit (0.1in), stepping by x 1.618 for bigger gaps. equal things get equal gaps. then check by eye and nudge optically. equal padding where the layout is meant to feel even." },
+        { t: "house density is 80%.", d: "every web page renders as Chrome shows it at 80% zoom while the browser stays at 100%: author sizes normally, then add html{zoom:.8}. never change browser zoom per page; chrome keeps one zoom per site, so it also resizes devo and every other page on the host." },
         { t: "letter-spacing.", d: "wide for UPPERCASE labels, slightly tight for big display text." },
         { t: "line-spacing.", d: "0.9-1.0 for display, 1.3-1.4 for body." },
         { t: "keep phrases together.", d: "break lines by meaning. never split a thought, never justify." },
@@ -189,6 +190,7 @@ window.SYSTEM = {
   --u:.5rem;
   --font:/*by role*/, system-ui, sans-serif; --accent-font:/*optional*/;
 }
+html{zoom:.8} /* house density: 100% looks like 80% */
 body{background:var(--paper);color:var(--ink);font:400 var(--step-0)/1.4 var(--font)}
 h1,h2{font-weight:700;line-height:.95;letter-spacing:-.01em}
 .label{font:700 .75rem var(--font);letter-spacing:.25em;text-transform:uppercase}

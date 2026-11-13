@@ -120,12 +120,15 @@ Structure only. Colors, fonts and shape style come from the chosen mood, not fro
   --u:.5rem; /* spacing unit; use multiples */
   --font:/*display+body by role*/, system-ui, sans-serif; --accent-font:/*optional*/;
 }
+html{zoom:.8} /* house density, see below */
 body{background:var(--paper);color:var(--ink);font:400 var(--step-0)/1.4 var(--font)}
 h1,h2{font-weight:700;line-height:.95;letter-spacing:-.01em} /* lowercase only if the mood suits */
 .label{font:700 .75rem var(--font);letter-spacing:.25em;text-transform:uppercase}
 .hl{background:var(--shape);padding:0 .2em}          /* highlight block behind one word */
 .pill{border-radius:999px;padding:.2em .8em}           /* outline/shadow per shape style */
 ```
+**House density = 80% (Charlie, 2026-11-13):** every web page renders at what Chrome shows at 80% zoom, while the browser stays at 100%. Author sizes and spacing exactly as in sections 3-4 (16px body, 8px unit), then add `html{zoom:.8}` (the second line of the CSS above). Never ask Charlie to change browser zoom: Chrome keeps one zoom per site, so zooming one page on chaelri.github.io also resizes devo and every other page on that host. Wide screens therefore get larger side margins by default; keep `max-width` as authored. Accessibility minimums (>= 16px body) apply to the authored size, before the 0.8.
+
 Mobile-first, 16px side gutter, primary/shape as the only large colour areas. Button and card treatment follows the chosen shape style (e.g. outlined pills with hard offset shadow `4px 4px 0 var(--ink)` and hover shift for playful; soft filled for calm; glass per section 8).
 
 ## 12. pptx / python-pptx / Canva notes
