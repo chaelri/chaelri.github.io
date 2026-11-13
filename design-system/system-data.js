@@ -85,7 +85,7 @@ window.SYSTEM = {
         { t: "keep phrases together.", d: "break lines by meaning. never split a thought, never justify." },
         { t: "nothing collides.", d: "overlapping lines are fixed with leading, not by shrinking text." },
         { t: "white space is a feature.", d: ">= 6% margin of the shortest side. don't fill every corner." },
-        { t: "no dead space under the content (charlie, 2026-11-13).", d: "a single-screen tool or page fills the viewport: wrapper min-height 100vh, header on top, the panels take every pixel left (flex:1 / grid 1fr). never leave an empty band under the last row. spare room goes inside the panels: media sits in a viewer box that fills its panel, controls spread with space-between, equal top and bottom margins. check the real screen (1080p and a laptop), not just the code." },
+        { t: "compact cards, breathing margins (charlie, 2026-11-13).", d: "don't stretch cards to fill the screen: that only creates gaps inside them. keep cards compact (content-sized, equal height), and centre the whole group vertically with generous, equal margin above and below. leftover viewport becomes breathing room, never an empty band under the last row and never airy gaps inside the cards. check the real screen (1080p and a laptop)." },
         { t: "balance: equal heights (charlie, 2026-11-13).", d: "always think about balance, the thing he notices first is uneven heights. side-by-side panels and cards share one height (stretch the row, push the action to the bottom, centre the media in the spare room). spread weight evenly across columns: no tall column next to a short one with dead space under it. the whole page should read evenly in one glance." }
       ]
     },

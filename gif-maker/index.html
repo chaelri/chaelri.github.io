@@ -105,15 +105,16 @@ figcaption{font:700 var(--s1)/1.4 var(--font)}
 .panel > .row + .bar{margin-top:24px}
 .panel > .meta:last-of-type{margin-bottom:0}
 @media(min-width:1024px){
-  /* fill the whole screen: header on top, the three panels take every pixel left, no dead space under them */
-  .wrap{min-height:calc(100vh / .8);display:flex;flex-direction:column;padding-bottom:32px}
-  main{flex:1;grid-template-rows:minmax(0,1fr);align-items:stretch}
+  /* compact cards, centred in the screen with equal breathing room above and below */
+  .wrap{min-height:calc(100vh / .8);display:flex;flex-direction:column;justify-content:center;padding-top:64px;padding-bottom:64px}
+  main{flex:none;grid-template-rows:auto;align-items:stretch}
   #pCtl{justify-content:space-between}
   #pCtl .row{margin-top:0}
   #pCtl .actions{margin-top:0}
   .pair{flex:1;align-content:center}
-  #stageBox{flex:1 1 0;min-height:0;overflow:hidden}
-  #stageBox{padding:0}
+  #stageBox{padding:0;border:0;background:none}
+  #editor.on{justify-content:center}
+  #pCtl{gap:16px}
 }
 @media(max-width:480px){.tlrow{grid-template-columns:repeat(4,1fr)}#startT{grid-column:1/-1;order:-1}}
 </style>
@@ -245,7 +246,7 @@ const desk = matchMedia('(min-width:1024px)');
 function layout(){
   const sb = $('stageBox'), box = sb.clientWidth; if (!box) return;
   // desktop: the viewer box fills the panel, the video sits inside it (contain). phone: width-bound.
-  const maxH = desk.matches ? sb.clientHeight : 420;
+  const maxH = 420;
   let w = box, h = w * S.vh / S.vw;
   if (h > maxH) { h = maxH; w = h * S.vw / S.vh; }
   frame.style.width = w + 'px'; frame.style.height = h + 'px';
