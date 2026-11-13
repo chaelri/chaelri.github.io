@@ -19,12 +19,13 @@
 *{box-sizing:border-box;margin:0}
 body{background:var(--paper);color:var(--ink);font:400 var(--s1)/1.4 var(--font);min-height:100vh}
 .wrap{max-width:1680px;margin:0 auto;padding:32px 16px 48px}
-header{display:flex;flex-direction:column;gap:8px;margin-bottom:32px}
+header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:32px}
+header > div{display:flex;flex-direction:column;gap:8px}
 h1{font:700 var(--s3)/.95 var(--font);letter-spacing:-.02em}
 h1 span{color:var(--primary)}
 header p{color:var(--muted);font:400 var(--s1)/1.4 var(--mono)}
-main{display:grid;gap:24px;grid-template-columns:1fr}
-@media(min-width:1024px){main{grid-template-columns:minmax(0,1.4fr) minmax(0,.85fr) minmax(0,1.25fr);align-items:start}}
+main{display:grid;gap:24px;grid-template-columns:minmax(0,1fr)}
+@media(min-width:1024px){main{grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);align-items:start}}
 .panel{background:var(--shape);border:1px solid var(--line);border-radius:var(--r3);padding:24px}
 h2{font:700 var(--s2)/1 var(--font);letter-spacing:-.01em;margin-bottom:16px}
 
@@ -81,7 +82,10 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
 .actions{display:flex;flex-direction:column;gap:16px;margin-top:24px}
 .row.first{margin-top:0}
 .locked{opacity:.45;pointer-events:none}
-.pair{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:16px;width:100%;max-width:360px;margin:0 auto}
+#pCtl{margin-top:16px}
+#pCtl .row{margin-top:16px}
+#pCtl .row.first{margin-top:0}
 figure{margin:0;display:flex;flex-direction:column;gap:8px}
 figcaption{font:700 var(--s1)/1.4 var(--font)}
 #pv,#outBox{display:block;width:100%;aspect-ratio:9/16;border-radius:var(--r1);border:1px solid var(--line);background:#000;image-rendering:pixelated}
@@ -90,10 +94,9 @@ figcaption{font:700 var(--s1)/1.4 var(--font)}
 #result.on #out{display:block}
 #result.on #outBox{border-style:solid}
 #result.on #outBox span{display:none}
-#save{width:100%}
 .meta{margin-top:16px}
 .meta + .meta{margin-top:8px}
-#outInfo{display:block;text-align:center;width:100%}
+#outInfo{display:block;width:100%}
 .over{color:var(--accent)!important}
 .panel{display:flex;flex-direction:column}
 #editor.on{display:flex;flex-direction:column;flex:1}
@@ -106,15 +109,11 @@ figcaption{font:700 var(--s1)/1.4 var(--font)}
 .panel > .meta:last-of-type{margin-bottom:0}
 @media(min-width:1024px){
   /* compact cards, centred in the screen with equal breathing room above and below */
-  .wrap{min-height:calc(100vh / .8);display:flex;flex-direction:column;justify-content:center;padding-top:64px;padding-bottom:64px}
+  .wrap{min-height:calc(100vh / .8);display:flex;flex-direction:column;justify-content:center;padding-top:48px;padding-bottom:48px}
   main{flex:none;grid-template-rows:auto;align-items:stretch}
-  #pCtl{justify-content:space-between}
-  #pCtl .row{margin-top:0}
-  #pCtl .actions{margin-top:0}
   .pair{flex:1;align-content:center}
   #stageBox{padding:0;border:0;background:none}
   #editor.on{justify-content:center}
-  #pCtl{gap:16px}
 }
 @media(max-width:480px){.tlrow{grid-template-columns:repeat(4,1fr)}#startT{grid-column:1/-1;order:-1}}
 </style>
@@ -122,8 +121,11 @@ figcaption{font:700 var(--s1)/1.4 var(--font)}
 <body>
 <div class="wrap">
   <header>
-    <h1>gif <span>maker</span></h1>
-    <p>for aula s75 pro</p>
+    <div>
+      <h1>gif <span>maker</span></h1>
+      <p>for aula s75 pro</p>
+    </div>
+    <button class="btn ghost" id="again" style="display:none">new video</button>
   </header>
 
   <main>
@@ -154,33 +156,14 @@ figcaption{font:700 var(--s1)/1.4 var(--font)}
           </div>
           <p class="note"><span id="totV"></span> total</p>
         </div>
+        <div class="row">
+          <label for="zoom">zoom <b id="zoomV">1.0×</b></label>
+          <input id="zoom" type="range" min="1" max="8" step="0.05" value="1">
+        </div>
       </div>
     </section>
 
-    <section class="panel locked" id="pCtl" aria-label="settings">
-      <div class="row first">
-        <label for="dur">length <b id="durV">5.0s</b></label>
-        <input id="dur" type="range" min="1" max="10" step="0.5" value="5">
-      </div>
-      <div class="row">
-        <label for="zoom">zoom <b id="zoomV">1.0×</b></label>
-        <input id="zoom" type="range" min="1" max="8" step="0.05" value="1">
-      </div>
-      <div class="row">
-        <label>frames per second</label>
-        <div class="seg" id="fps" role="group" aria-label="frames per second">
-          <button data-fps="10">10</button>
-          <button data-fps="15">15</button>
-          <button data-fps="20" class="on">20</button>
-          <button data-fps="30">30</button>
-        </div>
-      </div>
-      <div class="bar" id="bar"><i id="barI"></i></div>
-      <div class="actions">
-        <button class="btn" id="go" disabled>export gif</button>
-        <button class="btn ghost" id="again" style="display:none">new video</button>
-      </div>
-    </section>
+    
 
     <section class="panel" aria-label="result">
       <div class="pair">
@@ -196,7 +179,25 @@ figcaption{font:700 var(--s1)/1.4 var(--font)}
       <div class="meta"><span>loops <b id="loopV">5.0s</b></span><span><b id="estV">-</b></span></div>
       <div class="meta"><span>est. file <b id="mbV">-</b></span></div>
       <div class="meta"><b id="outInfo">&nbsp;</b></div>
-      <div class="actions"><a class="btn" id="save" download="keyboard.gif">save gif</a></div>
+      <div id="pCtl" class="locked">
+        <div class="row first">
+          <label for="dur">length <b id="durV">5.0s</b></label>
+          <input id="dur" type="range" min="1" max="10" step="0.5" value="5">
+        </div>
+        <div class="row">
+          <label>frames per second</label>
+          <div class="seg" id="fps" role="group" aria-label="frames per second">
+            <button data-fps="10">10</button>
+            <button data-fps="15">15</button>
+            <button data-fps="20" class="on">20</button>
+            <button data-fps="30">30</button>
+          </div>
+        </div>
+      </div>
+      <div class="bar" id="bar"><i id="barI"></i></div>
+      <div class="actions">
+        <button class="btn" id="go" disabled>export gif</button>
+      </div>
     </section>
   </main>
 </div>
@@ -228,7 +229,7 @@ function load(f){
 vid.addEventListener('error', () => alert('this browser cannot read that video. try mp4 (h.264) or webm.'));
 vid.addEventListener('loadedmetadata', () => {
   S.vw = vid.videoWidth; S.vh = vid.videoHeight;
-  drop.style.display = 'none'; $('editor').classList.add('on'); $('again').style.display = 'block'; $('go').disabled = false; $('pCtl').classList.remove('locked');
+  drop.style.display = 'none'; $('editor').classList.add('on'); $('again').style.display = ''; $('go').disabled = false; $('pCtl').classList.remove('locked');
   S.start = 0; setDur(Math.min(5, vid.duration)); $('startT').value = '0:00';
   { const t = Math.round(vid.duration), m = Math.floor(t / 60), sec = t % 60; $('totV').textContent = m + ':' + (sec < 10 ? '0' : '') + sec; }
   clampDur();
@@ -241,7 +242,8 @@ const maxCw = () => Math.min(S.vw, S.vh * W / H);
 /* ---------- layout + crop box ---------- */
 const desk = matchMedia('(min-width:1024px)');
 function layout(){
-  const sb = $('stageBox'), box = sb.clientWidth; if (!box) return;
+  const sb = $('stageBox'), cs = getComputedStyle(sb);
+  const box = $('editor').clientWidth - parseFloat(cs.paddingLeft) * 2 - parseFloat(cs.borderLeftWidth) * 2; if (box <= 0) return;
   // desktop: the viewer box fills the panel, the video sits inside it (contain). phone: width-bound.
   const maxH = 420;
   let w = box, h = w * S.vh / S.vw;
@@ -404,7 +406,7 @@ $('go').addEventListener('click', async () => {
   if (S.outUrl) URL.revokeObjectURL(S.outUrl);
   S.outUrl = URL.createObjectURL(blob);
   $('out').src = S.outUrl; S.actual = blob.size / n; label();
-  const a = $('save'); a.href = S.outUrl;
+  const a = document.createElement('a'); a.href = S.outUrl; a.download = 'keyboard.gif';
   $('outInfo').textContent = `${W}×${H} · ${n} frames · ${(blob.size / 1024 / 1024).toFixed(2)} MB` + (blob.size > 15 * 1024 * 1024 ? ' · over 15 MB, lower fps or length' : '');
   $('result').classList.add('on'); bar.classList.remove('on');
   S.busy = false; $('go').disabled = false;
