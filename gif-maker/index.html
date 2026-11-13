@@ -167,6 +167,8 @@ html.anim .empty #drop{animation:rise .6s var(--ease) both}
 #curtain strong span{opacity:.62}
 #curtain .cbar{width:240px;height:8px;border-radius:999px;background:rgba(14,18,24,.2);overflow:hidden}
 #curtain .cbar i{display:block;height:100%;width:0;background:var(--paper);border-radius:999px}
+#rc{display:none;width:112px;aspect-ratio:9/16;border-radius:var(--r1);border:2px solid var(--paper);background:#000;image-rendering:pixelated}
+#curtain.render #rc{display:block}
 #curtain small{font:400 var(--s1)/1 var(--mono)}
 /* phone: no scrolling, the app is a 4-step flow with a progress bar (upload > crop > settings > export) */
 #steps{display:none}
@@ -274,7 +276,7 @@ body:not(:has(#result.on)) .meta span:has(#outInfo){visibility:hidden}
 <div id="lb" role="dialog" aria-modal="true" aria-label="full screen preview"><canvas id="lbc" width="135" height="240"></canvas><img id="lbi" alt="rendered gif"><button class="btn ghost" id="lbx">close</button></div>
 <div id="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle"><div class="mcard"><h3 id="mTitle">discard this video?</h3><p id="mText">your crop, timing and settings for the current video will be lost.</p><div class="mbtns"><button class="btn ghost" id="mKeep">keep editing</button><button class="btn danger" id="mGo">discard</button></div></div></div>
 <div id="veil"></div>
-<div id="curtain" aria-hidden="true"><div class="cw"><strong>gif <span>maker</span></strong><div class="cbar"><i id="cbarI"></i></div><small id="cmsg">loading your video</small></div></div>
+<div id="curtain" aria-hidden="true"><div class="cw"><strong id="ctitle">gif <span>maker</span></strong><canvas id="rc" width="135" height="240"></canvas><div class="cbar"><i id="cbarI"></i></div><small id="cmsg">loading your video</small></div></div>
 <nav id="steps" aria-label="progress"><div class="shead"><span id="sLbl"></span><div class="sbar"><i id="sbarI"></i></div></div><div class="srow"><button class="btn ghost" id="sBack">back</button><button class="btn" id="sNext">next</button></div></nav>
 <div class="wrap">
   <header>
@@ -423,22 +425,31 @@ $('mGo').addEventListener('click', () => closeAsk(true));
 $('modal').addEventListener('pointerdown', e => { if (e.target === $('modal')) closeAsk(false); });
 window.addEventListener('keydown', e => { if (e.key === 'Escape' && $('modal').classList.contains('on')) closeAsk(false); });
 const wait = ms => new Promise(r => setTimeout(r, ms));
-async function go(fn, msg){
-  if (wiping) { fn(); return; }
+const EASE_C = 'cubic-bezier(.7,0,.2,1)';
+async function coverIn(msg, render){
   wiping = true;
-  const c = $('curtain'), bar = $('cbarI'), EASE = 'cubic-bezier(.7,0,.2,1)';
+  const c = $('curtain'), bar = $('cbarI');
+  c.classList.toggle('render', !!render);
+  $('ctitle').innerHTML = render ? 'rendering' : 'gif <span>maker</span>';
   $('cmsg').textContent = msg || 'loading your video'; bar.style.width = '0';
-  const veil = $('veil');
-  veil.animate([{opacity: 0}, {opacity: 1}], {duration: 300, easing: 'ease-out', fill: 'forwards'});
-  await c.animate([{transform: 'translateY(101%)'}, {transform: 'translateY(0)'}], {duration: 520, easing: EASE, fill: 'forwards'}).finished;
-  fn();                                                    // swap screens while covered
-  bar.animate([{width: '0%'}, {width: '100%'}], {duration: 700, easing: 'cubic-bezier(.3,.6,.3,1)', fill: 'forwards'});
-  await wait(780);                                         // let layout settle, loader visible
+  $('veil').animate([{opacity: 0}, {opacity: 1}], {duration: 300, easing: 'ease-out', fill: 'forwards'});
+  await c.animate([{transform: 'translateY(101%)'}, {transform: 'translateY(0)'}], {duration: 520, easing: EASE_C, fill: 'forwards'}).finished;
+}
+async function liftOut(){
+  const c = $('curtain'), bar = $('cbarI'), veil = $('veil');
   playIntro(1500);                                         // new screen starts building as the curtain lifts
   veil.animate([{opacity: 1}, {opacity: 0}], {duration: 200, easing: 'ease-in', fill: 'forwards'});
-  await c.animate([{transform: 'translateY(0)'}, {transform: 'translateY(-101%)'}], {duration: 600, easing: EASE, fill: 'forwards'}).finished;
+  await c.animate([{transform: 'translateY(0)'}, {transform: 'translateY(-101%)'}], {duration: 600, easing: EASE_C, fill: 'forwards'}).finished;
   c.getAnimations().forEach(a => a.cancel()); veil.getAnimations().forEach(a => a.cancel()); bar.getAnimations().forEach(a => a.cancel()); bar.style.width = '0';
-  wiping = false;
+  c.classList.remove('render'); wiping = false;
+}
+async function go(fn, msg){
+  if (wiping) { fn(); return; }
+  await coverIn(msg);
+  fn();                                                    // swap screens while covered
+  $('cbarI').animate([{width: '0%'}, {width: '100%'}], {duration: 700, easing: 'cubic-bezier(.3,.6,.3,1)', fill: 'forwards'});
+  await wait(780);                                         // let layout settle, loader visible
+  await liftOut();
 }
 playIntro();
 const W = 135, H = 240;
@@ -687,15 +698,19 @@ function draw(){
 /* ---------- export ---------- */
 const seek = t => new Promise(res => { const f = () => { vid.removeEventListener('seeked', f); res(); }; vid.addEventListener('seeked', f); vid.currentTime = t; });
 $('go').addEventListener('click', async () => {
-  if (S.busy) return;
+  if (S.busy || wiping) return;
   S.busy = true; vid.pause(); $('go').disabled = true; $('result').classList.remove('on');
+  const rctx = $('rc').getContext('2d'), cbar = $('cbarI');
+  const progress = pct => { cbar.style.width = pct + '%'; $('cmsg').textContent = (pct < 70 ? 'capturing frames' : 'building your gif') + ' · ' + Math.round(pct) + '%'; };
+  await coverIn('capturing frames · 0%', true);
   const bar = $('bar'), bi = $('barI'); bar.classList.add('on'); bi.style.width = '0';
   const end = Math.min(S.start + S.dur, vid.duration), n = Math.min(maxFrames(), 255, Math.max(1, Math.round((end - S.start) * S.fps))), step = 1 / S.fps;
   const frames = [];
   for (let i = 0; i < n; i++) {
     await seek(Math.min(S.start + i * step, vid.duration - .05));
     draw(); frames.push(pctx.getImageData(0, 0, W, H).data.slice());
-    bi.style.width = (i / n * 70) + '%'; setGoLabel('rendering ' + Math.round(i / n * 70) + '%');
+    rctx.drawImage(pv, 0, 0);                              // the frame being captured, live inside the loading screen
+    bi.style.width = (i / n * 70) + '%'; setGoLabel('rendering ' + Math.round(i / n * 70) + '%'); progress(i / n * 70);
     if (i % 4 === 0) await new Promise(r => setTimeout(r));
   }
   // own 256-colour palette per frame: truer colours and skin tones than one shared palette
@@ -703,7 +718,8 @@ $('go').addEventListener('click', async () => {
   for (let i = 0; i < n; i++) {
     const palette = quantize(frames[i], 256);
     gif.writeFrame(applyPalette(frames[i], palette), W, H, {palette, delay: (Math.round((i + 1) * 100 / S.fps) - Math.round(i * 100 / S.fps)) * 10, repeat: 0});
-    bi.style.width = (70 + i / n * 30) + '%'; setGoLabel('rendering ' + Math.round(70 + i / n * 30) + '%');
+    rctx.putImageData(new ImageData(frames[i], W, H), 0, 0);   // frames play through while they are packed into the gif
+    bi.style.width = (70 + i / n * 30) + '%'; setGoLabel('rendering ' + Math.round(70 + i / n * 30) + '%'); progress(70 + i / n * 30);
     if (i % 8 === 0) await new Promise(r => setTimeout(r));
   }
   gif.finish();
@@ -715,9 +731,12 @@ $('go').addEventListener('click', async () => {
   $('outInfo').textContent = `${(blob.size / 1024 / 1024).toFixed(2)} MB` + (blob.size > 15 * 1024 * 1024 ? ' (over 15 MB)' : '');
   $('result').classList.add('on'); bar.classList.remove('on');
   S.busy = false; $('go').disabled = false; setGoLabel('export gif'); fitPair();
-  if (matchMedia('(max-width:1023.98px)').matches && S.step === 4) setTimeout(() => toStep(5, 1), 600);   // phone: the result is its own screen
-  a.click(); // download straight away; the button stays for a second copy
+  progress(100); $('cmsg').textContent = 'done · ' + $('outInfo').textContent;
+  if (matchMedia('(max-width:1023.98px)').matches && S.step === 4) toStep(5, 1);   // phone: the result is its own screen (swapped behind the curtain)
+  a.click(); // download straight away
   startLoop();
+  await wait(900);                                         // a beat on 100% before the curtain lifts onto the result
+  await liftOut();
 });
 </script>
 </body>
