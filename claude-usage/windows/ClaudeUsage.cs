@@ -182,7 +182,7 @@ static class Program
             {
                 gp.AddString(text, new FontFamily("Segoe UI"), (int)FontStyle.Bold, 100f, new PointF(0, 0), StringFormat.GenericTypographic);
                 RectangleF gb = gp.GetBounds();
-                float k = Math.Min(size * 0.86f / gb.Width, size * 0.68f / gb.Height);
+                float k = Math.Min(size * 0.62f / gb.Width, size * 0.50f / gb.Height); // leave a clear margin of clay around the digits
                 using (var m = new System.Drawing.Drawing2D.Matrix())
                 {
                     m.Translate(-(gb.X + gb.Width / 2f), -(gb.Y + gb.Height / 2f));
@@ -190,7 +190,7 @@ static class Program
                     m.Translate(size / 2f, size / 2f, MatrixOrder.Append);
                     gp.Transform(m);
                 }
-                using (var pen = new Pen(Color.White, Math.Max(0.6f, size * 0.035f)) { LineJoin = LineJoin.Round })
+                using (var pen = new Pen(Color.White, Math.Max(0.5f, size * 0.03f)) { LineJoin = LineJoin.Round })
                 {
                     g.FillPath(Brushes.White, gp);
                     g.DrawPath(pen, gp); // a hair of stroke makes thin digits read as bold at 16-24 px

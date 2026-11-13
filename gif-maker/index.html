@@ -159,8 +159,9 @@ html.anim #editor.on > :nth-child(5), html.anim main > .panel:nth-child(2) > :nt
 #pCtl{transition:opacity .4s var(--ease)}
 html.anim .empty #drop{animation:rise .6s var(--ease) both}
 
-/* loading-screen curtain that wipes between screens */
-#curtain{position:fixed;inset:0;z-index:100;background:var(--primary);color:var(--paper);display:flex;align-items:center;justify-content:center;transform:translateY(101%);pointer-events:none;border-radius:50% 50% 0 0 / 96px 96px 0 0;will-change:transform}
+/* loading-screen curtain that wipes between screens; the veil hides the old page behind the curved edge so no page text peeks out */
+#veil{position:fixed;inset:0;z-index:99;background:var(--paper);opacity:0;pointer-events:none}
+#curtain{position:fixed;top:-160px;left:0;right:0;bottom:0;padding-top:160px;box-sizing:border-box;z-index:100;background:var(--primary);color:var(--paper);display:flex;align-items:center;justify-content:center;transform:translateY(101%);pointer-events:none;border-radius:50% 50% 0 0 / 96px 96px 0 0;will-change:transform}
 #curtain .cw{display:flex;flex-direction:column;align-items:center;gap:16px}
 #curtain strong{font:700 var(--s3)/1 var(--font);letter-spacing:-.02em}
 #curtain strong span{opacity:.62}
@@ -169,23 +170,32 @@ html.anim .empty #drop{animation:rise .6s var(--ease) both}
 #curtain small{font:400 var(--s1)/1 var(--mono)}
 /* phone: no scrolling, the app is a 4-step flow with a progress bar (upload > crop > settings > export) */
 #steps{display:none}
-@media(max-width:1023px){
+@media(max-width:1023.98px){
   html,body{height:100%;overflow:hidden}
-  .wrap{height:100dvh;min-height:0;padding:16px 16px 0;display:flex;flex-direction:column}
-  body:not(.empty) .wrap{padding-bottom:104px}
+  body{display:flex;flex-direction:column;height:100dvh}
+  .wrap{order:1;flex:1;width:100%;min-width:0;min-height:0;padding:16px;display:flex;flex-direction:column}
   header{margin-bottom:16px;flex:none}
   h1{font-size:var(--s2)}
   main{flex:1;min-height:0;display:block}
-  main > .panel{height:100%;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;padding:16px}
+  main > .panel{height:100%;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;padding:12px 16px}
   main > .panel::-webkit-scrollbar{display:none}
   .empty main{display:flex;align-items:center}
   .empty main > .panel{height:auto;width:100%}
   #again{display:none!important}
-  body:not([data-step="3"]):not([data-step="4"]) main > .panel:nth-child(2){display:none}
-  body[data-step="3"] main > .panel:nth-child(1), body[data-step="4"] main > .panel:nth-child(1){display:none}
-  body[data-step="3"] main > .panel:nth-child(2) > :not(#pCtl){display:none}
-  body[data-step="4"] main > .panel:nth-child(2) > #pCtl{display:none}
-  #steps{display:block;position:fixed;left:0;right:0;bottom:0;z-index:20;padding:12px 16px calc(12px + env(safe-area-inset-bottom));background:var(--paper);border-top:1px solid var(--line)}
+  body:not([data-step="4"]) main > .panel:nth-child(2){display:none}
+  body[data-step="4"] main > .panel:nth-child(1){display:none}
+  .row2col{display:block}
+  #editor .row2col > .row{margin-top:8px}
+  .row2col{margin-top:0}
+  body[data-step="2"] #rowZoom, body[data-step="2"] #prog{display:none}
+  body[data-step="2"] #stageBox{padding:0}
+  #tl{height:40px}
+  .seg button{min-height:48px}
+  body[data-step="3"] #rowStart, body[data-step="3"] #rowLen, body[data-step="3"] #rowFps{display:none}
+  body[data-step="3"] .row2col{display:block}
+  body[data-step="3"] .cropPrev{display:flex}
+  body[data-step="4"] .pair + .meta{display:none}
+  #steps{order:2;flex:none;display:block;position:relative;z-index:20;padding:12px 16px calc(12px + env(safe-area-inset-bottom));background:var(--paper);border-top:1px solid var(--line)}
   .empty #steps{display:none}
   .shead{display:flex;align-items:center;gap:16px;margin-bottom:12px}
   .sbar{flex:1;height:8px;border-radius:999px;background:var(--line);overflow:hidden}
@@ -193,7 +203,8 @@ html.anim .empty #drop{animation:rise .6s var(--ease) both}
   .srow{display:grid;grid-template-columns:1fr 1fr;gap:8px}
   #sLbl{font:400 16px/1 var(--mono);color:var(--muted);white-space:nowrap}
   #steps .btn{min-height:56px;padding:0 16px}
-  .pair{max-width:300px}
+  .pair{max-width:200px}
+  #stageBox{padding:8px}
   #editor .row{margin-top:8px}
   #editor .note{display:none}
   .tlrow{gap:8px}
@@ -203,13 +214,29 @@ html.anim .empty #drop{animation:rise .6s var(--ease) both}
   .tlrow .btn.sm{padding:0;font-size:16px}
   #startT{grid-column:1/-1;order:-1}
   #pCtl{margin-top:0}
-  #pCtl .row{margin-top:24px}
+  #pCtl .row{margin-top:16px}
   #pCtl .row.first{margin-top:0}
 }
 @media(max-width:400px){.tlrow{grid-template-columns:repeat(3,minmax(0,1fr))}}
+/* confirm modal */
+#modal{position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(14,18,24,.72)}
+#modal.on{display:flex}
+.mcard{width:100%;max-width:440px;background:var(--shape);border:1px solid var(--line);border-radius:var(--r3);padding:24px}
+.mcard h3{font:700 var(--s2)/1.1 var(--font);letter-spacing:-.01em;margin-bottom:8px}
+.mcard p{color:var(--muted);font:400 var(--s1)/1.4 var(--font)}
+.mbtns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:24px}
+.btn.danger{background:var(--accent);border-color:var(--accent)}
+/* length + fps live with the video controls so they are set while configuring the clip */
+.row2col{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:24px}
+#editor .row2col > .row{margin-top:0}
+.cropPrev{display:none;flex-direction:column;align-items:center;gap:8px;margin:8px 0 0}
+#pv2{width:90px;aspect-ratio:9/16;border-radius:var(--r1);border:1px solid var(--line);background:#000;image-rendering:pixelated}
+@media(min-width:1024px){.pair{max-width:440px}}
 </style>
 </head>
 <body class="empty" data-step="1">
+<div id="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle"><div class="mcard"><h3 id="mTitle">discard this video?</h3><p id="mText">your crop, timing and settings for the current video will be lost.</p><div class="mbtns"><button class="btn ghost" id="mKeep">keep editing</button><button class="btn danger" id="mGo">discard</button></div></div></div>
+<div id="veil"></div>
 <div id="curtain" aria-hidden="true"><div class="cw"><strong>gif <span>maker</span></strong><div class="cbar"><i id="cbarI"></i></div><small id="cmsg">loading your video</small></div></div>
 <nav id="steps" aria-label="progress"><div class="shead"><span id="sLbl"></span><div class="sbar"><i id="sbarI"></i></div></div><div class="srow"><button class="btn ghost" id="sBack">back</button><button class="btn" id="sNext">next</button></div></nav>
 <div class="wrap">
@@ -238,7 +265,7 @@ html.anim .empty #drop{animation:rise .6s var(--ease) both}
           </div>
           <div id="prog"><div id="progBar"><i id="progI"></i></div><span id="progT">0.0s / 5.0s</span></div>
         </div>
-        <div class="row">
+        <div class="row" id="rowStart">
           <label for="startT">start at <b id="startV">0:00.0</b></label>
           <div id="tl" aria-label="timeline, drag the amber window"><div id="win"></div></div>
           <div class="tlrow">
@@ -252,10 +279,26 @@ html.anim .empty #drop{animation:rise .6s var(--ease) both}
           </div>
           <p class="note"><span id="totV"></span> total</p>
         </div>
-        <div class="row">
+        <div class="row2col">
+        <div class="row" id="rowZoom">
           <label for="zoom">zoom <b id="zoomV">1.0×</b></label>
           <input id="zoom" type="range" min="1" max="8" step="0.05" value="1">
         </div>
+        <div class="row" id="rowLen">
+          <label for="dur">length <b id="durV">5.0s</b></label>
+          <input id="dur" type="range" min="1" max="10" step="0.5" value="5">
+        </div>
+        </div>
+        <div class="row" id="rowFps">
+          <label>frames per second</label>
+          <div class="seg" id="fps" role="group" aria-label="frames per second">
+            <button data-fps="10">10</button>
+            <button data-fps="15">15</button>
+            <button data-fps="20" class="on">20</button>
+            <button data-fps="30">30</button>
+          </div>
+        </div>
+        <figure class="cropPrev"><figcaption>preview</figcaption><canvas id="pv2" width="135" height="240"></canvas></figure>
       </div>
     </section>
 
@@ -275,20 +318,7 @@ html.anim .empty #drop{animation:rise .6s var(--ease) both}
       <div class="meta"><span>loops <b id="loopV">5.0s</b></span><span><b id="estV">-</b></span></div>
       <div class="meta"><span>est. file <b id="mbV">-</b></span><span>actual file <b id="outInfo">-</b></span></div>
       <div id="pCtl" class="locked">
-        <div class="row first">
-          <label for="dur">length <b id="durV">5.0s</b></label>
-          <input id="dur" type="range" min="1" max="10" step="0.5" value="5">
-        </div>
-        <div class="row">
-          <label>frames per second</label>
-          <div class="seg" id="fps" role="group" aria-label="frames per second">
-            <button data-fps="10">10</button>
-            <button data-fps="15">15</button>
-            <button data-fps="20" class="on">20</button>
-            <button data-fps="30">30</button>
-          </div>
-        </div>
-        <div class="row">
+        <div class="row first" id="rowName">
           <label for="fname">file name</label>
           <div class="namerow"><input id="fname" type="text" value="keyboard" spellcheck="false" maxlength="60" autocomplete="off"><span>.gif</span></div>
         </div>
@@ -303,6 +333,7 @@ html.anim .empty #drop{animation:rise .6s var(--ease) both}
 
 <script type="module">
 import {GIFEncoder, quantize, applyPalette} from './gifenc.esm.js';
+const $ = id => document.getElementById(id);
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
 
 // screen changes: a loading-screen curtain wipes up, the screens swap behind it, then it lifts away and the new screen builds in.
@@ -310,26 +341,47 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) naviga
 const root = document.documentElement;
 function playIntro(ms){ root.classList.add('anim'); setTimeout(() => root.classList.remove('anim'), ms || 900); }
 let wiping = false;
+// confirm before anything that throws the current video away
+let askDone = null;
+function ask(title, text, goLabel){
+  return new Promise(res => {
+    $('mTitle').textContent = title || 'discard this video?';
+    $('mText').textContent = text || 'your crop, timing and settings for the current video will be lost.';
+    $('mGo').textContent = goLabel || 'discard';
+    const m = $('modal'); m.classList.add('on');
+    m.animate([{opacity: 0}, {opacity: 1}], {duration: 160});
+    $('modal').firstElementChild.animate([{opacity: 0, transform: 'translateY(16px) scale(.96)'}, {opacity: 1, transform: 'none'}], {duration: 300, easing: 'cubic-bezier(.2,.7,.2,1)'});
+    $('mKeep').focus(); askDone = res;
+  });
+}
+function closeAsk(v){ $('modal').classList.remove('on'); if (askDone) { askDone(v); askDone = null; } }
+$('mKeep').addEventListener('click', () => closeAsk(false));
+$('mGo').addEventListener('click', () => closeAsk(true));
+$('modal').addEventListener('pointerdown', e => { if (e.target === $('modal')) closeAsk(false); });
+window.addEventListener('keydown', e => { if (e.key === 'Escape' && $('modal').classList.contains('on')) closeAsk(false); });
 const wait = ms => new Promise(r => setTimeout(r, ms));
 async function go(fn, msg){
   if (wiping) { fn(); return; }
   wiping = true;
   const c = $('curtain'), bar = $('cbarI'), EASE = 'cubic-bezier(.7,0,.2,1)';
   $('cmsg').textContent = msg || 'loading your video'; bar.style.width = '0';
+  const veil = $('veil');
+  veil.animate([{opacity: 0}, {opacity: 1}], {duration: 300, easing: 'ease-out', fill: 'forwards'});
   await c.animate([{transform: 'translateY(101%)'}, {transform: 'translateY(0)'}], {duration: 520, easing: EASE, fill: 'forwards'}).finished;
   fn();                                                    // swap screens while covered
   bar.animate([{width: '0%'}, {width: '100%'}], {duration: 700, easing: 'cubic-bezier(.3,.6,.3,1)', fill: 'forwards'});
   await wait(780);                                         // let layout settle, loader visible
   playIntro(1500);                                         // new screen starts building as the curtain lifts
+  veil.animate([{opacity: 1}, {opacity: 0}], {duration: 200, easing: 'ease-in', fill: 'forwards'});
   await c.animate([{transform: 'translateY(0)'}, {transform: 'translateY(-101%)'}], {duration: 600, easing: EASE, fill: 'forwards'}).finished;
-  c.getAnimations().forEach(a => a.cancel()); bar.getAnimations().forEach(a => a.cancel()); bar.style.width = '0';
+  c.getAnimations().forEach(a => a.cancel()); veil.getAnimations().forEach(a => a.cancel()); bar.getAnimations().forEach(a => a.cancel()); bar.style.width = '0';
   wiping = false;
 }
 playIntro();
 const W = 135, H = 240;
-const STEP_NAMES = ['upload', 'crop', 'settings', 'export'];
-const $ = id => document.getElementById(id);
+const STEP_NAMES = ['upload', 'timing', 'crop', 'export'];
 const vid = $('vid'), frame = $('frame'), crop = $('crop'), pv = $('pv'), pctx = pv.getContext('2d', {willReadFrequently:true});
+const p2ctx = $('pv2').getContext('2d');
 const S = {step:1, url:null, vw:0, vh:0, cw:0, cx:0, cy:0, start:0, dur:5, fps:20, busy:false, dispW:0, dispH:0, outUrl:null};
 pctx.imageSmoothingQuality = 'high';
 
@@ -338,9 +390,13 @@ const drop = $('drop'), file = $('file');
 drop.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); file.click(); } });
 ['dragenter','dragover'].forEach(t => window.addEventListener(t, e => { e.preventDefault(); drop.classList.add('over'); }));
 ['dragleave','drop'].forEach(t => window.addEventListener(t, e => { e.preventDefault(); if (t === 'dragleave' && e.relatedTarget) return; drop.classList.remove('over'); }));
-window.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) load(f); });
+window.addEventListener('drop', async e => {
+  const f = e.dataTransfer.files[0]; if (!f) return;
+  if (!document.body.classList.contains('empty') && !(await ask('replace this video?', 'your crop, timing and settings for the current video will be lost.', 'replace'))) return;
+  load(f);
+});
 file.addEventListener('change', () => { if (file.files[0]) load(file.files[0]); });
-$('again').addEventListener('click', () => go(() => { document.body.classList.add('empty'); S.step = 1; syncStep(); vid.pause(); $('editor').classList.remove('on'); drop.style.display = ''; $('again').style.display = 'none'; $('go').disabled = true; $('pCtl').classList.add('locked'); $('result').classList.remove('on'); file.value = ''; }, 'back to the start'));
+$('again').addEventListener('click', async () => { if (!(await ask('discard this video?', 'your crop, timing and settings for the current video will be lost.', 'discard'))) return; go(() => { document.body.classList.add('empty'); S.step = 1; syncStep(); vid.pause(); $('editor').classList.remove('on'); drop.style.display = ''; $('again').style.display = 'none'; $('go').disabled = true; $('pCtl').classList.add('locked'); $('result').classList.remove('on'); file.value = ''; }, 'back to the start'); });
 
 const qs = new URLSearchParams(location.search).get('src'); if (qs) queueMicrotask(() => { vid.src = qs; });
 function load(f){
@@ -388,7 +444,7 @@ function layout(){
   const sb = $('stageBox'), cs = getComputedStyle(sb);
   const box = $('editor').clientWidth - parseFloat(cs.paddingLeft) * 2 - parseFloat(cs.borderLeftWidth) * 2; if (box <= 0) return;
   // desktop: the viewer box fills the panel, the video sits inside it (contain). phone: width-bound.
-  const maxH = matchMedia('(max-width:1023px)').matches ? 200 : 320;
+  const maxH = matchMedia('(max-width:1023.98px)').matches ? (S.step === 2 ? 96 : 190) : 260;
   let w = box, h = w * S.vh / S.vw;
   if (h > maxH) { h = maxH; w = h * S.vw / S.vh; }
   frame.style.width = w + 'px'; frame.style.height = h + 'px'; $('prog').style.width = w + 'px';
@@ -525,6 +581,7 @@ function draw(){
     }
   }
   im.data.set(o); pctx.putImageData(im, 0, 0);
+  if ($('pv2').offsetParent) p2ctx.drawImage(pv, 0, 0);
 }
 
 /* ---------- export ---------- */

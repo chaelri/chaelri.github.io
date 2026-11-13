@@ -143,6 +143,17 @@ Mobile-first, 16px side gutter, primary/shape as the only large colour areas. Bu
 - Verify by rendering: `soffice --headless --convert-to pdf` then look at it before delivering.
 - Lay out on a 12-col grid with 0.9in side margins; align text boxes to the same left edge.
 
+## 15. Fixes Charlie caught (always consider these, 2026-11-13)
+
+1. **Nothing overlaps, at any screen size.** Cards never overlap each other, the header, or a bottom bar. A bottom bar/nav is part of the layout (flex column: header, content `flex:1;min-height:0`, bar `flex:none`), NEVER `position:fixed` over the content. A flex item with `margin:0 auto` loses its stretch and collapses to content width, so give it `width:100%`. After any layout change run a size matrix in Chrome (iframes): 320x568, 360x640, 375x667, 390x844, 412x780, 430x800, 430x932, 768x1024, 1024x600, 1280x720, 1366x768, 1920x1080, checking card vs header, card vs bar, card vs card, sideways scroll. If a tiny phone cannot fit a step, the card scrolls inside itself (fallback), it never spills under the bar. Watch the 1023-1024px gap: use `max-width:1023.98px` for the phone query.
+2. **Transition curtain must not reveal the old page.** Keep the curved top, but fade a paper-coloured veil under the curtain while it rises (the old screen disappears behind the curve instead of showing text like the logo in a corner), make the curtain taller than the viewport (`top:-160px`) so the rounded top is never visible when fully covering, and fade the veil out as the curtain lifts.
+3. **Confirm before throwing work away.** Any action that discards the current work (new video, dropping a replacement file, clearing) opens a small confirm modal: dimmed backdrop, card with a plain title ("discard this video?"), one sentence of what is lost, two equal buttons (safe one first: "keep editing", then the accent "discard"), Esc and backdrop click = keep. Focus starts on the safe button.
+4. **Settings that shape the result live beside the thing being edited.** Length and fps are set in the same card as the video, start time and zoom (desktop: zoom + length side by side, fps below). On phones they get their own early step with the video visible ("timing", then "crop" with a live result preview, then "export"). Do not hide them in a later card.
+5. **Test the odd inputs.** Portrait source video (9:16 and 1080x1920), very short clips, empty/cleared fields, a second drop while editing. Check the crop frame stays inside the video and the layout still balances.
+6. **Small glyphs need breathing room.** In an icon, the digits/glyph occupy about 60% of the tile with clear colour all around, never touching the edge (tray icon: width 62%, height 50% of the tile).
+7. **No dead helper text.** Do not explain what the UI already shows (no "drag the amber window", no limit captions); show limits as live numbers (`5.0s / 12.8s max`, `est. file` next to `actual file`).
+8. **Every top-level script constant is defined before first use** (a `$` helper used before its `const` broke the whole page once). After adding code run the page and read the console.
+
 ## 14. Reusable pieces (copy these, Charlie likes them)
 
 **Loading-screen curtain (screen change).** Reference implementation: `gif-maker/index.html` (search `#curtain` and `async function go`).
