@@ -83,7 +83,9 @@
   .row.it > div:first-child{padding-left:8px}
   .row.kid{display:none;flex:1 0 40px}
   .rows.open .row.kid{display:grid}
-  .row.kid > div:first-child{padding-left:32px;color:var(--muted)}
+  .row.kid > div:first-child{padding-left:32px}
+  .gone{color:var(--muted);text-decoration:line-through;text-decoration-thickness:1px}
+  .row.kid .pv{color:var(--muted)}
   .row.tot{flex:none;min-height:48px;border-bottom:0;font-weight:700}
   .row.tot > div:first-child{padding-left:8px}
   .cov,.cvf .pv{color:var(--accent);font-weight:700}
@@ -178,7 +180,7 @@ const ST = Object.assign({}, DEF, saved.v||{});
 let mode = 'present';
 
 const fld = (id,label,cls='') => `<span class="fld ${cls}"><input id="${id}" type="text" inputmode="decimal" value="${fmt(ST[id])}" aria-label="${label||LABEL[id]||id}"><span class="pv" id="pv-${id}"></span></span>`;
-const cellB = t => `<div class="r num b">${t}</div>`;
+const cellB = (t,c='') => `<div class="r num b ${c}">${t}</div>`;
 
 function itemRow(k,x=''){
   return `<div class="row it ${x}"><div>${LABEL[k]}</div>${cellB(fmt(BEFORE[k]))}<div class="r">${fld(k)}</div><div class="r num cov" id="cv-${k}"></div></div>`;
@@ -199,7 +201,7 @@ $('rows').innerHTML =
   `<div class="row it edit-only"><div>Grocery goal&nbsp;<span class="muted">what they want to spend</span></div>${cellB('')}<div class="r">${fld('ggoal','Grocery goal')}</div><div></div></div>` +
   itemRow('daddy','sp') +
   `<div class="row it tog" id="tog" role="button" tabindex="0" aria-expanded="false"><div><span id="tgl">+</span>&nbsp;Removed lines (4)</div><div class="r num b" id="rm-b"></div><div class="r num" id="rm-a"></div><div></div></div>` +
-  KIDS.map(k=>`<div class="row kid"><div>${LABEL[k]}</div>${cellB(fmt(BEFORE[k]))}<div class="r">${fld(k)}</div><div></div></div>`).join('') +
+  KIDS.map(k=>`<div class="row kid"><div class="gone">${LABEL[k]}</div>${BEFORE[k]>0 ? cellB(fmt(BEFORE[k]),'gone') : cellB('-')}<div class="r">${fld(k)}</div><div></div></div>`).join('') +
   `<div class="row tot"><div>Total</div><div class="r num b" id="tot-b"></div><div class="r num" id="tot-a"></div><div class="r num cov" id="tot-c"></div></div>`;
 
 const num = id => parseFloat(String($(id).value).replace(/,/g,'')) || 0;
@@ -222,7 +224,7 @@ function calc(){
   $('gM-b').textContent=fmt(sumB(gm)); $('gM-a').textContent=fmt(sumA(gm));
   $('gB-b').textContent=fmt(sumB(gb)+MER_B); $('gB-a').textContent=fmt(sumA(gb)+mer);
   $('gF-b').textContent=fmt(Bf('rice')+GROC_B); $('gF-a').textContent=fmt(A('rice')+groc);
-  $('rm-b').textContent=fmt(sumB(KIDS)); $('rm-a').textContent=fmt(sumA(KIDS));
+  $('rm-b').textContent=fmt(sumB(KIDS)); $('rm-b').classList.add('gone'); $('rm-a').textContent = sumA(KIDS)===0 ? 'Removed' : fmt(sumA(KIDS)); $('rm-a').style.color = sumA(KIDS)===0 ? 'var(--muted)' : '';
   $('mer-a').textContent=fmt(mer);
   $('gr-a').innerHTML=`<b>${fmt(groc)}</b>`;
 
@@ -252,7 +254,7 @@ function calc(){
   $('stA').innerHTML = seg('s-ch','Charlie',each)+seg('s-ku','Kuya',each+v.kx)+seg('s-mp','Mama and Papa',coverTotal)+spacer(afterAll);
   $('tB').textContent=fmt(fixedB); $('tA').textContent=fmt(afterAll);
 
-  document.querySelectorAll('.fld').forEach(f=>{ const i=f.querySelector('input'); f.querySelector('.pv').textContent = fmt(num(i.id)); });
+  document.querySelectorAll('.fld').forEach(f=>{ const i=f.querySelector('input'); f.querySelector('.pv').textContent = (KIDS.includes(i.id) && num(i.id)===0) ? 'Removed' : fmt(num(i.id)); });
 
   const vv={}; ids.forEach(k=>vv[k]=v[k]);
   store.set({v:vv});
