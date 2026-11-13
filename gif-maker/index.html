@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>gif maker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* techy / dark. paper #0E1218, text #E6ECF2, primary #4FE3A1, shape #1A222D, accent #FFB347, muted #93A3B5 */
+:root{
+  --paper:#0E1218; --ink:#E6ECF2; --primary:#4FE3A1; --shape:#1A222D; --accent:#FFB347; --muted:#93A3B5; --line:#2C3746;
+  --s1:16px; --s2:26px; --s3:42px;
+  --r1:8px; --r2:13px; --r3:21px;
+  --u:8px;
+  --font:"Space Grotesk",system-ui,sans-serif; --mono:"JetBrains Mono",ui-monospace,monospace;
+}
+@media(min-width:1024px){html{zoom:.8}}
+*{box-sizing:border-box;margin:0}
+body{background:var(--paper);color:var(--ink);font:400 var(--s1)/1.4 var(--font);min-height:100vh}
+.wrap{max-width:1200px;margin:0 auto;padding:32px 16px 48px}
+header{display:flex;flex-direction:column;gap:8px;margin-bottom:32px}
+h1{font:700 var(--s3)/.95 var(--font);letter-spacing:-.02em}
+h1 span{color:var(--primary)}
+header p{color:var(--muted);font:400 var(--s1)/1.4 var(--mono)}
+main{display:grid;gap:24px;grid-template-columns:1fr}
+@media(min-width:1024px){main{grid-template-columns:minmax(0,1.618fr) minmax(0,1fr);align-items:start}}
+.panel{background:var(--shape);border:1px solid var(--line);border-radius:var(--r3);padding:24px}
+.panel + .panel{margin-top:24px}
+h2{font:700 var(--s2)/1 var(--font);letter-spacing:-.01em;margin-bottom:16px}
+
+/* stage */
+#drop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;min-height:320px;border:2px dashed var(--line);border-radius:var(--r2);padding:32px 16px;cursor:pointer;transition:border-color .15s,background .15s}
+#drop.over{border-color:var(--primary);background:rgba(79,227,161,.08)}
+#drop strong{font:700 var(--s2)/1.1 var(--font)}
+#drop small{color:var(--muted);font:400 var(--s1)/1.4 var(--mono)}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 24px;border-radius:999px;border:2px solid var(--primary);background:var(--primary);color:var(--paper);font:700 var(--s1)/1 var(--font);cursor:pointer;transition:transform .1s,box-shadow .1s;text-decoration:none}
+.btn:hover{transform:translate(-2px,-2px);box-shadow:4px 4px 0 var(--ink)}
+.btn:active{transform:none;box-shadow:none}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+.btn.ghost:hover{border-color:var(--ink);box-shadow:none;transform:none}
+.btn:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}
+.btn:focus-visible,input:focus-visible,.seg button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#editor{display:none}
+#editor.on{display:block}
+#frame{position:relative;margin:0 auto;overflow:hidden;border-radius:var(--r2);background:#000;touch-action:none;user-select:none}
+#frame video{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none}
+#crop{position:absolute;border:2px solid var(--accent);box-shadow:0 0 0 9999px rgba(14,18,24,.66);cursor:grab}
+#crop:active{cursor:grabbing}
+#crop::after{content:"";position:absolute;inset:0;background:
+  linear-gradient(var(--accent),var(--accent)) 33.33% 0/1px 100% no-repeat,
+  linear-gradient(var(--accent),var(--accent)) 66.66% 0/1px 100% no-repeat,
+  linear-gradient(var(--accent),var(--accent)) 0 33.33%/100% 1px no-repeat,
+  linear-gradient(var(--accent),var(--accent)) 0 66.66%/100% 1px no-repeat;opacity:.35}
+.row{display:flex;flex-direction:column;gap:8px;margin-top:24px}
+.row label{display:flex;justify-content:space-between;align-items:baseline;font:700 var(--s1)/1.4 var(--font)}
+.row label b{font:400 var(--s1)/1.4 var(--mono);color:var(--primary)}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:48px;background:transparent;cursor:pointer}
+input[type=range]::-webkit-slider-runnable-track{height:8px;background:var(--line);border-radius:999px}
+input[type=range]::-moz-range-track{height:8px;background:var(--line);border-radius:999px}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:24px;margin-top:-8px;border-radius:50%;background:var(--primary);border:2px solid var(--paper);box-shadow:0 0 0 2px var(--primary)}
+input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;background:var(--primary);border:2px solid var(--paper);box-shadow:0 0 0 2px var(--primary)}
+.seg{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.seg button{min-height:48px;border-radius:var(--r1);border:1px solid var(--line);background:transparent;color:var(--ink);font:400 var(--s1)/1 var(--mono);cursor:pointer}
+.seg button.on{border-color:var(--primary);color:var(--primary);background:rgba(79,227,161,.1)}
+.note{color:var(--muted);font:400 var(--s1)/1.4 var(--font);margin-top:8px}
+.note.hand{color:var(--accent)}
+
+/* preview */
+#pv{display:block;width:100%;max-width:480px;aspect-ratio:16/9;margin:0 auto;border-radius:var(--r1);border:1px solid var(--line);image-rendering:pixelated;background:#000}
+.meta{display:flex;justify-content:space-between;gap:16px;margin-top:16px;color:var(--muted);font:400 var(--s1)/1.4 var(--mono)}
+.meta b{color:var(--ink);font-weight:400}
+.bar{height:8px;border-radius:999px;background:var(--line);overflow:hidden;margin-top:16px;display:none}
+.bar.on{display:block}
+.bar i{display:block;height:100%;width:0;background:var(--primary)}
+.actions{display:flex;flex-direction:column;gap:16px;margin-top:24px}
+#result{display:none;margin-top:24px;text-align:center}
+#result.on{display:block}
+#result img{width:240px;height:135px;border-radius:var(--r1);border:1px solid var(--line);display:block;margin:0 auto 16px}
+#again{margin-top:16px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>gif <span>maker</span></h1>
+    <p>240 × 135, locked. for the aula s75 pro screen.</p>
+  </header>
+
+  <main>
+    <section class="panel" aria-label="video">
+      <label id="drop" for="file" tabindex="0">
+        <strong>drop a video here</strong>
+        <span class="btn">choose file</span>
+        <small>mp4 / mov / webm. it stays on your pc.</small>
+      </label>
+      <input id="file" type="file" accept="video/*" hidden>
+
+      <div id="editor">
+        <div id="frame">
+          <video id="vid" muted playsinline loop></video>
+          <div id="crop" role="img" aria-label="crop frame, drag to move"></div>
+        </div>
+
+        <div class="row">
+          <label for="start">start <b id="startV">0.0s</b></label>
+          <input id="start" type="range" min="0" max="1" step="0.1" value="0">
+        </div>
+        <div class="row">
+          <label for="dur">length <b id="durV">5.0s</b></label>
+          <input id="dur" type="range" min="1" max="10" step="0.5" value="5">
+        </div>
+        <div class="row">
+          <label for="zoom">zoom <b id="zoomV">1.0×</b></label>
+          <input id="zoom" type="range" min="1" max="8" step="0.05" value="1">
+          <p class="note hand">drag the amber frame to pick the crop. scroll to zoom.</p>
+        </div>
+      </div>
+    </section>
+
+    <aside>
+      <section class="panel" aria-label="preview">
+        <h2>preview</h2>
+        <canvas id="pv" width="240" height="135"></canvas>
+        <div class="meta"><span>loops <b id="loopV">5.0s</b></span><span>size <b id="estV">-</b></span></div>
+      </section>
+
+      <section class="panel" aria-label="export">
+        <h2>export</h2>
+        <div class="row" style="margin-top:0">
+          <label>frames per second</label>
+          <div class="seg" id="fps" role="group" aria-label="frames per second">
+            <button data-fps="10">10</button>
+            <button data-fps="12.5">12.5</button>
+            <button data-fps="20" class="on">20</button>
+            <button data-fps="25">25</button>
+          </div>
+          <p class="note">lower fps = smaller file.</p>
+        </div>
+        <div class="bar" id="bar"><i id="barI"></i></div>
+        <div class="actions">
+          <button class="btn" id="go" disabled>export gif</button>
+        </div>
+        <div id="result">
+          <img id="out" alt="exported gif" width="240" height="135">
+          <div class="meta" style="justify-content:center"><b id="outInfo"></b></div>
+          <div class="actions">
+            <a class="btn" id="save" download="keyboard.gif">save gif</a>
+          </div>
+        </div>
+        <button class="btn ghost" id="again" style="display:none;width:100%">new video</button>
+      </section>
+    </aside>
+  </main>
+</div>
+
+<script type="module">
+import {GIFEncoder, quantize, applyPalette} from './gifenc.esm.js';
+
+const W = 240, H = 135;
+const $ = id => document.getElementById(id);
+const vid = $('vid'), frame = $('frame'), crop = $('crop'), pv = $('pv'), pctx = pv.getContext('2d', {willReadFrequently:true});
+const S = {url:null, vw:0, vh:0, cw:0, cx:0, cy:0, start:0, dur:5, fps:20, busy:false, dispW:0, dispH:0, outUrl:null};
+pctx.imageSmoothingQuality = 'high';
+
+/* ---------- load ---------- */
+const drop = $('drop'), file = $('file');
+drop.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); file.click(); } });
+['dragenter','dragover'].forEach(t => window.addEventListener(t, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave','drop'].forEach(t => window.addEventListener(t, e => { e.preventDefault(); if (t === 'dragleave' && e.relatedTarget) return; drop.classList.remove('over'); }));
+window.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) load(f); });
+file.addEventListener('change', () => { if (file.files[0]) load(file.files[0]); });
+$('again').addEventListener('click', () => { vid.pause(); $('editor').classList.remove('on'); drop.style.display = ''; $('again').style.display = 'none'; $('go').disabled = true; $('result').classList.remove('on'); file.value = ''; });
+
+function load(f){
+  if (S.url) URL.revokeObjectURL(S.url);
+  S.url = URL.createObjectURL(f);
+  vid.src = S.url;
+}
+vid.addEventListener('error', () => alert('this browser cannot read that video. try mp4 (h.264) or webm.'));
+vid.addEventListener('loadedmetadata', () => {
+  S.vw = vid.videoWidth; S.vh = vid.videoHeight;
+  drop.style.display = 'none'; $('editor').classList.add('on'); $('again').style.display = 'block'; $('go').disabled = false;
+  const t = $('start'); t.max = Math.max(0, vid.duration - 1).toFixed(1); t.value = 0;
+  S.start = 0; setDur(Math.min(5, vid.duration));
+  $('dur').max = Math.min(10, Math.floor(vid.duration * 2) / 2) || 1;
+  $('dur').value = S.dur;
+  $('zoom').value = 1;
+  S.cw = maxCw(); S.cx = (S.vw - S.cw) / 2; S.cy = (S.vh - S.cw * H / W) / 2;
+  layout(); label(); startLoop();
+});
+const maxCw = () => Math.min(S.vw, S.vh * W / H);
+
+/* ---------- layout + crop box ---------- */
+function layout(){
+  const box = $('editor').clientWidth; if (!box) return;
+  const maxH = Math.min(window.innerHeight * .62, 560);
+  let w = box, h = w * S.vh / S.vw;
+  if (h > maxH) { h = maxH; w = h * S.vw / S.vh; }
+  frame.style.width = w + 'px'; frame.style.height = h + 'px';
+  S.dispW = w; S.dispH = h; paintCrop();
+}
+window.addEventListener('resize', layout);
+function paintCrop(){
+  const k = S.dispW / S.vw, ch = S.cw * H / W;
+  crop.style.left = S.cx * k + 'px'; crop.style.top = S.cy * k + 'px';
+  crop.style.width = S.cw * k + 'px'; crop.style.height = ch * k + 'px';
+}
+function clampCrop(){
+  const ch = S.cw * H / W;
+  S.cx = Math.min(Math.max(0, S.cx), S.vw - S.cw);
+  S.cy = Math.min(Math.max(0, S.cy), S.vh - ch);
+}
+let drag = null;
+crop.addEventListener('pointerdown', e => { drag = {x:e.clientX, y:e.clientY, cx:S.cx, cy:S.cy}; crop.setPointerCapture(e.pointerId); });
+crop.addEventListener('pointermove', e => {
+  if (!drag) return;
+  const k = S.vw / S.dispW; // note: html zoom scales client coords equally, so use the element ratio
+  const r = frame.getBoundingClientRect(), kk = S.vw / r.width;
+  S.cx = drag.cx + (e.clientX - drag.x) * kk; S.cy = drag.cy + (e.clientY - drag.y) * kk;
+  clampCrop(); paintCrop();
+});
+crop.addEventListener('pointerup', () => drag = null);
+crop.addEventListener('pointercancel', () => drag = null);
+frame.addEventListener('wheel', e => { e.preventDefault(); const z = $('zoom'); z.value = +z.value + (e.deltaY < 0 ? .25 : -.25); setZoom(); }, {passive:false});
+function setZoom(){
+  const z = +$('zoom').value, ocx = S.cx + S.cw / 2, ocy = S.cy + S.cw * H / W / 2;
+  S.cw = maxCw() / z; S.cx = ocx - S.cw / 2; S.cy = ocy - S.cw * H / W / 2;
+  clampCrop(); paintCrop(); label();
+}
+$('zoom').addEventListener('input', setZoom);
+
+/* ---------- time ---------- */
+function setDur(d){ S.dur = d; }
+$('start').addEventListener('input', () => { S.start = +$('start').value; vid.currentTime = S.start; label(); });
+$('dur').addEventListener('input', () => { S.dur = +$('dur').value; label(); });
+document.querySelectorAll('#fps button').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('#fps button').forEach(x => x.classList.remove('on')); b.classList.add('on'); S.fps = +b.dataset.fps; label();
+}));
+function label(){
+  const end = Math.min(S.start + S.dur, vid.duration || 0);
+  $('startV').textContent = S.start.toFixed(1) + 's';
+  $('durV').textContent = S.dur.toFixed(1) + 's';
+  $('loopV').textContent = (end - S.start).toFixed(1) + 's';
+  $('zoomV').textContent = (S.vw / S.cw / (S.vw / maxCw())).toFixed(1) + '×';
+  const frames = Math.round((end - S.start) * S.fps);
+  $('estV').textContent = frames + ' frames';
+}
+
+/* ---------- live loop preview ---------- */
+let raf = 0;
+function startLoop(){
+  cancelAnimationFrame(raf);
+  vid.currentTime = S.start; vid.play().catch(() => {});
+  const tick = () => {
+    if (!S.busy) {
+      const end = Math.min(S.start + S.dur, vid.duration);
+      if (vid.currentTime >= end || vid.currentTime < S.start - .05) vid.currentTime = S.start;
+      draw();
+    }
+    raf = requestAnimationFrame(tick);
+  };
+  tick();
+}
+function draw(){ pctx.drawImage(vid, S.cx, S.cy, S.cw, S.cw * H / W, 0, 0, W, H); }
+
+/* ---------- export ---------- */
+const seek = t => new Promise(res => { const f = () => { vid.removeEventListener('seeked', f); res(); }; vid.addEventListener('seeked', f); vid.currentTime = t; });
+$('go').addEventListener('click', async () => {
+  if (S.busy) return;
+  S.busy = true; vid.pause(); $('go').disabled = true; $('result').classList.remove('on');
+  const bar = $('bar'), bi = $('barI'); bar.classList.add('on'); bi.style.width = '0';
+  const end = Math.min(S.start + S.dur, vid.duration), n = Math.max(1, Math.round((end - S.start) * S.fps)), step = 1 / S.fps;
+  const frames = [];
+  for (let i = 0; i < n; i++) {
+    await seek(Math.min(S.start + i * step, vid.duration - .05));
+    draw(); frames.push(pctx.getImageData(0, 0, W, H).data.slice());
+    bi.style.width = (i / n * 70) + '%';
+    if (i % 4 === 0) await new Promise(r => setTimeout(r));
+  }
+  // one shared palette sampled from every 3rd frame: no flicker between frames
+  const picks = frames.filter((_, i) => i % 3 === 0), sample = new Uint8ClampedArray(picks.length * W * H * 4);
+  picks.forEach((d, i) => sample.set(d, i * W * H * 4));
+  const palette = quantize(sample, 256);
+  const gif = GIFEncoder();
+  for (let i = 0; i < n; i++) {
+    gif.writeFrame(applyPalette(frames[i], palette), W, H, {palette, delay: 1000 / S.fps, repeat: 0});
+    bi.style.width = (70 + i / n * 30) + '%';
+    if (i % 8 === 0) await new Promise(r => setTimeout(r));
+  }
+  gif.finish();
+  const blob = new Blob([gif.bytes()], {type:'image/gif'});
+  if (S.outUrl) URL.revokeObjectURL(S.outUrl);
+  S.outUrl = URL.createObjectURL(blob);
+  $('out').src = S.outUrl;
+  const a = $('save'); a.href = S.outUrl;
+  $('outInfo').textContent = `${W}×${H} · ${n} frames · ${(blob.size / 1024 / 1024).toFixed(2)} MB`;
+  $('result').classList.add('on'); bar.classList.remove('on');
+  S.busy = false; $('go').disabled = false;
+  a.click(); // download straight away; the button stays for a second copy
+  startLoop();
+});
+</script>
+</body>
+</html>
