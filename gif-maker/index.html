@@ -24,7 +24,7 @@ h1{font:700 var(--s3)/.95 var(--font);letter-spacing:-.02em}
 h1 span{color:var(--primary)}
 header p{color:var(--muted);font:400 var(--s1)/1.4 var(--mono)}
 main{display:grid;gap:24px;grid-template-columns:1fr}
-@media(min-width:1024px){main{grid-template-columns:minmax(0,1.5fr) minmax(0,1fr) minmax(0,1.25fr);align-items:start}}
+@media(min-width:1024px){main{grid-template-columns:minmax(0,1.4fr) minmax(0,.85fr) minmax(0,1.25fr);align-items:start}}
 .panel{background:var(--shape);border:1px solid var(--line);border-radius:var(--r3);padding:24px}
 h2{font:700 var(--s2)/1 var(--font);letter-spacing:-.01em;margin-bottom:16px}
 
@@ -42,6 +42,7 @@ h2{font:700 var(--s2)/1 var(--font);letter-spacing:-.01em;margin-bottom:16px}
 .btn:focus-visible,input:focus-visible,.seg button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 #editor{display:none}
 #editor.on{display:block}
+#stageBox{display:flex;align-items:center;justify-content:center;border-radius:var(--r2);background:var(--paper);border:1px solid var(--line);padding:16px}
 #frame{position:relative;margin:0 auto;overflow:hidden;border-radius:var(--r2);background:#000;touch-action:none;user-select:none}
 #frame video{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none}
 #crop{position:absolute;border:2px solid var(--accent);box-shadow:0 0 0 9999px rgba(14,18,24,.66);cursor:grab}
@@ -99,10 +100,21 @@ figcaption{font:700 var(--s1)/1.4 var(--font)}
 #frame{margin:auto}
 #editor .row{margin-top:24px}
 .panel > .actions,.panel > .bar{margin-top:auto}
+.panel > .actions{padding-top:16px}
 .panel > .bar + .actions{margin-top:24px}
 .panel > .row + .bar{margin-top:24px}
 .panel > .meta:last-of-type{margin-bottom:0}
-@media(min-width:1024px){main{align-items:stretch}}
+@media(min-width:1024px){
+  /* fill the whole screen: header on top, the three panels take every pixel left, no dead space under them */
+  .wrap{min-height:calc(100vh / .8);display:flex;flex-direction:column;padding-bottom:32px}
+  main{flex:1;grid-template-rows:minmax(0,1fr);align-items:stretch}
+  #pCtl{justify-content:space-between}
+  #pCtl .row{margin-top:0}
+  #pCtl .actions{margin-top:0}
+  .pair{flex:1;align-content:center}
+  #stageBox{flex:1 1 0;min-height:0;overflow:hidden}
+  #stageBox{padding:0}
+}
 @media(max-width:480px){.tlrow{grid-template-columns:repeat(4,1fr)}#startT{grid-column:1/-1;order:-1}}
 </style>
 </head>
@@ -123,9 +135,11 @@ figcaption{font:700 var(--s1)/1.4 var(--font)}
       <input id="file" type="file" accept="video/*" hidden>
 
       <div id="editor">
-        <div id="frame">
-          <video id="vid" muted playsinline loop></video>
-          <div id="crop" role="img" aria-label="crop frame, drag to move"></div>
+        <div id="stageBox">
+          <div id="frame">
+            <video id="vid" muted playsinline loop></video>
+            <div id="crop" role="img" aria-label="crop frame, drag to move"></div>
+          </div>
         </div>
         <div class="row">
           <label for="startT">start at <b id="startV">0:00.0</b></label>
@@ -227,15 +241,18 @@ vid.addEventListener('loadedmetadata', () => {
 const maxCw = () => Math.min(S.vw, S.vh * W / H);
 
 /* ---------- layout + crop box ---------- */
+const desk = matchMedia('(min-width:1024px)');
 function layout(){
-  const box = $('editor').clientWidth; if (!box) return;
-  const maxH = 420;
+  const sb = $('stageBox'), box = sb.clientWidth; if (!box) return;
+  // desktop: the viewer box fills the panel, the video sits inside it (contain). phone: width-bound.
+  const maxH = desk.matches ? sb.clientHeight : 420;
   let w = box, h = w * S.vh / S.vw;
   if (h > maxH) { h = maxH; w = h * S.vw / S.vh; }
   frame.style.width = w + 'px'; frame.style.height = h + 'px';
   S.dispW = w; S.dispH = h; paintCrop();
 }
 window.addEventListener('resize', layout);
+new ResizeObserver(layout).observe($('stageBox'));
 function paintCrop(){
   const k = S.dispW / S.vw, ch = S.cw * H / W;
   crop.style.left = S.cx * k + 'px'; crop.style.top = S.cy * k + 'px';
