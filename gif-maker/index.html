@@ -67,7 +67,7 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
 .note.hand{color:var(--accent)}
 
 /* preview */
-#pv{display:block;width:100%;max-width:480px;aspect-ratio:16/9;margin:0 auto;border-radius:var(--r1);border:1px solid var(--line);image-rendering:pixelated;background:#000}
+#pv{display:block;width:100%;max-width:270px;aspect-ratio:9/16;margin:0 auto;border-radius:var(--r1);border:1px solid var(--line);image-rendering:pixelated;background:#000}
 .meta{display:flex;justify-content:space-between;gap:16px;margin-top:16px;color:var(--muted);font:400 var(--s1)/1.4 var(--mono)}
 .meta b{color:var(--ink);font-weight:400}
 .bar{height:8px;border-radius:999px;background:var(--line);overflow:hidden;margin-top:16px;display:none}
@@ -76,7 +76,7 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
 .actions{display:flex;flex-direction:column;gap:16px;margin-top:24px}
 #result{display:none;margin-top:24px;text-align:center}
 #result.on{display:block}
-#result img{width:240px;height:135px;border-radius:var(--r1);border:1px solid var(--line);display:block;margin:0 auto 16px}
+#result img{width:135px;height:240px;border-radius:var(--r1);border:1px solid var(--line);display:block;margin:0 auto 16px}
 #again{margin-top:16px}
 </style>
 </head>
@@ -84,7 +84,7 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
 <div class="wrap">
   <header>
     <h1>gif <span>maker</span></h1>
-    <p>240 × 135, locked. for the aula s75 pro screen.</p>
+    <p>135 × 240 portrait, locked. for the aula s75 pro screen.</p>
   </header>
 
   <main>
@@ -113,7 +113,7 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
         <div class="row">
           <label for="zoom">zoom <b id="zoomV">1.0×</b></label>
           <input id="zoom" type="range" min="1" max="8" step="0.05" value="1">
-          <p class="note hand">drag the amber frame to pick the crop. scroll to zoom.</p>
+          <p class="note hand">drag the amber portrait frame to pick the crop. scroll to zoom.</p>
         </div>
       </div>
     </section>
@@ -121,7 +121,7 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
     <aside>
       <section class="panel" aria-label="preview">
         <h2>preview</h2>
-        <canvas id="pv" width="240" height="135"></canvas>
+        <canvas id="pv" width="135" height="240"></canvas>
         <div class="meta"><span>loops <b id="loopV">5.0s</b></span><span>size <b id="estV">-</b></span></div>
       </section>
 
@@ -142,7 +142,7 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
           <button class="btn" id="go" disabled>export gif</button>
         </div>
         <div id="result">
-          <img id="out" alt="exported gif" width="240" height="135">
+          <img id="out" alt="exported gif" width="135" height="240">
           <div class="meta" style="justify-content:center"><b id="outInfo"></b></div>
           <div class="actions">
             <a class="btn" id="save" download="keyboard.gif">save gif</a>
@@ -157,7 +157,7 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
 <script type="module">
 import {GIFEncoder, quantize, applyPalette} from './gifenc.esm.js';
 
-const W = 240, H = 135;
+const W = 135, H = 240;
 const $ = id => document.getElementById(id);
 const vid = $('vid'), frame = $('frame'), crop = $('crop'), pv = $('pv'), pctx = pv.getContext('2d', {willReadFrequently:true});
 const S = {url:null, vw:0, vh:0, cw:0, cx:0, cy:0, start:0, dur:5, fps:20, busy:false, dispW:0, dispH:0, outUrl:null};
@@ -172,6 +172,7 @@ window.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f)
 file.addEventListener('change', () => { if (file.files[0]) load(file.files[0]); });
 $('again').addEventListener('click', () => { vid.pause(); $('editor').classList.remove('on'); drop.style.display = ''; $('again').style.display = 'none'; $('go').disabled = true; $('result').classList.remove('on'); file.value = ''; });
 
+const qs = new URLSearchParams(location.search).get('src'); if (qs) queueMicrotask(() => { vid.src = qs; });
 function load(f){
   if (S.url) URL.revokeObjectURL(S.url);
   S.url = URL.createObjectURL(f);
