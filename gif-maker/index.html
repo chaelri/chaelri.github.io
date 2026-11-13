@@ -458,11 +458,24 @@ function toStep(n, dir){
 }
 $('sNext').addEventListener('click', () => { if (S.step < 4) toStep(S.step + 1, 1); });
 $('sBack').addEventListener('click', () => { if (S.step === 2) $('again').click(); else if (S.step > 2) toStep(S.step - 1, -1); });
+// phone: the video takes every pixel the other controls on this step leave free (no dead space, never overflows)
+function phoneFrameMaxH(){
+  const panel = $('editor').closest('.panel'), pcs = getComputedStyle(panel);
+  const inner = panel.clientHeight - parseFloat(pcs.paddingTop) - parseFloat(pcs.paddingBottom);
+  let other = 0;
+  for (const k of $('editor').children) {
+    if (k === $('stageBox') || !k.offsetParent) continue;
+    const m = getComputedStyle(k); other += k.offsetHeight + parseFloat(m.marginTop) + parseFloat(m.marginBottom);
+  }
+  const sb = getComputedStyle($('stageBox'));
+  const extra = parseFloat(sb.paddingTop) * 2 + parseFloat(sb.borderTopWidth) * 2 + ($('prog').offsetParent ? $('prog').offsetHeight + parseFloat(sb.rowGap || 0) : 0);
+  return Math.max(96, Math.min(360, inner - other - extra - 8));
+}
 function layout(){
   const sb = $('stageBox'), cs = getComputedStyle(sb);
   const box = $('editor').clientWidth - parseFloat(cs.paddingLeft) * 2 - parseFloat(cs.borderLeftWidth) * 2; if (box <= 0) return;
   // desktop: the viewer box fills the panel, the video sits inside it (contain). phone: width-bound.
-  const maxH = matchMedia('(max-width:1023.98px)').matches ? (S.step === 2 ? 96 : 190) : 260;
+  const maxH = matchMedia('(max-width:1023.98px)').matches ? phoneFrameMaxH() : 260;
   let w = box, h = w * S.vh / S.vw;
   if (h > maxH) { h = maxH; w = h * S.vw / S.vh; }
   frame.style.width = w + 'px'; frame.style.height = h + 'px'; $('prog').style.width = w + 'px';
