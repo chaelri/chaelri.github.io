@@ -161,12 +161,10 @@ figcaption{font:700 var(--s1)/1.4 var(--font)}
       <div class="row first">
         <label for="dur">length <b id="durV">5.0s</b></label>
         <input id="dur" type="range" min="1" max="10" step="0.5" value="5">
-        <p class="note" id="maxNote">max possible: -</p>
       </div>
       <div class="row">
         <label for="zoom">zoom <b id="zoomV">1.0×</b></label>
         <input id="zoom" type="range" min="1" max="8" step="0.05" value="1">
-        <p class="note hand">drag the frame to pick the crop. scroll to zoom.</p>
       </div>
       <div class="row">
         <label>frames per second</label>
@@ -176,7 +174,6 @@ figcaption{font:700 var(--s1)/1.4 var(--font)}
           <button data-fps="20" class="on">20</button>
           <button data-fps="30">30</button>
         </div>
-        <p class="note">keyboard limits: 255 frames max, under 15 MB. length shortens as fps goes up.</p>
       </div>
       <div class="bar" id="bar"><i id="barI"></i></div>
       <div class="actions">
@@ -344,7 +341,7 @@ function label(){
   $('estV').textContent = frames + ' / ' + mf + ' frames';
   $('mbV').textContent = avgB() ? '~' + mb.toFixed(1) + ' MB' : '...';
   $('estV').classList.toggle('over', over); $('mbV').classList.toggle('over', mb > 15);
-  $('maxNote').textContent = 'max possible at ' + S.fps + ' fps: ' + (mf / S.fps).toFixed(1) + 's (' + mf + ' frames' + (mf < 255 ? ', file size is the limit' : '') + ')';
+  $('durV').textContent = S.dur.toFixed(1) + 's / ' + (mf / S.fps).toFixed(1) + 's max';
 }
 
 /* ---------- live loop preview ---------- */
