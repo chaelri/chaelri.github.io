@@ -18,15 +18,14 @@
 @media(min-width:1024px){html{zoom:.8}}
 *{box-sizing:border-box;margin:0}
 body{background:var(--paper);color:var(--ink);font:400 var(--s1)/1.4 var(--font);min-height:100vh}
-.wrap{max-width:1200px;margin:0 auto;padding:32px 16px 48px}
+.wrap{max-width:1680px;margin:0 auto;padding:32px 16px 48px}
 header{display:flex;flex-direction:column;gap:8px;margin-bottom:32px}
 h1{font:700 var(--s3)/.95 var(--font);letter-spacing:-.02em}
 h1 span{color:var(--primary)}
 header p{color:var(--muted);font:400 var(--s1)/1.4 var(--mono)}
 main{display:grid;gap:24px;grid-template-columns:1fr}
-@media(min-width:1024px){main{grid-template-columns:minmax(0,1.618fr) minmax(0,1fr);align-items:start}}
+@media(min-width:1024px){main{grid-template-columns:minmax(0,1.5fr) minmax(0,1fr) minmax(0,1.25fr);align-items:start}}
 .panel{background:var(--shape);border:1px solid var(--line);border-radius:var(--r3);padding:24px}
-.panel + .panel{margin-top:24px}
 h2{font:700 var(--s2)/1 var(--font);letter-spacing:-.01em;margin-bottom:16px}
 
 /* stage */
@@ -66,31 +65,50 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
 #tl{position:relative;height:48px;border-radius:var(--r1);background:var(--paper);border:1px solid var(--line);touch-action:none;cursor:pointer}
 #win{position:absolute;top:0;bottom:0;left:0;min-width:16px;background:rgba(255,179,71,.28);border:2px solid var(--accent);border-radius:var(--r1);cursor:grab}
 #win:active{cursor:grabbing}
-.tlrow{display:grid;grid-template-columns:64px 1fr 64px;gap:8px}
+.tlrow{display:grid;grid-template-columns:56px 64px minmax(0,1fr) 64px 56px;gap:8px}
 .btn.sm{min-height:48px;padding:0}
 #startT{min-height:48px;border-radius:var(--r1);border:1px solid var(--line);background:var(--paper);color:var(--ink);font:400 var(--s1)/1 var(--mono);text-align:center}
 .note{color:var(--muted);font:400 var(--s1)/1.4 var(--font);margin-top:8px}
 .note.hand{color:var(--accent)}
 
 /* preview */
-#pv{display:block;width:100%;max-width:270px;aspect-ratio:9/16;margin:0 auto;border-radius:var(--r1);border:1px solid var(--line);image-rendering:pixelated;background:#000}
 .meta{display:flex;justify-content:space-between;gap:16px;margin-top:16px;color:var(--muted);font:400 var(--s1)/1.4 var(--mono)}
 .meta b{color:var(--ink);font-weight:400}
 .bar{height:8px;border-radius:999px;background:var(--line);overflow:hidden;margin-top:16px;display:none}
 .bar.on{display:block}
 .bar i{display:block;height:100%;width:0;background:var(--primary)}
 .actions{display:flex;flex-direction:column;gap:16px;margin-top:24px}
-#result{display:none;margin-top:24px;text-align:center}
-#result.on{display:block}
-#result img{width:270px;height:480px;image-rendering:pixelated;border-radius:var(--r1);border:1px solid var(--line);display:block;margin:0 auto 16px}
-#again{margin-top:16px}
+.row.first{margin-top:0}
+.locked{opacity:.45;pointer-events:none}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+figure{margin:0;display:flex;flex-direction:column;gap:8px}
+figcaption{font:700 var(--s1)/1.4 var(--font)}
+#pv,#outBox{display:block;width:100%;aspect-ratio:9/16;border-radius:var(--r1);border:1px solid var(--line);background:#000;image-rendering:pixelated}
+#outBox{position:relative;display:flex;align-items:center;justify-content:center;border-style:dashed;background:var(--paper);color:var(--muted);text-align:center;padding:16px}
+#out{display:none;position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated;border-radius:var(--r1)}
+#result.on #out{display:block}
+#result.on #outBox{border-style:solid}
+#result.on #outBox span{display:none}
+#save{width:100%}
+.meta{margin-top:16px}
+.meta + .meta{margin-top:8px;justify-content:center}
+.panel{display:flex;flex-direction:column}
+#editor.on{display:flex;flex-direction:column;flex:1}
+#frame{margin:auto}
+#editor .row{margin-top:24px}
+.panel > .actions,.panel > .bar{margin-top:auto}
+.panel > .bar + .actions{margin-top:24px}
+.panel > .row + .bar{margin-top:24px}
+.panel > .meta:last-of-type{margin-bottom:0}
+@media(min-width:1024px){main{align-items:stretch}}
+@media(max-width:480px){.tlrow{grid-template-columns:repeat(4,1fr)}#startT{grid-column:1/-1;order:-1}}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
     <h1>gif <span>maker</span></h1>
-    <p>135 × 240 portrait, locked. for the aula s75 pro screen.</p>
+    <p>for aula s75 pro</p>
   </header>
 
   <main>
@@ -107,62 +125,63 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
           <video id="vid" muted playsinline loop></video>
           <div id="crop" role="img" aria-label="crop frame, drag to move"></div>
         </div>
-
         <div class="row">
           <label for="startT">start at <b id="startV">0:00.0</b></label>
           <div id="tl" aria-label="timeline, drag the amber window"><div id="win"></div></div>
           <div class="tlrow">
             <button class="btn ghost sm" id="m1" aria-label="back 1 second">-1s</button>
+            <button class="btn ghost sm" id="m5" aria-label="back half a second">-0.5s</button>
             <input id="startT" type="text" value="0:00" inputmode="decimal" aria-label="start time, like 2:35 or 155">
+            <button class="btn ghost sm" id="p5" aria-label="forward half a second">+0.5s</button>
             <button class="btn ghost sm" id="p1" aria-label="forward 1 second">+1s</button>
           </div>
           <p class="note"><span id="totV"></span> total. type a time like 2:35, or drag the amber window.</p>
         </div>
-        <div class="row">
-          <label for="dur">length <b id="durV">5.0s</b></label>
-          <input id="dur" type="range" min="1" max="10" step="0.5" value="5">
-        </div>
-        <div class="row">
-          <label for="zoom">zoom <b id="zoomV">1.0×</b></label>
-          <input id="zoom" type="range" min="1" max="8" step="0.05" value="1">
-          <p class="note hand">drag the amber portrait frame to pick the crop. scroll to zoom.</p>
-        </div>
       </div>
     </section>
 
-    <aside>
-      <section class="panel" aria-label="preview">
-        <h2>preview</h2>
-        <canvas id="pv" width="135" height="240"></canvas>
-        <div class="meta"><span>loops <b id="loopV">5.0s</b></span><span>size <b id="estV">-</b></span></div>
-      </section>
+    <section class="panel locked" id="pCtl" aria-label="settings">
+      <div class="row first">
+        <label for="dur">length <b id="durV">5.0s</b></label>
+        <input id="dur" type="range" min="1" max="10" step="0.5" value="5">
+      </div>
+      <div class="row">
+        <label for="zoom">zoom <b id="zoomV">1.0×</b></label>
+        <input id="zoom" type="range" min="1" max="8" step="0.05" value="1">
+        <p class="note hand">drag the amber frame to pick the crop. scroll to zoom.</p>
+      </div>
+      <div class="row">
+        <label>frames per second</label>
+        <div class="seg" id="fps" role="group" aria-label="frames per second">
+          <button data-fps="10">10</button>
+          <button data-fps="15">15</button>
+          <button data-fps="20" class="on">20</button>
+          <button data-fps="30">30</button>
+        </div>
+        <p class="note">keyboard limits: 255 frames max, under 15 MB. length shortens as fps goes up.</p>
+      </div>
+      <div class="bar" id="bar"><i id="barI"></i></div>
+      <div class="actions">
+        <button class="btn" id="go" disabled>export gif</button>
+        <button class="btn ghost" id="again" style="display:none">new video</button>
+      </div>
+    </section>
 
-      <section class="panel" aria-label="export">
-        <h2>export</h2>
-        <div class="row" style="margin-top:0">
-          <label>frames per second</label>
-          <div class="seg" id="fps" role="group" aria-label="frames per second">
-            <button data-fps="10">10</button>
-            <button data-fps="15">15</button>
-            <button data-fps="20" class="on">20</button>
-            <button data-fps="30">30</button>
-          </div>
-          <p class="note">keyboard limits: 255 frames max and under 15 MB. length shortens as fps goes up.</p>
-        </div>
-        <div class="bar" id="bar"><i id="barI"></i></div>
-        <div class="actions">
-          <button class="btn" id="go" disabled>export gif</button>
-        </div>
-        <div id="result">
-          <img id="out" alt="exported gif" width="135" height="240">
-          <div class="meta" style="justify-content:center"><b id="outInfo"></b></div>
-          <div class="actions">
-            <a class="btn" id="save" download="keyboard.gif">save gif</a>
-          </div>
-        </div>
-        <button class="btn ghost" id="again" style="display:none;width:100%">new video</button>
-      </section>
-    </aside>
+    <section class="panel" aria-label="result">
+      <div class="pair">
+        <figure>
+          <figcaption>preview</figcaption>
+          <canvas id="pv" width="135" height="240"></canvas>
+        </figure>
+        <figure id="result">
+          <figcaption>rendered gif</figcaption>
+          <div id="outBox"><img id="out" alt="exported gif" width="135" height="240"><span>export to see it here</span></div>
+        </figure>
+      </div>
+      <div class="meta"><span>loops <b id="loopV">5.0s</b></span><span><b id="estV">-</b></span></div>
+      <div class="meta"><b id="outInfo">&nbsp;</b></div>
+      <div class="actions"><a class="btn" id="save" download="keyboard.gif">save gif</a></div>
+    </section>
   </main>
 </div>
 
@@ -182,7 +201,7 @@ drop.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') 
 ['dragleave','drop'].forEach(t => window.addEventListener(t, e => { e.preventDefault(); if (t === 'dragleave' && e.relatedTarget) return; drop.classList.remove('over'); }));
 window.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) load(f); });
 file.addEventListener('change', () => { if (file.files[0]) load(file.files[0]); });
-$('again').addEventListener('click', () => { vid.pause(); $('editor').classList.remove('on'); drop.style.display = ''; $('again').style.display = 'none'; $('go').disabled = true; $('result').classList.remove('on'); file.value = ''; });
+$('again').addEventListener('click', () => { vid.pause(); $('editor').classList.remove('on'); drop.style.display = ''; $('again').style.display = 'none'; $('go').disabled = true; $('pCtl').classList.add('locked'); $('result').classList.remove('on'); file.value = ''; });
 
 const qs = new URLSearchParams(location.search).get('src'); if (qs) queueMicrotask(() => { vid.src = qs; });
 function load(f){
@@ -193,7 +212,7 @@ function load(f){
 vid.addEventListener('error', () => alert('this browser cannot read that video. try mp4 (h.264) or webm.'));
 vid.addEventListener('loadedmetadata', () => {
   S.vw = vid.videoWidth; S.vh = vid.videoHeight;
-  drop.style.display = 'none'; $('editor').classList.add('on'); $('again').style.display = 'block'; $('go').disabled = false;
+  drop.style.display = 'none'; $('editor').classList.add('on'); $('again').style.display = 'block'; $('go').disabled = false; $('pCtl').classList.remove('locked');
   S.start = 0; setDur(Math.min(5, vid.duration)); $('startT').value = '0:00';
   $('totV').textContent = fmt(vid.duration);
   clampDur();
@@ -206,7 +225,7 @@ const maxCw = () => Math.min(S.vw, S.vh * W / H);
 /* ---------- layout + crop box ---------- */
 function layout(){
   const box = $('editor').clientWidth; if (!box) return;
-  const maxH = Math.min(window.innerHeight * .62, 560);
+  const maxH = 420;
   let w = box, h = w * S.vh / S.vw;
   if (h > maxH) { h = maxH; w = h * S.vw / S.vh; }
   frame.style.width = w + 'px'; frame.style.height = h + 'px';
@@ -259,6 +278,8 @@ $('startT').addEventListener('change', () => { const t = parseT($('startT').valu
 $('startT').addEventListener('keydown', e => { if (e.key === 'Enter') e.target.blur(); });
 $('m1').addEventListener('click', () => setStart(S.start - 1));
 $('p1').addEventListener('click', () => setStart(S.start + 1));
+$('m5').addEventListener('click', () => setStart(S.start - .5));
+$('p5').addEventListener('click', () => setStart(S.start + .5));
 const tl = $('tl');
 let tdrag = null;
 const tlT = e => { const r = tl.getBoundingClientRect(); return (e.clientX - r.left) / r.width * vid.duration; };
@@ -302,7 +323,7 @@ function startLoop(){
 // clearer downscale: high-quality 2x pass, then 1x pass, then a light sharpen (same for preview and export)
 const mid = document.createElement('canvas'); mid.width = W * 2; mid.height = H * 2;
 const mctx = mid.getContext('2d'); mctx.imageSmoothingQuality = 'high';
-const SHARP = .6;
+const SHARP = .25;
 function draw(){
   mctx.drawImage(vid, S.cx, S.cy, S.cw, S.cw * H / W, 0, 0, W * 2, H * 2);
   pctx.drawImage(mid, 0, 0, W, H);

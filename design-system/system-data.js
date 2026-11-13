@@ -84,7 +84,8 @@ window.SYSTEM = {
         { t: "line-spacing.", d: "0.9-1.0 for display, 1.3-1.4 for body." },
         { t: "keep phrases together.", d: "break lines by meaning. never split a thought, never justify." },
         { t: "nothing collides.", d: "overlapping lines are fixed with leading, not by shrinking text." },
-        { t: "white space is a feature.", d: ">= 6% margin of the shortest side. don't fill every corner." }
+        { t: "white space is a feature.", d: ">= 6% margin of the shortest side. don't fill every corner." },
+        { t: "balance: equal heights (charlie, 2026-11-13).", d: "always think about balance, the thing he notices first is uneven heights. side-by-side panels and cards share one height (stretch the row, push the action to the bottom, centre the media in the spare room). spread weight evenly across columns: no tall column next to a short one with dead space under it. the whole page should read evenly in one glance." }
       ]
     },
     {

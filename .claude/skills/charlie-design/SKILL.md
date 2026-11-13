@@ -64,6 +64,7 @@ Rules:
 5. **Keep phrases together on a line.** Never let a line break split a thought ("taking students / to the next level", not "taking      to the / students   next level"). Break lines by meaning; never justify text.
 6. Never let lines collide or overlap (the fix for stacked headings is leading, not smaller text).
 7. White space is a feature: leave a clear margin (>= 6% of the shortest side) and don't fill every corner.
+8. **Balance (Charlie, 2026-11-13): always think about balance. What he notices first is uneven heights.** Side-by-side panels/cards share ONE height (grid `align-items:stretch`, panel `display:flex;flex-direction:column`, primary action `margin-top:auto`, media centred in the spare room). Spread visual weight evenly across columns; never leave a tall column next to a short one with dead space under it. When a tool/app has several panels, fit them in one desktop viewport so everything reads at a glance.
 
 ## 5. Ratio and canvas
 
@@ -151,7 +152,7 @@ Mobile-first, 16px side gutter, primary/shape as the only large colour areas. Bu
 5. Text is centred in its containers; every gap is on the 8px unit and equal for equal elements, and looks right by eye; no phrase split across lines; nothing collides.
 6. **`contrast.py` run on the chosen palette with no failing pair**, and contrast >= 3:1 (large) / 4.5:1 (small). Text on photos has a solid shape behind it.
 7. Shapes are flat, or deliberately liquid glass (never half and half); circles/rects/rounded rects used with purpose; no emoji decoration.
-8. One focal point; one accent annotation at most; plenty of white space; **no decorative mini label chips** (eyebrow, version, date, count, kicker).
+8. **Balanced:** side-by-side panels share one height, weight is even across columns. One focal point; one accent annotation at most; plenty of white space; **no decorative mini label chips** (eyebrow, version, date, count, kicker).
 9. Looks designed for THIS subject and mood, with one consistent shape style. If it looks like a generic template or like the last piece, redo it.
 10. **Verified in Claude in Chrome (mandatory for every web/HTML design job).** Open the real page and check it against rules 3-5 and 8 before delivering; never ship on code review alone.
     - Chrome blocks `file://`: serve the folder (`python3 -m http.server <port> --bind 127.0.0.1`), navigate to it, kill the server after.
