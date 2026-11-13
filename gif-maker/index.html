@@ -10,7 +10,7 @@
 /* techy / dark. paper #0E1218, text #E6ECF2, primary #4FE3A1, shape #1A222D, accent #FFB347, muted #93A3B5 */
 :root{
   --paper:#0E1218; --ink:#E6ECF2; --primary:#4FE3A1; --shape:#1A222D; --accent:#FFB347; --muted:#93A3B5; --line:#2C3746;
-  --s1:16px; --s2:26px; --s3:42px;
+  --s1:20px; --s2:32px; --s3:52px;
   --r1:8px; --r2:13px; --r3:21px;
   --u:8px;
   --font:"Space Grotesk",system-ui,sans-serif; --mono:"JetBrains Mono",ui-monospace,monospace;
@@ -33,7 +33,7 @@ h2{font:700 var(--s2)/1 var(--font);letter-spacing:-.01em;margin-bottom:16px}
 #drop.over{border-color:var(--primary);background:rgba(79,227,161,.08)}
 #drop strong{font:700 var(--s2)/1.1 var(--font)}
 #drop small{color:var(--muted);font:400 var(--s1)/1.4 var(--mono)}
-.btn{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 24px;border-radius:999px;border:2px solid var(--primary);background:var(--primary);color:var(--paper);font:700 var(--s1)/1 var(--font);cursor:pointer;transition:transform .1s,box-shadow .1s;text-decoration:none}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:56px;padding:0 24px;border-radius:999px;border:2px solid var(--primary);background:var(--primary);color:var(--paper);font:700 var(--s1)/1 var(--font);cursor:pointer;transition:transform .1s,box-shadow .1s;text-decoration:none}
 .btn:hover{transform:translate(-2px,-2px);box-shadow:4px 4px 0 var(--ink)}
 .btn:active{transform:none;box-shadow:none}
 .btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
@@ -60,14 +60,14 @@ input[type=range]::-moz-range-track{height:8px;background:var(--line);border-rad
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:24px;margin-top:-8px;border-radius:50%;background:var(--primary);border:2px solid var(--paper);box-shadow:0 0 0 2px var(--primary)}
 input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;background:var(--primary);border:2px solid var(--paper);box-shadow:0 0 0 2px var(--primary)}
 .seg{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
-.seg button{min-height:48px;border-radius:var(--r1);border:1px solid var(--line);background:transparent;color:var(--ink);font:400 var(--s1)/1 var(--mono);cursor:pointer}
+.seg button{min-height:56px;border-radius:var(--r1);border:1px solid var(--line);background:transparent;color:var(--ink);font:400 var(--s1)/1 var(--mono);cursor:pointer}
 .seg button.on{border-color:var(--primary);color:var(--primary);background:rgba(79,227,161,.1)}
 #tl{position:relative;height:48px;border-radius:var(--r1);background:var(--paper);border:1px solid var(--line);touch-action:none;cursor:pointer}
 #win{position:absolute;top:0;bottom:0;left:0;min-width:16px;background:rgba(255,179,71,.28);border:2px solid var(--accent);border-radius:var(--r1);cursor:grab}
 #win:active{cursor:grabbing}
-.tlrow{display:grid;grid-template-columns:56px 64px minmax(0,1fr) 64px 56px;gap:8px}
-.btn.sm{min-height:48px;padding:0}
-#startT{min-height:48px;border-radius:var(--r1);border:1px solid var(--line);background:var(--paper);color:var(--ink);font:400 var(--s1)/1 var(--mono);text-align:center}
+.tlrow{display:grid;grid-template-columns:72px 80px minmax(0,1fr) 80px 72px;gap:8px}
+.btn.sm{min-height:56px;padding:0}
+#startT{min-height:56px;border-radius:var(--r1);border:1px solid var(--line);background:var(--paper);color:var(--ink);font:400 var(--s1)/1 var(--mono);text-align:center}
 .note{color:var(--muted);font:400 var(--s1)/1.4 var(--font);margin-top:8px}
 .note.hand{color:var(--accent)}
 
