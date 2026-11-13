@@ -185,8 +185,8 @@ html.anim .empty #drop{animation:rise .6s var(--ease) both}
   #again span{display:none}
   body[data-step="2"] #sBack{display:none}
   body[data-step="2"] #sNext{grid-column:1/-1}
-  body:not([data-step="4"]) main > .panel:nth-child(2){display:none}
-  body[data-step="4"] main > .panel:nth-child(1){display:none}
+  body:not([data-step="4"]):not([data-step="5"]) main > .panel:nth-child(2){display:none}
+  body[data-step="4"] main > .panel:nth-child(1), body[data-step="5"] main > .panel:nth-child(1){display:none}
   .row2col{display:block}
   #editor .row2col > .row{margin-top:8px}
   .row2col{margin-top:0}
@@ -245,6 +245,18 @@ body:not(:has(#result.on)) .meta span:has(#outInfo){visibility:hidden}
   .pair{max-width:100px}.pair:has(#result.on){max-width:200px}
   .row2col{display:block;margin-top:0}
   #editor .row2col > .row{margin-top:8px}
+  /* export step: the export button is the lower-right nav button, so the card gives its room to the previews */
+  body[data-step="4"] main > .panel:nth-child(2) > .actions, body[data-step="5"] main > .panel:nth-child(2) > .actions{display:none}
+  body[data-step="4"] .pair{max-width:224px}
+  body[data-step="4"] #result{display:none}
+  body[data-step="4"] .pair:has(#result.on){max-width:224px;grid-template-columns:1fr}
+  body[data-step="4"] .meta span:has(#outInfo){display:none}
+  /* step 5 (done): only the rendered gif, big */
+  body[data-step="5"] .pair, body[data-step="5"] .pair:has(#result.on){max-width:248px;grid-template-columns:1fr}
+  body[data-step="5"] .pair > figure:first-child, body[data-step="5"] .pair + .meta, body[data-step="5"] #pCtl, body[data-step="5"] .bar{display:none}
+  .meta{display:grid;gap:8px;margin-top:16px}
+  .meta span{display:flex;justify-content:space-between;gap:16px}
+  body:not(:has(#result.on)) .meta span:has(#outInfo){display:none}
 }
 .row label b{white-space:nowrap}
 .row label{gap:16px}
@@ -430,7 +442,7 @@ async function go(fn, msg){
 }
 playIntro();
 const W = 135, H = 240;
-const STEP_NAMES = ['upload', 'timing', 'crop', 'export'];
+const STEP_NAMES = ['upload', 'timing', 'crop', 'export', 'done'];
 const vid = $('vid'), frame = $('frame'), crop = $('crop'), pv = $('pv'), pctx = pv.getContext('2d', {willReadFrequently:true});
 const p2ctx = $('pv2').getContext('2d');
 const S = {step:1, url:null, vw:0, vh:0, cw:0, cx:0, cy:0, start:0, dur:5, fps:20, busy:false, dispW:0, dispH:0, outUrl:null};
@@ -472,12 +484,15 @@ const maxCw = () => Math.min(S.vw, S.vh * W / H);
 
 /* ---------- layout + crop box ---------- */
 const desk = matchMedia('(min-width:1024px)');
+function setGoLabel(t){ $('go').textContent = t; if (S.step === 4) $('sNext').textContent = t; }
+const dlName = () => (($('fname').value || '').replace(/\.gif$/i, '').replace(/[\/:*?"<>|]+/g, '').trim() || 'keyboard') + '.gif';
+function downloadGif(){ if (!S.outUrl) return; const a = document.createElement('a'); a.href = S.outUrl; a.download = dlName(); a.click(); }
 function syncStep(){
   document.body.dataset.step = S.step;
-  $('sbarI').style.width = (Math.max(1, S.step - 1) / 3 * 100) + '%';   // upload is not counted: timing 1/3, crop 2/3, export 3/3
-  $('sLbl').textContent = Math.max(1, S.step - 1) + ' of 3 · ' + STEP_NAMES[S.step - 1];
+  $('sbarI').style.width = (Math.max(1, S.step - 1) / 4 * 100) + '%';   // upload is not counted: timing 1/4, crop 2/4, export 3/4, done 4/4
+  $('sLbl').textContent = Math.max(1, S.step - 1) + ' of 4 · ' + STEP_NAMES[S.step - 1];
   $('sBack').textContent = S.step === 2 ? 'new video' : 'back';
-  $('sNext').style.visibility = S.step >= 4 ? 'hidden' : 'visible';
+  $('sNext').textContent = S.step === 4 ? $('go').textContent : S.step === 5 ? 'save gif' : 'next';   // export step: the lower-right button IS the export button, done step: save
 }
 // phone steps: the current card slides out, the next one slides in from the side
 function toStep(n, dir){
@@ -489,7 +504,7 @@ function toStep(n, dir){
     main.animate([{opacity: 0, transform: `translateX(${dir * 32}px)`}, {opacity: 1, transform: 'none'}], {duration: 360, easing: 'cubic-bezier(.2,.7,.2,1)'});
   });
 }
-$('sNext').addEventListener('click', () => { if (S.step < 4) toStep(S.step + 1, 1); });
+$('sNext').addEventListener('click', () => { if (S.step < 4) toStep(S.step + 1, 1); else if (S.step === 4) $('go').click(); else downloadGif(); });
 $('sBack').addEventListener('click', () => { if (S.step === 2) $('again').click(); else if (S.step > 2) toStep(S.step - 1, -1); });
 // phone: the video takes every pixel the other controls on this step leave free (no dead space, never overflows)
 function phoneFrameMaxH(){
@@ -666,7 +681,7 @@ $('go').addEventListener('click', async () => {
   for (let i = 0; i < n; i++) {
     await seek(Math.min(S.start + i * step, vid.duration - .05));
     draw(); frames.push(pctx.getImageData(0, 0, W, H).data.slice());
-    bi.style.width = (i / n * 70) + '%'; $('go').textContent = 'rendering ' + Math.round(i / n * 70) + '%';
+    bi.style.width = (i / n * 70) + '%'; setGoLabel('rendering ' + Math.round(i / n * 70) + '%');
     if (i % 4 === 0) await new Promise(r => setTimeout(r));
   }
   // own 256-colour palette per frame: truer colours and skin tones than one shared palette
@@ -674,7 +689,7 @@ $('go').addEventListener('click', async () => {
   for (let i = 0; i < n; i++) {
     const palette = quantize(frames[i], 256);
     gif.writeFrame(applyPalette(frames[i], palette), W, H, {palette, delay: (Math.round((i + 1) * 100 / S.fps) - Math.round(i * 100 / S.fps)) * 10, repeat: 0});
-    bi.style.width = (70 + i / n * 30) + '%'; $('go').textContent = 'rendering ' + Math.round(70 + i / n * 30) + '%';
+    bi.style.width = (70 + i / n * 30) + '%'; setGoLabel('rendering ' + Math.round(70 + i / n * 30) + '%');
     if (i % 8 === 0) await new Promise(r => setTimeout(r));
   }
   gif.finish();
@@ -685,7 +700,8 @@ $('go').addEventListener('click', async () => {
   const a = document.createElement('a'); a.href = S.outUrl; a.download = (($('fname').value || '').replace(/\.gif$/i, '').replace(/[\/:*?"<>|]+/g, '').trim() || 'keyboard') + '.gif';
   $('outInfo').textContent = `${(blob.size / 1024 / 1024).toFixed(2)} MB` + (blob.size > 15 * 1024 * 1024 ? ' (over 15 MB)' : '');
   $('result').classList.add('on'); bar.classList.remove('on');
-  S.busy = false; $('go').disabled = false; $('go').textContent = 'export gif';
+  S.busy = false; $('go').disabled = false; setGoLabel('export gif');
+  if (matchMedia('(max-width:1023.98px)').matches && S.step === 4) setTimeout(() => toStep(5, 1), 600);   // phone: the result is its own screen
   a.click(); // download straight away; the button stays for a second copy
   startLoop();
 });
