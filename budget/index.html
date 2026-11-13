@@ -174,6 +174,17 @@
   .ico{flex:none;width:88px;height:88px;border-radius:50%;background:var(--shape);color:var(--primary);display:inline-flex;align-items:center;justify-content:center}
   .ico svg{width:48px;height:48px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
   .ico.rm{background:var(--line);color:var(--muted)}
+  .ico.sm{width:48px;height:48px}.ico.sm svg{width:24px;height:24px}
+  .bl{display:grid;grid-template-columns:minmax(0,1fr) 136px 32px 136px;align-items:center;column-gap:16px;padding:8px 0;border-bottom:1px solid var(--line);font-size:var(--s1)}
+  .bl .nm{display:flex;align-items:center;gap:16px;min-width:0}
+  .bl .r{text-align:right}
+  .bl .bf{color:var(--muted)}
+  .bl .af{font-weight:700;color:var(--primary)}
+  .bl.hd{font-size:var(--s0);color:var(--muted);border-bottom:2px solid var(--ink);padding:0 0 8px}
+  .bl.hd .af{color:var(--muted);font-weight:400}
+  .bl.tt{border-bottom:0;font-weight:700;padding-top:16px}
+  .bl.tt .bf{color:var(--ink)}
+  .bl .arr{margin:0;justify-content:center}.bl .arr svg{width:24px;height:24px}
   .pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:32px}
   .pair .sl-a{font-size:var(--s3)}
   .pair h3{font-size:var(--s1);margin:0 0 16px;font-weight:700}
@@ -193,6 +204,7 @@
     .sl h2{font-size:var(--s1)}
     .sl-a{font-size:var(--s3)}
     .sl-row{gap:16px}
+    .bl{grid-template-columns:minmax(0,1fr) 72px 20px 72px;column-gap:8px;font-size:var(--s0)}.bl .nm{gap:8px}.ico.sm{width:32px;height:32px}.ico.sm svg{width:16px;height:16px}.bl .arr svg{width:16px;height:16px}
     .sl-b .bn{font-size:var(--s2)}.arr svg{width:32px;height:32px}.pair .sl-b .bn{font-size:var(--s1)}.pair .arr svg{width:24px;height:24px}
     .ico{width:56px;height:56px}.ico svg{width:28px;height:28px}
     .sl-h{gap:16px}
@@ -420,6 +432,7 @@ const ICON = {
   rice:P('<path d="M3 12h18a9 9 0 0 1-18 0z"/><path d="M8 21h8"/><path d="M8 9c0-2 1-3 2-4M12 9c0-2 1-3 2-4M16 9c0-2 1-3 2-4"/>'),
   cart:P('<path d="M3 4h2.500l2.200 11h10.500l2-8H6.500"/><circle cx="9" cy="19.500" r="1.200"/><circle cx="17" cy="19.500" r="1.200"/>'),
   dad:P('<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>'),
+  bills:P('<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>'),
   rm:P('<path d="M6 6l12 12M18 6L6 18"/>')
 };
 const ARR = '<svg viewBox="0 0 24 24"><path d="M4 12h16M14 6l6 6-6 6"/></svg>';
@@ -428,13 +441,12 @@ function buildSteps(){
   const {v,mer,groc,daddyCov,gcov,coverTotal,each,fixedB} = last;
   const out = [{g:'Overview', kind:'intro'}];
   const item = (g,name,b,a,cov,removed,ic) => out.push({g,kind:'item',name,b,a,cov,removed,ic});
-  out.push({g:'Medicine',kind:'pair',ic:'med',items:[{name:'Papa',b:BEFORE.papa,a:v.papa},{name:'Mama',b:BEFORE.mama,a:v.mama}]});
-  ['gas','dw','mw','pldt','tax'].forEach(k=>item('Bills',k==='gas'?'Gas, for cooking':LABEL[k],BEFORE[k],v[k],0,false,k));
-  item('Bills','Meralco',MER_B,mer,0,false,'mer');
+  out.push({g:'Medicine',kind:'list',ic:'med',tot:'Total medicine',rows:[{ic:'med',name:LABEL.papa,b:BEFORE.papa,a:v.papa},{ic:'med',name:LABEL.mama,b:BEFORE.mama,a:v.mama},{ic:'rm',name:LABEL.papaal,b:BEFORE.papaal,a:v.papaal,rm:v.papaal===0},{ic:'rm',name:LABEL.mamaal,b:BEFORE.mamaal,a:v.mamaal,rm:v.mamaal===0}]});
+  const bl = [['gas','Gas, for cooking',BEFORE.gas,v.gas],['dw',LABEL.dw,BEFORE.dw,v.dw],['mw',LABEL.mw,BEFORE.mw,v.mw],['pldt',LABEL.pldt,BEFORE.pldt,v.pldt],['tax',LABEL.tax,BEFORE.tax,v.tax],['mer','Meralco',MER_B,mer]];
+  out.push({g:'Bills',kind:'list',ic:'bills',rows:bl.map(([ic,name,b,a])=>({ic,name,b,a}))});
   item('Food',LABEL.rice,BEFORE.rice,v.rice,0,false,'rice');
   item('Food','Groceries, what is left',GROC_B,groc,gcov,false,'cart');
   item('Mama and Papa',LABEL.daddy,BEFORE.daddy,v.daddy,daddyCov,false,'dad');
-  ['papaal','mamaal'].forEach(k=>item('Removed',LABEL[k],BEFORE[k],v[k],0,v[k]===0,'rm'));
   out.push({g:'Summary',kind:'end'});
   return out;
 }
@@ -446,6 +458,10 @@ function slideHTML(s){
     <p class="sl-s same">${[daddyCov>0?'Daddy pakinabang '+fmt(daddyCov):'',gcov>0?'groceries '+fmt(gcov):''].filter(Boolean).join(' + ')||'Nothing to cover'} a month</p>
     <div class="sl-g"><div class="tile t-ch"><div class="k">Charlie</div><div class="v num">${fmt(each)}</div></div><div class="tile t-ku"><div class="k">Kuya</div><div class="v num">${fmt(each+v.kx)}</div></div><div class="tile t-gro"><div class="k">Left for groceries</div><div class="v num">${fmt(groc)}</div></div></div>`;
   const dnote = (b,a) => { const d = r2(b-a); return d>0 ? 'Saves '+fmt(d)+' a month' : d<0 ? 'Up '+fmt(-d)+' a month' : 'No change'; };
+  if(s.kind==='list'){ const tb=s.rows.reduce((x,r)=>x+r.b,0), ta=s.rows.reduce((x,r)=>x+r.a,0);
+    return `<div class="sl-h">${ico(s.ic)}<h2>${s.g}</h2></div><div class="bl hd"><span>Per month</span><span class="r">Before</span><span></span><span class="r af">After</span></div>`+
+      s.rows.map(r=>`<div class="bl"><span class="nm">${ico(r.ic,r.rm?'sm rm':'sm')}<span>${r.name}</span></span><span class="r num bf">${fmt(r.b)}</span><span class="arr" aria-hidden="true">${ARR}</span><span class="r num af"${r.rm?' style="color:var(--muted)"':''}>${r.rm?'Removed':fmt(r.a)}</span></div>`).join('')+
+      `<div class="bl tt"><span>${s.tot||'Total bills'}</span><span class="r num bf">${fmt(tb)}</span><span class="arr" aria-hidden="true">${ARR}</span><span class="r num af">${fmt(ta)}</span></div>`; }
   if(s.kind==='pair') return `<div class="sl-h">${ico(s.ic)}<h2>${s.g}</h2></div><div class="pair">${s.items.map(i=>`<div><h3>${i.name}</h3><div class="sl-row"><div class="sl-b"><span>Before</span><span class="num bn">${fmt(i.b)}</span></div><span class="arr" aria-hidden="true">${ARR}</span><div class="sl-a num" data-v="${i.a}">${fmt(i.a)}</div></div><p class="sl-s ${r2(i.b-i.a)===0?'same':''}">${dnote(i.b,i.a)}</p></div>`).join('')}</div>`;
   const diff = r2(s.b - s.a);
   const note = s.removed ? 'Removed' : diff>0 ? 'Saves '+fmt(diff)+' a month' : diff<0 ? 'Up '+fmt(-diff)+' a month' : 'No change';
