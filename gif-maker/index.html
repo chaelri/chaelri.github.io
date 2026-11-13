@@ -347,7 +347,12 @@ body:not(:has(#result.on)) .meta span:has(#outInfo){visibility:hidden}
 <script type="module">
 import {GIFEncoder, quantize, applyPalette} from './gifenc.esm.js';
 const $ = id => document.getElementById(id);
-if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  const hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.register('sw.js', {updateViaCache: 'none'}).catch(() => {});
+  // a new version took over: pick it up right away, but only while nothing is loaded (never lose someone's video)
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadController && document.body.classList.contains('empty')) location.reload(); });
+}
 
 // screen changes: a loading-screen curtain wipes up, the screens swap behind it, then it lifts away and the new screen builds in.
 // (Web Animations API on purpose: it ignores the OS "reduce motion" setting, which is ON on Charlie's PC.)

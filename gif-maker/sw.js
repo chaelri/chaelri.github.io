@@ -1,5 +1,5 @@
 // GIF Maker service worker: app shell works offline (everything runs in the browser anyway).
-const CACHE = 'gif-maker-v1';
+const CACHE = 'gif-maker-v2';
 const SHELL = ['./', './index.html', './gifenc.esm.js', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/favicon.svg', './icons/apple-touch-icon.png'];
 
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
