@@ -128,6 +128,40 @@ figcaption{font:700 var(--s1)/1.4 var(--font)}
 .empty main > .panel + .panel{display:none}
 .empty header{width:100%;max-width:720px;margin-left:auto;margin-right:auto}
 .empty #drop{min-height:360px}
+/* motion */
+:root{--ease:cubic-bezier(.2,.7,.2,1)}
+@keyframes rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+@keyframes pop{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:none}}
+html.anim header{animation:rise .5s var(--ease) both}
+html.anim main > .panel{animation:rise .6s var(--ease) both}
+html.anim main > .panel:nth-child(2){animation-delay:.08s}
+#result.on #out{animation:pop .45s var(--ease) both}
+.seg button,.btn,input[type=text]{transition:background-color .15s,border-color .15s,color .15s,transform .1s,box-shadow .1s}
+.bar{transition:opacity .2s}
+.bar i{transition:width .2s linear}
+header{view-transition-name:hdr}
+main > .panel:nth-child(1){view-transition-name:pl}
+main > .panel:nth-child(2){view-transition-name:pr}
+::view-transition-group(*){animation-duration:.5s;animation-timing-function:var(--ease)}
+::view-transition-old(pr){animation:none;opacity:0}
+::view-transition-new(pr){animation:rise .55s var(--ease) both}
+/* inner pieces of each screen come in one after another, so a screen builds instead of popping */
+#editor.on > *, main > .panel:nth-child(2) > *{animation:rise .5s var(--ease) both}
+#editor.on > :nth-child(1), main > .panel:nth-child(2) > :nth-child(1){animation-delay:.10s}
+#editor.on > :nth-child(2), main > .panel:nth-child(2) > :nth-child(2){animation-delay:.16s}
+#editor.on > :nth-child(3), main > .panel:nth-child(2) > :nth-child(3){animation-delay:.22s}
+#editor.on > :nth-child(4), main > .panel:nth-child(2) > :nth-child(4){animation-delay:.28s}
+#editor.on > :nth-child(5), main > .panel:nth-child(2) > :nth-child(5){animation-delay:.34s}
+#pCtl{transition:opacity .4s var(--ease)}
+.empty #drop{animation:rise .6s var(--ease) both}
+/* OS "reduce motion" (Charlie's PC has it on): keep the screen changes, but as soft fades only, no sliding or morphing */
+@media (prefers-reduced-motion:reduce){
+  @keyframes rise{from{opacity:0}to{opacity:1}}
+  @keyframes pop{from{opacity:0}to{opacity:1}}
+  ::view-transition-group(*){animation-duration:.001s}
+  ::view-transition-old(*),::view-transition-new(*){animation-duration:.3s}
+}
+
 </style>
 </head>
 <body class="empty">
@@ -221,6 +255,14 @@ figcaption{font:700 var(--s1)/1.4 var(--font)}
 <script type="module">
 import {GIFEncoder, quantize, applyPalette} from './gifenc.esm.js';
 
+// screen changes: morph with the View Transitions API, fall back to a staggered rise
+const root = document.documentElement;
+function playIntro(){ root.classList.add('anim'); setTimeout(() => root.classList.remove('anim'), 900); }
+function go(fn){
+  if (document.startViewTransition) document.startViewTransition(fn);
+  else { fn(); playIntro(); }
+}
+playIntro();
 const W = 135, H = 240;
 const $ = id => document.getElementById(id);
 const vid = $('vid'), frame = $('frame'), crop = $('crop'), pv = $('pv'), pctx = pv.getContext('2d', {willReadFrequently:true});
@@ -234,7 +276,7 @@ drop.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') 
 ['dragleave','drop'].forEach(t => window.addEventListener(t, e => { e.preventDefault(); if (t === 'dragleave' && e.relatedTarget) return; drop.classList.remove('over'); }));
 window.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) load(f); });
 file.addEventListener('change', () => { if (file.files[0]) load(file.files[0]); });
-$('again').addEventListener('click', () => { document.body.classList.add('empty'); vid.pause(); $('editor').classList.remove('on'); drop.style.display = ''; $('again').style.display = 'none'; $('go').disabled = true; $('pCtl').classList.add('locked'); $('result').classList.remove('on'); file.value = ''; });
+$('again').addEventListener('click', () => go(() => { document.body.classList.add('empty'); vid.pause(); $('editor').classList.remove('on'); drop.style.display = ''; $('again').style.display = 'none'; $('go').disabled = true; $('pCtl').classList.add('locked'); $('result').classList.remove('on'); file.value = ''; }));
 
 const qs = new URLSearchParams(location.search).get('src'); if (qs) queueMicrotask(() => { vid.src = qs; });
 function load(f){
@@ -244,7 +286,7 @@ function load(f){
   vid.src = S.url;
 }
 vid.addEventListener('error', () => alert('this browser cannot read that video. try mp4 (h.264) or webm.'));
-vid.addEventListener('loadedmetadata', () => {
+vid.addEventListener('loadedmetadata', () => go(() => {
   document.body.classList.remove('empty');
   S.vw = vid.videoWidth; S.vh = vid.videoHeight;
   drop.style.display = 'none'; $('editor').classList.add('on'); $('again').style.display = ''; $('go').disabled = false; $('pCtl').classList.remove('locked');
@@ -254,7 +296,7 @@ vid.addEventListener('loadedmetadata', () => {
   $('zoom').value = 1;
   S.cw = maxCw(); S.cx = (S.vw - S.cw) / 2; S.cy = (S.vh - S.cw * H / W) / 2;
   layout(); label(); startLoop();
-});
+}));
 const maxCw = () => Math.min(S.vw, S.vh * W / H);
 
 /* ---------- layout + crop box ---------- */
@@ -411,7 +453,7 @@ $('go').addEventListener('click', async () => {
   for (let i = 0; i < n; i++) {
     await seek(Math.min(S.start + i * step, vid.duration - .05));
     draw(); frames.push(pctx.getImageData(0, 0, W, H).data.slice());
-    bi.style.width = (i / n * 70) + '%';
+    bi.style.width = (i / n * 70) + '%'; $('go').textContent = 'rendering ' + Math.round(i / n * 70) + '%';
     if (i % 4 === 0) await new Promise(r => setTimeout(r));
   }
   // own 256-colour palette per frame: truer colours and skin tones than one shared palette
@@ -419,7 +461,7 @@ $('go').addEventListener('click', async () => {
   for (let i = 0; i < n; i++) {
     const palette = quantize(frames[i], 256);
     gif.writeFrame(applyPalette(frames[i], palette), W, H, {palette, delay: (Math.round((i + 1) * 100 / S.fps) - Math.round(i * 100 / S.fps)) * 10, repeat: 0});
-    bi.style.width = (70 + i / n * 30) + '%';
+    bi.style.width = (70 + i / n * 30) + '%'; $('go').textContent = 'rendering ' + Math.round(70 + i / n * 30) + '%';
     if (i % 8 === 0) await new Promise(r => setTimeout(r));
   }
   gif.finish();
@@ -430,7 +472,7 @@ $('go').addEventListener('click', async () => {
   const a = document.createElement('a'); a.href = S.outUrl; a.download = (($('fname').value || '').replace(/\.gif$/i, '').replace(/[\/:*?"<>|]+/g, '').trim() || 'keyboard') + '.gif';
   $('outInfo').textContent = `${(blob.size / 1024 / 1024).toFixed(2)} MB` + (blob.size > 15 * 1024 * 1024 ? ' (over 15 MB)' : '');
   $('result').classList.add('on'); bar.classList.remove('on');
-  S.busy = false; $('go').disabled = false;
+  S.busy = false; $('go').disabled = false; $('go').textContent = 'export gif';
   a.click(); // download straight away; the button stays for a second copy
   startLoop();
 });
