@@ -16,9 +16,11 @@
   }
   @media(min-width:1024px){html{zoom:.8}} /* house density on desktop; phones stay at 100% */
   *{box-sizing:border-box}
-  body{margin:0;background:var(--paper);color:var(--ink);font:400 var(--s0)/1.4 var(--font)}
-  main{max-width:1440px;margin:0 auto;padding:16px}
-  @media(min-width:1100px){main{padding:16px 32px}}
+  /* centred with equal breathing room above and below: when the content is shorter than the screen it sits in the middle, when it is taller the top and bottom margins stay equal */
+  body{margin:0;background:var(--paper);color:var(--ink);font:400 var(--s0)/1.4 var(--font);min-height:100vh;min-height:100dvh;display:flex;flex-direction:column}
+  main{width:100%;max-width:1440px;margin:auto;padding:32px 16px}
+  @media(min-width:1024px){body{min-height:calc(100vh / .8)}}
+  @media(min-width:1100px){main{padding:56px 32px}}
   .num{font-variant-numeric:tabular-nums}
   .muted{color:var(--muted)}
 
