@@ -164,6 +164,14 @@
   .sl-row{display:flex;align-items:flex-end;gap:32px;flex-wrap:wrap}
   .sl-b{display:flex;flex-direction:column;gap:8px;color:var(--muted);padding-bottom:16px}
   .sl-b s{font-size:var(--s1);text-decoration-thickness:2px}
+  .sl-h{display:flex;align-items:center;gap:24px;margin:0 0 32px}
+  .sl-h h2{margin:0}
+  .ico{flex:none;width:88px;height:88px;border-radius:50%;background:var(--shape);color:var(--primary);display:inline-flex;align-items:center;justify-content:center}
+  .ico svg{width:48px;height:48px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .ico.rm{background:var(--line);color:var(--muted)}
+  .pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:32px}
+  .pair .sl-a{font-size:var(--s3)}
+  .pair h3{font-size:var(--s1);margin:0 0 16px;font-weight:700}
   .sl-a{font-size:var(--s4);line-height:.9;font-weight:700;color:var(--primary);letter-spacing:-.02em}
   .sl-a.gone{color:var(--muted)}
   .sl-s{font-size:var(--s1);margin:32px 0 0;color:var(--primary);font-weight:700}
@@ -180,6 +188,9 @@
     .sl h2{font-size:var(--s1)}
     .sl-a{font-size:var(--s3)}
     .sl-row{gap:16px}
+    .ico{width:56px;height:56px}.ico svg{width:28px;height:28px}
+    .sl-h{gap:16px}
+    .pair{gap:16px}.pair .sl-a{font-size:var(--s2)}.pair h3{font-size:var(--s0)}
     .sl-g{grid-template-columns:1fr}
     .p-nav .btn{flex:1;height:48px}
   }
@@ -391,17 +402,32 @@ document.querySelectorAll('.fld input').forEach(i=>{
 
 /* presentation mode */
 let steps = [], si = 0, busy = false;
+const P = d => `<svg viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
+const ICON = {
+  med:P('<rect x="1.500" y="8" width="21" height="8" rx="4" transform="rotate(-45 12 12)"/><path d="M8.500 8.500l7 7"/>'),
+  gas:P('<path d="M4 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16"/><path d="M3 21h12"/><path d="M7 8h4"/><path d="M14 11h2a2 2 0 0 1 2 2v3a1.5 1.5 0 0 0 3 0V9l-3-3"/>'),
+  dw:P('<path d="M12 3s6 6.2 6 10.5A6 6 0 0 1 6 13.5C6 9.2 12 3 12 3z"/>'),
+  mw:P('<path d="M5 8h9a3 3 0 0 1 3 3v1"/><path d="M8 8V5h4"/><path d="M17 15s2 2.2 2 3.5a2 2 0 0 1-4 0c0-1.300 2-3.500 2-3.500z"/><path d="M5 8v3"/>'),
+  pldt:P('<path d="M2.500 9a14 14 0 0 1 19 0"/><path d="M5.500 12.500a9.500 9.500 0 0 1 13 0"/><path d="M9 16a5 5 0 0 1 6 0"/><circle cx="12" cy="19.500" r=".8"/>'),
+  tax:P('<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>'),
+  mer:P('<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>'),
+  rice:P('<path d="M3 12h18a9 9 0 0 1-18 0z"/><path d="M8 21h8"/><path d="M8 9c0-2 1-3 2-4M12 9c0-2 1-3 2-4M16 9c0-2 1-3 2-4"/>'),
+  cart:P('<path d="M3 4h2.500l2.200 11h10.500l2-8H6.500"/><circle cx="9" cy="19.500" r="1.200"/><circle cx="17" cy="19.500" r="1.200"/>'),
+  dad:P('<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>'),
+  rm:P('<path d="M6 6l12 12M18 6L6 18"/>')
+};
+const ico = (k,c='') => `<span class="ico ${c}">${ICON[k]}</span>`;
 function buildSteps(){
   const {v,mer,groc,daddyCov,gcov,coverTotal,each,fixedB} = last;
   const out = [{g:'Overview', kind:'intro'}];
-  const item = (g,name,b,a,cov,removed) => out.push({g,kind:'item',name,b,a,cov,removed});
-  item('Medicine',LABEL.papa,BEFORE.papa,v.papa); item('Medicine',LABEL.mama,BEFORE.mama,v.mama);
-  ['gas','dw','mw','pldt','tax'].forEach(k=>item('Bills',LABEL[k],BEFORE[k],v[k]));
-  item('Bills','Meralco',MER_B,mer);
-  item('Food',LABEL.rice,BEFORE.rice,v.rice);
-  item('Food','Groceries, what is left',GROC_B,groc,gcov);
-  item('Mama and Papa',LABEL.daddy,BEFORE.daddy,v.daddy,daddyCov);
-  ['papaal','mamaal'].forEach(k=>item('Removed',LABEL[k],BEFORE[k],v[k],0,v[k]===0));
+  const item = (g,name,b,a,cov,removed,ic) => out.push({g,kind:'item',name,b,a,cov,removed,ic});
+  out.push({g:'Medicine',kind:'pair',ic:'med',items:[{name:'Papa',b:BEFORE.papa,a:v.papa},{name:'Mama',b:BEFORE.mama,a:v.mama}]});
+  ['gas','dw','mw','pldt','tax'].forEach(k=>item('Bills',LABEL[k],BEFORE[k],v[k],0,false,k));
+  item('Bills','Meralco',MER_B,mer,0,false,'mer');
+  item('Food',LABEL.rice,BEFORE.rice,v.rice,0,false,'rice');
+  item('Food','Groceries, what is left',GROC_B,groc,gcov,false,'cart');
+  item('Mama and Papa',LABEL.daddy,BEFORE.daddy,v.daddy,daddyCov,false,'dad');
+  ['papaal','mamaal'].forEach(k=>item('Removed',LABEL[k],BEFORE[k],v[k],0,v[k]===0,'rm'));
   out.push({g:'Summary',kind:'end'});
   return out;
 }
@@ -412,9 +438,11 @@ function slideHTML(s){
   if(s.kind==='end') return `<h2>Mama and Papa cover</h2><div class="sl-row"><div class="sl-a num" style="color:var(--accent)" data-v="${coverTotal}">${fmt(coverTotal)}</div></div>
     <p class="sl-s same">${[daddyCov>0?'Daddy pakinabang '+fmt(daddyCov):'',gcov>0?'groceries '+fmt(gcov):''].filter(Boolean).join(' + ')||'Nothing to cover'} a month</p>
     <div class="sl-g"><div class="tile t-ch"><div class="k">Charlie</div><div class="v num">${fmt(each)}</div></div><div class="tile t-ku"><div class="k">Kuya</div><div class="v num">${fmt(each+v.kx)}</div></div><div class="tile t-gro"><div class="k">Left for groceries</div><div class="v num">${fmt(groc)}</div></div></div>`;
+  const dnote = (b,a) => { const d = r2(b-a); return d>0 ? 'Saves '+fmt(d)+' a month' : d<0 ? 'Up '+fmt(-d)+' a month' : 'No change'; };
+  if(s.kind==='pair') return `<div class="sl-h">${ico(s.ic)}<h2>${s.g}</h2></div><div class="pair">${s.items.map(i=>`<div><h3>${i.name}</h3><div class="sl-row"><div class="sl-b"><span>Before</span><s class="num">${fmt(i.b)}</s></div><div class="sl-a num" data-v="${i.a}">${fmt(i.a)}</div></div><p class="sl-s ${r2(i.b-i.a)===0?'same':''}">${dnote(i.b,i.a)}</p></div>`).join('')}</div>`;
   const diff = r2(s.b - s.a);
   const note = s.removed ? 'Removed' : diff>0 ? 'Saves '+fmt(diff)+' a month' : diff<0 ? 'Up '+fmt(-diff)+' a month' : 'No change';
-  return `<h2>${s.name}</h2><div class="sl-row"><div class="sl-b"><span>Before</span><s class="num">${fmt(s.b)}</s></div>${s.removed?'<div class="sl-a gone">Removed</div>':`<div class="sl-a num" data-v="${s.a}">${fmt(s.a)}</div>`}</div>
+  return `<div class="sl-h">${ico(s.ic,s.removed?'rm':'')}<h2>${s.name}</h2></div><div class="sl-row"><div class="sl-b"><span>Before</span><s class="num">${fmt(s.b)}</s></div>${s.removed?'<div class="sl-a gone">Removed</div>':`<div class="sl-a num" data-v="${s.a}">${fmt(s.a)}</div>`}</div>
     ${s.cov>0?'':`<p class="sl-s ${diff===0&&!s.removed?'same':''}">${s.removed?'Saves '+fmt(s.b)+' a month':note}</p>`}${s.cov>0?`<div class="sl-c">Mama and Papa ${fmt(s.cov)}</div>`:''}`;
 }
 function countUp(el){
