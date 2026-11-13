@@ -128,12 +128,21 @@
   }
 
   /* chart */
-  .chart{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:24px;min-height:360px}
-  .col{display:flex;flex-direction:column;min-height:0}
-  .stack{flex:1;display:flex;flex-direction:column-reverse;gap:4px;min-height:0}
-  .seg-b{min-height:56px;border-radius:var(--r1);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;overflow:hidden}
-  .seg-b b{font-variant-numeric:tabular-nums}
-  .cl{display:flex;justify-content:space-between;margin-top:16px;gap:8px}
+  .chart{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:24px;align-content:center}
+  .col{display:flex;flex-direction:column;gap:16px;min-width:0}
+  .col .pie{flex:1}
+  .pie svg{display:block;width:100%;max-width:280px;aspect-ratio:1;margin:0 auto}
+  .pie path{stroke:var(--card);stroke-width:3;stroke-linejoin:round}
+  .pie text{font:700 14px var(--font);text-anchor:middle;dominant-baseline:central;pointer-events:none}
+  .p-ch{fill:var(--primary)} .p-ku{fill:var(--sage)} .p-mp{fill:var(--accent)}
+  .lg{list-style:none;margin:16px 0 0;padding:0;display:flex;flex-direction:column;gap:8px}
+  .lg li{display:grid;grid-template-columns:16px minmax(0,1fr) auto;align-items:center;gap:8px}
+  .lg .sw{width:16px;height:16px;border-radius:50%;display:block}
+  .lg .sw.p-ch{background:var(--primary)} .lg .sw.p-ku{background:var(--sage)} .lg .sw.p-mp{background:var(--accent)}
+  .lg b{font-variant-numeric:tabular-nums}
+  .lg em{font-style:normal;color:var(--muted);font-variant-numeric:tabular-nums;margin-left:8px}
+  .cl{display:flex;justify-content:space-between;margin-top:auto;padding-top:8px;border-top:1px solid var(--line);gap:8px}
+  @media(max-width:640px){.chart{grid-template-columns:1fr;gap:32px}}
   .s-ch{background:var(--primary);color:var(--on-dark)}
   .s-ku{background:var(--sage);color:var(--ink)}
   .s-mp{background:var(--accent);color:var(--on-dark)}
@@ -168,8 +177,8 @@
     <section class="card right">
       <h2>Who pays per month, before and after</h2>
       <div class="chart">
-        <div class="col"><div class="stack" id="stB"></div><div class="cl"><b>Before</b><span class="num" id="tB"></span></div></div>
-        <div class="col"><div class="stack" id="stA"></div><div class="cl"><b>After</b><span class="num" id="tA"></span></div></div>
+        <div class="col"><div class="pie" id="stB"></div><div class="cl"><b>Before</b><span class="num" id="tB"></span></div></div>
+        <div class="col"><div class="pie" id="stA"></div><div class="cl"><b>After</b><span class="num" id="tA"></span></div></div>
       </div>
     </section>
   </div>
@@ -277,11 +286,24 @@ function calc(){
   $('sMp').textContent = (daddyCov>0 ? 'Daddy '+fmt(daddyCov) : '') + (daddyCov>0&&gcov>0 ? ' + ' : '') + (gcov>0 ? 'groceries '+fmt(gcov) : '') || 'Nothing to cover';
 
   const afterAll = budget + coverTotal;
-  const max = Math.max(fixedB, afterAll, 1);
-  const seg = (cls,name,val)=> val>0 ? `<div class="seg-b ${cls}" style="flex:${val} 1 0" title="${name} ${fmt(val)}"><span>${name}</span><b>${fmt(val)}</b></div>` : '';
-  const spacer = t => `<div style="flex:${Math.max(max-t,0)} 1 0"></div>`;
-  $('stB').innerHTML = seg('s-ch','Charlie',eb)+seg('s-ku','Kuya',eb)+spacer(fixedB);
-  $('stA').innerHTML = seg('s-ch','Charlie',each)+seg('s-ku','Kuya',each+v.kx)+seg('s-mp','Mama and Papa',coverTotal)+spacer(afterAll);
+  // pie charts: Before / After, same colours as the tiles (Charlie, Kuya, Mama and Papa)
+  const pie = (cls, parts) => {
+    const list = parts.filter(p => p.val > 0), total = list.reduce((a, p) => a + p.val, 0);
+    if (!total) return '<p class="muted">Nothing to show</p>';
+    const R = 96, C = 100, pt = (ang, rad) => [C + rad * Math.sin(ang), C - rad * Math.cos(ang)];
+    let ang = 0, paths = '', texts = '';
+    list.forEach(p => {
+      const frac = p.val / total, a0 = ang, a1 = ang + frac * Math.PI * 2; ang = a1;
+      if (list.length === 1) paths += `<circle cx="${C}" cy="${C}" r="${R}" class="${p.c}" stroke="var(--card)" stroke-width="3"><title>${p.name} ${fmt(p.val)}</title></circle>`;
+      else { const [x0, y0] = pt(a0, R), [x1, y1] = pt(a1, R); paths += `<path class="${p.c}" d="M${C} ${C} L${x0.toFixed(2)} ${y0.toFixed(2)} A${R} ${R} 0 ${frac > .5 ? 1 : 0} 1 ${x1.toFixed(2)} ${y1.toFixed(2)} Z"><title>${p.name} ${fmt(p.val)}</title></path>`; }
+      if (frac >= .07) { const [tx, ty] = pt((a0 + a1) / 2, list.length === 1 ? 0 : R * .6); texts += `<text x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" fill="${p.ink}">${Math.round(frac * 100)}%</text>`; }
+    });
+    const legend = list.map(p => `<li><i class="sw ${p.c}"></i><span>${p.name}</span><span><b>${fmt(p.val)}</b><em>${Math.round(p.val / total * 100)}%</em></span></li>`).join('');
+    return `<svg viewBox="0 0 200 200" role="img" aria-label="${list.map(p => p.name + ' ' + Math.round(p.val / total * 100) + '%').join(', ')}">${paths}${texts}</svg><ul class="lg">${legend}</ul>`;
+  };
+  const W_ = 'var(--on-dark)', K_ = 'var(--ink)';
+  $('stB').innerHTML = pie('b', [{c:'p-ch', name:'Charlie', val:eb, ink:W_}, {c:'p-ku', name:'Kuya', val:eb, ink:K_}]);
+  $('stA').innerHTML = pie('a', [{c:'p-ch', name:'Charlie', val:each, ink:W_}, {c:'p-ku', name:'Kuya', val:each + v.kx, ink:K_}, {c:'p-mp', name:'Mama and Papa', val:coverTotal, ink:W_}]);
   $('tB').textContent=fmt(fixedB); $('tA').textContent=fmt(afterAll);
 
   document.querySelectorAll('.fld').forEach(f=>{ const i=f.querySelector('input'); f.querySelector('.pv').textContent = (KIDS.includes(i.id) && num(i.id)===0) ? 'Removed' : fmt(num(i.id)); });
