@@ -137,7 +137,7 @@ figcaption{font:700 var(--s1)/1.4 var(--font)}
             <button class="btn ghost sm" id="p5" aria-label="forward half a second">+0.5s</button>
             <button class="btn ghost sm" id="p1" aria-label="forward 1 second">+1s</button>
           </div>
-          <p class="note"><span id="totV"></span> total. type a time like 2:35, or drag the amber window.</p>
+          <p class="note"><span id="totV"></span> total</p>
         </div>
       </div>
     </section>
@@ -151,7 +151,7 @@ figcaption{font:700 var(--s1)/1.4 var(--font)}
       <div class="row">
         <label for="zoom">zoom <b id="zoomV">1.0×</b></label>
         <input id="zoom" type="range" min="1" max="8" step="0.05" value="1">
-        <p class="note hand">drag the amber frame to pick the crop. scroll to zoom.</p>
+        <p class="note hand">drag the frame to pick the crop. scroll to zoom.</p>
       </div>
       <div class="row">
         <label>frames per second</label>
@@ -182,7 +182,7 @@ figcaption{font:700 var(--s1)/1.4 var(--font)}
         </figure>
       </div>
       <div class="meta"><span>loops <b id="loopV">5.0s</b></span><span><b id="estV">-</b></span></div>
-      <div class="meta"><span>est. file <b id="mbV">-</b></span><span id="limV"></span></div>
+      <div class="meta"><span>est. file <b id="mbV">-</b></span></div>
       <div class="meta"><b id="outInfo">&nbsp;</b></div>
       <div class="actions"><a class="btn" id="save" download="keyboard.gif">save gif</a></div>
     </section>
@@ -218,7 +218,7 @@ vid.addEventListener('loadedmetadata', () => {
   S.vw = vid.videoWidth; S.vh = vid.videoHeight;
   drop.style.display = 'none'; $('editor').classList.add('on'); $('again').style.display = 'block'; $('go').disabled = false; $('pCtl').classList.remove('locked');
   S.start = 0; setDur(Math.min(5, vid.duration)); $('startT').value = '0:00';
-  $('totV').textContent = fmt(vid.duration);
+  { const t = Math.round(vid.duration), m = Math.floor(t / 60), sec = t % 60; $('totV').textContent = m + ':' + (sec < 10 ? '0' : '') + sec; }
   clampDur();
   $('zoom').value = 1;
   S.cw = maxCw(); S.cx = (S.vw - S.cw) / 2; S.cy = (S.vh - S.cw * H / W) / 2;
@@ -325,7 +325,6 @@ function label(){
   const mf = maxFrames(), mb = avgB() * frames / 1048576, over = frames > mf;
   $('estV').textContent = frames + ' / ' + mf + ' frames';
   $('mbV').textContent = avgB() ? '~' + mb.toFixed(1) + ' MB' : '...';
-  $('limV').textContent = '15 MB / 255 frames max';
   $('estV').classList.toggle('over', over); $('mbV').classList.toggle('over', mb > 15);
   $('maxNote').textContent = 'max possible at ' + S.fps + ' fps: ' + (mf / S.fps).toFixed(1) + 's (' + mf + ' frames' + (mf < 255 ? ', file size is the limit' : '') + ')';
 }
