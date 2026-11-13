@@ -143,11 +143,11 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
           <label>frames per second</label>
           <div class="seg" id="fps" role="group" aria-label="frames per second">
             <button data-fps="10">10</button>
-            <button data-fps="12.5">12.5</button>
+            <button data-fps="15">15</button>
             <button data-fps="20" class="on">20</button>
-            <button data-fps="25">25</button>
+            <button data-fps="30">30</button>
           </div>
-          <p class="note">lower fps = smaller file.</p>
+          <p class="note">keyboard limits: 255 frames max and under 15 MB. length shortens as fps goes up.</p>
         </div>
         <div class="bar" id="bar"><i id="barI"></i></div>
         <div class="actions">
@@ -196,8 +196,7 @@ vid.addEventListener('loadedmetadata', () => {
   drop.style.display = 'none'; $('editor').classList.add('on'); $('again').style.display = 'block'; $('go').disabled = false;
   S.start = 0; setDur(Math.min(5, vid.duration)); $('startT').value = '0:00';
   $('totV').textContent = fmt(vid.duration);
-  $('dur').max = Math.min(10, Math.floor(vid.duration * 2) / 2) || 1;
-  $('dur').value = S.dur;
+  clampDur();
   $('zoom').value = 1;
   S.cw = maxCw(); S.cx = (S.vw - S.cw) / 2; S.cy = (S.vh - S.cw * H / W) / 2;
   layout(); label(); startLoop();
@@ -247,6 +246,10 @@ $('zoom').addEventListener('input', setZoom);
 function setDur(d){ S.dur = d; }
 const fmt = t => { const m = Math.floor(t / 60), s = t - m * 60; return m + ':' + (s < 10 ? '0' : '') + s.toFixed(1); };
 const parseT = v => { const p = v.trim().split(':').map(Number); if (p.some(isNaN) || !v.trim()) return NaN; return p.reduce((a, x) => a * 60 + x, 0); };
+function clampDur(){
+  const mx = Math.max(.5, Math.min(25, Math.floor(vid.duration * 2) / 2, Math.floor(255 / S.fps * 2) / 2));
+  $('dur').max = mx; $('dur').min = Math.min(1, mx); S.dur = Math.min(S.dur, mx); $('dur').value = S.dur;
+}
 function setStart(t){
   S.start = Math.min(Math.max(0, t), Math.max(0, vid.duration - S.dur));
   S.start = Math.round(S.start * 10) / 10;
@@ -268,7 +271,7 @@ tl.addEventListener('pointerup', () => tdrag = null);
 tl.addEventListener('pointercancel', () => tdrag = null);
 $('dur').addEventListener('input', () => { S.dur = +$('dur').value; setStart(S.start); });
 document.querySelectorAll('#fps button').forEach(b => b.addEventListener('click', () => {
-  document.querySelectorAll('#fps button').forEach(x => x.classList.remove('on')); b.classList.add('on'); S.fps = +b.dataset.fps; label();
+  document.querySelectorAll('#fps button').forEach(x => x.classList.remove('on')); b.classList.add('on'); S.fps = +b.dataset.fps; clampDur(); setStart(S.start);
 }));
 function label(){
   const end = Math.min(S.start + S.dur, vid.duration || 0);
@@ -278,7 +281,7 @@ function label(){
   $('loopV').textContent = (end - S.start).toFixed(1) + 's';
   $('zoomV').textContent = (S.vw / S.cw / (S.vw / maxCw())).toFixed(1) + '×';
   const frames = Math.round((end - S.start) * S.fps);
-  $('estV').textContent = frames + ' frames';
+  $('estV').textContent = frames + ' / 255 frames';
 }
 
 /* ---------- live loop preview ---------- */
@@ -320,7 +323,7 @@ $('go').addEventListener('click', async () => {
   if (S.busy) return;
   S.busy = true; vid.pause(); $('go').disabled = true; $('result').classList.remove('on');
   const bar = $('bar'), bi = $('barI'); bar.classList.add('on'); bi.style.width = '0';
-  const end = Math.min(S.start + S.dur, vid.duration), n = Math.max(1, Math.round((end - S.start) * S.fps)), step = 1 / S.fps;
+  const end = Math.min(S.start + S.dur, vid.duration), n = Math.min(255, Math.max(1, Math.round((end - S.start) * S.fps))), step = 1 / S.fps;
   const frames = [];
   for (let i = 0; i < n; i++) {
     await seek(Math.min(S.start + i * step, vid.duration - .05));
@@ -332,7 +335,7 @@ $('go').addEventListener('click', async () => {
   const gif = GIFEncoder();
   for (let i = 0; i < n; i++) {
     const palette = quantize(frames[i], 256);
-    gif.writeFrame(applyPalette(frames[i], palette), W, H, {palette, delay: 1000 / S.fps, repeat: 0});
+    gif.writeFrame(applyPalette(frames[i], palette), W, H, {palette, delay: (Math.round((i + 1) * 100 / S.fps) - Math.round(i * 100 / S.fps)) * 10, repeat: 0});
     bi.style.width = (70 + i / n * 30) + '%';
     if (i % 8 === 0) await new Promise(r => setTimeout(r));
   }
@@ -342,7 +345,7 @@ $('go').addEventListener('click', async () => {
   S.outUrl = URL.createObjectURL(blob);
   $('out').src = S.outUrl;
   const a = $('save'); a.href = S.outUrl;
-  $('outInfo').textContent = `${W}×${H} · ${n} frames · ${(blob.size / 1024 / 1024).toFixed(2)} MB`;
+  $('outInfo').textContent = `${W}×${H} · ${n} frames · ${(blob.size / 1024 / 1024).toFixed(2)} MB` + (blob.size > 15 * 1024 * 1024 ? ' · over 15 MB, lower fps or length' : '');
   $('result').classList.add('on'); bar.classList.remove('on');
   S.busy = false; $('go').disabled = false;
   a.click(); // download straight away; the button stays for a second copy
