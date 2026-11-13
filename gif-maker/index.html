@@ -77,7 +77,7 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
 #tl{position:relative;height:48px;border-radius:var(--r1);background:var(--paper);border:1px solid var(--line);touch-action:none;cursor:pointer}
 #win{position:absolute;top:0;bottom:0;left:0;min-width:16px;background:rgba(255,179,71,.28);border:2px solid var(--accent);border-radius:var(--r1);cursor:grab}
 #win:active{cursor:grabbing}
-.tlrow{display:grid;grid-template-columns:60px 60px 76px minmax(0,1fr) 76px 60px 60px;gap:8px}
+.tlrow{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}
 .btn.sm{min-height:56px;padding:0}
 #fname,#startT{min-height:56px;border-radius:var(--r1);border:1px solid var(--line);background:var(--paper);color:var(--ink);font:400 var(--s1)/1 var(--mono);text-align:center}
 .note{color:var(--muted);font:400 var(--s1)/1.4 var(--font);margin-top:8px}
@@ -192,7 +192,7 @@ html.anim .empty #drop{animation:rise .6s var(--ease) both}
   .row2col{display:block}
   #editor .row2col > .row{margin-top:8px}
   .row2col{margin-top:0}
-  body[data-step="2"] #rowZoom, body[data-step="2"] #prog{display:none}
+  body[data-step="2"] #prog{display:none}
   body[data-step="2"] #stageBox{padding:0}
   #tl{height:40px}
   .seg button{min-height:48px}
@@ -213,11 +213,10 @@ html.anim .empty #drop{animation:rise .6s var(--ease) both}
   #editor .row{margin-top:8px}
   #editor .note{display:none}
   .tlrow{gap:8px}
-  .tlrow .btn.sm,#startT{min-height:48px}
+  .tlrow .btn.sm{min-height:48px}
   #stageBox{gap:8px}
   .tlrow{grid-template-columns:repeat(6,minmax(0,1fr))}
   .tlrow .btn.sm{padding:0;font-size:16px}
-  #startT{grid-column:1/-1;order:-1}
   #pCtl{margin-top:0}
   #pCtl .row{margin-top:16px}
   #pCtl .row.first{margin-top:0}
@@ -270,6 +269,7 @@ body:not(:has(#result.on)) .meta span:has(#outInfo){visibility:hidden}
 #lbx{position:absolute;top:16px;right:16px;min-height:56px}
 @media(min-width:1024px){#lbc,#lbi{height:min(calc(84vh / .8),calc(84vw * 240 / 135 / .8))}}
 #again{gap:8px}
+.row label #startT{width:128px;min-width:0;min-height:44px;padding:0 12px;text-align:right;color:var(--primary);background:var(--paper)}
 </style>
 </head>
 <body class="empty" data-step="1">
@@ -305,13 +305,12 @@ body:not(:has(#result.on)) .meta span:has(#outInfo){visibility:hidden}
           <div id="prog"><div id="progBar"><i id="progI"></i></div><span id="progT">0.0s / 5.0s</span></div>
         </div>
         <div class="row" id="rowStart">
-          <label for="startT">start at <b id="startV">0:00.0</b></label>
+          <label for="startT">start at <input id="startT" type="text" value="0:00.0" inputmode="decimal" autocomplete="off" aria-label="start time, like 2:35 or 155"></label>
           <div id="tl" aria-label="timeline, drag the amber window"><div id="win"></div></div>
           <div class="tlrow">
             <button class="btn ghost sm" id="mm" aria-label="back 5 seconds">-5s</button>
             <button class="btn ghost sm" id="m1" aria-label="back 1 second">-1s</button>
             <button class="btn ghost sm" id="m5" aria-label="back half a second">-0.5s</button>
-            <input id="startT" type="text" value="0:00" inputmode="decimal" aria-label="start time, like 2:35 or 155">
             <button class="btn ghost sm" id="p5" aria-label="forward half a second">+0.5s</button>
             <button class="btn ghost sm" id="p1" aria-label="forward 1 second">+1s</button>
             <button class="btn ghost sm" id="pp" aria-label="forward 5 seconds">+5s</button>
@@ -351,7 +350,7 @@ body:not(:has(#result.on)) .meta span:has(#outInfo){visibility:hidden}
         </figure>
         <figure id="result">
           <figcaption>rendered</figcaption>
-          <div id="outBox"><img id="out" alt="exported gif" width="135" height="240" tabindex="0" role="button"><span>export to see it here</span></div>
+          <div id="outBox"><canvas id="out" width="135" height="240" tabindex="0" role="button" aria-label="rendered gif, open full screen"></canvas><span>export to see it here</span></div>
         </figure>
       </div>
       <div class="meta"><span>loops <b id="loopV">5.0s</b></span><span><b id="estV">-</b></span></div>
@@ -385,16 +384,28 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
 const root = document.documentElement;
 function playIntro(ms){ root.classList.add('anim'); setTimeout(() => root.classList.remove('anim'), ms || 900); }
 let wiping = false;
+// the rendered gif plays on a canvas from the exact frames inside the file (an <img> gif can sit frozen when the OS has animations off)
+let rendRaf = 0;
+function startRendered(){
+  cancelAnimationFrame(rendRaf);
+  const ctx = $('out').getContext('2d'), t0 = performance.now(), im = new ImageData(W, H);
+  const loop = () => {
+    const q = S.qFrames; if (!q || !q.length) return;
+    const k = Math.floor((performance.now() - t0) / 1000 * S.qFps) % q.length;
+    im.data.set(q[k]); ctx.putImageData(im, 0, 0);
+    rendRaf = requestAnimationFrame(loop);
+  };
+  loop();
+}
 // full screen preview: tap a preview (or the rendered gif) to see it big
 let lbRaf = 0;
 function openLb(kind){
-  const lb = $('lb'), c = $('lbc'), im = $('lbi'), ctx = c.getContext('2d');
-  c.style.display = kind === 'img' ? 'none' : 'block'; im.style.display = kind === 'img' ? 'block' : 'none';
-  if (kind === 'img') im.src = $('out').src;
+  const lb = $('lb'), c = $('lbc'), ctx = c.getContext('2d'), src = kind === 'img' ? $('out') : pv;
+  c.style.display = 'block'; $('lbi').style.display = 'none';
   lb.classList.add('on');
-  (kind === 'img' ? im : c).animate([{opacity: 0, transform: 'scale(.92)'}, {opacity: 1, transform: 'none'}], {duration: 320, easing: 'cubic-bezier(.2,.7,.2,1)'});
+  c.animate([{opacity: 0, transform: 'scale(.92)'}, {opacity: 1, transform: 'none'}], {duration: 320, easing: 'cubic-bezier(.2,.7,.2,1)'});
   cancelAnimationFrame(lbRaf);
-  if (kind !== 'img') { const loop = () => { ctx.drawImage(pv, 0, 0); lbRaf = requestAnimationFrame(loop); }; loop(); }
+  const loop = () => { ctx.drawImage(src, 0, 0); lbRaf = requestAnimationFrame(loop); }; loop();
   $('lbx').focus();
 }
 function closeLb(){ $('lb').classList.remove('on'); cancelAnimationFrame(lbRaf); }
@@ -453,7 +464,8 @@ async function go(fn, msg){
 }
 playIntro();
 const W = 135, H = 240;
-const STEP_NAMES = ['upload', 'timing', 'crop', 'export', 'done'];
+const STEP_NAMES = ['upload', 'clip', '(unused)', 'export', 'done'];
+const STEP_ORDER = [2, 4, 5];   // phone flow: clip (video, start, zoom, length, fps) > export > done
 const vid = $('vid'), frame = $('frame'), crop = $('crop'), pv = $('pv'), pctx = pv.getContext('2d', {willReadFrequently:true});
 const p2ctx = $('pv2').getContext('2d');
 const S = {step:1, url:null, vw:0, vh:0, cw:0, cx:0, cy:0, start:0, dur:5, fps:20, busy:false, dispW:0, dispH:0, outUrl:null};
@@ -484,7 +496,7 @@ vid.addEventListener('loadedmetadata', () => go(() => {
   document.body.classList.remove('empty'); S.step = 2; syncStep();
   S.vw = vid.videoWidth; S.vh = vid.videoHeight;
   drop.style.display = 'none'; $('editor').classList.add('on'); $('again').style.display = ''; $('go').disabled = false; $('pCtl').classList.remove('locked');
-  S.start = 0; setDur(Math.min(5, vid.duration)); $('startT').value = '0:00';
+  S.start = 0; setDur(Math.min(5, vid.duration)); $('startT').value = '0:00.0';
   { const t = Math.round(vid.duration), m = Math.floor(t / 60), sec = t % 60; $('totV').textContent = m + ':' + (sec < 10 ? '0' : '') + sec; }
   clampDur();
   $('zoom').value = 1;
@@ -500,8 +512,9 @@ const dlName = () => (($('fname').value || '').replace(/\.gif$/i, '').replace(/[
 function downloadGif(){ if (!S.outUrl) return; const a = document.createElement('a'); a.href = S.outUrl; a.download = dlName(); a.click(); }
 function syncStep(){
   document.body.dataset.step = S.step;
-  $('sbarI').style.width = (Math.max(1, S.step - 1) / 4 * 100) + '%';   // upload is not counted: timing 1/4, crop 2/4, export 3/4, done 4/4
-  $('sLbl').textContent = Math.max(1, S.step - 1) + ' of 4 · ' + STEP_NAMES[S.step - 1];
+  const idx = Math.max(0, STEP_ORDER.indexOf(S.step)) + 1;
+  $('sbarI').style.width = (idx / 3 * 100) + '%';   // upload is not counted: clip 1/3, export 2/3, done 3/3
+  $('sLbl').textContent = idx + ' of 3 · ' + STEP_NAMES[S.step - 1];
   $('sBack').textContent = S.step === 2 ? 'new video' : 'back';
   $('sNext').textContent = S.step === 4 ? $('go').textContent : S.step === 5 ? 'save gif' : 'next';   // export step: the lower-right button IS the export button, done step: save
 }
@@ -515,8 +528,8 @@ function toStep(n, dir){
     main.animate([{opacity: 0, transform: `translateX(${dir * 32}px)`}, {opacity: 1, transform: 'none'}], {duration: 360, easing: 'cubic-bezier(.2,.7,.2,1)'});
   });
 }
-$('sNext').addEventListener('click', () => { if (S.step < 4) toStep(S.step + 1, 1); else if (S.step === 4) $('go').click(); else downloadGif(); });
-$('sBack').addEventListener('click', () => { if (S.step === 2) $('again').click(); else if (S.step > 2) toStep(S.step - 1, -1); });
+$('sNext').addEventListener('click', () => { if (S.step === 2) toStep(4, 1); else if (S.step === 4) $('go').click(); else downloadGif(); });
+$('sBack').addEventListener('click', () => { if (S.step === 2) $('again').click(); else if (S.step > 2) toStep(S.step === 5 ? 4 : 2, -1); });
 // phone: the video takes every pixel the other controls on this step leave free (no dead space, never overflows)
 function phoneFrameMaxH(){
   const panel = $('editor').closest('.panel'), pcs = getComputedStyle(panel);
@@ -619,9 +632,10 @@ function setStart(t){
   if (S.actual && t !== S.start) resetEst();
   S.start = Math.min(Math.max(0, t), Math.max(0, vid.duration - S.dur));
   S.start = Math.round(S.start * 10) / 10;
-  $('startT').value = fmt(S.start).replace(/\.0$/, ''); vid.currentTime = S.start; label();
+  $('startT').value = fmt(S.start); vid.currentTime = S.start; label();
 }
 $('startT').addEventListener('change', () => { const t = parseT($('startT').value); if (!isNaN(t)) setStart(t); else setStart(S.start); });
+$('startT').addEventListener('focus', e => e.target.select());
 $('startT').addEventListener('keydown', e => { if (e.key === 'Enter') e.target.blur(); });
 $('m1').addEventListener('click', () => setStart(S.start - 1));
 $('p1').addEventListener('click', () => setStart(S.start + 1));
@@ -645,7 +659,6 @@ document.querySelectorAll('#fps button').forEach(b => b.addEventListener('click'
 }));
 function label(){
   const end = Math.min(S.start + S.dur, vid.duration || 0);
-  $('startV').textContent = fmt(S.start);
   const dd = vid.duration || 1, w = $('win'); w.style.left = (S.start / dd * 100) + '%'; w.style.width = ((end - S.start) / dd * 100) + '%';
   $('durV').textContent = S.dur.toFixed(1) + 's';
   $('loopV').textContent = (end - S.start).toFixed(1) + 's';
@@ -696,7 +709,14 @@ function draw(){
 }
 
 /* ---------- export ---------- */
-const seek = t => new Promise(res => { const f = () => { vid.removeEventListener('seeked', f); res(); }; vid.addEventListener('seeked', f); vid.currentTime = t; });
+// seek AND wait until the new frame is actually presented (seeked alone can fire a frame early, which made every captured frame the same picture)
+const seek = t => new Promise(res => {
+  let n = 0; const to = setTimeout(res, 900);
+  const fin = () => { if (++n === 2) { clearTimeout(to); res(); } };
+  vid.addEventListener('seeked', function f(){ vid.removeEventListener('seeked', f); fin(); });
+  if (vid.requestVideoFrameCallback) vid.requestVideoFrameCallback(() => fin()); else fin();
+  vid.currentTime = t;
+});
 $('go').addEventListener('click', async () => {
   if (S.busy || wiping) return;
   S.busy = true; vid.pause(); $('go').disabled = true; $('result').classList.remove('on');
@@ -714,10 +734,13 @@ $('go').addEventListener('click', async () => {
     if (i % 4 === 0) await new Promise(r => setTimeout(r));
   }
   // own 256-colour palette per frame: truer colours and skin tones than one shared palette
-  const gif = GIFEncoder();
+  const gif = GIFEncoder(), qFrames = [];
   for (let i = 0; i < n; i++) {
     const palette = quantize(frames[i], 256);
-    gif.writeFrame(applyPalette(frames[i], palette), W, H, {palette, delay: (Math.round((i + 1) * 100 / S.fps) - Math.round(i * 100 / S.fps)) * 10, repeat: 0});
+    const idxs = applyPalette(frames[i], palette), q = new Uint8ClampedArray(W * H * 4);
+    for (let j = 0; j < idxs.length; j++) { const c = palette[idxs[j]]; q[j * 4] = c[0]; q[j * 4 + 1] = c[1]; q[j * 4 + 2] = c[2]; q[j * 4 + 3] = 255; }
+    qFrames.push(q);                                       // exactly what the gif holds, for the on-page player
+    gif.writeFrame(idxs, W, H, {palette, delay: (Math.round((i + 1) * 100 / S.fps) - Math.round(i * 100 / S.fps)) * 10, repeat: 0});
     rctx.putImageData(new ImageData(frames[i], W, H), 0, 0);   // frames play through while they are packed into the gif
     bi.style.width = (70 + i / n * 30) + '%'; setGoLabel('rendering ' + Math.round(70 + i / n * 30) + '%'); progress(70 + i / n * 30);
     if (i % 8 === 0) await new Promise(r => setTimeout(r));
@@ -726,7 +749,7 @@ $('go').addEventListener('click', async () => {
   const blob = new Blob([gif.bytes()], {type:'image/gif'});
   if (S.outUrl) URL.revokeObjectURL(S.outUrl);
   S.outUrl = URL.createObjectURL(blob);
-  $('out').src = S.outUrl; S.actual = blob.size / n; label();
+  S.qFrames = qFrames; S.qFps = S.fps; startRendered(); S.actual = blob.size / n; label();
   const a = document.createElement('a'); a.href = S.outUrl; a.download = (($('fname').value || '').replace(/\.gif$/i, '').replace(/[\/:*?"<>|]+/g, '').trim() || 'keyboard') + '.gif';
   $('outInfo').textContent = `${(blob.size / 1024 / 1024).toFixed(2)} MB` + (blob.size > 15 * 1024 * 1024 ? ' (over 15 MB)' : '');
   $('result').classList.add('on'); bar.classList.remove('on');
