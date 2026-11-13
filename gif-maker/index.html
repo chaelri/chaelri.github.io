@@ -139,32 +139,28 @@ html.anim main > .panel:nth-child(2){animation-delay:.08s}
 .seg button,.btn,input[type=text]{transition:background-color .15s,border-color .15s,color .15s,transform .1s,box-shadow .1s}
 .bar{transition:opacity .2s}
 .bar i{transition:width .2s linear}
-header{view-transition-name:hdr}
-main > .panel:nth-child(1){view-transition-name:pl}
-main > .panel:nth-child(2){view-transition-name:pr}
-::view-transition-group(*){animation-duration:.5s;animation-timing-function:var(--ease)}
-::view-transition-old(pr){animation:none;opacity:0}
-::view-transition-new(pr){animation:rise .55s var(--ease) both}
 /* inner pieces of each screen come in one after another, so a screen builds instead of popping */
-#editor.on > *, main > .panel:nth-child(2) > *{animation:rise .5s var(--ease) both}
-#editor.on > :nth-child(1), main > .panel:nth-child(2) > :nth-child(1){animation-delay:.10s}
-#editor.on > :nth-child(2), main > .panel:nth-child(2) > :nth-child(2){animation-delay:.16s}
-#editor.on > :nth-child(3), main > .panel:nth-child(2) > :nth-child(3){animation-delay:.22s}
-#editor.on > :nth-child(4), main > .panel:nth-child(2) > :nth-child(4){animation-delay:.28s}
-#editor.on > :nth-child(5), main > .panel:nth-child(2) > :nth-child(5){animation-delay:.34s}
+html.anim #editor.on > *, html.anim main > .panel:nth-child(2) > *{animation:rise .5s var(--ease) both}
+html.anim #editor.on > :nth-child(1), html.anim main > .panel:nth-child(2) > :nth-child(1){animation-delay:.10s}
+html.anim #editor.on > :nth-child(2), html.anim main > .panel:nth-child(2) > :nth-child(2){animation-delay:.16s}
+html.anim #editor.on > :nth-child(3), html.anim main > .panel:nth-child(2) > :nth-child(3){animation-delay:.22s}
+html.anim #editor.on > :nth-child(4), html.anim main > .panel:nth-child(2) > :nth-child(4){animation-delay:.28s}
+html.anim #editor.on > :nth-child(5), html.anim main > .panel:nth-child(2) > :nth-child(5){animation-delay:.34s}
 #pCtl{transition:opacity .4s var(--ease)}
-.empty #drop{animation:rise .6s var(--ease) both}
-/* OS "reduce motion" (Charlie's PC has it on): keep the screen changes, but as soft fades only, no sliding or morphing */
-@media (prefers-reduced-motion:reduce){
-  @keyframes rise{from{opacity:0}to{opacity:1}}
-  @keyframes pop{from{opacity:0}to{opacity:1}}
-  ::view-transition-group(*){animation-duration:.001s}
-  ::view-transition-old(*),::view-transition-new(*){animation-duration:.3s}
-}
+html.anim .empty #drop{animation:rise .6s var(--ease) both}
 
+/* loading-screen curtain that wipes between screens */
+#curtain{position:fixed;inset:0;z-index:100;background:var(--primary);color:var(--paper);display:flex;align-items:center;justify-content:center;transform:translateY(101%);pointer-events:none;border-radius:50% 50% 0 0 / 96px 96px 0 0;will-change:transform}
+#curtain .cw{display:flex;flex-direction:column;align-items:center;gap:16px}
+#curtain strong{font:700 var(--s3)/1 var(--font);letter-spacing:-.02em}
+#curtain strong span{opacity:.62}
+#curtain .cbar{width:240px;height:8px;border-radius:999px;background:rgba(14,18,24,.2);overflow:hidden}
+#curtain .cbar i{display:block;height:100%;width:0;background:var(--paper);border-radius:999px}
+#curtain small{font:400 var(--s1)/1 var(--mono)}
 </style>
 </head>
 <body class="empty">
+<div id="curtain" aria-hidden="true"><div class="cw"><strong>gif <span>maker</span></strong><div class="cbar"><i id="cbarI"></i></div><small id="cmsg">loading your video</small></div></div>
 <div class="wrap">
   <header>
     <div>
@@ -255,12 +251,25 @@ main > .panel:nth-child(2){view-transition-name:pr}
 <script type="module">
 import {GIFEncoder, quantize, applyPalette} from './gifenc.esm.js';
 
-// screen changes: morph with the View Transitions API, fall back to a staggered rise
+// screen changes: a loading-screen curtain wipes up, the screens swap behind it, then it lifts away and the new screen builds in.
+// (Web Animations API on purpose: it ignores the OS "reduce motion" setting, which is ON on Charlie's PC.)
 const root = document.documentElement;
-function playIntro(){ root.classList.add('anim'); setTimeout(() => root.classList.remove('anim'), 900); }
-function go(fn){
-  if (document.startViewTransition) document.startViewTransition(fn);
-  else { fn(); playIntro(); }
+function playIntro(ms){ root.classList.add('anim'); setTimeout(() => root.classList.remove('anim'), ms || 900); }
+let wiping = false;
+const wait = ms => new Promise(r => setTimeout(r, ms));
+async function go(fn, msg){
+  if (wiping) { fn(); return; }
+  wiping = true;
+  const c = $('curtain'), bar = $('cbarI'), EASE = 'cubic-bezier(.7,0,.2,1)';
+  $('cmsg').textContent = msg || 'loading your video'; bar.style.width = '0';
+  await c.animate([{transform: 'translateY(101%)'}, {transform: 'translateY(0)'}], {duration: 520, easing: EASE, fill: 'forwards'}).finished;
+  fn();                                                    // swap screens while covered
+  bar.animate([{width: '0%'}, {width: '100%'}], {duration: 700, easing: 'cubic-bezier(.3,.6,.3,1)', fill: 'forwards'});
+  await wait(780);                                         // let layout settle, loader visible
+  playIntro(1500);                                         // new screen starts building as the curtain lifts
+  await c.animate([{transform: 'translateY(0)'}, {transform: 'translateY(-101%)'}], {duration: 600, easing: EASE, fill: 'forwards'}).finished;
+  c.getAnimations().forEach(a => a.cancel()); bar.getAnimations().forEach(a => a.cancel()); bar.style.width = '0';
+  wiping = false;
 }
 playIntro();
 const W = 135, H = 240;
@@ -276,7 +285,7 @@ drop.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') 
 ['dragleave','drop'].forEach(t => window.addEventListener(t, e => { e.preventDefault(); if (t === 'dragleave' && e.relatedTarget) return; drop.classList.remove('over'); }));
 window.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) load(f); });
 file.addEventListener('change', () => { if (file.files[0]) load(file.files[0]); });
-$('again').addEventListener('click', () => go(() => { document.body.classList.add('empty'); vid.pause(); $('editor').classList.remove('on'); drop.style.display = ''; $('again').style.display = 'none'; $('go').disabled = true; $('pCtl').classList.add('locked'); $('result').classList.remove('on'); file.value = ''; }));
+$('again').addEventListener('click', () => go(() => { document.body.classList.add('empty'); vid.pause(); $('editor').classList.remove('on'); drop.style.display = ''; $('again').style.display = 'none'; $('go').disabled = true; $('pCtl').classList.add('locked'); $('result').classList.remove('on'); file.value = ''; }, 'back to the start'));
 
 const qs = new URLSearchParams(location.search).get('src'); if (qs) queueMicrotask(() => { vid.src = qs; });
 function load(f){
