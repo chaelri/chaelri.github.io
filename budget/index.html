@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Household Budget 22k</title>
+<style>
+  :root{
+    --paper:#F3EEE4; --ink:#1F2A2E; --muted:#4A565A; --primary:#2F5D50; --shape:#DCE6D5; --accent:#A8341C;
+    --line:#D9D2C3; --on-dark:#fff; --card:#fbf8f1; --sage:#8DB5A3;
+    --s0:1rem; --s1:1.618rem; --s2:2.618rem; --s3:4.236rem;   /* x1.618 */
+    --r1:8px; --r2:13px; --r3:21px;                              /* x1.618 */
+    --cols:minmax(0,1fr) 104px 128px 144px;
+    --font:"Outfit","Avenir Next",system-ui,-apple-system,"Segoe UI",sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font:400 var(--s0)/1.4 var(--font)}
+  main{max-width:1440px;margin:0 auto;padding:16px}
+  @media(min-width:1100px){main{padding:16px 32px}}
+  .num{font-variant-numeric:tabular-nums}
+  .muted{color:var(--muted)}
+
+  /* header */
+  .top{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:8px}
+  h1{font-size:var(--s1);line-height:1;letter-spacing:-.01em;font-weight:700;margin:0}
+  .ctl{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  .tgt{display:flex;align-items:center;gap:8px}
+  .seg{display:flex;border:1px solid var(--line);border-radius:var(--r1);overflow:hidden}
+  button{font:inherit;color:var(--ink);cursor:pointer}
+  .seg button{border:0;background:transparent;padding:0 16px;height:40px}
+  .seg button[aria-pressed=true]{background:var(--primary);color:var(--on-dark);font-weight:700}
+  .btn{border:1px solid var(--line);background:var(--card);border-radius:var(--r1);padding:0 16px;height:40px}
+  .btn:hover{border-color:var(--primary)}
+  #modeBtn{width:112px;padding:0;display:inline-flex;align-items:center;justify-content:center}
+  .ex{display:inline-flex;align-items:center;gap:8px}
+  .ex .fld input{width:96px}
+  body:not(.present) .pvonly{display:none}
+  .sync{color:var(--muted)}
+  .btn.on{background:var(--primary);color:var(--on-dark);border-color:var(--primary);font-weight:700}
+  button:focus-visible,input:focus-visible,.tog:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+
+  /* fields: input in edit mode, plain text in present mode */
+  .fld{display:inline-flex;align-items:center;justify-content:flex-end}
+  .fld input{width:100%;min-width:64px;padding:0 16px;border:1px solid var(--line);border-radius:var(--r1);
+             background:var(--paper);color:var(--ink);font:inherit;text-align:right;height:32px}
+  .pv{display:none}
+  body.present .fld input{display:none}
+  body.present .pv{display:inline}
+  body.present .edit-only{display:none !important}
+  .tgt .fld input{width:128px}
+
+  /* strip */
+  .strip{display:grid;gap:16px;grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:16px}
+  @media(min-width:900px){.strip{grid-template-columns:repeat(4,minmax(0,1fr))}}
+  .tile{border-radius:var(--r3);padding:16px 24px;display:flex;flex-direction:column;justify-content:center;min-height:104px}
+  .tile .k{font-size:var(--s0)}
+  .tile .v{font-size:var(--s2);font-weight:700;line-height:1;letter-spacing:-.01em;margin:4px 0}
+  .tile .s{font-size:var(--s0)}
+  .t-fam{background:var(--shape)}
+  .t-fam .s{color:var(--muted)}
+  .t-gro{background:var(--primary);color:var(--on-dark)}
+  .t-mp{background:var(--accent);color:var(--on-dark)}
+
+  /* layout */
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r3);padding:16px 24px}
+  .layout{display:grid;gap:16px;grid-template-columns:minmax(0,1fr)}
+  @media(min-width:1100px){.layout{grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);align-items:stretch}}
+  .left,.right{display:flex;flex-direction:column}
+  h2{font-size:var(--s0);font-weight:700;letter-spacing:.2em;text-transform:uppercase;margin:0 0 16px;color:var(--muted)}
+
+  /* table */
+  .rows{flex:1;display:flex;flex-direction:column}
+  .row{display:grid;grid-template-columns:var(--cols);column-gap:8px;align-items:center;border-bottom:1px solid var(--line)}
+  .row > div{display:flex;align-items:center;min-width:0}
+  .row .r{justify-content:flex-end;text-align:right}
+  .row.hd{min-height:32px;font-weight:700;color:var(--muted);flex:none}
+  .row.hd .cv-h{color:var(--accent)}
+  .row.grp{min-height:32px;flex:none;background:var(--shape);border-radius:var(--r1);border-bottom:0;margin-top:8px;padding:0 8px;font-weight:700}
+  .row.it{flex:1 0 40px}
+  .row.sp{margin-top:8px}
+  .row.it > div:first-child{padding-left:8px}
+  .row.kid{display:none;flex:1 0 40px}
+  .rows.open .row.kid{display:grid}
+  .row.kid > div:first-child{padding-left:32px;color:var(--muted)}
+  .row.tot{flex:none;min-height:48px;border-bottom:0;font-weight:700}
+  .row.tot > div:first-child{padding-left:8px}
+  .cov,.cvf .pv{color:var(--accent);font-weight:700}
+  .tog{cursor:pointer}
+  .tog:hover{background:rgba(0,0,0,.03)}
+  .mer{display:inline-flex;align-items:center;gap:8px;margin-left:8px;flex-wrap:wrap}
+  .mer .fld input{min-width:0;width:72px;padding:0 8px}
+  @media(max-width:640px){
+    :root{--cols:minmax(0,1fr) 88px 104px}
+    .b{display:none !important}
+  }
+
+  /* chart */
+  .chart{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:24px;min-height:360px}
+  .col{display:flex;flex-direction:column;min-height:0}
+  .stack{flex:1;display:flex;flex-direction:column-reverse;gap:4px;min-height:0}
+  .seg-b{border-radius:var(--r1);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-height:0;overflow:hidden}
+  .seg-b b{font-variant-numeric:tabular-nums}
+  .cl{display:flex;justify-content:space-between;margin-top:16px;gap:8px}
+  .s-ch{background:var(--primary);color:var(--on-dark)}
+  .s-ku{background:var(--sage);color:var(--ink)}
+  .s-mp{background:var(--accent);color:var(--on-dark)}
+  @media(max-width:640px){.tile .v{font-size:var(--s1)}.tile{padding:16px}}
+</style>
+</head>
+<body class="">
+<main>
+  <div class="top">
+    <h1>Household budget</h1>
+    <div class="ctl">
+      <label class="tgt">Monthly budget <span id="tgtBox"></span></label>
+      <span class="sync" id="sync" aria-live="polite"></span>
+      <button class="btn" id="reset">Back to default</button>
+      <button class="btn" id="copy">Copy summary</button>
+      <button class="btn" id="modeBtn"></button>
+    </div>
+  </div>
+
+  <div class="strip">
+    <div class="tile t-fam"><div class="k">Charlie</div><div class="v num" id="tCh">0</div><div class="s num" id="sCh"></div></div>
+    <div class="tile t-fam"><div class="k">Kuya</div><div class="v num" id="tKu">0</div><div class="s num"><span class="pvonly" id="sKuT"></span><label class="edit-only ex">Extra help <span id="kxBox"></span></label></div></div>
+    <div class="tile t-gro"><div class="k">Left for groceries</div><div class="v num" id="tGr">0</div><div class="s" id="sGr"></div></div>
+    <div class="tile t-mp"><div class="k">Mama and Papa</div><div class="v num" id="tMp">0</div><div class="s" id="sMp"></div></div>
+  </div>
+
+  <div class="layout">
+    <section class="card left">
+      <div class="rows" id="rows"></div>
+    </section>
+
+    <section class="card right">
+      <h2>Who pays, before and after</h2>
+      <div class="chart">
+        <div class="col"><div class="stack" id="stB"></div><div class="cl"><b>Before</b><span class="num" id="tB"></span></div></div>
+        <div class="col"><div class="stack" id="stA"></div><div class="cl"><b>After</b><span class="num" id="tA"></span></div></div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getDatabase, ref, onValue, update, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+const firebaseConfig = {
+  apiKey: "AIzaSyB8ahT56WbEUaGAymsRNNA-DrfZnUnWIwk",
+  authDomain: "test-database-55379.firebaseapp.com",
+  databaseURL: "https://test-database-55379-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "test-database-55379",
+  storageBucket: "test-database-55379.firebasestorage.app",
+  messagingSenderId: "933688602756",
+  appId: "1:933688602756:web:392a3a4ce040cb9d4452d1"
+};
+const db = getDatabase(initializeApp(firebaseConfig));
+const PATH = "budget22k_v1"; // own path, shared by Charlie and Kuya
+const vRef = ref(db, PATH + "/v");
+const $ = id => document.getElementById(id);
+const r2 = n => Math.round(n*100)/100;
+const fmt = n => r2(n).toLocaleString('en-PH',{minimumFractionDigits:0,maximumFractionDigits:2});
+
+const DEF = {papa:5000,mama:6040,papaal:0,mamaal:0,daddy:0,lola:0,maint:0,gas:1410,dw:820,mw:800,pldt:900,tax:510.25,rice:1000,kwh:260,rate:13.5,target:22000,gcov:15323.58,kx:0};
+const BEFORE = {papa:5000,mama:6040,papaal:1500,mamaal:1500,daddy:3500,lola:0,maint:0,gas:1410,dw:820,mw:1000,pldt:1900,tax:510.25,rice:1519};
+const MER_B = 6000, GROC_B = 17333.33;
+const LABEL = {papa:'Papa medicine',mama:'Mama medicine',papaal:'Papa allowance',mamaal:'Mama allowance',daddy:'Daddy pakinabang',lola:'Lola Nanay',maint:'Maintenance',gas:'Gas',dw:'Drinking water',mw:'Manila Water',pldt:'PLDT, now GOMO Fiber',tax:'Land tax and dues',rice:'Rice'};
+const KIDS = ['papaal','mamaal','lola','maint'];
+const KEY = 'b22kv5';
+const store = {
+  get(){ try{ return JSON.parse(localStorage.getItem(KEY)||'{}') }catch(e){ return {} } },
+  set(o){ try{ localStorage.setItem(KEY,JSON.stringify(o)) }catch(e){} }
+};
+const saved = store.get();
+const ST = Object.assign({}, DEF, saved.v||{});
+let mode = 'present';
+
+const fld = (id,label,cls='') => `<span class="fld ${cls}"><input id="${id}" type="text" inputmode="decimal" value="${fmt(ST[id])}" aria-label="${label||LABEL[id]||id}"><span class="pv" id="pv-${id}"></span></span>`;
+const cellB = t => `<div class="r num b">${t}</div>`;
+
+function itemRow(k,x=''){
+  return `<div class="row it ${x}"><div>${LABEL[k]}</div>${cellB(fmt(BEFORE[k]))}<div class="r">${fld(k)}</div><div class="r num cov" id="cv-${k}"></div></div>`;
+}
+function grp(name,id){
+  return `<div class="row grp"><div>${name}</div><div class="r num b" id="${id}-b"></div><div class="r num" id="${id}-a"></div><div></div></div>`;
+}
+
+$('tgtBox').innerHTML = fld('target','Monthly budget');
+$('kxBox').innerHTML = fld('kx','Kuya extra help');
+$('rows').innerHTML =
+  `<div class="row hd"><div>Item</div><div class="r b">Before</div><div class="r">After</div><div class="r cv-h">Mama and Papa</div></div>` +
+  grp('Medicine','gM') + itemRow('papa') + itemRow('mama') +
+  grp('Bills','gB') + itemRow('gas') + itemRow('dw') + itemRow('mw') + itemRow('pldt') + itemRow('tax') +
+  `<div class="row it"><div>Meralco<span class="mer">${fld('kwh','kWh')}<span class="muted">kWh x</span>${fld('rate','rate per kWh')}</span></div>${cellB(fmt(MER_B))}<div class="r num" id="mer-a"></div><div></div></div>` +
+  grp('Food','gF') + itemRow('rice') +
+  `<div class="row it"><div><b>Groceries</b>&nbsp;<span class="muted">what's left</span></div>${cellB(fmt(GROC_B))}<div class="r num" id="gr-a"></div><div class="r">${fld('gcov','Groceries Mama and Papa cover','cvf')}</div></div>` +
+  itemRow('daddy','sp') +
+  `<div class="row it tog" id="tog" role="button" tabindex="0" aria-expanded="false"><div><span id="tgl">+</span>&nbsp;Removed lines (4)</div><div class="r num b" id="rm-b"></div><div class="r num" id="rm-a"></div><div></div></div>` +
+  KIDS.map(k=>`<div class="row kid"><div>${LABEL[k]}</div>${cellB(fmt(BEFORE[k]))}<div class="r">${fld(k)}</div><div></div></div>`).join('') +
+  `<div class="row tot"><div>Total</div><div class="r num b" id="tot-b"></div><div class="r num" id="tot-a"></div><div class="r num cov" id="tot-c"></div></div>`;
+
+const num = id => parseFloat(String($(id).value).replace(/,/g,'')) || 0;
+const setCov = (el,v) => { v=r2(Math.max(v,0)); el.textContent = v? fmt(v):''; };
+const ids = Object.keys(DEF);
+
+let last = {};
+function calc(){
+  const v = {}; ids.forEach(k=>v[k]=num(k));
+  const mer = v.kwh*v.rate;
+  const items = ['papa','mama','papaal','mamaal','daddy','lola','maint','gas','dw','mw','pldt','tax','rice'];
+  const A = k => v[k], Bf = k => BEFORE[k];
+  const sumA = ks => ks.reduce((a,k)=>a+A(k),0), sumB = ks => ks.reduce((a,k)=>a+Bf(k),0);
+  const fixedA = sumA(items) + mer;
+  const budget = v.target + v.kx;
+  const groc = budget - fixedA;
+  const fixedB = sumB(items) + MER_B + GROC_B;
+
+  const gm=['papa','mama'], gb=['gas','dw','mw','pldt','tax'];
+  $('gM-b').textContent=fmt(sumB(gm)); $('gM-a').textContent=fmt(sumA(gm));
+  $('gB-b').textContent=fmt(sumB(gb)+MER_B); $('gB-a').textContent=fmt(sumA(gb)+mer);
+  $('gF-b').textContent=fmt(Bf('rice')+GROC_B); $('gF-a').textContent=fmt(A('rice')+groc);
+  $('rm-b').textContent=fmt(sumB(KIDS)); $('rm-a').textContent=fmt(sumA(KIDS));
+  $('mer-a').textContent=fmt(mer);
+  $('gr-a').innerHTML=`<b>${fmt(groc)}</b>`;
+
+  const daddyCov = Math.max(Bf('daddy')-A('daddy'),0);
+  setCov($('cv-daddy'),daddyCov);
+  ['papa','mama','gas','dw','mw','pldt','tax','rice'].forEach(k=>$('cv-'+k).textContent='');
+  const coverTotal = daddyCov + v.gcov;
+
+  const totalA = fixedA + Math.max(groc,0);
+  $('tot-b').textContent=fmt(fixedB); $('tot-a').textContent=fmt(totalA); $('tot-c').textContent=fmt(coverTotal);
+
+  const each = v.target/2, eb = fixedB/2;
+  $('tCh').textContent=fmt(each); $('tKu').textContent=fmt(each+v.kx);
+  $('sCh').textContent='was '+fmt(eb); $('sKuT').textContent = v.kx>0 ? 'includes '+fmt(v.kx)+' extra help' : 'was '+fmt(eb);
+  $('tGr').textContent=fmt(groc);
+  $('sGr').textContent = groc<0 ? 'over budget' : 'of the '+fmt(budget)+' a month';
+  $('tMp').textContent=fmt(coverTotal);
+  $('sMp').textContent='Daddy '+fmt(daddyCov)+' + groceries '+fmt(v.gcov);
+
+  const afterAll = budget + coverTotal;
+  const max = Math.max(fixedB, afterAll, 1);
+  const seg = (cls,name,val)=> val>0 ? `<div class="seg-b ${cls}" style="flex:${val} 1 0" title="${name} ${fmt(val)}">${(val/max)>=.1?`<span>${name}</span><b>${fmt(val)}</b>`:''}</div>` : '';
+  const spacer = t => `<div style="flex:${Math.max(max-t,0)} 1 0"></div>`;
+  $('stB').innerHTML = seg('s-ch','Charlie',eb)+seg('s-ku','Kuya',eb)+spacer(fixedB);
+  $('stA').innerHTML = seg('s-ch','Charlie',each)+seg('s-ku','Kuya',each+v.kx)+seg('s-mp','Mama and Papa',coverTotal)+spacer(afterAll);
+  $('tB').textContent=fmt(fixedB); $('tA').textContent=fmt(afterAll);
+
+  document.querySelectorAll('.fld').forEach(f=>{ const i=f.querySelector('input'); f.querySelector('.pv').textContent = fmt(num(i.id)); });
+
+  const vv={}; ids.forEach(k=>vv[k]=v[k]);
+  store.set({v:vv});
+  last = {v,mer,groc,daddyCov,coverTotal,afterAll,fixedB,each};
+}
+
+function summary(){
+  const {v,mer,groc,daddyCov,coverTotal,each} = last;
+  const L = [];
+  L.push(`Monthly budget ${fmt(v.target+v.kx)}: Charlie ${fmt(each)} + Kuya ${fmt(each+v.kx)}`);
+  L.push(`Left for groceries: ${fmt(groc)}`);
+  L.push(`Mama and Papa: ${fmt(coverTotal)} (Daddy pakinabang ${fmt(daddyCov)} + groceries ${fmt(v.gcov)})`);
+  L.push('');
+  const line = (n,b,a)=>{ if(b>0||a>0) L.push(`${n}: ${fmt(b)} -> ${fmt(a)}`); };
+  Object.keys(BEFORE).forEach(k=>line(LABEL[k],BEFORE[k],v[k]));
+  line('Meralco',MER_B,mer); line('Groceries',GROC_B,groc);
+  return L.join('\n');
+}
+
+function setMode(m){
+  mode = m; document.body.classList.toggle('present', m==='present');
+  const b = $('modeBtn');
+  b.classList.toggle('on', m==='edit');
+  b.innerHTML = m==='edit' ? '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px;margin-right:8px"><path d="M3 8.5l3.5 3.5L13 4.5"/></svg>Check' : 'Edit';
+  b.setAttribute('aria-label', m==='edit' ? 'Check, back to presenting view' : 'Edit the numbers');
+}
+function toggleKids(){
+  const o = $('rows').classList.toggle('open');
+  $('tgl').textContent = o ? '-' : '+'; $('tog').setAttribute('aria-expanded', o);
+}
+
+document.querySelectorAll('.fld input').forEach(i=>{
+  i.addEventListener('input',()=>{ calc(); mark(i.id); });
+  i.addEventListener('blur',()=>{ i.value = fmt(num(i.id)); calc(); });
+  i.addEventListener('focus',()=>i.select());
+});
+$('modeBtn').onclick=()=>setMode(mode==='edit'?'present':'edit');
+$('tog').onclick=toggleKids; $('tog').onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); toggleKids(); } };
+$('copy').onclick=async()=>{
+  const b=$('copy'), t=b.textContent;
+  try{ await navigator.clipboard.writeText(summary()); b.textContent='Copied'; }catch(e){ b.textContent='Copy failed'; }
+  setTimeout(()=>b.textContent=t,1500);
+};
+
+/* ---- sync with Firebase (own path only) ---- */
+const status = $('sync');
+let dirty = {}, timer = null, applying = false, hadRemote = false, armed = false;
+function flush(){
+  const d = dirty; dirty = {}; timer = null;
+  status.textContent = 'Saving';
+  update(vRef, d).then(()=>{ status.textContent = 'Saved'; }).catch(()=>{ status.textContent = 'Offline, kept on this device'; });
+}
+function mark(id){ if(applying) return; dirty[id] = num(id); clearTimeout(timer); timer = setTimeout(flush,400); }
+function applyState(r){
+  applying = true;
+  ids.forEach(k=>{
+    const el = $(k); if(!el || document.activeElement===el || (k in dirty)) return;
+    const val = r[k]!=null ? r[k] : DEF[k];
+    if(num(k)!==val) el.value = fmt(val);
+  });
+  applying = false; calc();
+}
+onValue(vRef, snap=>{
+  const r = snap.val();
+  if(r){ hadRemote = true; applyState(r); status.textContent = 'Synced'; }
+  else if(hadRemote){ hadRemote = false; applyState(DEF); status.textContent = 'Synced'; }
+  else status.textContent = 'Synced';
+}, ()=>{ status.textContent = 'Offline, kept on this device'; });
+
+$('reset').onclick = async ()=>{
+  const b = $('reset');
+  if(!armed){ armed = true; b.textContent = 'Tap again to reset'; setTimeout(()=>{ armed = false; b.textContent = 'Back to default'; },3000); return; }
+  armed = false; b.textContent = 'Back to default';
+  try{ localStorage.removeItem(KEY) }catch(e){}
+  try{ await remove(vRef) }catch(e){}
+  location.reload();
+};
+calc(); setMode(mode);
+</script>
+</body>
+</html>
