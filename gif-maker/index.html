@@ -91,7 +91,9 @@ figcaption{font:700 var(--s1)/1.4 var(--font)}
 #result.on #outBox span{display:none}
 #save{width:100%}
 .meta{margin-top:16px}
-.meta + .meta{margin-top:8px;justify-content:center}
+.meta + .meta{margin-top:8px}
+#outInfo{display:block;text-align:center;width:100%}
+.over{color:var(--accent)!important}
 .panel{display:flex;flex-direction:column}
 #editor.on{display:flex;flex-direction:column;flex:1}
 #frame{margin:auto}
@@ -144,6 +146,7 @@ figcaption{font:700 var(--s1)/1.4 var(--font)}
       <div class="row first">
         <label for="dur">length <b id="durV">5.0s</b></label>
         <input id="dur" type="range" min="1" max="10" step="0.5" value="5">
+        <p class="note" id="maxNote">max possible: -</p>
       </div>
       <div class="row">
         <label for="zoom">zoom <b id="zoomV">1.0×</b></label>
@@ -179,6 +182,7 @@ figcaption{font:700 var(--s1)/1.4 var(--font)}
         </figure>
       </div>
       <div class="meta"><span>loops <b id="loopV">5.0s</b></span><span><b id="estV">-</b></span></div>
+      <div class="meta"><span>est. file <b id="mbV">-</b></span><span id="limV"></span></div>
       <div class="meta"><b id="outInfo">&nbsp;</b></div>
       <div class="actions"><a class="btn" id="save" download="keyboard.gif">save gif</a></div>
     </section>
@@ -249,12 +253,13 @@ crop.addEventListener('pointermove', e => {
   const k = S.vw / S.dispW; // note: html zoom scales client coords equally, so use the element ratio
   const r = frame.getBoundingClientRect(), kk = S.vw / r.width;
   S.cx = drag.cx + (e.clientX - drag.x) * kk; S.cy = drag.cy + (e.clientY - drag.y) * kk;
-  clampCrop(); paintCrop();
+  clampCrop(); paintCrop(); resetEst();
 });
 crop.addEventListener('pointerup', () => drag = null);
 crop.addEventListener('pointercancel', () => drag = null);
 frame.addEventListener('wheel', e => { e.preventDefault(); const z = $('zoom'); z.value = +z.value + (e.deltaY < 0 ? .25 : -.25); setZoom(); }, {passive:false});
 function setZoom(){
+  resetEst();
   const z = +$('zoom').value, ocx = S.cx + S.cw / 2, ocy = S.cy + S.cw * H / W / 2;
   S.cw = maxCw() / z; S.cx = ocx - S.cw / 2; S.cy = ocy - S.cw * H / W / 2;
   clampCrop(); paintCrop(); label();
@@ -265,11 +270,26 @@ $('zoom').addEventListener('input', setZoom);
 function setDur(d){ S.dur = d; }
 const fmt = t => { const m = Math.floor(t / 60), s = t - m * 60; return m + ':' + (s < 10 ? '0' : '') + s.toFixed(1); };
 const parseT = v => { const p = v.trim().split(':').map(Number); if (p.some(isNaN) || !v.trim()) return NaN; return p.reduce((a, x) => a * 60 + x, 0); };
+const LIMIT_B = 14.5 * 1024 * 1024; // keep a little under the 15 MB driver limit
+S.samples = {}; S.actual = 0;
+// bytes per frame: the real render if we have one, else sampled across the whole loop (one sample per half second of the window) + 15% safety
+const avgB = () => { if (S.actual) return S.actual; const v = Object.values(S.samples); return v.length ? v.reduce((a, b) => a + b, 0) / v.length * 1.15 : 0; };
+const maxFrames = () => { const a = avgB(); return Math.max(1, Math.min(255, a ? Math.floor(LIMIT_B / a) : 255)); };
+const resetEst = () => { S.samples = {}; S.actual = 0; };
+function sampleSize(){
+  if (S.busy || !S.vw || vid.paused || S.actual) return;
+  const d = pctx.getImageData(0, 0, W, H).data, pal = quantize(d, 256), g = GIFEncoder();
+  g.writeFrame(applyPalette(d, pal), W, H, {palette: pal}); g.finish();
+  S.samples[Math.floor((vid.currentTime - S.start) * 2)] = g.bytes().length - 20;
+  const before = $('dur').max; clampDur(); if ($('dur').max !== before) setStart(S.start); else label();
+}
+setInterval(sampleSize, 400);
 function clampDur(){
-  const mx = Math.max(.5, Math.min(25, Math.floor(vid.duration * 2) / 2, Math.floor(255 / S.fps * 2) / 2));
+  const mx = Math.max(.5, Math.min(25, Math.floor(vid.duration * 2) / 2, Math.floor(maxFrames() / S.fps * 2) / 2));
   $('dur').max = mx; $('dur').min = Math.min(1, mx); S.dur = Math.min(S.dur, mx); $('dur').value = S.dur;
 }
 function setStart(t){
+  if (S.actual && t !== S.start) resetEst();
   S.start = Math.min(Math.max(0, t), Math.max(0, vid.duration - S.dur));
   S.start = Math.round(S.start * 10) / 10;
   $('startT').value = fmt(S.start).replace(/\.0$/, ''); vid.currentTime = S.start; label();
@@ -302,7 +322,12 @@ function label(){
   $('loopV').textContent = (end - S.start).toFixed(1) + 's';
   $('zoomV').textContent = (S.vw / S.cw / (S.vw / maxCw())).toFixed(1) + '×';
   const frames = Math.round((end - S.start) * S.fps);
-  $('estV').textContent = frames + ' / 255 frames';
+  const mf = maxFrames(), mb = avgB() * frames / 1048576, over = frames > mf;
+  $('estV').textContent = frames + ' / ' + mf + ' frames';
+  $('mbV').textContent = avgB() ? '~' + mb.toFixed(1) + ' MB' : '...';
+  $('limV').textContent = '15 MB / 255 frames max';
+  $('estV').classList.toggle('over', over); $('mbV').classList.toggle('over', mb > 15);
+  $('maxNote').textContent = 'max possible at ' + S.fps + ' fps: ' + (mf / S.fps).toFixed(1) + 's (' + mf + ' frames' + (mf < 255 ? ', file size is the limit' : '') + ')';
 }
 
 /* ---------- live loop preview ---------- */
@@ -344,7 +369,7 @@ $('go').addEventListener('click', async () => {
   if (S.busy) return;
   S.busy = true; vid.pause(); $('go').disabled = true; $('result').classList.remove('on');
   const bar = $('bar'), bi = $('barI'); bar.classList.add('on'); bi.style.width = '0';
-  const end = Math.min(S.start + S.dur, vid.duration), n = Math.min(255, Math.max(1, Math.round((end - S.start) * S.fps))), step = 1 / S.fps;
+  const end = Math.min(S.start + S.dur, vid.duration), n = Math.min(maxFrames(), 255, Math.max(1, Math.round((end - S.start) * S.fps))), step = 1 / S.fps;
   const frames = [];
   for (let i = 0; i < n; i++) {
     await seek(Math.min(S.start + i * step, vid.duration - .05));
@@ -364,7 +389,7 @@ $('go').addEventListener('click', async () => {
   const blob = new Blob([gif.bytes()], {type:'image/gif'});
   if (S.outUrl) URL.revokeObjectURL(S.outUrl);
   S.outUrl = URL.createObjectURL(blob);
-  $('out').src = S.outUrl;
+  $('out').src = S.outUrl; S.actual = blob.size / n; label();
   const a = $('save'); a.href = S.outUrl;
   $('outInfo').textContent = `${W}×${H} · ${n} frames · ${(blob.size / 1024 / 1024).toFixed(2)} MB` + (blob.size > 15 * 1024 * 1024 ? ' · over 15 MB, lower fps or length' : '');
   $('result').classList.add('on'); bar.classList.remove('on');
