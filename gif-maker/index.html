@@ -19,7 +19,7 @@
 *{box-sizing:border-box;margin:0}
 body{background:var(--paper);color:var(--ink);font:400 var(--s1)/1.4 var(--font);min-height:100vh}
 .wrap{max-width:1680px;margin:0 auto;padding:32px 16px 48px}
-header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:32px}
+header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:24px}
 header > div{display:flex;flex-direction:column;gap:8px}
 h1{font:700 var(--s3)/.95 var(--font);letter-spacing:-.02em}
 h1 span{color:var(--primary)}
@@ -43,7 +43,7 @@ h2{font:700 var(--s2)/1 var(--font);letter-spacing:-.01em;margin-bottom:16px}
 .btn:focus-visible,input:focus-visible,.seg button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 #editor{display:none}
 #editor.on{display:block}
-#stageBox{display:flex;align-items:center;justify-content:center;border-radius:var(--r2);background:var(--paper);border:1px solid var(--line);padding:16px}
+#stageBox{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;border-radius:var(--r2);background:var(--paper);border:1px solid var(--line);padding:16px}
 #frame{position:relative;margin:0 auto;overflow:hidden;border-radius:var(--r2);background:#000;touch-action:none;user-select:none}
 #frame video{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none}
 #crop{position:absolute;border:2px solid var(--accent);box-shadow:0 0 0 9999px rgba(14,18,24,.66);cursor:grab}
@@ -69,7 +69,7 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
 #win:active{cursor:grabbing}
 .tlrow{display:grid;grid-template-columns:72px 80px minmax(0,1fr) 80px 72px;gap:8px}
 .btn.sm{min-height:56px;padding:0}
-#startT{min-height:56px;border-radius:var(--r1);border:1px solid var(--line);background:var(--paper);color:var(--ink);font:400 var(--s1)/1 var(--mono);text-align:center}
+#fname,#startT{min-height:56px;border-radius:var(--r1);border:1px solid var(--line);background:var(--paper);color:var(--ink);font:400 var(--s1)/1 var(--mono);text-align:center}
 .note{color:var(--muted);font:400 var(--s1)/1.4 var(--font);margin-top:8px}
 .note.hand{color:var(--accent)}
 
@@ -82,9 +82,9 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
 .actions{display:flex;flex-direction:column;gap:16px;margin-top:24px}
 .row.first{margin-top:0}
 .locked{opacity:.45;pointer-events:none}
-.pair{display:grid;grid-template-columns:1fr 1fr;gap:16px;width:100%;max-width:360px;margin:0 auto}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:16px;width:100%;max-width:304px;margin:0 auto}
 #pCtl{margin-top:16px}
-#pCtl .row{margin-top:16px}
+#pCtl .row{margin-top:8px}
 #pCtl .row.first{margin-top:0}
 figure{margin:0;display:flex;flex-direction:column;gap:8px}
 figcaption{font:700 var(--s1)/1.4 var(--font)}
@@ -96,7 +96,7 @@ figcaption{font:700 var(--s1)/1.4 var(--font)}
 #result.on #outBox span{display:none}
 .meta{margin-top:16px}
 .meta + .meta{margin-top:8px}
-#outInfo{display:block;width:100%}
+.meta b{white-space:nowrap}
 .over{color:var(--accent)!important}
 .panel{display:flex;flex-direction:column}
 #editor.on{display:flex;flex-direction:column;flex:1}
@@ -109,13 +109,20 @@ figcaption{font:700 var(--s1)/1.4 var(--font)}
 .panel > .meta:last-of-type{margin-bottom:0}
 @media(min-width:1024px){
   /* compact cards, centred in the screen with equal breathing room above and below */
-  .wrap{min-height:calc(100vh / .8);display:flex;flex-direction:column;justify-content:center;padding-top:48px;padding-bottom:48px}
+  .wrap{min-height:calc(100vh / .8);display:flex;flex-direction:column;justify-content:center;padding-top:40px;padding-bottom:40px}
   main{flex:none;grid-template-rows:auto;align-items:stretch}
   .pair{flex:1;align-content:center}
   #stageBox{padding:0;border:0;background:none}
   #editor.on{justify-content:center}
 }
 @media(max-width:480px){.tlrow{grid-template-columns:repeat(4,1fr)}#startT{grid-column:1/-1;order:-1}}
+#prog{display:flex;align-items:center;gap:16px}
+#progBar{flex:1;height:8px;border-radius:999px;background:var(--line);overflow:hidden}
+#progI{display:block;height:100%;width:0;background:var(--primary)}
+#progT{font:400 var(--s1)/1 var(--mono);color:var(--muted);white-space:nowrap}
+.namerow{display:flex;align-items:center;gap:8px}
+#fname{flex:1;min-width:0;padding:0 16px;text-align:left}
+.namerow span{font:400 var(--s1)/1 var(--mono);color:var(--muted)}
 </style>
 </head>
 <body>
@@ -143,6 +150,7 @@ figcaption{font:700 var(--s1)/1.4 var(--font)}
             <video id="vid" muted playsinline loop></video>
             <div id="crop" role="img" aria-label="crop frame, drag to move"></div>
           </div>
+          <div id="prog"><div id="progBar"><i id="progI"></i></div><span id="progT">0.0s / 5.0s</span></div>
         </div>
         <div class="row">
           <label for="startT">start at <b id="startV">0:00.0</b></label>
@@ -177,8 +185,7 @@ figcaption{font:700 var(--s1)/1.4 var(--font)}
         </figure>
       </div>
       <div class="meta"><span>loops <b id="loopV">5.0s</b></span><span><b id="estV">-</b></span></div>
-      <div class="meta"><span>est. file <b id="mbV">-</b></span></div>
-      <div class="meta"><b id="outInfo">&nbsp;</b></div>
+      <div class="meta"><span>est. file <b id="mbV">-</b></span><span>actual file <b id="outInfo">-</b></span></div>
       <div id="pCtl" class="locked">
         <div class="row first">
           <label for="dur">length <b id="durV">5.0s</b></label>
@@ -192,6 +199,10 @@ figcaption{font:700 var(--s1)/1.4 var(--font)}
             <button data-fps="20" class="on">20</button>
             <button data-fps="30">30</button>
           </div>
+        </div>
+        <div class="row">
+          <label for="fname">file name</label>
+          <div class="namerow"><input id="fname" type="text" value="keyboard" spellcheck="false" maxlength="60" autocomplete="off"><span>.gif</span></div>
         </div>
       </div>
       <div class="bar" id="bar"><i id="barI"></i></div>
@@ -224,6 +235,7 @@ const qs = new URLSearchParams(location.search).get('src'); if (qs) queueMicrota
 function load(f){
   if (S.url) URL.revokeObjectURL(S.url);
   S.url = URL.createObjectURL(f);
+  $('fname').value = f.name.replace(/\.[^.]+$/, '').replace(/[\/:*?"<>|]+/g, '').slice(0, 60) || 'keyboard';
   vid.src = S.url;
 }
 vid.addEventListener('error', () => alert('this browser cannot read that video. try mp4 (h.264) or webm.'));
@@ -245,10 +257,10 @@ function layout(){
   const sb = $('stageBox'), cs = getComputedStyle(sb);
   const box = $('editor').clientWidth - parseFloat(cs.paddingLeft) * 2 - parseFloat(cs.borderLeftWidth) * 2; if (box <= 0) return;
   // desktop: the viewer box fills the panel, the video sits inside it (contain). phone: width-bound.
-  const maxH = 420;
+  const maxH = 320;
   let w = box, h = w * S.vh / S.vw;
   if (h > maxH) { h = maxH; w = h * S.vw / S.vh; }
-  frame.style.width = w + 'px'; frame.style.height = h + 'px';
+  frame.style.width = w + 'px'; frame.style.height = h + 'px'; $('prog').style.width = w + 'px';
   S.dispW = w; S.dispH = h; paintCrop();
 }
 window.addEventListener('resize', layout);
@@ -356,6 +368,9 @@ function startLoop(){
       const end = Math.min(S.start + S.dur, vid.duration);
       if (vid.currentTime >= end || vid.currentTime < S.start - .05) vid.currentTime = S.start;
       draw();
+      const len = Math.max(.1, end - S.start), el = Math.min(len, Math.max(0, vid.currentTime - S.start));
+      $('progI').style.width = (el / len * 100) + '%';
+      $('progT').textContent = el.toFixed(1) + 's / ' + len.toFixed(1) + 's';
     }
     raf = requestAnimationFrame(tick);
   };
@@ -406,8 +421,8 @@ $('go').addEventListener('click', async () => {
   if (S.outUrl) URL.revokeObjectURL(S.outUrl);
   S.outUrl = URL.createObjectURL(blob);
   $('out').src = S.outUrl; S.actual = blob.size / n; label();
-  const a = document.createElement('a'); a.href = S.outUrl; a.download = 'keyboard.gif';
-  $('outInfo').textContent = `${W}×${H} · ${n} frames · ${(blob.size / 1024 / 1024).toFixed(2)} MB` + (blob.size > 15 * 1024 * 1024 ? ' · over 15 MB, lower fps or length' : '');
+  const a = document.createElement('a'); a.href = S.outUrl; a.download = (($('fname').value || '').replace(/\.gif$/i, '').replace(/[\/:*?"<>|]+/g, '').trim() || 'keyboard') + '.gif';
+  $('outInfo').textContent = `${(blob.size / 1024 / 1024).toFixed(2)} MB` + (blob.size > 15 * 1024 * 1024 ? ' (over 15 MB)' : '');
   $('result').classList.add('on'); bar.classList.remove('on');
   S.busy = false; $('go').disabled = false;
   a.click(); // download straight away; the button stays for a second copy
