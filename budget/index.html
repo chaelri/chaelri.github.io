@@ -9,7 +9,7 @@
   :root{
     --paper:#F3EEE4; --ink:#1F2A2E; --muted:#4A565A; --primary:#2F5D50; --shape:#DCE6D5; --accent:#A8341C;
     --line:#D9D2C3; --on-dark:#fff; --card:#fbf8f1; --sage:#DDAE45;
-    --s0:1rem; --s1:1.618rem; --s2:2.618rem; --s3:4.236rem;   /* x1.618 */
+    --s0:1rem; --s1:1.618rem; --s2:2.618rem; --s3:4.236rem; --s4:6.854rem;   /* x1.618 */
     --r1:8px; --r2:13px; --r3:21px;                              /* x1.618 */
     --cols:minmax(0,1fr) 104px 128px 144px;
     --font:"Outfit","Avenir Next",system-ui,-apple-system,"Segoe UI",sans-serif;
@@ -147,6 +147,43 @@
   .s-ku{background:var(--sage);color:var(--ink)}
   .s-mp{background:var(--accent);color:var(--on-dark)}
   @media(max-width:640px){.tile .v{font-size:var(--s1)}.tile{padding:16px}}
+
+  /* presentation mode: one line at a time, quick transition */
+  #pres{position:fixed;inset:0;z-index:50;background:var(--paper);display:none;flex-direction:column}
+  body.presenting{overflow:hidden}
+  body.presenting #pres{display:flex}
+  .p-bar{height:8px;background:var(--line);flex:none}
+  .p-bar i{display:block;height:100%;width:0;background:var(--primary);transition:width .3s cubic-bezier(.2,.8,.2,1)}
+  .p-top{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:16px 32px;flex:none}
+  .p-top b{font-weight:700}
+  .p-main{flex:1;display:flex;align-items:center;justify-content:center;padding:16px 32px;min-height:0}
+  .sl{width:100%;max-width:960px;opacity:0;transform:translateY(16px)}
+  .sl.in{opacity:1;transform:none;transition:opacity .22s ease-out,transform .22s ease-out}
+  .sl.out{opacity:0;transform:translateY(-8px);transition:opacity .12s ease-in,transform .12s ease-in}
+  .sl h2{font-size:var(--s2);line-height:.95;letter-spacing:-.01em;font-weight:700;margin:0 0 32px}
+  .sl-row{display:flex;align-items:flex-end;gap:32px;flex-wrap:wrap}
+  .sl-b{display:flex;flex-direction:column;gap:8px;color:var(--muted);padding-bottom:16px}
+  .sl-b s{font-size:var(--s1);text-decoration-thickness:2px}
+  .sl-a{font-size:var(--s4);line-height:.9;font-weight:700;color:var(--primary);letter-spacing:-.02em}
+  .sl-a.gone{color:var(--muted)}
+  .sl-s{font-size:var(--s1);margin:32px 0 0;color:var(--primary);font-weight:700}
+  .sl-s.same{color:var(--muted);font-weight:400}
+  .sl-c{display:inline-block;margin-top:32px;background:var(--accent);color:var(--on-dark);border-radius:var(--r2);padding:16px 24px;font-size:var(--s1);font-weight:700}
+  .sl-g{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:32px}
+  .sl-g .tile{min-height:104px}
+  .p-nav{display:flex;justify-content:space-between;gap:16px;padding:16px 32px 32px;flex:none}
+  .p-nav .btn{height:48px;min-width:128px;font-weight:700}
+  .p-nav .btn.go{background:var(--primary);color:var(--on-dark);border-color:var(--primary)}
+  .p-nav .btn[disabled]{opacity:.4;cursor:default}
+  @media(max-width:640px){
+    .p-top,.p-main,.p-nav{padding-left:16px;padding-right:16px}
+    .sl h2{font-size:var(--s1)}
+    .sl-a{font-size:var(--s3)}
+    .sl-row{gap:16px}
+    .sl-g{grid-template-columns:1fr}
+    .p-nav .btn{flex:1;height:48px}
+  }
+  @media(prefers-reduced-motion:reduce){.sl.in,.sl.out,.p-bar i{transition:none}}
 </style>
 </head>
 <body class="">
@@ -158,6 +195,7 @@
       <span class="sync" id="sync" aria-live="polite"></span>
       <button class="btn" id="reset">Back to default</button>
       <button class="btn" id="copy">Copy summary</button>
+      <button class="btn" id="presBtn">Presentation</button>
       <button class="btn" id="modeBtn"></button>
     </div>
   </div>
@@ -183,6 +221,13 @@
     </section>
   </div>
 </main>
+
+<div id="pres" role="dialog" aria-modal="true" aria-label="Presentation">
+  <div class="p-bar"><i id="pBar"></i></div>
+  <div class="p-top"><b id="pGrp"></b><span class="muted num" id="pCnt"></span><button class="btn" id="pX">Exit</button></div>
+  <div class="p-main"><div class="sl" id="sl"></div></div>
+  <div class="p-nav"><button class="btn" id="pBack">Back</button><button class="btn go" id="pNext">Next</button></div>
+</div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -342,6 +387,66 @@ document.querySelectorAll('.fld input').forEach(i=>{
   i.addEventListener('input',()=>{ calc(); mark(i.id); });
   i.addEventListener('blur',()=>{ i.value = fmt(num(i.id)); calc(); });
   i.addEventListener('focus',()=>i.select());
+});
+
+/* presentation mode */
+let steps = [], si = 0, busy = false;
+function buildSteps(){
+  const {v,mer,groc,daddyCov,gcov,coverTotal,each,fixedB} = last;
+  const out = [{g:'Overview', kind:'intro'}];
+  const item = (g,name,b,a,cov,removed) => out.push({g,kind:'item',name,b,a,cov,removed});
+  item('Medicine',LABEL.papa,BEFORE.papa,v.papa); item('Medicine',LABEL.mama,BEFORE.mama,v.mama);
+  ['gas','dw','mw','pldt','tax'].forEach(k=>item('Bills',LABEL[k],BEFORE[k],v[k]));
+  item('Bills','Meralco',MER_B,mer);
+  item('Food',LABEL.rice,BEFORE.rice,v.rice);
+  item('Food','Groceries, what is left',GROC_B,groc,gcov);
+  item('Mama and Papa',LABEL.daddy,BEFORE.daddy,v.daddy,daddyCov);
+  ['papaal','mamaal'].forEach(k=>item('Removed',LABEL[k],BEFORE[k],v[k],0,v[k]===0));
+  out.push({g:'Summary',kind:'end'});
+  return out;
+}
+function slideHTML(s){
+  const {v,groc,daddyCov,gcov,coverTotal,each,fixedB,afterAll} = last;
+  if(s.kind==='intro') return `<h2>Monthly budget</h2><div class="sl-row"><div class="sl-b"><span>Before</span><s class="num">${fmt(fixedB)}</s></div><div class="sl-a num" data-v="${v.target+v.kx}">${fmt(v.target+v.kx)}</div></div>
+    <div class="sl-g"><div class="tile t-ch"><div class="k">Charlie</div><div class="v num">${fmt(each)}</div></div><div class="tile t-ku"><div class="k">Kuya</div><div class="v num">${fmt(each+v.kx)}</div></div><div class="tile t-mp"><div class="k">Mama and Papa</div><div class="v num">${fmt(coverTotal)}</div></div></div>`;
+  if(s.kind==='end') return `<h2>Mama and Papa cover</h2><div class="sl-row"><div class="sl-a num" style="color:var(--accent)" data-v="${coverTotal}">${fmt(coverTotal)}</div></div>
+    <p class="sl-s same">${[daddyCov>0?'Daddy pakinabang '+fmt(daddyCov):'',gcov>0?'groceries '+fmt(gcov):''].filter(Boolean).join(' + ')||'Nothing to cover'} a month</p>
+    <div class="sl-g"><div class="tile t-ch"><div class="k">Charlie</div><div class="v num">${fmt(each)}</div></div><div class="tile t-ku"><div class="k">Kuya</div><div class="v num">${fmt(each+v.kx)}</div></div><div class="tile t-gro"><div class="k">Left for groceries</div><div class="v num">${fmt(groc)}</div></div></div>`;
+  const diff = r2(s.b - s.a);
+  const note = s.removed ? 'Removed' : diff>0 ? 'Saves '+fmt(diff)+' a month' : diff<0 ? 'Up '+fmt(-diff)+' a month' : 'No change';
+  return `<h2>${s.name}</h2><div class="sl-row"><div class="sl-b"><span>Before</span><s class="num">${fmt(s.b)}</s></div>${s.removed?'<div class="sl-a gone">Removed</div>':`<div class="sl-a num" data-v="${s.a}">${fmt(s.a)}</div>`}</div>
+    ${s.cov>0?'':`<p class="sl-s ${diff===0&&!s.removed?'same':''}">${s.removed?'Saves '+fmt(s.b)+' a month':note}</p>`}${s.cov>0?`<div class="sl-c">Mama and Papa ${fmt(s.cov)}</div>`:''}`;
+}
+function countUp(el){
+  const to = parseFloat(el.dataset.v); if(!(to>0) || matchMedia('(prefers-reduced-motion:reduce)').matches) return;
+  const t0 = performance.now(), D = 420;
+  const f = t => { const p = Math.min((t-t0)/D,1), e = 1-Math.pow(1-p,3); el.textContent = fmt(to*e); if(p<1) requestAnimationFrame(f); else el.textContent = fmt(to); };
+  requestAnimationFrame(f);
+}
+function showStep(n, instant){
+  si = n; const s = steps[si], sl = $('sl');
+  const paint = () => {
+    sl.innerHTML = slideHTML(s);
+    $('pGrp').textContent = s.g; $('pCnt').textContent = (si+1)+' / '+steps.length;
+    $('pBar').style.width = ((si+1)/steps.length*100)+'%';
+    $('pBack').disabled = si===0; $('pNext').textContent = si===steps.length-1 ? 'Done' : 'Next';
+    sl.classList.remove('out'); void sl.offsetWidth; sl.classList.add('in');
+    sl.querySelectorAll('.sl-a[data-v]').forEach(countUp);
+    busy = false;
+  };
+  if(instant){ paint(); return; }
+  busy = true; sl.classList.remove('in'); sl.classList.add('out'); setTimeout(paint,120);
+}
+function openPres(){ calc(); steps = buildSteps(); document.body.classList.add('presenting'); showStep(0,true); }
+function closePres(){ document.body.classList.remove('presenting'); $('sl').className='sl'; $('presBtn').focus(); }
+function pNext(){ if(busy) return; if(si>=steps.length-1) closePres(); else showStep(si+1); }
+function pBack(){ if(busy||si===0) return; showStep(si-1); }
+$('presBtn').onclick=openPres; $('pX').onclick=closePres; $('pNext').onclick=pNext; $('pBack').onclick=pBack;
+document.addEventListener('keydown',e=>{
+  if(!document.body.classList.contains('presenting')) return;
+  if(e.key==='Escape'){ closePres(); }
+  else if(['ArrowRight','ArrowDown','PageDown',' ','Enter'].includes(e.key)){ e.preventDefault(); pNext(); }
+  else if(['ArrowLeft','ArrowUp','PageUp','Backspace'].includes(e.key)){ e.preventDefault(); pBack(); }
 });
 $('modeBtn').onclick=()=>setMode(mode==='edit'?'present':'edit');
 $('tog').onclick=toggleKids; $('tog').onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); toggleKids(); } };
