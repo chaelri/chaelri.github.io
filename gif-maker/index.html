@@ -63,6 +63,12 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
 .seg{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
 .seg button{min-height:48px;border-radius:var(--r1);border:1px solid var(--line);background:transparent;color:var(--ink);font:400 var(--s1)/1 var(--mono);cursor:pointer}
 .seg button.on{border-color:var(--primary);color:var(--primary);background:rgba(79,227,161,.1)}
+#tl{position:relative;height:48px;border-radius:var(--r1);background:var(--paper);border:1px solid var(--line);touch-action:none;cursor:pointer}
+#win{position:absolute;top:0;bottom:0;left:0;min-width:16px;background:rgba(255,179,71,.28);border:2px solid var(--accent);border-radius:var(--r1);cursor:grab}
+#win:active{cursor:grabbing}
+.tlrow{display:grid;grid-template-columns:64px 1fr 64px;gap:8px}
+.btn.sm{min-height:48px;padding:0}
+#startT{min-height:48px;border-radius:var(--r1);border:1px solid var(--line);background:var(--paper);color:var(--ink);font:400 var(--s1)/1 var(--mono);text-align:center}
 .note{color:var(--muted);font:400 var(--s1)/1.4 var(--font);margin-top:8px}
 .note.hand{color:var(--accent)}
 
@@ -76,7 +82,7 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
 .actions{display:flex;flex-direction:column;gap:16px;margin-top:24px}
 #result{display:none;margin-top:24px;text-align:center}
 #result.on{display:block}
-#result img{width:135px;height:240px;border-radius:var(--r1);border:1px solid var(--line);display:block;margin:0 auto 16px}
+#result img{width:270px;height:480px;image-rendering:pixelated;border-radius:var(--r1);border:1px solid var(--line);display:block;margin:0 auto 16px}
 #again{margin-top:16px}
 </style>
 </head>
@@ -103,8 +109,14 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
         </div>
 
         <div class="row">
-          <label for="start">start <b id="startV">0.0s</b></label>
-          <input id="start" type="range" min="0" max="1" step="0.1" value="0">
+          <label for="startT">start at <b id="startV">0:00.0</b></label>
+          <div id="tl" aria-label="timeline, drag the amber window"><div id="win"></div></div>
+          <div class="tlrow">
+            <button class="btn ghost sm" id="m1" aria-label="back 1 second">-1s</button>
+            <input id="startT" type="text" value="0:00" inputmode="decimal" aria-label="start time, like 2:35 or 155">
+            <button class="btn ghost sm" id="p1" aria-label="forward 1 second">+1s</button>
+          </div>
+          <p class="note"><span id="totV"></span> total. type a time like 2:35, or drag the amber window.</p>
         </div>
         <div class="row">
           <label for="dur">length <b id="durV">5.0s</b></label>
@@ -182,8 +194,8 @@ vid.addEventListener('error', () => alert('this browser cannot read that video. 
 vid.addEventListener('loadedmetadata', () => {
   S.vw = vid.videoWidth; S.vh = vid.videoHeight;
   drop.style.display = 'none'; $('editor').classList.add('on'); $('again').style.display = 'block'; $('go').disabled = false;
-  const t = $('start'); t.max = Math.max(0, vid.duration - 1).toFixed(1); t.value = 0;
-  S.start = 0; setDur(Math.min(5, vid.duration));
+  S.start = 0; setDur(Math.min(5, vid.duration)); $('startT').value = '0:00';
+  $('totV').textContent = fmt(vid.duration);
   $('dur').max = Math.min(10, Math.floor(vid.duration * 2) / 2) || 1;
   $('dur').value = S.dur;
   $('zoom').value = 1;
@@ -233,14 +245,35 @@ $('zoom').addEventListener('input', setZoom);
 
 /* ---------- time ---------- */
 function setDur(d){ S.dur = d; }
-$('start').addEventListener('input', () => { S.start = +$('start').value; vid.currentTime = S.start; label(); });
-$('dur').addEventListener('input', () => { S.dur = +$('dur').value; label(); });
+const fmt = t => { const m = Math.floor(t / 60), s = t - m * 60; return m + ':' + (s < 10 ? '0' : '') + s.toFixed(1); };
+const parseT = v => { const p = v.trim().split(':').map(Number); if (p.some(isNaN) || !v.trim()) return NaN; return p.reduce((a, x) => a * 60 + x, 0); };
+function setStart(t){
+  S.start = Math.min(Math.max(0, t), Math.max(0, vid.duration - S.dur));
+  S.start = Math.round(S.start * 10) / 10;
+  $('startT').value = fmt(S.start).replace(/\.0$/, ''); vid.currentTime = S.start; label();
+}
+$('startT').addEventListener('change', () => { const t = parseT($('startT').value); if (!isNaN(t)) setStart(t); else setStart(S.start); });
+$('startT').addEventListener('keydown', e => { if (e.key === 'Enter') e.target.blur(); });
+$('m1').addEventListener('click', () => setStart(S.start - 1));
+$('p1').addEventListener('click', () => setStart(S.start + 1));
+const tl = $('tl');
+let tdrag = null;
+const tlT = e => { const r = tl.getBoundingClientRect(); return (e.clientX - r.left) / r.width * vid.duration; };
+tl.addEventListener('pointerdown', e => {
+  tl.setPointerCapture(e.pointerId);
+  const inWin = e.target === $('win'); tdrag = {off: inWin ? tlT(e) - S.start : S.dur / 2}; setStart(tlT(e) - tdrag.off);
+});
+tl.addEventListener('pointermove', e => { if (tdrag) setStart(tlT(e) - tdrag.off); });
+tl.addEventListener('pointerup', () => tdrag = null);
+tl.addEventListener('pointercancel', () => tdrag = null);
+$('dur').addEventListener('input', () => { S.dur = +$('dur').value; setStart(S.start); });
 document.querySelectorAll('#fps button').forEach(b => b.addEventListener('click', () => {
   document.querySelectorAll('#fps button').forEach(x => x.classList.remove('on')); b.classList.add('on'); S.fps = +b.dataset.fps; label();
 }));
 function label(){
   const end = Math.min(S.start + S.dur, vid.duration || 0);
-  $('startV').textContent = S.start.toFixed(1) + 's';
+  $('startV').textContent = fmt(S.start);
+  const dd = vid.duration || 1, w = $('win'); w.style.left = (S.start / dd * 100) + '%'; w.style.width = ((end - S.start) / dd * 100) + '%';
   $('durV').textContent = S.dur.toFixed(1) + 's';
   $('loopV').textContent = (end - S.start).toFixed(1) + 's';
   $('zoomV').textContent = (S.vw / S.cw / (S.vw / maxCw())).toFixed(1) + '×';
@@ -263,7 +296,23 @@ function startLoop(){
   };
   tick();
 }
-function draw(){ pctx.drawImage(vid, S.cx, S.cy, S.cw, S.cw * H / W, 0, 0, W, H); }
+// clearer downscale: high-quality 2x pass, then 1x pass, then a light sharpen (same for preview and export)
+const mid = document.createElement('canvas'); mid.width = W * 2; mid.height = H * 2;
+const mctx = mid.getContext('2d'); mctx.imageSmoothingQuality = 'high';
+const SHARP = .6;
+function draw(){
+  mctx.drawImage(vid, S.cx, S.cy, S.cw, S.cw * H / W, 0, 0, W * 2, H * 2);
+  pctx.drawImage(mid, 0, 0, W, H);
+  const im = pctx.getImageData(0, 0, W, H), s = im.data, o = new Uint8ClampedArray(s);
+  for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
+    const i = (y * W + x) * 4;
+    for (let c = 0; c < 3; c++) {
+      const k = i + c;
+      o[k] = s[k] * (1 + 4 * SHARP) - SHARP * (s[k - 4] + s[k + 4] + s[k - W * 4] + s[k + W * 4]);
+    }
+  }
+  im.data.set(o); pctx.putImageData(im, 0, 0);
+}
 
 /* ---------- export ---------- */
 const seek = t => new Promise(res => { const f = () => { vid.removeEventListener('seeked', f); res(); }; vid.addEventListener('seeked', f); vid.currentTime = t; });
@@ -279,12 +328,10 @@ $('go').addEventListener('click', async () => {
     bi.style.width = (i / n * 70) + '%';
     if (i % 4 === 0) await new Promise(r => setTimeout(r));
   }
-  // one shared palette sampled from every 3rd frame: no flicker between frames
-  const picks = frames.filter((_, i) => i % 3 === 0), sample = new Uint8ClampedArray(picks.length * W * H * 4);
-  picks.forEach((d, i) => sample.set(d, i * W * H * 4));
-  const palette = quantize(sample, 256);
+  // own 256-colour palette per frame: truer colours and skin tones than one shared palette
   const gif = GIFEncoder();
   for (let i = 0; i < n; i++) {
+    const palette = quantize(frames[i], 256);
     gif.writeFrame(applyPalette(frames[i], palette), W, H, {palette, delay: 1000 / S.fps, repeat: 0});
     bi.style.width = (70 + i / n * 30) + '%';
     if (i % 8 === 0) await new Promise(r => setTimeout(r));
