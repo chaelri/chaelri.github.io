@@ -18,7 +18,7 @@ One line per project. Full detail (tech, deploy, quirks) lives in `knowledge/hub
 - `laro/rambulan/`, `laro/karera/` — offline three.js brawl royale + kart racer, phones as controllers (local)
 - `phone-drop/` — iPhone → Mac file receiver via QR (local)
 - `splat/` — Gaussian-splat viewer + isolation script
-- `claude-usage/` — menu bar Claude plan usage % (LaunchAgent) + VS Code twin
+- `claude-usage/` — menu bar Claude plan usage % (LaunchAgent) + VS Code twin + Windows tray icon (`windows/`)
 - `diskscope/` — local disk-usage browser (`python3 serve.py`)
 - `mac-toggle/` — RTDB remote for Mac display sleep (root LaunchDaemon agent)
 - `collaterals/` — wedding print collaterals studio (SVG → PNG → Drive)

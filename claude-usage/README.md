@@ -394,3 +394,11 @@ Line Tools are enough — no Homebrew, no SwiftBar, no Xcode project.
 
 `mac-toggle/menubar/` is the sibling menu bar app (display-sleep toggle). Same
 shape: a single Swift file, a per-user LaunchAgent, no root.
+
+## Windows (tray icon)
+
+`windows/` is the Windows twin: a tray icon with the session % drawn on it (green < 60, amber < 85, red above),
+tooltip with session + weekly, click for the full list with reset times. Same endpoint; the token is read from
+`%USERPROFILE%\.claude\.credentials.json` on every refresh. `windows\build.ps1` builds `bin\ClaudeUsage.exe` (csc, no
+dependencies); `windows\install.ps1` copies it to `%LOCALAPPDATA%\ClaudeUsage` and registers a logon task.
+Windows hides new tray icons in the overflow flyout: drag it onto the taskbar once.
