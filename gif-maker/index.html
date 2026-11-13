@@ -123,9 +123,14 @@ figcaption{font:700 var(--s1)/1.4 var(--font)}
 .namerow{display:flex;align-items:center;gap:8px}
 #fname{flex:1;min-width:0;padding:0 16px;text-align:left}
 .namerow span{font:400 var(--s1)/1 var(--mono);color:var(--muted)}
+/* upload screen: just the title and the drop zone */
+.empty main{grid-template-columns:minmax(0,720px);justify-content:center}
+.empty main > .panel + .panel{display:none}
+.empty header{width:100%;max-width:720px;margin-left:auto;margin-right:auto}
+.empty #drop{min-height:360px}
 </style>
 </head>
-<body>
+<body class="empty">
 <div class="wrap">
   <header>
     <div>
@@ -229,7 +234,7 @@ drop.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') 
 ['dragleave','drop'].forEach(t => window.addEventListener(t, e => { e.preventDefault(); if (t === 'dragleave' && e.relatedTarget) return; drop.classList.remove('over'); }));
 window.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) load(f); });
 file.addEventListener('change', () => { if (file.files[0]) load(file.files[0]); });
-$('again').addEventListener('click', () => { vid.pause(); $('editor').classList.remove('on'); drop.style.display = ''; $('again').style.display = 'none'; $('go').disabled = true; $('pCtl').classList.add('locked'); $('result').classList.remove('on'); file.value = ''; });
+$('again').addEventListener('click', () => { document.body.classList.add('empty'); vid.pause(); $('editor').classList.remove('on'); drop.style.display = ''; $('again').style.display = 'none'; $('go').disabled = true; $('pCtl').classList.add('locked'); $('result').classList.remove('on'); file.value = ''; });
 
 const qs = new URLSearchParams(location.search).get('src'); if (qs) queueMicrotask(() => { vid.src = qs; });
 function load(f){
@@ -240,6 +245,7 @@ function load(f){
 }
 vid.addEventListener('error', () => alert('this browser cannot read that video. try mp4 (h.264) or webm.'));
 vid.addEventListener('loadedmetadata', () => {
+  document.body.classList.remove('empty');
   S.vw = vid.videoWidth; S.vh = vid.videoHeight;
   drop.style.display = 'none'; $('editor').classList.add('on'); $('again').style.display = ''; $('go').disabled = false; $('pCtl').classList.remove('locked');
   S.start = 0; setDur(Math.min(5, vid.duration)); $('startT').value = '0:00';
