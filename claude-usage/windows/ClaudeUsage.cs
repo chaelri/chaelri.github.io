@@ -1,4 +1,4 @@
-// Claude plan usage as a Windows tray icon: the session % is drawn on the icon itself.
+// Claude plan usage as a Windows tray icon: the session % is drawn on the icon, click it for a small card.
 // Same data source as the macOS menu bar app: GET /api/oauth/usage with the Claude Code OAuth token.
 // Build: build.ps1 (csc, no dependencies).
 using System;
@@ -8,7 +8,6 @@ using System.Drawing.Drawing2D;
 using System.Drawing.Text;
 using System.IO;
 using System.Net;
-using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
@@ -18,17 +17,23 @@ using System.Windows.Forms;
 static class Program
 {
     const int PollMs = 5 * 60 * 1000;
+    // Claude-ish dark palette
+    static readonly Color Bg = Color.FromArgb(0x1F, 0x1E, 0x1D), Line = Color.FromArgb(0x3A, 0x38, 0x35), Track = Color.FromArgb(0x3A, 0x38, 0x35);
+    static readonly Color Ink = Color.FromArgb(0xF5, 0xF4, 0xEE), Muted = Color.FromArgb(0xA3, 0xA0, 0x96);
+    static readonly Color Clay = Color.FromArgb(0xD9, 0x77, 0x57), Rust = Color.FromArgb(0xB4, 0x41, 0x2A);
+
     static NotifyIcon ni;
-    static ContextMenuStrip menu;
     static System.Windows.Forms.Timer timer;
     static Icon currentIcon;
     static Control inv; // UI-thread marshaller
+    static Popup popup;
     static string lastError;
     static DateTime lastOk = DateTime.MinValue;
     static ArrayList rows = new ArrayList(); // each: object[] { label, percent(double), resetsAt(DateTime?) }
 
-    [DllImport("user32.dll", CharSet = CharSet.Auto)]
-    static extern bool DestroyIcon(IntPtr h);
+    [DllImport("user32.dll")] static extern bool SetProcessDPIAware();
+    [DllImport("user32.dll", CharSet = CharSet.Auto)] static extern bool DestroyIcon(IntPtr h);
+    [DllImport("dwmapi.dll")] static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int val, int size);
 
     [STAThread]
     static void Main()
@@ -37,21 +42,16 @@ static class Program
         using (var mutex = new Mutex(true, "ClaudeUsageTray", out created))
         {
             if (!created) return;
+            SetProcessDPIAware();
             Application.EnableVisualStyles();
-            inv = new Control(); inv.CreateControl(); IntPtr unused = inv.Handle;
             ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072; // TLS 1.2
+            inv = new Control(); inv.CreateControl(); IntPtr unused = inv.Handle;
 
-            menu = new ContextMenuStrip();
-            ni = new NotifyIcon { Visible = true, ContextMenuStrip = menu, Text = "Claude usage" };
-            ni.MouseUp += delegate(object s, MouseEventArgs e)
-            {
-                if (e.Button != MouseButtons.Left) return;
-                BuildMenu();
-                typeof(NotifyIcon).GetMethod("ShowContextMenu", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(ni, null);
-            };
-            menu.Opening += delegate { BuildMenu(); };
+            popup = new Popup();
+            ni = new NotifyIcon { Visible = true, Text = "Claude usage" };
+            ni.MouseUp += delegate(object s, MouseEventArgs e) { popup.Toggle(); };
 
-            SetIcon("...", Color.FromArgb(0xD9, 0x77, 0x57));
+            SetIcon("...", Clay);
             timer = new System.Windows.Forms.Timer { Interval = PollMs };
             timer.Tick += delegate { Refresh(); };
             timer.Start();
@@ -124,6 +124,7 @@ static class Program
                 if (err == null) { rows = newRows; lastError = null; lastOk = DateTime.Now; }
                 else lastError = err;
                 Paint();
+                popup.Relayout();
             });
         });
     }
@@ -149,47 +150,48 @@ static class Program
     {
         if (rows.Count == 0)
         {
-            SetIcon("!", Color.FromArgb(0xB4, 0x41, 0x2A));
+            SetIcon("!", Rust);
             ni.Text = Trunc(lastError ?? "Claude usage");
             return;
         }
-        double session = (double)((object[])rows[0])[1];
-        int p = (int)Math.Round(session);
-        Color c = p >= 85 ? Color.FromArgb(0xB4, 0x41, 0x2A) : Color.FromArgb(0xD9, 0x77, 0x57); // Claude clay orange, deeper rust when nearly full
-        SetIcon(p.ToString(), c);
+        int p = (int)Math.Round((double)((object[])rows[0])[1]);
+        SetIcon(p.ToString(), p >= 85 ? Rust : Clay);
         var sb = new StringBuilder();
         foreach (object[] r in rows) { if (sb.Length > 0) sb.Append("  "); sb.Append(Short((string)r[0])).Append(' ').Append(Math.Round((double)r[1])).Append('%'); }
         ni.Text = Trunc(sb.ToString() + (lastError != null ? "  (stale)" : ""));
     }
-
     static string Short(string label) { return label.StartsWith("Session") ? "5h" : label.StartsWith("Weekly · all") ? "wk" : label.Replace("Weekly · ", ""); }
     static string Trunc(string s) { return s.Length > 120 ? s.Substring(0, 120) : s; }
 
+    // big, bold digits that fill the icon: tile in Claude clay, white glyph path centred by its real bounds
     static void SetIcon(string text, Color bg)
     {
-        int size = Math.Max(16, SystemInformation.SmallIconSize.Width) * 2; // draw 2x, Windows scales it down smoothly
+        int size = Math.Max(16, SystemInformation.SmallIconSize.Width);
         using (var bmp = new Bitmap(size, size))
         using (var g = Graphics.FromImage(bmp))
         {
             g.SmoothingMode = SmoothingMode.AntiAlias;
-            g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
+            g.PixelOffsetMode = PixelOffsetMode.HighQuality;
             g.Clear(Color.Transparent);
-            using (var path = RoundRect(new Rectangle(0, 0, size - 1, size - 1), size / 4))
-            using (var br = new SolidBrush(bg)) g.FillPath(br, path);
-            // draw the digits as a path, measure the real glyph bounds, scale to fit, and centre exactly in the tile
+            using (var tile = RoundRect(new RectangleF(0, 0, size, size), size * 0.22f))
+            using (var br = new SolidBrush(bg)) g.FillPath(br, tile);
             using (var gp = new GraphicsPath())
             {
                 gp.AddString(text, new FontFamily("Segoe UI"), (int)FontStyle.Bold, 100f, new PointF(0, 0), StringFormat.GenericTypographic);
                 RectangleF gb = gp.GetBounds();
-                float k = Math.Min(size * 0.82f / gb.Width, size * 0.62f / gb.Height);
-                using (var m = new Matrix())
+                float k = Math.Min(size * 0.86f / gb.Width, size * 0.68f / gb.Height);
+                using (var m = new System.Drawing.Drawing2D.Matrix())
                 {
                     m.Translate(-(gb.X + gb.Width / 2f), -(gb.Y + gb.Height / 2f));
                     m.Scale(k, k, MatrixOrder.Append);
                     m.Translate(size / 2f, size / 2f, MatrixOrder.Append);
                     gp.Transform(m);
                 }
-                g.FillPath(Brushes.White, gp);
+                using (var pen = new Pen(Color.White, Math.Max(0.6f, size * 0.035f)) { LineJoin = LineJoin.Round })
+                {
+                    g.FillPath(Brushes.White, gp);
+                    g.DrawPath(pen, gp); // a hair of stroke makes thin digits read as bold at 16-24 px
+                }
             }
             IntPtr h = bmp.GetHicon();
             Icon old = currentIcon;
@@ -200,36 +202,12 @@ static class Program
         }
     }
 
-    static GraphicsPath RoundRect(Rectangle r, int radius)
+    static GraphicsPath RoundRect(RectangleF r, float radius)
     {
-        var p = new GraphicsPath(); int d = radius * 2;
+        var p = new GraphicsPath(); float d = radius * 2;
         p.AddArc(r.X, r.Y, d, d, 180, 90); p.AddArc(r.Right - d, r.Y, d, d, 270, 90);
         p.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90); p.AddArc(r.X, r.Bottom - d, d, d, 90, 90);
         p.CloseFigure(); return p;
-    }
-
-    // ---------- menu ----------
-    static void BuildMenu()
-    {
-        menu.Items.Clear();
-        if (lastError != null)
-        {
-            var e = menu.Items.Add(lastError); e.Enabled = false;
-            menu.Items.Add("-");
-        }
-        foreach (object[] r in rows)
-        {
-            var head = menu.Items.Add(string.Format("{0}   {1}%", r[0], Math.Round((double)r[1])));
-            head.Font = new Font(head.Font, FontStyle.Bold); head.Enabled = false; head.ForeColor = Color.Black;
-            DateTime? t = (DateTime?)r[2];
-            var sub = menu.Items.Add(t.HasValue ? "resets " + Fmt(t.Value) : "reset time unknown"); sub.Enabled = false;
-        }
-        if (rows.Count > 0) menu.Items.Add("-");
-        var upd = menu.Items.Add(lastOk == DateTime.MinValue ? "Not updated yet" : "Updated " + lastOk.ToString("h:mm tt")); upd.Enabled = false;
-        menu.Items.Add("Refresh", null, delegate { Refresh(); });
-        menu.Items.Add("Usage settings...", null, delegate { System.Diagnostics.Process.Start("https://claude.ai/settings/usage"); });
-        menu.Items.Add("-");
-        menu.Items.Add("Quit", null, delegate { Application.Exit(); });
     }
 
     static string Fmt(DateTime t)
@@ -239,5 +217,107 @@ static class Program
             : d.TotalDays < 1 ? "in " + (int)d.TotalHours + "h " + d.Minutes + "m" : "in " + (int)d.TotalDays + "d " + d.Hours + "h";
         string when = d.TotalHours < 20 ? t.ToString("h:mm tt") : t.ToString("ddd h:mm tt");
         return when + " · " + rel;
+    }
+
+    // ---------- the card shown on click ----------
+    class Popup : Form
+    {
+        float s = 1f;
+        int hiddenAt;
+        Rectangle[] hit = new Rectangle[3]; // refresh, usage, quit
+        int hover = -1;
+        static readonly string[] Names = { "Refresh", "Usage", "Quit" };
+
+        public Popup()
+        {
+            FormBorderStyle = FormBorderStyle.None; ShowInTaskbar = false; TopMost = true; StartPosition = FormStartPosition.Manual;
+            BackColor = Bg; DoubleBuffered = true; KeyPreview = true;
+            KeyDown += delegate(object o, KeyEventArgs e) { if (e.KeyCode == Keys.Escape) Hide(); };
+        }
+        protected override CreateParams CreateParams { get { var cp = base.CreateParams; cp.ExStyle |= 0x80; return cp; } } // tool window: no alt-tab entry
+        protected override void OnDeactivate(EventArgs e) { base.OnDeactivate(e); hiddenAt = Environment.TickCount; Hide(); }
+
+        public void Toggle()
+        {
+            if (Visible) { Hide(); return; }
+            if (Environment.TickCount - hiddenAt < 250) return; // the click that closed it also hit the icon
+            Relayout();
+            Rectangle wa = Screen.FromPoint(Cursor.Position).WorkingArea;
+            int x = Math.Min(Math.Max(wa.Left + 8, Cursor.Position.X - Width / 2), wa.Right - Width - 8);
+            Location = new Point(x, wa.Bottom - Height - 8);
+            Show(); Activate();
+            int round = 2; DwmSetWindowAttribute(Handle, 33, ref round, 4); // Win11 rounded corners
+        }
+
+        public void Relayout()
+        {
+            using (var g = CreateGraphics()) s = g.DpiX / 96f;
+            int rowsN = Math.Max(1, rows.Count);
+            int h = P(16) + (lastError != null ? P(44) : 0) + rowsN * P(76) + P(52);
+            Size = new Size(P(360), h);
+            Invalidate();
+        }
+        int P(float v) { return (int)Math.Round(v * s); }
+        Font F(float px) { return new Font("Segoe UI", px * s, FontStyle.Regular, GraphicsUnit.Pixel); }
+        Font FB(float px) { return new Font("Segoe UI", px * s, FontStyle.Bold, GraphicsUnit.Pixel); }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            Graphics g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias; g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
+            int pad = P(20), w = Width, y = P(16);
+            var fmtL = new StringFormat { Trimming = StringTrimming.EllipsisCharacter, FormatFlags = StringFormatFlags.NoWrap };
+            var fmtR = new StringFormat { Alignment = StringAlignment.Far };
+            using (var f14 = F(14)) using (var f16b = FB(16)) using (var f13 = F(13))
+            {
+                if (lastError != null)
+                {
+                    using (var br = new SolidBrush(Clay)) g.DrawString(lastError, f14, br, new RectangleF(pad, y, w - pad * 2, P(40)));
+                    y += P(44);
+                }
+                foreach (object[] r in rows)
+                {
+                    double pct = (double)r[1]; DateTime? t = (DateTime?)r[2];
+                    using (var br = new SolidBrush(Muted)) g.DrawString((string)r[0], f14, br, new RectangleF(pad, y, w - pad * 2 - P(70), P(22)), fmtL);
+                    using (var br = new SolidBrush(Ink)) g.DrawString(Math.Round(pct) + "%", f16b, br, new RectangleF(pad, y - P(2), w - pad * 2, P(24)), fmtR);
+                    var track = new RectangleF(pad, y + P(28), w - pad * 2, P(8));
+                    using (var gp = RoundRect(track, track.Height / 2)) using (var br = new SolidBrush(Track)) g.FillPath(br, gp);
+                    float fw = (float)Math.Max(0, Math.Min(100, pct)) / 100f * track.Width;
+                    if (fw >= 1)
+                    {
+                        fw = Math.Max(fw, track.Height);
+                        using (var gp = RoundRect(new RectangleF(track.X, track.Y, fw, track.Height), track.Height / 2)) using (var br = new SolidBrush(pct >= 85 ? Rust : Clay)) g.FillPath(br, gp);
+                    }
+                    using (var br = new SolidBrush(Muted)) g.DrawString(t.HasValue ? "resets " + Fmt(t.Value) : "reset time unknown", f13, br, pad, y + P(44));
+                    y += P(76);
+                }
+                // footer
+                using (var pen = new Pen(Line)) g.DrawLine(pen, pad, y, w - pad, y);
+                using (var br = new SolidBrush(Muted)) g.DrawString(lastOk == DateTime.MinValue ? "Not updated yet" : "Updated " + lastOk.ToString("h:mm tt"), f13, br, pad, y + P(16));
+                int rx = w - pad;
+                for (int i = 2; i >= 0; i--)
+                {
+                    SizeF sz = g.MeasureString(Names[i], f14);
+                    int bw = (int)sz.Width + P(8), bx = rx - bw;
+                    hit[i] = new Rectangle(bx, y + P(10), bw, P(30));
+                    using (var br = new SolidBrush(hover == i ? Clay : Ink)) g.DrawString(Names[i], f14, br, bx + P(4), y + P(15));
+                    rx = bx - P(10);
+                }
+            }
+            using (var pen = new Pen(Line)) g.DrawRectangle(pen, 0, 0, Width - 1, Height - 1);
+        }
+
+        protected override void OnMouseMove(MouseEventArgs e)
+        {
+            int h = -1; for (int i = 0; i < 3; i++) if (hit[i].Contains(e.Location)) h = i;
+            if (h != hover) { hover = h; Cursor = h >= 0 ? Cursors.Hand : Cursors.Default; Invalidate(); }
+        }
+        protected override void OnMouseLeave(EventArgs e) { if (hover != -1) { hover = -1; Invalidate(); } }
+        protected override void OnMouseUp(MouseEventArgs e)
+        {
+            if (hover == 0) Refresh();
+            else if (hover == 1) { Hide(); System.Diagnostics.Process.Start("https://claude.ai/settings/usage"); }
+            else if (hover == 2) Application.Exit();
+        }
     }
 }
