@@ -152,7 +152,8 @@ Mobile-first, 16px side gutter, primary/shape as the only large colour areas. Bu
 5. **Test the odd inputs.** Portrait source video (9:16 and 1080x1920), very short clips, empty/cleared fields, a second drop while editing. Check the crop frame stays inside the video and the layout still balances.
 6. **Small glyphs need breathing room.** In an icon, the digits/glyph occupy about 60% of the tile with clear colour all around, never touching the edge (tray icon: width 62%, height 50% of the tile).
 7. **No dead helper text.** Do not explain what the UI already shows (no "drag the amber window", no limit captions); show limits as live numbers (`5.0s / 12.8s max`, `est. file` next to `actual file`).
-8. **Every top-level script constant is defined before first use** (a `$` helper used before its `const` broke the whole page once). After adding code run the page and read the console.
+8. **Step counters count only the steps inside the app.** The upload screen is not a step: after upload the flow reads `1 of 3 · timing`, `2 of 3 · crop`, `3 of 3 · export` and the bar is 33% / 67% / 100%. Visuals that help the current decision get the free room: on the crop step the live preview takes about half of it and the video the rest; tapping any preview opens it full screen (live mirror, tap or Esc to close).
+9. **Every top-level script constant is defined before first use** (a `$` helper used before its `const` broke the whole page once). After adding code run the page and read the console.
 
 ## 14. Reusable pieces (copy these, Charlie likes them)
 

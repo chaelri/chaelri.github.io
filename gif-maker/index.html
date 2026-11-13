@@ -199,7 +199,7 @@ html.anim .empty #drop{animation:rise .6s var(--ease) both}
   .empty #steps{display:none}
   .shead{display:flex;align-items:center;gap:16px;margin-bottom:12px}
   .sbar{flex:1;height:8px;border-radius:999px;background:var(--line);overflow:hidden}
-  #sbarI{display:block;height:100%;width:25%;background:var(--primary);border-radius:999px;transition:width .45s var(--ease)}
+  #sbarI{display:block;height:100%;width:33.33%;background:var(--primary);border-radius:999px;transition:width .45s var(--ease)}
   .srow{display:grid;grid-template-columns:1fr 1fr;gap:8px}
   #sLbl{font:400 16px/1 var(--mono);color:var(--muted);white-space:nowrap}
   #steps .btn{min-height:56px;padding:0 16px}
@@ -245,9 +245,17 @@ body:not(:has(#result.on)) .meta span:has(#outInfo){visibility:hidden}
 }
 .row label b{white-space:nowrap}
 .row label{gap:16px}
+/* full screen preview */
+#pv,#pv2,#out{cursor:zoom-in}
+#lb{position:fixed;inset:0;z-index:150;background:rgba(14,18,24,.94);display:none;align-items:center;justify-content:center;padding:16px}
+#lb.on{display:flex}
+#lbc,#lbi{height:min(84dvh,calc(84vw * 240 / 135));aspect-ratio:9/16;border-radius:var(--r2);border:1px solid var(--line);background:#000;image-rendering:pixelated;cursor:zoom-out}
+#lbx{position:absolute;top:16px;right:16px;min-height:56px}
+@media(min-width:1024px){#lbc,#lbi{height:min(calc(84vh / .8),calc(84vw * 240 / 135 / .8))}}
 </style>
 </head>
 <body class="empty" data-step="1">
+<div id="lb" role="dialog" aria-modal="true" aria-label="full screen preview"><canvas id="lbc" width="135" height="240"></canvas><img id="lbi" alt="rendered gif"><button class="btn ghost" id="lbx">close</button></div>
 <div id="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle"><div class="mcard"><h3 id="mTitle">discard this video?</h3><p id="mText">your crop, timing and settings for the current video will be lost.</p><div class="mbtns"><button class="btn ghost" id="mKeep">keep editing</button><button class="btn danger" id="mGo">discard</button></div></div></div>
 <div id="veil"></div>
 <div id="curtain" aria-hidden="true"><div class="cw"><strong>gif <span>maker</span></strong><div class="cbar"><i id="cbarI"></i></div><small id="cmsg">loading your video</small></div></div>
@@ -311,7 +319,7 @@ body:not(:has(#result.on)) .meta span:has(#outInfo){visibility:hidden}
             <button data-fps="30">30</button>
           </div>
         </div>
-        <figure class="cropPrev"><figcaption>preview</figcaption><canvas id="pv2" width="135" height="240"></canvas></figure>
+        <figure class="cropPrev"><figcaption>preview</figcaption><canvas id="pv2" width="135" height="240" tabindex="0" role="button" aria-label="open preview full screen"></canvas></figure>
       </div>
     </section>
 
@@ -321,11 +329,11 @@ body:not(:has(#result.on)) .meta span:has(#outInfo){visibility:hidden}
       <div class="pair">
         <figure>
           <figcaption>preview</figcaption>
-          <canvas id="pv" width="135" height="240"></canvas>
+          <canvas id="pv" width="135" height="240" tabindex="0" role="button" aria-label="open preview full screen"></canvas>
         </figure>
         <figure id="result">
           <figcaption>rendered</figcaption>
-          <div id="outBox"><img id="out" alt="exported gif" width="135" height="240"><span>export to see it here</span></div>
+          <div id="outBox"><img id="out" alt="exported gif" width="135" height="240" tabindex="0" role="button"><span>export to see it here</span></div>
         </figure>
       </div>
       <div class="meta"><span>loops <b id="loopV">5.0s</b></span><span><b id="estV">-</b></span></div>
@@ -359,6 +367,27 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
 const root = document.documentElement;
 function playIntro(ms){ root.classList.add('anim'); setTimeout(() => root.classList.remove('anim'), ms || 900); }
 let wiping = false;
+// full screen preview: tap a preview (or the rendered gif) to see it big
+let lbRaf = 0;
+function openLb(kind){
+  const lb = $('lb'), c = $('lbc'), im = $('lbi'), ctx = c.getContext('2d');
+  c.style.display = kind === 'img' ? 'none' : 'block'; im.style.display = kind === 'img' ? 'block' : 'none';
+  if (kind === 'img') im.src = $('out').src;
+  lb.classList.add('on');
+  (kind === 'img' ? im : c).animate([{opacity: 0, transform: 'scale(.92)'}, {opacity: 1, transform: 'none'}], {duration: 320, easing: 'cubic-bezier(.2,.7,.2,1)'});
+  cancelAnimationFrame(lbRaf);
+  if (kind !== 'img') { const loop = () => { ctx.drawImage(pv, 0, 0); lbRaf = requestAnimationFrame(loop); }; loop(); }
+  $('lbx').focus();
+}
+function closeLb(){ $('lb').classList.remove('on'); cancelAnimationFrame(lbRaf); }
+for (const id of ['pv', 'pv2', 'out']) {
+  const el = $(id);
+  el.addEventListener('click', () => openLb(id === 'out' ? 'img' : 'live'));
+  el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openLb(id === 'out' ? 'img' : 'live'); } });
+}
+$('lb').addEventListener('click', closeLb);
+window.addEventListener('keydown', e => { if (e.key === 'Escape' && $('lb').classList.contains('on')) closeLb(); });
+
 // confirm before anything that throws the current video away
 let askDone = null;
 function ask(title, text, goLabel){
@@ -441,8 +470,8 @@ const maxCw = () => Math.min(S.vw, S.vh * W / H);
 const desk = matchMedia('(min-width:1024px)');
 function syncStep(){
   document.body.dataset.step = S.step;
-  $('sbarI').style.width = (S.step / 4 * 100) + '%';
-  $('sLbl').textContent = S.step + ' of 4 · ' + STEP_NAMES[S.step - 1];
+  $('sbarI').style.width = (Math.max(1, S.step - 1) / 3 * 100) + '%';   // upload is not counted: timing 1/3, crop 2/3, export 3/3
+  $('sLbl').textContent = Math.max(1, S.step - 1) + ' of 3 · ' + STEP_NAMES[S.step - 1];
   $('sBack').textContent = S.step === 2 ? 'new video' : 'back';
   $('sNext').style.visibility = S.step >= 4 ? 'hidden' : 'visible';
 }
@@ -464,12 +493,19 @@ function phoneFrameMaxH(){
   const inner = panel.clientHeight - parseFloat(pcs.paddingTop) - parseFloat(pcs.paddingBottom);
   let other = 0;
   for (const k of $('editor').children) {
-    if (k === $('stageBox') || !k.offsetParent) continue;
+    if (k === $('stageBox') || k.classList.contains('cropPrev') || !k.offsetParent) continue;
     const m = getComputedStyle(k); other += k.offsetHeight + parseFloat(m.marginTop) + parseFloat(m.marginBottom);
   }
   const sb = getComputedStyle($('stageBox'));
   const extra = parseFloat(sb.paddingTop) * 2 + parseFloat(sb.borderTopWidth) * 2 + ($('prog').offsetParent ? $('prog').offsetHeight + parseFloat(sb.rowGap || 0) : 0);
-  return Math.max(96, Math.min(360, inner - other - extra - 8));
+  const free = inner - other - 8;
+  if ($('pv2').offsetParent !== null || S.step === 3) {
+    // crop step: the live preview gets about half of the free room, the video the rest
+    const pvH = Math.max(120, Math.min(380, Math.round(free * 0.5) - 36));
+    $('pv2').style.height = pvH + 'px'; $('pv2').style.width = Math.round(pvH * 9 / 16) + 'px';
+    return Math.max(96, Math.min(360, free - (pvH + 36) - extra - 8));
+  }
+  return Math.max(96, Math.min(360, free - extra));
 }
 function layout(){
   const sb = $('stageBox'), cs = getComputedStyle(sb);
