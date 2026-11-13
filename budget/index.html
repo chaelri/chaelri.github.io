@@ -14,7 +14,7 @@
     --cols:minmax(0,1fr) 104px 128px 144px;
     --font:"Outfit","Avenir Next",system-ui,-apple-system,"Segoe UI",sans-serif;
   }
-  html{zoom:.8} /* house density: 100% in the browser looks like 80% */
+  @media(min-width:1024px){html{zoom:.8}} /* house density on desktop; phones stay at 100% */
   *{box-sizing:border-box}
   body{margin:0;background:var(--paper);color:var(--ink);font:400 var(--s0)/1.4 var(--font)}
   main{max-width:1440px;margin:0 auto;padding:16px}
@@ -94,9 +94,35 @@
   .tog:hover{background:rgba(0,0,0,.03)}
   .mer{display:inline-flex;align-items:center;gap:8px;margin-left:8px;flex-wrap:wrap}
   .mer .fld input{min-width:0;width:72px;padding:0 8px}
+  /* phone: every row is two lines, name + after on top, was + Mama and Papa below */
   @media(max-width:640px){
-    :root{--cols:minmax(0,1fr) 88px 104px}
-    .b{display:none !important}
+    .top{align-items:flex-start}
+    .ctl{width:100%;gap:8px}
+    .tgt{flex:1 1 auto}
+    .ctl .btn{flex:1 1 auto;padding:0 12px}
+    #modeBtn{flex:0 0 96px;width:96px}
+    .card{padding:16px}
+    .row{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"n a" "b b" "c c";column-gap:12px;padding:8px 0}
+    .row > :nth-child(1){grid-area:n}
+    .row > :nth-child(2){grid-area:b}
+    .row > :nth-child(3){grid-area:a}
+    .row > :nth-child(4){grid-area:c;justify-content:flex-start;text-align:left;padding-left:8px}
+    .row > .b{justify-content:flex-start;text-align:left;color:var(--muted);padding-left:8px}
+    .row.kid > .b{padding-left:32px}
+    .row.tot > .b{padding-left:8px}
+    .row > .b::before{content:"was ";white-space:pre}
+    .row .cov:empty{display:none}
+    .row .cov:not(:empty)::before{content:"Mama and Papa ";font-weight:400;white-space:pre}
+    .row.hd > .b,.row.hd > .cv-h,.row.grp > .b{display:none}
+    .row.grp{min-height:40px;padding:0 8px}
+    .row.it,.row.kid{flex:none;min-height:56px}
+    .row.tot{min-height:64px}
+    .fld input{height:44px}
+    .row .r .fld{width:112px}
+    .row > div:first-child{display:block}
+    .mer{display:flex;margin:8px 0 0}
+    .mer .fld{width:auto}
+    .mer .fld input{width:72px}
   }
 
   /* chart */
