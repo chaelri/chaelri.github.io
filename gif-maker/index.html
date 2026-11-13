@@ -2,7 +2,17 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0E1218">
+<meta name="description" content="Turn a video into a 135x240 portrait GIF for the Aula S75 Pro keyboard screen.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="icons/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="GIF Maker">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>gif maker</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -34,7 +44,7 @@ h2{font:700 var(--s2)/1 var(--font);letter-spacing:-.01em;margin-bottom:16px}
 #drop.over{border-color:var(--primary);background:rgba(79,227,161,.08)}
 #drop strong{font:700 var(--s2)/1.1 var(--font)}
 #drop small{color:var(--muted);font:400 var(--s1)/1.4 var(--mono)}
-.btn{display:inline-flex;align-items:center;justify-content:center;min-height:56px;padding:0 24px;border-radius:999px;border:2px solid var(--primary);background:var(--primary);color:var(--paper);font:700 var(--s1)/1 var(--font);cursor:pointer;transition:transform .1s,box-shadow .1s;text-decoration:none}
+.btn{white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;min-height:56px;padding:0 24px;border-radius:999px;border:2px solid var(--primary);background:var(--primary);color:var(--paper);font:700 var(--s1)/1 var(--font);cursor:pointer;transition:transform .1s,box-shadow .1s;text-decoration:none}
 .btn:hover{transform:translate(-2px,-2px);box-shadow:4px 4px 0 var(--ink)}
 .btn:active{transform:none;box-shadow:none}
 .btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
@@ -67,7 +77,7 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
 #tl{position:relative;height:48px;border-radius:var(--r1);background:var(--paper);border:1px solid var(--line);touch-action:none;cursor:pointer}
 #win{position:absolute;top:0;bottom:0;left:0;min-width:16px;background:rgba(255,179,71,.28);border:2px solid var(--accent);border-radius:var(--r1);cursor:grab}
 #win:active{cursor:grabbing}
-.tlrow{display:grid;grid-template-columns:72px 80px minmax(0,1fr) 80px 72px;gap:8px}
+.tlrow{display:grid;grid-template-columns:60px 60px 76px minmax(0,1fr) 76px 60px 60px;gap:8px}
 .btn.sm{min-height:56px;padding:0}
 #fname,#startT{min-height:56px;border-radius:var(--r1);border:1px solid var(--line);background:var(--paper);color:var(--ink);font:400 var(--s1)/1 var(--mono);text-align:center}
 .note{color:var(--muted);font:400 var(--s1)/1.4 var(--font);margin-top:8px}
@@ -115,7 +125,7 @@ figcaption{font:700 var(--s1)/1.4 var(--font)}
   #stageBox{padding:0;border:0;background:none}
   #editor.on{justify-content:center}
 }
-@media(max-width:480px){.tlrow{grid-template-columns:repeat(4,1fr)}#startT{grid-column:1/-1;order:-1}}
+
 #prog{display:flex;align-items:center;gap:16px}
 #progBar{flex:1;height:8px;border-radius:999px;background:var(--line);overflow:hidden}
 #progI{display:block;height:100%;width:0;background:var(--primary)}
@@ -157,10 +167,51 @@ html.anim .empty #drop{animation:rise .6s var(--ease) both}
 #curtain .cbar{width:240px;height:8px;border-radius:999px;background:rgba(14,18,24,.2);overflow:hidden}
 #curtain .cbar i{display:block;height:100%;width:0;background:var(--paper);border-radius:999px}
 #curtain small{font:400 var(--s1)/1 var(--mono)}
+/* phone: no scrolling, the app is a 4-step flow with a progress bar (upload > crop > settings > export) */
+#steps{display:none}
+@media(max-width:1023px){
+  html,body{height:100%;overflow:hidden}
+  .wrap{height:100dvh;min-height:0;padding:16px 16px 0;display:flex;flex-direction:column}
+  body:not(.empty) .wrap{padding-bottom:104px}
+  header{margin-bottom:16px;flex:none}
+  h1{font-size:var(--s2)}
+  main{flex:1;min-height:0;display:block}
+  main > .panel{height:100%;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;padding:16px}
+  main > .panel::-webkit-scrollbar{display:none}
+  .empty main{display:flex;align-items:center}
+  .empty main > .panel{height:auto;width:100%}
+  #again{display:none!important}
+  body:not([data-step="3"]):not([data-step="4"]) main > .panel:nth-child(2){display:none}
+  body[data-step="3"] main > .panel:nth-child(1), body[data-step="4"] main > .panel:nth-child(1){display:none}
+  body[data-step="3"] main > .panel:nth-child(2) > :not(#pCtl){display:none}
+  body[data-step="4"] main > .panel:nth-child(2) > #pCtl{display:none}
+  #steps{display:block;position:fixed;left:0;right:0;bottom:0;z-index:20;padding:12px 16px calc(12px + env(safe-area-inset-bottom));background:var(--paper);border-top:1px solid var(--line)}
+  .empty #steps{display:none}
+  .shead{display:flex;align-items:center;gap:16px;margin-bottom:12px}
+  .sbar{flex:1;height:8px;border-radius:999px;background:var(--line);overflow:hidden}
+  #sbarI{display:block;height:100%;width:25%;background:var(--primary);border-radius:999px;transition:width .45s var(--ease)}
+  .srow{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  #sLbl{font:400 16px/1 var(--mono);color:var(--muted);white-space:nowrap}
+  #steps .btn{min-height:56px;padding:0 16px}
+  .pair{max-width:300px}
+  #editor .row{margin-top:8px}
+  #editor .note{display:none}
+  .tlrow{gap:8px}
+  .tlrow .btn.sm,#startT{min-height:48px}
+  #stageBox{gap:8px}
+  .tlrow{grid-template-columns:repeat(6,minmax(0,1fr))}
+  .tlrow .btn.sm{padding:0;font-size:16px}
+  #startT{grid-column:1/-1;order:-1}
+  #pCtl{margin-top:0}
+  #pCtl .row{margin-top:24px}
+  #pCtl .row.first{margin-top:0}
+}
+@media(max-width:400px){.tlrow{grid-template-columns:repeat(3,minmax(0,1fr))}}
 </style>
 </head>
-<body class="empty">
+<body class="empty" data-step="1">
 <div id="curtain" aria-hidden="true"><div class="cw"><strong>gif <span>maker</span></strong><div class="cbar"><i id="cbarI"></i></div><small id="cmsg">loading your video</small></div></div>
+<nav id="steps" aria-label="progress"><div class="shead"><span id="sLbl"></span><div class="sbar"><i id="sbarI"></i></div></div><div class="srow"><button class="btn ghost" id="sBack">back</button><button class="btn" id="sNext">next</button></div></nav>
 <div class="wrap">
   <header>
     <div>
@@ -191,11 +242,13 @@ html.anim .empty #drop{animation:rise .6s var(--ease) both}
           <label for="startT">start at <b id="startV">0:00.0</b></label>
           <div id="tl" aria-label="timeline, drag the amber window"><div id="win"></div></div>
           <div class="tlrow">
+            <button class="btn ghost sm" id="mm" aria-label="back 5 seconds">-5s</button>
             <button class="btn ghost sm" id="m1" aria-label="back 1 second">-1s</button>
             <button class="btn ghost sm" id="m5" aria-label="back half a second">-0.5s</button>
             <input id="startT" type="text" value="0:00" inputmode="decimal" aria-label="start time, like 2:35 or 155">
             <button class="btn ghost sm" id="p5" aria-label="forward half a second">+0.5s</button>
             <button class="btn ghost sm" id="p1" aria-label="forward 1 second">+1s</button>
+            <button class="btn ghost sm" id="pp" aria-label="forward 5 seconds">+5s</button>
           </div>
           <p class="note"><span id="totV"></span> total</p>
         </div>
@@ -250,6 +303,7 @@ html.anim .empty #drop{animation:rise .6s var(--ease) both}
 
 <script type="module">
 import {GIFEncoder, quantize, applyPalette} from './gifenc.esm.js';
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
 
 // screen changes: a loading-screen curtain wipes up, the screens swap behind it, then it lifts away and the new screen builds in.
 // (Web Animations API on purpose: it ignores the OS "reduce motion" setting, which is ON on Charlie's PC.)
@@ -273,9 +327,10 @@ async function go(fn, msg){
 }
 playIntro();
 const W = 135, H = 240;
+const STEP_NAMES = ['upload', 'crop', 'settings', 'export'];
 const $ = id => document.getElementById(id);
 const vid = $('vid'), frame = $('frame'), crop = $('crop'), pv = $('pv'), pctx = pv.getContext('2d', {willReadFrequently:true});
-const S = {url:null, vw:0, vh:0, cw:0, cx:0, cy:0, start:0, dur:5, fps:20, busy:false, dispW:0, dispH:0, outUrl:null};
+const S = {step:1, url:null, vw:0, vh:0, cw:0, cx:0, cy:0, start:0, dur:5, fps:20, busy:false, dispW:0, dispH:0, outUrl:null};
 pctx.imageSmoothingQuality = 'high';
 
 /* ---------- load ---------- */
@@ -285,7 +340,7 @@ drop.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') 
 ['dragleave','drop'].forEach(t => window.addEventListener(t, e => { e.preventDefault(); if (t === 'dragleave' && e.relatedTarget) return; drop.classList.remove('over'); }));
 window.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) load(f); });
 file.addEventListener('change', () => { if (file.files[0]) load(file.files[0]); });
-$('again').addEventListener('click', () => go(() => { document.body.classList.add('empty'); vid.pause(); $('editor').classList.remove('on'); drop.style.display = ''; $('again').style.display = 'none'; $('go').disabled = true; $('pCtl').classList.add('locked'); $('result').classList.remove('on'); file.value = ''; }, 'back to the start'));
+$('again').addEventListener('click', () => go(() => { document.body.classList.add('empty'); S.step = 1; syncStep(); vid.pause(); $('editor').classList.remove('on'); drop.style.display = ''; $('again').style.display = 'none'; $('go').disabled = true; $('pCtl').classList.add('locked'); $('result').classList.remove('on'); file.value = ''; }, 'back to the start'));
 
 const qs = new URLSearchParams(location.search).get('src'); if (qs) queueMicrotask(() => { vid.src = qs; });
 function load(f){
@@ -296,7 +351,7 @@ function load(f){
 }
 vid.addEventListener('error', () => alert('this browser cannot read that video. try mp4 (h.264) or webm.'));
 vid.addEventListener('loadedmetadata', () => go(() => {
-  document.body.classList.remove('empty');
+  document.body.classList.remove('empty'); S.step = 2; syncStep();
   S.vw = vid.videoWidth; S.vh = vid.videoHeight;
   drop.style.display = 'none'; $('editor').classList.add('on'); $('again').style.display = ''; $('go').disabled = false; $('pCtl').classList.remove('locked');
   S.start = 0; setDur(Math.min(5, vid.duration)); $('startT').value = '0:00';
@@ -310,11 +365,30 @@ const maxCw = () => Math.min(S.vw, S.vh * W / H);
 
 /* ---------- layout + crop box ---------- */
 const desk = matchMedia('(min-width:1024px)');
+function syncStep(){
+  document.body.dataset.step = S.step;
+  $('sbarI').style.width = (S.step / 4 * 100) + '%';
+  $('sLbl').textContent = S.step + ' of 4 · ' + STEP_NAMES[S.step - 1];
+  $('sBack').textContent = S.step === 2 ? 'new video' : 'back';
+  $('sNext').style.visibility = S.step >= 4 ? 'hidden' : 'visible';
+}
+// phone steps: the current card slides out, the next one slides in from the side
+function toStep(n, dir){
+  const main = document.querySelector('main'), EASE = 'cubic-bezier(.7,0,.2,1)';
+  const out = main.animate([{opacity: 1, transform: 'none'}, {opacity: 0, transform: `translateX(${-dir * 32}px)`}], {duration: 180, easing: 'ease-in', fill: 'forwards'});
+  out.finished.then(() => {
+    S.step = n; syncStep(); layout();
+    out.cancel();
+    main.animate([{opacity: 0, transform: `translateX(${dir * 32}px)`}, {opacity: 1, transform: 'none'}], {duration: 360, easing: 'cubic-bezier(.2,.7,.2,1)'});
+  });
+}
+$('sNext').addEventListener('click', () => { if (S.step < 4) toStep(S.step + 1, 1); });
+$('sBack').addEventListener('click', () => { if (S.step === 2) $('again').click(); else if (S.step > 2) toStep(S.step - 1, -1); });
 function layout(){
   const sb = $('stageBox'), cs = getComputedStyle(sb);
   const box = $('editor').clientWidth - parseFloat(cs.paddingLeft) * 2 - parseFloat(cs.borderLeftWidth) * 2; if (box <= 0) return;
   // desktop: the viewer box fills the panel, the video sits inside it (contain). phone: width-bound.
-  const maxH = 320;
+  const maxH = matchMedia('(max-width:1023px)').matches ? 200 : 320;
   let w = box, h = w * S.vh / S.vw;
   if (h > maxH) { h = maxH; w = h * S.vw / S.vh; }
   frame.style.width = w + 'px'; frame.style.height = h + 'px'; $('prog').style.width = w + 'px';
@@ -384,6 +458,8 @@ $('startT').addEventListener('change', () => { const t = parseT($('startT').valu
 $('startT').addEventListener('keydown', e => { if (e.key === 'Enter') e.target.blur(); });
 $('m1').addEventListener('click', () => setStart(S.start - 1));
 $('p1').addEventListener('click', () => setStart(S.start + 1));
+$('mm').addEventListener('click', () => setStart(S.start - 5));
+$('pp').addEventListener('click', () => setStart(S.start + 5));
 $('m5').addEventListener('click', () => setStart(S.start - .5));
 $('p5').addEventListener('click', () => setStart(S.start + .5));
 const tl = $('tl');

@@ -143,6 +143,29 @@ Mobile-first, 16px side gutter, primary/shape as the only large colour areas. Bu
 - Verify by rendering: `soffice --headless --convert-to pdf` then look at it before delivering.
 - Lay out on a 12-col grid with 0.9in side margins; align text boxes to the same left edge.
 
+## 14. Reusable pieces (copy these, Charlie likes them)
+
+**Loading-screen curtain (screen change).** Reference implementation: `gif-maker/index.html` (search `#curtain` and `async function go`).
+```html
+<div id="curtain"><div class="cw"><strong>name <span>app</span></strong><div class="cbar"><i id="cbarI"></i></div><small id="cmsg">loading</small></div></div>
+```
+```css
+#curtain{position:fixed;inset:0;z-index:100;background:var(--primary);color:var(--paper);display:flex;align-items:center;justify-content:center;transform:translateY(101%);pointer-events:none;border-radius:50% 50% 0 0 / 96px 96px 0 0}
+```
+```js
+async function go(fn, msg){            // 1 cover  2 swap screens  3 loader  4 lift away, new screen builds in
+  await c.animate([{transform:'translateY(101%)'},{transform:'translateY(0)'}],{duration:520,easing:'cubic-bezier(.7,0,.2,1)',fill:'forwards'}).finished
+  fn(); bar.animate([{width:'0%'},{width:'100%'}],{duration:700,fill:'forwards'}); await wait(780); playIntro()
+  await c.animate([{transform:'translateY(0)'},{transform:'translateY(-101%)'}],{duration:600,easing:'cubic-bezier(.7,0,.2,1)',fill:'forwards'}).finished
+  c.getAnimations().forEach(a=>a.cancel())   // reset to translateY(101%)
+}
+```
+Always use the Web Animations API (ignores the OS reduce-motion that is ON on Charlie's PC). Inner pieces: `rise` keyframes (16px up + fade, .5s, 60ms stagger) under `html.anim`.
+
+**Phone = steps, not scrolling (Charlie, 2026-11-13).** Below 1024px the app fits `100dvh` with NO page scroll: split the desktop cards into steps (e.g. upload > crop > settings > export), show one at a time, with a fixed bottom bar: progress bar + label ("2 of 4 · crop") on one line, then Back / Next buttons (equal columns, `white-space:nowrap`, 56px tall). Step change = current card slides out 32px + fades (180ms), next slides in from the other side (360ms). Test at 430x800 and 412x780: every step must fit without inner scroll (internal scroll only as a fallback on 360px phones). Never let a button label wrap to two lines.
+
+**PWA app icon.** Make a set with a small Python/PIL script (see `gif-maker/icons/make_icons.py`): 192 and 512 `any` (rounded), 512 `maskable` (full bleed, content inside the central 80% safe zone), 180 `apple-touch-icon` (full bleed, iOS rounds it), `favicon.svg` + `.ico` (simplified: no thin ring, the main shape bigger). Icon = the app's own subject on the dark/paper tile + one accent ring; flat, two colours. Add `manifest.webmanifest` (name, short_name, start_url `./`, display standalone, background/theme colour = paper) and a small network-first service worker for offline.
+
 ## 13. Pre-flight checklist (run before delivering)
 
 0. **Asked the mood** (or it was stated) and stated the palette + fonts + shape style in one line. Not the workshop sample unless requested or truly fitting.
