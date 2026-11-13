@@ -162,8 +162,13 @@
   .sl.out{opacity:0;transform:translateY(-8px);transition:opacity .12s ease-in,transform .12s ease-in}
   .sl h2{font-size:var(--s2);line-height:.95;letter-spacing:-.01em;font-weight:700;margin:0 0 32px}
   .sl-row{display:flex;align-items:flex-end;gap:32px;flex-wrap:wrap}
-  .sl-b{display:flex;flex-direction:column;gap:8px;color:var(--muted);padding-bottom:16px}
-  .sl-b s{font-size:var(--s1);text-decoration-thickness:2px}
+  .sl-b{display:flex;flex-direction:column;gap:8px;color:var(--muted)}
+  .sl-b .bn{font-size:var(--s3);line-height:.9;font-weight:700;letter-spacing:-.02em}
+  .sl-a::before{content:"After";display:block;font-size:var(--s0);font-weight:400;letter-spacing:0;line-height:1.4;margin-bottom:8px;color:var(--muted)}
+  .arr{flex:none;color:var(--primary);margin-bottom:8px;display:inline-flex}
+  .arr svg{width:48px;height:48px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .pair .sl-b .bn{font-size:var(--s2)}
+  .pair .arr svg{width:32px;height:32px}
   .sl-h{display:flex;align-items:center;gap:24px;margin:0 0 32px}
   .sl-h h2{margin:0}
   .ico{flex:none;width:88px;height:88px;border-radius:50%;background:var(--shape);color:var(--primary);display:inline-flex;align-items:center;justify-content:center}
@@ -188,6 +193,7 @@
     .sl h2{font-size:var(--s1)}
     .sl-a{font-size:var(--s3)}
     .sl-row{gap:16px}
+    .sl-b .bn{font-size:var(--s2)}.arr svg{width:32px;height:32px}.pair .sl-b .bn{font-size:var(--s1)}.pair .arr svg{width:24px;height:24px}
     .ico{width:56px;height:56px}.ico svg{width:28px;height:28px}
     .sl-h{gap:16px}
     .pair{gap:16px}.pair .sl-a{font-size:var(--s2)}.pair h3{font-size:var(--s0)}
@@ -416,6 +422,7 @@ const ICON = {
   dad:P('<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>'),
   rm:P('<path d="M6 6l12 12M18 6L6 18"/>')
 };
+const ARR = '<svg viewBox="0 0 24 24"><path d="M4 12h16M14 6l6 6-6 6"/></svg>';
 const ico = (k,c='') => `<span class="ico ${c}">${ICON[k]}</span>`;
 function buildSteps(){
   const {v,mer,groc,daddyCov,gcov,coverTotal,each,fixedB} = last;
@@ -433,16 +440,16 @@ function buildSteps(){
 }
 function slideHTML(s){
   const {v,groc,daddyCov,gcov,coverTotal,each,fixedB,afterAll} = last;
-  if(s.kind==='intro') return `<h2>Monthly budget</h2><div class="sl-row"><div class="sl-b"><span>Before</span><s class="num">${fmt(fixedB)}</s></div><div class="sl-a num" data-v="${v.target+v.kx}">${fmt(v.target+v.kx)}</div></div>
+  if(s.kind==='intro') return `<h2>Monthly budget</h2><div class="sl-row"><div class="sl-b"><span>Before</span><span class="num bn">${fmt(fixedB)}</span></div><span class="arr" aria-hidden="true">${ARR}</span><div class="sl-a num" data-v="${v.target+v.kx}">${fmt(v.target+v.kx)}</div></div>
     <div class="sl-g"><div class="tile t-ch"><div class="k">Charlie</div><div class="v num">${fmt(each)}</div></div><div class="tile t-ku"><div class="k">Kuya</div><div class="v num">${fmt(each+v.kx)}</div></div><div class="tile t-mp"><div class="k">Mama and Papa</div><div class="v num">${fmt(coverTotal)}</div></div></div>`;
   if(s.kind==='end') return `<h2>Mama and Papa cover</h2><div class="sl-row"><div class="sl-a num" style="color:var(--accent)" data-v="${coverTotal}">${fmt(coverTotal)}</div></div>
     <p class="sl-s same">${[daddyCov>0?'Daddy pakinabang '+fmt(daddyCov):'',gcov>0?'groceries '+fmt(gcov):''].filter(Boolean).join(' + ')||'Nothing to cover'} a month</p>
     <div class="sl-g"><div class="tile t-ch"><div class="k">Charlie</div><div class="v num">${fmt(each)}</div></div><div class="tile t-ku"><div class="k">Kuya</div><div class="v num">${fmt(each+v.kx)}</div></div><div class="tile t-gro"><div class="k">Left for groceries</div><div class="v num">${fmt(groc)}</div></div></div>`;
   const dnote = (b,a) => { const d = r2(b-a); return d>0 ? 'Saves '+fmt(d)+' a month' : d<0 ? 'Up '+fmt(-d)+' a month' : 'No change'; };
-  if(s.kind==='pair') return `<div class="sl-h">${ico(s.ic)}<h2>${s.g}</h2></div><div class="pair">${s.items.map(i=>`<div><h3>${i.name}</h3><div class="sl-row"><div class="sl-b"><span>Before</span><s class="num">${fmt(i.b)}</s></div><div class="sl-a num" data-v="${i.a}">${fmt(i.a)}</div></div><p class="sl-s ${r2(i.b-i.a)===0?'same':''}">${dnote(i.b,i.a)}</p></div>`).join('')}</div>`;
+  if(s.kind==='pair') return `<div class="sl-h">${ico(s.ic)}<h2>${s.g}</h2></div><div class="pair">${s.items.map(i=>`<div><h3>${i.name}</h3><div class="sl-row"><div class="sl-b"><span>Before</span><span class="num bn">${fmt(i.b)}</span></div><span class="arr" aria-hidden="true">${ARR}</span><div class="sl-a num" data-v="${i.a}">${fmt(i.a)}</div></div><p class="sl-s ${r2(i.b-i.a)===0?'same':''}">${dnote(i.b,i.a)}</p></div>`).join('')}</div>`;
   const diff = r2(s.b - s.a);
   const note = s.removed ? 'Removed' : diff>0 ? 'Saves '+fmt(diff)+' a month' : diff<0 ? 'Up '+fmt(-diff)+' a month' : 'No change';
-  return `<div class="sl-h">${ico(s.ic,s.removed?'rm':'')}<h2>${s.name}</h2></div><div class="sl-row"><div class="sl-b"><span>Before</span><s class="num">${fmt(s.b)}</s></div>${s.removed?'<div class="sl-a gone">Removed</div>':`<div class="sl-a num" data-v="${s.a}">${fmt(s.a)}</div>`}</div>
+  return `<div class="sl-h">${ico(s.ic,s.removed?'rm':'')}<h2>${s.name}</h2></div><div class="sl-row"><div class="sl-b"><span>Before</span><span class="num bn">${fmt(s.b)}</span></div><span class="arr" aria-hidden="true">${ARR}</span>${s.removed?'<div class="sl-a gone">Removed</div>':`<div class="sl-a num" data-v="${s.a}">${fmt(s.a)}</div>`}</div>
     ${s.cov>0?'':`<p class="sl-s ${diff===0&&!s.removed?'same':''}">${s.removed?'Saves '+fmt(s.b)+' a month':note}</p>`}${s.cov>0?`<div class="sl-c">Mama and Papa ${fmt(s.cov)}</div>`:''}`;
 }
 function countUp(el){
