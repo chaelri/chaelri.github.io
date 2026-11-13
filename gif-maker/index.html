@@ -181,7 +181,10 @@ html.anim .empty #drop{animation:rise .6s var(--ease) both}
   main > .panel::-webkit-scrollbar{display:none}
   .empty main{display:flex;align-items:center}
   .empty main > .panel{height:auto;width:100%}
-  #again{display:none!important}
+  #again{width:56px;padding:0;border-radius:50%;gap:0}
+  #again span{display:none}
+  body[data-step="2"] #sBack{display:none}
+  body[data-step="2"] #sNext{grid-column:1/-1}
   body:not([data-step="4"]) main > .panel:nth-child(2){display:none}
   body[data-step="4"] main > .panel:nth-child(1){display:none}
   .row2col{display:block}
@@ -252,6 +255,7 @@ body:not(:has(#result.on)) .meta span:has(#outInfo){visibility:hidden}
 #lbc,#lbi{height:min(84dvh,calc(84vw * 240 / 135));aspect-ratio:9/16;border-radius:var(--r2);border:1px solid var(--line);background:#000;image-rendering:pixelated;cursor:zoom-out}
 #lbx{position:absolute;top:16px;right:16px;min-height:56px}
 @media(min-width:1024px){#lbc,#lbi{height:min(calc(84vh / .8),calc(84vw * 240 / 135 / .8))}}
+#again{gap:8px}
 </style>
 </head>
 <body class="empty" data-step="1">
@@ -266,7 +270,7 @@ body:not(:has(#result.on)) .meta span:has(#outInfo){visibility:hidden}
       <h1>gif <span>maker</span></h1>
       <p>for aula s75 pro</p>
     </div>
-    <button class="btn ghost" id="again" style="display:none">new video</button>
+    <button class="btn ghost" id="again" style="display:none" aria-label="new video" title="new video"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>new video</span></button>
   </header>
 
   <main>
