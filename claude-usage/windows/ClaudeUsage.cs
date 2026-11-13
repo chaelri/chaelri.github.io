@@ -51,7 +51,7 @@ static class Program
             };
             menu.Opening += delegate { BuildMenu(); };
 
-            SetIcon("...", Color.FromArgb(0x93, 0xA3, 0xB5));
+            SetIcon("...", Color.FromArgb(0xD9, 0x77, 0x57));
             timer = new System.Windows.Forms.Timer { Interval = PollMs };
             timer.Tick += delegate { Refresh(); };
             timer.Start();
@@ -149,13 +149,13 @@ static class Program
     {
         if (rows.Count == 0)
         {
-            SetIcon("!", Color.FromArgb(0xFF, 0x6B, 0x6B));
+            SetIcon("!", Color.FromArgb(0xB4, 0x41, 0x2A));
             ni.Text = Trunc(lastError ?? "Claude usage");
             return;
         }
         double session = (double)((object[])rows[0])[1];
         int p = (int)Math.Round(session);
-        Color c = p >= 85 ? Color.FromArgb(0xFF, 0x6B, 0x6B) : p >= 60 ? Color.FromArgb(0xFF, 0xB3, 0x47) : Color.FromArgb(0x4F, 0xE3, 0xA1);
+        Color c = p >= 85 ? Color.FromArgb(0xB4, 0x41, 0x2A) : Color.FromArgb(0xD9, 0x77, 0x57); // Claude clay orange, deeper rust when nearly full
         SetIcon(p.ToString(), c);
         var sb = new StringBuilder();
         foreach (object[] r in rows) { if (sb.Length > 0) sb.Append("  "); sb.Append(Short((string)r[0])).Append(' ').Append(Math.Round((double)r[1])).Append('%'); }
@@ -176,11 +176,21 @@ static class Program
             g.Clear(Color.Transparent);
             using (var path = RoundRect(new Rectangle(0, 0, size - 1, size - 1), size / 4))
             using (var br = new SolidBrush(bg)) g.FillPath(br, path);
-            float fs = text.Length >= 3 ? size * 0.46f : text.Length == 2 ? size * 0.62f : size * 0.78f;
-            using (var f = new Font("Segoe UI", fs, FontStyle.Bold, GraphicsUnit.Pixel))
-            using (var fmt = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center })
-            using (var tb = new SolidBrush(Color.FromArgb(0x0E, 0x12, 0x18)))
-                g.DrawString(text, f, tb, new RectangleF(0, size * 0.04f, size, size), fmt);
+            // draw the digits as a path, measure the real glyph bounds, scale to fit, and centre exactly in the tile
+            using (var gp = new GraphicsPath())
+            {
+                gp.AddString(text, new FontFamily("Segoe UI"), (int)FontStyle.Bold, 100f, new PointF(0, 0), StringFormat.GenericTypographic);
+                RectangleF gb = gp.GetBounds();
+                float k = Math.Min(size * 0.82f / gb.Width, size * 0.62f / gb.Height);
+                using (var m = new Matrix())
+                {
+                    m.Translate(-(gb.X + gb.Width / 2f), -(gb.Y + gb.Height / 2f));
+                    m.Scale(k, k, MatrixOrder.Append);
+                    m.Translate(size / 2f, size / 2f, MatrixOrder.Append);
+                    gp.Transform(m);
+                }
+                g.FillPath(Brushes.White, gp);
+            }
             IntPtr h = bmp.GetHicon();
             Icon old = currentIcon;
             currentIcon = (Icon)Icon.FromHandle(h).Clone();
