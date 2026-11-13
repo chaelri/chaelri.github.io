@@ -405,7 +405,7 @@ let steps = [], si = 0, busy = false;
 const P = d => `<svg viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
 const ICON = {
   med:P('<rect x="1.500" y="8" width="21" height="8" rx="4" transform="rotate(-45 12 12)"/><path d="M8.500 8.500l7 7"/>'),
-  gas:P('<path d="M4 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16"/><path d="M3 21h12"/><path d="M7 8h4"/><path d="M14 11h2a2 2 0 0 1 2 2v3a1.5 1.5 0 0 0 3 0V9l-3-3"/>'),
+  gas:P('<path d="M12 2.500c1 3 5 5.500 5 10a5 5 0 0 1-10 0c0-2 1-3 2-4 .3 1.500 1 2 1.800 2.200C10.500 8 11 5 12 2.500z"/><path d="M9.500 20.500h5"/>'),
   dw:P('<path d="M12 3s6 6.2 6 10.5A6 6 0 0 1 6 13.5C6 9.2 12 3 12 3z"/>'),
   mw:P('<path d="M5 8h9a3 3 0 0 1 3 3v1"/><path d="M8 8V5h4"/><path d="M17 15s2 2.2 2 3.5a2 2 0 0 1-4 0c0-1.300 2-3.500 2-3.500z"/><path d="M5 8v3"/>'),
   pldt:P('<path d="M2.500 9a14 14 0 0 1 19 0"/><path d="M5.500 12.500a9.500 9.500 0 0 1 13 0"/><path d="M9 16a5 5 0 0 1 6 0"/><circle cx="12" cy="19.500" r=".8"/>'),
@@ -422,7 +422,7 @@ function buildSteps(){
   const out = [{g:'Overview', kind:'intro'}];
   const item = (g,name,b,a,cov,removed,ic) => out.push({g,kind:'item',name,b,a,cov,removed,ic});
   out.push({g:'Medicine',kind:'pair',ic:'med',items:[{name:'Papa',b:BEFORE.papa,a:v.papa},{name:'Mama',b:BEFORE.mama,a:v.mama}]});
-  ['gas','dw','mw','pldt','tax'].forEach(k=>item('Bills',LABEL[k],BEFORE[k],v[k],0,false,k));
+  ['gas','dw','mw','pldt','tax'].forEach(k=>item('Bills',k==='gas'?'Gas, for cooking':LABEL[k],BEFORE[k],v[k],0,false,k));
   item('Bills','Meralco',MER_B,mer,0,false,'mer');
   item('Food',LABEL.rice,BEFORE.rice,v.rice,0,false,'rice');
   item('Food','Groceries, what is left',GROC_B,groc,gcov,false,'cart');
