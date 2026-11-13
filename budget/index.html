@@ -466,7 +466,6 @@ function showStep(n, instant){
     $('pBar').style.width = ((si+1)/steps.length*100)+'%';
     $('pBack').disabled = si===0; $('pNext').textContent = si===steps.length-1 ? 'Done' : 'Next';
     sl.classList.remove('out'); void sl.offsetWidth; sl.classList.add('in');
-    sl.querySelectorAll('.sl-a[data-v]').forEach(countUp);
     busy = false;
   };
   if(instant){ paint(); return; }
