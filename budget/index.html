@@ -163,12 +163,12 @@ const $ = id => document.getElementById(id);
 const r2 = n => Math.round(n*100)/100;
 const fmt = n => r2(n).toLocaleString('en-PH',{minimumFractionDigits:0,maximumFractionDigits:2});
 
-const DEF = {papa:5000,mama:6040,papaal:0,mamaal:0,daddy:0,lola:0,maint:0,gas:1410,dw:820,mw:800,pldt:900,tax:510.25,rice:1000,kwh:260,rate:13.5,target:22000,gcov:15323.58,kx:0};
+const DEF = {papa:5000,mama:6040,papaal:0,mamaal:0,daddy:0,lola:0,maint:0,gas:1410,dw:820,mw:800,pldt:900,tax:510.25,rice:1000,kwh:260,rate:13.5,target:22000,ggoal:17333.33,kx:0};
 const BEFORE = {papa:5000,mama:6040,papaal:1500,mamaal:1500,daddy:3500,lola:0,maint:0,gas:1410,dw:820,mw:1000,pldt:1900,tax:510.25,rice:1519};
 const MER_B = 6000, GROC_B = 17333.33;
 const LABEL = {papa:'Papa medicine',mama:'Mama medicine',papaal:'Papa allowance',mamaal:'Mama allowance',daddy:'Daddy pakinabang',lola:'Lola Nanay',maint:'Maintenance',gas:'Gas',dw:'Drinking water',mw:'Manila Water',pldt:'PLDT, now GOMO Fiber',tax:'Land tax and dues',rice:'Rice'};
 const KIDS = ['papaal','mamaal','lola','maint'];
-const KEY = 'b22kv5';
+const KEY = 'b22kv6';
 const store = {
   get(){ try{ return JSON.parse(localStorage.getItem(KEY)||'{}') }catch(e){ return {} } },
   set(o){ try{ localStorage.setItem(KEY,JSON.stringify(o)) }catch(e){} }
@@ -195,7 +195,8 @@ $('rows').innerHTML =
   grp('Bills','gB') + itemRow('gas') + itemRow('dw') + itemRow('mw') + itemRow('pldt') + itemRow('tax') +
   `<div class="row it"><div>Meralco<span class="mer">${fld('kwh','kWh')}<span class="muted">kWh x</span>${fld('rate','rate per kWh')}</span></div>${cellB(fmt(MER_B))}<div class="r num" id="mer-a"></div><div></div></div>` +
   grp('Food','gF') + itemRow('rice') +
-  `<div class="row it"><div><b>Groceries</b>&nbsp;<span class="muted">what's left</span></div>${cellB(fmt(GROC_B))}<div class="r num" id="gr-a"></div><div class="r">${fld('gcov','Groceries Mama and Papa cover','cvf')}</div></div>` +
+  `<div class="row it"><div><b>Groceries</b>&nbsp;<span class="muted">what's left</span></div>${cellB(fmt(GROC_B))}<div class="r num" id="gr-a"></div><div class="r num cov" id="gr-c"></div></div>` +
+  `<div class="row it edit-only"><div>Grocery goal&nbsp;<span class="muted">what they want to spend</span></div>${cellB('')}<div class="r">${fld('ggoal','Grocery goal')}</div><div></div></div>` +
   itemRow('daddy','sp') +
   `<div class="row it tog" id="tog" role="button" tabindex="0" aria-expanded="false"><div><span id="tgl">+</span>&nbsp;Removed lines (4)</div><div class="r num b" id="rm-b"></div><div class="r num" id="rm-a"></div><div></div></div>` +
   KIDS.map(k=>`<div class="row kid"><div>${LABEL[k]}</div>${cellB(fmt(BEFORE[k]))}<div class="r">${fld(k)}</div><div></div></div>`).join('') +
@@ -228,7 +229,9 @@ function calc(){
   const daddyCov = Math.max(Bf('daddy')-A('daddy'),0);
   setCov($('cv-daddy'),daddyCov);
   ['papa','mama','gas','dw','mw','pldt','tax','rice'].forEach(k=>$('cv-'+k).textContent='');
-  const coverTotal = daddyCov + v.gcov;
+  const gcov = Math.max(v.ggoal - groc, 0);
+  setCov($('gr-c'),gcov);
+  const coverTotal = daddyCov + gcov;
 
   const totalA = fixedA + Math.max(groc,0);
   $('tot-b').textContent=fmt(fixedB); $('tot-a').textContent=fmt(totalA); $('tot-c').textContent=fmt(coverTotal);
@@ -239,7 +242,7 @@ function calc(){
   $('tGr').textContent=fmt(groc);
   $('sGr').textContent = groc<0 ? 'over budget' : 'of the '+fmt(budget)+' a month';
   $('tMp').textContent=fmt(coverTotal);
-  $('sMp').textContent='Daddy '+fmt(daddyCov)+' + groceries '+fmt(v.gcov);
+  $('sMp').textContent='Daddy '+fmt(daddyCov)+' + groceries '+fmt(gcov);
 
   const afterAll = budget + coverTotal;
   const max = Math.max(fixedB, afterAll, 1);
@@ -253,15 +256,15 @@ function calc(){
 
   const vv={}; ids.forEach(k=>vv[k]=v[k]);
   store.set({v:vv});
-  last = {v,mer,groc,daddyCov,coverTotal,afterAll,fixedB,each};
+  last = {v,mer,groc,daddyCov,gcov,coverTotal,afterAll,fixedB,each};
 }
 
 function summary(){
-  const {v,mer,groc,daddyCov,coverTotal,each} = last;
+  const {v,mer,groc,daddyCov,gcov,coverTotal,each} = last;
   const L = [];
   L.push(`Monthly budget ${fmt(v.target+v.kx)}: Charlie ${fmt(each)} + Kuya ${fmt(each+v.kx)}`);
   L.push(`Left for groceries: ${fmt(groc)}`);
-  L.push(`Mama and Papa: ${fmt(coverTotal)} (Daddy pakinabang ${fmt(daddyCov)} + groceries ${fmt(v.gcov)})`);
+  L.push(`Mama and Papa: ${fmt(coverTotal)} (Daddy pakinabang ${fmt(daddyCov)} + groceries ${fmt(gcov)})`);
   L.push('');
   const line = (n,b,a)=>{ if(b>0||a>0) L.push(`${n}: ${fmt(b)} -> ${fmt(a)}`); };
   Object.keys(BEFORE).forEach(k=>line(LABEL[k],BEFORE[k],v[k]));
