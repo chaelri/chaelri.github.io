@@ -1,0 +1,7 @@
+{
+  "minecraft": "26.2",
+  "loader": "forge",
+  "forge": "26.2-65.1.5",
+  "modrinth": ["xaeros-minimap", "xaeros-world-map"],
+  "optifine": "preview_OptiFine_26.2_HD_U_K2_pre5.jar"
+}
