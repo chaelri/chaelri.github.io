@@ -68,7 +68,7 @@ static class Program
         busy = true; if (popup != null) popup.Invalidate();
         ThreadPool.QueueUserWorkItem(delegate
         {
-            string err = null; ArrayList newRows = new ArrayList();
+            string err = null; bool limited = false; ArrayList newRows = new ArrayList();
             try
             {
                 string path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".claude", ".credentials.json");
@@ -117,13 +117,17 @@ static class Program
             catch (WebException we)
             {
                 var hr = we.Response as HttpWebResponse;
-                err = (hr != null && (int)hr.StatusCode == 401) ? "Login expired. Run `claude` once to refresh it." : "Network error: " + we.Message;
+                int code = hr != null ? (int)hr.StatusCode : 0;
+                if (code == 401) err = "Login expired. Run `claude` once to refresh it.";
+                else if (code == 429) { err = "Rate limited, retrying in 15 min"; limited = true; }
+                else err = "Network error: " + we.Message;
             }
             catch (Exception ex) { err = ex.Message; }
 
             inv.BeginInvoke((Action)delegate
             {
                 busy = false;
+                timer.Interval = limited ? 3 * PollMs : PollMs; // back off after a 429
                 if (err == null) { rows = newRows; lastError = null; lastOk = DateTime.Now; }
                 else lastError = err;
                 Paint();
@@ -164,7 +168,7 @@ static class Program
         ni.Text = Trunc(sb.ToString() + (lastError != null ? "  (stale)" : ""));
     }
     static string Short(string label) { return label.StartsWith("Session") ? "5h" : label.StartsWith("Weekly · all") ? "wk" : label.Replace("Weekly · ", ""); }
-    static string Trunc(string s) { return s.Length > 120 ? s.Substring(0, 120) : s; }
+    static string Trunc(string s) { return s.Length > 63 ? s.Substring(0, 60) + "..." : s; } // NotifyIcon.Text hard limit is 63 chars
 
     // big, bold digits that fill the icon: tile in Claude clay, white glyph path centred by its real bounds
     static void SetIcon(string text, Color bg)
