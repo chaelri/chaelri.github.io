@@ -1167,7 +1167,10 @@ function peekCardHtml() {
     const lift = neg ? `<rect x="${cx - billW / 2}" y="${base - noteH}" width="${billW}" height="${noteH}" rx="3" fill="none" stroke="#FB7185" stroke-width="1.5" stroke-dasharray="4 3"/>` : note(cx, noteY);
     const top = neg ? base - noteH : noteY;
     // the top banknote and its amount float together (idle animation, staggered per month)
-    return `${g}<g class="cash-note" style="animation-delay:${(i * 0.45).toFixed(2)}s">${lift}<text x="${cx.toFixed(1)}" y="${top - 8}" text-anchor="middle" font-size="12" font-weight="700" fill="${neg ? "#FB7185" : "#F2EFEA"}">${amt(p.v)}</text></g>
+    const star = (sx, sy, d) => `<g transform="translate(${sx} ${sy})"><path class="cash-sparkle" style="animation-delay:${d}s" d="M0 -5 L1.5 -1.5 L5 0 L1.5 1.5 L0 5 L-1.5 1.5 L-5 0 L-1.5 -1.5Z" fill="#FDE68A"/></g>`;
+    const sparkles = neg ? "" : star(cx + 31, top + 6, i * 0.5) + (i === 0 ? star(cx + 30, top + 26, 1.3) : "");
+    return `${g}<g class="cash-note" style="animation-delay:${(i * 0.2).toFixed(2)}s">${lift}<text x="${cx.toFixed(1)}" y="${top - 8}" text-anchor="middle" font-size="12" font-weight="700" fill="${neg ? "#FB7185" : "#F2EFEA"}">${amt(p.v)}</text></g>
+${sparkles}
       <text x="${cx.toFixed(1)}" y="${H - 8}" text-anchor="middle" font-size="12" fill="#A09B94">${MONTHS_SHORT[keyParts(p.k).m]}</text>`;
   }).join("");
   const ground = `<line x1="${pl - 24}" x2="${W - pr + 24}" y1="${base + 4}" y2="${base + 4}" stroke="#2A2C31" stroke-width="2" stroke-linecap="round"/>`;

@@ -302,10 +302,19 @@ button[onclick*="toggleField"] > span.left-7 { left: 28px !important; }
 .spend-left-num.over { color: #FB7185; }
 .spend-left-cap { font-size: 15px; color: #A09B94; margin: 8px 0 0; }
 
-/* idle animation for the cash piles: the top banknote floats and tilts, staggered per month.
+/* idle animation for the cash piles: a little hop that ripples left to right, plus twinkling sparkles.
    Plain keyframes on purpose: not gated on prefers-reduced-motion (Charlie wants to see it). */
-@keyframes cashFloat {
-  0%, 100% { transform: translateY(0) rotate(-1.2deg); }
-  50% { transform: translateY(-4px) rotate(1.2deg); }
+@keyframes cashHop {
+  0%, 52%, 100% { transform: translateY(0) scale(1, 1); }
+  60% { transform: translateY(1px) scale(1.04, .94); }
+  70% { transform: translateY(-9px) scale(.97, 1.06); }
+  80% { transform: translateY(0) scale(1.05, .93); }
+  88% { transform: translateY(-3px) scale(.99, 1.02); }
+  94% { transform: translateY(0) scale(1.01, .99); }
 }
-.cash-note { transform-box: fill-box; transform-origin: 50% 100%; animation: cashFloat 3.2s ease-in-out infinite; }
+.cash-note { transform-box: fill-box; transform-origin: 50% 100%; animation: cashHop 3.8s ease-in-out infinite; }
+.cash-sparkle { transform-box: fill-box; transform-origin: center; animation: cashSparkleSimple 2.6s ease-in-out infinite; }
+@keyframes cashSparkleSimple {
+  0%, 100% { opacity: 0; scale: .3; rotate: 0deg; }
+  50% { opacity: 1; scale: 1; rotate: 45deg; }
+}
