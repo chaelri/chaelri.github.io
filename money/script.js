@@ -1733,10 +1733,22 @@ function enhanceAddExpense() {
     </div>`);
   body.insertAdjacentHTML("beforeend",
     `<div data-mode="extra" class="space-y-1"><label>What did you spend on?</label><input type="text" id="f-xlabel" placeholder="e.g. grab, lunch, gas" class="w-full" /></div>` +
-    `<div data-mode="extra" class="space-y-1"><label>How much? (₱)</label><input type="number" id="f-xamount" inputmode="decimal" placeholder="0" class="w-full" /></div>` +
-    `<p data-mode="extra" id="f-xleft" class="spend-left ${left < 0 ? "text-rose-400" : "text-slate-300"}">${left < 0 ? `${peso(-left)} over` : `${peso(left)} left`} in extra spending for ${monthShort(selectedKey)}</p>`);
+    `<div data-mode="extra" class="space-y-1"><label>How much? (₱)</label><input type="number" id="f-xamount" inputmode="decimal" placeholder="0" oninput="updateXLeft()" class="w-full" /></div>` +
+    `<div data-mode="extra" id="f-xleft" class="spend-left-card" data-base="${left}" data-month="${monthShort(selectedKey)}"><p id="f-xnum" class="spend-left-num ${left < 0 ? "over" : ""}">${left < 0 ? "-" : ""}${peso(Math.abs(left))}</p><p id="f-xcap" class="spend-left-cap">${left < 0 ? "over" : "left"} in extra spending for ${monthShort(selectedKey)}</p></div>`);
   setExpenseMode("extra");
 }
+// As you type, show what would be left in extra spending after this spend.
+window.updateXLeft = function () {
+  const card = $("f-xleft");
+  if (!card) return;
+  const base = Number(card.dataset.base) || 0;
+  const amt = parseFloat($("f-xamount")?.value) || 0;
+  const left = base - amt;
+  const num = $("f-xnum");
+  num.textContent = `${left < 0 ? "-" : ""}${peso(Math.abs(left))}`;
+  num.classList.toggle("over", left < 0);
+  $("f-xcap").textContent = amt ? (left < 0 ? `over after this spend, ${card.dataset.month}` : `left after this spend, ${card.dataset.month}`) : `${left < 0 ? "over" : "left"} in extra spending for ${card.dataset.month}`;
+};
 window.setExpenseMode = function (m) {
   const body = $("modal-body");
   if (!body || !activeEdit) return;
