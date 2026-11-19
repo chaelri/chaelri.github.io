@@ -1160,10 +1160,10 @@ function peekCardHtml() {
     2: { body: "#60A5FA", coin: "#BFDBFE", e1: "#3B82F6", e2: "#60A5FA", spark: "#DBEAFE" },
     3: { body: "#A78BFA", coin: "#DDD6FE", e1: "#8B5CF6", e2: "#A78BFA", spark: "#EDE9FE" },
     4: { body: "#FBBF24", coin: "#FDE68A", e1: "#F59E0B", e2: "#FBBF24", spark: "#FFF3B0" },
-    5: { body: "url(#cashLegend)", coin: "#FFF7ED", e1: "#EC4899", e2: "#FB923C", spark: "#FFFFFF" },
-    6: { body: "url(#cashIce)", coin: "#FFFFFF", e1: "#22D3EE", e2: "#818CF8", spark: "#FFFFFF" },
+    5: { body: "url(#cashLegend)", coin: "#FFF7ED", e1: "#F46A5C", e2: "#FB8A6B", spark: "#FFFFFF" },
+    6: { body: "url(#cashIce)", coin: "#FFFFFF", e1: "#4CC3E6", e2: "#79D7F1", spark: "#FFFFFF" },
     7: { body: "url(#cashRuby)", coin: "#FDE68A", e1: "#9F1239", e2: "#E11D48", spark: "#FECDD3", frame: "#FDE68A", fop: 0.85, ink: "#B45309", peso: "#7F1D1D", pesoOp: 0.9, dot: "#FDE68A", dotOp: 0.9 },
-    8: { body: "#111827", coin: "#FBBF24", e1: "#1F2937", e2: "#FBBF24", spark: "#FDE68A", frame: "#FBBF24", fop: 0.9, ink: "#FBBF24", peso: "#111827", pesoOp: 1, dot: "#FBBF24", dotOp: 0.9 },
+    8: { body: "#262830", coin: "#FBBF24", e1: "#2E3039", e2: "#FBBF24", es: "#FBBF24", spark: "#FDE68A", frame: "#FBBF24", fop: 0.9, ink: "#FBBF24", peso: "#111827", pesoOp: 1, dot: "#FBBF24", dotOp: 0.9 },
   };
   const SPARKS = { 1: 1, 2: 2, 3: 3, 4: 4, 5: 4, 6: 4, 7: 4, 8: 4 };
   const SPOTS = [[31, 8, 0], [-30, 24, 0], [-31, 4, 1], [29, 32, 0], [33, -6, 1], [-34, 36, 1], [36, 22, 0], [-36, 12, 0], [26, -14, 1], [-26, -12, 0]];
@@ -1181,7 +1181,7 @@ function peekCardHtml() {
     const tier = neg ? 0 : tierOf(p.v), pal = PAL[tier] || PAL[1];
     const n = neg ? 0 : Math.max(1, Math.round((p.v / hi) * maxEdges));
     let g = "";
-    for (let j = 0; j < n; j++) g += `<rect x="${cx - billW / 2}" y="${base - (j + 1) * edge}" width="${billW}" height="${edge - 1}" rx="2" fill="${j % 2 ? pal.e2 : pal.e1}"/>`;
+    for (let j = 0; j < n; j++) g += `<rect x="${cx - billW / 2}" y="${base - (j + 1) * edge}" width="${billW}" height="${edge - 1}" rx="2" fill="${j % 2 ? pal.e2 : pal.e1}"${pal.es ? ` stroke="${pal.es}" stroke-opacity=".75" stroke-width="1"` : ""}/>`;
     const noteY = base - n * edge - noteH;
     const lift = neg ? `<rect x="${cx - billW / 2}" y="${base - noteH}" width="${billW}" height="${noteH}" rx="3" fill="none" stroke="#FB7185" stroke-width="1.5" stroke-dasharray="4 3"/>` : note(cx, noteY, pal, tier >= 7, i);
     const top = neg ? base - noteH : noteY;
@@ -1205,7 +1205,7 @@ ${sparkles}
       <svg viewBox="0 0 ${W} ${H}" class="w-full" role="img" aria-label="Projected month-end balance as stacks of cash. ${escapeHtml(table)}">
         <defs>
           <linearGradient id="cashLegend" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F472B6"/><stop offset=".5" stop-color="#FB923C"/><stop offset="1" stop-color="#FACC15"/></linearGradient>
-          <linearGradient id="cashIce" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#67E8F9"/><stop offset=".5" stop-color="#C4B5FD"/><stop offset="1" stop-color="#F0ABFC"/></linearGradient>
+          <linearGradient id="cashIce" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#67E8F9"/><stop offset=".6" stop-color="#93C5FD"/><stop offset="1" stop-color="#C4B5FD"/></linearGradient>
           <linearGradient id="cashRuby" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FB7185"/><stop offset=".55" stop-color="#E11D48"/><stop offset="1" stop-color="#9F1239"/></linearGradient>
         </defs>
         ${ground}${stacks}
