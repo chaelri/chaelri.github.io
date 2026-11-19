@@ -277,3 +277,8 @@ button[onclick*="toggleField"] { width: 56px !important; height: 32px !important
 button[onclick*="toggleField"] > span { width: 24px !important; height: 24px !important; top: 4px !important; }
 button[onclick*="toggleField"] > span.left-1 { left: 4px !important; }
 button[onclick*="toggleField"] > span.left-7 { left: 28px !important; }
+
+/* accounts list: straight hairline dividers (the rounded rows made the line curve at the ends), no line under the last row */
+.acct-list > * { border-radius: 0 !important; }
+.acct-list > *:last-child { border-bottom: 0; }
+@media (min-width: 1024px) { .acct-list > *:nth-last-child(2):nth-child(odd) { border-bottom: 0; } }
