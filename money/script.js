@@ -2124,14 +2124,29 @@ function initParticles() {
 // =============================
 // Boot
 // =============================
-function revealApp() {
+// Splash -> app: the gif-maker curtain. A cyan sheet with a curved top wipes up over the splash,
+// shows a wordmark + progress bar while the app is swapped in underneath, then lifts away upward.
+// Web Animations API on purpose: it ignores the OS reduce-motion setting.
+let revealing = false;
+async function revealApp() {
+  if (revealing) return;
+  revealing = true;
   const intro = $("intro-screen");
   const app = $("app");
-  intro.style.opacity = "0";
+  const ease = "cubic-bezier(.7,0,.2,1)";
+  const c = document.createElement("div");
+  c.style.cssText = "position:fixed;top:-160px;left:0;right:0;bottom:0;padding-top:160px;box-sizing:border-box;z-index:200;background:#3DD9F0;color:#0B1014;display:flex;align-items:center;justify-content:center;transform:translateY(101%);pointer-events:none;border-radius:50% 50% 0 0 / 96px 96px 0 0;will-change:transform";
+  c.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;gap:16px"><strong style="font:700 24px/1 Inter,sans-serif;letter-spacing:-.02em">Charlie &amp; Karla\'s <span style="opacity:.62">money</span></strong><div style="width:240px;height:8px;border-radius:999px;background:rgba(11,16,20,.2);overflow:hidden"><i id="cur-bar" style="display:block;height:100%;width:0;background:#0B1014;border-radius:999px"></i></div></div>';
+  document.body.appendChild(c);
+  await c.animate([{ transform: "translateY(101%)" }, { transform: "translateY(0)" }], { duration: 520, easing: ease, fill: "forwards" }).finished;
+  intro.style.display = "none";
   intro.style.pointerEvents = "none";
-  setTimeout(() => { intro.style.display = "none"; }, 700);
   app.style.opacity = "1";
   initParticles();
+  c.querySelector("#cur-bar").animate([{ width: "0%" }, { width: "100%" }], { duration: 700, fill: "forwards" });
+  await new Promise((r) => setTimeout(r, 780));
+  await c.animate([{ transform: "translateY(0)" }, { transform: "translateY(-101%)" }], { duration: 600, easing: ease, fill: "forwards" }).finished;
+  c.remove();
 }
 
 function runIntro() {
