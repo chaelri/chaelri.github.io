@@ -1150,9 +1150,9 @@ function peekCardHtml() {
   const W = 360, H = 208, pl = 44, pr = 44, base = 180, edge = 8, noteH = 28, billW = 48, maxEdges = 14;
   const hi = Math.max(1, ...pts.map((p) => p.v));
   const x = (i) => pl + (i * (W - pl - pr)) / (pts.length - 1);
-  const amt = (v) => `${v < 0 ? "-" : ""}₱${formatMoney(Math.abs(Math.round(v)))}`;
+  const amt = (v) => (Math.abs(v) >= 1000000 ? `${v < 0 ? "-" : ""}₱${(Math.abs(v) / 1000000).toFixed(2)}M` : `${v < 0 ? "-" : ""}₱${formatMoney(Math.abs(Math.round(v)))}`);
   // rarity tiers: the more money, the rarer the cash.
-  // 1 common green, 2 blue, 3 purple, 4 gold, 5 legendary, 6 diamond (icy), 7 platinum (silver shine), 8 black and gold (premium)
+  // 1 common green, 2 blue, 3 purple, 4 gold, 5 legendary, 6 diamond (icy), 7 ruby (red and gold trim), 8 black and gold (premium)
   const TIERS = [30000, 80000, 160000, 300000, 500000, 750000, 1000000];
   const tierOf = (v) => 1 + TIERS.filter((t) => v >= t).length;
   const PAL = {
@@ -1162,10 +1162,10 @@ function peekCardHtml() {
     4: { body: "#FBBF24", coin: "#FDE68A", e1: "#F59E0B", e2: "#FBBF24", spark: "#FFF3B0" },
     5: { body: "url(#cashLegend)", coin: "#FFF7ED", e1: "#EC4899", e2: "#FB923C", spark: "#FFFFFF" },
     6: { body: "url(#cashIce)", coin: "#FFFFFF", e1: "#22D3EE", e2: "#818CF8", spark: "#FFFFFF" },
-    7: { body: "url(#cashPlatinum)", coin: "#FFFFFF", e1: "#CBD5E1", e2: "#F1F5F9", spark: "#FFFFFF" },
+    7: { body: "url(#cashRuby)", coin: "#FDE68A", e1: "#9F1239", e2: "#E11D48", spark: "#FECDD3", frame: "#FDE68A", fop: 0.85, ink: "#B45309", peso: "#7F1D1D", pesoOp: 0.9, dot: "#FDE68A", dotOp: 0.9 },
     8: { body: "#111827", coin: "#FBBF24", e1: "#1F2937", e2: "#FBBF24", spark: "#FDE68A", frame: "#FBBF24", fop: 0.9, ink: "#FBBF24", peso: "#111827", pesoOp: 1, dot: "#FBBF24", dotOp: 0.9 },
   };
-  const SPARKS = { 1: 1, 2: 2, 3: 3, 4: 4, 5: 6, 6: 7, 7: 8, 8: 10 };
+  const SPARKS = { 1: 1, 2: 2, 3: 3, 4: 4, 5: 4, 6: 4, 7: 4, 8: 4 };
   const SPOTS = [[31, 8, 0], [-30, 24, 0], [-31, 4, 1], [29, 32, 0], [33, -6, 1], [-34, 36, 1], [36, 22, 0], [-36, 12, 0], [26, -14, 1], [-26, -12, 0]];
   const note = (cx, y, pal, shine, id) => `<g>
       <rect x="${cx - billW / 2}" y="${y}" width="${billW}" height="${noteH}" rx="3" fill="${pal.body}"/>
@@ -1206,7 +1206,7 @@ ${sparkles}
         <defs>
           <linearGradient id="cashLegend" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F472B6"/><stop offset=".5" stop-color="#FB923C"/><stop offset="1" stop-color="#FACC15"/></linearGradient>
           <linearGradient id="cashIce" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#67E8F9"/><stop offset=".5" stop-color="#C4B5FD"/><stop offset="1" stop-color="#F0ABFC"/></linearGradient>
-          <linearGradient id="cashPlatinum" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F8FAFC"/><stop offset=".5" stop-color="#CBD5E1"/><stop offset="1" stop-color="#F1F5F9"/></linearGradient>
+          <linearGradient id="cashRuby" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FB7185"/><stop offset=".55" stop-color="#E11D48"/><stop offset="1" stop-color="#9F1239"/></linearGradient>
         </defs>
         ${ground}${stacks}
       </svg>
