@@ -282,3 +282,12 @@ button[onclick*="toggleField"] > span.left-7 { left: 28px !important; }
 .acct-list > * { border-radius: 0 !important; }
 .acct-list > *:last-child { border-bottom: 0; }
 @media (min-width: 1024px) { .acct-list > *:nth-last-child(2):nth-child(odd) { border-bottom: 0; } }
+
+/* add expense: two choices (extra spending / other expense) */
+#modal-body > [hidden] { display: none !important; }
+.mode-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.mode-btn { display: flex; align-items: center; justify-content: center; gap: 8px; height: 48px; border-radius: 13px; border: 1px solid #2A2C31; background: #0F1012; color: #BDB8B0; font-size: 15px; font-weight: 700; }
+.mode-btn .material-icons { font-size: 18px; }
+.mode-btn[data-on="true"] { border: 2px solid #3DD9F0; color: #3DD9F0; }
+.spend-left { grid-column: 1 / -1; font-size: 12px; font-weight: 700; margin: 0; }
+@media (min-width: 1024px) { .mode-btn { height: 40px; } #modal-body > #f-mode, #modal-body > #f-xleft { grid-column: 1 / -1; } }

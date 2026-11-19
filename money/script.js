@@ -1709,6 +1709,7 @@ window.openItemModal = function (who, kind, id) {
   }
 
   $("modal-body").innerHTML = body;
+  if (isNew && kind === "expenses") enhanceAddExpense();
 
   const delBtn = $("delete-btn");
   if (isNew) { delBtn.classList.add("hidden"); }
@@ -1716,6 +1717,41 @@ window.openItemModal = function (who, kind, id) {
 
   openModalShell();
   if (isNew) setTimeout(() => $("f-name")?.focus(), 320); // after the sheet finishes sliding up
+};
+
+// ---- Add expense: two choices, "extra spending" (log a spend against the monthly budget) or "other expense" ----
+function findExtraSpending() {
+  for (const who of ["charlie", "karla"]) {
+    for (const it of getItems(who, "expenses")) {
+      const c = getKids(it).find((x) => /^extra spending$/i.test((x.name || "").trim()));
+      if (c) return { who, parent: it, child: c };
+    }
+  }
+  return null;
+}
+function enhanceAddExpense() {
+  const ex = findExtraSpending();
+  if (!ex) return;
+  const body = $("modal-body");
+  [...body.children].forEach((c) => { c.dataset.mode = "other"; });
+  const left = (Number(ex.child.amount) || 0) - spentIn(ex.child.id, selectedKey);
+  body.insertAdjacentHTML("afterbegin", `<div id="f-mode" class="mode-switch" role="group" aria-label="What are you adding?">
+      <button type="button" class="mode-btn" data-m="extra" onclick="setExpenseMode('extra')"><span class="material-icons">payments</span>extra spending</button>
+      <button type="button" class="mode-btn" data-m="other" onclick="setExpenseMode('other')"><span class="material-icons">receipt_long</span>other expense</button>
+    </div>`);
+  body.insertAdjacentHTML("beforeend",
+    `<div data-mode="extra" class="space-y-1"><label>What did you spend on?</label><input type="text" id="f-xlabel" placeholder="e.g. grab, lunch, gas" class="w-full" /></div>` +
+    `<div data-mode="extra" class="space-y-1"><label>How much? (₱)</label><input type="number" id="f-xamount" inputmode="decimal" placeholder="0" class="w-full" /></div>` +
+    `<p data-mode="extra" id="f-xleft" class="spend-left ${left < 0 ? "text-rose-400" : "text-slate-300"}">${left < 0 ? `${peso(-left)} over` : `${peso(left)} left`} in extra spending for ${monthShort(selectedKey)}</p>`);
+  setExpenseMode("extra");
+}
+window.setExpenseMode = function (m) {
+  const body = $("modal-body");
+  if (!body || !activeEdit) return;
+  activeEdit.mode = m;
+  body.querySelectorAll("[data-mode]").forEach((el) => { el.hidden = el.dataset.mode !== m; });
+  body.querySelectorAll(".mode-btn").forEach((b) => { b.dataset.on = b.dataset.m === m; });
+  setTimeout(() => $(m === "extra" ? "f-xlabel" : "f-name")?.focus(), 60);
 };
 
 // Add an expense without first picking a person — the owner buttons are in the form.
@@ -1798,7 +1834,7 @@ function spendSectionHtml(who, parentId, c) {
   const rows = list.map((e, i) => `
     <div class="spend-row">
       <span class="material-icons text-emerald-400" style="font-size:16px">payments</span>
-      <span class="flex-1 min-w-0 truncate text-[10px] font-bold text-slate-400">Spend ${i + 1}</span>
+      <span class="flex-1 min-w-0 truncate text-[10px] font-bold text-slate-400">${e.label ? escapeHtml(e.label) : "Spend " + (i + 1)}</span>
       <span class="text-sm font-black text-white">${peso(e.amount)}</span>
       <button type="button" onclick="deleteSpend('${e.id}')" title="Remove" class="text-slate-500 hover:text-rose-400 flex-shrink-0"><span class="material-icons" style="font-size:16px">close</span></button>
     </div>`).join("");
@@ -1912,6 +1948,22 @@ window.closeModal = function () {
 
 window.saveModal = async function () {
   if (!activeEdit) return;
+  if (activeEdit.mode === "extra") {
+    const ex = findExtraSpending();
+    const amt = parseFloat($("f-xamount")?.value) || 0;
+    if (!ex) return toast("Extra Spending not found", "error");
+    if (!amt) return toast("Amount required", "error");
+    const label = ($("f-xlabel")?.value || "").trim();
+    const k = selectedKey;
+    const cur = getSpendList(ex.child.id, k);
+    cur.push({ id: generateId(), amount: amt, ...(label ? { label } : {}) });
+    appData.spend = appData.spend || {};
+    appData.spend[k] = appData.spend[k] || {};
+    appData.spend[k][ex.child.id] = cur;
+    await syncSet();
+    closeModal(); renderAll(); toast("Logged"); celebrate();
+    return;
+  }
   const name = ($("f-name")?.value || "").trim();
   const amount = parseFloat($("f-amount")?.value) || 0;
 
