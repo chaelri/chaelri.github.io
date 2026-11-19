@@ -1037,11 +1037,13 @@ function accountsCardHtml() {
           <p class="text-[10px] text-slate-400">Starting balances on hand</p>
         </div>
       </div>
-      <p class="text-base font-black text-emerald-400">${peso(accountsTotal())}</p>
+      <div class="flex items-center gap-4">
+        <p class="text-base font-black text-emerald-400">${peso(accountsTotal())}</p>
+        <button onclick="event.preventDefault();event.stopPropagation();openAccountModal(null)" class="text-[11px] font-bold text-cyan-400 flex items-center gap-1 transition-transform"><span class="material-icons" style="font-size:14px">add</span>Add</button>
+      </div>
     </summary>
     <div class="px-4 pb-4 pt-0">
       <div class="acct-list md:grid md:grid-cols-2 md:gap-x-8">${rows}</div>
-      <button onclick="openAccountModal(null)" class="mx-auto mt-4 px-5 h-12 bg-cyan-400 text-slate-900 rounded-xl font-bold text-sm flex items-center justify-center gap-1 transition-transform"><span class="material-icons" style="font-size:16px">add</span>Add account</button>
     </div>
   </details>`;
 }
