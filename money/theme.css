@@ -81,3 +81,14 @@ button:disabled { color: #8FA1AE !important; opacity: 0.6; }
 .month-chip { box-sizing: border-box; border: 1px solid transparent; }
 .month-chip.border-cyan-400 { border-color: #3DD9F0; }
 .month-chip.is-now { overflow: visible; }
+
+/* ---- mobile (<1024px): header never collides, tiles stay one height ---- */
+.uppercase { letter-spacing: 0.1em; }
+.bg-black\/20 p.uppercase { white-space: nowrap; letter-spacing: 0.08em; }
+@media (max-width: 1023.98px) {
+  #app > header { padding-left: 16px; padding-right: 16px; gap: 8px; }
+  #app > header h1 { font-size: 24px !important; }
+  #app > header > div:last-child { gap: 8px; }
+  #app > header .w-12 { width: 48px; height: 48px; flex: none; }
+  #app > header > div:first-child { min-width: 0; }
+}
