@@ -206,11 +206,47 @@ tr.bg-indigo-600, tr.bg-indigo-600 td, tr.bg-indigo-600 th { color: #FFFFFF !imp
    WARM PASS: friendlier overall. Warm neutrals (above), one step rounder,
    sentence-case labels instead of shouting caps, no italic headline.
    ===================================================================== */
-.uppercase { text-transform: none !important; letter-spacing: 0 !important; }
-#current-month-display { text-transform: none !important; font-style: normal !important; letter-spacing: -0.02em; }
+.uppercase { letter-spacing: 0 !important; }
+#current-month-display { font-style: normal !important; letter-spacing: -0.02em; }
 .rounded-lg, .rounded-xl { border-radius: 13px !important; }
 .rounded-2xl { border-radius: 21px !important; }
 .rounded-3xl { border-radius: 34px !important; }
 .item-name, h3 { letter-spacing: 0; }
 #modal-body input, #modal-body select, #modal-body > div.flex.items-center.justify-between, #modal-content .mt-8 button, .owner-btn { border-radius: 13px !important; }
 .month-chip, .acct-icon { border-radius: 13px !important; }
+
+/* ---- modal alignment fixes ---- */
+#modal-body { padding-right: 0 !important; }
+#modal-body label { display: block; margin: 0 0 8px 0 !important; }
+#modal-body select, #modal-body input { display: block; width: 100%; }
+#modal-body p.mb-1 { margin: 0 !important; font-size: 10px; }
+
+/* spend tracker inside the sub-expense modal */
+.spend-block { display: grid; gap: 8px; }
+.spend-block label { margin: 0 !important; }
+.spend-hero { font-size: 24px; font-weight: 900; line-height: 1; margin: 0; }
+.spend-hero span { font-size: 10px; font-weight: 700; color: #A09B94; margin-left: 8px; }
+.spend-bar { height: 8px; border-radius: 999px; background: #2A2C31; overflow: hidden; }
+.spend-bar > div { height: 100%; border-radius: 999px; }
+.spend-rows { display: grid; gap: 8px; }
+.spend-row { display: flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 13px; background: #0F1012; border: 1px solid #2A2C31; }
+.spend-empty { font-size: 10px; font-weight: 700; color: #A09B94; margin: 0; }
+.spend-add { margin-top: 8px; }
+#modal-body .spend-add input[type="number"] { padding: 0 16px !important; }
+.spend-btn { flex: none; width: 48px; height: 48px; border-radius: 13px; background: #3DD9F0; color: #0F1012; display: flex; align-items: center; justify-content: center; }
+@media (min-width: 1024px) { .spend-btn { width: 40px; height: 40px; } }
+
+/* cute + aesthetic: everything lowercase */
+body, body *, #modal-title, #current-month-display, .uppercase { text-transform: lowercase !important; }
+
+/* modal grid columns may shrink (selects/inputs have an intrinsic width) so the body never exceeds the footer */
+@media (min-width: 1024px) {
+  #modal-body { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+}
+#modal-body, #modal-body > * { min-width: 0; }
+
+/* the old scrollbar trick (negative right margin) pushed the body 12px past the footer */
+#modal-body { margin-right: 0 !important; padding-right: 0 !important; }
+@media (min-width: 1024px) and (min-height: 760px) {
+  #modal-body { overflow: visible !important; }
+}

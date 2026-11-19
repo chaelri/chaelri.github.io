@@ -1116,7 +1116,7 @@ function renderBudget() {
     <div class="ambient-glow" style="top:-30px;right:60px"></div>
     <div class="relative p-6 md:p-7 space-y-5">
       <div>
-        <p class="text-[10px] font-black uppercase tracking-[0.3em] text-white/60">Projected · end of ${monthName(k)}</p>
+        <p class="text-[10px] font-black uppercase tracking-[0.3em] text-white/60">Projected</p>
         <p id="sum-projected" class="text-4xl md:text-5xl font-black text-white mt-1 leading-none">${peso(projected)}</p>
       </div>
       <div id="sum-stats" class="grid grid-cols-2 gap-3">${statsGridHtml(t)}</div>
@@ -1155,27 +1155,19 @@ function peekCardHtml() {
   const line = pts.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)} ${y(p.v).toFixed(1)}`).join(" ");
   const minI = vals.indexOf(Math.min(...vals));
   const lastI = pts.length - 1;
-  const labelAt = new Set([0, lastI, minI]);
+  const amt = (v) => `${v < 0 ? "-" : ""}₱${formatMoney(Math.abs(Math.round(v)))}`;
   const dots = pts.map((p, i) => {
     const neg = p.v < 0;
-    const lab = labelAt.has(i)
-      ? `<text x="${x(i).toFixed(1)}" y="${(y(p.v) - 12).toFixed(1)}" text-anchor="${i === 0 ? "start" : i === lastI ? "end" : "middle"}" font-size="10" font-weight="700" fill="${neg ? "#FB7185" : "#F2EFEA"}">${signedPeso(p.v).replace(/\.\d\d$/, "")}</text>`
-      : "";
+    const lab = `<text x="${x(i).toFixed(1)}" y="${(y(p.v) - 12).toFixed(1)}" text-anchor="${i === 0 ? "start" : i === lastI ? "end" : "middle"}" font-size="10" font-weight="700" fill="${neg ? "#FB7185" : "#F2EFEA"}">${amt(p.v)}</text>`;
     return `<circle cx="${x(i).toFixed(1)}" cy="${y(p.v).toFixed(1)}" r="${i === 0 ? 5 : 4}" fill="${neg ? "#FB7185" : "#3DD9F0"}" stroke="#17181B" stroke-width="2"/>${lab}
       <text x="${x(i).toFixed(1)}" y="${H - 12}" text-anchor="${i === 0 ? "start" : i === lastI ? "end" : "middle"}" font-size="10" fill="#A09B94">${MONTHS_SHORT[keyParts(p.k).m]}</text>
       <rect class="peek-hit" data-i="${i}" x="${(x(i) - 28).toFixed(1)}" y="0" width="56" height="${H}" fill="transparent"/>`;
   }).join("");
   const zero = lo < 0 ? `<line x1="${pl}" x2="${W - pr}" y1="${y(0).toFixed(1)}" y2="${y(0).toFixed(1)}" stroke="#5E5B57" stroke-width="1" stroke-dasharray="3 4"/>` : "";
-  const lowest = pts[minI];
-  const lowNeg = lowest.v < 0;
-  const note = lowNeg
-    ? `<span class="text-rose-300 font-bold">Dips below zero in ${monthName(lowest.k)}</span>`
-    : `<span class="text-slate-300">Lowest is <b class="text-white">${peso(lowest.v)}</b> in ${monthName(lowest.k)}</span>`;
   const table = pts.map((p) => `${monthName(p.k)} ${peso(p.v)}`).join(", ");
   return `<section class="glass-card rounded-3xl p-6 flex flex-col" id="peek-card">
     <div>
       <h3 class="text-sm font-bold text-white">Next 5 months</h3>
-      <p class="text-[10px] font-bold text-slate-400 mt-1">Projected balance at the end of each month</p>
     </div>
     <div class="relative mt-4 flex-1 flex items-center">
       <svg viewBox="0 0 ${W} ${H}" class="w-full" role="img" aria-label="Projected month-end balance. ${escapeHtml(table)}">
@@ -1183,7 +1175,6 @@ function peekCardHtml() {
       </svg>
       <div id="peek-tip" class="hidden absolute pointer-events-none rounded-lg px-3 py-2 text-[10px] font-bold bg-slate-950 text-white border border-slate-700 whitespace-nowrap"></div>
     </div>
-    <p class="text-[10px] font-bold mt-4">${note}</p>
   </section>`;
 }
 document.addEventListener("mouseover", (e) => {
@@ -1805,25 +1796,20 @@ function spendSectionHtml(who, parentId, c) {
   const over = remaining < 0;
   const pct = est > 0 ? Math.min(100, Math.round((spent / est) * 100)) : (spent > 0 ? 100 : 0);
   const rows = list.map((e, i) => `
-    <div class="flex items-center gap-2 py-2 px-3 bg-slate-900/60 rounded-xl">
+    <div class="spend-row">
       <span class="material-icons text-emerald-400" style="font-size:16px">payments</span>
-      <span class="flex-1 min-w-0 truncate text-[12px] font-bold text-slate-500">#${i + 1}</span>
-      <span class="text-[13px] font-black text-white">${peso(e.amount)}</span>
+      <span class="flex-1 min-w-0 truncate text-[10px] font-bold text-slate-400">Spend ${i + 1}</span>
+      <span class="text-sm font-black text-white">${peso(e.amount)}</span>
       <button type="button" onclick="deleteSpend('${e.id}')" title="Remove" class="text-slate-500 hover:text-rose-400 flex-shrink-0"><span class="material-icons" style="font-size:16px">close</span></button>
     </div>`).join("");
-  return `<div class="space-y-2">
-    <div class="flex items-center justify-between ml-1">
-      <label class="text-[10px] font-bold uppercase text-slate-500">Spending in ${monthShort(k)}</label>
-      <span class="text-[10px] font-black uppercase ${over ? "text-rose-400" : "text-emerald-400"}">${over ? `Over by ${peso(-remaining)}` : `${peso(remaining)} left`}</span>
-    </div>
-    <div class="flex items-center gap-2">
-      <div class="flex-1 h-1.5 bg-slate-900 rounded-full overflow-hidden"><div class="h-full ${over ? "bg-rose-500" : "bg-gradient-to-r from-emerald-500 to-teal-400"} rounded-full transition-all duration-300" style="width:${pct}%"></div></div>
-      <span class="text-[11px] font-bold text-slate-400 flex-shrink-0">${peso(spent)} / ${peso(est)}</span>
-    </div>
-    ${rows ? `<div class="space-y-1.5">${rows}</div>` : `<p class="text-[11px] text-slate-600 text-center py-1">No spending logged yet.</p>`}
+  return `<div class="spend-block">
+    <label>Spending in ${monthShort(k)}</label>
+    <p class="spend-hero ${over ? "text-rose-400" : "text-white"}">${over ? `-${peso(-remaining)}` : peso(remaining)} <span>${over ? "over" : "left"} of ${peso(est)}</span></p>
+    <div class="spend-bar"><div class="${over ? "bg-rose-400" : "bg-emerald-400"}" style="width:${pct}%"></div></div>
+    ${rows ? `<div class="spend-rows">${rows}</div>` : `<p class="spend-empty">No spending logged yet</p>`}
     <div class="spend-add flex items-center gap-2">
-      <input type="number" id="f-spend-amount" inputmode="decimal" placeholder="Add spending  ₱0" onkeydown="if(event.key==='Enter'){event.preventDefault();addSpend();}" class="spend-amt bg-slate-900 rounded-xl text-[13px] font-bold text-white focus:outline-none" />
-      <button type="button" onclick="addSpend()" title="Log spending" class="flex-shrink-0 w-12 h-12 rounded-xl bg-emerald-500/15 border border-emerald-500/25 text-emerald-300 flex items-center justify-center active:scale-95 transition-transform"><span class="material-icons" style="font-size:22px">add</span></button>
+      <input type="number" id="f-spend-amount" inputmode="decimal" placeholder="How much did you spend? ₱" onkeydown="if(event.key==='Enter'){event.preventDefault();addSpend();}" class="spend-amt" />
+      <button type="button" onclick="addSpend()" aria-label="Log spending" class="spend-btn"><span class="material-icons" style="font-size:22px">add</span></button>
     </div>
   </div>`;
 }
