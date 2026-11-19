@@ -685,20 +685,14 @@ function budgetRowHtml(it, k, kind, who) {
   const pct = amt > 0 ? Math.min(100, Math.round((spent / amt) * 100)) : 0;
   const list = getSpendList(it.id, k);
   const chips = list.map((e) => `<button onclick="deleteBudgetSpend(event,'${it.id}','${e.id}')" title="Remove" class="px-2 py-1 rounded-lg bg-slate-800 text-[11px] font-bold text-slate-300 flex items-center gap-1">${peso(e.amount)}<span class="material-icons text-slate-500" style="font-size:12px">close</span></button>`).join("");
-  return `<div class="budget-row glass-card rounded-2xl border ${over ? "border-rose-500/40" : "border-emerald-500/30"} overflow-hidden my-1.5 bg-gradient-to-r ${over ? "from-rose-500/[0.12]" : "from-emerald-500/[0.12]"} via-transparent to-transparent" data-budget="${it.id}">
-  <div onclick="openItemModal('${who}','${kind}','${it.id}')" class="item-row flex items-center gap-3 py-4 px-4 transition-colors cursor-pointer ${settled ? "opacity-60" : ""}">
-    <button onclick="togglePaidQuick(event,'${it.id}','${kind}')" title="Mark paid" class="paid-check ${settled ? "is-paid bg-emerald-500 border-emerald-500" : "border-slate-600"} w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 border">
-      <span class="material-icons check-icon text-white" style="font-size:16px">check</span>
-    </button>
-    <div class="flex-1 min-w-0">
-      <p class="item-name text-base font-black text-white truncate ${settled ? "line-through" : ""}">${escapeHtml(it.name)}</p>
-      <div class="flex items-center gap-2 mt-1.5">
-        <div class="flex-1 h-2 bg-slate-900/70 rounded-full overflow-hidden max-w-[150px]"><div class="h-full ${over ? "bg-rose-500" : "bg-gradient-to-r from-emerald-500 to-teal-400"} rounded-full" style="width:${pct}%"></div></div>
-        <span class="text-xs font-black ${over ? "text-rose-400" : "text-emerald-400"}">${over ? `over ${peso(spent - amt)}` : `${peso(amt - spent)} left`}</span>
-      </div>
+  return `<div class="budget-row glass-card rounded-2xl border ${over ? "border-rose-500/40" : "border-slate-700"} overflow-hidden my-2" data-budget="${it.id}">
+  <div onclick="openItemModal('${who}','${kind}','${it.id}')" class="px-4 py-4 cursor-pointer">
+    <div class="flex items-center justify-between gap-3">
+      <p class="item-name text-sm font-bold text-slate-300 truncate">${escapeHtml(it.name)}</p>
+      <button onclick="toggleBudgetAdd(event,'${it.id}')" class="flex-shrink-0 h-10 px-4 rounded-xl bg-cyan-400 text-slate-900 text-sm font-bold flex items-center gap-1 active:scale-95 transition-transform"><span class="material-icons" style="font-size:18px">add</span>Add spend</button>
     </div>
-    <button onclick="toggleBudgetAdd(event,'${it.id}')" title="Quick add spending" class="flex-shrink-0 w-10 h-10 rounded-xl bg-emerald-500 text-white shadow-lg shadow-emerald-500/30 flex items-center justify-center active:scale-95 transition-transform"><span class="material-icons" style="font-size:22px">add</span></button>
-    <p class="text-base font-black text-white flex-shrink-0">${peso(amt)}</p>
+    <p class="mt-3 leading-none"><span class="text-2xl font-black ${over ? "text-rose-400" : "text-white"}">${over ? `-${peso(spent - amt)}` : peso(amt - spent)}</span> <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wide">${over ? "over" : "left"} of ${peso(amt)}</span></p>
+    <div class="mt-3 h-2 bg-slate-900 rounded-full overflow-hidden"><div class="h-full ${over ? "bg-rose-400" : "bg-emerald-400"} rounded-full" style="width:${pct}%"></div></div>
   </div>
   <div id="budget-add-${it.id}" class="hidden px-4 pb-3">
     <div class="flex items-center gap-2">
