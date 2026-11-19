@@ -1147,29 +1147,45 @@ function peekCardHtml() {
   const pts = peekMonths();
   if (pts.length < 2) return "";
   // each month is a pile of cash: a banknote on top, the edges of the bills under it, taller = more money
-  const W = 360, H = 208, pl = 36, pr = 36, base = 180, edge = 8, noteH = 28, billW = 48, maxEdges = 14;
+  const W = 360, H = 208, pl = 44, pr = 44, base = 180, edge = 8, noteH = 28, billW = 48, maxEdges = 14;
   const hi = Math.max(1, ...pts.map((p) => p.v));
   const x = (i) => pl + (i * (W - pl - pr)) / (pts.length - 1);
   const amt = (v) => `${v < 0 ? "-" : ""}₱${formatMoney(Math.abs(Math.round(v)))}`;
-  const note = (cx, y) => `<g>
-      <rect x="${cx - billW / 2}" y="${y}" width="${billW}" height="${noteH}" rx="3" fill="#4ADE9F"/>
+  // tiers: the more money, the fancier the cash. small = plain green bill, medium = strapped green bundle, big = gold
+  const tierOf = (v) => (v >= 200000 ? 3 : v >= 50000 ? 2 : 1);
+  const PAL = {
+    1: { body: "#4ADE9F", coin: "#86EFC0", e1: "#2DBE88", e2: "#34D399" },
+    2: { body: "#4ADE9F", coin: "#86EFC0", e1: "#2DBE88", e2: "#34D399" },
+    3: { body: "#FBBF24", coin: "#FDE68A", e1: "#F59E0B", e2: "#FBBF24" },
+  };
+  const note = (cx, y, pal) => `<g>
+      <rect x="${cx - billW / 2}" y="${y}" width="${billW}" height="${noteH}" rx="3" fill="${pal.body}"/>
       <rect x="${cx - billW / 2 + 3}" y="${y + 3}" width="${billW - 6}" height="${noteH - 6}" rx="2" fill="none" stroke="#0F1012" stroke-opacity=".28" stroke-width="1"/>
-      <circle cx="${cx}" cy="${y + noteH / 2}" r="9" fill="#86EFC0" stroke="#0F1012" stroke-opacity=".3" stroke-width="1"/>
+      <circle cx="${cx}" cy="${y + noteH / 2}" r="9" fill="${pal.coin}" stroke="#0F1012" stroke-opacity=".3" stroke-width="1"/>
       <text x="${cx}" y="${y + noteH / 2 + 4}" text-anchor="middle" font-size="12" font-weight="700" fill="#0F1012" fill-opacity=".6">₱</text>
       <circle cx="${cx - billW / 2 + 8}" cy="${y + 7}" r="1.6" fill="#0F1012" fill-opacity=".3"/><circle cx="${cx + billW / 2 - 8}" cy="${y + noteH - 7}" r="1.6" fill="#0F1012" fill-opacity=".3"/>
     </g>`;
+  const star = (sx, sy, d, big) => `<g transform="translate(${sx} ${sy})"><path class="cash-sparkle" style="animation-delay:${d}s" d="${big ? "M0 -7 L2 -2 L7 0 L2 2 L0 7 L-2 2 L-7 0 L-2 -2Z" : "M0 -5 L1.5 -1.5 L5 0 L1.5 1.5 L0 5 L-1.5 1.5 L-5 0 L-1.5 -1.5Z"}" fill="${big ? "#FFF3B0" : "#FDE68A"}"/></g>`;
   const stacks = pts.map((p, i) => {
     const cx = x(i), neg = p.v <= 0;
+    const tier = neg ? 0 : tierOf(p.v), pal = PAL[tier] || PAL[1];
     const n = neg ? 0 : Math.max(1, Math.round((p.v / hi) * maxEdges));
     let g = "";
-    for (let j = 0; j < n; j++) g += `<rect x="${cx - billW / 2}" y="${base - (j + 1) * edge}" width="${billW}" height="${edge - 1}" rx="2" fill="${j % 2 ? "#34D399" : "#2DBE88"}"/>`;
+    for (let j = 0; j < n; j++) g += `<rect x="${cx - billW / 2}" y="${base - (j + 1) * edge}" width="${billW}" height="${edge - 1}" rx="2" fill="${j % 2 ? pal.e2 : pal.e1}"/>`;
     const noteY = base - n * edge - noteH;
-    const lift = neg ? `<rect x="${cx - billW / 2}" y="${base - noteH}" width="${billW}" height="${noteH}" rx="3" fill="none" stroke="#FB7185" stroke-width="1.5" stroke-dasharray="4 3"/>` : note(cx, noteY);
+    const lift = neg ? `<rect x="${cx - billW / 2}" y="${base - noteH}" width="${billW}" height="${noteH}" rx="3" fill="none" stroke="#FB7185" stroke-width="1.5" stroke-dasharray="4 3"/>` : note(cx, noteY, pal);
     const top = neg ? base - noteH : noteY;
+    // tier 2 gets a paper strap around the bundle
+    const strapNote = tier === 2 ? `<rect x="${cx - 18}" y="${top}" width="7" height="${noteH}" rx="1.5" fill="#F2EFEA" fill-opacity=".92"/>` : "";
+    const strapEdges = tier === 2 ? `<rect x="${cx - 18}" y="${top + noteH}" width="7" height="${base - top - noteH}" fill="#F2EFEA" fill-opacity=".92"/>` : "";
+    // sparkles alternate sides; the higher the tier, the more of them
+    const L = i % 2 ? 1 : -1;
+    let sparkles = "";
+    if (tier === 1) sparkles = star(cx + L * 31, top + 8, i * 0.5);
+    if (tier === 2) sparkles = star(cx + L * 31, top + 8, i * 0.5) + star(cx - L * 30, top + 24, i * 0.5 + 1.2);
+    if (tier === 3) sparkles = star(cx - 31, top + 6, i * 0.5, true) + star(cx + 31, top + 10, i * 0.5 + 0.8, true) + star(cx + 28, top + 34, i * 0.5 + 1.6) + star(cx - 28, top + 30, i * 0.5 + 2.2);
     // the top banknote and its amount float together (idle animation, staggered per month)
-    const star = (sx, sy, d) => `<g transform="translate(${sx} ${sy})"><path class="cash-sparkle" style="animation-delay:${d}s" d="M0 -5 L1.5 -1.5 L5 0 L1.5 1.5 L0 5 L-1.5 1.5 L-5 0 L-1.5 -1.5Z" fill="#FDE68A"/></g>`;
-    const sparkles = neg ? "" : star(cx + 31, top + 6, i * 0.5) + (i === 0 ? star(cx + 30, top + 26, 1.3) : "");
-    return `${g}<g class="cash-note" style="animation-delay:${(i * 0.2).toFixed(2)}s">${lift}<text x="${cx.toFixed(1)}" y="${top - 8}" text-anchor="middle" font-size="12" font-weight="700" fill="${neg ? "#FB7185" : "#F2EFEA"}">${amt(p.v)}</text></g>
+    return `${g}${strapEdges}<g class="cash-note" style="animation-delay:${(i * 0.2).toFixed(2)}s">${lift}${strapNote}<text x="${cx.toFixed(1)}" y="${top - 8}" text-anchor="middle" font-size="12" font-weight="700" fill="${neg ? "#FB7185" : tier === 3 ? "#FDE68A" : "#F2EFEA"}">${amt(p.v)}</text></g>
 ${sparkles}
       <text x="${cx.toFixed(1)}" y="${H - 8}" text-anchor="middle" font-size="12" fill="#A09B94">${MONTHS_SHORT[keyParts(p.k).m]}</text>`;
   }).join("");
