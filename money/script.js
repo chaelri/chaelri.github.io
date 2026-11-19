@@ -1146,34 +1146,36 @@ function peekMonths() {
 function peekCardHtml() {
   const pts = peekMonths();
   if (pts.length < 2) return "";
-  const W = 360, H = 208, pl = 32, pr = 32, pt = 56, pb = 48;
-  const vals = pts.map((p) => p.v);
-  const lo = Math.min(0, ...vals), hi = Math.max(0, ...vals);
-  const span = hi - lo || 1;
+  // each month is a stack of cash: more money = taller stack (1 bill per ~1/9 of the biggest month)
+  const W = 360, H = 208, pl = 36, pr = 36, base = 176, pitch = 11, billW = 44, maxBills = 9;
+  const hi = Math.max(1, ...pts.map((p) => p.v));
   const x = (i) => pl + (i * (W - pl - pr)) / (pts.length - 1);
-  const y = (v) => pt + ((hi - v) / span) * (H - pt - pb);
-  const line = pts.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)} ${y(p.v).toFixed(1)}`).join(" ");
-  const minI = vals.indexOf(Math.min(...vals));
-  const lastI = pts.length - 1;
   const amt = (v) => `${v < 0 ? "-" : ""}₱${formatMoney(Math.abs(Math.round(v)))}`;
-  const dots = pts.map((p, i) => {
-    const neg = p.v < 0;
-    const lab = `<text x="${x(i).toFixed(1)}" y="16" text-anchor="middle" font-size="12" font-weight="700" fill="${neg ? "#FB7185" : "#F2EFEA"}">${amt(p.v)}</text>`;
-    return `<circle cx="${x(i).toFixed(1)}" cy="${y(p.v).toFixed(1)}" r="${i === 0 ? 5 : 4}" fill="${neg ? "#FB7185" : "#3DD9F0"}" stroke="#17181B" stroke-width="2"/>${lab}
-      <text x="${x(i).toFixed(1)}" y="${H - 8}" text-anchor="middle" font-size="12" fill="#A09B94">${MONTHS_SHORT[keyParts(p.k).m]}</text>
-      <rect class="peek-hit" data-i="${i}" x="${(x(i) - 28).toFixed(1)}" y="0" width="56" height="${H}" fill="transparent"/>`;
+  const bill = (cx, yTop, shade, top) => `<rect x="${cx - billW / 2}" y="${yTop}" width="${billW}" height="9" rx="3" fill="${top ? "#6EE7B7" : shade ? "#2DBE88" : "#34D399"}"/>
+      <ellipse cx="${cx}" cy="${yTop + 4.5}" rx="5" ry="2.6" fill="none" stroke="#0F1012" stroke-opacity=".35" stroke-width="1.2"/>`;
+  const stacks = pts.map((p, i) => {
+    const cx = x(i), neg = p.v <= 0;
+    const n = neg ? 0 : Math.max(1, Math.round((p.v / hi) * maxBills));
+    let g = "";
+    for (let j = 0; j < n; j++) g += bill(cx, base - (j + 1) * pitch + 2, j % 2, j === n - 1);
+    if (n) g += `<rect x="${cx - 5}" y="${base - n * pitch + 2}" width="10" height="${n * pitch - 2}" rx="2" fill="#3DD9F0" fill-opacity=".85"/>`;
+    if (neg) g += `<rect x="${cx - billW / 2}" y="${base - pitch + 2}" width="${billW}" height="9" rx="3" fill="none" stroke="#FB7185" stroke-width="1.5" stroke-dasharray="4 3"/>`;
+    const top = neg ? base - pitch + 2 : base - n * pitch + 2;
+    return `${g}<text x="${cx.toFixed(1)}" y="${top - 8}" text-anchor="middle" font-size="12" font-weight="700" fill="${neg ? "#FB7185" : "#F2EFEA"}">${amt(p.v)}</text>
+      <text x="${cx.toFixed(1)}" y="${H - 8}" text-anchor="middle" font-size="12" fill="#A09B94">${MONTHS_SHORT[keyParts(p.k).m]}</text>
+      <rect class="peek-hit" data-i="${i}" x="${(cx - 33).toFixed(1)}" y="0" width="66" height="${H}" fill="transparent"/>`;
   }).join("");
-  const zero = lo < 0 ? `<line x1="${pl}" x2="${W - pr}" y1="${y(0).toFixed(1)}" y2="${y(0).toFixed(1)}" stroke="#5E5B57" stroke-width="1" stroke-dasharray="3 4"/>` : "";
+  const ground = `<line x1="${pl - 24}" x2="${W - pr + 24}" y1="${base + 4}" y2="${base + 4}" stroke="#2A2C31" stroke-width="2" stroke-linecap="round"/>`;
   const table = pts.map((p) => `${monthName(p.k)} ${peso(p.v)}`).join(", ");
   return `<section class="glass-card rounded-3xl p-6 flex flex-col" id="peek-card">
     <div>
       <h3 class="text-sm font-bold text-white">Next 5 months</h3>
     </div>
     <div class="relative mt-4 flex-1 flex items-center">
-      <svg viewBox="0 0 ${W} ${H}" class="w-full" role="img" aria-label="Projected month-end balance. ${escapeHtml(table)}">
-        ${zero}<path d="${line}" fill="none" stroke="#3DD9F0" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>${dots}
+      <svg viewBox="0 0 ${W} ${H}" class="w-full" role="img" aria-label="Projected month-end balance as stacks of cash. ${escapeHtml(table)}">
+        ${ground}${stacks}
       </svg>
-      <div id="peek-tip" class="hidden absolute pointer-events-none rounded-lg px-3 py-2 text-[10px] font-bold bg-slate-950 text-white border border-slate-700 whitespace-nowrap"></div>
+      <div id="peek-tip" class="hidden absolute pointer-events-none rounded-lg px-3 py-2 text-[12px] font-bold bg-slate-950 text-white border border-slate-700 whitespace-nowrap"></div>
     </div>
   </section>`;
 }
@@ -1185,7 +1187,7 @@ document.addEventListener("mouseover", (e) => {
   const p = peekMonths()[Number(hit.dataset.i)];
   if (!p) return;
   const svg = hit.ownerSVGElement, box = svg.getBoundingClientRect(), wrap = tip.parentElement.getBoundingClientRect();
-  const cx = Number(hit.getAttribute("x")) + 28;
+  const cx = Number(hit.getAttribute("x")) + 33;
   tip.textContent = `${monthName(p.k)} · ${peso(p.v)}`;
   tip.classList.remove("hidden");
   tip.style.left = `${box.left - wrap.left + (cx / 360) * box.width - tip.offsetWidth / 2}px`;
