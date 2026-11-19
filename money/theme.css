@@ -74,3 +74,6 @@ button:disabled { color: #8FA1AE !important; opacity: 0.6; }
 .modal-content { border-radius: 34px !important; }
 .month-chip { padding-top: 8px; padding-bottom: 8px; }
 .font-black { font-weight: 900; }
+
+/* gradient-clipped text (splash "Money") must keep a visible fill once gradients are flattened */
+.bg-clip-text { background-image: none !important; color: var(--primary) !important; -webkit-text-fill-color: var(--primary); }
