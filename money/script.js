@@ -1616,7 +1616,7 @@ window.openItemModal = function (who, kind, id) {
   const o = OWNERS[who];
   activeEdit = { kind: "item", who, type: kind, id };
 
-  const recurring = it ? it.recurring !== false : true;
+  const recurring = it ? it.recurring !== false : false; // new items default to one-time
   const every = it ? everyMonths(it) : 1;
   const start = it ? it.start : selectedKey;
   const end = it && it.end ? it.end : "";
@@ -1700,6 +1700,7 @@ window.openItemModal = function (who, kind, id) {
   }
 
   $("modal-body").innerHTML = body;
+  syncRecurringFields();
   if (isNew && kind === "expenses") enhanceAddExpense();
 
   const delBtn = $("delete-btn");
@@ -1879,9 +1880,17 @@ window.deleteSpend = async function (entryId) {
   renderAll();
 };
 
+// "how often" and "until when" only mean something while Recurring is on.
+function syncRecurringFields() {
+  const t = $("f-recurring");
+  if (!t) return;
+  const on = t.dataset.on === "true";
+  ["f-every", "f-end"].forEach((id) => { const w = $(id)?.closest(".space-y-1"); if (w) w.style.display = on ? "" : "none"; });
+}
 window.toggleField = function (btn) {
   const on = btn.dataset.on !== "true";
   btn.dataset.on = on;
+  if (btn.id === "f-recurring") setTimeout(syncRecurringFields, 0);
   const knob = btn.querySelector("span");
   const isPaidToggle = btn.id === "f-paid";
   btn.className = `w-14 h-8 rounded-full transition-colors ${on ? (isPaidToggle ? "bg-emerald-600" : "bg-indigo-600") : "bg-slate-700"} relative flex-shrink-0`;
