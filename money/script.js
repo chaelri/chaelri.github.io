@@ -685,22 +685,22 @@ function budgetRowHtml(it, k, kind, who) {
   const pct = amt > 0 ? Math.min(100, Math.round((spent / amt) * 100)) : 0;
   const list = getSpendList(it.id, k);
   const chips = list.map((e) => `<button onclick="deleteBudgetSpend(event,'${it.id}','${e.id}')" title="Remove" class="px-2 py-1 rounded-lg bg-slate-800 text-[11px] font-bold text-slate-300 flex items-center gap-1">${peso(e.amount)}<span class="material-icons text-slate-500" style="font-size:12px">close</span></button>`).join("");
-  return `<div class="budget-row" data-budget="${it.id}">
-  <div onclick="openItemModal('${who}','${kind}','${it.id}')" class="item-row flex items-center gap-3 py-2.5 px-3 rounded-xl transition-colors cursor-pointer ${settled ? "opacity-60" : ""}">
+  return `<div class="budget-row glass-card rounded-2xl border ${over ? "border-rose-500/40" : "border-emerald-500/30"} overflow-hidden my-1.5 bg-gradient-to-r ${over ? "from-rose-500/[0.12]" : "from-emerald-500/[0.12]"} via-transparent to-transparent" data-budget="${it.id}">
+  <div onclick="openItemModal('${who}','${kind}','${it.id}')" class="item-row flex items-center gap-3 py-4 px-4 transition-colors cursor-pointer ${settled ? "opacity-60" : ""}">
     <button onclick="togglePaidQuick(event,'${it.id}','${kind}')" title="Mark paid" class="paid-check ${settled ? "is-paid bg-emerald-500 border-emerald-500" : "border-slate-600"} w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 border">
       <span class="material-icons check-icon text-white" style="font-size:16px">check</span>
     </button>
     <div class="flex-1 min-w-0">
-      <p class="item-name text-sm font-bold text-slate-200 truncate ${settled ? "line-through" : ""}">${escapeHtml(it.name)}</p>
-      <div class="flex items-center gap-1.5 mt-1">
-        <div class="flex-1 h-1 bg-slate-900/70 rounded-full overflow-hidden max-w-[130px]"><div class="h-full ${over ? "bg-rose-500" : "bg-gradient-to-r from-emerald-500 to-teal-400"} rounded-full" style="width:${pct}%"></div></div>
-        <span class="text-[10px] font-bold ${over ? "text-rose-400" : "text-emerald-400"}">${over ? `over ${peso(spent - amt)}` : `${peso(amt - spent)} left`}</span>
+      <p class="item-name text-base font-black text-white truncate ${settled ? "line-through" : ""}">${escapeHtml(it.name)}</p>
+      <div class="flex items-center gap-2 mt-1.5">
+        <div class="flex-1 h-2 bg-slate-900/70 rounded-full overflow-hidden max-w-[150px]"><div class="h-full ${over ? "bg-rose-500" : "bg-gradient-to-r from-emerald-500 to-teal-400"} rounded-full" style="width:${pct}%"></div></div>
+        <span class="text-xs font-black ${over ? "text-rose-400" : "text-emerald-400"}">${over ? `over ${peso(spent - amt)}` : `${peso(amt - spent)} left`}</span>
       </div>
     </div>
-    <button onclick="toggleBudgetAdd(event,'${it.id}')" title="Quick add spending" class="flex-shrink-0 w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/25 text-emerald-300 flex items-center justify-center active:scale-95 transition-transform"><span class="material-icons" style="font-size:18px">add</span></button>
-    <p class="text-sm font-black text-slate-100 flex-shrink-0">${peso(amt)}</p>
+    <button onclick="toggleBudgetAdd(event,'${it.id}')" title="Quick add spending" class="flex-shrink-0 w-10 h-10 rounded-xl bg-emerald-500 text-white shadow-lg shadow-emerald-500/30 flex items-center justify-center active:scale-95 transition-transform"><span class="material-icons" style="font-size:22px">add</span></button>
+    <p class="text-base font-black text-white flex-shrink-0">${peso(amt)}</p>
   </div>
-  <div id="budget-add-${it.id}" class="hidden px-3 pb-2">
+  <div id="budget-add-${it.id}" class="hidden px-4 pb-3">
     <div class="flex items-center gap-2">
       <input type="number" id="budget-amt-${it.id}" inputmode="decimal" placeholder="Spent  ₱0" onclick="event.stopPropagation()" onkeydown="if(event.key==='Enter'){event.preventDefault();addBudgetSpend('${it.id}');}" class="spend-amt bg-slate-900 rounded-xl text-[13px] font-bold text-white focus:outline-none" />
       <button type="button" onclick="addBudgetSpend('${it.id}')" title="Log spending" class="flex-shrink-0 w-12 h-12 rounded-xl bg-emerald-500/15 border border-emerald-500/25 text-emerald-300 flex items-center justify-center active:scale-95 transition-transform"><span class="material-icons" style="font-size:22px">check</span></button>
