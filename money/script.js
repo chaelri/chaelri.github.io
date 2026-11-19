@@ -1146,7 +1146,7 @@ function peekMonths() {
 function peekCardHtml() {
   const pts = peekMonths();
   if (pts.length < 2) return "";
-  const W = 360, H = 200, pl = 24, pr = 24, pt = 44, pb = 44;
+  const W = 360, H = 208, pl = 32, pr = 32, pt = 56, pb = 48;
   const vals = pts.map((p) => p.v);
   const lo = Math.min(0, ...vals), hi = Math.max(0, ...vals);
   const span = hi - lo || 1;
@@ -1158,9 +1158,9 @@ function peekCardHtml() {
   const amt = (v) => `${v < 0 ? "-" : ""}₱${formatMoney(Math.abs(Math.round(v)))}`;
   const dots = pts.map((p, i) => {
     const neg = p.v < 0;
-    const lab = `<text x="${x(i).toFixed(1)}" y="${(y(p.v) - 12).toFixed(1)}" text-anchor="${i === 0 ? "start" : i === lastI ? "end" : "middle"}" font-size="10" font-weight="700" fill="${neg ? "#FB7185" : "#F2EFEA"}">${amt(p.v)}</text>`;
+    const lab = `<text x="${x(i).toFixed(1)}" y="16" text-anchor="middle" font-size="10" font-weight="700" fill="${neg ? "#FB7185" : "#F2EFEA"}">${amt(p.v)}</text>`;
     return `<circle cx="${x(i).toFixed(1)}" cy="${y(p.v).toFixed(1)}" r="${i === 0 ? 5 : 4}" fill="${neg ? "#FB7185" : "#3DD9F0"}" stroke="#17181B" stroke-width="2"/>${lab}
-      <text x="${x(i).toFixed(1)}" y="${H - 12}" text-anchor="${i === 0 ? "start" : i === lastI ? "end" : "middle"}" font-size="10" fill="#A09B94">${MONTHS_SHORT[keyParts(p.k).m]}</text>
+      <text x="${x(i).toFixed(1)}" y="${H - 8}" text-anchor="middle" font-size="10" fill="#A09B94">${MONTHS_SHORT[keyParts(p.k).m]}</text>
       <rect class="peek-hit" data-i="${i}" x="${(x(i) - 28).toFixed(1)}" y="0" width="56" height="${H}" fill="transparent"/>`;
   }).join("");
   const zero = lo < 0 ? `<line x1="${pl}" x2="${W - pr}" y1="${y(0).toFixed(1)}" y2="${y(0).toFixed(1)}" stroke="#5E5B57" stroke-width="1" stroke-dasharray="3 4"/>` : "";
