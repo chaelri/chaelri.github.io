@@ -40,3 +40,37 @@ body { background: var(--paper); color: var(--ink); font-variant-numeric: tabula
 
 /* dark ink on bright fills (white on cyan/emerald fails contrast) */
 .bg-emerald-500.text-white, .bg-emerald-500 .text-white { color: #0B1014; }
+
+/* ---- audit fixes: contrast ---- */
+/* owner header sits on a bright fill (cyan / rose / amber): ink text, not white */
+div[class*="bg-gradient-to-r"][class*="px-5"] { background-image: none; }
+div[class*="bg-gradient-to-r"][class*="px-5"] .text-white,
+div[class*="bg-gradient-to-r"][class*="px-5"] [class*="text-white"] { color: #0B1014 !important; }
+div[class*="bg-gradient-to-r"][class*="px-5"] .text-emerald-300 { color: #064E3B; }
+div[class*="bg-gradient-to-r"][class*="px-5"] .text-rose-300 { color: #7F1D1D; }
+div[class*="bg-gradient-to-r"][class*="px-5"] .material-icons { color: #0B1014; }
+.text-slate-600 { color: #7A8D9B; }
+.text-emerald-600, .text-teal-600 { color: #3CC79A; }
+.text-emerald-700 { color: #34D399; }
+
+/* Tailwind CDN injects its styles after this file, so colour fixes need !important */
+.text-slate-600 { color: #8FA1AE !important; }
+.text-emerald-600, .text-teal-600, .text-emerald-700 { color: #34D399 !important; }
+span.inline-block[class*="bg-gradient-to-r"] { color: #0B1014 !important; }
+span.inline-block[class*="bg-gradient-to-r"].from-rose-500, span.inline-block[class*="bg-gradient-to-r"].from-rose-600 { color: #0B1014 !important; }
+div[class*="bg-gradient-to-r"][class*="px-5"] .text-rose-300 { color: #4C0519 !important; }
+.item-row.opacity-60, .opacity-60 { opacity: 0.78; }
+.text-amber-400\/80 { color: #FFB938 !important; }
+.text-indigo-300\/90, .text-cyan-300\/90 { color: #7DE6F6 !important; }
+.inst-bar-count { color: #8FA1AE !important; }
+button:disabled { color: #8FA1AE !important; opacity: 0.6; }
+.text-slate-500 { color: #8FA1AE !important; }
+
+/* ---- audit fixes: scale ---- */
+.now-banner { font-size: 10px !important; border-radius: 8px !important; }
+.save-btn, .confirm-action-btn, button.py-4, button.py-5 { font-size: 15px; }
+.acct-icon { border-radius: 13px !important; }
+.more-sheet, .confirm-icon { border-radius: 21px !important; }
+.modal-content { border-radius: 34px !important; }
+.month-chip { padding-top: 8px; padding-bottom: 8px; }
+.font-black { font-weight: 900; }

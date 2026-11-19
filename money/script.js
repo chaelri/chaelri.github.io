@@ -743,7 +743,7 @@ window.deleteBudgetSpend = async function (e, id, entryId) {
 
 function itemRowHtml(it, k, kind, who, opts = {}) {
   if (getKids(it).length) return parentRowHtml(it, k, kind, who, opts);
-  if (it.budget) return budgetRowHtml(it, k, kind, who);
+  if (it.budget || it.id === "extra-spending") return budgetRowHtml(it, k, kind, who);
   const amt = amountIn(it, k);
   const settled = isPaid(it.id, k); // income => received, expense => paid
   const iconHtml = opts.hideIcon ? "" : rowIconHtml(it.name, 28);
@@ -841,8 +841,8 @@ function groupedRowsHtml(items, k, kind, who) {
   const parents = items.filter((it) => getKids(it).length);
   for (const it of parents) html += itemRowHtml(it, k, kind, who);
   // 1b. monthly budget rows (Extra Spending) right after the parent cards
-  for (const it of items.filter((it) => !getKids(it).length && it.budget)) html += itemRowHtml(it, k, kind, who);
-  const rest = items.filter((it) => !getKids(it).length && !it.budget);
+  for (const it of items.filter((it) => !getKids(it).length && (it.budget || it.id === "extra-spending"))) html += itemRowHtml(it, k, kind, who);
+  const rest = items.filter((it) => !getKids(it).length && !(it.budget || it.id === "extra-spending"));
   // 2. bank groups (banks with 2+ items)
   const buckets = {}, order = [];
   for (const it of rest) { const b = bankIconFor(it.name); if (b) (buckets[b] = buckets[b] || []).push(it); }
@@ -1042,7 +1042,7 @@ function accountsCardHtml() {
     </summary>
     <div class="p-3 pt-0 space-y-0.5">
       ${rows}
-      <button onclick="openAccountModal(null)" class="w-full mt-2 py-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl font-bold text-emerald-400 text-[11px] flex items-center justify-center gap-1 transition-transform"><span class="material-icons" style="font-size:16px">add</span>Add account</button>
+      <button onclick="openAccountModal(null)" class="mx-auto mt-3 px-5 h-11 bg-cyan-400 text-slate-900 rounded-xl font-bold text-sm flex items-center justify-center gap-1 transition-transform"><span class="material-icons" style="font-size:16px">add</span>Add account</button>
     </div>
   </details>`;
 }
@@ -1601,7 +1601,7 @@ window.openItemModal = function (who, kind, id) {
   }
 
   if (!isNew && kind === "expenses") {
-    body += `<button type="button" onclick="openChildModal('${who}','${id}',null)" class="w-full py-4 bg-violet-500/10 border border-violet-500/20 rounded-2xl font-bold text-violet-300 text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"><span class="material-icons" style="font-size:18px">account_tree</span>Add sub-expense</button>`;
+    body += `<button type="button" onclick="openChildModal('${who}','${id}',null)" class="mx-auto px-6 h-12 bg-cyan-400 text-slate-900 rounded-xl font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"><span class="material-icons" style="font-size:18px">account_tree</span>Add sub-expense</button>`;
   }
 
   $("modal-body").innerHTML = body;
@@ -1642,7 +1642,7 @@ window.openChildModal = function (who, parentId, childId) {
       <button type="button" id="f-paid" data-on="${settledNow}" onclick="toggleField(this)" class="w-14 h-8 rounded-full transition-colors ${settledNow ? "bg-emerald-600" : "bg-slate-700"} relative flex-shrink-0"><span class="absolute top-1 ${settledNow ? "left-7" : "left-1"} w-6 h-6 bg-white rounded-full transition-all"></span></button>
     </div>`;
   } else {
-    body += `<button type="button" onclick="saveChildAndAddAnother()" class="w-full py-4 bg-violet-500/10 border border-violet-500/20 rounded-2xl font-bold text-violet-300 text-sm flex items-center justify-center gap-2"><span class="material-icons" style="font-size:18px">playlist_add</span>Save &amp; add another</button>`;
+    body += `<button type="button" onclick="saveChildAndAddAnother()" class="mx-auto px-6 h-12 border border-slate-600 text-slate-100 rounded-xl font-bold text-sm flex items-center justify-center gap-2"><span class="material-icons" style="font-size:18px">playlist_add</span>Save &amp; add another</button>`;
   }
   $("modal-body").innerHTML = body;
   const delBtn = $("delete-btn");
