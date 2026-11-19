@@ -587,7 +587,7 @@ function renderMonthStrip() {
     <div class="flex items-center">${g.keys.map((k) => {
       const active = k === selectedKey;
       const isNow = k === nowK;
-      const cls = active ? "is-active text-cyan-400" : isNow ? "text-slate-200" : "text-slate-400";
+      const cls = active ? "is-active text-white" : isNow ? "text-slate-200" : "text-slate-400";
       return `<button onclick="selectMonth('${k}')" data-k="${k}" class="month-chip ${isNow ? "is-now" : ""} flex-shrink-0 relative px-4 h-12 text-sm font-bold transition-colors ${cls}">${MONTHS_SHORT[keyParts(k).m]}${isNow ? '<span class="now-dot"></span>' : ""}</button>`;
     }).join("")}</div>
   </div>`).join("");
