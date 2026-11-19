@@ -319,6 +319,9 @@ button[onclick*="toggleField"] > span.left-7 { left: 28px !important; }
   50% { opacity: 1; scale: 1; rotate: 45deg; }
 }
 
-/* tier 8: the whole pile cycles through the rainbow */
-@keyframes cashHue { to { filter: hue-rotate(360deg); } }
-.cash-rainbow { animation: cashHue 6s linear infinite; }
+/* tiers 7-8: a soft shine sweeps across the top note */
+@keyframes cashShine {
+  0%, 55% { transform: translateX(-34px) skewX(-20deg); }
+  80%, 100% { transform: translateX(34px) skewX(-20deg); }
+}
+.cash-shine { animation: cashShine 3.8s ease-in-out infinite; }
