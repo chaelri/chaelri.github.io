@@ -2136,13 +2136,12 @@ async function revealApp() {
   const c = document.createElement("div");
   c.style.cssText = "position:fixed;top:-160px;left:0;right:0;bottom:0;padding-top:160px;box-sizing:border-box;z-index:200;background:#3DD9F0;color:#0B1014;display:flex;align-items:center;justify-content:center;transform:translateY(101%);pointer-events:none;border-radius:50% 50% 0 0 / 96px 96px 0 0;will-change:transform";
   document.body.appendChild(c);
-  await c.animate([{ transform: "translateY(101%)" }, { transform: "translateY(0)" }], { duration: 520, easing: ease, fill: "forwards" }).finished;
+  await c.animate([{ transform: "translateY(101%)" }, { transform: "translateY(0)" }], { duration: 440, easing: ease, fill: "forwards" }).finished;
   intro.style.display = "none";
   intro.style.pointerEvents = "none";
   app.style.opacity = "1";
   initParticles();
-  await new Promise((r) => setTimeout(r, 120));
-  await c.animate([{ transform: "translateY(0)" }, { transform: "translateY(-101%)" }], { duration: 600, easing: ease, fill: "forwards" }).finished;
+    await c.animate([{ transform: "translateY(0)" }, { transform: "translateY(-101%)" }], { duration: 380, easing: ease, fill: "forwards" }).finished;
   c.remove();
 }
 
