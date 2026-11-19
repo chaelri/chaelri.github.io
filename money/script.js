@@ -1462,9 +1462,9 @@ function paymentLoadCardHtml() {
   return `<section class="glass-card rounded-2xl overflow-hidden border border-indigo-500/15 md:col-span-2 p-4 space-y-3">
     <div class="flex items-center gap-3">
       <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center flex-shrink-0"><span class="material-icons text-white" style="font-size:18px">bar_chart</span></div>
-      <div class="min-w-0"><h3 class="text-sm font-black text-white uppercase tracking-wide">Payment Load</h3><p class="text-[10px] text-slate-400">Installments due each month. Bar color shows how much salary covers.</p></div>
+      <div class="min-w-0"><h3 class="text-sm font-black text-white uppercase tracking-wide">Payment Load</h3></div>
     </div>
-    <div class="flex flex-wrap gap-x-3 gap-y-1">${legend}<span class="text-[10px] font-semibold text-slate-400">Heavy: salary alone isn't enough · Tight: under ₱20,000 left · Goods: ₱20,000 or more left</span></div>
+    <div class="flex flex-wrap gap-x-3 gap-y-1">${legend}</div>
     <div class="flex">
       <div class="relative flex-shrink-0" style="width:30px;height:${CHART_HEIGHT + 34}px">${axis}</div>
       <div class="overflow-x-auto custom-scrollbar flex-1 min-w-0 pb-1">
