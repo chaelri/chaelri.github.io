@@ -327,3 +327,14 @@ button[onclick*="toggleField"] > span.left-7 { left: 28px !important; }
   86%, 100% { transform: translateX(30px) skewX(-20deg); opacity: 0; }
 }
 .cash-shine { transform-box: fill-box; transform-origin: center; animation: cashShine 3.8s ease-in-out infinite; }
+
+/* falling money on the projected card: drifts from the upper right down to the lower left, behind the text.
+   Plain keyframes, not gated on prefers-reduced-motion (Charlie wants to see it). */
+.money-rain { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+.money-rain .mr { position: absolute; top: -28px; opacity: 0; animation: moneyFall var(--dur, 8s) linear infinite; }
+@keyframes moneyFall {
+  0%   { opacity: 0; transform: translate(0, 0) rotate(var(--rot, 0deg)); }
+  12%  { opacity: .45; }
+  80%  { opacity: .35; }
+  100% { opacity: 0; transform: translate(-210px, 330px) rotate(calc(var(--rot, 0deg) + 220deg)); }
+}
