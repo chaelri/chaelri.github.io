@@ -1129,43 +1129,43 @@ const hexMix = (a, b, t) => {
   return "#" + x.map((c, i) => Math.round(lerp(c, y[i], t)).toString(16).padStart(2, "0")).join("");
 };
 const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
-const shortMoney = (v) => (Math.abs(v) >= 1000000 ? `${v < 0 ? "-" : ""}₱${(Math.abs(v) / 1000000).toFixed(2)}m` : `${v < 0 ? "-" : ""}₱${Math.round(Math.abs(v) / 1000)}k`);
 // one loop: hold this month, morph to next month, hold, fade, repeat
 const MORPH = { hold0: 1.7, morph: 1.6, hold1: 2.2, fade: 0.9 };
 function morphState(now) {
   const T = MORPH.hold0 + MORPH.morph + MORPH.hold1 + MORPH.fade;
   const t = now % T;
   const a = MORPH.hold0, b = a + MORPH.morph, c = b + MORPH.hold1;
-  if (t < a) return { p: 0, o: t < 0.35 ? t / 0.35 : 1 };
-  if (t < b) return { p: easeInOut((t - a) / MORPH.morph), o: 1 };
-  if (t < c) return { p: 1, o: 1 };
+  if (t < a) return { p: 0, o: t < 0.35 ? t / 0.35 : 1, a: 0 };
+  if (t < b) return { p: easeInOut((t - a) / MORPH.morph), o: 1, a: 0 };
+  if (t < c) return { p: 1, o: 1, a: Math.min(1, (t - b) / 0.45) };
   const f = (t - c) / MORPH.fade;
-  return { p: f < 0.5 ? 1 : 0, o: f < 0.5 ? 1 - f / 0.5 : 0 };
+  return { p: f < 0.5 ? 1 : 0, o: f < 0.5 ? 1 - f / 0.5 : 0, a: f < 0.5 ? 1 : 0 };
 }
 function morphFrame(ms) {
   requestAnimationFrame(morphFrame);
   const el = document.getElementById("cash-morph");
   if (!el || !morph || !el.offsetParent) return;
   const { v0, v1, m0, m1 } = morph;
-  const { p, o } = morphState(ms / 1000);
+  const { p, o, a: ar } = morphState(ms / 1000);
   const top = Math.max(1, v0, v1);
   const n = (v) => (v <= 0 ? 0.5 : Math.max(0.7, (v / top) * 11));
   const v = lerp(v0, v1, p), nn = lerp(n(v0), n(v1), p);
   const A = MINI[v0 <= 0 ? 0 : cashTierOf(v0)], B = MINI[v1 <= 0 ? 0 : cashTierOf(v1)];
   const col = (k) => hexMix(A[k], B[k], p);
-  const base = 72, edge = 4, noteH = 15, w = 30, cx = 60;
+  const base = 70, edge = 4, noteH = 15, w = 30, cx = 44;
   const full = Math.floor(nn), part = nn - full;
   let edges = "";
   for (let j = 0; j < full; j++) edges += `<rect x="${cx - w / 2}" y="${base - (j + 1) * edge}" width="${w}" height="${edge - 0.8}" rx="1.2" fill="${j % 2 ? col("e2") : col("e1")}"/>`;
   if (part > 0.05) edges += `<rect x="${cx - w / 2}" y="${base - full * edge - edge * part}" width="${w}" height="${Math.max(0.5, edge * part - 0.8)}" rx="1.2" fill="${full % 2 ? col("e2") : col("e1")}"/>`;
   const ny = base - nn * edge - noteH;
   const note = `<rect x="${cx - w / 2}" y="${ny}" width="${w}" height="${noteH}" rx="2.2" fill="${col("body")}"/><rect x="${cx - w / 2 + 2}" y="${ny + 2}" width="${w - 4}" height="${noteH - 4}" rx="1.5" fill="none" stroke="#0F1012" stroke-opacity=".28"/><circle cx="${cx}" cy="${ny + noteH / 2}" r="4.6" fill="${col("coin")}" stroke="#0F1012" stroke-opacity=".3" stroke-width=".8"/>`;
-  const up = v1 >= v0, arrow = p > 0.97 ? ` <tspan fill="${up ? "#34D399" : "#FB7185"}">${up ? "↑" : "↓"}</tspan>` : "";
-  const label = `<text x="${cx}" y="${Math.max(11, ny - 5)}" text-anchor="middle" font-size="12" font-weight="700" fill="#F2EFEA">${shortMoney(v)}</text>`;
-  const mon = `<text x="${cx}" y="86" text-anchor="middle" font-size="12" fill="#A09B94">${p < 0.5 ? m0 : m1}${arrow}</text>`;
-  const ground = `<line x1="22" x2="98" y1="${base + 2}" y2="${base + 2}" stroke="#4A4C54" stroke-width="1.5" stroke-linecap="round"/>`;
+  const up = v1 >= v0, ac = up ? "#34D399" : "#FB7185";
+  const k = easeInOut(ar), sc = 0.4 + 0.6 * k;
+  // arrow to the right of the pile: points up when next month is higher, down when lower; pops in once the pile lands
+  const arrowSvg = ar > 0 ? `<g transform="translate(96 ${base - 28 + (up ? 6 : -6) * (1 - k)}) scale(${sc} ${up ? sc : -sc})" opacity="${k}"><path d="M0 11 V-9 M-8 -1 L0 -10 L8 -1" fill="none" stroke="${ac}" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></g>` : "";
+  const ground = `<line x1="14" x2="74" y1="${base + 2}" y2="${base + 2}" stroke="#4A4C54" stroke-width="1.5" stroke-linecap="round"/>`;
   el.style.opacity = o;
-  el.firstElementChild.innerHTML = ground + edges + note + label + mon;
+  el.firstElementChild.innerHTML = ground + edges + note + arrowSvg;
 }
 requestAnimationFrame(morphFrame);
 
