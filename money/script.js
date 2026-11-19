@@ -606,13 +606,15 @@ function renderMonthBanner() {
   const nowK = currentKey();
   if (selectedKey === nowK) { el.innerHTML = ""; el.classList.add("hidden"); return; }
   el.classList.remove("hidden");
-  const label = `${monthName(selectedKey)} ${keyParts(selectedKey).y}`;
+  const when = cmpKey(selectedKey, nowK) > 0 ? "Future month" : "Past month";
   const jump = timeline().includes(nowK)
-    ? `<button onclick="selectMonth('${nowK}')" class="text-[11px] font-black uppercase tracking-wider text-white bg-indigo-500/80 hover:bg-indigo-500 rounded-lg px-3 py-1.5 flex items-center gap-1.5 shadow-lg shadow-indigo-900/30 transition-colors"><span class="material-icons" style="font-size:15px">undo</span>Back to ${monthShort(nowK)}</button>`
+    ? `<button onclick="selectMonth('${nowK}')" class="h-12 px-4 rounded-xl bg-cyan-400 text-slate-900 text-sm font-bold flex items-center gap-1 active:scale-95 transition-transform"><span class="material-icons" style="font-size:18px">undo</span>Back to ${monthShort(nowK)}</button>`
     : "";
-  el.innerHTML = `<div class="flex items-center justify-between gap-2 py-2 pl-4 pr-2 rounded-xl bg-amber-500/10 border border-amber-500/20">
-    <span class="text-[11px] font-black uppercase tracking-wider text-amber-400">Viewing ${label}</span>
+  el.innerHTML = `<div class="flex items-center justify-between gap-3">
+    <span class="text-sm font-bold text-slate-400">${when}</span>
     ${jump}
+  </div>`;
+}
   </div>`;
 }
 
