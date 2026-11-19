@@ -591,6 +591,18 @@ function renderMonthStrip() {
       ${MONTHS_SHORT[m]}
     </button>`;
   }).join("");
+  // phones: a slim stepper instead of a long strip of pills
+  const stp = $("month-stepper");
+  if (stp) {
+    const tl = timeline();
+    const at = tl.indexOf(selectedKey);
+    const prev = at > 0 ? tl[at - 1] : null;
+    const next = at >= 0 && at < tl.length - 1 ? tl[at + 1] : null;
+    const arrow = (k, icon, label) => `<button ${k ? `onclick="selectMonth('${k}')"` : "disabled"} aria-label="${label}" class="flex-shrink-0 w-12 h-12 rounded-xl border border-slate-700 text-slate-100 flex items-center justify-center ${k ? "" : "opacity-30"}"><span class="material-icons">${icon}</span></button>`;
+    stp.innerHTML = `${arrow(prev, "chevron_left", "Previous month")}
+      <button onclick="toggleMonthPicker()" class="flex-1 h-12 rounded-xl bg-slate-800 text-sm font-bold text-white">${monthShort(selectedKey)}</button>
+      ${arrow(next, "chevron_right", "Next month")}`;
+  }
   renderMonthBanner();
 }
 
@@ -867,15 +879,15 @@ function personSectionHtml(who) {
   const fundHtml = fund ? `<div class="fund-row rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-700 mb-1.5">${itemRowHtml(fund, k, "expenses", who)}</div>` : "";
   const expHtml = fundHtml + groupedRowsHtml(expenses.filter((it) => !it.virtual), k, "expenses", who);
   return `<div class="glass-card rounded-2xl overflow-hidden border ${o.ring}">
-    <div class="flex items-center justify-between px-5 py-4 bg-slate-800 border-b border-slate-700">
+    <div class="flex flex-wrap items-center justify-between gap-y-2 px-5 py-4 bg-slate-800 border-b border-slate-700">
       <div class="flex items-center gap-3">
         <img src="assets/avatar-${who}.jpg" alt="${o.label}" class="w-10 h-10 rounded-xl object-cover ring-2 ring-current ${o.text} flex-shrink-0" />
         <div>
           <h3 class="text-sm font-black ${o.text} uppercase tracking-wide">${o.label}</h3>
-          <p class="text-[10px] font-bold ${net >= 0 ? "text-emerald-300" : "text-rose-300"} mt-1">net ${signedPeso(net)}</p>
+          <p class="text-[10px] font-bold whitespace-nowrap ${net >= 0 ? "text-emerald-300" : "text-rose-300"} mt-1">net ${signedPeso(net)}</p>
         </div>
       </div>
-      <div class="text-right">
+      <div class="text-left md:text-right w-full md:w-auto whitespace-nowrap">
         <p class="text-[10px] font-bold uppercase text-slate-400">in / out</p>
         <p class="text-sm font-black text-white mt-1">${peso(incTot)} <span class="text-slate-500">·</span> ${peso(expTot)}</p>
       </div>
