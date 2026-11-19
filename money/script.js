@@ -49,7 +49,7 @@ const MONTHS_SHORT = [
 const OWNERS = {
   charlie: { label: "Charlie's", who: "charlie", accent: "blue", text: "text-blue-400", ring: "border-blue-500/20", grad: "from-blue-500 to-indigo-600" },
   karla: { label: "Karla's", who: "karla", accent: "rose", text: "text-rose-400", ring: "border-rose-500/20", grad: "from-rose-500 to-pink-600" },
-  joint: { label: "Joint", who: "joint", accent: "indigo", text: "text-indigo-400", ring: "border-indigo-500/20", grad: "from-indigo-500 to-violet-600" },
+  joint: { label: "Joint", who: "joint", accent: "amber", text: "text-amber-400", ring: "border-amber-500/20", grad: "from-amber-500 to-amber-600" },
 };
 
 // =============================
@@ -2111,7 +2111,7 @@ function celebrate() {
 function initParticles() {
   const app = $("app");
   if (!app) return;
-  const colors = ["#6366f1", "#8b5cf6", "#3b82f6", "#f43f5e"];
+  const colors = ["#3DD9F0", "#34D399", "#FFB938", "#FB7185"];
   for (let i = 0; i < 8; i++) {
     const p = document.createElement("div");
     p.className = "bg-particle";

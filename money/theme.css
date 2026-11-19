@@ -1,0 +1,42 @@
+/* charlie-design: techy / dark. Loaded last, overrides Tailwind + style.css.
+   paper #0B1014 · surface #121A21 · line #22303B · ink #E8EEF2 · primary cyan #3DD9F0 · accent amber #FFB938
+   type scale x1.618: 10 / 15 / 24 / 38 · radii 8 / 13 / 21 · sharp 1px lines, flat fills, no glow */
+:root { --paper:#0B1014; --surface:#121A21; --line:#22303B; --ink:#E8EEF2; --primary:#3DD9F0; --accent:#FFB938; }
+body { background: var(--paper); color: var(--ink); font-variant-numeric: tabular-nums; letter-spacing: -0.005em; }
+
+/* flat surfaces, thin lines (no blur / glow) */
+.glass-card { background: var(--surface); backdrop-filter: none; border: 1px solid var(--line); }
+.glass-card:active { background: #162028; }
+.ambient-glow, .bar-shimmer, .bg-particle { display: none !important; }
+[class*="shadow-"] { box-shadow: none !important; }
+.pending-bar { box-shadow: none; }
+[class*="backdrop-blur"] { backdrop-filter: none !important; }
+
+/* gradients -> flat fills: parents and bars read as solid colour blocks */
+.parent-bar, .stat-fill, [class*="bg-gradient-to-"][class*="from-"] { background-image: none; }
+.bg-gradient-to-r.from-emerald-500, .bg-gradient-to-r.from-emerald-600 { background-color: #34D399; }
+.bg-gradient-to-r.from-rose-500, .bg-gradient-to-r.from-rose-600 { background-color: #FB7185; }
+.bg-gradient-to-r.from-violet-500, .bg-gradient-to-r.from-blue-500, .bg-gradient-to-r.from-indigo-500, .bg-gradient-to-r.from-indigo-600 { background-color: var(--primary); }
+.bg-gradient-to-br { background-image: none; background-color: var(--line); }
+
+/* radii on the 8 / 13 / 21 ladder */
+.rounded-md, .rounded-lg, .rounded-xl { border-radius: 8px !important; }
+.rounded-2xl { border-radius: 13px !important; }
+.rounded-3xl { border-radius: 21px !important; }
+
+/* type scale 10 / 15 / 24 / 38 */
+.text-\[8px\], .text-\[9px\], .text-\[10px\], .text-\[11px\] { font-size: 10px !important; }
+.text-xs, .text-sm, .text-base, .text-\[12px\], .text-\[13px\] { font-size: 15px !important; }
+.text-lg, .text-xl, .text-2xl { font-size: 24px !important; }
+.text-3xl, .text-4xl, .text-5xl { font-size: 38px !important; }
+.font-black { font-weight: 700; }
+
+/* small real labels: wide tracking, medium weight */
+.uppercase { letter-spacing: 0.14em; }
+
+/* rows */
+.item-row:hover { background-color: rgba(34, 48, 59, 0.5); }
+.paid-check:not(.is-paid) { border-color: #4F616E; }
+
+/* dark ink on bright fills (white on cyan/emerald fails contrast) */
+.bg-emerald-500.text-white, .bg-emerald-500 .text-white { color: #0B1014; }
