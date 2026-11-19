@@ -257,3 +257,14 @@ body, body *, #modal-title, #current-month-display, .uppercase { text-transform:
 .btn-sm .material-icons { font-size: 16px !important; }
 .btn-solid { background: #3DD9F0; color: #0F1012; }
 .btn-outline { border: 1px solid #2A2C31; color: #A09B94; background: transparent; }
+
+/* modal actions: sized to their labels, right-aligned (not stretched to 100%) */
+#modal-content .mt-8 { justify-content: flex-end; }
+#modal-content .mt-8 button { flex: none !important; min-width: 96px; padding: 0 24px !important; }
+#confirm-card .space-y-2 { display: flex; flex-direction: row-reverse; justify-content: flex-start; gap: 8px; }
+#confirm-card .space-y-2 > * { margin: 0 !important; }
+#confirm-card button { width: auto !important; flex: none !important; min-width: 96px; padding: 0 24px !important; }
+/* owner picker: keep the avatar inside its box */
+#modal-body #f-owner button.owner-btn { padding: 0 16px !important; }
+#modal-body #f-owner button.owner-btn[data-on="true"] { padding: 0 15px !important; }
+#modal-body #f-owner { gap: 16px !important; }
