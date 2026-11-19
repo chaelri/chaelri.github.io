@@ -301,3 +301,11 @@ button[onclick*="toggleField"] > span.left-7 { left: 28px !important; }
 .spend-left-num { font-size: 38px; font-weight: 900; line-height: 1; color: #34D399; font-variant-numeric: tabular-nums; margin: 0; }
 .spend-left-num.over { color: #FB7185; }
 .spend-left-cap { font-size: 15px; color: #A09B94; margin: 8px 0 0; }
+
+/* idle animation for the cash piles: the top banknote floats and tilts, staggered per month.
+   Plain keyframes on purpose: not gated on prefers-reduced-motion (Charlie wants to see it). */
+@keyframes cashFloat {
+  0%, 100% { transform: translateY(0) rotate(-1.2deg); }
+  50% { transform: translateY(-4px) rotate(1.2deg); }
+}
+.cash-note { transform-box: fill-box; transform-origin: 50% 100%; animation: cashFloat 3.2s ease-in-out infinite; }
