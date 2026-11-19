@@ -676,8 +676,74 @@ function parentRowHtml(it, k, kind, who, opts = {}) {
   </details>`;
 }
 
+// Monthly budget row (Extra Spending): always reserves its full amount; logged spends only shrink what's "left".
+function budgetRowHtml(it, k, kind, who) {
+  const amt = amountIn(it, k);
+  const settled = isPaid(it.id, k);
+  const spent = spentIn(it.id, k);
+  const over = spent > amt;
+  const pct = amt > 0 ? Math.min(100, Math.round((spent / amt) * 100)) : 0;
+  const list = getSpendList(it.id, k);
+  const chips = list.map((e) => `<button onclick="deleteBudgetSpend(event,'${it.id}','${e.id}')" title="Remove" class="px-2 py-1 rounded-lg bg-slate-800 text-[11px] font-bold text-slate-300 flex items-center gap-1">${peso(e.amount)}<span class="material-icons text-slate-500" style="font-size:12px">close</span></button>`).join("");
+  return `<div class="budget-row" data-budget="${it.id}">
+  <div onclick="openItemModal('${who}','${kind}','${it.id}')" class="item-row flex items-center gap-3 py-2.5 px-3 rounded-xl transition-colors cursor-pointer ${settled ? "opacity-60" : ""}">
+    <button onclick="togglePaidQuick(event,'${it.id}','${kind}')" title="Mark paid" class="paid-check ${settled ? "is-paid bg-emerald-500 border-emerald-500" : "border-slate-600"} w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 border">
+      <span class="material-icons check-icon text-white" style="font-size:16px">check</span>
+    </button>
+    <div class="flex-1 min-w-0">
+      <p class="item-name text-sm font-bold text-slate-200 truncate ${settled ? "line-through" : ""}">${escapeHtml(it.name)}</p>
+      <div class="flex items-center gap-1.5 mt-1">
+        <div class="flex-1 h-1 bg-slate-900/70 rounded-full overflow-hidden max-w-[130px]"><div class="h-full ${over ? "bg-rose-500" : "bg-gradient-to-r from-emerald-500 to-teal-400"} rounded-full" style="width:${pct}%"></div></div>
+        <span class="text-[10px] font-bold ${over ? "text-rose-400" : "text-emerald-400"}">${over ? `over ${peso(spent - amt)}` : `${peso(amt - spent)} left`}</span>
+      </div>
+    </div>
+    <button onclick="toggleBudgetAdd(event,'${it.id}')" title="Quick add spending" class="flex-shrink-0 w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/25 text-emerald-300 flex items-center justify-center active:scale-95 transition-transform"><span class="material-icons" style="font-size:18px">add</span></button>
+    <p class="text-sm font-black text-slate-100 flex-shrink-0">${peso(amt)}</p>
+  </div>
+  <div id="budget-add-${it.id}" class="hidden px-3 pb-2">
+    <div class="flex items-center gap-2">
+      <input type="number" id="budget-amt-${it.id}" inputmode="decimal" placeholder="Spent  ₱0" onclick="event.stopPropagation()" onkeydown="if(event.key==='Enter'){event.preventDefault();addBudgetSpend('${it.id}');}" class="spend-amt bg-slate-900 rounded-xl text-[13px] font-bold text-white focus:outline-none" />
+      <button type="button" onclick="addBudgetSpend('${it.id}')" title="Log spending" class="flex-shrink-0 w-12 h-12 rounded-xl bg-emerald-500/15 border border-emerald-500/25 text-emerald-300 flex items-center justify-center active:scale-95 transition-transform"><span class="material-icons" style="font-size:22px">check</span></button>
+    </div>
+    ${chips ? `<div class="flex flex-wrap gap-1.5 mt-2">${chips}</div>` : ""}
+  </div>
+  </div>`;
+}
+window.toggleBudgetAdd = function (e, id) {
+  e.stopPropagation();
+  const el = $("budget-add-" + id);
+  if (!el) return;
+  el.classList.toggle("hidden");
+  if (!el.classList.contains("hidden")) setTimeout(() => $("budget-amt-" + id)?.focus(), 40);
+};
+window.addBudgetSpend = async function (id) {
+  const amount = parseFloat($("budget-amt-" + id)?.value) || 0;
+  if (!amount) return toast("Amount required", "error");
+  const k = selectedKey;
+  const cur = getSpendList(id, k);
+  cur.push({ id: generateId(), amount });
+  appData.spend = appData.spend || {};
+  appData.spend[k] = appData.spend[k] || {};
+  appData.spend[k][id] = cur;
+  await syncSet();
+  renderAll();
+  toast("Logged");
+  window.toggleBudgetAdd({ stopPropagation() {} }, id);
+};
+window.deleteBudgetSpend = async function (e, id, entryId) {
+  e.stopPropagation();
+  const k = selectedKey;
+  appData.spend = appData.spend || {};
+  appData.spend[k] = appData.spend[k] || {};
+  appData.spend[k][id] = getSpendList(id, k).filter((x) => x.id !== entryId);
+  await syncSet();
+  renderAll();
+  window.toggleBudgetAdd({ stopPropagation() {} }, id);
+};
+
 function itemRowHtml(it, k, kind, who, opts = {}) {
   if (getKids(it).length) return parentRowHtml(it, k, kind, who, opts);
+  if (it.budget) return budgetRowHtml(it, k, kind, who);
   const amt = amountIn(it, k);
   const settled = isPaid(it.id, k); // income => received, expense => paid
   const iconHtml = opts.hideIcon ? "" : rowIconHtml(it.name, 28);
@@ -774,7 +840,9 @@ function groupedRowsHtml(items, k, kind, who) {
   // 1. parent expenses (with sub-expenses) always on top
   const parents = items.filter((it) => getKids(it).length);
   for (const it of parents) html += itemRowHtml(it, k, kind, who);
-  const rest = items.filter((it) => !getKids(it).length);
+  // 1b. monthly budget rows (Extra Spending) right after the parent cards
+  for (const it of items.filter((it) => !getKids(it).length && it.budget)) html += itemRowHtml(it, k, kind, who);
+  const rest = items.filter((it) => !getKids(it).length && !it.budget);
   // 2. bank groups (banks with 2+ items)
   const buckets = {}, order = [];
   for (const it of rest) { const b = bankIconFor(it.name); if (b) (buckets[b] = buckets[b] || []).push(it); }
@@ -2106,6 +2174,12 @@ function boot() {
     const val = snap.val();
     appData = val ? normalize(val) : emptyData();
     logBaseline = clone(appData);
+    // One-time seed: the monthly Extra Spending budget (never re-created if deleted later).
+    if (val && !appData.extraSeeded) {
+      appData.extraSeeded = true;
+      appData.items.charlie.expenses.push({ id: "extra-spending", name: "Extra Spending", amount: 15000, recurring: true, start: appData.startMonth, budget: true });
+      syncSet();
+    }
     if (reconcileAutoPaid()) syncSet();
     if (firstLoad) {
       firstLoad = false;
