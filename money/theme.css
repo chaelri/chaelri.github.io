@@ -112,3 +112,9 @@ button[onclick*="openItemModal"]::before, button[onclick*="openAccountModal"]::b
   #budget-body[data-tab="charlie"] .person-wrap[data-who="karla"],
   #budget-body[data-tab="karla"] .person-wrap[data-who="charlie"] { display: none; }
 }
+
+/* month strip (desktop): plain text tabs, selected = cyan + underline; no pills */
+.month-chip { background: transparent !important; border: 0 !important; border-radius: 8px !important; font-size: 15px; text-transform: none; letter-spacing: 0; }
+.month-chip.is-active::after { content: ""; position: absolute; left: 16px; right: 16px; bottom: 6px; height: 2px; border-radius: 2px; background: #3DD9F0; }
+.month-chip:hover { color: #E8EEF2; }
+.month-chip .now-dot { position: absolute; top: 8px; right: 8px; width: 6px; height: 6px; border-radius: 50%; background: #3DD9F0; }
