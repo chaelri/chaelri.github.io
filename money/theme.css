@@ -291,3 +291,7 @@ button[onclick*="toggleField"] > span.left-7 { left: 28px !important; }
 .mode-btn[data-on="true"] { border: 2px solid #3DD9F0; color: #3DD9F0; }
 .spend-left { grid-column: 1 / -1; font-size: 12px; font-weight: 700; margin: 0; }
 @media (min-width: 1024px) { .mode-btn { height: 40px; } #modal-body > #f-mode, #modal-body > #f-xleft { grid-column: 1 / -1; } }
+
+/* selected owner gets its colour border (the generic #f-owner button rule was winning) */
+#modal-body #f-owner button.owner-btn[data-on="true"][data-w="charlie"] { border: 2px solid #3DD9F0; color: #3DD9F0; }
+#modal-body #f-owner button.owner-btn[data-on="true"][data-w="karla"] { border: 2px solid #FB7185; color: #FB7185; }
