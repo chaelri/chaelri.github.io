@@ -1106,16 +1106,6 @@ function bannerGradient(k) {
   return BANNER_GRADIENTS[(((keyParts(k).y - 2026) % n) + n) % n];
 }
 
-// Falling money on the summary card: small banknotes and coins drift down from the upper right.
-// The delay is derived from the clock so a re-render does not restart the fall.
-function moneyRainHtml() {
-  const bill = '<svg viewBox="0 0 28 16" width="28" height="16"><rect width="28" height="16" rx="3" fill="#4ADE9F"/><rect x="2.5" y="2.5" width="23" height="11" rx="2" fill="none" stroke="#0F1012" stroke-opacity=".3"/><circle cx="14" cy="8" r="3.6" fill="#86EFC0"/></svg>';
-  const coin = '<svg viewBox="0 0 16 16" width="16" height="16"><circle cx="8" cy="8" r="7.5" fill="#FBBF24"/><circle cx="8" cy="8" r="4.8" fill="none" stroke="#B45309" stroke-opacity=".55"/></svg>';
-  const now = performance.now() / 1000;
-  const pieces = [[62, 7.5, 0, 1, 0], [74, 9, 1, 0, 22], [84, 6.5, 2.2, 1, -35], [92, 8, 3.1, 0, 40], [68, 10, 4.2, 1, 15], [80, 7, 5.3, 0, -20], [96, 9.5, 6.1, 1, 30], [58, 8.5, 7.4, 0, -45]];
-  return `<div class="money-rain" aria-hidden="true">${pieces.map(([left, dur, off, isBill, rot]) => `<span class="mr" style="left:${left}%;--dur:${dur}s;--rot:${rot}deg;animation-delay:-${((now + off) % dur).toFixed(2)}s">${isBill ? bill : coin}</span>`).join("")}</div>`;
-}
-
 function renderBudget() {
   const k = selectedKey;
   const t = monthTotals(k);
@@ -1123,7 +1113,6 @@ function renderBudget() {
 
   const summary = `<section class="rounded-3xl overflow-hidden relative shadow-xl">
     <div class="absolute inset-0 bg-gradient-to-br ${bannerGradient(k)}"></div>
-    ${moneyRainHtml()}
     <div class="ambient-glow" style="top:-30px;right:60px"></div>
     <div class="relative p-6 md:p-7 space-y-5">
       <div>
