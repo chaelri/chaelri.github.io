@@ -271,3 +271,9 @@ body, body *, #modal-title, #current-month-display, .uppercase { text-transform:
 
 /* readable minimum: nothing under 12px */
 .now-banner, .nav-label, .month-dot { font-size: 12px !important; }
+
+/* toggle switch: explicit geometry (the 8px spacing scale had pushed the knob off-centre) */
+button[onclick*="toggleField"] { width: 56px !important; height: 32px !important; border-radius: 999px !important; flex: none; position: relative; }
+button[onclick*="toggleField"] > span { width: 24px !important; height: 24px !important; top: 4px !important; }
+button[onclick*="toggleField"] > span.left-1 { left: 4px !important; }
+button[onclick*="toggleField"] > span.left-7 { left: 28px !important; }
