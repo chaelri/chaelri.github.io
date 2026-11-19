@@ -334,5 +334,5 @@ button[onclick*="toggleField"] > span.left-7 { left: 28px !important; }
 .fund-row .text-amber-400\/80 { color: #FFB938 !important; }
 
 /* summary card: mini cash pile morphing from this month to next (desktop only, top right) */
-.cash-morph { display: none; position: absolute; top: 8px; right: 24px; width: 120px; height: 90px; pointer-events: none; z-index: 1; }
+.cash-morph { display: none; position: absolute; top: 10px; right: 24px; width: 120px; height: 84px; pointer-events: none; z-index: 1; }
 @media (min-width: 1024px) { .cash-morph { display: block; } }
