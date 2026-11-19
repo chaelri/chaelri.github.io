@@ -307,7 +307,7 @@ button[onclick*="toggleField"] > span.left-7 { left: 28px !important; }
 @keyframes cashHop {
   0%, 52%, 100% { transform: translateY(0) scale(1, 1); }
   60% { transform: translateY(1px) scale(1.04, .94); }
-  70% { transform: translateY(-9px) scale(.97, 1.06); }
+  70% { transform: translateY(-6px) scale(.97, 1.05); }
   80% { transform: translateY(0) scale(1.05, .93); }
   88% { transform: translateY(-3px) scale(.99, 1.02); }
   94% { transform: translateY(0) scale(1.01, .99); }

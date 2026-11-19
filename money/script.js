@@ -1151,12 +1151,14 @@ function peekCardHtml() {
   const hi = Math.max(1, ...pts.map((p) => p.v));
   const x = (i) => pl + (i * (W - pl - pr)) / (pts.length - 1);
   const amt = (v) => `${v < 0 ? "-" : ""}₱${formatMoney(Math.abs(Math.round(v)))}`;
-  // tiers: the more money, the fancier the cash. small = plain green bill, medium = strapped green bundle, big = gold
-  const tierOf = (v) => (v >= 200000 ? 3 : v >= 50000 ? 2 : 1);
+  // rarity tiers: the more money, the rarer the cash. common green < rare blue < epic purple < gold < legendary rainbow
+  const tierOf = (v) => (v >= 300000 ? 5 : v >= 160000 ? 4 : v >= 80000 ? 3 : v >= 30000 ? 2 : 1);
   const PAL = {
-    1: { body: "#4ADE9F", coin: "#86EFC0", e1: "#2DBE88", e2: "#34D399" },
-    2: { body: "#4ADE9F", coin: "#86EFC0", e1: "#2DBE88", e2: "#34D399" },
-    3: { body: "#FBBF24", coin: "#FDE68A", e1: "#F59E0B", e2: "#FBBF24" },
+    1: { body: "#4ADE9F", coin: "#86EFC0", e1: "#2DBE88", e2: "#34D399", spark: "#BBF7D0" },
+    2: { body: "#60A5FA", coin: "#BFDBFE", e1: "#3B82F6", e2: "#60A5FA", spark: "#DBEAFE" },
+    3: { body: "#A78BFA", coin: "#DDD6FE", e1: "#8B5CF6", e2: "#A78BFA", spark: "#EDE9FE" },
+    4: { body: "#FBBF24", coin: "#FDE68A", e1: "#F59E0B", e2: "#FBBF24", spark: "#FFF3B0" },
+    5: { body: "url(#cashLegend)", coin: "#FFF7ED", e1: "#EC4899", e2: "#FB923C", spark: "#FFFFFF" },
   };
   const note = (cx, y, pal) => `<g>
       <rect x="${cx - billW / 2}" y="${y}" width="${billW}" height="${noteH}" rx="3" fill="${pal.body}"/>
@@ -1165,7 +1167,7 @@ function peekCardHtml() {
       <text x="${cx}" y="${y + noteH / 2 + 4}" text-anchor="middle" font-size="12" font-weight="700" fill="#0F1012" fill-opacity=".6">₱</text>
       <circle cx="${cx - billW / 2 + 8}" cy="${y + 7}" r="1.6" fill="#0F1012" fill-opacity=".3"/><circle cx="${cx + billW / 2 - 8}" cy="${y + noteH - 7}" r="1.6" fill="#0F1012" fill-opacity=".3"/>
     </g>`;
-  const star = (sx, sy, d, big) => `<g transform="translate(${sx} ${sy})"><path class="cash-sparkle" style="animation-delay:${d}s" d="${big ? "M0 -7 L2 -2 L7 0 L2 2 L0 7 L-2 2 L-7 0 L-2 -2Z" : "M0 -5 L1.5 -1.5 L5 0 L1.5 1.5 L0 5 L-1.5 1.5 L-5 0 L-1.5 -1.5Z"}" fill="${big ? "#FFF3B0" : "#FDE68A"}"/></g>`;
+  const star = (sx, sy, d, big, col) => `<g transform="translate(${sx} ${sy})"><path class="cash-sparkle" style="animation-delay:${d}s" d="${big ? "M0 -7 L2 -2 L7 0 L2 2 L0 7 L-2 2 L-7 0 L-2 -2Z" : "M0 -5 L1.5 -1.5 L5 0 L1.5 1.5 L0 5 L-1.5 1.5 L-5 0 L-1.5 -1.5Z"}" fill="${col}"/></g>`;
   const stacks = pts.map((p, i) => {
     const cx = x(i), neg = p.v <= 0;
     const tier = neg ? 0 : tierOf(p.v), pal = PAL[tier] || PAL[1];
@@ -1175,17 +1177,16 @@ function peekCardHtml() {
     const noteY = base - n * edge - noteH;
     const lift = neg ? `<rect x="${cx - billW / 2}" y="${base - noteH}" width="${billW}" height="${noteH}" rx="3" fill="none" stroke="#FB7185" stroke-width="1.5" stroke-dasharray="4 3"/>` : note(cx, noteY, pal);
     const top = neg ? base - noteH : noteY;
-    // tier 2 gets a paper strap around the bundle
-    const strapNote = tier === 2 ? `<rect x="${cx - 18}" y="${top}" width="7" height="${noteH}" rx="1.5" fill="#F2EFEA" fill-opacity=".92"/>` : "";
-    const strapEdges = tier === 2 ? `<rect x="${cx - 18}" y="${top + noteH}" width="7" height="${base - top - noteH}" fill="#F2EFEA" fill-opacity=".92"/>` : "";
-    // sparkles alternate sides; the higher the tier, the more of them
-    const L = i % 2 ? 1 : -1;
+    // sparkles alternate sides; the rarer the tier, the more of them
+    const L = i % 2 ? 1 : -1, c = pal.spark, d0 = i * 0.5;
     let sparkles = "";
-    if (tier === 1) sparkles = star(cx + L * 31, top + 8, i * 0.5);
-    if (tier === 2) sparkles = star(cx + L * 31, top + 8, i * 0.5) + star(cx - L * 30, top + 24, i * 0.5 + 1.2);
-    if (tier === 3) sparkles = star(cx - 31, top + 6, i * 0.5, true) + star(cx + 31, top + 10, i * 0.5 + 0.8, true) + star(cx + 28, top + 34, i * 0.5 + 1.6) + star(cx - 28, top + 30, i * 0.5 + 2.2);
+    if (tier >= 1) sparkles += star(cx + L * 31, top + 8, d0, false, c);
+    if (tier >= 2) sparkles += star(cx - L * 30, top + 24, d0 + 1.2, false, c);
+    if (tier >= 3) sparkles += star(cx - L * 31, top + 4, d0 + 0.7, true, c);
+    if (tier >= 4) sparkles += star(cx + L * 29, top + 32, d0 + 1.9, false, c);
+    if (tier >= 5) sparkles += star(cx + L * 33, top - 6, d0 + 0.3, true, c) + star(cx - L * 34, top + 36, d0 + 2.4, true, c);
     // the top banknote and its amount float together (idle animation, staggered per month)
-    return `${g}${strapEdges}<g class="cash-note" style="animation-delay:${(i * 0.2).toFixed(2)}s">${lift}${strapNote}<text x="${cx.toFixed(1)}" y="${top - 8}" text-anchor="middle" font-size="12" font-weight="700" fill="${neg ? "#FB7185" : tier === 3 ? "#FDE68A" : "#F2EFEA"}">${amt(p.v)}</text></g>
+    return `${g}<g class="cash-note" style="animation-delay:${(i * 0.2).toFixed(2)}s">${lift}<text x="${cx.toFixed(1)}" y="${top - 8}" text-anchor="middle" font-size="12" font-weight="700" fill="${neg ? "#FB7185" : tier >= 4 ? "#FDE68A" : "#F2EFEA"}">${amt(p.v)}</text></g>
 ${sparkles}
       <text x="${cx.toFixed(1)}" y="${H - 8}" text-anchor="middle" font-size="12" fill="#A09B94">${MONTHS_SHORT[keyParts(p.k).m]}</text>`;
   }).join("");
@@ -1197,6 +1198,7 @@ ${sparkles}
     </div>
     <div class="relative mt-4 flex-1 flex items-center">
       <svg viewBox="0 0 ${W} ${H}" class="w-full" role="img" aria-label="Projected month-end balance as stacks of cash. ${escapeHtml(table)}">
+        <defs><linearGradient id="cashLegend" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F472B6"/><stop offset=".5" stop-color="#FB923C"/><stop offset="1" stop-color="#FACC15"/></linearGradient></defs>
         ${ground}${stacks}
       </svg>
     </div>
