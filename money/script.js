@@ -579,11 +579,11 @@ function renderMonthStrip() {
     const active = k === selectedKey;
     const isNow = k === nowK;
     const cls = active
-      ? "bg-indigo-600 text-white shadow-lg shadow-indigo-900/40 ring-2 ring-indigo-400/60"
-      : "bg-slate-800/60 text-slate-400";
+      ? "bg-cyan-400 text-slate-900"
+      : isNow ? "border border-cyan-400 text-cyan-400" : "bg-slate-800/60 text-slate-400";
     return `<button onclick="selectMonth('${k}')" data-k="${k}"
       class="month-chip ${isNow ? "is-now" : ""} flex-shrink-0 relative px-4 py-2 rounded-2xl text-xs font-black uppercase tracking-wide transition-colors ${cls}">
-      ${isNow ? '<span class="now-banner">Now</span>' : ""}${monthShort(k)}
+      ${monthShort(k)}
     </button>`;
   }).join("");
   renderMonthBanner();

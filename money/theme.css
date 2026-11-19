@@ -77,3 +77,7 @@ button:disabled { color: #8FA1AE !important; opacity: 0.6; }
 
 /* gradient-clipped text (splash "Money") must keep a visible fill once gradients are flattened */
 .bg-clip-text { background-image: none !important; color: var(--primary) !important; -webkit-text-fill-color: var(--primary); }
+/* month strip: selected = solid cyan, current month = cyan outline (no floating NOW badge) */
+.month-chip { box-sizing: border-box; border: 1px solid transparent; }
+.month-chip.border-cyan-400 { border-color: #3DD9F0; }
+.month-chip.is-now { overflow: visible; }
