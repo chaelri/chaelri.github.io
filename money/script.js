@@ -360,7 +360,7 @@ function historyPageCount() { return Math.max(1, Math.ceil(historyLines().length
 function historyPagerHtml() {
   const pages = historyPageCount();
   if (pages < 2) return "";
-  const button = (delta, icon, label, disabled) => `<button onclick="moveHistoryPage(${delta})" ${disabled ? "disabled" : ""} class="flex items-center gap-0.5 rounded-lg px-2.5 py-1.5 text-[11px] font-black ${disabled ? "bg-slate-800 text-slate-600" : "bg-gradient-to-r from-indigo-600 to-violet-700 text-white"}">${delta < 0 ? `<span class="material-icons" style="font-size:17px">${icon}</span>${label}` : `${label}<span class="material-icons" style="font-size:17px">${icon}</span>`}</button>`;
+  const button = (delta, icon, label, disabled) => `<button onclick="moveHistoryPage(${delta})" ${disabled ? "disabled" : ""} class="flex items-center gap-1 rounded-xl h-12 md:h-10 px-4 text-sm font-bold ${disabled ? "border border-slate-700 text-slate-400" : "bg-cyan-400 text-slate-900"}">${delta < 0 ? `<span class="material-icons" style="font-size:17px">${icon}</span>${label}` : `${label}<span class="material-icons" style="font-size:17px">${icon}</span>`}</button>`;
   return `<div class="flex items-center justify-between gap-3 px-4 py-2 border-t border-slate-700/40">
     ${button(-1, "chevron_left", "Newer", historyPage === 0)}
     <p class="text-[11px] font-bold text-slate-400">Page ${historyPage + 1} of ${pages}</p>
@@ -575,20 +575,22 @@ function updateHeader() {
 function renderMonthStrip() {
   const strip = $("month-strip");
   const nowK = currentKey();
-  let lastY = null;
-  strip.innerHTML = timeline().map((k) => {
-    const active = k === selectedKey;
-    const isNow = k === nowK;
-    const { y, m } = keyParts(k);
-    const cls = active ? "is-active text-cyan-400" : isNow ? "text-slate-200" : "text-slate-400";
-    // the year is shown once per year as a marker, not repeated on every chip
-    const yearMark = y !== lastY ? `<span class="flex-shrink-0 self-center text-[10px] font-bold text-slate-500 pl-4 pr-1 ml-2 border-l border-slate-700">${y}</span>` : "";
-    lastY = y;
-    return `${yearMark}<button onclick="selectMonth('${k}')" data-k="${k}"
-      class="month-chip ${isNow ? "is-now" : ""} flex-shrink-0 relative px-4 h-12 text-sm font-bold transition-colors ${cls}">
-      ${MONTHS_SHORT[m]}${isNow ? '<span class="now-dot"></span>' : ""}
-    </button>`;
-  }).join("");
+  // months grouped by year: the year sits on its own line above its months
+  const groups = [];
+  for (const k of timeline()) {
+    const { y } = keyParts(k);
+    if (!groups.length || groups[groups.length - 1].y !== y) groups.push({ y, keys: [] });
+    groups[groups.length - 1].keys.push(k);
+  }
+  strip.innerHTML = groups.map((g, gi) => `<div class="flex-shrink-0 ${gi ? "pl-2 ml-2 border-l border-slate-700" : ""}">
+    <p class="text-[10px] font-bold text-slate-500 px-4">${g.y}</p>
+    <div class="flex items-center">${g.keys.map((k) => {
+      const active = k === selectedKey;
+      const isNow = k === nowK;
+      const cls = active ? "is-active text-cyan-400" : isNow ? "text-slate-200" : "text-slate-400";
+      return `<button onclick="selectMonth('${k}')" data-k="${k}" class="month-chip ${isNow ? "is-now" : ""} flex-shrink-0 relative px-4 h-12 text-sm font-bold transition-colors ${cls}">${MONTHS_SHORT[keyParts(k).m]}${isNow ? '<span class="now-dot"></span>' : ""}</button>`;
+    }).join("")}</div>
+  </div>`).join("");
   // phones: a slim stepper instead of a long strip of pills
   const stp = $("month-stepper");
   if (stp) {
@@ -618,7 +620,7 @@ function renderMonthBanner() {
   el.classList.remove("hidden");
   const when = cmpKey(selectedKey, nowK) > 0 ? "Future month" : "Past month";
   const jump = timeline().includes(nowK)
-    ? `<button onclick="selectMonth('${nowK}')" class="h-12 px-4 rounded-xl bg-cyan-400 text-slate-900 text-sm font-bold flex items-center gap-1 active:scale-95 transition-transform"><span class="material-icons" style="font-size:18px">undo</span>Back to ${monthShort(nowK)}</button>`
+    ? `<button onclick="selectMonth('${nowK}')" class="h-12 md:h-10 px-4 rounded-xl bg-cyan-400 text-slate-900 text-sm font-bold flex items-center gap-1 active:scale-95 transition-transform"><span class="material-icons" style="font-size:18px">undo</span>Back to ${monthShort(nowK)}</button>`
     : "";
   el.innerHTML = `<div class="flex items-center justify-between gap-3">
     <span class="text-sm font-bold text-slate-400">${when}</span>
@@ -702,14 +704,12 @@ function budgetRowHtml(it, k, kind, who) {
   const chips = list.map((e) => `<button onclick="deleteBudgetSpend(event,'${it.id}','${e.id}')" title="Remove" class="px-2 py-1 rounded-lg bg-slate-800 text-[11px] font-bold text-slate-300 flex items-center gap-1">${peso(e.amount)}<span class="material-icons text-slate-500" style="font-size:12px">close</span></button>`).join("");
   return `<div class="budget-row glass-card rounded-2xl border ${over ? "border-rose-500/40" : "border-slate-700"} overflow-hidden my-2" data-budget="${it.id}">
   <div onclick="openItemModal('${who}','${kind}','${it.id}')" class="px-4 py-4 cursor-pointer">
-    <p class="item-name text-sm font-bold text-slate-400 truncate">${escapeHtml(it.name)}</p>
-    <div class="flex items-center justify-between gap-3 mt-2">
-      <div class="min-w-0">
-        <p class="text-2xl font-black leading-none ${over ? "text-rose-400" : "text-white"}">${over ? `-${peso(spent - amt)}` : peso(amt - spent)}</p>
-        <p class="text-[10px] font-bold text-slate-400 mt-2">${over ? "over" : "left"} of ${peso(amt)}</p>
-      </div>
-      <button onclick="toggleBudgetAdd(event,'${it.id}')" aria-label="Add spend" class="flex-shrink-0 w-12 h-12 rounded-xl bg-cyan-400 text-slate-900 flex items-center justify-center active:scale-95 transition-transform"><span class="material-icons" style="font-size:24px">add</span></button>
+    <div class="flex items-center justify-between gap-3">
+      <p class="item-name text-sm font-bold text-slate-400 truncate">${escapeHtml(it.name)}</p>
+      <button onclick="toggleBudgetAdd(event,'${it.id}')" class="text-[11px] font-bold text-cyan-400 flex items-center gap-1 transition-transform"><span class="material-icons" style="font-size:14px">add</span>Add spend</button>
     </div>
+    <p class="text-2xl font-black leading-none mt-2 ${over ? "text-rose-400" : "text-white"}">${over ? `-${peso(spent - amt)}` : peso(amt - spent)}</p>
+    <p class="text-[10px] font-bold text-slate-400 mt-2">${over ? "over" : "left"} of ${peso(amt)}</p>
     <div class="mt-4 h-2 rounded-full overflow-hidden" style="background:#22303B"><div class="h-full ${over ? "bg-rose-400" : "bg-emerald-400"} rounded-full" style="width:${pct}%"></div></div>
   </div>
   <div id="budget-add-${it.id}" class="hidden px-4 pb-3">
@@ -951,6 +951,7 @@ function categoryIcon(name) {
   if (/parking/.test(n)) return "local_parking";
   if (/grocer|palengke|market|supermarket|puregold|sm\b/.test(n)) return "shopping_cart";
   if (/laundry|labada/.test(n)) return "local_laundry_service";
+  if (/extra|spending|allowance/.test(n)) return "payments";
   if (/\brent\b|renta/.test(n)) return "home";
   if (/tuition|school|educ|braces/.test(n)) return "school";
   if (/med|medicine|pharmacy|drug|health|doctor/.test(n)) return "medication";
@@ -1312,9 +1313,9 @@ function expensesIn(k) {
 }
 const LOAD_TIGHT_BELOW = 20000;
 const LOAD_STATES = {
-  heavy: { label: "Heavy", color: "#e11d48", icon: "warning" },
-  tight: { label: "Tight", color: "#c67f0a", icon: "error_outline" },
-  goods: { label: "Goods", color: "#0ea371", icon: "check_circle" },
+  heavy: { label: "Heavy", color: "#FB7185", icon: "warning" },
+  tight: { label: "Tight", color: "#FFB938", icon: "error_outline" },
+  goods: { label: "Goods", color: "#34D399", icon: "check_circle" },
 };
 function paymentLoadMonths() {
   const insts = allInstallments();
@@ -1349,7 +1350,7 @@ function loadReadoutHtml(m) {
   ].filter(Boolean).map((t) => `<p class="text-[10px] font-semibold text-slate-300 leading-snug">${escapeHtml(t)}</p>`).join("");
   return `<div class="flex items-center justify-between gap-3">
       <p class="text-lg font-black text-white">${monthShort(m.k)}</p>
-      <span class="flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-black text-white" style="background:${state.color}"><span class="material-icons" style="font-size:14px">${state.icon}</span>${short ? "Short" : state.label}</span>
+      <span class="flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-black" style="background:${state.color};color:#0B1014"><span class="material-icons" style="font-size:14px">${state.icon}</span>${short ? "Short" : state.label}</span>
     </div>
     <div class="grid grid-cols-2 gap-2">
       ${stat("Installments", peso(m.due))}
@@ -1631,7 +1632,7 @@ window.openItemModal = function (who, kind, id) {
   }
 
   if (!isNew && kind === "expenses") {
-    body += `<button type="button" onclick="openChildModal('${who}','${id}',null)" class="mx-auto px-6 h-12 bg-cyan-400 text-slate-900 rounded-xl font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"><span class="material-icons" style="font-size:18px">account_tree</span>Add sub-expense</button>`;
+    body += `<button type="button" onclick="openChildModal('${who}','${id}',null)" class="mx-auto px-6 h-12 md:h-10 bg-cyan-400 text-slate-900 rounded-xl font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"><span class="material-icons" style="font-size:18px">account_tree</span>Add sub-expense</button>`;
   }
 
   $("modal-body").innerHTML = body;
@@ -1672,7 +1673,7 @@ window.openChildModal = function (who, parentId, childId) {
       <button type="button" id="f-paid" data-on="${settledNow}" onclick="toggleField(this)" class="w-14 h-8 rounded-full transition-colors ${settledNow ? "bg-emerald-600" : "bg-slate-700"} relative flex-shrink-0"><span class="absolute top-1 ${settledNow ? "left-7" : "left-1"} w-6 h-6 bg-white rounded-full transition-all"></span></button>
     </div>`;
   } else {
-    body += `<button type="button" onclick="saveChildAndAddAnother()" class="mx-auto px-6 h-12 border border-slate-600 text-slate-100 rounded-xl font-bold text-sm flex items-center justify-center gap-2"><span class="material-icons" style="font-size:18px">playlist_add</span>Save &amp; add another</button>`;
+    body += `<button type="button" onclick="saveChildAndAddAnother()" class="mx-auto px-6 h-12 md:h-10 border border-slate-600 text-slate-100 rounded-xl font-bold text-sm flex items-center justify-center gap-2"><span class="material-icons" style="font-size:18px">playlist_add</span>Save &amp; add another</button>`;
   }
   $("modal-body").innerHTML = body;
   const delBtn = $("delete-btn");
