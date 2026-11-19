@@ -1026,7 +1026,8 @@ function accountsCardHtml() {
   const rows = accts.length
     ? groups.map((g) => (g.items.length > 1 ? acctGroupHtml(g) : acctRowHtml(g.items[0]))).join("")
     : `<p class="text-[11px] text-slate-600 px-3 py-2">No accounts yet — add your current balances.</p>`;
-  return `<details open class="glass-card rounded-2xl overflow-hidden border border-emerald-500/10 md:col-span-2">
+  const acctOpen = accountsOpen === null ? window.matchMedia("(min-width:1024px)").matches : accountsOpen;
+  return `<details ${acctOpen ? "open" : ""} ontoggle="setAccountsOpen(this.open)" class="glass-card rounded-2xl overflow-hidden border border-emerald-500/10 md:col-span-2">
     <summary class="flex items-center justify-between px-5 py-4 cursor-pointer list-none">
       <div class="flex items-center gap-3">
         <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
@@ -1102,10 +1103,25 @@ function renderBudget() {
   $("budget-body").innerHTML =
     summary +
     accountsCardHtml() +
-    personSectionHtml("charlie") +
-    personSectionHtml("karla") +
+    personTabsHtml(t) +
+    `<div class="person-wrap" data-who="charlie">${personSectionHtml("charlie")}</div>` +
+    `<div class="person-wrap" data-who="karla">${personSectionHtml("karla")}</div>` +
     historyCardHtml();
+  $("budget-body").dataset.tab = personTab;
 }
+
+// Phones show one person at a time (a segmented switch); desktop shows both side by side.
+let personTab = "charlie";
+let accountsOpen = null; // null = default (open on desktop, closed on phones)
+function personTabsHtml(t) {
+  const btn = (who, label, net) => `<button onclick="setPersonTab('${who}')" data-w="${who}" class="seg-btn h-12 rounded-xl text-sm font-bold flex flex-col items-center justify-center leading-tight"><span>${label}</span><span class="text-[10px] font-bold opacity-80">${signedPeso(net)}</span></button>`;
+  return `<div class="seg md:hidden grid grid-cols-2 gap-2">${btn("charlie", "Charlie", t.cI - t.cE)}${btn("karla", "Karla", t.kI - t.kE)}</div>`;
+}
+window.setAccountsOpen = function (open) { accountsOpen = open; };
+window.setPersonTab = function (who) {
+  personTab = who;
+  $("budget-body").dataset.tab = who;
+};
 
 // Installments + projection live in the "More" sheet (header insights button), not the main page.
 window.openMore = function () {

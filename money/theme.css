@@ -103,3 +103,12 @@ button[onclick*="openItemModal"]::before, button[onclick*="openAccountModal"]::b
 /* accounts: even rows with hairline dividers, two columns on desktop */
 .acct-list > * { padding-top: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
 .acct-list > * .item-row { padding-top: 8px; padding-bottom: 8px; }
+
+/* ---- phones: one person at a time ---- */
+.seg-btn { background: var(--surface); color: #8FA1AE; border: 1px solid var(--line); }
+#budget-body[data-tab="charlie"] .seg-btn[data-w="charlie"] { background: #3DD9F0; color: #0B1014; border-color: #3DD9F0; }
+#budget-body[data-tab="karla"] .seg-btn[data-w="karla"] { background: #FB7185; color: #0B1014; border-color: #FB7185; }
+@media (max-width: 1023.98px) {
+  #budget-body[data-tab="charlie"] .person-wrap[data-who="karla"],
+  #budget-body[data-tab="karla"] .person-wrap[data-who="charlie"] { display: none; }
+}
