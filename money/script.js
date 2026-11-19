@@ -1167,9 +1167,9 @@ function morphFrame(ms) {
   const bob = p > 0.98 ? Math.sin(ms / 1000 * 6) * 1.8 * dir : 0;
   const midY = base - (nn * edge + noteH) / 2;
   const arrowSvg = reveal > 0 ? `<g transform="translate(100 ${(midY + dir * 12 * (1 - kk) + bob).toFixed(2)}) scale(${(0.45 + 0.55 * kk).toFixed(3)} ${((up ? 1 : -1) * (0.45 + 0.55 * kk)).toFixed(3)})" opacity="${kk.toFixed(3)}"><path d="M0 11 V-9 M-8 -1 L0 -10 L8 -1" fill="none" stroke="${ac}" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></g>` : "";
-  // month label above the pile: this month, then next month (fades out and back in around the swap)
+  // month label rides on top of the pile: it sinks when the money drops and rises when it grows; the text swaps (with a fade) halfway
   const mOp = Math.min(1, Math.abs(p - 0.5) * 7);
-  const monthLabel = `<text x="${cx}" y="11" text-anchor="middle" font-size="12" font-weight="700" fill="#A09B94" fill-opacity="${mOp.toFixed(2)}">${p < 0.5 ? m0 : m1}</text>`;
+  const monthLabel = `<text x="${cx}" y="${Math.max(11, ny - 6).toFixed(1)}" text-anchor="middle" font-size="12" font-weight="700" fill="#A09B94" fill-opacity="${mOp.toFixed(2)}">${p < 0.5 ? m0 : m1}</text>`;
   const ground = `<line x1="35" x2="120" y1="${base + 2}" y2="${base + 2}" stroke="#4A4C54" stroke-width="1.5" stroke-linecap="round"/>`;
   el.style.opacity = o;
   el.firstElementChild.innerHTML = ground + edges + note + monthLabel + arrowSvg;
