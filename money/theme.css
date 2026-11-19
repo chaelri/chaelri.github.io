@@ -318,3 +318,7 @@ button[onclick*="toggleField"] > span.left-7 { left: 28px !important; }
   0%, 100% { opacity: 0; scale: .3; rotate: 0deg; }
   50% { opacity: 1; scale: 1; rotate: 45deg; }
 }
+
+/* tier 8: the whole pile cycles through the rainbow */
+@keyframes cashHue { to { filter: hue-rotate(360deg); } }
+.cash-rainbow { animation: cashHue 6s linear infinite; }
