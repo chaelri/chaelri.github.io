@@ -25,7 +25,7 @@ body { background: var(--paper); color: var(--ink); font-variant-numeric: tabula
 .rounded-3xl { border-radius: 21px !important; }
 
 /* type scale 10 / 15 / 24 / 38 */
-.text-\[8px\], .text-\[9px\], .text-\[10px\], .text-\[11px\] { font-size: 10px !important; }
+.text-\[8px\], .text-\[9px\], .text-\[10px\], .text-\[11px\] { font-size: 12px !important; }
 .text-xs, .text-sm, .text-base, .text-\[12px\], .text-\[13px\] { font-size: 15px !important; }
 .text-lg, .text-xl, .text-2xl { font-size: 24px !important; }
 .text-3xl, .text-4xl, .text-5xl { font-size: 38px !important; }
@@ -67,7 +67,7 @@ button:disabled { color: #A09B94 !important; background: transparent !important;
 .text-slate-500 { color: #A09B94 !important; }
 
 /* ---- audit fixes: scale ---- */
-.now-banner { font-size: 10px !important; border-radius: 8px !important; }
+.now-banner { font-size: 12px !important; border-radius: 8px !important; }
 .save-btn, .confirm-action-btn, button.py-4, button.py-5 { font-size: 15px; }
 .acct-icon { border-radius: 13px !important; }
 .more-sheet, .confirm-icon { border-radius: 21px !important; }
@@ -219,18 +219,18 @@ tr.bg-indigo-600, tr.bg-indigo-600 td, tr.bg-indigo-600 th { color: #FFFFFF !imp
 #modal-body { padding-right: 0 !important; }
 #modal-body label { display: block; margin: 0 0 8px 0 !important; }
 #modal-body select, #modal-body input { display: block; width: 100%; }
-#modal-body p.mb-1 { margin: 0 !important; font-size: 10px; }
+#modal-body p.mb-1 { margin: 0 !important; font-size: 12px; }
 
 /* spend tracker inside the sub-expense modal */
 .spend-block { display: grid; gap: 8px; }
 .spend-block label { margin: 0 !important; }
 .spend-hero { font-size: 24px; font-weight: 900; line-height: 1; margin: 0; }
-.spend-hero span { font-size: 10px; font-weight: 700; color: #A09B94; margin-left: 8px; }
+.spend-hero span { font-size: 12px; font-weight: 700; color: #A09B94; margin-left: 8px; }
 .spend-bar { height: 8px; border-radius: 999px; background: #2A2C31; overflow: hidden; }
 .spend-bar > div { height: 100%; border-radius: 999px; }
 .spend-rows { display: grid; gap: 8px; }
 .spend-row { display: flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 13px; background: #0F1012; border: 1px solid #2A2C31; }
-.spend-empty { font-size: 10px; font-weight: 700; color: #A09B94; margin: 0; }
+.spend-empty { font-size: 12px; font-weight: 700; color: #A09B94; margin: 0; }
 .spend-add { margin-top: 8px; }
 #modal-body .spend-add input[type="number"] { padding: 0 16px !important; }
 .spend-btn { flex: none; width: 48px; height: 48px; border-radius: 13px; background: #3DD9F0; color: #0F1012; display: flex; align-items: center; justify-content: center; }
@@ -268,3 +268,6 @@ body, body *, #modal-title, #current-month-display, .uppercase { text-transform:
 #modal-body #f-owner button.owner-btn { padding: 0 16px !important; }
 #modal-body #f-owner button.owner-btn[data-on="true"] { padding: 0 15px !important; }
 #modal-body #f-owner { gap: 16px !important; }
+
+/* readable minimum: nothing under 12px */
+.now-banner, .nav-label, .month-dot { font-size: 12px !important; }
