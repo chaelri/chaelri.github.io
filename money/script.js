@@ -615,8 +615,6 @@ function renderMonthBanner() {
     ${jump}
   </div>`;
 }
-  </div>`;
-}
 
 // A sub-expense row (checked/edited individually).
 function childRowHtml(parentId, c, k, who) {
