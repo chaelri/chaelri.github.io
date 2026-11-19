@@ -86,9 +86,20 @@ button:disabled { color: #8FA1AE !important; opacity: 0.6; }
 .uppercase { letter-spacing: 0.1em; }
 .bg-black\/20 p.uppercase { white-space: nowrap; letter-spacing: 0.08em; }
 @media (max-width: 1023.98px) {
-  #app > header { padding-left: 16px; padding-right: 16px; gap: 8px; }
+  #app > header { padding-left: 24px; padding-right: 24px; gap: 8px; }
   #app > header h1 { font-size: 24px !important; }
   #app > header > div:last-child { gap: 8px; }
   #app > header .w-12 { width: 48px; height: 48px; flex: none; }
   #app > header > div:first-child { min-width: 0; }
 }
+
+/* tap targets >= 44px without changing how things look: invisible hit area around small controls */
+.paid-check, button.text-violet-300\/80, #app button[onclick*="openAccountModal"], #app button[onclick*="openItemModal"]:not(.item-row) { position: relative; }
+.paid-check::before { content: ""; position: absolute; inset: -10px; }
+.w-full.text-\[11px\] , button[onclick*="openChildModal"].w-full { min-height: 44px; }
+button[onclick*="openItemModal"], button[onclick*="openAccountModal"] { position: relative; }
+button[onclick*="openItemModal"]::before, button[onclick*="openAccountModal"]::before { content: ""; position: absolute; inset: -14px -8px; }
+
+/* accounts: even rows with hairline dividers, two columns on desktop */
+.acct-list > * { padding-top: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+.acct-list > * .item-row { padding-top: 8px; padding-bottom: 8px; }

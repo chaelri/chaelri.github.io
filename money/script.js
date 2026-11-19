@@ -747,7 +747,6 @@ function itemRowHtml(it, k, kind, who, opts = {}) {
   if (installment) tags.push(`<span class="text-[9px] font-bold text-amber-400/80">→ ${monthShort(it.end)}</span>`);
   else if (it.recurring && everyMonths(it) === 3) tags.push(`<span class="text-[9px] font-bold text-indigo-300/90 uppercase tracking-wide flex items-center gap-0.5"><span class="material-icons" style="font-size:11px">autorenew</span>Quarterly</span>`);
   else if (it.recurring && dd != null) tags.push(`<span class="text-[9px] font-bold text-sky-300 uppercase tracking-wide flex items-center gap-0.5"><span class="material-icons" style="font-size:11px">event_available</span>${ordinal(dd)}</span>`);
-  else if (it.recurring) tags.push(`<span class="text-[9px] font-bold text-indigo-300/90 uppercase tracking-wide flex items-center gap-0.5"><span class="material-icons" style="font-size:11px">autorenew</span>Recurring</span>`);
   let progress = "";
   if (installment) {
     const total = paymentCount(it);
@@ -863,18 +862,19 @@ function personSectionHtml(who) {
   const fundHtml = fund ? `<div class="fund-row rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-700 mb-1.5">${itemRowHtml(fund, k, "expenses", who)}</div>` : "";
   const expHtml = fundHtml + groupedRowsHtml(expenses.filter((it) => !it.virtual), k, "expenses", who);
   return `<div class="glass-card rounded-2xl overflow-hidden border ${o.ring}">
-    <div class="flex items-center justify-between px-5 py-4 bg-gradient-to-r ${o.grad} bg-opacity-10">
+    <div class="flex items-center justify-between px-5 py-4 bg-slate-800 border-b border-slate-700">
       <div class="flex items-center gap-3">
-        <img src="assets/avatar-${who}.jpg" alt="${o.label}" class="w-9 h-9 rounded-xl object-cover ring-2 ring-white/25 flex-shrink-0" />
+        <img src="assets/avatar-${who}.jpg" alt="${o.label}" class="w-10 h-10 rounded-xl object-cover ring-2 ring-current ${o.text} flex-shrink-0" />
         <div>
-          <h3 class="text-sm font-black text-white uppercase tracking-wide">${o.label}</h3>
-          <p class="text-[10px] font-bold ${net >= 0 ? "text-emerald-300" : "text-rose-300"}">net ${net >= 0 ? "+" : ""}${peso(net)}</p>
+          <h3 class="text-sm font-black ${o.text} uppercase tracking-wide">${o.label}</h3>
+          <p class="text-[10px] font-bold ${net >= 0 ? "text-emerald-300" : "text-rose-300"} mt-1">net ${signedPeso(net)}</p>
         </div>
       </div>
       <div class="text-right">
-        <p class="text-[9px] font-bold uppercase text-white/60">in / out</p>
-        <p class="text-[11px] font-black text-white">${peso(incTot)} <span class="text-white/40">·</span> ${peso(expTot)}</p>
+        <p class="text-[10px] font-bold uppercase text-slate-400">in / out</p>
+        <p class="text-sm font-black text-white mt-1">${peso(incTot)} <span class="text-slate-500">·</span> ${peso(expTot)}</p>
       </div>
+    </div>
     </div>
     <div class="p-3 space-y-3">
       <div>
@@ -1034,9 +1034,9 @@ function accountsCardHtml() {
       </div>
       <p class="text-base font-black text-emerald-400">${peso(accountsTotal())}</p>
     </summary>
-    <div class="p-3 pt-0 space-y-0.5">
-      ${rows}
-      <button onclick="openAccountModal(null)" class="mx-auto mt-3 px-5 h-11 bg-cyan-400 text-slate-900 rounded-xl font-bold text-sm flex items-center justify-center gap-1 transition-transform"><span class="material-icons" style="font-size:16px">add</span>Add account</button>
+    <div class="px-4 pb-4 pt-0">
+      <div class="acct-list md:grid md:grid-cols-2 md:gap-x-8">${rows}</div>
+      <button onclick="openAccountModal(null)" class="mx-auto mt-4 px-5 h-12 bg-cyan-400 text-slate-900 rounded-xl font-bold text-sm flex items-center justify-center gap-1 transition-transform"><span class="material-icons" style="font-size:16px">add</span>Add account</button>
     </div>
   </details>`;
 }
