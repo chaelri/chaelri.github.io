@@ -449,6 +449,8 @@ function accountsTotal() { return (appData.accounts || []).reduce((s, a) => s + 
 // Sub-expenses: an item with children is a container; its amount = sum of children,
 // and each child is checked/paid individually.
 function getKids(it) { return Array.isArray(it.children) ? it.children.filter(Boolean) : []; }
+// A sub-expense can start later than its parent (c.start = "YYYY-MM"); before that month it does not count.
+function kidActive(c, k) { return !c.start || cmpKey(k, c.start) >= 0; }
 
 // Actual spending logged against a sub-expense in month k (Firebase may hand back an array as an object).
 function getSpendList(childId, k) {
@@ -468,7 +470,7 @@ function itemTotal(it, k) {
   const kids = getKids(it);
   if (!kids.length) return amountIn(it, k);
   // Budgeted estimate while unpaid; the locked final once checked.
-  return kids.reduce((s, c) => s + (isPaid(c.id, k) ? childFinal(c, k) : (Number(c.amount) || 0)), 0);
+  return kids.filter((c) => kidActive(c, k)).reduce((s, c) => s + (isPaid(c.id, k) ? childFinal(c, k) : (Number(c.amount) || 0)), 0);
 }
 // {total, paid} for an expense/income item, expanding children.
 function itemAmts(it, k) {
@@ -476,6 +478,7 @@ function itemAmts(it, k) {
   if (!kids.length) { const a = amountIn(it, k); return { total: a, paid: isPaid(it.id, k) ? a : 0 }; }
   let total = 0, paid = 0;
   for (const c of kids) {
+    if (!kidActive(c, k)) continue;
     const settled = isPaid(c.id, k);
     const amt = settled ? childFinal(c, k) : (Number(c.amount) || 0);
     total += amt;
@@ -660,7 +663,7 @@ function childRowHtml(parentId, c, k, who) {
 }
 // An expandable parent (its amount = sum of sub-expenses).
 function parentRowHtml(it, k, kind, who, opts = {}) {
-  const kids = getKids(it);
+  const kids = getKids(it).filter((c) => kidActive(c, k));
   const total = itemTotal(it, k);
   const paidCount = kids.filter((c) => isPaid(c.id, k)).length;
   const allPaid = kids.length > 0 && paidCount === kids.length;
@@ -2217,6 +2220,12 @@ function boot() {
     const val = snap.val();
     appData = val ? normalize(val) : emptyData();
     logBaseline = clone(appData);
+    // One-time fix: the Extra Spending sub-expense counts from Nov 2026, not from the parent's July start.
+    if (val && !appData.extraStartFixed) {
+      appData.extraStartFixed = true;
+      for (const who of ["charlie", "karla"]) for (const it of getItems(who, "expenses")) for (const c of getKids(it)) if (c.name === "Extra Spending" && !c.start) c.start = "2026-11";
+      syncSet();
+    }
     // One-time seed: the monthly Extra Spending budget (never re-created if deleted later).
     if (val && !appData.extraSeeded) {
       appData.extraSeeded = true;

@@ -171,3 +171,16 @@ tr.bg-indigo-600, tr.bg-indigo-600 td, tr.bg-indigo-600 th { color: #FFFFFF !imp
 /* month picker */
 #month-picker .bg-indigo-600 { background: #3DD9F0 !important; color: #0B1014 !important; }
 #month-picker-grid button { border-radius: 8px !important; }
+
+/* desktop: forms fit in one view, two columns, tighter gaps (no scrolling inside the modal) */
+@media (min-width: 1024px) {
+  #modal-content { max-width: 640px !important; }
+  #modal-body { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; overflow-y: visible; }
+  #modal-body > * { margin: 0 !important; }
+  #modal-body > :has(#f-owner), #modal-body > #spend-section, #modal-body > button, #modal-body > p, #modal-body > details { grid-column: 1 / -1; }
+  #modal-content .mt-8 { margin-top: 24px; }
+  #modal-content > div.mb-6 { margin-bottom: 16px; }
+}
+@media (min-width: 1024px) {
+  #modal-body > div.flex.items-center.justify-between { grid-column: 1 / -1; }
+}
