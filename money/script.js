@@ -360,7 +360,7 @@ function historyPageCount() { return Math.max(1, Math.ceil(historyLines().length
 function historyPagerHtml() {
   const pages = historyPageCount();
   if (pages < 2) return "";
-  const button = (delta, icon, label, disabled) => `<button onclick="moveHistoryPage(${delta})" ${disabled ? "disabled" : ""} class="flex items-center gap-1 rounded-xl h-12 md:h-10 px-4 text-sm font-bold ${disabled ? "border border-slate-700 text-slate-400" : "bg-cyan-400 text-slate-900"}">${delta < 0 ? `<span class="material-icons" style="font-size:17px">${icon}</span>${label}` : `${label}<span class="material-icons" style="font-size:17px">${icon}</span>`}</button>`;
+  const button = (delta, icon, label, disabled) => `<button onclick="moveHistoryPage(${delta})" ${disabled ? "disabled" : ""} class="btn-sm ${disabled ? "btn-outline" : "btn-solid"}">${delta < 0 ? `<span class="material-icons" style="font-size:17px">${icon}</span>${label}` : `${label}<span class="material-icons" style="font-size:17px">${icon}</span>`}</button>`;
   return `<div class="flex items-center justify-between gap-3 px-4 py-2 border-t border-slate-700/40">
     ${button(-1, "chevron_left", "Newer", historyPage === 0)}
     <p class="text-[11px] font-bold text-slate-400">Page ${historyPage + 1} of ${pages}</p>
@@ -629,7 +629,7 @@ function renderMonthBanner() {
   el.classList.remove("hidden");
   const when = cmpKey(selectedKey, nowK) > 0 ? "Future month" : "Past month";
   const jump = timeline().includes(nowK)
-    ? `<button onclick="selectMonth('${nowK}')" class="h-12 md:h-10 px-4 rounded-xl bg-cyan-400 text-slate-900 text-sm font-bold flex items-center gap-1 active:scale-95 transition-transform"><span class="material-icons" style="font-size:18px">undo</span>Back to ${monthShort(nowK)}</button>`
+    ? `<button onclick="selectMonth('${nowK}')" class="btn-sm btn-solid"><span class="material-icons" style="font-size:16px">undo</span>Back to ${monthShort(nowK)}</button>`
     : "";
   el.innerHTML = `<div class="flex items-center justify-between gap-3">
     <span class="text-sm font-bold text-slate-400">${when}</span>

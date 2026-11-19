@@ -250,3 +250,10 @@ body, body *, #modal-title, #current-month-display, .uppercase { text-transform:
 @media (min-width: 1024px) and (min-height: 760px) {
   #modal-body { overflow: visible !important; }
 }
+
+/* one small button size for utility actions (back, pager): 32px tall, bigger tap area on touch */
+.btn-sm { position: relative; display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 16px; border-radius: 13px; font-size: 15px; font-weight: 700; white-space: nowrap; }
+.btn-sm::before { content: ""; position: absolute; inset: -8px -4px; }
+.btn-sm .material-icons { font-size: 16px !important; }
+.btn-solid { background: #3DD9F0; color: #0F1012; }
+.btn-outline { border: 1px solid #2A2C31; color: #A09B94; background: transparent; }
