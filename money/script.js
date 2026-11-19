@@ -719,7 +719,7 @@ function budgetRowHtml(it, k, kind, who) {
     </div>
     <p class="text-2xl font-black leading-none mt-2 ${over ? "text-rose-400" : "text-white"}">${over ? `-${peso(spent - amt)}` : peso(amt - spent)}</p>
     <p class="text-[10px] font-bold text-slate-400 mt-2">${over ? "over" : "left"} of ${peso(amt)}</p>
-    <div class="mt-4 h-2 rounded-full overflow-hidden" style="background:#22303B"><div class="h-full ${over ? "bg-rose-400" : "bg-emerald-400"} rounded-full" style="width:${pct}%"></div></div>
+    <div class="mt-4 h-2 rounded-full overflow-hidden" style="background:#2A2C31"><div class="h-full ${over ? "bg-rose-400" : "bg-emerald-400"} rounded-full" style="width:${pct}%"></div></div>
   </div>
   <div id="budget-add-${it.id}" class="hidden px-4 pb-3">
     <div class="flex items-center gap-2">
@@ -1111,7 +1111,7 @@ function renderBudget() {
   const t = monthTotals(k);
   const projected = runningFundsAt(k);
 
-  const summary = `<section class="md:col-span-2 rounded-3xl overflow-hidden relative shadow-xl">
+  const summary = `<section class="rounded-3xl overflow-hidden relative shadow-xl">
     <div class="absolute inset-0 bg-gradient-to-br ${bannerGradient(k)}"></div>
     <div class="ambient-glow" style="top:-30px;right:60px"></div>
     <div class="relative p-6 md:p-7 space-y-5">
@@ -1119,12 +1119,12 @@ function renderBudget() {
         <p class="text-[10px] font-black uppercase tracking-[0.3em] text-white/60">Projected · end of ${monthName(k)}</p>
         <p id="sum-projected" class="text-4xl md:text-5xl font-black text-white mt-1 leading-none">${peso(projected)}</p>
       </div>
-      <div id="sum-stats" class="grid grid-cols-2 md:grid-cols-4 gap-3">${statsGridHtml(t)}</div>
+      <div id="sum-stats" class="grid grid-cols-2 gap-3">${statsGridHtml(t)}</div>
     </div>
   </section>`;
 
   $("budget-body").innerHTML =
-    summary +
+    `<div class="md:col-span-2 grid gap-4 md:grid-cols-[3fr_2fr]">${summary}${peekCardHtml()}</div>` +
     accountsCardHtml() +
     personTabsHtml(t) +
     `<div class="person-wrap" data-who="charlie">${personSectionHtml("charlie")}</div>` +
@@ -1132,6 +1132,74 @@ function renderBudget() {
     historyCardHtml();
   $("budget-body").dataset.tab = personTab;
 }
+
+// "Next 5 months": projected balance at the end of each month (the selected month + the 4 after it).
+function peekMonths() {
+  const tl = timeline();
+  const out = [];
+  for (let i = 0; i < 5; i++) {
+    const k = addMonths(selectedKey, i);
+    if (tl.includes(k)) out.push({ k, v: runningFundsAt(k) });
+  }
+  return out;
+}
+function peekCardHtml() {
+  const pts = peekMonths();
+  if (pts.length < 2) return "";
+  const W = 360, H = 200, pl = 24, pr = 24, pt = 44, pb = 44;
+  const vals = pts.map((p) => p.v);
+  const lo = Math.min(0, ...vals), hi = Math.max(0, ...vals);
+  const span = hi - lo || 1;
+  const x = (i) => pl + (i * (W - pl - pr)) / (pts.length - 1);
+  const y = (v) => pt + ((hi - v) / span) * (H - pt - pb);
+  const line = pts.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)} ${y(p.v).toFixed(1)}`).join(" ");
+  const minI = vals.indexOf(Math.min(...vals));
+  const lastI = pts.length - 1;
+  const labelAt = new Set([0, lastI, minI]);
+  const dots = pts.map((p, i) => {
+    const neg = p.v < 0;
+    const lab = labelAt.has(i)
+      ? `<text x="${x(i).toFixed(1)}" y="${(y(p.v) - 12).toFixed(1)}" text-anchor="${i === 0 ? "start" : i === lastI ? "end" : "middle"}" font-size="10" font-weight="700" fill="${neg ? "#FB7185" : "#F2EFEA"}">${signedPeso(p.v).replace(/\.\d\d$/, "")}</text>`
+      : "";
+    return `<circle cx="${x(i).toFixed(1)}" cy="${y(p.v).toFixed(1)}" r="${i === 0 ? 5 : 4}" fill="${neg ? "#FB7185" : "#3DD9F0"}" stroke="#17181B" stroke-width="2"/>${lab}
+      <text x="${x(i).toFixed(1)}" y="${H - 12}" text-anchor="${i === 0 ? "start" : i === lastI ? "end" : "middle"}" font-size="10" fill="#A09B94">${MONTHS_SHORT[keyParts(p.k).m]}</text>
+      <rect class="peek-hit" data-i="${i}" x="${(x(i) - 28).toFixed(1)}" y="0" width="56" height="${H}" fill="transparent"/>`;
+  }).join("");
+  const zero = lo < 0 ? `<line x1="${pl}" x2="${W - pr}" y1="${y(0).toFixed(1)}" y2="${y(0).toFixed(1)}" stroke="#5E5B57" stroke-width="1" stroke-dasharray="3 4"/>` : "";
+  const lowest = pts[minI];
+  const lowNeg = lowest.v < 0;
+  const note = lowNeg
+    ? `<span class="text-rose-300 font-bold">Dips below zero in ${monthName(lowest.k)}</span>`
+    : `<span class="text-slate-300">Lowest is <b class="text-white">${peso(lowest.v)}</b> in ${monthName(lowest.k)}</span>`;
+  const table = pts.map((p) => `${monthName(p.k)} ${peso(p.v)}`).join(", ");
+  return `<section class="glass-card rounded-3xl p-6 flex flex-col" id="peek-card">
+    <div>
+      <h3 class="text-sm font-bold text-white">Next 5 months</h3>
+      <p class="text-[10px] font-bold text-slate-400 mt-1">Projected balance at the end of each month</p>
+    </div>
+    <div class="relative mt-4 flex-1 flex items-center">
+      <svg viewBox="0 0 ${W} ${H}" class="w-full" role="img" aria-label="Projected month-end balance. ${escapeHtml(table)}">
+        ${zero}<path d="${line}" fill="none" stroke="#3DD9F0" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>${dots}
+      </svg>
+      <div id="peek-tip" class="hidden absolute pointer-events-none rounded-lg px-3 py-2 text-[10px] font-bold bg-slate-950 text-white border border-slate-700 whitespace-nowrap"></div>
+    </div>
+    <p class="text-[10px] font-bold mt-4">${note}</p>
+  </section>`;
+}
+document.addEventListener("mouseover", (e) => {
+  const hit = e.target.closest?.(".peek-hit");
+  const tip = $("peek-tip");
+  if (!tip) return;
+  if (!hit) { tip.classList.add("hidden"); return; }
+  const p = peekMonths()[Number(hit.dataset.i)];
+  if (!p) return;
+  const svg = hit.ownerSVGElement, box = svg.getBoundingClientRect(), wrap = tip.parentElement.getBoundingClientRect();
+  const cx = Number(hit.getAttribute("x")) + 28;
+  tip.textContent = `${monthName(p.k)} · ${peso(p.v)}`;
+  tip.classList.remove("hidden");
+  tip.style.left = `${box.left - wrap.left + (cx / 360) * box.width - tip.offsetWidth / 2}px`;
+  tip.style.top = "0px";
+});
 
 // Phones show one person at a time (a segmented switch); desktop shows both side by side.
 let personTab = "charlie";
@@ -1359,7 +1427,7 @@ function loadReadoutHtml(m) {
   ].filter(Boolean).map((t) => `<p class="text-[10px] font-semibold text-slate-300 leading-snug">${escapeHtml(t)}</p>`).join("");
   return `<div class="flex items-center justify-between gap-3">
       <p class="text-lg font-black text-white">${monthShort(m.k)}</p>
-      <span class="flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-black" style="background:${state.color};color:#0B1014"><span class="material-icons" style="font-size:14px">${state.icon}</span>${short ? "Short" : state.label}</span>
+      <span class="flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-black" style="background:${state.color};color:#0F1012"><span class="material-icons" style="font-size:14px">${state.icon}</span>${short ? "Short" : state.label}</span>
     </div>
     <div class="grid grid-cols-2 gap-2">
       ${stat("Installments", peso(m.due))}
@@ -2180,7 +2248,7 @@ async function revealApp() {
   const app = $("app");
   const ease = "cubic-bezier(.7,0,.2,1)";
   const c = document.createElement("div");
-  c.style.cssText = "position:fixed;top:-160px;left:0;right:0;bottom:0;padding-top:160px;box-sizing:border-box;z-index:200;background:#3DD9F0;color:#0B1014;display:flex;align-items:center;justify-content:center;transform:translateY(101%);pointer-events:none;border-radius:50% 50% 0 0 / 96px 96px 0 0;will-change:transform";
+  c.style.cssText = "position:fixed;top:-160px;left:0;right:0;bottom:0;padding-top:160px;box-sizing:border-box;z-index:200;background:#3DD9F0;color:#0F1012;display:flex;align-items:center;justify-content:center;transform:translateY(101%);pointer-events:none;border-radius:50% 50% 0 0 / 96px 96px 0 0;will-change:transform";
   document.body.appendChild(c);
   await c.animate([{ transform: "translateY(101%)" }, { transform: "translateY(0)" }], { duration: 440, easing: ease, fill: "forwards" }).finished;
   intro.style.display = "none";

@@ -33,14 +33,14 @@ body {
 
 /* Component Styles */
 .glass-card {
-  background: rgba(18, 26, 33, 0.7);
+  background: rgba(23, 24, 27, 0.7);
   backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.05);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .glass-card:active {
-  background: rgba(18, 26, 33, 0.9);
+  background: rgba(23, 24, 27, 0.9);
 }
 
 .section-enter {
@@ -89,13 +89,13 @@ body {
 /* Custom Checkbox */
 input[type="checkbox"] {
   appearance: none;
-  background-color: #162028;
+  background-color: #1C1D21;
   margin: 0;
   font: inherit;
   color: currentColor;
   width: 1.5em;
   height: 1.5em;
-  border: 0.15em solid #22303B;
+  border: 0.15em solid #2A2C31;
   border-radius: 0.5em;
   display: grid;
   place-content: center;
@@ -283,12 +283,12 @@ input[type="checkbox"]:checked::before {
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: rgba(11, 16, 20, 0.3);
+  background: rgba(15, 16, 18, 0.3);
   border-radius: 10px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(34, 48, 59, 0.8);
+  background: rgba(42, 44, 49, 0.8);
   border-radius: 10px;
 }
 
@@ -348,7 +348,7 @@ input[type="checkbox"]:checked::before {
     text-align: left;
     font-weight: 800;
     font-size: 13px;
-    color: #7A8D9B;
+    color: #8C8780;
     transition: all 0.2s ease;
     display: flex;
     align-items: center;
@@ -356,8 +356,8 @@ input[type="checkbox"]:checked::before {
     border: 1px solid transparent;
   }
   .sidebar-month-btn:hover {
-    background: rgba(18, 26, 33, 0.8);
-    color: #8FA1AE;
+    background: rgba(23, 24, 27, 0.8);
+    color: #A09B94;
   }
   .sidebar-month-btn.active {
     background: rgba(61, 217, 240, 0.1);
@@ -673,7 +673,7 @@ input[type="checkbox"]:checked::before {
 .month-dot .dot-label {
   font-size: 9px;
   font-weight: 800;
-  color: #4F616E;
+  color: #5E5B57;
   transition: color 0.25s ease;
 }
 .month-dot.active {
@@ -796,15 +796,15 @@ details.item-parent[open] > summary .parent-caret { transform: rotate(90deg); }
   height: 18px;
   border-radius: 9999px;
   object-fit: cover;
-  border: 2px solid #0B1014;
+  border: 2px solid #0F1012;
 }
 
 /* --- Clickable row hover/tap affordance (opens the edit modal) --- */
 .item-row { transition: background-color 0.15s ease; }
 @media (hover: hover) {
-  .item-row:hover { background-color: rgba(34, 48, 59, 0.5); }
+  .item-row:hover { background-color: rgba(42, 44, 49, 0.5); }
 }
-.item-row:active { background-color: rgba(34, 48, 59, 0.6); }
+.item-row:active { background-color: rgba(42, 44, 49, 0.6); }
 
 /* --- Paid checkbox hover affordance --- */
 .paid-check {

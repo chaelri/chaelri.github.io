@@ -1,12 +1,12 @@
 /* charlie-design: techy / dark. Loaded last, overrides Tailwind + style.css.
-   paper #0B1014 · surface #121A21 · line #22303B · ink #E8EEF2 · primary cyan #3DD9F0 · accent amber #FFB938
+   paper #0F1012 · surface #17181B · line #2A2C31 · ink #F2EFEA · primary cyan #3DD9F0 · accent amber #FFB938
    type scale x1.618: 10 / 15 / 24 / 38 · radii 8 / 13 / 21 · sharp 1px lines, flat fills, no glow */
-:root { --paper:#0B1014; --surface:#121A21; --line:#22303B; --ink:#E8EEF2; --primary:#3DD9F0; --accent:#FFB938; }
+:root { --paper:#0F1012; --surface:#17181B; --line:#2A2C31; --ink:#F2EFEA; --primary:#3DD9F0; --accent:#FFB938; }
 body { background: var(--paper); color: var(--ink); font-variant-numeric: tabular-nums; letter-spacing: -0.005em; }
 
 /* flat surfaces, thin lines (no blur / glow) */
 .glass-card { background: var(--surface); backdrop-filter: none; border: 1px solid var(--line); }
-.glass-card:active { background: #162028; }
+.glass-card:active { background: #1C1D21; }
 .ambient-glow, .bar-shimmer, .bg-particle { display: none !important; }
 [class*="shadow-"] { box-shadow: none !important; }
 .pending-bar { box-shadow: none; }
@@ -35,36 +35,36 @@ body { background: var(--paper); color: var(--ink); font-variant-numeric: tabula
 .uppercase { letter-spacing: 0.14em; }
 
 /* rows */
-.item-row:hover { background-color: rgba(34, 48, 59, 0.5); }
-.paid-check:not(.is-paid) { border-color: #4F616E; }
+.item-row:hover { background-color: rgba(42, 44, 49, 0.5); }
+.paid-check:not(.is-paid) { border-color: #5E5B57; }
 
 /* dark ink on bright fills (white on cyan/emerald fails contrast) */
-.bg-emerald-500.text-white, .bg-emerald-500 .text-white { color: #0B1014; }
+.bg-emerald-500.text-white, .bg-emerald-500 .text-white { color: #0F1012; }
 
 /* ---- audit fixes: contrast ---- */
 /* owner header sits on a bright fill (cyan / rose / amber): ink text, not white */
 div[class*="bg-gradient-to-r"][class*="px-5"] { background-image: none; }
 div[class*="bg-gradient-to-r"][class*="px-5"] .text-white,
-div[class*="bg-gradient-to-r"][class*="px-5"] [class*="text-white"] { color: #0B1014 !important; }
+div[class*="bg-gradient-to-r"][class*="px-5"] [class*="text-white"] { color: #0F1012 !important; }
 div[class*="bg-gradient-to-r"][class*="px-5"] .text-emerald-300 { color: #064E3B; }
 div[class*="bg-gradient-to-r"][class*="px-5"] .text-rose-300 { color: #7F1D1D; }
-div[class*="bg-gradient-to-r"][class*="px-5"] .material-icons { color: #0B1014; }
-.text-slate-600 { color: #7A8D9B; }
+div[class*="bg-gradient-to-r"][class*="px-5"] .material-icons { color: #0F1012; }
+.text-slate-600 { color: #8C8780; }
 .text-emerald-600, .text-teal-600 { color: #3CC79A; }
 .text-emerald-700 { color: #34D399; }
 
 /* Tailwind CDN injects its styles after this file, so colour fixes need !important */
-.text-slate-600 { color: #8FA1AE !important; }
+.text-slate-600 { color: #A09B94 !important; }
 .text-emerald-600, .text-teal-600, .text-emerald-700 { color: #34D399 !important; }
-span.inline-block[class*="bg-gradient-to-r"] { color: #0B1014 !important; }
-span.inline-block[class*="bg-gradient-to-r"].from-rose-500, span.inline-block[class*="bg-gradient-to-r"].from-rose-600 { color: #0B1014 !important; }
+span.inline-block[class*="bg-gradient-to-r"] { color: #0F1012 !important; }
+span.inline-block[class*="bg-gradient-to-r"].from-rose-500, span.inline-block[class*="bg-gradient-to-r"].from-rose-600 { color: #0F1012 !important; }
 div[class*="bg-gradient-to-r"][class*="px-5"] .text-rose-300 { color: #4C0519 !important; }
 .item-row.opacity-60, .opacity-60 { opacity: 0.78; }
 .text-amber-400\/80 { color: #FFB938 !important; }
 .text-indigo-300\/90, .text-cyan-300\/90 { color: #7DE6F6 !important; }
-.inst-bar-count { color: #8FA1AE !important; }
-button:disabled { color: #8FA1AE !important; background: transparent !important; }
-.text-slate-500 { color: #8FA1AE !important; }
+.inst-bar-count { color: #A09B94 !important; }
+button:disabled { color: #A09B94 !important; background: transparent !important; }
+.text-slate-500 { color: #A09B94 !important; }
 
 /* ---- audit fixes: scale ---- */
 .now-banner { font-size: 10px !important; border-radius: 8px !important; }
@@ -105,9 +105,9 @@ button[onclick*="openItemModal"]::before, button[onclick*="openAccountModal"]::b
 .acct-list > * .item-row { padding-top: 8px; padding-bottom: 8px; }
 
 /* ---- phones: one person at a time ---- */
-.seg-btn { background: var(--surface); color: #8FA1AE; border: 1px solid var(--line); }
-#budget-body[data-tab="charlie"] .seg-btn[data-w="charlie"] { background: #3DD9F0; color: #0B1014; border-color: #3DD9F0; }
-#budget-body[data-tab="karla"] .seg-btn[data-w="karla"] { background: #FB7185; color: #0B1014; border-color: #FB7185; }
+.seg-btn { background: var(--surface); color: #A09B94; border: 1px solid var(--line); }
+#budget-body[data-tab="charlie"] .seg-btn[data-w="charlie"] { background: #3DD9F0; color: #0F1012; border-color: #3DD9F0; }
+#budget-body[data-tab="karla"] .seg-btn[data-w="karla"] { background: #FB7185; color: #0F1012; border-color: #FB7185; }
 @media (max-width: 1023.98px) {
   #budget-body[data-tab="charlie"] .person-wrap[data-who="karla"],
   #budget-body[data-tab="karla"] .person-wrap[data-who="charlie"] { display: none; }
@@ -116,12 +116,12 @@ button[onclick*="openItemModal"]::before, button[onclick*="openAccountModal"]::b
 /* month strip (desktop): plain text tabs, selected = cyan + underline; no pills */
 .month-chip { background: transparent !important; border: 0 !important; border-radius: 8px !important; font-size: 15px; text-transform: none; letter-spacing: 0; }
 .month-chip.is-active::after { content: ""; position: absolute; left: 16px; right: 16px; bottom: 6px; height: 2px; border-radius: 2px; background: #3DD9F0; }
-.month-chip:hover { color: #E8EEF2; }
+.month-chip:hover { color: #F2EFEA; }
 .month-chip .now-dot { position: absolute; top: 8px; right: 8px; width: 6px; height: 6px; border-radius: 50%; background: #3DD9F0; }
 
 /* Overview sheet contrast */
 tr.bg-indigo-600, tr.bg-indigo-600 td, tr.bg-indigo-600 th { color: #FFFFFF !important; }
-#more-overlay .text-\[9px\].text-slate-400 { color: #A9B9C5 !important; }
+#more-overlay .text-\[9px\].text-slate-400 { color: #BDB8B0 !important; }
 
 /* =====================================================================
    MODALS (add/edit, confirm, overview sheet, month picker)
@@ -142,20 +142,20 @@ tr.bg-indigo-600, tr.bg-indigo-600 td, tr.bg-indigo-600 th { color: #FFFFFF !imp
   background: var(--paper) !important; border: 1px solid var(--line); border-radius: 8px !important; color: var(--ink);
 }
 #modal-body input:focus, #modal-body select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary); }
-#modal-body input::placeholder { color: #7A8D9B; font-weight: 400; }
-#modal-body label { margin-left: 0; letter-spacing: 0.08em; color: #8FA1AE; }
+#modal-body input::placeholder { color: #8C8780; font-weight: 400; }
+#modal-body label { margin-left: 0; letter-spacing: 0.08em; color: #A09B94; }
 /* toggle rows */
 #modal-body > div.flex.items-center.justify-between { padding: 8px 16px !important; border-radius: 8px !important; background: var(--paper) !important; border: 1px solid var(--line); }
 /* whose / segmented choices */
 #modal-body #f-owner button { height: 48px; padding: 0; font-size: 15px !important; border: 1px solid var(--line); border-radius: 8px !important; }
-#modal-body .bg-indigo-600 { background: #3DD9F0 !important; color: #0B1014 !important; border-color: #3DD9F0 !important; }
+#modal-body .bg-indigo-600 { background: #3DD9F0 !important; color: #0F1012 !important; border-color: #3DD9F0 !important; }
 /* in-modal secondary buttons (save & add another, add sub-expense) */
 #modal-body button.border-slate-600 { height: 48px; }
 
 /* footer: Cancel = outline, Save = the one solid primary */
 #modal-content .mt-8 button { flex: 1; height: 48px; padding: 0 !important; font-size: 15px; font-weight: 700; border-radius: 8px !important; box-shadow: none; }
-#modal-content .mt-8 button:first-child { background: transparent; border: 1px solid var(--line); color: #CBD6DE; }
-#modal-content .mt-8 #save-btn { background: #3DD9F0; color: #0B1014; }
+#modal-content .mt-8 button:first-child { background: transparent; border: 1px solid var(--line); color: #DAD6CF; }
+#modal-content .mt-8 #save-btn { background: #3DD9F0; color: #0F1012; }
 @media (min-width: 1024px) {
   #modal-body input, #modal-body select, #modal-body #f-owner button, #modal-content .mt-8 button, #modal-body button.border-slate-600 { height: 40px; }
 }
@@ -163,13 +163,13 @@ tr.bg-indigo-600, tr.bg-indigo-600 td, tr.bg-indigo-600 th { color: #FFFFFF !imp
 /* confirm dialog */
 #confirm-card { padding: 24px; border-radius: 21px !important; }
 #confirm-card button { height: 48px; padding: 0 !important; font-size: 15px; font-weight: 700; border-radius: 8px !important; }
-#confirm-card .bg-rose-600 { background: #FB7185 !important; color: #0B1014 !important; }
-#confirm-card button.bg-slate-700\/50 { background: transparent !important; border: 1px solid var(--line); color: #CBD6DE !important; }
+#confirm-card .bg-rose-600 { background: #FB7185 !important; color: #0F1012 !important; }
+#confirm-card button.bg-slate-700\/50 { background: transparent !important; border: 1px solid var(--line); color: #DAD6CF !important; }
 #confirm-icon { background: var(--line) !important; border-radius: 13px !important; box-shadow: none !important; }
 @media (min-width: 1024px) { #confirm-card button { height: 40px; } }
 
 /* month picker */
-#month-picker .bg-indigo-600 { background: #3DD9F0 !important; color: #0B1014 !important; }
+#month-picker .bg-indigo-600 { background: #3DD9F0 !important; color: #0F1012 !important; }
 #month-picker-grid button { border-radius: 8px !important; }
 
 /* desktop: forms fit in one view, two columns, tighter gaps (no scrolling inside the modal) */
@@ -188,16 +188,29 @@ tr.bg-indigo-600, tr.bg-indigo-600 td, tr.bg-indigo-600 th { color: #FFFFFF !imp
 /* =====================================================================
    FRIENDLIER MODALS: sentence-case labels, softer fields, faces for owners
    ===================================================================== */
-#modal-body label, #modal-body label.uppercase { font-size: 15px !important; font-weight: 500; text-transform: none; letter-spacing: 0; color: #A9B9C5; margin-bottom: 8px; display: block; }
+#modal-body label, #modal-body label.uppercase { font-size: 15px !important; font-weight: 500; text-transform: none; letter-spacing: 0; color: #BDB8B0; margin-bottom: 8px; display: block; }
 #modal-body input, #modal-body select { border-radius: 13px !important; }
 #modal-body > div.flex.items-center.justify-between { border-radius: 13px !important; }
 #modal-content .mt-8 button { border-radius: 13px !important; }
 #modal-title { font-weight: 700; }
 
 /* owner picker = their faces */
-.owner-btn { display: flex; align-items: center; gap: 16px; height: 64px; padding: 0 16px; border-radius: 13px; border: 1px solid var(--line); background: var(--paper); color: #CBD6DE; font-size: 15px; font-weight: 700; text-align: left; transition: border-color .15s; }
+.owner-btn { display: flex; align-items: center; gap: 16px; height: 64px; padding: 0 16px; border-radius: 13px; border: 1px solid var(--line); background: var(--paper); color: #DAD6CF; font-size: 15px; font-weight: 700; text-align: left; transition: border-color .15s; }
 .owner-btn img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
 .owner-btn[data-on="true"][data-w="charlie"] { border: 2px solid #3DD9F0; color: #3DD9F0; padding: 0 15px; }
 .owner-btn[data-on="true"][data-w="karla"] { border: 2px solid #FB7185; color: #FB7185; padding: 0 15px; }
 .owner-btn[data-on="true"] img { box-shadow: 0 0 0 2px currentColor; }
 #modal-body #f-owner button.owner-btn { height: 64px; }
+
+/* =====================================================================
+   WARM PASS: friendlier overall. Warm neutrals (above), one step rounder,
+   sentence-case labels instead of shouting caps, no italic headline.
+   ===================================================================== */
+.uppercase { text-transform: none !important; letter-spacing: 0 !important; }
+#current-month-display { text-transform: none !important; font-style: normal !important; letter-spacing: -0.02em; }
+.rounded-lg, .rounded-xl { border-radius: 13px !important; }
+.rounded-2xl { border-radius: 21px !important; }
+.rounded-3xl { border-radius: 34px !important; }
+.item-name, h3 { letter-spacing: 0; }
+#modal-body input, #modal-body select, #modal-body > div.flex.items-center.justify-between, #modal-content .mt-8 button, .owner-btn { border-radius: 13px !important; }
+.month-chip, .acct-icon { border-radius: 13px !important; }
