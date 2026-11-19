@@ -886,7 +886,7 @@ function personSectionHtml(who) {
   const incHtml = groupedRowsHtml(income, k, "income", who);
   // The fund transfer sits at the top so it isn't lost among the bank groups.
   const fund = expenses.find((it) => it.virtual);
-  const fundHtml = fund ? `<div class="fund-row rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-700 mb-1.5">${itemRowHtml(fund, k, "expenses", who)}</div>` : "";
+  const fundHtml = fund ? `<div class="fund-row rounded-2xl mb-2">${itemRowHtml(fund, k, "expenses", who)}</div>` : "";
   const expHtml = fundHtml + groupedRowsHtml(expenses.filter((it) => !it.virtual), k, "expenses", who);
   return `<div class="glass-card rounded-2xl overflow-hidden border ${o.ring}">
     <div class="flex flex-wrap items-center justify-between gap-y-2 px-5 py-4 bg-slate-800 border-b border-slate-700">

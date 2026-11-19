@@ -327,3 +327,8 @@ button[onclick*="toggleField"] > span.left-7 { left: 28px !important; }
   86%, 100% { transform: translateX(30px) skewX(-20deg); opacity: 0; }
 }
 .cash-shine { transform-box: fill-box; transform-origin: center; animation: cashShine 3.8s ease-in-out infinite; }
+
+/* pag-ibig fund row: a normal dark row with an emerald outline (it was a bright green slab with white text, failing contrast) */
+.fund-row { background: #17181B; border: 1px solid rgba(52, 211, 153, 0.5); }
+.fund-row .inst-bar-count { color: #A09B94 !important; }
+.fund-row .text-amber-400\/80 { color: #FFB938 !important; }
