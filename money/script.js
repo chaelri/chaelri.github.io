@@ -1736,8 +1736,8 @@ function enhanceAddExpense() {
   [...body.children].forEach((c) => { c.dataset.mode = "other"; });
   const left = (Number(ex.child.amount) || 0) - spentIn(ex.child.id, selectedKey);
   body.insertAdjacentHTML("afterbegin", `<div id="f-mode" class="mode-switch" role="group" aria-label="What are you adding?">
-      <button type="button" class="mode-btn" data-m="extra" onclick="setExpenseMode('extra')"><span class="material-icons">payments</span>extra spending</button>
-      <button type="button" class="mode-btn" data-m="other" onclick="setExpenseMode('other')"><span class="material-icons">receipt_long</span>other expense</button>
+      <button type="button" class="mode-btn" data-m="extra" onclick="setExpenseMode('extra')"><span class="material-icons">payments</span>quick spend</button>
+      <button type="button" class="mode-btn" data-m="other" onclick="setExpenseMode('other')"><span class="material-icons">receipt_long</span>new bill</button>
     </div>`);
   body.insertAdjacentHTML("beforeend",
     `<div data-mode="extra" class="space-y-1"><label>What did you spend on?</label><input type="text" id="f-xlabel" placeholder="e.g. grab, lunch, gas" class="w-full" /></div>` +
