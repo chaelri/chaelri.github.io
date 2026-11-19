@@ -1147,14 +1147,14 @@ function peekCardHtml() {
   const pts = peekMonths();
   if (pts.length < 2) return "";
   // each month is a pile of cash: a banknote on top, the edges of the bills under it, taller = more money
-  const W = 360, H = 208, pl = 36, pr = 36, base = 176, edge = 5, noteH = 24, billW = 46, maxEdges = 12;
+  const W = 360, H = 208, pl = 36, pr = 36, base = 180, edge = 8, noteH = 28, billW = 48, maxEdges = 14;
   const hi = Math.max(1, ...pts.map((p) => p.v));
   const x = (i) => pl + (i * (W - pl - pr)) / (pts.length - 1);
   const amt = (v) => `${v < 0 ? "-" : ""}₱${formatMoney(Math.abs(Math.round(v)))}`;
   const note = (cx, y) => `<g>
       <rect x="${cx - billW / 2}" y="${y}" width="${billW}" height="${noteH}" rx="3" fill="#4ADE9F"/>
       <rect x="${cx - billW / 2 + 3}" y="${y + 3}" width="${billW - 6}" height="${noteH - 6}" rx="2" fill="none" stroke="#0F1012" stroke-opacity=".28" stroke-width="1"/>
-      <circle cx="${cx}" cy="${y + noteH / 2}" r="8" fill="#86EFC0" stroke="#0F1012" stroke-opacity=".3" stroke-width="1"/>
+      <circle cx="${cx}" cy="${y + noteH / 2}" r="9" fill="#86EFC0" stroke="#0F1012" stroke-opacity=".3" stroke-width="1"/>
       <text x="${cx}" y="${y + noteH / 2 + 4}" text-anchor="middle" font-size="12" font-weight="700" fill="#0F1012" fill-opacity=".6">₱</text>
       <circle cx="${cx - billW / 2 + 8}" cy="${y + 7}" r="1.6" fill="#0F1012" fill-opacity=".3"/><circle cx="${cx + billW / 2 - 8}" cy="${y + noteH - 7}" r="1.6" fill="#0F1012" fill-opacity=".3"/>
     </g>`;
@@ -1162,7 +1162,7 @@ function peekCardHtml() {
     const cx = x(i), neg = p.v <= 0;
     const n = neg ? 0 : Math.max(1, Math.round((p.v / hi) * maxEdges));
     let g = "";
-    for (let j = 0; j < n; j++) g += `<rect x="${cx - billW / 2}" y="${base - (j + 1) * edge}" width="${billW}" height="${edge - 0.8}" rx="1.5" fill="${j % 2 ? "#34D399" : "#2DBE88"}"/>`;
+    for (let j = 0; j < n; j++) g += `<rect x="${cx - billW / 2}" y="${base - (j + 1) * edge}" width="${billW}" height="${edge - 1}" rx="2" fill="${j % 2 ? "#34D399" : "#2DBE88"}"/>`;
     const noteY = base - n * edge - noteH;
     g += neg ? `<rect x="${cx - billW / 2}" y="${base - noteH}" width="${billW}" height="${noteH}" rx="3" fill="none" stroke="#FB7185" stroke-width="1.5" stroke-dasharray="4 3"/>` : note(cx, noteY);
     const top = neg ? base - noteH : noteY;
