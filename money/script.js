@@ -656,8 +656,8 @@ function childRowHtml(parentId, c, k, who) {
       </div>`
     : "";
   return `<div data-child="${c.id}" onclick="openChildModal('${who}','${parentId}','${c.id}')" class="item-row flex items-center gap-2 py-1.5 pl-2 rounded-lg cursor-pointer ${paid ? "opacity-60" : ""}">
-    <button onclick="togglePaidQuick(event,'${c.id}','expenses')" title="Mark paid" class="paid-check ${paid ? "is-paid bg-emerald-500 border-emerald-500" : "border-slate-600"} w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 border">
-      <span class="material-icons check-icon text-white" style="font-size:13px">check</span>
+    <button onclick="togglePaidQuick(event,'${c.id}','expenses')" title="Mark paid" class="paid-check ${paid ? "is-paid bg-emerald-500 border-emerald-500" : "border-slate-600"} w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 border">
+      <span class="material-icons check-icon text-white" style="font-size:16px">check</span>
     </button>
     ${rowIconHtml(c.name, 24)}
     <div class="flex-1 min-w-0">
@@ -1106,13 +1106,79 @@ function bannerGradient(k) {
   return BANNER_GRADIENTS[(((keyParts(k).y - 2026) % n) + n) % n];
 }
 
+// ---------- cash tiers (shared by the 5-month piles and the summary morph) ----------
+const CASH_TIERS = [30000, 80000, 160000, 300000, 500000, 750000, 1000000];
+const cashTierOf = (v) => 1 + CASH_TIERS.filter((t) => v >= t).length;
+// ---------- summary card: a mini pile that morphs from this month to the next ----------
+const MINI = {
+  0: { body: "#FB7185", coin: "#FECDD3", e1: "#E11D48", e2: "#FB7185" },
+  1: { body: "#4ADE9F", coin: "#86EFC0", e1: "#2DBE88", e2: "#34D399" },
+  2: { body: "#60A5FA", coin: "#BFDBFE", e1: "#3B82F6", e2: "#60A5FA" },
+  3: { body: "#A78BFA", coin: "#DDD6FE", e1: "#8B5CF6", e2: "#A78BFA" },
+  4: { body: "#FBBF24", coin: "#FDE68A", e1: "#F59E0B", e2: "#FBBF24" },
+  5: { body: "#FB9B6B", coin: "#FFF7ED", e1: "#F46A5C", e2: "#FB8A6B" },
+  6: { body: "#7DD3FC", coin: "#FFFFFF", e1: "#4CC3E6", e2: "#79D7F1" },
+  7: { body: "#E11D48", coin: "#FDE68A", e1: "#9F1239", e2: "#E11D48" },
+  8: { body: "#3A3D48", coin: "#FBBF24", e1: "#2E3039", e2: "#FBBF24" },
+};
+let morph = null; // { v0, v1, m0, m1 } set on every render; the frame loop reads it
+const lerp = (a, b, t) => a + (b - a) * t;
+const hexMix = (a, b, t) => {
+  const p = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  const [x, y] = [p(a), p(b)];
+  return "#" + x.map((c, i) => Math.round(lerp(c, y[i], t)).toString(16).padStart(2, "0")).join("");
+};
+const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+const shortMoney = (v) => (Math.abs(v) >= 1000000 ? `${v < 0 ? "-" : ""}₱${(Math.abs(v) / 1000000).toFixed(2)}m` : `${v < 0 ? "-" : ""}₱${Math.round(Math.abs(v) / 1000)}k`);
+// one loop: hold this month, morph to next month, hold, fade, repeat
+const MORPH = { hold0: 1.7, morph: 1.6, hold1: 2.2, fade: 0.9 };
+function morphState(now) {
+  const T = MORPH.hold0 + MORPH.morph + MORPH.hold1 + MORPH.fade;
+  const t = now % T;
+  const a = MORPH.hold0, b = a + MORPH.morph, c = b + MORPH.hold1;
+  if (t < a) return { p: 0, o: t < 0.35 ? t / 0.35 : 1 };
+  if (t < b) return { p: easeInOut((t - a) / MORPH.morph), o: 1 };
+  if (t < c) return { p: 1, o: 1 };
+  const f = (t - c) / MORPH.fade;
+  return { p: f < 0.5 ? 1 : 0, o: f < 0.5 ? 1 - f / 0.5 : 0 };
+}
+function morphFrame(ms) {
+  requestAnimationFrame(morphFrame);
+  const el = document.getElementById("cash-morph");
+  if (!el || !morph || !el.offsetParent) return;
+  const { v0, v1, m0, m1 } = morph;
+  const { p, o } = morphState(ms / 1000);
+  const top = Math.max(1, v0, v1);
+  const n = (v) => (v <= 0 ? 0.5 : Math.max(0.7, (v / top) * 11));
+  const v = lerp(v0, v1, p), nn = lerp(n(v0), n(v1), p);
+  const A = MINI[v0 <= 0 ? 0 : cashTierOf(v0)], B = MINI[v1 <= 0 ? 0 : cashTierOf(v1)];
+  const col = (k) => hexMix(A[k], B[k], p);
+  const base = 72, edge = 4, noteH = 15, w = 30, cx = 60;
+  const full = Math.floor(nn), part = nn - full;
+  let edges = "";
+  for (let j = 0; j < full; j++) edges += `<rect x="${cx - w / 2}" y="${base - (j + 1) * edge}" width="${w}" height="${edge - 0.8}" rx="1.2" fill="${j % 2 ? col("e2") : col("e1")}"/>`;
+  if (part > 0.05) edges += `<rect x="${cx - w / 2}" y="${base - full * edge - edge * part}" width="${w}" height="${Math.max(0.5, edge * part - 0.8)}" rx="1.2" fill="${full % 2 ? col("e2") : col("e1")}"/>`;
+  const ny = base - nn * edge - noteH;
+  const note = `<rect x="${cx - w / 2}" y="${ny}" width="${w}" height="${noteH}" rx="2.2" fill="${col("body")}"/><rect x="${cx - w / 2 + 2}" y="${ny + 2}" width="${w - 4}" height="${noteH - 4}" rx="1.5" fill="none" stroke="#0F1012" stroke-opacity=".28"/><circle cx="${cx}" cy="${ny + noteH / 2}" r="4.6" fill="${col("coin")}" stroke="#0F1012" stroke-opacity=".3" stroke-width=".8"/>`;
+  const up = v1 >= v0, arrow = p > 0.97 ? ` <tspan fill="${up ? "#34D399" : "#FB7185"}">${up ? "↑" : "↓"}</tspan>` : "";
+  const label = `<text x="${cx}" y="${Math.max(11, ny - 5)}" text-anchor="middle" font-size="12" font-weight="700" fill="#F2EFEA">${shortMoney(v)}</text>`;
+  const mon = `<text x="${cx}" y="86" text-anchor="middle" font-size="12" fill="#A09B94">${p < 0.5 ? m0 : m1}${arrow}</text>`;
+  const ground = `<line x1="22" x2="98" y1="${base + 2}" y2="${base + 2}" stroke="#4A4C54" stroke-width="1.5" stroke-linecap="round"/>`;
+  el.style.opacity = o;
+  el.firstElementChild.innerHTML = ground + edges + note + label + mon;
+}
+requestAnimationFrame(morphFrame);
+
 function renderBudget() {
   const k = selectedKey;
   const t = monthTotals(k);
   const projected = runningFundsAt(k);
+  const nextK = addMonths(k, 1), hasNext = timeline().includes(nextK);
+  morph = hasNext ? { v0: projected, v1: runningFundsAt(nextK), m0: MONTHS_SHORT[keyParts(k).m], m1: MONTHS_SHORT[keyParts(nextK).m] } : null;
 
   const summary = `<section class="rounded-3xl overflow-hidden relative shadow-xl">
     <div class="absolute inset-0 bg-gradient-to-br ${bannerGradient(k)}"></div>
+    ${hasNext ? '<div id="cash-morph" class="cash-morph" aria-hidden="true"><svg viewBox="0 0 120 90" width="120" height="90"></svg></div>' : ""}
     <div class="ambient-glow" style="top:-30px;right:60px"></div>
     <div class="relative p-6 md:p-7 space-y-5">
       <div>
@@ -1153,8 +1219,7 @@ function peekCardHtml() {
   const amt = (v) => (Math.abs(v) >= 1000000 ? `${v < 0 ? "-" : ""}₱${(Math.abs(v) / 1000000).toFixed(2)}M` : `${v < 0 ? "-" : ""}₱${formatMoney(Math.abs(Math.round(v)))}`);
   // rarity tiers: the more money, the rarer the cash.
   // 1 common green, 2 blue, 3 purple, 4 gold, 5 legendary, 6 diamond (icy), 7 ruby (red and gold trim), 8 black and gold (premium)
-  const TIERS = [30000, 80000, 160000, 300000, 500000, 750000, 1000000];
-  const tierOf = (v) => 1 + TIERS.filter((t) => v >= t).length;
+  const tierOf = cashTierOf;
   const PAL = {
     1: { body: "#4ADE9F", coin: "#86EFC0", e1: "#2DBE88", e2: "#34D399", spark: "#BBF7D0" },
     2: { body: "#60A5FA", coin: "#BFDBFE", e1: "#3B82F6", e2: "#60A5FA", spark: "#DBEAFE" },
