@@ -184,3 +184,20 @@ tr.bg-indigo-600, tr.bg-indigo-600 td, tr.bg-indigo-600 th { color: #FFFFFF !imp
 @media (min-width: 1024px) {
   #modal-body > div.flex.items-center.justify-between { grid-column: 1 / -1; }
 }
+
+/* =====================================================================
+   FRIENDLIER MODALS: sentence-case labels, softer fields, faces for owners
+   ===================================================================== */
+#modal-body label, #modal-body label.uppercase { font-size: 15px !important; font-weight: 500; text-transform: none; letter-spacing: 0; color: #A9B9C5; margin-bottom: 8px; display: block; }
+#modal-body input, #modal-body select { border-radius: 13px !important; }
+#modal-body > div.flex.items-center.justify-between { border-radius: 13px !important; }
+#modal-content .mt-8 button { border-radius: 13px !important; }
+#modal-title { font-weight: 700; }
+
+/* owner picker = their faces */
+.owner-btn { display: flex; align-items: center; gap: 16px; height: 64px; padding: 0 16px; border-radius: 13px; border: 1px solid var(--line); background: var(--paper); color: #CBD6DE; font-size: 15px; font-weight: 700; text-align: left; transition: border-color .15s; }
+.owner-btn img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+.owner-btn[data-on="true"][data-w="charlie"] { border: 2px solid #3DD9F0; color: #3DD9F0; padding: 0 15px; }
+.owner-btn[data-on="true"][data-w="karla"] { border: 2px solid #FB7185; color: #FB7185; padding: 0 15px; }
+.owner-btn[data-on="true"] img { box-shadow: 0 0 0 2px currentColor; }
+#modal-body #f-owner button.owner-btn { height: 64px; }

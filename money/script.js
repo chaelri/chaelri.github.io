@@ -567,8 +567,10 @@ function renderAll() {
   clampSelected();
   updateHeader();
   renderMonthStrip();
+  if (!stripPositioned) { stripPositioned = true; scrollChipIntoView(true); }
   renderBudget();
 }
+let stripPositioned = false;
 
 function updateHeader() {
   $("current-month-display").textContent = monthName(selectedKey).toUpperCase();
@@ -586,14 +588,14 @@ function renderMonthStrip() {
     groups[groups.length - 1].keys.push(k);
   }
   strip.innerHTML = groups.map((g, gi) => `<div class="flex-shrink-0 ${gi ? "pl-2 ml-2 border-l border-slate-700" : ""}">
-    <p class="text-[10px] font-bold text-slate-500 px-4">${g.y}</p>
+    <p class="sticky text-[10px] font-bold text-slate-500 px-4 w-max" style="left:0">${g.y}</p>
     <div class="flex items-center">${g.keys.map((k) => {
       const active = k === selectedKey;
       const isNow = k === nowK;
       const cls = active ? "is-active text-white" : isNow ? "text-slate-200" : "text-slate-400";
       return `<button onclick="selectMonth('${k}')" data-k="${k}" class="month-chip ${isNow ? "is-now" : ""} flex-shrink-0 relative px-4 h-12 text-sm font-bold transition-colors ${cls}">${MONTHS_SHORT[keyParts(k).m]}${isNow ? '<span class="now-dot"></span>' : ""}</button>`;
     }).join("")}</div>
-  </div>`).join("");
+  </div>`).join("") + '<div class="flex-shrink-0" style="width:60%" aria-hidden="true"></div>';
   // phones: a slim stepper instead of a long strip of pills
   const stp = $("month-stepper");
   if (stp) {
@@ -610,9 +612,13 @@ function renderMonthStrip() {
 }
 
 // Scroll the selected chip into view only on an explicit pick (not on every render/load).
-function scrollChipIntoView() {
-  const btn = $("month-strip")?.querySelector(`[data-k="${selectedKey}"]`);
-  if (btn) btn.scrollIntoView({ inline: "nearest", block: "nearest", behavior: "smooth" });
+// The selected month sits at the left edge of the strip (earlier months scroll off to the left).
+function scrollChipIntoView(instant) {
+  const strip = $("month-strip");
+  const btn = strip?.querySelector(`[data-k="${selectedKey}"]`);
+  if (!btn) return;
+  const left = btn.getBoundingClientRect().left - strip.getBoundingClientRect().left + strip.scrollLeft - 16;
+  strip.scrollTo({ left: Math.max(0, left), behavior: instant ? "auto" : "smooth" });
 }
 
 function renderMonthBanner() {
@@ -1527,6 +1533,11 @@ window.toggleMonthPicker = function () {
 // =============================
 // Modal — items
 // =============================
+// Owner choice shown with their faces (used for new items and accounts).
+function ownerBtnHtml(w, on) {
+  const name = w === "karla" ? "Karla" : "Charlie";
+  return `<button type="button" onclick="pickOwner(this,'${w}')" data-w="${w}" data-on="${on}" class="owner-btn"><img src="assets/avatar-${w}.jpg" alt="" /><span>${name}</span></button>`;
+}
 function inputBlock(label, id, value, type = "text", extra = "") {
   return `<div class="space-y-1">
     <label class="text-[10px] font-bold uppercase text-slate-500 ml-1">${label}</label>
@@ -1572,17 +1583,17 @@ window.openItemModal = function (who, kind, id) {
   // Whose is it? Only on a new item — the header's quick-add has no section to infer it from,
   // and it doubles as a fix for tapping the wrong person's Add.
   if (isNew) {
-    body += `<div class="space-y-1"><label class="text-[10px] font-bold uppercase text-slate-500 ml-1">Whose ${kind === "income" ? "income" : "expense"}</label>
+    body += `<div class="space-y-1"><label class="text-[10px] font-bold uppercase text-slate-500 ml-1">Whose is this?</label>
       <div class="grid grid-cols-2 gap-2" id="f-owner" data-val="${who}">
-        ${["charlie", "karla"].map((w) => `<button type="button" onclick="pickOwner(this,'${w}')" class="py-3 rounded-xl font-bold text-xs ${w === who ? "bg-indigo-600 text-white" : "bg-slate-900 text-slate-400"}">${OWNERS[w].label}</button>`).join("")}
+        ${["charlie", "karla"].map((w) => ownerBtnHtml(w, w === who)).join("")}
       </div></div>`;
   }
-  body += inputBlock(kind === "income" ? "Source" : "Name", "f-name", name, "text", 'placeholder="e.g. Rent"');
+  body += inputBlock(kind === "income" ? "Where from?" : "What is it?", "f-name", name, "text", 'placeholder="e.g. Rent"');
   if (kids.length) {
-    body += `<div class="space-y-1"><label class="text-[10px] font-bold uppercase text-slate-500 ml-1">Amount (₱)</label>
+    body += `<div class="space-y-1"><label class="text-[10px] font-bold uppercase text-slate-500 ml-1">How much? (₱)</label>
       <div class="w-full bg-slate-900 rounded-2xl py-4 px-5 text-base font-black text-slate-300">${peso(itemTotal(it, selectedKey))} <span class="text-[11px] font-bold text-slate-500">· sum of ${kids.length} sub-expenses</span></div></div>`;
   } else {
-    body += inputBlock("Amount (₱)", "f-amount", amount, "number", 'inputmode="decimal" placeholder="0"');
+    body += inputBlock("How much? (₱)", "f-amount", amount, "number", 'inputmode="decimal" placeholder="0"');
   }
 
   // recurring toggle
@@ -1594,23 +1605,23 @@ window.openItemModal = function (who, kind, id) {
   </div>`;
 
   // how often a recurring item repeats
-  body += `<div class="space-y-1"><label class="text-[10px] font-bold uppercase text-slate-500 ml-1">Repeats</label>
+  body += `<div class="space-y-1"><label class="text-[10px] font-bold uppercase text-slate-500 ml-1">How often?</label>
     <select id="f-every" class="w-full bg-slate-900 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none">
       <option value="1" ${every === 1 ? "selected" : ""}>Every month</option>
       <option value="3" ${every === 3 ? "selected" : ""}>Quarterly (every 3 months)</option>
     </select></div>`;
 
   // start month
-  body += `<div class="space-y-1"><label class="text-[10px] font-bold uppercase text-slate-500 ml-1">Starts</label>
+  body += `<div class="space-y-1"><label class="text-[10px] font-bold uppercase text-slate-500 ml-1">Starting</label>
     <select id="f-start" class="w-full bg-slate-900 rounded-2xl py-4 px-5 text-base font-bold text-white focus:outline-none">${monthSelect("f-start", start, false)}</select></div>`;
 
   // end month (installment)
-  body += `<div class="space-y-1" id="f-end-wrap"><label class="text-[10px] font-bold uppercase text-slate-500 ml-1">Runs until <span class="text-amber-400">(installment)</span></label>
+  body += `<div class="space-y-1" id="f-end-wrap"><label class="text-[10px] font-bold uppercase text-slate-500 ml-1">Until when? <span class="text-slate-400">(for installments)</span></label>
     <select id="f-end" class="w-full bg-slate-900 rounded-2xl py-4 px-5 text-base font-bold text-white focus:outline-none">${monthSelect("f-end", end, true, start, 180)}</select></div>`;
 
   // auto-complete day of month
   const ddVal = it ? (dueDayFor(it) ?? "") : "";
-  body += `<div class="space-y-1"><label class="text-[10px] font-bold uppercase text-slate-500 ml-1">Auto-completes on day <span class="text-slate-600">(1-31, optional)</span></label>
+  body += `<div class="space-y-1"><label class="text-[10px] font-bold uppercase text-slate-500 ml-1">Mark paid on day <span class="text-slate-400">(1-31, optional)</span></label>
     <input type="number" id="f-dueday" min="1" max="31" inputmode="numeric" value="${ddVal}" placeholder="e.g. 29" class="w-full bg-slate-900 rounded-2xl py-4 px-5 text-base font-bold text-white focus:outline-none" /></div>`;
 
   // scope for editing recurring amount
@@ -1812,7 +1823,7 @@ window.openAccountModal = function (id) {
   body += inputBlock("Balance (₱)", "f-amount", a ? a.amount : "", "number", 'inputmode="decimal" placeholder="0"');
   body += `<div class="space-y-1"><label class="text-[10px] font-bold uppercase text-slate-500 ml-1">Owner</label>
     <div class="grid grid-cols-2 gap-2" id="f-owner" data-val="${owner}">
-      ${["charlie", "karla"].map((w) => `<button type="button" onclick="pickOwner(this,'${w}')" class="py-3 rounded-xl font-bold text-xs ${w === owner ? "bg-indigo-600 text-white" : "bg-slate-900 text-slate-400"}">${OWNERS[w].label}</button>`).join("")}
+      ${["charlie", "karla"].map((w) => ownerBtnHtml(w, w === owner)).join("")}
     </div></div>`;
   $("modal-body").innerHTML = body;
 
@@ -1828,7 +1839,7 @@ window.pickOwner = function (btn, w) {
   wrap.dataset.val = w;
   [...wrap.children].forEach((c) => {
     const on = c === btn;
-    c.className = `py-3 rounded-xl font-bold text-xs ${on ? "bg-indigo-600 text-white" : "bg-slate-900 text-slate-400"}`;
+    c.dataset.on = on;
   });
 };
 
@@ -2175,6 +2186,8 @@ async function revealApp() {
   intro.style.display = "none";
   intro.style.pointerEvents = "none";
   app.style.opacity = "1";
+  scrollChipIntoView(true);
+  if (document.fonts?.ready) document.fonts.ready.then(() => scrollChipIntoView(true));
   initParticles();
     await c.animate([{ transform: "translateY(0)" }, { transform: "translateY(-101%)" }], { duration: 380, easing: ease, fill: "forwards" }).finished;
   c.remove();
