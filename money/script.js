@@ -897,9 +897,9 @@ function personSectionHtml(who) {
           <p class="text-[10px] font-bold whitespace-nowrap ${net >= 0 ? "text-emerald-300" : "text-rose-300"} mt-1">net ${signedPeso(net)}</p>
         </div>
       </div>
-      <div class="text-left md:text-right w-full md:w-auto whitespace-nowrap">
-        <p class="text-[10px] font-bold uppercase text-slate-400">in / out</p>
-        <p class="text-sm font-black text-white mt-1">${peso(incTot)} <span class="text-slate-500">·</span> ${peso(expTot)}</p>
+      <div class="flex gap-6 w-full md:w-auto whitespace-nowrap">
+        <div><p class="text-[12px] font-bold text-slate-400">money in</p><p class="text-sm font-black text-emerald-300 mt-1">${peso(incTot)}</p></div>
+        <div><p class="text-[12px] font-bold text-slate-400">money out</p><p class="text-sm font-black text-white mt-1">${peso(expTot)}</p></div>
       </div>
     </div>
     </div>
