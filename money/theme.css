@@ -72,7 +72,7 @@ button:disabled { color: #8FA1AE !important; opacity: 0.6; }
 .acct-icon { border-radius: 13px !important; }
 .more-sheet, .confirm-icon { border-radius: 21px !important; }
 .modal-content { border-radius: 34px !important; }
-.month-chip { padding-top: 8px; padding-bottom: 8px; }
+.month-chip { padding-top: 0; padding-bottom: 0; }
 .font-black { font-weight: 900; }
 
 /* gradient-clipped text (splash "Money") must keep a visible fill once gradients are flattened */

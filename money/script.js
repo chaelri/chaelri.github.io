@@ -575,15 +575,20 @@ function updateHeader() {
 function renderMonthStrip() {
   const strip = $("month-strip");
   const nowK = currentKey();
+  let lastY = null;
   strip.innerHTML = timeline().map((k) => {
     const active = k === selectedKey;
     const isNow = k === nowK;
+    const { y, m } = keyParts(k);
     const cls = active
       ? "bg-cyan-400 text-slate-900"
       : isNow ? "border border-cyan-400 text-cyan-400" : "bg-slate-800/60 text-slate-400";
-    return `<button onclick="selectMonth('${k}')" data-k="${k}"
-      class="month-chip ${isNow ? "is-now" : ""} flex-shrink-0 relative px-4 py-2 rounded-2xl text-xs font-black uppercase tracking-wide transition-colors ${cls}">
-      ${monthShort(k)}
+    // the year is shown once per year as a marker, not repeated on every chip
+    const yearMark = y !== lastY ? `<span class="flex-shrink-0 self-center text-[10px] font-bold text-slate-500 pl-2 pr-1">${y}</span>` : "";
+    lastY = y;
+    return `${yearMark}<button onclick="selectMonth('${k}')" data-k="${k}"
+      class="month-chip ${isNow ? "is-now" : ""} flex-shrink-0 relative px-4 h-12 min-w-[56px] rounded-2xl text-sm font-black uppercase tracking-wide transition-colors ${cls}">
+      ${MONTHS_SHORT[m]}
     </button>`;
   }).join("");
   renderMonthBanner();
