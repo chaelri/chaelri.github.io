@@ -161,6 +161,26 @@ Mobile-first, 16px side gutter, primary/shape as the only large colour areas. Bu
 10. **Verify the output, not just the UI (Charlie, 2026-11-13).** The exported gif once had 100 identical frames (it looked fine, it just did not move) because frames were drawn right after `seeked`, before the new frame was presented: wait for `requestVideoFrameCallback` (registered BEFORE setting `currentTime`, with a timeout) and then check consecutive frames really differ. Play rendered media from the frames on a canvas, not an `<img>` gif, which can sit frozen when the OS has animations off. Any generated file gets a content check (frame count, frames differ, size, dimensions).
 11. **Every top-level script constant is defined before first use** (a `$` helper used before its `const` broke the whole page once). After adding code run the page and read the console.
 
+## 16. Poster / graphic rules Charlie caught (2026-11-20, Main Event poster job)
+
+Posters and art-heavy graphics get the same strictness as UI. Charlie caught all of these by eye, so check them before he does.
+
+1. **Look at every render, not just the numbers.** Read the image after each change. "Passes the audit" is not "looks good".
+2. **Never change what he already approved.** If a version looked good and he asks for tweaks elsewhere, leave it alone. When a change makes something worse, restore the earlier look.
+3. **Text must stay readable.** Run `design-audit/poster-check.js` (edge margin, overflow, text-vs-shape gap >= 32px) AND `design-audit/px_contrast.py` (real pixels behind each text box, text hidden in a second render) on every take and every colourway. audit.js cannot see SVG, gradients or texture behind text.
+4. **Spacing is optical, from the edges too.** Details keep the poster margin (>= 6% of width) at bottom and right, never crammed against an edge, a shape, or each other. Equal things get equal gaps.
+5. **No divider lines / `<hr>` rules, no mini labels** in posters. Separate with space, not lines.
+6. **Round is not a style.** Do not make every element a circle (lights, bulbs, blobs). Use straight bars, angular silhouettes, one or two round things at most.
+7. **Texture, not shadow.** For "not flat", use grain, grit, stipple and halftone on flat shapes. No glows, drop shadows, gradients that fake 3D, or fine detail.
+8. **Emphasis follows meaning.** The key word gets the weight (MAIN in "The Main Event"): heavy and upright against lighter surrounding words. Say why in one line.
+9. **Caps + wide tracking is a valid tool** for detail text (date, time, theme, registration), about .06em at poster size. Re-check line lengths after tracking, it widens text a lot. Titles keep tight tracking.
+10. **Long lines are centred**, or split in two. A long line left-aligned beside a short one looks accidental.
+11. **Fixed layouts do not reflow.** Poster text gets `white-space:nowrap` and explicit line breaks, then verify the carousel/preview at 1280, 430 and 360px. A wrapped word-per-line block is a defect.
+12. **When shifting a textured layer, extend its texture** (clip, rect, filter region) past the shift so no edge shows bare.
+13. **Colour variants:** build palettes as CSS variables on the art root (`data-v`), toggle with swatch buttons, and run the contrast check on EVERY variant. Ask which ones to keep; he drops weak palettes (blue, green, red were cut).
+14. **Deliverables:** one HD PNG per take per colour (2160x2700 for 4:5), named `<project>-<take>-<colour>.png`, a download button per take that follows the selected colour, copy to the Desktop folder. Verify names match the swatches (zsh arrays start at 1).
+15. **Posters on the local page are still unless asked.** No animation or parallax by default.
+
 ## 14. Reusable pieces (copy these, Charlie likes them)
 
 **Loading-screen curtain (screen change).** Reference implementation: `gif-maker/index.html` (search `#curtain` and `async function go`).

@@ -34,3 +34,9 @@ Contrast is part of the audit, not just spacing and size. Run both.
 - Common real bug: a paper/white panel inside a dark section inherits white text. Set the panel's own `color`.
 - Decorative text still counts. Opacity on small text lowers contrast; avoid it on captions.
 - Spacing and size are strict (see charlie-design sections 3 and 4): treat SIZE/SPACING/RADIUS lines as defects unless deliberate (say which).
+
+## Posters and art-heavy graphics (added 2026-11-20)
+audit.js is blind to SVG, gradients and texture behind text. For any poster/graphic also run:
+1. `poster-check.js` (this folder) via javascript_tool at design size: edge margin, text overflow past its box, text-vs-artwork gap >= 32px, text-on-text. It also returns text rects.
+2. Render the page a second time with all text transparent (`color:transparent!important;-webkit-text-stroke-color:transparent!important`), then `python3 px_contrast.py rects.json notext.png`: worst-spot contrast of the real pixels behind each text box. Needs Pillow only. Run it for EVERY colour variant.
+3. Look at the renders. See charlie-design section 16 for the rules Charlie caught by eye.
