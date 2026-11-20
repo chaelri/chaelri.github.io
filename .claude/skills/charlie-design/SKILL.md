@@ -180,6 +180,14 @@ Posters and art-heavy graphics get the same strictness as UI. Charlie caught all
 13. **Colour variants:** build palettes as CSS variables on the art root (`data-v`), toggle with swatch buttons, and run the contrast check on EVERY variant. Ask which ones to keep; he drops weak palettes (blue, green, red were cut).
 14. **Deliverables:** one HD PNG per take per colour (2160x2700 for 4:5), named `<project>-<take>-<colour>.png`, a download button per take that follows the selected colour, copy to the Desktop folder. Verify names match the swatches (zsh arrays start at 1).
 15. **Posters on the local page are still unless asked.** No animation or parallax by default.
+16. **Title lockup (Charlie, 2026-11-20).** Small connector words ("the") are lowercase italic and sit tight to the key word, not capitalised and not floating far above it. Stack the lockup with real leading so lines never touch, and keep the key word heavier than its neighbours. Pick a title face that stays readable at thumbnail size; if the font is the problem, change the font, not the size.
+17. **Artwork never sits on text.** Stars, reels, suns, moons and shapes may sit behind a title only if it stays fully readable; otherwise move or resize the shape. Measure the gap from every shape to every text box (poster-check.js) and look at the render.
+18. **Detail text is small and proportional.** Registration / call-to-action lines are one of the smallest sizes, never larger than the date. Emphasis inside a line (e.g. **CCF App**) is weight, not size.
+19. **Details are one left-aligned block** with equal gaps (date, time, registration), at the poster margin from the bottom and sides; do not stack them centred, and do not let them crowd the line above.
+20. **Remove what the audience flags.** If a viewer says a label or illustration is unnecessary (e.g. "Movie / Gala Night", the clapperboard), remove it, and replace an illustration with something simpler that fits the theme (a ticket stub) rather than leaving a hole. Ask what to replace it with only if no fit exists.
+21. **Nothing clipped by its frame.** Check every illustration against the frame edge (film strip, border, margin) in the render, not just the page edge.
+22. **Preview controls:** hide (not disable) controls that cannot apply, e.g. Next on the last slide; never clip a selected-state ring on swatches.
+23. **Always run the checks unasked** (poster-check.js, px_contrast.py, look at the render) on every take after every change; Charlie should never have to say "run the spacing skill".
 
 ## 14. Reusable pieces (copy these, Charlie likes them)
 

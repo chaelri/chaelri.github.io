@@ -120,6 +120,7 @@ window.SYSTEM = {
         { t: "posters: look at every render.", d: "audit numbers are not enough. read the image after each change, never undo what he already approved, and keep poster details at least 6% of the width from every edge." },
         { t: "posters: check text over artwork.", d: "audit.js cannot see svg, gradients or texture behind text. run poster-check.js (margins, overflow, 32px gap to shapes) and px_contrast.py (real pixels behind each text box) on every take and every colour variant." },
         { t: "posters: texture, not shadow; angular, not round.", d: "grain, grit, stipple and halftone on flat shapes. no glows, drop shadows or fake-3d gradients. no divider lines. not every element a circle." },
+        { t: "posters: title lockup, details, removals.", d: "small connector words (the) stay lowercase italic and tight to the key word; artwork never sits on text; cta lines are small with weight for emphasis; details are one left-aligned block at the poster margin; remove what viewers flag and swap illustrations for something simpler that fits; nothing clipped by the frame; run poster-check and px_contrast unasked." },
         { t: "posters: emphasis follows meaning.", d: "the key word carries the weight (MAIN in The Main Event). caps with wide tracking (about .06em) is valid for details; long lines are centred or split in two." },
         { t: "no mid-line gaps.", d: "'taking students / to the next level', never 'taking      to the'." }
       ],

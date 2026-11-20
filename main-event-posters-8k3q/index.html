@@ -1,10 +1,10 @@
 <!doctype html>
 <html lang="en">
 <head>
+<meta name="robots" content="noindex">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Main Event Posters</title>
-<meta name="robots" content="noindex">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..800;1,6..96,400..800&family=Cinzel:wght@500;700;900&family=Jost:ital,wght@0,400;0,500;0,600;1,500&family=Mrs+Saint+Delafield&display=swap" rel="stylesheet">
 <script>try{const q=new URLSearchParams(location.search).get('still');if(q)document.documentElement.classList.add('still');if(new URLSearchParams(location.search).get('notext'))document.documentElement.classList.add('notext')}catch(e){}</script>
@@ -234,7 +234,7 @@ html.still{zoom:1!important;background:#0E0E0E}
               <div class="row"><div class="w">Event</div></div>
             </div>
             <div class="tg2 serif it fm">Celebrating<br>the Greatest Gift</div>
-            <div class="credits fs caps"><div class="cr"><div><b>December 19, 2026</b>at 9:00 AM<br><span class="th2">Movie / Gala Night</span></div></div><div class="rg">Register on the <b>CCF App</b><br>until Dec 5, 2026</div></div>
+            <div class="credits fs caps"><div class="cr"><div><b>December 19, 2026</b>at 9:00 AM</div></div><div class="rg">Register on the <b>CCF App</b><br>until Dec 5, 2026</div></div>
           </div>
         </div></div>
         <figcaption class="cap"><b>b · the film strip</b><span>MAIN set solid between outlined THE and EVENT, searchlights above, all the details in one credits block.</span></figcaption>
@@ -340,20 +340,16 @@ function sp(p,x,y,r,f,o){el('path',{class:'tw',style:`animation-delay:-${(Math.r
     el('circle',{cx:x,cy:y,r:1+r()*2.2,fill:'var(--paper)',opacity:.25+r()*.5},dust)}
   [[160,150,18,'var(--gold)'],[930,130,24,'var(--gold)'],[830,700,14,'var(--paper)'],[860,860,16,'var(--paper)'],[690,310,12,'var(--paper)']].forEach(([x,y,r,f])=>sp(s,x,y,r,f,.9));
 })();
-// B extras: star + clapperboard
+// B extras: star + ticket stub
 (()=>{const s=document.getElementById('fx-b');
   const sg=el('g',{filter:'url(#grit)',opacity:.4},s);star(sg,700,450,430,'var(--gold)','var(--grey)');
-  const g=el('g',{filter:'url(#grit)',transform:'translate(668 1032) rotate(-5)'},s);
-  const P=(p,f)=>el('polygon',{points:p,fill:f},g);
-  P('0,44 244,44 244,214 0,214','var(--ink)');
-  el('rect',{x:3,y:47,width:238,height:164,fill:'none',stroke:'var(--paper)','stroke-width':6},g);
-  [[22,86,120],[22,118,170],[22,150,96],[22,182,140]].forEach(([x,y,w],i)=>el('rect',{x,y,width:w,height:8,fill:i==0?'var(--gold)':'var(--paper)',opacity:i==0?1:.75},g));
-  P('0,44 244,44 244,76 0,76','var(--paper)');
-  for(let i=0;i<6;i++)P(`${i*44+14},44 ${i*44+40},44 ${i*44+26},76 ${i*44},76`,'var(--ink)');
-  const t=el('g',{transform:'rotate(-14 0 40)'},g);
-  P2=(p,f)=>el('polygon',{points:p,fill:f},t);
-  P2('0,6 244,6 244,38 0,38','var(--paper)');
-  for(let i=0;i<6;i++)P2(`${i*44+14},6 ${i*44+40},6 ${i*44+26},38 ${i*44},38`,'var(--ink)');
+  const g=el('g',{filter:'url(#grit)',transform:'translate(618 1036) rotate(-6)'},s);
+  const W=300,H=168,n=18;
+  el('path',{d:`M0 0 H${W} V${H/2-n} A${n} ${n} 0 0 0 ${W} ${H/2+n} V${H} H0 V${H/2+n} A${n} ${n} 0 0 0 0 ${H/2-n}Z`,fill:'var(--ink)'},g);
+  el('path',{d:`M10 10 H${W-10} V${H/2-n-4} A${n+6} ${n+6} 0 0 0 ${W-10} ${H/2+n+4} V${H-10} H10 V${H/2+n+4} A${n+6} ${n+6} 0 0 0 10 ${H/2-n-4}Z`,fill:'none',stroke:'var(--paper)','stroke-width':5},g);
+  el('line',{x1:216,y1:22,x2:216,y2:H-22,stroke:'var(--paper)','stroke-width':4,'stroke-dasharray':'10 10'},g);
+  star(g,108,H/2,52,'var(--gold)','var(--gold)');
+  [[244,56,36],[244,84,36],[244,112,36]].forEach(([x,y,w],i)=>el('rect',{x,y,width:w,height:8,fill:i==0?'var(--gold)':'var(--paper)',opacity:i==0?1:.75},g));
 })();
 // C: film reel + sparkles
 (()=>{const s=document.getElementById('star-c');
