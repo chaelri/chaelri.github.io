@@ -1264,6 +1264,7 @@ async function renderDashboard() {
               <span class="dash-continue-ref">${recentPassage}</span>
               <div id="dashContinueRecap" class="dash-continue-recap"></div>
             </div>
+            <span class="dash-continue-cta" aria-hidden="true">Continue</span>
             <span class="material-icons dash-continue-chev">arrow_forward</span>
           </button>
         </div>
@@ -1552,7 +1553,11 @@ function _renderFavoritesContent(allFavoritePassages) {
           </div>`;
         }).join("")}
       </div>`
-    : `<p class="empty-state">No favorite verses yet. Double-click a verse or tap the <span class="material-icons" style="font-size:1em; vertical-align:middle; color:#c83086;">favorite_border</span> icon to add one!</p>`;
+    : `<p class="empty-state">No favorite verses yet. Tap the heart on a verse to add one.</p>${
+        recentPassageId && recentPassage
+          ? `<button type="button" class="dash-empty-next" onclick="loadPassageById('${_escHtml(recentPassageId)}')">Open ${_escHtml(recentPassage)} <span class="material-icons" aria-hidden="true">arrow_forward</span></button>`
+          : ""
+      }`;
   return header + body;
 }
 
@@ -1750,8 +1755,8 @@ async function loadPassage() {
           <div class="verse-content">
             <span class="verse-num">${v.verse}</span>${formattedText}
             <span class="verse-meta-indicators" style="display:inline-flex; align-items:center; margin-left:8px; opacity:0.6;">
-              <span class="material-icons favorite-indicator" style="font-size:14px; margin-right:4px; ${
-                isFav ? 'color:#c83086;"' : '"'
+              <span class="material-icons favorite-indicator" style="font-size:20px; ${
+                isFav ? 'color:var(--pink-ink,#F472B6);"' : '"'
               } data-key="${key}">${isFav ? "favorite" : "favorite_border"}</span>
             </span>
           </div>

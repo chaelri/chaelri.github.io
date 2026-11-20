@@ -1977,6 +1977,23 @@ async function _imgcrShare() {
   });
   applyFontChoice(_getFontChoice());
 
+  // Text size — verse text only, per-device (not synced, like the font).
+  const TEXT_SIZE_KEY = "devo.verseTextSize";
+  const mtTextSize = document.getElementById("mtTextSize");
+  function applyTextSize(px) {
+    const v = Math.min(24, Math.max(15, parseInt(px, 10) || 16));
+    document.body.style.setProperty("--verse-fs", v + "px");
+    if (mtTextSize) mtTextSize.value = String(v);
+    return v;
+  }
+  let _savedTextSize = 16;
+  try { _savedTextSize = localStorage.getItem(TEXT_SIZE_KEY) || 16; } catch {}
+  applyTextSize(_savedTextSize);
+  mtTextSize?.addEventListener("input", () => {
+    const v = applyTextSize(mtTextSize.value);
+    try { localStorage.setItem(TEXT_SIZE_KEY, String(v)); } catch {}
+  });
+
   // Overflow sheet
   function openOverflow() { mtOverflowSheet.hidden = false; }
   function closeOverflow() { mtOverflowSheet.hidden = true; }

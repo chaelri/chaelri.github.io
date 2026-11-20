@@ -1181,7 +1181,11 @@ async function ttsPlayAt(index, gen) {
     _ttsActiveWordItem = item;
 
     ttsAudio = new Audio(item.url);
+    ttsAudio.playbackRate = _ttsRate;
+    const _a = ttsAudio;
+    _a.addEventListener("loadedmetadata", () => { if (isFinite(_a.duration)) item._dur = _a.duration; }, { once: true });
     ttsPaused = false;
+    _ttsProgressStart();
     await ttsAudio.play();
     if (gen !== ttsGen) { ttsAudio.pause(); return; }
 
@@ -1354,8 +1358,115 @@ function _ttsCleanupMode() {
   }
 }
 
+// ── Listen UI: speed, progress + times, mini-player (2026-11-20) ────────────
+// Playback is one short clip per verse, so seeking ±15s across clip edges
+// would need engine changes; speed (playbackRate) and a chapter progress bar
+// built from the clip lengths are UI-only.
+const _TTS_RATES = [1, 1.25, 1.5];
+let _ttsRate = (() => {
+  try { const r = parseFloat(localStorage.getItem("devo.ttsRate")); return _TTS_RATES.includes(r) ? r : 1; }
+  catch { return 1; }
+})();
+function _ttsRateLabel() { return `${_ttsRate}x`; }
+function ttsCycleRate() {
+  _ttsRate = _TTS_RATES[(_TTS_RATES.indexOf(_ttsRate) + 1) % _TTS_RATES.length];
+  try { localStorage.setItem("devo.ttsRate", String(_ttsRate)); } catch {}
+  if (ttsAudio) ttsAudio.playbackRate = _ttsRate;
+  const b = document.getElementById("ttsImmSpeedBtn");
+  if (b) b.textContent = _ttsRateLabel();
+}
+(() => {
+  const b = document.getElementById("ttsImmSpeedBtn");
+  if (b) { b.textContent = _ttsRateLabel(); b.onclick = ttsCycleRate; }
+  document.getElementById("ttsPassage")?.addEventListener("click", ttsImmExpand);
+})();
+
+function _ttsFmt(sec) {
+  const s = Math.max(0, Math.round(sec || 0));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+// Read clip lengths for verses already synthesized (local blob URLs, cheap)
+// so the total settles early instead of only after each verse plays.
+function _ttsProbeDur(item) {
+  if (item._dur || item._durProbe || !item.url) return;
+  item._durProbe = true;
+  const a = new Audio();
+  a.preload = "metadata";
+  a.onloadedmetadata = () => { if (isFinite(a.duration)) item._dur = a.duration; a.removeAttribute("src"); };
+  a.src = item.url;
+}
+function _ttsProgressTick() {
+  if (!ttsQueue.length || ttsIdx < 0) return;
+  let known = 0, knownWords = 0;
+  const words = (it) => (it.text || "").split(/\s+/).filter(Boolean).length || 1;
+  ttsQueue.forEach((it) => { _ttsProbeDur(it); if (it._dur) { known += it._dur; knownWords += words(it); } });
+  const perWord = knownWords ? known / knownWords : 0.4;
+  const durOf = (it) => it._dur || words(it) * perWord;
+  let total = 0, elapsed = 0;
+  ttsQueue.forEach((it, i) => { const d = durOf(it); total += d; if (i < ttsIdx) elapsed += d; });
+  const cur = ttsQueue[ttsIdx];
+  if (_ttsFinished) elapsed = total;
+  else if (ttsAudio && cur) elapsed += Math.min(ttsAudio.currentTime || 0, durOf(cur));
+  const pct = total ? Math.min(100, (elapsed / total) * 100) : 0;
+  const fill = document.getElementById("ttsImmProgFill");
+  if (fill) fill.style.width = `${pct}%`;
+  const e = document.getElementById("ttsImmElapsed");
+  const t = document.getElementById("ttsImmTotal");
+  if (e) e.textContent = _ttsFmt(elapsed);
+  if (t) t.textContent = _ttsFmt(total);
+  if (document.body.classList.contains("tts-mini")) _ttsMiniUpdate();
+}
+let _ttsProgressTimer = null;
+function _ttsProgressStart() {
+  if (_ttsProgressTimer) return;
+  _ttsProgressTimer = setInterval(_ttsProgressTick, 250);
+}
+function _ttsProgressStop() {
+  clearInterval(_ttsProgressTimer);
+  _ttsProgressTimer = null;
+  const fill = document.getElementById("ttsImmProgFill");
+  if (fill) fill.style.width = "0%";
+  ["ttsImmElapsed", "ttsImmTotal"].forEach((id) => { const el = document.getElementById(id); if (el) el.textContent = "0:00"; });
+}
+
+// Collapse (the chevron) keeps playing and leaves a mini-player; the mini's
+// X stops. While audio is still being prepared there is nothing to keep, so
+// collapsing then stops as before.
+function ttsImmCollapse() {
+  const ctxPanel = document.getElementById("ttsImmContextPanel");
+  const preparing = ctxPanel && !ctxPanel.hidden;
+  if (!ttsQueue.length || preparing || _ttsInCanvas) { stopTTS(); return; }
+  const imm = document.getElementById("ttsImmersive");
+  if (imm) imm.hidden = true;
+  const player = document.getElementById("ttsPlayer");
+  if (player) player.hidden = false;
+  document.body.classList.add("tts-mini");
+  _ttsMiniUpdate();
+}
+function ttsImmExpand() {
+  const player = document.getElementById("ttsPlayer");
+  if (player) player.hidden = true;
+  document.body.classList.remove("tts-mini");
+  const imm = document.getElementById("ttsImmersive");
+  if (imm) imm.hidden = false;
+}
+function _ttsMiniUpdate() {
+  const label = document.getElementById("ttsPassage");
+  if (!label) return;
+  const name = BIBLE_META[bookEl?.value]?.name || "";
+  const ch = chapterEl?.value || "";
+  const cur = ttsQueue[ttsIdx];
+  label.textContent = _ttsFinished
+    ? `${name} ${ch} · Chapter complete`
+    : `${name} ${ch}${cur ? ` · Verse ${cur.verseNum}` : ""}`;
+  const pause = document.getElementById("ttsPauseBtn");
+  if (pause) pause.disabled = !!_ttsFinished;
+}
+
 function stopTTS() {
   _ttsFinished = false;
+  _ttsProgressStop();
+  document.body.classList.remove("tts-mini");
   ttsGen++;
   _synthReset();
   _ttsCleanupMode();
@@ -1368,6 +1479,8 @@ function stopTTS() {
   const bar = document.getElementById("ttsProgressBar");
   if (bar) bar.style.width = "0%";
   player.hidden = true;
+  const miniPause = document.getElementById("ttsPauseBtn");
+  if (miniPause) miniPause.disabled = false;
   ttsImmersiveClose();
   const playBtn = document.getElementById("ttsPlayBtn");
   if (playBtn) playBtn.disabled = false;

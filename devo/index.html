@@ -107,21 +107,29 @@
                 Font
               </div>
               <div class="mt-sheet-version" id="mtSheetFont">
-                <button class="mt-sheet-ver" data-font="system">SYSTEM</button>
-                <button class="mt-sheet-ver" data-font="nunito">NUNITO</button>
+                <button class="mt-sheet-ver" data-font="system">System</button>
+                <button class="mt-sheet-ver" data-font="nunito">Nunito</button>
+              </div>
+            </div>
+            <div class="mt-sheet-row mt-sheet-textsize">
+              <label class="mt-sheet-row-left" for="mtTextSize">
+                <span class="material-symbols-outlined">format_size</span>
+                Text size
+              </label>
+              <div class="mt-textsize-ctl">
+                <span class="mt-textsize-a mt-textsize-a--sm" aria-hidden="true">A</span>
+                <input type="range" id="mtTextSize" min="15" max="24" step="1" value="16" aria-label="Verse text size">
+                <span class="mt-textsize-a mt-textsize-a--lg" aria-hidden="true">A</span>
               </div>
             </div>
             <button class="mt-sheet-item" id="mtThemeToggle">
-              <span class="material-symbols-outlined">light_mode</span>
-              Toggle theme
+              <span class="material-symbols-outlined">contrast</span>
+              Theme
+              <span class="mt-sheet-state" id="mtThemeState">Dark</span>
             </button>
             <button class="mt-sheet-item" id="mtSearchBible">
               <span class="material-symbols-outlined">search</span>
               Search Bible
-            </button>
-            <button class="mt-sheet-item" id="mtAudioLib">
-              <span class="material-symbols-outlined">library_music</span>
-              Audio Library
             </button>
             <button class="mt-sheet-item" id="mtNotesToggle">
               <span class="material-symbols-outlined">edit_note</span>
@@ -303,12 +311,8 @@
              so the user sees questions immediately without a click. -->
         <div id="aiReflection"></div>
         <div class="reflect-actions-row" id="sidebarActionsRow">
-          <button id="copyNotesBtn" class="devo-copy-btn" type="button">
-            <span class="material-symbols-outlined">content_copy</span> Copy Notes
-          </button>
-          <button id="shareDevoBtn" class="share-devo-btn" type="button">
-            <span class="material-symbols-outlined">ios_share</span> Share to Notes
-          </button>
+          <button id="shareDevoBtn" class="share-devo-btn" type="button">Save to notes</button>
+          <button id="copyNotesBtn" class="devo-copy-btn" type="button">Copy</button>
         </div>
         <div id="notesCopyStatus"></div>
       </aside>
@@ -352,12 +356,17 @@
             <span>Notes</span>
           </button>
           <div class="notes-detail-bar-actions">
-            <button class="notes-detail-action-btn" id="notesDetailShare" title="Copy all notes">
-              <span class="material-symbols-outlined">content_copy</span>
+            <button class="notes-detail-action-btn" id="notesDetailMore" aria-label="More note actions" aria-haspopup="menu" aria-expanded="false">
+              <span class="material-symbols-outlined">more_horiz</span>
             </button>
-            <button class="notes-detail-action-btn notes-delete-btn" id="notesDetailDelete" title="Delete note">
-              <span class="material-symbols-outlined">delete</span>
-            </button>
+            <div class="notes-detail-menu" id="notesDetailMenu" role="menu" hidden>
+              <button class="notes-detail-menu-item" id="notesDetailShare" role="menuitem">
+                <span class="material-symbols-outlined">content_copy</span>Copy
+              </button>
+              <button class="notes-detail-menu-item notes-delete-btn" id="notesDetailDelete" role="menuitem">
+                <span class="material-symbols-outlined">delete</span>Delete
+              </button>
+            </div>
           </div>
         </div>
         <div class="notes-detail-scroll" id="notesDetailScroll">
@@ -370,10 +379,10 @@
     <div id="namePromptScreen" class="name-prompt-screen" hidden>
       <div class="name-prompt-card">
         <div class="name-prompt-logo">devotion.</div>
-        <h2 class="name-prompt-title">Hey there! 👋</h2>
+        <h2 class="name-prompt-title">Welcome</h2>
         <p class="name-prompt-sub">What should we call you?</p>
-        <input id="namePromptInput" class="name-prompt-input" type="text" placeholder="Your name…" maxlength="32" autocomplete="off" />
-        <button id="namePromptSubmit" class="name-prompt-btn primary">Let's go →</button>
+        <input id="namePromptInput" class="name-prompt-input" type="text" placeholder="Your name" maxlength="32" autocomplete="off" />
+        <button id="namePromptSubmit" class="name-prompt-btn primary">Continue</button>
       </div>
     </div>
 
@@ -397,7 +406,7 @@
 
     <div id="ttsPlayer" class="tts-player" hidden>
       <div id="ttsProgressBar" class="tts-progress-bar"></div>
-      <span id="ttsPassage" class="tts-passage"></span>
+      <button type="button" id="ttsPassage" class="tts-passage" aria-label="Open Listen"></button>
       <div class="tts-controls">
         <button id="ttsPrevBtn" class="tts-btn">
           <span class="material-symbols-outlined">skip_previous</span>
@@ -420,13 +429,12 @@
       <!-- Top bar -->
       <div class="tts-imm-bar">
         <div class="tts-imm-header-info">
-          <div class="tts-imm-label">NOW PLAYING</div>
           <div class="tts-imm-title" id="ttsImmTitle"></div>
           <div class="tts-imm-range" id="ttsImmRange"></div>
         </div>
         <div class="tts-imm-bar-actions">
           <button id="ttsImmReflectBtn" class="tts-imm-reflect-btn" hidden><span class="material-icons">volunteer_activism</span></button>
-          <button class="tts-imm-close-btn" id="ttsImmCloseBtn">
+          <button class="tts-imm-close-btn" id="ttsImmCloseBtn" aria-label="Minimize">
             <span class="material-symbols-outlined">keyboard_arrow_down</span>
           </button>
         </div>
@@ -475,14 +483,19 @@
         <div class="tts-imm-scrubber-wrap">
           <div class="tts-imm-scrubber" id="ttsImmScrubber"></div>
         </div>
+        <div class="tts-imm-progress" aria-hidden="true">
+          <div class="tts-imm-prog-track"><div class="tts-imm-prog-fill" id="ttsImmProgFill"></div></div>
+          <div class="tts-imm-times"><span id="ttsImmElapsed">0:00</span><span id="ttsImmTotal">0:00</span></div>
+        </div>
         <div class="tts-imm-controls">
-          <button class="tts-imm-btn" id="ttsImmPrevBtn">
+          <button class="tts-imm-btn tts-imm-speed" id="ttsImmSpeedBtn" aria-label="Playback speed">1x</button>
+          <button class="tts-imm-btn" id="ttsImmPrevBtn" aria-label="Previous verse">
             <span class="material-symbols-outlined">skip_previous</span>
           </button>
           <button class="tts-imm-btn tts-imm-btn-play" id="ttsImmPauseBtn">
             <span class="material-symbols-outlined">pause</span>
           </button>
-          <button class="tts-imm-btn" id="ttsImmNextBtn">
+          <button class="tts-imm-btn" id="ttsImmNextBtn" aria-label="Next verse">
             <span class="material-symbols-outlined">skip_next</span>
           </button>
         </div>
@@ -514,7 +527,6 @@
       <!-- Reflection panel (replaces stage+footer when open) -->
       <div id="ttsImmReflPanel" class="tts-imm-refl-panel" hidden>
         <div class="tts-imm-refl-top">
-          <div class="tts-imm-refl-label">GUIDED REFLECTION</div>
           <div class="tts-imm-refl-progress" id="ttsImmReflProgress"></div>
         </div>
         <div class="tts-imm-refl-question" id="ttsImmReflQuestion"></div>
@@ -522,7 +534,7 @@
         <div class="tts-imm-refl-actions">
           <button class="tts-imm-refl-back-btn" id="ttsImmReflBack">← Back</button>
           <button class="tts-imm-refl-next-btn" id="ttsImmReflNext">Next →</button>
-          <button class="tts-imm-refl-copy-btn" id="ttsImmReflCopy" hidden>📋 Copy Notes</button>
+          <button class="tts-imm-refl-copy-btn" id="ttsImmReflCopy" hidden>Copy</button>
           <button class="tts-imm-refl-done-btn" id="ttsImmReflDone" hidden>
             <span class="material-symbols-outlined">check_circle</span>
           </button>

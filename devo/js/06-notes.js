@@ -179,15 +179,16 @@ function _renderNotesList(filter = "") {
       const count = n.allItems?.length || 1;
       const latestText = n.allItems?.sort((a,b) => (b.time||0) - (a.time||0))[0]?.text || "";
       const notePreview = latestText.length > 60 ? latestText.slice(0, 60) + "…" : latestText;
-      timelineItems.push({ icon: "menu_book", label: n.title, sub: `${count} verse note${count !== 1 ? "s" : ""}`, preview: notePreview });
+      timelineItems.push({ icon: "menu_book", label: n.title, sub: `${count} verse note${count !== 1 ? "s" : ""}`, preview: notePreview, time: n.time });
     });
     session.reflection.forEach(n => {
       const firstAnswer = n.QAs?.[0]?.raw?.split("\nA: ")?.[1]?.trim() || "";
       const answerPreview = firstAnswer.length > 60 ? firstAnswer.slice(0, 60) + "…" : firstAnswer;
-      timelineItems.push({ icon: "volunteer_activism", label: n.title, sub: "Reflection", preview: answerPreview });
+      timelineItems.push({ icon: "volunteer_activism", label: n.title, sub: "Reflection", preview: answerPreview, time: n.time });
     });
     session.standalone.forEach(n => {
-      timelineItems.push({ icon: "edit_note", label: n.title || "Untitled note", sub: n.preview ? _escHtml(n.preview.slice(0, 40)) : "" });
+      const sp = n.preview || "";
+      timelineItems.push({ icon: "edit_note", label: n.title || "Untitled note", sub: "Note", preview: sp.length > 60 ? sp.slice(0, 60) + "…" : sp, time: n.time });
     });
 
     const MAX_VISIBLE = 4;
@@ -199,6 +200,7 @@ function _renderNotesList(filter = "") {
         <div class="nst-item-header">
           <span class="nst-label">${_escHtml(item.label)}</span>
           ${item.sub ? `<span class="nst-sub">${item.sub}</span>` : ""}
+          ${item.time ? `<span class="nst-time">${new Date(item.time).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}</span>` : ""}
         </div>
         ${item.preview ? `<div class="nst-preview">${_escHtml(item.preview)}</div>` : ""}
       </div>`;
@@ -627,6 +629,7 @@ function _renderNoteDetail(note) {
   if (deleteBtn) {
     deleteBtn.style.display = "";
     if (note.type === "standalone") {
+      if (!_noteHasContent(note.data || {})) deleteBtn.style.display = "none";
       deleteBtn.onclick = () => _deleteStandaloneNote(note.standaloneId);
     } else if (note.type === "verse") {
       deleteBtn.onclick = () => _confirmDialog("Delete all notes for this passage?", () => {
@@ -714,7 +717,7 @@ function _refToPassageId(ref) {
 }
 
 function _renderStandaloneEditor(data, container) {
-  const dateStr = new Date(data.updatedAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
+  const dateStr = _noteStamp(data.updatedAt);
 
   // Convert plain-text body to HTML for contenteditable (migrate old notes)
   let bodyHTML = data.bodyHTML || "";
@@ -835,9 +838,11 @@ function _renderStandaloneEditor(data, container) {
       data.bodyHTML = bodyEl.innerHTML;
       data.body    = bodyEl.innerText; // plain text fallback
       data.updatedAt = Date.now();
-      container.querySelector("#notesEditorDate").textContent =
-        new Date(data.updatedAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
+      container.querySelector("#notesEditorDate").textContent = _noteStamp(data.updatedAt);
       _updateStandaloneNote(data);
+      // Delete only makes sense once there is something to delete.
+      const delBtn = document.getElementById("notesDetailDelete");
+      if (delBtn) delBtn.style.display = _noteHasContent(data) ? "" : "none";
     }, 500);
   };
   titleEl.addEventListener("input", autoSave);
@@ -1049,7 +1054,7 @@ function _renderStandaloneEditor(data, container) {
 
     container.querySelector("#brefPreviewRef").textContent = refLabel;
     container.querySelector("#brefPreviewBody").innerHTML =
-      verses.map(v => `<sup style="font-size:9px;opacity:0.5">${v.n}</sup> ${_escHtml(v.t)}`).join(" ") +
+      verses.map(v => `<sup style="font-size:12px;opacity:0.7">${v.n}</sup> ${_escHtml(v.t)}`).join(" ") +
       (!vFrom ? " ..." : (vTo && parseInt(vTo) - parseInt(vFrom) > 4 ? " ..." : ""));
 
     _brefPositionAt(brefPreview);
@@ -1234,16 +1239,33 @@ function _renderStandaloneEditor(data, container) {
 function _createNewNote() {
   const id = `note_${Date.now()}`;
   const note = { id, title: "", body: "", createdAt: Date.now(), updatedAt: Date.now() };
-  const standalone = JSON.parse(localStorage.getItem("devotionStandaloneNotes") || "[]");
-  standalone.unshift(note);
-  localStorage.setItem("devotionStandaloneNotes", JSON.stringify(standalone));
+  // Not saved yet: the note is written on the first keystroke
+  // (_updateStandaloneNote), so backing out of a blank editor leaves nothing.
+  _draftNoteIds.add(id);
   _openNoteDetail({ id: `s-${id}`, type: "standalone", standaloneId: id, title: "", preview: "", time: note.updatedAt, data: note });
+}
+
+const _draftNoteIds = new Set();
+
+function _noteHasContent(n) {
+  return !!((n.title || "").trim() || (n.body || "").trim() || /note-verse-block/.test(n.bodyHTML || ""));
 }
 
 function _updateStandaloneNote(updated) {
   const standalone = JSON.parse(localStorage.getItem("devotionStandaloneNotes") || "[]");
   const idx = standalone.findIndex(n => n.id === updated.id);
-  if (idx >= 0) standalone[idx] = updated;
+  const isDraft = _draftNoteIds.has(updated.id);
+  if (!_noteHasContent(updated)) {
+    // A note made in this session and cleared again is dropped, not kept as
+    // an empty "Untitled". Older notes are left alone (Delete handles those).
+    if (idx < 0) return;
+    if (isDraft) standalone.splice(idx, 1);
+    else standalone[idx] = updated;
+  } else if (idx >= 0) {
+    standalone[idx] = updated;
+  } else {
+    standalone.unshift(updated);
+  }
   localStorage.setItem("devotionStandaloneNotes", JSON.stringify(standalone));
 }
 
@@ -1284,6 +1306,14 @@ function _stripNotePreview(n) {
   return (n.body || "").replace(/\n/g, " ").slice(0, 120);
 }
 
+// "Nov 20, 5:20 PM" (year only when it is not this year).
+function _noteStamp(ms) {
+  const d = new Date(ms);
+  const opts = { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" };
+  if (d.getFullYear() !== new Date().getFullYear()) opts.year = "numeric";
+  return d.toLocaleString("en-US", opts);
+}
+
 function _escHtml(str) {
   return (str || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 }
@@ -1293,6 +1323,23 @@ function initNotesApp() {
   document.getElementById("notesDetailBack")?.addEventListener("click", _closeNoteDetail);
   document.getElementById("notesNewBtn")?.addEventListener("click", _createNewNote);
   document.getElementById("notesSearch")?.addEventListener("input", e => _renderNotesList(e.target.value));
+
+  // "..." menu holding Copy + Delete (Delete keeps its confirm dialog).
+  const moreBtn = document.getElementById("notesDetailMore");
+  const menu = document.getElementById("notesDetailMenu");
+  if (moreBtn && menu) {
+    const setOpen = (open) => {
+      menu.hidden = !open;
+      moreBtn.setAttribute("aria-expanded", open ? "true" : "false");
+    };
+    moreBtn.addEventListener("click", (e) => { e.stopPropagation(); setOpen(menu.hidden); });
+    // Item handlers are assigned as .onclick elsewhere; this only closes.
+    menu.addEventListener("click", () => setOpen(false));
+    document.addEventListener("click", (e) => {
+      if (!menu.hidden && !menu.contains(e.target) && e.target !== moreBtn) setOpen(false);
+    });
+    document.getElementById("notesDetailBack")?.addEventListener("click", () => setOpen(false));
+  }
 }
 
 // ── IMMERSIVE TTS MODE ────────────────────────────────────────────────────────

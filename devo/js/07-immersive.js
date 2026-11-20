@@ -2,6 +2,10 @@
 function ttsImmersiveOpen() {
   const el = document.getElementById("ttsImmersive");
   if (!el) return;
+  // Opening full Listen replaces the mini-player.
+  const mini = document.getElementById("ttsPlayer");
+  if (mini) mini.hidden = true;
+  document.body.classList.remove("tts-mini");
 
   // Always reset reflection panel state so a fresh TTS session is clean
   const reflPanel = document.getElementById("ttsImmReflPanel");
@@ -33,7 +37,7 @@ function ttsImmersiveOpen() {
   document.getElementById("ttsImmPrevBtn").onclick = ttsPrevVerse;
   document.getElementById("ttsImmNextBtn").onclick = ttsNextVerse;
   document.getElementById("ttsImmPauseBtn").onclick = pauseResumeTTS;
-  document.getElementById("ttsImmCloseBtn").onclick = stopTTS;
+  document.getElementById("ttsImmCloseBtn").onclick = ttsImmCollapse;
 
   // Prev/next verse slots are tappable to jump
   document.getElementById("ttsImmSlotPrev").onclick = () => { if (ttsIdx > 0) ttsPrevVerse(); };
@@ -162,7 +166,7 @@ function ttsImmContextOpen(gen) {
   _loadTtsImmersiveBg(name, ch);
 
   // Close button stops TTS
-  document.getElementById("ttsImmCloseBtn").onclick = stopTTS;
+  document.getElementById("ttsImmCloseBtn").onclick = ttsImmCollapse;
 
   // Show loading screen instead of context
   const ctxPanel = document.getElementById("ttsImmContextPanel");

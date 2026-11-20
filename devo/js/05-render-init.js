@@ -21,10 +21,10 @@ const updateMetaIndicators = (key, verseContent, newCommentCount) => {
   // 1. Favorite Indicator
   const favIndicator = document.createElement("span");
   favIndicator.className = "material-icons favorite-indicator";
-  favIndicator.style.cssText = "font-size:14px; margin-right:4px;";
+  favIndicator.style.cssText = "font-size:20px;";
   favIndicator.setAttribute("data-key", key);
   favIndicator.textContent = isFav ? "favorite" : "favorite_border";
-  favIndicator.style.color = isFav ? "#c83086" : "";
+  favIndicator.style.color = isFav ? "var(--pink-ink,#F472B6)" : "";
   const verseWrap = verseContent.closest(".verse");
   if (verseWrap) verseWrap.classList.toggle("highlighted", isFav);
   favIndicator.onclick = (e) => {

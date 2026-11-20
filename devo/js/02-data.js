@@ -177,6 +177,9 @@ function updateIcon() {
   // Keep the dashboard theme button's icon in sync.
   const dashIcon = document.querySelector("#dashThemeBtn .material-symbols-outlined");
   if (dashIcon) dashIcon.innerText = next;
+  // More sheet's Theme row names the mode you are in, not the action.
+  const themeState = document.getElementById("mtThemeState");
+  if (themeState) themeState.textContent = isLightMode ? "Light" : "Dark";
 }
 
 function saveComments() {

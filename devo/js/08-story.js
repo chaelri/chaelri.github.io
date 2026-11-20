@@ -644,7 +644,7 @@ function buildScrapbookHTML(seg) {
   const footerDelay = (items.length - 1) * 0.6 + 0.8;
   const footer = `<div style="text-align:center;margin-top:28px;z-index:2;position:relative;opacity:0;animation:nodeIn 0.4s ease-out ${footerDelay}s forwards">
     <div style="width:40px;height:2px;border-radius:1px;background:rgba(255,255,255,0.08);margin:0 auto 12px"></div>
-    <div style="font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#db2777">Verses ${esc(seg.verses)}</div>
+    <div style="font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#f472b6">Verses ${esc(seg.verses)}</div>
     <div style="font-size:13px;font-weight:600;color:#6b7a94;opacity:0.5;margin-top:4px">${esc(seg.title)}</div>
   </div>`;
 
@@ -717,7 +717,7 @@ function buildTeachingHTML(seg) {
     <div class="story-label story-verse-link" onclick="openVersePeek('${esc(seg.verses)}', this)">VERSES ${esc(seg.verses)}</div>
     <div class="story-title">${esc(seg.title)}</div>
     <div class="story-quote-card">
-      <span class="material-icons" style="color:#db2777;opacity:0.5;margin-bottom:10px">format_quote</span>
+      <span class="material-icons" style="color:var(--pink-ink,#F472B6);opacity:0.5;margin-bottom:10px">format_quote</span>
       <div class="story-quote-text">${esc(quote || "")}</div>
       ${speaker ? `<div class="story-quote-attr"><span class="story-quote-speaker">— ${esc(speaker)}</span><span class="story-quote-ref" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px" onclick="openVersePeek('${esc(verseRef)}', this)">v. ${esc(verseRef)}</span></div>` : ""}
     </div>
@@ -741,7 +741,7 @@ function buildContrastHTML(seg) {
       <div class="story-vs-label">${esc(right?.label || "After")}</div>
       <div class="story-vs-text blue">${boldify(right?.text || "")}</div>
     </div>
-    ${reflection ? `<div class="story-reflection-row"><span class="material-icons" style="color:#db2777;font-size:16px;margin-top:2px">lightbulb</span><div class="story-reflection-text">${boldify(reflection)}</div></div>` : ""}
+    ${reflection ? `<div class="story-reflection-row"><span class="material-icons" style="color:var(--pink-ink,#F472B6);font-size:16px;margin-top:2px">lightbulb</span><div class="story-reflection-text">${boldify(reflection)}</div></div>` : ""}
   `;
 }
 
@@ -750,7 +750,7 @@ function buildRecapHTML({ data, book, chapter }) {
     `<div class="story-recap-row"><div class="story-recap-num">${i + 1}</div><div class="story-recap-text">${esc(p)}</div></div>`
   ).join("");
   return `
-    <span class="story-recap-bg-icon"><span class="material-icons" style="font-size:320px;color:#db2777">replay</span></span>
+    <span class="story-recap-bg-icon"><span class="material-icons" style="font-size:320px;color:var(--pink-ink,#F472B6)">replay</span></span>
     <div class="story-label">QUICK RECAP</div>
     <div class="story-title">${esc(book)} ${chapter}</div>
     <div class="story-recap-points">${points}</div>
@@ -766,12 +766,12 @@ function buildReflectHTML({ data, book, chapter }) {
     <span class="story-float-heart tl2"><span class="material-icons" style="font-size:18px">favorite</span></span>
     <span class="story-float-heart tl3"><span class="material-icons" style="font-size:26px">favorite</span></span>
     <div style="text-align:center">
-      <span class="material-icons" style="font-size:32px;color:#db2777;margin-bottom:16px">favorite</span>
+      <span class="material-icons" style="font-size:32px;color:var(--pink-ink,#F472B6);margin-bottom:16px">favorite</span>
       <div class="story-label" style="text-align:center">REFLECT</div>
       <div class="story-title" style="text-align:center">${esc(book)} ${chapter}</div>
       <div class="story-reflect-text">${esc(data.reflectionP1 || "")}</div>
       <div class="story-reflect-text" style="margin-top:16px">${esc(data.reflectionP2 || "")}</div>
-      <div class="story-reflect-closing"><span class="material-icons" style="font-size:14px;color:#db2777">auto_awesome</span> ${getReflectClosingLine()}</div>
+      <div class="story-reflect-closing"><span class="material-icons" style="font-size:14px;color:var(--pink-ink,#F472B6)">auto_awesome</span> ${getReflectClosingLine()}</div>
       <div class="story-reflect-actions">
         <button class="story-reflect-action-btn" onclick="_storyToReflect()">
           Reflect this Chapter
@@ -958,16 +958,11 @@ async function openReflectModal() {
 
   content.innerHTML = `
     <div style="position:relative;">
-      <div class="story-label">GUIDED REFLECTION</div>
       <div class="story-title">${bookName} ${chapter}</div>
       ${cleanHTML}
       <div class="reflect-actions-row">
-        <button class="devo-copy-btn" id="reflectCopyNotesBtn" type="button">
-          <span class="material-symbols-outlined">content_copy</span> Copy Notes
-        </button>
-        <button class="share-devo-btn" id="reflectShareNotesBtn" type="button">
-          <span class="material-symbols-outlined">ios_share</span> Share to Notes
-        </button>
+        <button class="share-devo-btn" id="reflectShareNotesBtn" type="button">Save to notes</button>
+        <button class="devo-copy-btn" id="reflectCopyNotesBtn" type="button">Copy</button>
       </div>
       <div class="reflect-copy-status" id="reflectCopyStatus"></div>
     </div>`;
