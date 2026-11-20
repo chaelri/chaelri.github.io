@@ -117,6 +117,10 @@ window.SYSTEM = {
         { t: "no mini label chips.", d: "no tiny uppercase pills or tags above a title or under it (\"DESIGN SYSTEM · V1\", \"UPDATED 2026-11-11\", \"14 CHAPTERS\", section kickers, status dots). they carry no information the reader needs and read as AI filler. a label stays only when the person must act on or tell things apart by it (a button, a real status in a data row, a name on a photo)." },
         { t: "one focal point.", d: "the eye knows where to start in under a second." },
         { t: "group related, separate unrelated.", d: "at least 2 spacing units between groups." },
+        { t: "posters: look at every render.", d: "audit numbers are not enough. read the image after each change, never undo what he already approved, and keep poster details at least 6% of the width from every edge." },
+        { t: "posters: check text over artwork.", d: "audit.js cannot see svg, gradients or texture behind text. run poster-check.js (margins, overflow, 32px gap to shapes) and px_contrast.py (real pixels behind each text box) on every take and every colour variant." },
+        { t: "posters: texture, not shadow; angular, not round.", d: "grain, grit, stipple and halftone on flat shapes. no glows, drop shadows or fake-3d gradients. no divider lines. not every element a circle." },
+        { t: "posters: emphasis follows meaning.", d: "the key word carries the weight (MAIN in The Main Event). caps with wide tracking (about .06em) is valid for details; long lines are centred or split in two." },
         { t: "no mid-line gaps.", d: "'taking students / to the next level', never 'taking      to the'." }
       ],
       dos: ["solid shape behind text on photos", "bold key words, regular rest", "ink on paper, light on primary or ink"],
