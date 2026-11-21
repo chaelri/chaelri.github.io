@@ -15084,3 +15084,6 @@ body.light #continue-reading .dash-continue-btn { background: none !important; b
   body:not(.light) .dashboard-grid .dash-fav-row:hover,
   body:not(.light) .dashboard-grid .dash-notes-card:hover { box-shadow: 0 0 0 8px #222b45; transform: none; }
 }
+
+/* theme switch is instant: no colour fades */
+.theme-instant, .theme-instant *, .theme-instant *::before, .theme-instant *::after { transition: none !important; animation-duration: 0s !important; }

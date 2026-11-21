@@ -188,6 +188,7 @@ Posters and art-heavy graphics get the same strictness as UI. Charlie caught all
 21. **Nothing clipped by its frame.** Check every illustration against the frame edge (film strip, border, margin) in the render, not just the page edge.
 22. **Preview controls:** hide (not disable) controls that cannot apply, e.g. Next on the last slide; never clip a selected-state ring on swatches.
 23. **Always run the checks unasked** (poster-check.js, px_contrast.py, look at the render) on every take after every change; Charlie should never have to say "run the spacing skill".
+24. **Theme (light/dark) switches are instant (Charlie, 2026-11-21).** No colour fades or animated transitions when the mode toggles: add a class (e.g. `theme-instant`) that sets `transition:none!important` on everything, flip the theme, remove the class two frames later. Never leave per-element `transition: background/color` to animate a theme swap.
 
 ## 14. Reusable pieces (copy these, Charlie likes them)
 

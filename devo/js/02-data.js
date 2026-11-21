@@ -158,7 +158,10 @@ updateIcon();
 toggleModesBtn.onclick = () => {
   isLightMode = !isLightMode;
 
+  // instant theme swap: switch off every transition for one frame
+  document.documentElement.classList.add("theme-instant");
   document.body.classList.toggle("light", isLightMode);
+  requestAnimationFrame(() => requestAnimationFrame(() => document.documentElement.classList.remove("theme-instant")));
   localStorage.setItem("isLightMode", isLightMode);
   updateIcon();
 };
