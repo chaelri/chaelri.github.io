@@ -371,12 +371,20 @@
     a.onfinish = done;
     a.oncancel = done;
   }
+  // The work runs in the next frame, not inside the observer callback: resizing the card from
+  // within its own callback makes the browser report "ResizeObserver loop completed".
+  let cardRoQueued = false;
   if (window.ResizeObserver) new ResizeObserver(() => {
-    placeNearVerse(card);
-    if (cardBusy) return;
-    const h = card.offsetHeight;
-    if (cardLastH && card.classList.contains("on") && Math.abs(h - cardLastH) > 2) smoothCardHeight(cardLastH, h);
-    else cardLastH = h;
+    if (cardRoQueued) return;
+    cardRoQueued = true;
+    requestAnimationFrame(() => {
+      cardRoQueued = false;
+      placeNearVerse(card);
+      if (cardBusy) return;
+      const h = card.offsetHeight;
+      if (cardLastH && card.classList.contains("on") && Math.abs(h - cardLastH) > 2) smoothCardHeight(cardLastH, h);
+      else cardLastH = h;
+    });
   }).observe(card);
   const panes = { context: card.querySelector('[data-pane="context"]'), ask: card.querySelector('[data-pane="ask"]') };
   let cardKey = null;
