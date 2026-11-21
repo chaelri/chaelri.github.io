@@ -1756,7 +1756,7 @@ async function loadPassage() {
             <span class="verse-num">${v.verse}</span>${formattedText}
             <span class="verse-meta-indicators" style="display:inline-flex; align-items:center; margin-left:8px; opacity:0.6;">
               <span class="material-icons favorite-indicator" style="font-size:20px; ${
-                isFav ? 'color:var(--pink-ink,#a03e6a);"' : '"'
+                isFav ? 'color:var(--pink-ink,#db2777);"' : '"'
               } data-key="${key}">${isFav ? "favorite" : "favorite_border"}</span>
             </span>
           </div>

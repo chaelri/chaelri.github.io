@@ -346,7 +346,7 @@ function _immHandleDoubleTap() {
       const wrap = favIcon.closest(".verse");
       if (wrap) wrap.classList.toggle("highlighted", isFav);
       favIcon.textContent = isFav ? "favorite" : "favorite_border";
-      favIcon.style.color = isFav ? "#a03e6a" : "";
+      favIcon.style.color = isFav ? "#db2777" : "";
     }
     // Update persistent fav badge
     const favBadge = document.getElementById("ttsImmFavBadge");

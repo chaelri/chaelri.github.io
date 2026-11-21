@@ -32,7 +32,7 @@ const _NR_CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days, same as the story cach
    never share one. God/the Lord is pinned to index 0 so He reads consistently
    across every chapter rather than shifting with cast order. */
 const _NR_SPEAKER_TONES = [
-  { bg: "rgba(160, 62, 106, 0.16)", ring: "rgba(160, 62, 106, 0.45)", ink: "#ffb3d9" },
+  { bg: "rgba(219, 39, 119, 0.16)", ring: "rgba(219, 39, 119, 0.45)", ink: "#ffb3d9" },
   { bg: "rgba(96, 165, 250, 0.15)", ring: "rgba(96, 165, 250, 0.45)", ink: "#a9cdff" },
   { bg: "rgba(52, 211, 153, 0.14)", ring: "rgba(52, 211, 153, 0.42)", ink: "#8ee9c4" },
   { bg: "rgba(251, 191, 36, 0.15)", ring: "rgba(251, 191, 36, 0.45)", ink: "#ffd98a" },
@@ -367,7 +367,7 @@ function _nrPlaceIconURL(kind) {
         r(7, 9, 2, 5, "#3a2a1a");
         break;
       default: // land: a map pin
-        r(5, 2, 6, 6, "#a03e6a"); r(4, 3, 8, 4, "#a03e6a"); r(6, 8, 4, 2, "#a03e6a"); r(7, 10, 2, 3, "#a03e6a");
+        r(5, 2, 6, 6, "#db2777"); r(4, 3, 8, 4, "#db2777"); r(6, 8, 4, 2, "#db2777"); r(7, 10, 2, 3, "#db2777");
         r(7, 4, 2, 2, "#fff");
     }
     url = cv.toDataURL("image/png");

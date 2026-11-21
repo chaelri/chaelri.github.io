@@ -24,7 +24,7 @@ const updateMetaIndicators = (key, verseContent, newCommentCount) => {
   favIndicator.style.cssText = "font-size:20px;";
   favIndicator.setAttribute("data-key", key);
   favIndicator.textContent = isFav ? "favorite" : "favorite_border";
-  favIndicator.style.color = isFav ? "var(--pink-ink,#a03e6a)" : "";
+  favIndicator.style.color = isFav ? "var(--pink-ink,#db2777)" : "";
   const verseWrap = verseContent.closest(".verse");
   if (verseWrap) verseWrap.classList.toggle("highlighted", isFav);
   favIndicator.onclick = (e) => {
@@ -38,7 +38,7 @@ const updateMetaIndicators = (key, verseContent, newCommentCount) => {
   // 2. Note dot indicator (shows when notes exist, no interaction needed — Note button handles it)
   if (newCommentCount > 0) {
     const noteDot = document.createElement("span");
-    noteDot.style.cssText = "width:6px;height:6px;border-radius:50%;background:#a03e6a;display:inline-block;margin-left:2px;flex-shrink:0;";
+    noteDot.style.cssText = "width:6px;height:6px;border-radius:50%;background:#db2777;display:inline-block;margin-left:2px;flex-shrink:0;";
     metaIndicators.appendChild(noteDot);
   }
 };

@@ -156,7 +156,7 @@ async function _imgcrBuildVerseCard(bookCode, bookName, chapter, verse) {
   let y = (1920 - totalH) / 2 + fs;
 
   ctx.font = "200 120px 'Google Sans Flex', serif";
-  ctx.fillStyle = "rgba(160, 62, 106,0.6)";
+  ctx.fillStyle = "rgba(219, 39, 119,0.6)";
   ctx.fillText("\u201C", 540, y - 50);
 
   ctx.font = font;
@@ -164,7 +164,7 @@ async function _imgcrBuildVerseCard(bookCode, bookName, chapter, verse) {
   for (const line of lines) { ctx.fillText(line, 540, y); y += lh; }
 
   ctx.font = "600 36px 'Google Sans Flex', sans-serif";
-  ctx.fillStyle = "rgba(160, 62, 106,0.8)";
+  ctx.fillStyle = "rgba(219, 39, 119,0.8)";
   ctx.fillText(refLabel, 540, y + 40);
 
   ctx.font = "400 28px 'Monsieur La Doulaise', cursive";
