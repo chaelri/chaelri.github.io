@@ -11663,3 +11663,7 @@ body.notes-open .reader-dock [data-dock="note"] { display: none !important; }
 
 /* tapped verse: underline instead of a highlight */
 body.flow-read #output .verse.verse-sel, body.light.flow-read #output .verse.verse-sel { background: none !important; text-decoration: underline; text-decoration-color: #db2777; text-decoration-thickness: 2px; text-underline-offset: 6px; text-decoration-skip-ink: none; }
+
+/* tapped verse underline: one unbroken line (text-decoration left gaps at the number and the heart) */
+body.flow-read #output .verse.verse-sel, body.light.flow-read #output .verse.verse-sel { text-decoration: none; background: linear-gradient(#db2777, #db2777) left bottom / 100% 2px no-repeat !important; padding-bottom: 3px; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+body.flow-read #output .verse.verse-sel { border-radius: 0 !important; }

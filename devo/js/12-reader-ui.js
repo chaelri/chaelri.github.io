@@ -423,6 +423,8 @@
       } else {
         icon.animate([{ transform: "scale(1)" }, { transform: "scale(.75)" }, { transform: "scale(1)" }], { duration: 240, easing: "ease-out" });
       }
+      // done: let the pop play, then drop the selection (underline + menu)
+      setTimeout(() => { if (card.hidden || !card.classList.contains("on")) hideBar(); }, on ? 650 : 320);
       return;
     }
     openVerseCard(b.dataset.vb);
