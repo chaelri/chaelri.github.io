@@ -316,7 +316,7 @@ function _wireVerseHoverPopover() {
     clearTimeout(dwellT); clearTimeout(hideT);
     cur = null;
     pop.classList.remove("show");
-    setTimeout(() => { if (!pop.classList.contains("show")) pop.hidden = true; }, 180);
+    setTimeout(() => { if (!pop.classList.contains("show")) pop.hidden = true; }, 110);
   };
   const show = (wrap, x, y) => {
     cur = wrap;
@@ -362,10 +362,10 @@ function _wireVerseHoverPopover() {
   output.addEventListener("mouseleave", (e) => {
     clearTimeout(dwellT);
     if (e.relatedTarget && pop.contains(e.relatedTarget)) return;
-    hideT = setTimeout(() => { if (!overPop) hide(); }, 250);
+    hideT = setTimeout(() => { if (!overPop) hide(); }, 90);
   });
   pop.addEventListener("mouseenter", () => { overPop = true; clearTimeout(hideT); });
-  pop.addEventListener("mouseleave", () => { overPop = false; hideT = setTimeout(hide, 200); });
+  pop.addEventListener("mouseleave", () => { overPop = false; hideT = setTimeout(hide, 60); });
   pop.addEventListener("click", (e) => {
     const b = e.target.closest("button[data-pop-act]");
     if (!b || !cur) return;

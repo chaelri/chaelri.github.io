@@ -14459,3 +14459,5 @@ body.light .verse-hover-pop::after { background: #ffffff; border-color: rgba(0,0
 .verse-hover-pop, .verse-hover-pop.above { transform-origin: calc(100% - 28px) 100%; }
 .verse-hover-pop.flip { transform-origin: calc(100% - 28px) 0; }
 .verse-hover-pop::after { left: auto; right: 28px; }
+/* leaving is quick: short fade out */
+.verse-hover-pop:not(.show) { transition: opacity .09s ease, transform .09s ease; }
