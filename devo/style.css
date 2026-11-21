@@ -15282,3 +15282,8 @@ body.light .dv .dv-fv-num { color: rgba(0,0,0,.1); }
 @media (min-width: 861px) { .dv .dv-pg h2 { font-size: 61px !important; } .dv .dv-ref { font-size: 12px !important; margin-top: 32px; } }
 .dv .dv-pg h2 { text-transform: none !important; letter-spacing: 0 !important; }
 @media (min-width: 861px) { .dv .dv-pg h2 { font-size: 38px !important; } }
+/* section headings: icon disc instead of the word */
+.dv .dv-vh { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.dv .dv-mk { width: 56px; height: 56px; border-radius: 999px; background: #db2777; display: grid; place-items: center; flex: none; }
+.dv .dv-mk .material-symbols-outlined { font-size: 32px; color: #fff !important; font-variation-settings: 'FILL' 1, 'wght' 400; }
+.dv .dv-sec > h3 { min-height: 56px; }

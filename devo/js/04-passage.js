@@ -1271,7 +1271,7 @@ async function renderDashboard() {
       <!-- NOTES -->
       <section class="dv-sec dv-notes">
         <h3>
-          <span>Notes</span>
+          <span class="dv-mk" aria-hidden="true"><span class="material-symbols-outlined">edit</span></span><span class="dv-vh">Notes</span>
           <button class="dash-notes-open-btn" onclick="openNotesApp()">View all →</button>
         </h3>
         ${(() => {
@@ -1538,7 +1538,7 @@ function _renderFavoritesContent(allFavoritePassages) {
   const showNav = total > FAV_PAGE_SIZE;
   const header = `
     <h3>
-      <span>Favorites</span>
+      <span class="dv-mk" aria-hidden="true"><span class="material-symbols-outlined">favorite</span></span><span class="dv-vh">Favorites</span>
       ${showNav ? `<div class="dash-fav-nav" aria-label="Favorites pagination">
         <button class="dash-fav-nav-btn" onclick="changeFavoritesPage(-1)" aria-label="Previous favorites"${favoritesPage <= 0 ? ' disabled' : ''}><span class="material-icons">chevron_left</span></button>
         <span class="dash-fav-nav-page">${favoritesPage + 1}/${lastPage + 1}</span>
