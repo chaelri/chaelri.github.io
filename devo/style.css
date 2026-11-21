@@ -14467,3 +14467,8 @@ body.light .reader-dock { background: #ffffff !important; }
 /* dock never sits on top of the Listen overlay or the mini player */
 .reader-dock { z-index: 800 !important; transition: bottom .2s ease; }
 body.tts-mini .reader-dock { bottom: 90px !important; }
+/* Listen is inline now: the mini player is a pill like the dock; its title is not a button */
+.tts-player { border-radius: 999px !important; }
+#ttsPassage { pointer-events: none; cursor: default; }
+/* the word being read: a pink square, like before */
+.tts-word-active { background: #db2777 !important; color: #fff !important; padding: 2px 4px !important; margin: 0 -4px !important; border-radius: 4px !important; }

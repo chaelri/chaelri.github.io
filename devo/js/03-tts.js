@@ -95,13 +95,39 @@ function _injectWordSpans(item) {
   const el = item.el?.querySelector(".verse-content");
   if (!el) return;
   item._originalHTML = el.innerHTML;
-  // Edge timings include any chapter-title prefix on v1; skip those tokens
-  // so the rendered verse-content stays clean (no "Genesis 1" prepended).
-  const prefix = item.prefixWordCount || 0;
-  const visible = item.words.slice(prefix);
-  el.innerHTML = visible.map((w, i) =>
-    `<span class="tts-word" data-idx="${i}">${w}</span>`
-  ).join(" ");
+  // Wrap each word of the ORIGINAL text in place, so the verse number, quote
+  // formatting and punctuation stay exactly as rendered (the old version rebuilt
+  // the verse from Edge's tokens and lost all of that).
+  const skip = ".verse-num, button, [class*='icon'], [class*='heart'], .tts-word";
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, {
+    acceptNode: (n) => (!n.textContent.trim() || n.parentElement.closest(skip)) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT,
+  });
+  const nodes = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+  let idx = 0;
+  const orig = [];
+  nodes.forEach((n) => {
+    const frag = document.createDocumentFragment();
+    n.textContent.split(/(\s+)/).forEach((part) => {
+      if (!part) return;
+      if (/^\s+$/.test(part)) { frag.appendChild(document.createTextNode(part)); return; }
+      const sp = document.createElement("span");
+      sp.className = "tts-word";
+      sp.dataset.idx = String(idx++);
+      sp.textContent = part;
+      orig.push(part);
+      frag.appendChild(sp);
+    });
+    n.parentNode.replaceChild(frag, n);
+  });
+  // Where does the verse's own first word start inside Edge's token list?
+  // (Verse 1 is spoken with a "Book Chapter." lead-in that is not shown.)
+  const norm = (w) => String(w || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  let off = item.prefixWordCount || 0;
+  for (let k = 0; k < Math.min(10, item.words.length); k++) {
+    if (norm(item.words[k]) === norm(orig[0]) && (orig.length < 2 || norm(item.words[k + 1]) === norm(orig[1]))) { off = k; break; }
+  }
+  item._hlOffset = off;
 }
 
 function _restoreVerseText(item) {
@@ -183,8 +209,9 @@ function _startWordHighlight(audio, item) {
       if (el) {
         // .verse-content spans are rendered without the prefix words, so
         // index them by displayIdx (verse-relative), not wi (synth-side).
+        const mainIdx = wi >= 0 ? wi - (item._hlOffset ?? prefix) : -1;
         el.querySelectorAll(".tts-word").forEach((s, i) =>
-          s.classList.toggle("tts-word-active", i === displayIdx)
+          s.classList.toggle("tts-word-active", i === mainIdx)
         );
       }
       if (immEl) {
@@ -571,6 +598,18 @@ function ttsBuildQueue() {
   }));
 }
 
+// Listen plays right in the passage: verses highlight in place and the mini
+// player bar shows prev / pause / next / close. (The full-screen Listen view
+// and its intro screen were removed.)
+function _ttsInlineStart(gen) {
+  if (gen !== ttsGen) return;
+  const player = document.getElementById("ttsPlayer");
+  if (player) player.hidden = false;
+  document.body.classList.add("tts-mini");
+  _ttsMiniUpdate();
+  ttsPlayAt(0, gen);
+}
+
 async function playChapter() {
   if (!ttsGetOrPromptKey()) return;
 
@@ -620,8 +659,8 @@ async function playChapter() {
   // Lock-screen controls + metadata so iOS doesn't kill audio on screen lock.
   _setupMediaSession();
 
-  // Show context intro screen — user taps "Start Reading" to begin playback
-  ttsImmContextOpen(gen);
+  // No full-screen player: play in place with the mini player at the bottom.
+  _ttsInlineStart(gen);
 }
 
 // Canvas-mode equivalent of playChapter: same queue + synth pipeline, but
@@ -946,7 +985,7 @@ function ttsCycleRate() {
 (() => {
   const b = document.getElementById("ttsImmSpeedBtn");
   if (b) { b.textContent = _ttsRateLabel(); b.onclick = ttsCycleRate; }
-  document.getElementById("ttsPassage")?.addEventListener("click", ttsImmExpand);
+  
 })();
 
 function _ttsFmt(sec) {
@@ -1075,7 +1114,10 @@ function ttsFinish() {
     if (_cmTtsAutoAdvance) _ttsCanvasAutoAdvance();
     return;
   }
-  ttsShowContinuePrompt();
+  // Finished: keep the mini player on screen saying "Chapter complete"; the user closes it.
+  const _mp = document.getElementById("ttsPlayer"); if (_mp) _mp.hidden = false;
+  document.body.classList.add("tts-mini");
+  _ttsMiniUpdate();
 }
 
 function ttsShowContinuePrompt() {
