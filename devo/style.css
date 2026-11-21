@@ -15297,3 +15297,5 @@ body.light .dv .dv-fv-num { color: rgba(0,0,0,.1); }
   .dv .dash-fav-list.dv-fv-strip { contain: inline-size !important; }
   .dv, .dv-mid, .dv-rest, .dv-sec, .dv-book, #dashFavoritesContent { min-width: 0 !important; max-width: 100% !important; }
 }
+/* phone: #output has its own padding, so width:100% must be border-box (this was pushing the right edge off-screen) */
+@media (max-width: 860px) { #output:has(.dv), main:has(.dv) { box-sizing: border-box !important; } }
