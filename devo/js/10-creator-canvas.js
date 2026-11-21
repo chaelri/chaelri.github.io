@@ -2189,8 +2189,8 @@ async function _imgcrShare() {
     // view so the user lands on the chapters they were just reading.
     if (expandedBook) {
       requestAnimationFrame(() => {
-        const wrap = bookList.querySelector(`.bc-book[data-code="${expandedBook}"]`);
-        wrap?.scrollIntoView({ block: "start", behavior: "auto" });
+        const tile = bookList.querySelector(`.bc-tile[data-code="${expandedBook}"]`);
+        tile?.scrollIntoView({ block: "center", behavior: "auto" });
       });
     }
     // Only auto-focus the search input on devices where summoning a soft
@@ -2224,6 +2224,46 @@ async function _imgcrShare() {
     });
   }
 
+  // Book tiles grouped by section; book order index → section label.
+  const SECTIONS = [
+    [0, "Law"], [5, "History"], [17, "Poetry & Wisdom"], [22, "Major Prophets"], [27, "Minor Prophets"],
+    [39, "Gospels"], [43, "History"], [44, "Paul's Letters"], [57, "General Letters"], [65, "Prophecy"],
+  ];
+  const ABBR = { "Song of Solomon": "Song", "Song of Songs": "Song", Judges: "Jdg", Philippians: "Php", Philemon: "Phm", Ezekiel: "Ezk", Habakkuk: "Hab", Zephaniah: "Zep", Psalms: "Psa", Mark: "Mrk", John: "Jhn" };
+  function abbr(name) {
+    if (ABBR[name]) return ABBR[name];
+    const m = name.match(/^(\d)\s+(\w{2})/);
+    return m ? `${m[1]} ${m[2]}` : name.slice(0, 3);
+  }
+  function sectionOf(code) {
+    const i = BOOK_ORDER.indexOf(code);
+    let label = "";
+    for (const [start, l] of SECTIONS) if (i >= start) label = l;
+    return label;
+  }
+
+  function chapterGrid(code, current, curCh) {
+    const box = document.createElement("div");
+    box.className = "bc-tile-chapters";
+    const grid = document.createElement("div");
+    grid.className = "bc-chapter-grid";
+    const n = META[code]?.chapters?.length || 1;
+    const activeChapter = (code === current) ? curCh : 0;
+    for (let i = 1; i <= n; i++) {
+      const cell = document.createElement("button");
+      cell.type = "button";
+      cell.className = "bc-chapter-cell" + (i === activeChapter ? " active" : "");
+      cell.textContent = i;
+      cell.addEventListener("click", (e) => {
+        e.stopPropagation();
+        selectBookAndChapter(code, i);
+      });
+      grid.appendChild(cell);
+    }
+    box.appendChild(grid);
+    return box;
+  }
+
   function renderBookList() {
     bookList.innerHTML = "";
     const list = searchTerm
@@ -2235,45 +2275,34 @@ async function _imgcrShare() {
     }
     const current = currentBookCode();
     const curCh = currentChapterNum();
+    let tiles = null, lastSection = null;
     for (const code of list) {
-      const wrap = document.createElement("div");
-      wrap.className = "bc-book";
-      wrap.dataset.code = code;
-
-      const row = document.createElement("div");
-      row.className = "bc-book-row"
+      const section = sectionOf(code);
+      if (section !== lastSection || !tiles) {
+        lastSection = section;
+        const label = document.createElement("div");
+        label.className = "bc-group-label";
+        label.textContent = section;
+        tiles = document.createElement("div");
+        tiles.className = "bc-tiles";
+        bookList.append(label, tiles);
+      }
+      const name = META[code].name;
+      const tile = document.createElement("button");
+      tile.type = "button";
+      tile.className = "bc-tile"
         + (code === current ? " active" : "")
         + (code === expandedBook ? " expanded" : "");
-      row.innerHTML = `
-        <span class="bc-book-name">${META[code].name}</span>
-        <span class="bc-book-chapters">${META[code].chapters.length} chapters</span>
+      tile.dataset.code = code;
+      tile.setAttribute("aria-expanded", code === expandedBook ? "true" : "false");
+      tile.innerHTML = `
+        <span class="bc-tile-ch">${META[code].chapters.length}</span>
+        <span class="bc-tile-ab">${abbr(name)}</span>
+        <span class="bc-tile-name">${name}</span>
       `;
-      row.addEventListener("click", () => toggleBookExpansion(code));
-      wrap.appendChild(row);
-
-      if (code === expandedBook) {
-        const detail = document.createElement("div");
-        detail.className = "bc-book-detail";
-        const grid = document.createElement("div");
-        grid.className = "bc-chapter-grid";
-        const n = META[code]?.chapters?.length || 1;
-        const activeChapter = (code === current) ? curCh : 0;
-        for (let i = 1; i <= n; i++) {
-          const cell = document.createElement("button");
-          cell.type = "button";
-          cell.className = "bc-chapter-cell" + (i === activeChapter ? " active" : "");
-          cell.textContent = i;
-          cell.addEventListener("click", (e) => {
-            e.stopPropagation();
-            selectBookAndChapter(code, i);
-          });
-          grid.appendChild(cell);
-        }
-        detail.appendChild(grid);
-        wrap.appendChild(detail);
-      }
-
-      bookList.appendChild(wrap);
+      tile.addEventListener("click", () => toggleBookExpansion(code));
+      tiles.appendChild(tile);
+      if (code === expandedBook) tiles.appendChild(chapterGrid(code, current, curCh));
     }
   }
 
@@ -2281,10 +2310,9 @@ async function _imgcrShare() {
     expandedBook = (expandedBook === code) ? null : code;
     renderBookList();
     if (expandedBook) {
-      // Keep the just-tapped row + its newly-revealed chapter grid in view.
+      // Keep the just-tapped tile + its newly-revealed chapter grid in view.
       requestAnimationFrame(() => {
-        const wrap = bookList.querySelector(`.bc-book[data-code="${expandedBook}"]`);
-        wrap?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        bookList.querySelector(".bc-tile-chapters")?.scrollIntoView({ block: "nearest", behavior: "smooth" });
       });
     }
   }

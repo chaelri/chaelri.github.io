@@ -14623,3 +14623,46 @@ body.tts-sheet-open .scroll-top-btn { opacity: 0 !important; pointer-events: non
 .refl-load { width: 100%; box-sizing: border-box; padding: 24px; }
 /* reflection notes: plain, no ruled lines */
 #aiReflection textarea, #reflectContent textarea, body:not(.light) #aiReflection textarea, body:not(.light) #reflectContent textarea, .light #aiReflection textarea, .light #reflectContent textarea, body.light #aiReflection textarea { background: transparent !important; }
+
+/* ===== Book picker: section-grouped book tiles; centred window on desktop ===== */
+.bc-sheet-title { font-size: 18px; font-weight: 800; }
+.bc-book-list { padding: 0 18px max(24px, env(safe-area-inset-bottom, 0px)); }
+.bc-group-label { padding: 16px 0 8px; font-size: 11px; line-height: 16px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: rgba(255,255,255,.5); }
+.bc-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-flow: row dense; gap: 8px; }
+.bc-tile { position: relative; display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start; height: 80px; min-width: 0; padding: 12px !important; border: 0 !important; border-radius: 14px !important; background: #1b2238 !important; color: #e6edf7; font-family: inherit; text-align: left; box-shadow: none; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+.bc-tile:hover { background: #222b45 !important; }
+.bc-tile-ab { font-size: 20px; line-height: 24px; font-weight: 800; }
+.bc-tile-name { max-width: 100%; font-size: 12px; line-height: 16px; font-weight: 600; color: rgba(255,255,255,.55); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bc-tile-ch { position: absolute; top: 12px; right: 12px; font-size: 11px; line-height: 16px; font-weight: 700; color: rgba(255,255,255,.5); }
+.bc-tile.expanded { background: #2b3554 !important; }
+.bc-tile.active { background: #2b3554 !important; box-shadow: inset 0 0 0 2px #db2777; }
+.bc-tile.active .bc-tile-ab { color: #db2777; }
+.bc-tile-chapters { grid-column: 1 / -1; padding: 4px 0 8px; animation: bcChapIn .32s cubic-bezier(.22,1,.36,1) both; }
+@keyframes bcChapIn { from { opacity: 0; transform: translateY(-6px); } }
+.bc-tile-chapters .bc-chapter-grid { padding: 0; overflow: visible; grid-template-columns: repeat(auto-fill, minmax(48px, 1fr)); gap: 8px; }
+.bc-tile-chapters .bc-chapter-cell { aspect-ratio: auto; height: 44px; padding: 0 !important; border: 0 !important; border-radius: 10px; background: #1b2238 !important; color: #e6edf7; font-size: 14px; font-weight: 800; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+.bc-tile-chapters .bc-chapter-cell:hover { background: #222b45 !important; }
+.bc-tile-chapters .bc-chapter-cell.active { background: #db2777 !important; color: #fff; box-shadow: 0 6px 20px rgba(219,39,119,.35); }
+
+.bc-current-passage, body:not(.light) .bc-current-passage { position: relative; padding: 12px 72px 12px 16px !important; gap: 4px; }
+.bc-current-ref, body:not(.light) .bc-current-ref { font-size: 26px; line-height: 32px; letter-spacing: 0; text-transform: none; }
+.bc-current-chev { position: absolute; right: 12px; top: 50%; margin: -22px 0 0 !important; width: 44px; height: 44px; border-radius: 50%; background: #db2777; color: #fff !important; display: grid !important; place-items: center; font-size: 22px !important; box-shadow: 0 6px 20px rgba(219,39,119,.35); }
+
+body.light .bc-group-label, body.light .bc-tile-name, body.light .bc-tile-ch { color: #6b7290; }
+body.light .bc-tile, body.light .bc-tile-chapters .bc-chapter-cell { background: #f3f4fa !important; color: #18203a; }
+body.light .bc-tile:hover, body.light .bc-tile-chapters .bc-chapter-cell:hover, body.light .bc-tile.expanded, body.light .bc-tile.active { background: #e6e8f4 !important; }
+body.light .bc-tile.active { box-shadow: inset 0 0 0 2px #be185d; }
+body.light .bc-tile.active .bc-tile-ab { color: #be185d; }
+body.light .bc-tile-chapters .bc-chapter-cell.active { background: #be185d !important; color: #fff; }
+body.light .bc-current-chev { background: #be185d; }
+
+@media (min-width: 641px) {
+  .bc-sheet { align-items: center; padding: 32px; }
+  .bc-sheet-panel, body:not(.light) .bc-sheet-panel { max-width: 760px; max-height: min(800px, calc(100dvh - 64px)); border-radius: 20px; box-shadow: 0 24px 64px rgba(0,0,0,.55); animation: bcPop .32s cubic-bezier(.22,1,.36,1) both; }
+  .bc-book-list { padding: 0 24px 24px; }
+  .bc-tiles { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+}
+@keyframes bcPop { from { opacity: 0; transform: translateY(12px) scale(.98); } }
+@media (prefers-reduced-motion: reduce) { .bc-tile-chapters, .bc-sheet-panel { animation: none !important; } }
+/* the book picker lives in the header's stacking context too, so the dock would float over it */
+body:has(.bc-sheet:not([hidden])) .reader-dock, body:has(.bc-sheet:not([hidden])) .tts-chip { display: none !important; }
