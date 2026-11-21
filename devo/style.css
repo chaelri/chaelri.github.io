@@ -11625,11 +11625,6 @@ body.flow-read.flow-justify #output .verse-content, body.flow-read.flow-justify 
   body.notes-full .notes-grab { display: none; }
   body.notes-dragging .notes-sheet { transition: none !important; }
 
-  /* title bar: always pinned, same width as the column */
-  .compact-bar { left: calc(50% + var(--shift, 0px)); width: min(100%, var(--col)); padding-left: 0; padding-right: 0; transition: transform .28s cubic-bezier(.22,1,.36,1), left .38s cubic-bezier(.22,1,.36,1); }
-  body.compact-on #topActions .top-actions-reading, body.compact-on #storyReflectRow { display: none !important; }
-  body.compact-on .layout:not(.layout-unset) { padding-top: 64px; }
-
   /* tap menu and card open in the margin beside the verse */
   .verse-bar, .verse-card { left: 0; right: auto; bottom: auto; top: 0; margin: 0; max-width: none; transform: translateX(-8px) scale(.97); }
   .verse-bar.on, .verse-card.on { transform: none; }

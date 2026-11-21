@@ -185,8 +185,8 @@
   });
   let cbOn = false;
   function syncCompact() {
-    // Phones: appears once you scroll. Desktop: the title bar is always pinned.
-    const want = isReading() && !passageTitleEl.hidden && (isDesk() || layout.scrollTop > 48) && !body.classList.contains("notes-full");
+    // Phones only: appears once you scroll. Desktop keeps the normal header (no sticky).
+    const want = isReading() && !passageTitleEl.hidden && !isDesk() && layout.scrollTop > 48 && !body.classList.contains("notes-full");
     if (want === cbOn) return;
     cbOn = want;
     body.classList.toggle("compact-on", want);
