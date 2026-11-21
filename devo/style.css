@@ -14608,3 +14608,10 @@ body.tts-mini.tts-sheet-open .tts-chip { display: inline-flex; opacity: 0; point
 body.tts-sheet-open .reader-dock { opacity: 0; pointer-events: none; }
 /* the verse being read keeps the same edges as the verses around it */
 #output .verse.tts-active .verse-content { padding: 0 !important; margin: 0 !important; }
+/* reflection loading: just the gold stars, about the height of the finished card */
+.refl-load { display: grid; place-content: center; min-height: 300px; border-radius: 14px; background: rgba(255,255,255,.03); }
+body.light .refl-load { background: rgba(0,0,0,.03); }
+.refl-load .sparkle-loader { padding: 0; gap: 8px; }
+.refl-load .sparkle-text { font-size: 14px; font-weight: 600; color: rgba(255,255,255,.55); }
+body.light .refl-load .sparkle-text { color: #6b6a66; }
+#aiReflection:has(.refl-load) .ai-refl-retry { display: none !important; }

@@ -2757,19 +2757,8 @@ async function renderAIReflectionQuestions({ book, chapter, versesText }) {
   mount.classList.add("ai-fade-in");
   _ensureReflectionRetryUI(mount);
 
-  // Skeleton of the one card that's coming — a line from the chapter, the
-  // question, then the notes box.
-  mount.innerHTML = `
-  <div class="refl-skel refl-skel--one" aria-hidden="true">
-    <div class="refl-skel-item">
-      <div class="refl-skel-q">
-        <span class="refl-skel-short"></span><span></span><span class="refl-skel-short"></span>
-      </div>
-      <div class="refl-skel-box"></div>
-    </div>
-  </div>
-  <div class="refl-skel-status">${sparkleLoaderHTML("Finding something to reflect on…")}</div>
-`;
+  // Just the gold stars, in a block about the height of the finished card so nothing jumps.
+  mount.innerHTML = `<div class="refl-load" role="status">${sparkleLoaderHTML("Finding something to reflect on")}</div>`;
 
   try {
     const r = await _fetchUnifiedReflection({ book, chapter, versesText, avoid: _getRecentReflQs() });
