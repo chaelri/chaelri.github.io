@@ -27,13 +27,12 @@
     <div class="notes-head">
       <div class="notes-title" id="notesTitle"></div>
       <div class="notes-acts">
-        <button type="button" class="notes-ib" id="notesFull" aria-label="Fullscreen">${ic("open_in_full")}</button>
         <button type="button" class="notes-ib" id="notesClose" aria-label="Close notes">${ic("close")}</button>
       </div>
     </div>
     <textarea id="notesText" class="notes-text" placeholder="Write about this chapter…" spellcheck="true"></textarea>`;
   body.appendChild(sheet);
-  const ta = $("notesText"), titleEl = $("notesTitle"), fullBtn = $("notesFull");
+  const ta = $("notesText"), titleEl = $("notesTitle");
 
   let curBook = null, curCh = null, saveT = null;
   const chapterLabel = () => `${BIBLE_META[bookEl.value]?.name || bookEl.value} ${chapterEl.value}`;
@@ -83,17 +82,11 @@
   }
   function closeNotes() {
     flushNote();
-    body.classList.remove("notes-open", "notes-full");
-    fullBtn.innerHTML = ic("open_in_full");
+    body.classList.remove("notes-open");
     document.querySelector('#readerDock [data-dock="note"]')?.classList.remove("on");
     ta.blur();
     setTimeout(() => { if (!body.classList.contains("notes-open")) sheet.hidden = true; }, 360);
   }
-  fullBtn.onclick = () => {
-    const full = body.classList.toggle("notes-full");
-    fullBtn.innerHTML = ic(full ? "close_fullscreen" : "open_in_full");
-    fullBtn.setAttribute("aria-label", full ? "Exit fullscreen" : "Fullscreen");
-  };
   $("notesClose").onclick = closeNotes;
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && body.classList.contains("notes-open") && !archiveOpen()) closeNotes(); });
   document.addEventListener("click", (e) => {
@@ -106,7 +99,6 @@
     const grab = $("notesGrab");
     let dragging = false;
     grab.addEventListener("pointerdown", (e) => {
-      if (body.classList.contains("notes-full")) return;
       dragging = true;
       grab.setPointerCapture(e.pointerId);
       body.classList.add("notes-dragging");
@@ -179,7 +171,7 @@
   let cbOn = false;
   function syncCompact() {
     // Phones only: appears once you scroll. Desktop keeps the normal header (no sticky).
-    const want = isReading() && !passageTitleEl.hidden && !isDesk() && layout.scrollTop > 48 && !body.classList.contains("notes-full");
+    const want = isReading() && !passageTitleEl.hidden && !isDesk() && layout.scrollTop > 48;
     if (want === cbOn) return;
     cbOn = want;
     body.classList.toggle("compact-on", want);

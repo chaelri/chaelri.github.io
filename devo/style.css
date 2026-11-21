@@ -11473,7 +11473,6 @@ body.tts-mini .reader-dock, body.tts-mini .reader-dock { bottom: 24px !important
 @media (max-width: 1023px) { .tts-chip { bottom: 16px !important; } }
 .bible { padding-bottom: 168px; }
 body.notes-open .reader-dock { bottom: calc(var(--notes-h, 50dvh) + var(--kb, 0px) + 16px) !important; }
-body.notes-full .reader-dock { display: none !important; }
 body.verse-card-open .reader-dock { z-index: 800; }
 
 /* Notes sheet: 50/50 split, scripture stays on top */
@@ -11481,8 +11480,6 @@ body.verse-card-open .reader-dock { z-index: 800; }
 .notes-sheet[hidden] { display: none; }
 body.notes-open .notes-sheet { transform: translate(-50%, 0); }
 body.notes-dragging .notes-sheet, body.notes-dragging .layout { transition: none !important; }
-body.notes-full .notes-sheet { height: 100dvh; border-radius: 0; padding-top: env(safe-area-inset-top, 0px); }
-body.notes-full .notes-grab { display: none; }
 .notes-grab { flex: none; height: 32px; display: grid; place-items: center; cursor: ns-resize; touch-action: none; }
 .notes-grab i { width: 40px; height: 4px; border-radius: 2px; background: #2b3554; }
 .notes-head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-bottom: 8px; }
@@ -11501,8 +11498,8 @@ body.light .notes-text { background: #f3f4fa; color: #16130f; }
 body.light .notes-text::placeholder { color: rgba(22,19,15,.5); }
 /* the scripture is the top half: the reader shrinks to make room */
 .layout { transition: height .38s cubic-bezier(.22,1,.36,1); }
-body.notes-open:not(.notes-full) .layout { height: calc(100dvh - var(--notes-h, 50dvh) - var(--kb, 0px)); margin-top: 0; }
-body.notes-open:not(.notes-full) .read-progress-bar { display: none; }
+body.notes-open .layout { height: calc(100dvh - var(--notes-h, 50dvh) - var(--kb, 0px)); margin-top: 0; }
+body.notes-open .read-progress-bar { display: none; }
 
 /* Compact header: one slim row once you scroll */
 .compact-bar { position: fixed; top: 0; left: 50%; z-index: 700; width: min(100%, 840px); display: flex; align-items: center; gap: 8px; padding: 8px 16px; box-sizing: border-box; background: #0b1220; transform: translate(-50%, -100%); transition: transform .28s cubic-bezier(.22,1,.36,1); }
@@ -11604,9 +11601,9 @@ body.flow-read.flow-justify #output .verse-content, body.flow-read.flow-justify 
 }
 @media (min-width: 1024px) {
   body { --col: 640px; --shift: 0px; }
-  body.notes-open:not(.notes-full) { --shift: calc(var(--notes-w, 400px) / -2); }
+  body.notes-open { --shift: calc(var(--notes-w, 400px) / -2); }
   .layout { transition: transform .38s cubic-bezier(.22,1,.36,1); }
-  body.notes-open:not(.notes-full) .layout { height: 100dvh; transform: translateX(var(--shift)); }
+  body.notes-open .layout { height: 100dvh; transform: translateX(var(--shift)); }
 
   /* dock hugs the column */
   .reader-dock { left: calc(50% + var(--shift, 0px) + var(--col) / 2 + 16px) !important; right: auto !important; transition: left .38s cubic-bezier(.22,1,.36,1); }
@@ -11615,11 +11612,9 @@ body.flow-read.flow-justify #output .verse-content, body.flow-read.flow-justify 
   /* notes: right drawer, about a third */
   .notes-sheet { left: auto; right: 0; top: 0; bottom: 0; width: var(--notes-w, 400px); height: auto; transform: translateX(100%); border-radius: 0; padding: 16px 16px 16px; transition: transform .38s cubic-bezier(.22,1,.36,1), width .3s; }
   body.notes-open .notes-sheet { transform: none; }
-  body.notes-full .notes-sheet { width: 100vw; height: auto; }
-  .notes-grab { position: absolute; left: -8px; top: 0; bottom: 0; width: 16px; height: auto; cursor: ew-resize; }
+    .notes-grab { position: absolute; left: -8px; top: 0; bottom: 0; width: 16px; height: auto; cursor: ew-resize; }
   .notes-grab i { width: 4px; height: 40px; }
-  body.notes-full .notes-grab { display: none; }
-  body.notes-dragging .notes-sheet { transition: none !important; }
+    body.notes-dragging .notes-sheet { transition: none !important; }
 
   /* tap menu and card open in the margin beside the verse */
   .verse-bar, .verse-card { left: 0; right: auto; bottom: auto; top: 0; margin: 0; max-width: none; transform: translateX(-8px) scale(.97); }
@@ -11645,8 +11640,6 @@ body.flow-read.flow-justify #output > :not(.verse), body.flow-read.flow-justify 
 .notes-text, body.light .notes-text { background: transparent !important; padding: 8px 0; border-radius: 0; }
 .ar-card.ar-static { cursor: default; }
 
-/* desktop / landscape: the drawer is already roomy, no fullscreen toggle */
-@media (min-width: 1024px) { #notesFull { display: none !important; } }
 
 /* favorited verse (flowing): a small filled heart at the end, no wash */
 body.flow-read #output .verse.highlighted .verse-content::after { content: "favorite"; font-family: "Material Icons"; font-weight: 400; font-style: normal; font-size: 16px; line-height: 1; letter-spacing: normal; text-transform: none; color: #db2777; margin-left: 4px; vertical-align: -2px; display: inline-block; }
