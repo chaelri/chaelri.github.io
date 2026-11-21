@@ -15087,3 +15087,101 @@ body.light #continue-reading .dash-continue-btn { background: none !important; b
 
 /* theme switch is instant: no colour fades */
 .theme-instant, .theme-instant *, .theme-instant *::before, .theme-instant *::after { transition: none !important; animation-duration: 0s !important; }
+
+/* ===== Dashboard revamp (2026-11-21): open-book Continue, tiles, favorites, notes timeline ===== */
+.dv { --dv-card: #1b2238; --dv-ink: #e6edf7; --dv-mute: #a9b0c0; --dv-line: rgba(255,255,255,.08); --dv-bg: #0b1220;
+  --dv-paper: #efe7d8; --dv-paper-ink: #1b1712; --dv-serif: "Editors Note", Georgia, serif; position: relative; z-index: 1; }
+body.light .dv { --dv-card: #ffffff; --dv-ink: #16130f; --dv-mute: #6b6a66; --dv-line: rgba(0,0,0,.1); --dv-bg: #faf9f6; }
+
+/* greeting */
+.dv .dash-greeting { margin: 24px 0 0 !important; padding: 0 !important; background: none !important; border: 0 !important; box-shadow: none !important; }
+.dv .dash-greeting-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.dv h1.dash-greeting-text { font: italic 38px/1 var(--dv-serif) !important; letter-spacing: -.5px; margin: 0 !important; color: var(--dv-ink) !important; animation: none !important; text-shadow: none !important; background: none !important; -webkit-text-fill-color: currentColor !important; }
+.dv h1.dash-greeting-text em { color: #db2777; font-style: italic; }
+.dv .dash-greeting-msg { margin-top: 16px; font-size: 16px; line-height: 1.4; color: var(--dv-mute) !important; max-width: 44ch; }
+@media (min-width: 1024px) { .dv h1.dash-greeting-text { font-size: 61px !important; letter-spacing: -1px; } .dv .dash-greeting { margin-top: 40px !important; } }
+
+/* book + tiles */
+.dv-mid { display: grid; grid-template-columns: 1fr; gap: 16px; margin-top: 24px; align-items: stretch; }
+.dv-mid #continue-reading { margin: 0 !important; padding: 0 !important; background: none !important; border: 0 !important; box-shadow: none !important; }
+.dv-book { position: relative; display: grid; grid-template-columns: 1fr; height: 100%; border-radius: 21px; overflow: hidden; background: var(--dv-paper); color: var(--dv-paper-ink); }
+.dv-pg { position: relative; padding: 32px 24px; }
+.dv-pg + .dv-pg { border-top: 2px solid rgba(27,23,18,.12); display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 24px; }
+.dv-ribbon { position: absolute; left: 24px; top: 0; width: 32px; height: 88px; background: #db2777; clip-path: polygon(0 0,100% 0,100% 100%,50% 76%,0 100%); z-index: 1; }
+.dv-ref { margin-top: 56px; font: italic 24px/1 var(--dv-serif); text-transform: uppercase; color: #db2777; }
+.dv-pg h2 { margin: 16px 0 0; font: italic 38px/1.1 var(--dv-serif); color: var(--dv-paper-ink); position: relative; z-index: 1; }
+.dv-num { position: absolute; right: 16px; bottom: 0; font: italic 120px/.8 var(--dv-serif); color: rgba(219,39,119,.18); pointer-events: none; }
+.dv-book .dash-continue-recap { margin: 0 !important; padding: 0 !important; color: #4a4339 !important; font: 400 16px/1.4 "Nunito", sans-serif !important; opacity: 1 !important; max-width: 34ch; -webkit-line-clamp: unset !important; }
+.dv-book .dash-continue-recap:empty { display: none; }
+.dv-go { height: 48px; padding: 0 24px; border-radius: 999px; border: 0; background: #db2777; color: #fff; font: 800 16px "Nunito", sans-serif; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+.dv-go .material-symbols-outlined { font-size: 24px; color: #fff !important; }
+.dv-go:focus-visible, .dv .dash-journal-link:focus-visible { outline: 3px solid #db2777; outline-offset: 2px; }
+
+.dv .dash-journal-row { display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 1fr; gap: 8px; margin: 0 !important; padding: 0 !important; }
+.dv .dash-journal-link { position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start; gap: 16px; text-align: left;
+  min-height: 104px !important; padding: 16px !important; border-radius: 21px !important; border: 0 !important; background: var(--dv-card) !important; box-shadow: none !important; opacity: 1 !important; color: var(--dv-ink) !important; cursor: pointer; }
+.dv .dash-journal-link .material-symbols-outlined { font-size: 32px !important; color: #db2777 !important; }
+.dv .dash-journal-link .dv-tl { font: 800 15px "Nunito", sans-serif; }
+.dv .dash-journal-link i { position: absolute; right: -8px; top: -24px; font: italic 99px/1 var(--dv-serif); color: rgba(219,39,119,.14); pointer-events: none; }
+.dv .dash-journal-count { position: absolute; right: 16px; bottom: 16px; font: 800 15px "Nunito", sans-serif; color: var(--dv-mute); }
+.dv .dash-journal-count:empty { display: none; }
+
+@media (min-width: 861px) {
+  .dv-mid { grid-template-columns: 1.6fr 1fr; gap: 24px; margin-top: 32px; }
+  .dv-book { grid-template-columns: 1fr 1fr; }
+  .dv-pg { padding: 48px; min-height: 320px; }
+  .dv-pg + .dv-pg { border-top: 0; border-left: 2px solid rgba(27,23,18,.12); background: linear-gradient(90deg, rgba(27,23,18,.06), transparent 40px); }
+  .dv-ribbon { left: 48px; }
+  .dv-num { font-size: 240px; right: 32px; bottom: 16px; }
+  .dv .dash-journal-row { grid-template-columns: 1fr; gap: 16px; }
+}
+.dv-mid:has(#continue-reading.hidden) { grid-template-columns: 1fr; }
+.dv-mid #continue-reading.hidden { display: none; }
+
+/* sections */
+.dv-rest { display: block; }
+.dv-sec { margin: 48px 0 0 !important; padding: 0 !important; background: none !important; border: 0 !important; box-shadow: none !important; }
+.dv-sec > h3, .dv-sec h3 { display: flex !important; justify-content: space-between; align-items: center; margin: 0 0 24px !important; font: italic 24px/1 var(--dv-serif) !important; color: var(--dv-ink) !important; text-transform: none !important; letter-spacing: 0 !important; }
+.dv-sec h3 > span { font: italic 24px/1 var(--dv-serif); }
+@media (min-width: 861px) { .dv-sec { margin-top: 64px !important; } .dv-sec h3, .dv-sec h3 > span { font-size: 38px !important; } }
+.dv .dash-fav-nav { display: flex; align-items: center; gap: 8px; }
+.dv .dash-fav-nav-page { font: 400 15px "Nunito", sans-serif; color: var(--dv-mute); }
+.dv .dash-fav-nav-btn { width: 44px; height: 44px; border-radius: 999px; border: 0; background: var(--dv-card); color: var(--dv-ink); display: grid; place-items: center; }
+.dv .dash-fav-nav-btn:disabled { opacity: .4; }
+.dv .dash-notes-open-btn { color: var(--dv-mute) !important; }
+
+/* favorites: one big quote + small cards */
+.dv .dash-fav-list { display: grid; grid-template-columns: 1fr; gap: 16px; margin: 0; padding: 0; }
+.dv .dash-fav-row { position: relative; overflow: hidden; background: var(--dv-card) !important; border: 0 !important; border-radius: 21px !important; padding: 24px !important; box-shadow: none !important; display: flex; flex-direction: column; gap: 8px; cursor: pointer; color: var(--dv-ink) !important; }
+.dv .dash-fav-row-ref { font: 800 12px "Nunito", sans-serif !important; letter-spacing: .12em; text-transform: uppercase; color: #db2777 !important; }
+.dv .dash-fav-row-chev { display: none !important; }
+.dv .dash-fav-row-text { font: 600 15px/1.5 "Nunito", sans-serif !important; color: var(--dv-ink) !important; opacity: 1 !important; display: block !important; -webkit-line-clamp: unset !important; }
+.dv .dash-fav-row:first-child { padding: 24px !important; }
+.dv .dash-fav-row:first-child .dash-fav-row-ref { order: 2; font-size: 15px !important; margin-top: 8px; }
+.dv .dash-fav-row:first-child .dash-fav-row-text { order: 1; font: italic 24px/1.2 var(--dv-serif) !important; max-width: 24ch; position: relative; }
+.dv .dash-fav-row:first-child::after { content: "\201C"; position: absolute; right: 16px; top: -8px; font: italic 120px/1 var(--dv-serif); color: rgba(219,39,119,.22); pointer-events: none; }
+@media (min-width: 861px) {
+  .dv .dash-fav-list { grid-template-columns: repeat(6, 1fr); }
+  .dv .dash-fav-row { grid-column: span 2; }
+  .dv .dash-fav-row:first-child { grid-column: span 4; grid-row: span 2; padding: 40px !important; justify-content: space-between; min-height: 344px; }
+  .dv .dash-fav-row:first-child .dash-fav-row-text { font-size: 38px !important; line-height: 1.2 !important; }
+  .dv .dash-fav-row:first-child::after { font-size: 160px; right: 24px; }
+}
+
+/* notes timeline */
+.dv .dash-notes-list { position: relative; display: grid; gap: 0; }
+.dv .dash-notes-list::before { content: ""; position: absolute; left: 63px; top: 8px; bottom: 8px; width: 2px; background: var(--dv-line); }
+.dv .dash-notes-card { display: grid !important; grid-template-columns: 48px 32px 1fr; align-items: start; padding: 16px 0 !important; background: none !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; cursor: pointer; margin: 0 !important; }
+.dv .dv-d { text-align: right; }
+.dv .dv-d b { display: block; font: italic 24px/1 var(--dv-serif); color: var(--dv-ink); }
+.dv .dv-d span { font: 800 12px "Nunito", sans-serif; letter-spacing: .12em; text-transform: uppercase; color: var(--dv-mute); }
+.dv .dv-dot { width: 14px; height: 14px; border-radius: 50%; background: var(--dv-bg); border: 3px solid #db2777; margin: 8px 0 0 12px; position: relative; z-index: 1; }
+.dv .dv-nb em.dash-notes-type-label { display: block; font: 800 12px "Nunito", sans-serif; letter-spacing: .12em; text-transform: uppercase; color: #db2777; font-style: normal; margin: 0 0 4px; background: none; padding: 0; }
+.dv .dash-notes-card-preview { font: 400 16px/1.5 "Nunito", sans-serif !important; color: var(--dv-ink) !important; max-width: 68ch; opacity: 1 !important; }
+@media (min-width: 861px) { .dv .dash-notes-list::before { left: 79px; } .dv .dash-notes-card { grid-template-columns: 64px 32px 1fr; } .dv .dv-d b { font-size: 38px; } .dv .dv-dot { margin-top: 12px; } }
+.dv .dash-greeting { margin-top: 24px !important; } .dv .dash-greeting-msg { margin-top: 0; font-family: "Editors Note", Georgia, serif; font-style: italic; font-size: 24px; line-height: 1.2; color: var(--dv-ink) !important; max-width: 40ch; } .dv .dash-greeting-msg:empty { display: none; }
+@media (min-width: 1024px) { .dv .dash-greeting { margin-top: 32px !important; } }
+.dv .dv-go { height: 48px !important; min-height: 48px !important; padding: 0 24px !important; border-radius: 999px !important; background: #db2777 !important; color: #fff !important; border: 0 !important; box-shadow: none !important; }
+.dv .dv-pg h2, .dv .dv-ref { letter-spacing: 0 !important; }
+.dv .dv-nb { padding-left: 8px; }
+.dv .dash-notes-open-btn { font: 400 15px "Nunito", sans-serif !important; }

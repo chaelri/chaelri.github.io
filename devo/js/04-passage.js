@@ -1228,54 +1228,53 @@ async function renderDashboard() {
   <div class="dash-ambient" aria-hidden="true">${motesHTML}</div>
   <div class="dash-twinkles" aria-hidden="true">${twinklesHTML}</div>
 
+  <div class="dv">
   <div class="dash-greeting">
-    <div class="dash-greeting-top">
-      <div class="dash-greeting-text">${(() => { const h = new Date().getHours(); const g = h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening"; const name = getUserName(); return name ? `${g}, ${name}!` : g; })()}</div>
-      <button class="dash-name-edit-btn" onclick="_showNamePrompt(() => renderDashboard())" title="Edit name"><span class="material-icons">edit</span></button>
-    </div>
     <div id="dashGreetingMsg" class="dash-greeting-msg"></div>
-    <div class="dash-journal-row">
-      <button type="button" id="dashGratLink" class="dash-journal-link dash-journal-link--grat dash-journal-link-empty" onclick="openGratitudeJournal()">
-        <span class="material-symbols-outlined">favorite</span>
-        <span>Gratitude journal</span>
-        <span id="dashGratCount" class="dash-journal-count"></span>
-        <span class="material-symbols-outlined dash-journal-arrow">arrow_forward</span>
-      </button>
-      <button type="button" id="dashPrayLink" class="dash-journal-link dash-journal-link--pray dash-journal-link-empty" onclick="openPrayersJournal()">
-        <span class="material-symbols-outlined">volunteer_activism</span>
-        <span>Prayers</span>
-        <span id="dashPrayCount" class="dash-journal-count"></span>
-        <span class="material-symbols-outlined dash-journal-arrow">arrow_forward</span>
-      </button>
-    </div>
   </div>
 
   ${/* Daily featured story removed — was driving image-gen costs. */ ""}
 
-  <div class="dashboard-grid">
-
-      <!-- CONTINUE READING + FAVORITES -->
-      <section class="dashboard-section">
-
-        <div id="continue-reading" class="hidden">
-          <h3><span><span class="material-icons dashboard-icon dashboard-icon--book">book</span> Pick up where you left off</span></h3>
-          <button class="dash-continue-btn" onclick="loadPassageById('${recentPassageId}')" aria-label="Resume ${recentPassage}">
-            <div class="dash-continue-text">
-              <span class="dash-continue-ref">${recentPassage}</span>
-              <div id="dashContinueRecap" class="dash-continue-recap"></div>
-            </div>
-            <span class="dash-continue-cta" aria-hidden="true">Continue</span>
-            <span class="material-icons dash-continue-chev">arrow_forward</span>
-          </button>
+  <div class="dv-mid">
+    <div id="continue-reading" class="hidden">
+      <div class="dv-book">
+        <span class="dv-ribbon" aria-hidden="true"></span>
+        <div class="dv-pg">
+          <div class="dv-ref">${_escHtml(recentPassage)}</div>
+          <h2>Pick up where you left off.</h2>
+          <span class="dv-num" aria-hidden="true">${(String(recentPassage).match(/(\d+)\s*$/) || [])[1] || ""}</span>
         </div>
+        <div class="dv-pg">
+          <div id="dashContinueRecap" class="dash-continue-recap"></div>
+          <button type="button" class="dv-go" onclick="loadPassageById('${recentPassageId}')" aria-label="Resume ${recentPassage}">Continue <span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span></button>
+        </div>
+      </div>
+    </div>
+    <div class="dash-journal-row">
+      <button type="button" id="dashGratLink" class="dash-journal-link dash-journal-link--grat dash-journal-link-empty" onclick="openGratitudeJournal()">
+        <i aria-hidden="true">g</i>
+        <span class="material-symbols-outlined">favorite</span>
+        <span class="dv-tl">Gratitude journal</span>
+        <span id="dashGratCount" class="dash-journal-count"></span>
+      </button>
+      <button type="button" id="dashPrayLink" class="dash-journal-link dash-journal-link--pray dash-journal-link-empty" onclick="openPrayersJournal()">
+        <i aria-hidden="true">p</i>
+        <span class="material-symbols-outlined">volunteer_activism</span>
+        <span class="dv-tl">Prayers</span>
+        <span id="dashPrayCount" class="dash-journal-count"></span>
+      </button>
+    </div>
+  </div>
 
+  <div class="dv-rest">
+      <section class="dv-sec">
         <div id="dashFavoritesContent">${_renderFavoritesContent(allFavoritePassages)}</div>
       </section>
 
       <!-- NOTES -->
-      <section class="dashboard-section">
-        <h3 style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-          <span><span class="material-icons dashboard-icon dashboard-icon--notes">edit_note</span> Notes</span>
+      <section class="dv-sec dv-notes">
+        <h3>
+          <span>Notes</span>
           <button class="dash-notes-open-btn" onclick="openNotesApp()">View all →</button>
         </h3>
         ${(() => {
@@ -1294,9 +1293,11 @@ async function renderDashboard() {
             // by CSS line-clamp on .dash-notes-card-preview, which adapts to
             // the card's real width — narrow on mobile, much wider on desktop.
             const preview = n.preview.length > 400 ? n.preview.slice(0, 400) + "…" : n.preview;
-            const dateStr = n.time ? new Date(n.time).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "";
+            const _dt = n.time ? new Date(n.time) : null;
+            const dayStr = _dt ? _dt.getDate() : "";
+            const monStr = _dt ? _dt.toLocaleDateString("en-US", { month: "short" }) : "";
             const label = showTypeLabel
-              ? `<span class="dash-notes-type-label">${n.type === "reflection" ? "Reflection" : "Verse note"}</span>`
+              ? `<em class="dash-notes-type-label">${n.type === "reflection" ? "Reflection" : "Verse note"}</em>`
               : "";
             let onclick = `openNotesApp()`;
             if (n.type === "verse" && n.verseKeys?.length) {
@@ -1310,12 +1311,14 @@ async function renderDashboard() {
               onclick = `dashNoteGoToReflection('${_escHtml(n.passageKey)}')`;
             }
             return `<div class="dash-notes-card" onclick="${onclick}">
-              <div class="dash-notes-card-date">${dateStr}${label}</div>
-              <div class="dash-notes-card-preview">${_escHtml(preview)}</div>
+              <div class="dv-d"><b>${dayStr}</b><span>${monStr}</span></div>
+              <span class="dv-dot" aria-hidden="true"></span>
+              <div class="dv-nb">${label}<div class="dash-notes-card-preview">${_escHtml(preview)}</div></div>
             </div>`;
           }).join("")}</div>`;
         })()}
       </section>
+      </div>
 
       ${/* "Create & Share" removed — opened the AI image creator. */ ""}
 
@@ -1531,8 +1534,8 @@ function _renderFavoritesContent(allFavoritePassages) {
   const pageItems = allFavoritePassages.slice(start, start + FAV_PAGE_SIZE);
   const showNav = total > FAV_PAGE_SIZE;
   const header = `
-    <h3 style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-      <span><span class="material-icons dashboard-icon dashboard-icon--fav">favorite</span> Favorites</span>
+    <h3>
+      <span>Favorites</span>
       ${showNav ? `<div class="dash-fav-nav" aria-label="Favorites pagination">
         <button class="dash-fav-nav-btn" onclick="changeFavoritesPage(-1)" aria-label="Previous favorites"${favoritesPage <= 0 ? ' disabled' : ''}><span class="material-icons">chevron_left</span></button>
         <span class="dash-fav-nav-page">${favoritesPage + 1}/${lastPage + 1}</span>
