@@ -11658,3 +11658,5 @@ body.flow-read #output .verse.highlighted.fav-pop .verse-content::after { animat
 /* desktop, notes open: the Note button is redundant, the dock is just Listen */
 @media (min-width: 1024px) { body.notes-open .reader-dock [data-dock="note"] { display: none !important; } }
 .verse-bar .material-icons { color: #db2777; font-size: 22px; }
+/* notes open (any screen): the Note button is redundant, the dock is just Listen */
+body.notes-open .reader-dock [data-dock="note"] { display: none !important; }
