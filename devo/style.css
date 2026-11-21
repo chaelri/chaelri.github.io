@@ -14596,3 +14596,8 @@ body.light.tts-sheet-open .tts-sheet-down { background: rgba(0,0,0,.05); color: 
 /* the global button:active scale would replace the centring transform and shove the chip sideways */
 .tts-chip, .tts-chip:active { transform: none; translate: -50% 0; }
 body.tts-sheet-open #ttsPlayer.tts-player { animation: ttsScrimIn .15s ease both; }
+body.tts-sheet-open .tts-sheet-grab, body.tts-sheet-open .tts-sheet-down, .tts-chip { padding: 0; border: 0; box-sizing: border-box; backdrop-filter: none; -webkit-backdrop-filter: none; }
+body.tts-sheet-open .tts-chip { padding: 0 8px 0 16px; }
+.tts-chip { padding: 0 8px 0 16px; }
+body.tts-sheet-open .tts-sheet-grab { height: 24px; margin-bottom: 4px; }
+body.tts-sheet-open .tts-sheet-grab::before { top: 10px; }
