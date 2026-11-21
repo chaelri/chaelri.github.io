@@ -11669,3 +11669,9 @@ body.verse-card-open .reader-dock { transform: translateX(calc(100% + 40px)) !im
 /* the Context / Ask card (and its menu) float above the notes sheet */
 .verse-card { z-index: 880 !important; }
 .verse-bar { z-index: 870 !important; }
+
+/* Ask inside the floating card: seamless, no box of its own (the card is the surface) */
+.verse-card .verse-chat-wrapper { margin-top: 0; background: none !important; border: 0 !important; border-radius: 0; overflow: visible; max-width: none; box-shadow: none; }
+.verse-card .chat-empty-state { padding: 8px 0 0; }
+.verse-card .chat-input-area { border-top: 0; padding: 8px 0 0; }
+.verse-card .chat-history { padding-left: 0; padding-right: 0; }
