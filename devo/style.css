@@ -15299,3 +15299,8 @@ body.light .dv .dv-fv-num { color: rgba(0,0,0,.1); }
 }
 /* phone: #output has its own padding, so width:100% must be border-box (this was pushing the right edge off-screen) */
 @media (max-width: 860px) { #output:has(.dv), main:has(.dv) { box-sizing: border-box !important; } }
+/* phone: one favorite at a time, use next / previous, no sideways scrolling */
+@media (max-width: 860px) {
+  .dv .dash-fav-list.dv-fv-strip { display: block !important; overflow: hidden !important; margin: 0 !important; padding: 0 !important; scroll-snap-type: none; }
+  .dv .dv-fv-card, .dv .dash-fav-row.dv-fv-card:nth-child(n) { width: 100% !important; aspect-ratio: 3 / 4; flex: none; }
+}

@@ -7,7 +7,9 @@ window.addEventListener("unhandledrejection", function(e) {
 });
 
 // Dashboard favorites: 5 per page, paginated with prev/next chevrons.
-const FAV_PAGE_SIZE = 5;
+// Desktop shows five poster cards per page; phones show one card at a time (next / previous)
+const _favMQ = window.matchMedia("(max-width: 860px)");
+function _favPageSize() { return _favMQ.matches ? 1 : 5; }
 let favoritesPage = 0;
 
 // ── View transitions ─────────────────────────────────────────────────────────

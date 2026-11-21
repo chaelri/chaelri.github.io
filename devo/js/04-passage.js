@@ -1113,14 +1113,14 @@ async function renderDashboard() {
     };
   });
 
-  const startFavIndex = favoritesPage * FAV_PAGE_SIZE;
-  const endFavIndex = startFavIndex + FAV_PAGE_SIZE;
+  const startFavIndex = favoritesPage * _favPageSize();
+  const endFavIndex = startFavIndex + _favPageSize();
   const favoritePassages = allFavoritePassages.slice(
     startFavIndex,
     endFavIndex,
   );
 
-  const totalFavPages = Math.ceil(allFavoritePassages.length / FAV_PAGE_SIZE);
+  const totalFavPages = Math.ceil(allFavoritePassages.length / _favPageSize());
 
   // 1. Get recent notes (from localStorage)
   let recentNotes = [];
@@ -1531,11 +1531,11 @@ async function loadDashGreetingMsg() {
 // animation on every click).
 function _renderFavoritesContent(allFavoritePassages) {
   const total = allFavoritePassages.length;
-  const lastPage = Math.max(0, Math.ceil(total / FAV_PAGE_SIZE) - 1);
+  const lastPage = Math.max(0, Math.ceil(total / _favPageSize()) - 1);
   if (favoritesPage > lastPage) favoritesPage = lastPage; // guard
-  const start = favoritesPage * FAV_PAGE_SIZE;
-  const pageItems = allFavoritePassages.slice(start, start + FAV_PAGE_SIZE);
-  const showNav = total > FAV_PAGE_SIZE;
+  const start = favoritesPage * _favPageSize();
+  const pageItems = allFavoritePassages.slice(start, start + _favPageSize());
+  const showNav = total > _favPageSize();
   const header = `
     <h3>
       <span class="dv-mk" aria-hidden="true"><span class="material-symbols-outlined">favorite</span></span><span class="dv-vh">Favorites</span>
@@ -1555,7 +1555,7 @@ function _renderFavoritesContent(allFavoritePassages) {
           const preview = raw && raw !== "Verse text not found."
             ? (raw.length > 140 ? raw.slice(0, 140) + "…" : raw)
             : "";
-          return `<div class="dash-fav-row dv-fv-card${idx === 0 && favoritesPage === 0 ? " dv-fv-first" : ""}" onclick="loadPassageById('${item.key}')" role="button" tabindex="0" aria-label="Open ${_escHtml(formatKey(item.key))}">
+          return `<div class="dash-fav-row dv-fv-card${(_favPageSize() === 1 || (idx === 0 && favoritesPage === 0)) ? " dv-fv-first" : ""}" onclick="loadPassageById('${item.key}')" role="button" tabindex="0" aria-label="Open ${_escHtml(formatKey(item.key))}">
             <div class="dv-fv-top"><span class="dv-fv-book">${_escHtml(bookName)}</span><span class="dv-fv-num">${_escHtml(numeral)}</span></div>
             ${preview ? `<p class="dv-fv-text">${_escHtml(preview)}</p>` : ""}
           </div>`;
@@ -1568,6 +1568,9 @@ function _renderFavoritesContent(allFavoritePassages) {
       }`;
   return header + body;
 }
+
+// Crossing the phone/desktop breakpoint changes the page size, so restart at page 1
+_favMQ.addEventListener("change", () => { favoritesPage = 0; if (document.getElementById("dashFavoritesContent")) changeFavoritesPage(0); });
 
 function changeFavoritesPage(delta) {
   favoritesPage = Math.max(0, favoritesPage + delta);
