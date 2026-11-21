@@ -11595,3 +11595,5 @@ body.light .ar-ref, body.light .ar-q, body.light .ar-time { color: rgba(22,19,15
 /* flowing: the per-verse answer mount is a block div and would break the line */
 body.flow-read #output .inline-ai-mount { display: none !important; }
 body.flow-read #output .verse, body.flow-read #output .verse-swipe-track, body.flow-read #output .verse-header, body.flow-read #output .verse-content { display: inline !important; }
+/* flowing: the bigger verse number must not stretch its line box (uneven leading) */
+body.flow-read #output .verse-num { line-height: 0 !important; vertical-align: baseline; }
