@@ -15237,3 +15237,4 @@ body.light .dv { --dv-card: #ffffff; --dv-ink: #16130f; --dv-mute: #6b6a66; --dv
   .dv .dash-fav-row { flex: 0 0 85%; scroll-snap-align: start; min-height: 168px; }
   .dv .dash-fav-row:first-child { flex-basis: 92%; justify-content: space-between; }
 }
+@media (max-width: 860px) { .dv .dash-fav-list { flex-direction: row !important; flex-wrap: nowrap !important; } .dv .dash-fav-row { width: auto; } }
