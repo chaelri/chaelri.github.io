@@ -57,9 +57,20 @@
   window.addEventListener("pagehide", flushNote);
   document.addEventListener("visibilitychange", () => { if (document.hidden) flushNote(); });
 
+  // The height you chose (drag / 50% default). While the on-screen keyboard is up, the sheet
+  // shrinks to what is left above the keyboard so the line you are typing stays visible.
+  let userNotesH = 0, kbPx = 0, vvH = innerHeight;
+  function applyNotesH() {
+    if (!userNotesH) return;
+    const kbOpen = kbPx > 120;
+    const h = kbOpen ? Math.min(userNotesH, Math.max(200, vvH - 150)) : userNotesH;
+    body.style.setProperty("--notes-h", Math.round(h) + "px");
+    body.classList.toggle("kb-open", kbOpen);
+  }
   function setNotesH(px) {
     const max = Math.round(innerHeight * 0.7), min = Math.round(innerHeight * 0.3);
-    body.style.setProperty("--notes-h", Math.max(min, Math.min(max, Math.round(px))) + "px");
+    userNotesH = Math.max(min, Math.min(max, Math.round(px)));
+    applyNotesH();
   }
   // Desktop: the notes are a right drawer (width), not a bottom sheet (height).
   function setNotesW(px) {
@@ -71,7 +82,7 @@
     closeVerseCard();
     hideBar();
     loadNote();
-    if (!body.style.getPropertyValue("--notes-h")) setNotesH(innerHeight * 0.5);
+    if (!userNotesH) setNotesH(innerHeight * 0.5);
     if (!body.style.getPropertyValue("--notes-w")) setNotesW(400);
     sheet.hidden = false;
     requestAnimationFrame(() => {
@@ -115,7 +126,12 @@
   // Keep the sheet above the on-screen keyboard.
   if (window.visualViewport) {
     const vv = window.visualViewport;
-    const fit = () => body.style.setProperty("--kb", Math.max(0, innerHeight - vv.height - vv.offsetTop) + "px");
+    const fit = () => {
+      kbPx = Math.max(0, innerHeight - vv.height - vv.offsetTop);
+      vvH = vv.height;
+      body.style.setProperty("--kb", kbPx + "px");
+      applyNotesH();
+    };
     vv.addEventListener("resize", fit);
     vv.addEventListener("scroll", fit);
   }
