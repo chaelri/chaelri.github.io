@@ -2627,7 +2627,6 @@ function _unifiedReflectionHTML({ observe, verses, question }) {
       <span class="material-symbols-outlined">refresh</span>
     </button>
     <ol class="refl-unified"><li>
-      ${observe ? `<div class="refl-obs">${esc(observe)}${chip}</div>` : ""}
       <p class="refl-q">${esc(question)}</p>
       <textarea placeholder="What you noticed, and how it applies to you…"></textarea>
     </li></ol>`;

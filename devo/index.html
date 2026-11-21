@@ -47,9 +47,7 @@
               <button id="dashThemeBtn" class="dash-browse-btn" aria-label="Toggle light/dark theme" title="Toggle light/dark theme">
                 <span class="material-symbols-outlined">light_mode</span>
               </button>
-              <button id="dashAudioLibBtn" class="dash-browse-btn" aria-label="Audio library — manage downloaded chapters" title="Audio library — manage downloaded chapters">
-                <span class="material-symbols-outlined">library_music</span>
-              </button>
+              
               <button id="dashBrowseBtn" class="dash-browse-btn" aria-label="Browse Bible passages" title="Browse Bible passages">
                 <span class="material-symbols-outlined">menu_book</span>
               </button>
@@ -64,9 +62,7 @@
                 <span class="material-symbols-outlined">headphones</span>
                 Listen
               </button>
-              <button class="mt-overflow" id="mtAudioLibBtn" aria-label="Audio Library" title="Audio Library">
-                <span class="material-symbols-outlined">library_music</span>
-              </button>
+              
               <button class="mt-overflow" id="mtOverflow" aria-label="More actions">
                 <span class="material-symbols-outlined">more_horiz</span>
               </button>
@@ -621,9 +617,7 @@
           <button class="cm-icon-btn" id="cmRedoBtn" title="Redo" disabled>
             <span class="material-symbols-outlined">redo</span>
           </button>
-          <button class="cm-icon-btn" id="cmAudioLibBtn" title="Audio Library" aria-label="Audio Library">
-            <span class="material-symbols-outlined">library_music</span>
-          </button>
+          
           <button class="cm-listen-btn" id="cmListenBtn" type="button" title="Listen (L)" aria-label="Listen to chapter">
             <span class="material-symbols-outlined">headphones</span>
           </button>
@@ -769,31 +763,8 @@
       </div>
     </div>
 
-    <!-- Audio Library — per-book cache visibility + bulk download. Sits
-         outside #canvasModeOverlay so its z-index (10300) isn't bounded by
-         the overlay's stacking context. Reachable from the canvas top bar
-         via #cmAudioLibBtn. -->
-    <div class="audio-lib-modal" id="audioLibraryModal" hidden>
-      <div class="audio-lib-backdrop" data-close-lib></div>
-      <div class="audio-lib-panel">
-        <div class="audio-lib-header">
-          <div class="audio-lib-title">Audio Library</div>
-          <button class="audio-lib-close" type="button" data-close-lib aria-label="Close">
-            <span class="material-symbols-outlined">close</span>
-          </button>
-        </div>
-        <div class="audio-lib-summary" id="audioLibSummary">Loading…</div>
-        <details class="audio-lib-activity" id="audioLibActivity">
-          <summary class="audio-lib-activity-summary">
-            <span class="material-symbols-outlined">monitoring</span>
-            <span class="audio-lib-activity-label">Activity</span>
-            <span class="audio-lib-queue" id="audioLibQueue">idle</span>
-          </summary>
-          <div class="audio-lib-log" id="audioLibLog">No activity yet — open a chapter or hit Download to see synth events here.</div>
-        </details>
-        <div class="audio-lib-list" id="audioLibList"></div>
-      </div>
-    </div>
+
+    
 
     <script src="config.js" onerror="void 0"></script>
     <script src="bible-meta.js"></script>

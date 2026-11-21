@@ -2,6 +2,8 @@
 
 **Last major rewrite:** 2026-04-28 (Edge TTS swap + canvas listen mode + Audio Library + multi-meta cache).
 
+> **2026-11-21 change (supersedes the Audio Library and Background prefetch sections below):** the Audio Library UI and the whole-chapter / next-chapter background prefetch were removed. Listen now buffers like a video player: `_ttsPrebuffer` waits for the first 3 verses, `_ttsSynthWindow` keeps the next 4 verses synthesizing in the background while one plays (`TTS_START_BUFFER = 3`, `TTS_AHEAD = 4` in 03-tts.js). Played verses are still saved to the IDB cache; there is no bulk download and no load bars.
+
 The TTS subsystem reads Bible passages aloud with word-level highlighting and lock-screen media controls. Synthesis happens on Microsoft's free "Edge Read Aloud" WebSocket, relayed through `gemini-proxy/`. Audio + Edge `WordBoundary` timings come back as JSON; client caches MP3 blobs in IndexedDB **permanently** (no TTL) so a downloaded chapter stays on the device.
 
 Two front-end modes:
