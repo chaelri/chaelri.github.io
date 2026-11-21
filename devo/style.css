@@ -14621,3 +14621,5 @@ body.tts-sheet-open .tts-sheet-grab { flex: none !important; }
 body.tts-sheet-open .tts-sheet-down { z-index: 1; }
 body.tts-sheet-open .scroll-top-btn { opacity: 0 !important; pointer-events: none !important; }
 .refl-load { width: 100%; box-sizing: border-box; padding: 24px; }
+/* reflection notes: plain, no ruled lines */
+#aiReflection textarea, #reflectContent textarea, body:not(.light) #aiReflection textarea, body:not(.light) #reflectContent textarea, .light #aiReflection textarea, .light #reflectContent textarea, body.light #aiReflection textarea { background: transparent !important; }
