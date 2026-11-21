@@ -1,6 +1,49 @@
-// ── NOTES APP ─────────────────────────────────────────────────────────────────
+// ── NOTES ─────────────────────────────────────────────────────────────────────
+// Notes are one text per chapter (localStorage `chapterNote.<BOOK>-<CH>` = {text,time}),
+// synced per user. The old per-verse notes and AI reflection answers (retired
+// 2026-11-21) stay in localStorage untouched and are read-only through the Archive.
+
+const CHAPTER_NOTE_PREFIX = "chapterNote.";
+function _chapterNoteKey(bookId, ch) { return `${CHAPTER_NOTE_PREFIX}${bookId}-${ch}`; }
+function _loadChapterNote(bookId, ch) {
+  try {
+    const o = JSON.parse(localStorage.getItem(_chapterNoteKey(bookId, ch)) || "null");
+    return o && typeof o.text === "string" ? o : { text: "", time: 0 };
+  } catch { return { text: "", time: 0 }; }
+}
+function _saveChapterNote(bookId, ch, text) {
+  const k = _chapterNoteKey(bookId, ch);
+  if (!text.trim()) localStorage.removeItem(k);
+  else localStorage.setItem(k, JSON.stringify({ text, time: Date.now() }));
+}
 
 function _getAllNotes() {
+  const notes = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (!k || !k.startsWith(CHAPTER_NOTE_PREFIX)) continue;
+    const [bookId, ch] = k.slice(CHAPTER_NOTE_PREFIX.length).split("-");
+    const n = _loadChapterNote(bookId, ch);
+    if (!n.text.trim()) continue;
+    notes.push({
+      id: `chapter-${bookId}-${ch}`,
+      type: "chapter",
+      bookId, chapter: ch,
+      passageKey: `${bookId}-${ch}`,
+      title: `${BIBLE_META[bookId]?.name || bookId} ${ch}`,
+      preview: n.text.trim(),
+      time: n.time,
+    });
+  }
+  const standalone = JSON.parse(localStorage.getItem("devotionStandaloneNotes") || "[]");
+  standalone.forEach(n => {
+    notes.push({ id: `s-${n.id}`, type: "standalone", standaloneId: n.id, title: n.title || "Untitled", preview: _stripNotePreview(n), time: n.updatedAt, data: n });
+  });
+  return notes.sort((a, b) => b.time - a.time);
+}
+
+// Read-only archive of everything written before the rebuild.
+function _getArchiveNotes() {
   const notes = [];
 
   // 1. Verse notes — grouped by chapter (BOOKID-CH), not individual verse
@@ -68,20 +111,6 @@ function _getAllNotes() {
       preview: firstAnswer,
       time: data.time || null, // null = unknown; excluded from session grouping
       QAs: data.QAs,
-    });
-  });
-
-  // 3. Standalone notes
-  const standalone = JSON.parse(localStorage.getItem("devotionStandaloneNotes") || "[]");
-  standalone.forEach(n => {
-    notes.push({
-      id: `s-${n.id}`,
-      type: "standalone",
-      standaloneId: n.id,
-      title: n.title || "Untitled",
-      preview: _stripNotePreview(n),
-      time: n.updatedAt,
-      data: n,
     });
   });
 

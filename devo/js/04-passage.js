@@ -244,18 +244,6 @@ function _revealFromButton(panel, btn, cls) {
 // row also answers "which one did I tap?" after the press animation ends.
 // Context and Ask share one .inline-ai-mount, so state is read from what's
 // actually rendered rather than tracked in a flag.
-// ── Verse notes, shown under the verse ─────────────────────────────────────
-// A verse's notes sit right under it whenever the editor is closed; a verse
-// with none shows nothing (no "No notes" line). The editor (.comments) still
-// lists them with delete buttons while it's open, so the two never show at once.
-function _renderInlineNotes(wrap) {
-  const el = wrap?.querySelector(".verse-notes-inline");
-  if (!el) return;
-  const list = comments[wrap.dataset.verseKey] || [];
-  const editorOpen = !wrap.querySelector(".comments")?.hidden;
-  el.hidden = editorOpen || !list.length;
-  el.innerHTML = el.hidden ? "" : list.map((n) => `<div class="verse-note-inline">${n.text}</div>`).join("");
-}
 
 // ── Verse swipe actions ────────────────────────────────────────────────────
 // The Context / Ask / Note row used to sit under every verse. Now:
@@ -267,7 +255,7 @@ function _renderInlineNotes(wrap) {
 // style.css): the icons are clipped to the gap, so closing covers them rather
 // than sliding text over them. Vertical drags, double-tap-to-favourite and iOS
 // edge-back swipes are left alone. Mouse users get the row on hover instead.
-const SWIPE_OPEN = { note: 64, ai: -108 };
+const SWIPE_OPEN = { ai: -108 };
 
 function _setSwipeX(wrap, px) {
   wrap.style.setProperty("--swipe-x", `${px}px`);
@@ -300,7 +288,7 @@ function _wireVerseHoverPopover() {
   if (!output || output._hoverPopWired) return;
   output._hoverPopWired = true;
 
-  const ACTIONS = [["context", "auto_awesome", "Context"], ["ask", "chat_bubble_outline", "Ask"], ["note", "edit_note", "Note"]];
+  const ACTIONS = [["context", "auto_awesome", "Context"], ["ask", "chat_bubble_outline", "Ask"]];
   const pop = document.createElement("div");
   pop.className = "verse-hover-pop";
   pop.hidden = true;
@@ -408,7 +396,7 @@ function _wireVerseSwipe() {
     }
     e.preventDefault();
     st.dx = dx;
-    _setSwipeX(st.wrap, Math.max(-SWIPE_MAX, Math.min(SWIPE_MAX, st.base + dx * 0.8)));
+    _setSwipeX(st.wrap, Math.max(-SWIPE_MAX, Math.min(0, st.base + dx * 0.8)));
     if (st.open) return; // dragging an open verse: release decides
     const armed = Math.abs(dx) >= SWIPE_ARM;
     if (armed !== st.armed) {
@@ -424,14 +412,12 @@ function _wireVerseSwipe() {
     st = null;
     if (open) {
       // Dragged back toward closed (or past it) → close; otherwise stay open.
-      const back = open === "note" ? dx < -24 : dx > 24;
+      const back = dx > 24;
       if (back) _closeVerseSwipe(wrap); else _openVerseSwipe(wrap, open);
       return;
     }
     if (armed && dx < 0) { _openVerseSwipe(wrap, "ai"); return; }
-    // Note opens straight away; the verse slides back over its icon.
     _closeVerseSwipe(wrap);
-    if (armed && dx > 0) wrap.querySelector('[data-action="note"]')?.click();
   };
   output.addEventListener("touchend", end);
   output.addEventListener("touchcancel", end);
@@ -457,11 +443,9 @@ function _wireVerseSwipe() {
 function _syncVerseActionStates(wrap) {
   if (!wrap) return;
   const mount = wrap.querySelector(".inline-ai-mount");
-  const commentsEl = wrap.querySelector(".comments");
   const openState = {
     context: !!mount?.querySelector(".inline-ai-card"),
     ask: !!mount?.querySelector(".verse-chat-wrapper"),
-    note: !!commentsEl && !commentsEl.hidden,
   };
   wrap.querySelectorAll(".verse-action-btn").forEach((b) => {
     b.classList.toggle("verse-action-btn-on", !!openState[b.dataset.action]);
@@ -1034,6 +1018,16 @@ function loadPassageById(id, scrollToVerse) {
   }
 }
 
+function dashNoteGoToChapter(bookId, chapter) {
+  bookEl.value = bookId;
+  loadChapters();
+  chapterEl.value = chapter;
+  loadVerses();
+  verseEl.value = "";
+  loadBtn.click();
+  setTimeout(() => document.querySelector('#readerDock [data-dock="note"]')?.click(), 700);
+}
+
 function dashNoteGoToVerse(verseKey, verseNum) {
   const [bookId, chapter] = verseKey.split("-");
   bookEl.value = bookId;
@@ -1050,32 +1044,8 @@ function dashNoteGoToVerse(verseKey, verseNum) {
         verseEl2.scrollIntoView({ behavior: "smooth", block: "center" });
         verseEl2.classList.add("verse-highlight");
         setTimeout(() => verseEl2.classList.remove("verse-highlight"), 5000);
-        // Auto-open the note section for this verse
-        const wrap = verseEl2.closest(".verse");
-        if (wrap) {
-          const commentsEl = wrap.querySelector(".comments");
-          if (commentsEl) {
-            commentsEl.hidden = false;
-            renderComments(verseKey, commentsEl);
-          }
-        }
       }
     }, 400);
-  });
-}
-
-function dashNoteGoToReflection(passageKey) {
-  const [bookId, chapter] = passageKey.split("-");
-  bookEl.value = bookId;
-  loadChapters();
-  chapterEl.value = chapter;
-  loadVerses();
-  verseEl.value = "";
-  loadBtn.click();
-
-  // Wait for passage + reflections to load, then open reflect modal
-  requestAnimationFrame(() => {
-    setTimeout(() => openReflectModal(), 600);
   });
 }
 
@@ -1624,7 +1594,7 @@ function _renderNotesContent() {
             .sort((a, b) => (b.time || 0) - (a.time || 0));
           const _all = allNotes;
           allNotes = _all.slice(notesPage * _favPageSize(), (notesPage + 1) * _favPageSize());
-          if (!allNotes.length) return `<p class="empty-state">No notes yet. Add notes to Bible verses or complete a Guided Reflection.</p>`;
+          if (!allNotes.length) return `<p class="empty-state">No notes yet. Open a chapter and tap the note button.</p>`;
           // Only show the type label when the visible set contains both
           // reflections and verse notes — otherwise every row carries the same
           // tag and it reads as visual noise.
@@ -1655,8 +1625,8 @@ function _renderNotesContent() {
               })[0];
               const verseNum = firstKey.split("-")[2] || "";
               onclick = `dashNoteGoToVerse('${_escHtml(firstKey)}', '${_escHtml(verseNum)}')`;
-            } else if (n.type === "reflection" && n.passageKey) {
-              onclick = `dashNoteGoToReflection('${_escHtml(n.passageKey)}')`;
+            } else if (n.type === "chapter") {
+              onclick = `dashNoteGoToChapter('${_escHtml(n.bookId)}', '${_escHtml(n.chapter)}')`;
             }
             return `<div class="dash-notes-card"${onclick ? ` onclick="${onclick}"` : ""}>
               <div class="dv-d"><b>${dayStr}</b><span>${monStr}</span></div>
@@ -1861,8 +1831,6 @@ async function loadPassage() {
 
     /* ---------- RENDER ---------- */
     output.innerHTML = "";
-    _allNotesOpen = false;
-    document.getElementById("notesToggleBtn")?.classList.remove("ctrl-icon-active");
 
     _headingGen++;
 
@@ -1883,9 +1851,6 @@ async function loadPassage() {
       wrap.innerHTML = `
         <div class="verse-swipe-track">
         <div class="verse-swipe-hints" aria-hidden="true">
-          <span class="vsh vsh-note">
-            <button type="button" class="vsh-btn" data-swipe-act="note" aria-label="Note" tabindex="-1"><span class="material-icons">edit_note</span></button>
-          </span>
           <span class="vsh vsh-ai">
             <button type="button" class="vsh-btn" data-swipe-act="context" aria-label="Context" tabindex="-1"><span class="material-icons">auto_awesome</span></button>
             <button type="button" class="vsh-btn" data-swipe-act="ask" aria-label="Ask" tabindex="-1"><span class="material-icons">chat_bubble_outline</span></button>
@@ -1904,19 +1869,14 @@ async function loadPassage() {
           </div>
         </div>
         </div>
-        <div class="verse-notes-inline" hidden></div>
         <div class="verse-actions">
           <button class="verse-action-btn" data-action="context"><span class="material-icons">auto_awesome</span><span>Context</span></button>
           <button class="verse-action-btn" data-action="ask"><span class="material-icons">chat_bubble_outline</span><span>Ask</span></button>
-          <button class="verse-action-btn" data-action="note"><span class="material-icons">edit_note</span><span>Note</span></button>
         </div>
         <div class="inline-ai-mount"></div>
-        <div class="comments ai-fade-in" hidden></div>
       `;
-      _renderInlineNotes(wrap);
 
       // ... keep your existing listener code here ...
-      const commentsEl = wrap.querySelector(".comments");
       const headerEl = wrap.querySelector(".verse-header");
       const aiBtn = wrap.querySelector('[data-action="context"]');
 
@@ -1978,28 +1938,6 @@ async function loadPassage() {
         if (!wasOpen) _revealFromButton(mount, chatBtn, "inline-ai-mount--revealing");
         _syncVerseActionStates(wrap);
       };
-
-      const noteActionBtn = wrap.querySelector('[data-action="note"]');
-      if (noteActionBtn) {
-        noteActionBtn.onclick = (e) => {
-          e.stopPropagation();
-          _verseActionTap(noteActionBtn);
-          if (commentsEl._collapsing) return;
-          if (!commentsEl.hidden) {
-            _collapsePanel(commentsEl, noteActionBtn, () => {
-              commentsEl.hidden = true;
-              _renderInlineNotes(wrap);
-              _syncVerseActionStates(wrap);
-            });
-            return;
-          }
-          commentsEl.hidden = false;
-          renderComments(key, commentsEl);
-          _revealFromButton(commentsEl, noteActionBtn, "comments--revealing");
-          _renderInlineNotes(wrap);
-          _syncVerseActionStates(wrap);
-        };
-      }
 
       if (favIndicator) {
         favIndicator.onclick = (e) => {
@@ -2068,44 +2006,19 @@ async function loadPassage() {
 async function runAIForCurrentPassage() {
   if (!window.__aiPayload) return;
 
-  // Set loading flags synchronously before any await so playChapter()/ttsImmContextOpen()
-  // always sees them as true when TTS opens the context screen right after this call.
+  // Set the loading flag synchronously before any await so playChapter()/ttsImmContextOpen()
+  // always sees it as true when TTS opens the context screen right after this call.
   _contextLoading = true;
-  _reflectionLoading = true;
 
   const cached = await loadAIFromStorage();
   if (
     cached &&
     cached.contextHTML &&
-    cached.reflectionHTML &&
     !_isAiFailHTML(cached.contextHTML) &&
-    !_isAiFailHTML(cached.reflectionHTML) &&
-    cached.contextHTML != "<p>Failed to generate context summary.</p>" &&
-    cached.reflectionHTML != "<p>Failed to generate reflection questions.</p>"
+    cached.contextHTML != "<p>Failed to generate context summary.</p>"
   ) {
     aiContextSummaryEl.innerHTML = cached.contextHTML;
-    const reflMount = document.getElementById("aiReflection");
-    // A chapter cached with the old three questions and nothing written yet
-    // gets the one-question card. With answers it stays as it was until the
-    // refresh button folds them into one notes box.
-    const id = devotionId();
-    const oldUnanswered =
-      !cached.reflectionHTML.includes("refl-unified") &&
-      ![0, 1, 2].some((i) => (localStorage.getItem(`reflection-${id}-${i}`) || "").split("A: ")[1]?.trim());
-    if (oldUnanswered) {
-      _contextLoading = false;
-      await renderAIReflectionQuestions(window.__aiPayload);
-      _reflectionLoading = false;
-      applyReflectionVisibility();
-      await _saveCurrentAI();
-      return;
-    }
-    reflMount.innerHTML = cached.reflectionHTML;
-    _ensureReflectionRetryUI(reflMount);
-    applyReflectionVisibility();
     _contextLoading = false;
-    _reflectionLoading = false;
-    initializeReflections();
     return;
   }
 
@@ -2118,33 +2031,17 @@ async function runAIForCurrentPassage() {
     titleForGemini = `${book} ${chapter}:${verseNum}`;
   }
 
-  await Promise.all([
-    renderAIContextSummary().then(() => { _contextLoading = false; }),
-    renderAIReflectionQuestions({ book, chapter, versesText }).then(() => {
-      _reflectionLoading = false;
-      // If TTS already finished while reflection was loading, show the reflect button now
-      if (_ttsFinished) {
-        const reflectBtn = document.getElementById("ttsImmReflectBtn");
-        const ready = document.querySelectorAll('#aiReflection textarea[id^="reflection-"]').length > 0;
-        if (reflectBtn && ready) {
-          reflectBtn.hidden = false;
-          reflectBtn.onclick = () => { _immCancelAutoRefl(); ttsImmReflectionOpen(); };
-        }
-      }
-    }),
-  ]);
-
+  await renderAIContextSummary();
+  _contextLoading = false;
   await _saveCurrentAI();
 }
 
-// Persist whatever passage AI is on screen, leaving failures out so they're
+// Persist whatever chapter context is on screen, leaving failures out so they're
 // regenerated next time instead of being served from cache.
 async function _saveCurrentAI() {
   const ctx = aiContextSummaryEl.innerHTML;
-  const refl = document.getElementById("aiReflection").innerHTML;
   await saveAIToStorage({
     contextHTML: _isAiFailHTML(ctx) ? null : ctx,
-    reflectionHTML: _isAiFailHTML(refl) ? null : refl,
     answers: {},
   });
 }
@@ -2375,441 +2272,6 @@ function summaryMdToHTML(text) {
     html += `<p>${inlineMd(t)}</p>`;
   }
   return html;
-}
-
-// Idempotent: ensures (a) the delegated retry-click handler is wired on
-// #aiReflection, (b) the .ai-refl-retry button exists in the DOM, and
-// (c) the button's enabled/tooltip state matches current answer count.
-function _ensureReflectionRetryUI(mount) {
-  if (!mount) return;
-
-  if (!mount.dataset.retryWired) {
-    mount.dataset.retryWired = "1";
-
-    // Click → a different question; the notes stay.
-    mount.addEventListener("click", async (e) => {
-      const btn = e.target.closest(".ai-refl-retry");
-      if (!btn || !mount.contains(btn)) return;
-      e.stopPropagation();
-      if (btn.disabled) return;
-      btn.disabled = true;
-      btn.classList.add("ai-refl-retry-spinning");
-      try {
-        await _refreshReflectionQuestion();
-      } catch (err) {
-        console.error("[reflection retry]", err);
-      } finally {
-        const stillBtn = mount.querySelector(".ai-refl-retry");
-        if (stillBtn) stillBtn.classList.remove("ai-refl-retry-spinning");
-        _refreshRetryButtonState(mount);
-      }
-    });
-
-    // Verse chips → peek sheet instead of scrolling the page away. The
-    // fullscreen reflect modal has always done this (js/08-story.js); the
-    // inline panel was the odd one out, falling through to the global
-    // `a[href^="#"]` delegate in js/05-render-init.js that smooth-scrolls and
-    // flashes .verse-highlight — which means losing your place in the
-    // questions to go look at one verse.
-    //
-    // This listener sits on #aiReflection, so it runs during bubbling BEFORE
-    // that document-level delegate; stopPropagation is what keeps the scroll
-    // from also firing.
-    mount.addEventListener("click", (e) => {
-      const link = e.target.closest("a.reflection-link, a[href^='#']");
-      if (!link || !mount.contains(link)) return;
-      e.preventDefault();
-      e.stopPropagation();
-      // Read the range off the label, not the href: _normalizeReflectionLinks
-      // collapses href to the FIRST verse, so "vv. 16–17" would peek only 16.
-      const verseRef =
-        link.textContent.replace(/[^0-9,\-–\s]/g, "").trim() ||
-        link.getAttribute("href")?.replace("#", "");
-      if (verseRef) openVersePeek(verseRef, link);
-    });
-
-    // Input on any reflection textarea → recompute button state. Delegation
-    // means it works for textareas added later (partial regen creates new ones).
-    mount.addEventListener("input", (e) => {
-      if (e.target?.tagName === "TEXTAREA") _refreshRetryButtonState(mount);
-    });
-  }
-
-  if (!mount.querySelector(".ai-refl-retry")) {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "ai-refl-retry";
-    btn.setAttribute("aria-label", "Different question");
-    btn.title = "Different question";
-    btn.innerHTML = `<span class="material-symbols-outlined">refresh</span>`;
-    mount.insertBefore(btn, mount.firstChild);
-  }
-
-  // Older saved reflections have the refresh button loose above the list:
-  // put it in the same row as the label so the two line up.
-  {
-    const _ol = mount.querySelector("ol.refl-unified");
-    const _btn = mount.querySelector(".ai-refl-retry");
-    if (_ol && _btn && !mount.querySelector(".refl-head")) {
-      const head = document.createElement("div");
-      head.className = "refl-head";
-      head.innerHTML = '<span class="refl-label">Question to ponder</span>';
-      head.appendChild(_btn);
-      _ol.parentNode.insertBefore(head, _ol);
-    }
-  }
-
-  // Repair any malformed verse-chip hrefs after every innerHTML overwrite
-  // (fresh render, cache restore, partial retry) so the global anchor delegate
-  // can resolve them. Idempotent.
-  _normalizeReflectionLinks(mount);
-
-  _refreshRetryButtonState(mount);
-}
-
-// The refresh button is always live. With one question there's nothing to
-// "finish" — swapping the question is how you get a different lesson out of
-// the same chapter, and the notes you've written stay where they are.
-function _refreshRetryButtonState(mount) {
-  const btn = mount?.querySelector(".ai-refl-retry");
-  if (!btn || btn.classList.contains("ai-refl-retry-spinning")) return;
-  btn.disabled = false;
-  btn.title = "Different question";
-  btn.classList.remove("ai-refl-retry-done");
-}
-
-// Swaps the question for a fresh one from another lesson in the chapter and
-// carries the notes across. Also the upgrade path for a chapter cached with
-// the old three questions: their answers are joined into the one notes box
-// and the leftover reflection-<id>-1/-2 keys are removed, so the notes app
-// doesn't keep listing questions that are no longer on screen.
-async function _refreshReflectionQuestion() {
-  const mount = document.getElementById("aiReflection");
-  const payload = window.__aiPayload;
-  if (!mount || !payload) return;
-
-  const oldAreas = [...mount.querySelectorAll('textarea[id^="reflection-"]')];
-  const notes = oldAreas
-    .map((ta) => (ta.value || "").trim())
-    .filter(Boolean)
-    .join("\n\n");
-  const oldQuestions = [...mount.querySelectorAll("li > p")]
-    .map((p) => p.textContent.trim())
-    .filter(Boolean);
-
-  const r = await _fetchUnifiedReflection({
-    ...payload,
-    avoid: [...oldQuestions, ..._getRecentReflQs()],
-  });
-  if (!r) throw new Error("no reflection returned");
-
-  const id = `reflection-${devotionId()}-0`;
-  oldAreas.forEach((ta) => {
-    if (ta.id && ta.id !== id) localStorage.removeItem(ta.id);
-  });
-
-  mount.innerHTML = _unifiedReflectionHTML(r);
-  _appendRecentReflQs([r.question]);
-  const ta = mount.querySelector("textarea");
-  ta.id = id;
-  ta.value = notes;
-  _wireReflectionTextarea(ta);
-  _normalizeReflectionLinks(mount);
-  if (notes) {
-    localStorage.setItem(id, `Q: ${r.question}\nA: ${notes}`);
-  } else {
-    localStorage.removeItem(id);
-  }
-  if (typeof autoExpand === "function") autoExpand(ta);
-
-  const existing = (await loadAIFromStorage()) || {};
-  await saveAIToStorage({
-    ...existing,
-    reflectionHTML: mount.innerHTML,
-    answers: notes ? { [id]: notes } : {},
-  });
-}
-
-// Wires the input listener used by initializeReflections — extracted so we
-// can wire NEW textareas added during partial regen without re-wiring
-// existing ones (which would double-fire saves).
-function _wireReflectionTextarea(area) {
-  if (!area || area.dataset.wiredInput === "1") return;
-  area.dataset.wiredInput = "1";
-  area.addEventListener("input", async () => {
-    // Read the question now, not at wire time — refresh swaps it under the
-    // same textarea.
-    const questionText = area.previousElementSibling?.textContent || "Question";
-    const formattedEntry = `Q: ${questionText}\nA: ${area.value}`;
-    localStorage.setItem(area.id, formattedEntry);
-    localStorage.setItem(`reflection-time-${devotionId()}`, String(Date.now()));
-    if (typeof checkIfHasTextAreaAnswers === "function") checkIfHasTextAreaAnswers();
-    if (typeof _debouncedPushSync === "function") _debouncedPushSync();
-    const cachedAI = await loadAIFromStorage();
-    if (cachedAI) {
-      if (!cachedAI.answers) cachedAI.answers = {};
-      cachedAI.answers[area.id] = area.value;
-      await saveAIToStorage(cachedAI);
-    }
-  });
-}
-
-// Verse-chip clicks open the peek sheet — see the delegated handler in
-// _ensureReflectionRetryUI. They used to fall through to the global
-// `a[href^="#"]` delegate in js/05-render-init.js, which smooth-scrolled the
-// page to the verse; that's still the fallback for chips rendered anywhere
-// else, so the href must stay well-formed.
-//
-// The AI sometimes emits `#v.7` or `#vv. 41` instead of `#7` / `#41`, and
-// getElementById then finds nothing, so the delegate bails and the browser
-// follows the dead hash. Rewriting the href to the first verse number in the
-// label fixes those without touching the click path.
-//
-// (Historical note: a per-link handler here once called preventDefault() and
-// added a class named "verseGlow" — but `verseGlow` is the @keyframes name,
-// not a class, so it matched no CSS rule while still swallowing the click.)
-function _normalizeReflectionLinks(scope) {
-  if (!scope) return;
-
-  // The AI sometimes emits a range as TWO links with a bare dash between them
-  // — `vv. 16` — `17` — instead of one `vv. 16–17`. That renders as two chips
-  // and, worse, peeking either one shows a single verse when the question is
-  // about the whole span. Merge them back into one link before anything else
-  // reads the labels. Only a dash joins a range; a comma ("v. 3, v. 9") is two
-  // genuinely separate references and is left alone.
-  scope.querySelectorAll('a[href^="#"]').forEach((a) => {
-    if (!a.isConnected) return; // already swallowed by an earlier merge
-    let next = a.nextSibling;
-    while (next) {
-      const gap = next;
-      if (gap.nodeType !== Node.TEXT_NODE || !/^\s*[–—-]\s*$/.test(gap.textContent)) break;
-      const partner = gap.nextSibling;
-      if (!partner || partner.nodeName !== "A" || !partner.getAttribute?.("href")?.startsWith("#")) break;
-
-      const start = (a.textContent.match(/\d+/) || [])[0];
-      const end = (partner.textContent.match(/\d+/) || [])[0];
-      if (!start || !end) break;
-
-      a.textContent = `vv. ${start}–${end}`;
-      gap.remove();
-      partner.remove();
-      next = a.nextSibling; // a range could in principle chain further
-    }
-  });
-
-  // Href always points at the FIRST verse so the scroll fallback in
-  // js/05-render-init.js can resolve it with getElementById. The peek sheet
-  // reads the full range off the label instead — see _ensureReflectionRetryUI.
-  scope.querySelectorAll('a[href^="#"]').forEach((a) => {
-    const fromText = (a.textContent.match(/\d+/) || [])[0];
-    const fromHref = (a.getAttribute("href").match(/\d+/) || [])[0];
-    const verseNum = fromText || fromHref;
-    if (verseNum) a.setAttribute("href", `#${verseNum}`);
-  });
-}
-
-// Every chapter teaches more than one thing. Each question (and each refresh)
-// draws one of these lenses at random, so the same chapter can hand the
-// reader a different lesson on another day instead of the same one forever.
-const _REFLECTION_LENSES = [
-  { id: "god",      label: "WHAT GOD IS LIKE",   desc: "Something God does, says, allows, or withholds in this chapter, and what it shows about Him." },
-  { id: "choice",   label: "A CHOICE SOMEONE MAKES", desc: "A decision a person or group makes here — wise or foolish — and where the reader faces the same kind of choice." },
-  { id: "heart",    label: "WHAT'S IN THE HEART", desc: "An attitude the chapter exposes — pride, fear, trust, jealousy, loyalty, impatience, grief — and where the reader carries it too." },
-  { id: "people",   label: "HOW PEOPLE TREAT EACH OTHER", desc: "Loyalty, betrayal, advice, kindness, rivalry, family — what the chapter shows about relationships, turned on how the reader themselves treats people or responds to them." },
-  { id: "promise",  label: "SOMETHING TO HOLD ON TO", desc: "A promise, a truth, or a moment of God's care in this chapter the reader could lean on in what they're facing now." },
-  { id: "warning",  label: "A WARNING",          desc: "Where something goes wrong in this chapter and the quiet cause behind it — then where that same cause could be starting in the reader." },
-  { id: "step",     label: "ONE SMALL STEP",     desc: "One small, doable thing this week that follows from what happens in this chapter. An invitation, never an assignment." },
-];
-
-function _pickReflectionLens() {
-  return _REFLECTION_LENSES[Math.floor(Math.random() * _REFLECTION_LENSES.length)];
-}
-
-// Rolling buffer of the last ~15 reflection questions the user has seen
-// across recent chapters. Passed to the prompt as "RECENTLY ASKED" so the AI
-// varies tone/openings/angles from them. Cross-chapter scope: this is what
-// stops the Leviticus 23 → 24 → 25 questions from feeling identical.
-const _RECENT_REFL_KEY = "devo.recentReflQs";
-const _RECENT_REFL_MAX = 15;
-
-function _getRecentReflQs() {
-  try {
-    const raw = localStorage.getItem(_RECENT_REFL_KEY);
-    if (!raw) return [];
-    const arr = JSON.parse(raw);
-    return Array.isArray(arr) ? arr.filter((s) => typeof s === "string") : [];
-  } catch { return []; }
-}
-
-function _appendRecentReflQs(questions) {
-  if (!questions || !questions.length) return;
-  const arr = _getRecentReflQs();
-  for (const q of questions) {
-    const t = (q || "").trim();
-    if (!t) continue;
-    arr.push(t);
-  }
-  while (arr.length > _RECENT_REFL_MAX) arr.shift();
-  try { localStorage.setItem(_RECENT_REFL_KEY, JSON.stringify(arr)); } catch {}
-}
-
-// One question for the whole chapter: what the reader saw in the text, then
-// how it lands in their own life. Comes back as JSON and the markup is built
-// here, so the model can't break the layout or style its own words.
-// A question about an unnamed "someone" leaves the reader inventing a person
-// before they can answer, so one that slips past the prompt gets one re-roll.
-const _VAGUE_OTHER_RE = /\b(someone|somebody|anyone|others|a person who|people who|those (who|around))\b/i;
-
-async function _fetchUnifiedReflection(opts) {
-  const first = await _fetchUnifiedReflectionOnce(opts);
-  if (!first || !_VAGUE_OTHER_RE.test(first.question)) return first;
-  for (let i = 0; i < 2; i++) {
-    const next = await _fetchUnifiedReflectionOnce(opts).catch(() => null);
-    if (next && !_VAGUE_OTHER_RE.test(next.question)) return next;
-  }
-  return first;
-}
-
-async function _fetchUnifiedReflectionOnce({ book, chapter, versesText, avoid = [] }) {
-  const lens = _pickReflectionLens();
-  const avoidBlock = avoid.length
-    ? `\nDON'T REPEAT — these were already asked (this chapter or recent ones). Pick a different lesson and phrase it differently:\n${avoid.slice(-15).map((q) => `- ${q}`).join("\n")}\n`
-    : "";
-
-  const prompt = `You write ONE guided-reflection question for someone who just read a whole Bible chapter. It goes: what they saw in the text → how it applies to their life.
-
-Return ONLY a JSON object, no markdown fence, no commentary:
-{"observe": "...", "verses": "1-5", "question": "..."}
-
-"observe" — one plain sentence (max 25 words) saying what actually happens or is said in the chapter that this lesson comes from. A fact from the text, not the lesson. Can sum up a stretch of the chapter.
-"verses" — the verse or range "observe" points at, digits only ("7" or "12-14"). Must exist in the passage below.
-"question" — one question (max 22 words), straight to the reader ("you"), about how that applies to their life now. It is about the reader's OWN heart, habits or choices — the words "someone", "others", "those who" never appear in it.
-
-THE LESSON TO USE — ${lens.label}: ${lens.desc}
-This chapter has many lessons; this is the one to draw out today. If the chapter genuinely has nothing for it, use the strongest other lesson in the chapter.
-${avoidBlock}
-RULES:
-- About THIS chapter. The observation must name a real person, action, place, or words from it. If the question could be pasted onto another chapter, rewrite it.
-- It lands on the reader THEMSELVES: their own habits, reactions, choices, fears, trust in God. Not a study question about the text.
-- Answerable by ANY reader from their own life, today. Never assume a situation they may not be in — that someone hurt them, betrayed them, is struggling, is grieving, that they lead people, that they're in a conflict.
-- No vague third parties: never "someone", "someone who…", "a person who…", "others", "those around you". If people matter, ask about the reader's own side ("When you're given advice you don't like, what do you usually do?"), not about an imagined person they'd have to invent.
-- Friendly and plain, like a friend over coffee. A 16-year-old understands every word. ONE question, one idea — never "X, and what could you do about it?" tacked on.
-- Vary how it opens. Don't default to "When you…".
-- Invite, never prescribe: no "you must", "you should", "commit to". "I don't know yet" is an allowed answer.
-- No sermon before the question, no answer, never speak as God.
-- New covenant: never ask the reader to keep an Old Testament ceremonial, food, sacrifice, or civil law. Ask about what it shows about God or the heart instead.
-- Don't drift to Jesus or the cross unless this chapter itself pictures it.
-- Banned words: theological, implications, in light of, considering, ultimate, wrestle with, grapple, reflect on, sovereign, providence.
-
-SHAPE ONLY — these are from other chapters. Never reuse their subject or wording:
-{"observe": "Boaz tells his workers to leave extra grain on purpose so Ruth can gather it without shame.", "verses": "15-16", "question": "When you help, do you do it quietly, or do you like it to be noticed?"}
-{"observe": "Joseph is thrown into prison for refusing Potiphar's wife, yet the Lord is with him there.", "verses": "20-23", "question": "Where does doing the right thing feel like it cost you, right now?"}
-
-PASSAGE:
-${book} ${chapter}
-
-${versesText}`;
-
-  const raw = await callGemini(prompt, { temperature: 0.9 });
-  const text = String(raw || "");
-  const start = text.indexOf("{");
-  const end = text.lastIndexOf("}");
-  if (start === -1 || end <= start) return null;
-  let data;
-  try {
-    data = JSON.parse(text.slice(start, end + 1));
-  } catch {
-    return null;
-  }
-  const question = String(data?.question || "").trim();
-  if (!question) return null;
-  return {
-    question,
-    observe: String(data.observe || "").trim(),
-    verses: String(data.verses || "").replace(/[^\d,\-–]/g, ""),
-  };
-}
-
-// The one-card layout. The question <p> sits directly before the textarea —
-// initializeReflections, the immersive reflection panel and the reflect modal
-// all read the question from there, and the notes app from the Q: line.
-function _unifiedReflectionHTML({ observe, verses, question }) {
-  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
-  // (the "v. 3" link chip was removed in the Studio revamp)
-  const chip = "";
-  return `
-    <div class="refl-head"><span class="refl-label">Question to ponder</span>
-    <button type="button" class="ai-refl-retry" aria-label="Different question" title="Different question">
-      <span class="material-symbols-outlined">refresh</span>
-    </button></div>
-    <ol class="refl-unified"><li>
-      <p class="refl-q">${esc(question)}</p>
-      <textarea placeholder="What you noticed, and how it applies to you…"></textarea>
-    </li></ol>`;
-}
-
-async function renderAIReflectionQuestions({ book, chapter, versesText }) {
-  const mount = document.getElementById("aiReflection");
-  const _reflRetry = async () => {
-    await renderAIReflectionQuestions({ book, chapter, versesText });
-    await _saveCurrentAI();
-  };
-  mount.classList.add("ai-fade-in");
-  _ensureReflectionRetryUI(mount);
-
-  // Just the gold stars, in a block about the height of the finished card so nothing jumps.
-  mount.innerHTML = `<div class="refl-load" role="status">${sparkleLoaderHTML("Finding something to reflect on")}</div>`;
-
-  try {
-    const r = await _fetchUnifiedReflection({ book, chapter, versesText, avoid: _getRecentReflQs() });
-    if (!r) {
-      mount.innerHTML = aiFailHTML("Reflection", null, _reflRetry);
-      return true;
-    }
-    // Rolling cross-chapter buffer so the next chapter's question doesn't
-    // open the same way.
-    _appendRecentReflQs([r.question]);
-
-    const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const loader = mount.querySelector(".refl-load");
-    if (loader?.animate && !calm) {
-      await loader.animate(
-        [{ opacity: 1 }, { opacity: 0, transform: "scale(.98)" }],
-        { duration: 180, easing: "ease-out", fill: "forwards" }
-      ).finished.catch(() => {});
-    }
-
-    mount.innerHTML = _unifiedReflectionHTML(r);
-    const ta = mount.querySelector("textarea");
-    ta.id = `reflection-${devotionId()}-0`;
-    setTimeout(restoreSavedReflectionAnswers, 0);
-    _normalizeReflectionLinks(mount);
-    initializeReflections();
-    _refreshRetryButtonState(mount);
-    if (!calm) {
-      [".refl-head", ".refl-q", "textarea"].forEach((sel, i) => {
-        mount.querySelector(sel)?.animate(
-          [{ opacity: 0, transform: "translateY(10px)" }, { opacity: 1, transform: "none" }],
-          { duration: 420, delay: i * 80, easing: "cubic-bezier(.22,1,.36,1)", fill: "backwards" }
-        );
-      });
-    }
-  } catch (e) {
-    console.error(e);
-    mount.innerHTML = aiFailHTML("Reflection", e, _reflRetry);
-  }
-  return true;
-}
-
-async function restoreSavedReflectionAnswers() {
-  const cached = await loadAIFromStorage();
-  if (!cached?.answers) return;
-
-  document.querySelectorAll("#aiReflection textarea").forEach((ta) => {
-    if (cached.answers[ta.id] !== undefined) {
-      ta.value = cached.answers[ta.id];
-    }
-  });
 }
 
 // =============================================================================

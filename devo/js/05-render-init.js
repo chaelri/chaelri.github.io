@@ -35,124 +35,7 @@ const updateMetaIndicators = (key, verseContent, newCommentCount) => {
   };
   metaIndicators.appendChild(favIndicator);
 
-  // 2. Note dot indicator (shows when notes exist, no interaction needed — Note button handles it)
-  if (newCommentCount > 0) {
-    const noteDot = document.createElement("span");
-    noteDot.style.cssText = "width:6px;height:6px;border-radius:50%;background:#db2777;display:inline-block;margin-left:2px;flex-shrink:0;";
-    metaIndicators.appendChild(noteDot);
-  }
 };
-
-let _noteJustAddedKey = null;
-
-function renderComments(key, container, { skipFocus = false } = {}) {
-  container.innerHTML = "";
-
-  // key format: "BOOKID-CHAPTER-VERSE" where VERSE may contain a dash (e.g. "1-4")
-  const parts = key.split("-");
-  const verseIndex = parts.slice(2).join("-");
-  const verseHeader = document.getElementById(verseIndex);
-  // Find the flex container that holds the verse content
-  const verseContent = verseHeader.children[0];
-
-  const commentHeader = document.createElement("div");
-  commentHeader.classList.add("flex");
-  container.appendChild(commentHeader);
-
-  const commentLabel = document.createElement("div");
-  commentLabel.classList.add("comment-label");
-  commentLabel.innerText = "NOTES";
-  commentHeader.appendChild(commentLabel);
-
-  // In the reader the notes panel is a Quick Context-style card: ✕ closes it
-  // through the Note button so the collapse animation and button state match.
-  const readerVerse = container.closest("#output .verse");
-  if (readerVerse) {
-    commentHeader.classList.add("ai-card-header");
-    commentLabel.classList.add("ai-card-label");
-    const close = document.createElement("button");
-    close.className = "ai-card-close";
-    close.title = "Close";
-    close.textContent = "✕";
-    close.onclick = (e) => {
-      e.stopPropagation();
-      readerVerse.querySelector('[data-action="note"]')?.click();
-    };
-    commentHeader.appendChild(close);
-  }
-
-  const list = comments[key] || [];
-
-  // A note just added (Add / Enter) gets the arrival animation; set by the
-  // add handler right before it re-renders, consumed here.
-  const justAdded = _noteJustAddedKey === key;
-  _noteJustAddedKey = null;
-
-  list.forEach((obj, i) => {
-    const c = document.createElement("div");
-    c.className = "comment";
-    if (justAdded && i === list.length - 1) c.classList.add("comment--new");
-    c.innerHTML = `${obj.text}<button>✕</button>`;
-    c.querySelector("button").onclick = () => {
-      comments[key].splice(i, 1);
-      saveComments();
-      renderComments(key, container);
-      renderSummary();
-      updateMetaIndicators(key, verseContent, comments[key].length);
-    };
-    container.appendChild(c);
-  });
-
-  const input = document.createElement("div");
-  input.className = "comment-input";
-  input.innerHTML = `<textarea rows="1"></textarea><button>Add</button>`;
-  input.querySelector("button").onclick = () => {
-    const val = input.querySelector("textarea").value.trim();
-    if (!val) return;
-    if (!comments[key]) comments[key] = [];
-    comments[key].push({ text: val, time: Date.now() });
-    saveComments();
-    _noteJustAddedKey = key;
-    renderComments(key, container);
-    renderSummary();
-    updateMetaIndicators(key, verseContent, comments[key].length);
-  };
-
-  container.appendChild(input);
-
-  // Initial call to ensure indicators are correct when comments pane opens
-  updateMetaIndicators(key, verseContent, list.length);
-
-  const newTextarea = input.querySelector("textarea");
-  newTextarea.addEventListener("input", () => autoExpand(newTextarea));
-  if (!skipFocus) newTextarea.focus();
-  _renderInlineNotes(container.closest(".verse"));
-}
-
-/* ---------- TOGGLE ALL NOTES ---------- */
-let _allNotesOpen = false;
-
-function toggleAllNotes() {
-  _allNotesOpen = !_allNotesOpen;
-  const btn = document.getElementById("notesToggleBtn");
-  btn.classList.toggle("ctrl-icon-active", _allNotesOpen);
-
-  document.querySelectorAll("#output .verse").forEach((wrap) => {
-    const key = wrap.dataset.verseKey;
-    const commentsEl = wrap.querySelector(".comments");
-    if (!key || !commentsEl) return;
-
-    if (_allNotesOpen) {
-      commentsEl.hidden = false;
-      renderComments(key, commentsEl, { skipFocus: true });
-    } else {
-      commentsEl.hidden = true;
-      _renderInlineNotes(wrap);
-    }
-  });
-}
-
-document.getElementById("notesToggleBtn")?.addEventListener("click", toggleAllNotes);
 
 let hasCurrentComments = false;
 /* ---------- SUMMARY ---------- */
@@ -189,32 +72,7 @@ function renderSummary() {
   summaryEl.hidden = true;
 }
 
-const scrollTopBtn = document.getElementById("scrollTopBtn");
 const layoutEl = document.querySelector(".layout");
-
-scrollTopBtn.style.display = "none";
-let _scrollBtnVisible = false;
-
-layoutEl.addEventListener("scroll", () => {
-  if (window.innerWidth > 900) return;
-  const shouldShow = layoutEl.scrollTop > 160;
-
-  if (shouldShow && !_scrollBtnVisible) {
-    _scrollBtnVisible = true;
-    scrollTopBtn.style.display = "flex";
-    scrollTopBtn.style.animation = "scrollBtnIn 0.3s cubic-bezier(0.16,1,0.3,1) forwards";
-  } else if (!shouldShow && _scrollBtnVisible) {
-    _scrollBtnVisible = false;
-    scrollTopBtn.style.animation = "scrollBtnOut 0.25s ease-in forwards";
-    scrollTopBtn.addEventListener("animationend", () => {
-      if (!_scrollBtnVisible) scrollTopBtn.style.display = "none";
-    }, { once: true });
-  }
-});
-
-scrollTopBtn.onclick = () => {
-  layoutEl.scrollTo({ top: 0, behavior: "smooth" });
-};
 
 /* ---------- READING PROGRESS BAR ----------
    Tracks scroll through the active reader (.layout in normal mode,
@@ -295,7 +153,7 @@ loadBtn.onclick = async () => {
   document.getElementById("prevChapterBtn").classList.remove("hidden");
   document.getElementById("nextChapterBtn").classList.remove("hidden");
   document.getElementById("ttsPlayBtn").classList.remove("hidden");
-  document.getElementById("notesToggleBtn").classList.remove("hidden");
+  document.getElementById("notesToggleBtn")?.classList.remove("hidden");
   document.getElementById("canvasModeBtn")?.classList.remove("hidden");
   document.getElementById("storyReflectRow")?.classList.remove("hidden");
   updateStorySeenState();
@@ -360,10 +218,8 @@ homeBtn.onclick = () => {
   document.getElementById("prevChapterBtn").classList.add("hidden");
   document.getElementById("nextChapterBtn").classList.add("hidden");
   document.getElementById("ttsPlayBtn").classList.add("hidden");
-  document.getElementById("notesToggleBtn").classList.add("hidden");
+  document.getElementById("notesToggleBtn")?.classList.add("hidden");
   document.getElementById("canvasModeBtn")?.classList.add("hidden");
-  _allNotesOpen = false;
-  document.getElementById("notesToggleBtn").classList.remove("ctrl-icon-active");
   stopTTS();
   resetAISections();
   showDashboard();
@@ -508,6 +364,8 @@ function _getRecentNotesContext() {
         if (preview.trim().length > 3) {
           parts.push(`[Note: ${n.title || "Untitled"}] ${preview.slice(0, 100)}`);
         }
+      } else if (n.type === "chapter") {
+        parts.push(`[${n.title} note] ${n.preview.slice(0, 100)}`);
       } else if (n.type === "verse" && n.items) {
         n.items.forEach(item => {
           if (item.text && item.text.length > 3) {

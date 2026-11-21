@@ -463,13 +463,11 @@ async function _imgcrShare() {
   document.getElementById("readerDock")?.addEventListener("click", (e) => {
     const b = e.target.closest("button[data-dock]");
     if (!b) return;
-    const map = { study: "studyBtn", reflect: "passageReflectBtn", retell: "passageNarrateBtn" };
     if (b.dataset.dock === "listen") {
       if (!document.body.classList.contains("tts-mini")) mtListen?.click();
       else if (_ttsFinished) { stopTTS(); playChapter(); }
       else pauseResumeTTS();
     }
-    else document.getElementById(map[b.dataset.dock])?.click();
   });
   // Spring from the dock: the sheet scales up from the bottom centre while the
   // dock shrinks away and the chip lifts off. Closing plays it in reverse and

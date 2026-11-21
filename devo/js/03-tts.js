@@ -916,12 +916,6 @@ function _ttsImmShowPausePanel() {
     }
   };
 
-  if (noteBtn) noteBtn.onclick = () => toggleAction(noteBtn, () => {
-    const notesDiv = document.createElement("div");
-    notesDiv.className = "tts-imm-pause-notes";
-    content.appendChild(notesDiv);
-    renderComments(key, notesDiv);
-  });
 
   if (ctxBtn) ctxBtn.onclick = () => toggleAction(ctxBtn, () => {
     fetchInlineQuickContext({ book: bookName, chapter: ch, verse: verseNum, text: verseText }, content);
@@ -1230,7 +1224,7 @@ function ttsShowContinuePrompt() {
     document.getElementById("prevChapterBtn").classList.remove("hidden");
     document.getElementById("nextChapterBtn").classList.remove("hidden");
     document.getElementById("ttsPlayBtn").classList.remove("hidden");
-    document.getElementById("notesToggleBtn").classList.remove("hidden");
+    document.getElementById("notesToggleBtn")?.classList.remove("hidden");
     document.getElementById("canvasModeBtn")?.classList.remove("hidden");
     await loadPassage();
     runAIForCurrentPassage();

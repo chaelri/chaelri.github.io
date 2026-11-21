@@ -40,7 +40,7 @@ const SYNC_STATIC_KEYS = [
 // itself (see DECISIONS #26). Existing entries stay in RTDB but are never read
 // or written again — same quiet-decay treatment the SOAP keys got.
 
-const SYNC_DYNAMIC_PREFIXES = ["reflection-", "devo.canvas.", "chapterContext.", "passageRecap-", "passageHeading-"];
+const SYNC_DYNAMIC_PREFIXES = ["reflection-", "devo.canvas.", "chapterContext.", "passageRecap-", "passageHeading-", "chapterNote."];
 
 // Per-user RTDB path map. Charlie's path is the legacy "devo-sync" so his
 // existing data stays at the root we've always used (no migration needed).
@@ -279,6 +279,7 @@ function _injectAppScript() {
     "js/08-story.js",
     "js/10-creator-canvas.js",
     "js/11-boot.js",
+    "js/12-reader-ui.js",
   ];
   for (const src of files) {
     const s = document.createElement("script");
@@ -624,11 +625,21 @@ function _mergeAll(local, remote) {
       merged[key] = _mergeReactions(lVal, rVal);
     } else if (decodedKey.startsWith("devo.canvas.")) {
       merged[key] = _mergeCanvasState(lVal, rVal);
+    } else if (decodedKey.startsWith("chapterNote.")) {
+      merged[key] = _newerNote(lVal, rVal);
     } else {
       merged[key] = lVal;
     }
   }
   return merged;
+}
+
+// A chapter note is one text: the most recently written copy wins.
+function _newerNote(a, b) {
+  try {
+    const A = typeof a === "string" ? JSON.parse(a) : a, B = typeof b === "string" ? JSON.parse(b) : b;
+    return (Number(B?.time) || 0) > (Number(A?.time) || 0) ? b : a;
+  } catch { return a || b; }
 }
 
 function _mergeJsonObjects(a, b, strategy) {

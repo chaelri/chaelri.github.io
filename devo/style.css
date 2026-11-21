@@ -1520,25 +1520,6 @@ select:disabled {
   color: #c5d1f1;
 }
 
-.scroll-top-btn {
-  position: fixed;
-  right: 16px;
-  bottom: 20px;
-  z-index: 550;
-  width: 48px;
-  height: 48px;
-  border-radius: 999px;
-  border: none;
-  background: #db2777;
-  color: #fff;
-  font-size: 16px;
-  box-shadow: 0 10px 30px rgba(219, 39, 119, 0.35);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  animation: scrollBtnIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-}
 @keyframes scrollBtnIn {
   from { opacity: 0; transform: scale(0.5) translateY(20px); }
   to { opacity: 1; transform: scale(1) translateY(0); }
@@ -1563,10 +1544,7 @@ select:disabled {
 }
 
 @media (min-width: 901px) {
-  .scroll-top-btn {
-    display: none !important;
   }
-}
 
 @supports (-webkit-touch-callout: none) {
   html,
@@ -11289,9 +11267,7 @@ body.tts-mini .reader-dock { bottom: 90px !important; }
 .tts-word-active { background: #db2777 !important; color: #fff !important; padding: 2px 4px !important; margin: 0 -4px !important; border-radius: 4px !important; }
 /* scroll-to-top arrow sits above the dock (and above the mini player when Listen is on) */
 @media (max-width: 1023px) {
-  .scroll-top-btn { bottom: 86px !important; transition: bottom .2s ease, opacity .2s ease; }
-  body.tts-mini .scroll-top-btn { bottom: 160px !important; }
-}
+  body.tts-mini }
 /* dock: icons only, Listen is the pink circle in the middle */
 .reader-dock { gap: 16px; padding: 6px 16px; align-items: center; }
 .reader-dock button { width: 48px; height: 48px; padding: 0 !important; justify-content: center; }
@@ -11434,8 +11410,7 @@ body.light .refl-load .sparkle-text { color: #6b6a66; }
 body.tts-sheet-open .tts-sheet-grab { flex: none !important; }
 #ttsPassage { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
 body.tts-sheet-open .tts-sheet-down { z-index: 1; }
-body.tts-sheet-open .scroll-top-btn { opacity: 0 !important; pointer-events: none !important; }
-.refl-load { width: 100%; box-sizing: border-box; padding: 24px; }
+body.tts-sheet-open .refl-load { width: 100%; box-sizing: border-box; padding: 24px; }
 /* reflection notes: plain, no ruled lines */
 #aiReflection textarea, #reflectContent textarea, body:not(.light) #aiReflection textarea, body:not(.light) #reflectContent textarea, .light #aiReflection textarea, .light #reflectContent textarea, body.light #aiReflection textarea { background: transparent !important; }
 
@@ -11481,3 +11456,139 @@ body.light .bc-current-chev { background: #be185d; }
 @media (prefers-reduced-motion: reduce) { .bc-tile-chapters, .bc-sheet-panel { animation: none !important; } }
 /* the book picker lives in the header's stacking context too, so the dock would float over it */
 body:has(.bc-sheet:not([hidden])) .reader-dock, body:has(.bc-sheet:not([hidden])) .tts-chip { display: none !important; }
+
+/* ═══ 2026-11-21 reader rebuild: dock, notes sheet, compact header, flowing layout, verse bar + card, archive ═══ */
+
+/* Dock: one vertical pill, lower right. Note above Listen. */
+.reader-dock { left: auto !important; right: 16px !important; bottom: 24px !important; transform: none !important; flex-direction: column !important; gap: 8px !important; padding: 8px !important; border-radius: 36px !important; width: auto !important; max-width: none !important; box-shadow: 0 6px 20px rgba(0,0,0,.4); }
+.reader-dock button[data-dock="note"] { background: transparent; }
+.reader-dock button[data-dock="note"] .material-symbols-outlined { color: #db2777; }
+.reader-dock button[data-dock="listen"] { flex: 0 0 56px !important; width: 56px !important; min-width: 56px !important; height: 56px !important; }
+.reader-dock button[data-dock="note"].on { background: #db2777; }
+.reader-dock button[data-dock="note"].on .material-symbols-outlined { color: #fff; }
+.reader-dock button[data-dock="note"].has-note::after { content: ""; position: absolute; top: 8px; right: 8px; width: 8px; height: 8px; border-radius: 50%; background: #db2777; }
+.reader-dock button[data-dock="note"].has-note.on::after { background: #fff; }
+.reader-dock button[data-dock="note"] { position: relative; }
+body.tts-mini .reader-dock, body.tts-mini .reader-dock { bottom: 24px !important; }
+@media (max-width: 1023px) { .reader-dock { bottom: 16px !important; right: 16px !important; } body.tts-mini .reader-dock { bottom: 16px !important; } }
+.tts-chip { bottom: 24px !important; max-width: calc(100vw - 112px); }
+@media (max-width: 1023px) { .tts-chip { bottom: 16px !important; } }
+.bible { padding-bottom: 168px; }
+body.notes-open .reader-dock { bottom: calc(var(--notes-h, 50dvh) + var(--kb, 0px) + 16px) !important; }
+body.notes-full .reader-dock { display: none !important; }
+body.verse-card-open .reader-dock { z-index: 800; }
+
+/* Notes sheet: 50/50 split, scripture stays on top */
+.notes-sheet { position: fixed; left: 50%; bottom: var(--kb, 0px); z-index: 850; width: min(100%, 840px); height: var(--notes-h, 50dvh); transform: translate(-50%, 100%); background: #121829; border-radius: 22px 22px 0 0; box-shadow: 0 -12px 32px rgba(0,0,0,.35); display: flex; flex-direction: column; padding: 0 16px 16px; transition: transform .38s cubic-bezier(.22,1,.36,1), height .38s cubic-bezier(.22,1,.36,1), border-radius .3s; box-sizing: border-box; }
+.notes-sheet[hidden] { display: none; }
+body.notes-open .notes-sheet { transform: translate(-50%, 0); }
+body.notes-dragging .notes-sheet, body.notes-dragging .layout { transition: none !important; }
+body.notes-full .notes-sheet { height: 100dvh; border-radius: 0; padding-top: env(safe-area-inset-top, 0px); }
+body.notes-full .notes-grab { display: none; }
+.notes-grab { flex: none; height: 32px; display: grid; place-items: center; cursor: ns-resize; touch-action: none; }
+.notes-grab i { width: 40px; height: 4px; border-radius: 2px; background: #2b3554; }
+.notes-head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-bottom: 8px; }
+.notes-title { font: 800 15px/1.2 "Nunito", sans-serif; color: #e6edf7; }
+.notes-acts { display: flex; gap: 8px; }
+.notes-ib { width: 36px; height: 36px; border-radius: 50%; border: 0; background: #1b2238; color: #e6edf7; display: grid; place-items: center; cursor: pointer; flex: none; }
+.notes-ib .material-symbols-outlined { font-size: 20px; }
+.notes-ib:active { transform: scale(.95); }
+.notes-text { flex: 1; min-height: 0; width: 100%; resize: none; border: 0; outline: 0; background: rgba(17,26,47,.9); color: #e6edf7; border-radius: 12px; padding: 16px; font: 400 16px/1.6 "Nunito", sans-serif; box-sizing: border-box; }
+.notes-text::placeholder { color: rgba(255,255,255,.5); }
+body.light .notes-sheet { background: #fff; box-shadow: 0 -12px 32px rgba(0,0,0,.12); }
+body.light .notes-grab i { background: rgba(0,0,0,.15); }
+body.light .notes-title { color: #16130f; }
+body.light .notes-ib { background: #f1f2f7; color: #16130f; }
+body.light .notes-text { background: #f3f4fa; color: #16130f; }
+body.light .notes-text::placeholder { color: rgba(22,19,15,.5); }
+/* the scripture is the top half: the reader shrinks to make room */
+.layout { transition: height .38s cubic-bezier(.22,1,.36,1); }
+body.notes-open:not(.notes-full) .layout { height: calc(100dvh - var(--notes-h, 50dvh) - var(--kb, 0px)); margin-top: 0; }
+body.notes-open:not(.notes-full) .read-progress-bar { display: none; }
+
+/* Compact header: one slim row once you scroll */
+.compact-bar { position: fixed; top: 0; left: 50%; z-index: 700; width: min(100%, 840px); display: flex; align-items: center; gap: 8px; padding: 8px 16px; box-sizing: border-box; background: #0b1220; transform: translate(-50%, -100%); transition: transform .28s cubic-bezier(.22,1,.36,1); }
+.compact-bar[hidden] { display: none; }
+.compact-bar.on { transform: translate(-50%, 0); }
+.cb-title { flex: 1 1 0% !important; width: auto !important; min-width: 0; text-align: left; border: 0; background: none; color: #e6edf7; font: italic 26px/1.2 "Editors Note", Georgia, serif; padding: 0 8px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cb-ib { width: 40px; height: 40px; border-radius: 50%; border: 0; background: #1b2238; color: #e6edf7; display: grid; place-items: center; cursor: pointer; flex: none; }
+.cb-ib .material-symbols-outlined { font-size: 22px; }
+.cb-ib[data-cb="home"] { background: transparent; color: #a9b0c0; }
+.cb-ib:active { transform: scale(.95); }
+body.light .compact-bar { background: #f7f7fb; }
+body.light .cb-title { color: #16130f; }
+body.light .cb-ib { background: #e9ebf4; color: #16130f; }
+@media (max-width: 1023px) { .compact-bar { padding-top: calc(8px + env(safe-area-inset-top, 0px)); } }
+
+/* Flowing layout: verses run on as one paragraph with pink numbers */
+body.flow-read #output .verse, body.flow-read #output .verse-swipe-track, body.flow-read #output .verse-header, body.flow-read #output .verse-content { display: inline; }
+body.flow-read #output .verse { margin: 0; }
+body.flow-read #output .verse-header { cursor: text; }
+body.flow-read #output .verse-swipe-hints, body.flow-read #output .verse-actions, body.flow-read #output .verse-meta-indicators { display: none !important; }
+body.flow-read #output .verse-swipe-track > .verse-header { transform: none !important; }
+body.flow-read #output .verse-content { line-height: 1.9; }
+body.flow-read #output .verse-num { font-size: 22px; margin: 0 4px 0 6px; }
+body.flow-read #output .verse:first-of-type .verse-num { margin-left: 0; }
+body.flow-read #output .verse { transition: background .2s; border-radius: 6px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+body.flow-read #output .verse.verse-sel { background: rgba(219,39,119,.22); }
+body.flow-read #output .verse.highlighted .verse-content { background: none; padding: 0; }
+body.flow-read #output .verse.highlighted { background: rgba(219,39,119,.12); }
+body.flow-read #output .verse.highlighted.verse-sel { background: rgba(219,39,119,.28); }
+body.light.flow-read #output .verse.verse-sel { background: rgba(219,39,119,.16); }
+
+/* Verse tap bar: beside the dock */
+.verse-bar { position: fixed; z-index: 810; left: 12px; right: 96px; bottom: 24px; max-width: 420px; margin: 0 auto; display: flex; justify-content: space-around; align-items: center; padding: 6px; border-radius: 999px; background: #1b2238; box-shadow: 0 8px 24px rgba(0,0,0,.45); opacity: 0; transform: translateY(12px) scale(.97); transition: opacity .2s, transform .28s cubic-bezier(.22,1,.36,1); }
+.verse-bar[hidden] { display: none; }
+.verse-bar.on { opacity: 1; transform: none; }
+.verse-bar button { border: 0; background: none; color: #e6edf7; font: 800 14px/1 "Nunito", sans-serif; height: 44px; padding: 0 12px; border-radius: 999px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+.verse-bar button .material-symbols-outlined { color: #db2777; font-size: 20px; }
+.verse-bar button:hover { background: rgba(255,255,255,.08); }
+.verse-bar button.is-fav .material-symbols-outlined { color: #db2777; }
+@media (min-width: 1024px) { .verse-bar { left: calc(50% - 420px); right: calc(50% - 420px + 88px); } }
+@media (max-width: 1023px) { .verse-bar { bottom: 16px; } }
+body.light .verse-bar { background: #fff; box-shadow: 0 8px 24px rgba(0,0,0,.14); }
+body.light .verse-bar button { color: #16130f; }
+body.notes-open .verse-bar { bottom: calc(var(--notes-h, 50dvh) + var(--kb, 0px) + 24px); }
+
+/* Floating Context / Ask card */
+.verse-card { position: fixed; z-index: 820; left: 12px; right: 88px; bottom: 16px; max-width: 480px; margin: 0 auto; max-height: min(58dvh, 520px); overflow-y: auto; overscroll-behavior: contain; background: #121829; border-radius: 22px; padding: 12px 16px 16px; box-shadow: 0 12px 40px rgba(0,0,0,.6); opacity: 0; transform: translateY(16px) scale(.97); transition: opacity .22s, transform .3s cubic-bezier(.22,1,.36,1); box-sizing: border-box; }
+.verse-card[hidden] { display: none; }
+.verse-card.on { opacity: 1; transform: none; }
+@media (min-width: 1024px) { .verse-card { left: calc(50% - 420px); right: calc(50% - 420px + 88px); max-width: none; } }
+.vc-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; position: sticky; top: -12px; background: #121829; padding: 4px 0; z-index: 1; }
+.vc-tabs { display: flex; gap: 4px; background: rgba(17,26,47,.9); border-radius: 999px; padding: 4px; }
+.vc-tabs button { border: 0; background: none; color: rgba(255,255,255,.6); font: 800 13px/1 "Nunito", sans-serif; height: 32px; padding: 0 16px; border-radius: 999px; cursor: pointer; }
+.vc-tabs button.on { background: #2b3554; color: #e6edf7; }
+.vc-ref { flex: 1; text-align: right; font: 700 12px/1 "Nunito", sans-serif; letter-spacing: 1.5px; text-transform: uppercase; color: rgba(255,255,255,.55); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vc-pane[hidden] { display: none; }
+.vc-pane .ai-card-close, .vc-pane .ai-card-header { display: none; }
+.vc-pane .inline-ai-card, .vc-pane .ai-card-gradient { background: none; box-shadow: none; border: 0; padding-left: 0; padding-right: 0; }
+body.light .verse-card, body.light .vc-head { background: #fff; }
+body.light .vc-tabs { background: #f1f2f7; }
+body.light .vc-tabs button { color: rgba(22,19,15,.6); }
+body.light .vc-tabs button.on { background: #fff; color: #16130f; box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+
+/* Archive */
+.archive-view { position: fixed; inset: 0; z-index: 1100; background: radial-gradient(circle at top, #121b33, #0b1220) fixed; display: flex; flex-direction: column; align-items: center; opacity: 0; transform: translateY(24px); transition: opacity .25s, transform .3s cubic-bezier(.22,1,.36,1); }
+.archive-view[hidden] { display: none; }
+.archive-view.on { opacity: 1; transform: none; }
+.ar-bar { width: min(100%, 640px); box-sizing: border-box; display: flex; align-items: center; gap: 16px; padding: calc(16px + env(safe-area-inset-top, 0px)) 16px 8px; flex: none; }
+.ar-title { flex: 1; font: italic 34px/1.1 "Editors Note", Georgia, serif; color: #e6edf7; }
+.ar-dl { height: 36px; padding: 0 16px; border-radius: 999px; border: 1px solid rgba(255,255,255,.2); background: none; color: #e6edf7; font: 800 13px/1 "Nunito", sans-serif; cursor: pointer; }
+.ar-list { width: min(100%, 640px); box-sizing: border-box; flex: 1; min-height: 0; overflow-y: auto; padding: 8px 16px 48px; display: flex; flex-direction: column; gap: 12px; }
+.ar-card { display: flex; flex-direction: column; gap: 4px; text-align: left; width: 100%; border: 0; background: #1b2238; color: #e6edf7; border-radius: 14px; padding: 16px; cursor: pointer; font-family: "Nunito", sans-serif; }
+.ar-card:active { transform: scale(.99); }
+.ar-ref { font: 700 12px/1.2 "Nunito", sans-serif; letter-spacing: 1.5px; text-transform: uppercase; color: rgba(255,255,255,.55); }
+.ar-q { font: 600 14px/1.4 "Nunito", sans-serif; color: rgba(255,255,255,.6); }
+.ar-text { font: 400 15px/1.55 "Nunito", sans-serif; white-space: pre-wrap; word-break: break-word; }
+.ar-time { font: 400 12px/1.2 "Nunito", sans-serif; color: rgba(255,255,255,.5); margin-top: 4px; }
+.ar-empty { color: rgba(255,255,255,.6); text-align: center; padding: 48px 0; }
+body.light .archive-view { background: #f7f7fb; }
+body.light .ar-title, body.light .ar-card { color: #16130f; }
+body.light .ar-card { background: #fff; }
+body.light .ar-dl { color: #16130f; border-color: rgba(0,0,0,.2); }
+body.light .ar-ref, body.light .ar-q, body.light .ar-time { color: rgba(22,19,15,.6); }
+/* the global `button { flex: 0 !important }` would collapse these */
+.cb-ib, .notes-ib, .ar-card, .ar-dl, .verse-bar button, .vc-tabs button { flex: none !important; }
+.vc-head #vcClose { margin-left: auto; }
+@media (max-width: 480px) { .vc-ref { display: none; } }
