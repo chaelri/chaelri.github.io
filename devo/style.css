@@ -14455,3 +14455,7 @@ body.light .reader-dock button:hover { background: rgba(0,0,0,.06); color: #1613
 .verse-hover-pop::after { content: ""; position: absolute; left: 28px; bottom: -6px; width: 10px; height: 10px; background: #1b2238; border-right: 1px solid rgba(255,255,255,.1); border-bottom: 1px solid rgba(255,255,255,.1); transform: rotate(45deg); }
 .verse-hover-pop.flip::after { bottom: auto; top: -6px; border: 0; border-left: 1px solid rgba(255,255,255,.1); border-top: 1px solid rgba(255,255,255,.1); }
 body.light .verse-hover-pop::after { background: #ffffff; border-color: rgba(0,0,0,.12); }
+/* popover aligned to the verse's right edge, arrow at its right side */
+.verse-hover-pop, .verse-hover-pop.above { transform-origin: calc(100% - 28px) 100%; }
+.verse-hover-pop.flip { transform-origin: calc(100% - 28px) 0; }
+.verse-hover-pop::after { left: auto; right: 28px; }
