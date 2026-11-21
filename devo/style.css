@@ -14503,3 +14503,12 @@ body.tts-mini .reader-dock { bottom: 90px !important; }
 }
 @keyframes devoPopIn { from { opacity: 0; transform: translateY(-6px) scale(.97); } to { opacity: 1; transform: none; } }
 @media (min-width: 1024px) { .mt-sheet-panel { box-sizing: border-box; } }
+/* menu rows: straight hairlines (no rounded corners on the divider) */
+.mt-sheet-panel > .mt-sheet-row, .mt-sheet-panel > .mt-sheet-item, .mt-sheet-panel > * { border-radius: 0 !important; }
+/* Theme row shows Dark | Light as a switch, like Translation and Font */
+#mtThemeToggle { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+#mtThemeToggle .mt-sheet-state { display: none; }
+#mtThemeToggle .mt-theme-seg { margin-left: auto; display: flex; padding: 4px; border-radius: 999px; background: rgba(255,255,255,.06); }
+#mtThemeToggle .mt-theme-seg b { font: 800 12px/1 "Nunito", sans-serif; color: #a9b0c0; height: 32px; padding: 0 16px; border-radius: 999px; display: grid; place-items: center; }
+body:not(.light) #mtThemeToggle b[data-t="dark"], body.light #mtThemeToggle b[data-t="light"] { background: #db2777; color: #fff; }
+body.light #mtThemeToggle .mt-theme-seg { background: rgba(0,0,0,.06); }
