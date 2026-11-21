@@ -15065,3 +15065,22 @@ body.light #continue-reading .dash-continue-btn { background: none !important; b
   #continue-reading .dash-continue-text { gap: 8px; }
   #continue-reading .dash-continue-recap { color: #a9b0c0; }
 }
+
+/* Desktop dashboard: tighten the stacked paddings (section margin + card padding + row padding were adding up). Everything on the 8px unit. */
+@media (min-width: 1024px) {
+  .dashboard-grid { margin-top: 24px; gap: 24px; }
+  .dashboard-grid > .dashboard-section { margin-top: 0 !important; padding-bottom: 0 !important; }
+  .dashboard-grid #continue-reading,
+  .dashboard-grid #dashFavoritesContent,
+  .dashboard-grid > .dashboard-section:last-child { padding: 24px !important; }
+  .dashboard-grid #continue-reading .dash-continue-btn { margin-bottom: 0 !important; }
+  .dashboard-grid .dash-fav-row,
+  .dashboard-grid .dash-notes-card { padding-left: 0 !important; padding-right: 0 !important; margin-left: 0 !important; margin-right: 0 !important; }
+  .dashboard-grid .dash-fav-list, .dashboard-grid .dash-notes-list { gap: 8px; }
+  .dashboard-grid h3 { margin: 0 0 16px !important; }
+  #continue-reading .dash-continue-recap { min-height: 0; margin: 0; }
+}
+@media (min-width: 1024px) {
+  body:not(.light) .dashboard-grid .dash-fav-row:hover,
+  body:not(.light) .dashboard-grid .dash-notes-card:hover { box-shadow: 0 0 0 8px #222b45; transform: none; }
+}
