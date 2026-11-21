@@ -852,6 +852,8 @@ async function _imgcrShare() {
     if (bookSearch) bookSearch.blur();
     if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
     closeBookSheet();
+    // Same pink curtain as Continue: it covers the swap and lifts once the chapter has rendered.
+    if (typeof _curtainCover === "function" && !_curtain) _curtainCover();
     // Auto-load — no Search button in the new accordion flow.
     document.getElementById("load")?.click();
   }
