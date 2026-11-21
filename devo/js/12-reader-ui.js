@@ -360,7 +360,11 @@
     if (!panes[which].dataset.loaded) {
       panes[which].dataset.loaded = "1";
       if (which === "context") fetchInlineQuickContext({ book: info.book, chapter: info.chapter, verse: info.verse, text: info.text }, panes.context);
-      else toggleVerseChat(info.key, info.book, info.chapter, info.verse, info.text, panes.ask);
+      else {
+        toggleVerseChat(info.key, info.book, info.chapter, info.verse, info.text, panes.ask);
+        // Ask: the box is first, so you can type straight away (not on touch: it would raise the keyboard)
+        if (!matchMedia("(pointer: coarse)").matches) setTimeout(() => panes.ask.querySelector("textarea")?.focus(), 60);
+      }
     }
   }
   function openVerseCard(which) {

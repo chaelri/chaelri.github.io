@@ -11678,3 +11678,16 @@ body.verse-card-open .reader-dock { transform: translateX(calc(100% + 40px)) !im
 
 /* tapped-verse underline appears instantly: a background transition made it slide down from the top of the line */
 body.flow-read #output .verse { transition: none !important; }
+
+/* Ask in the card, option D: input first, suggestions as quiet links under it */
+.verse-card .verse-chat-wrapper { display: flex; flex-direction: column; }
+.verse-card .chat-input-area { order: -1; padding: 0 0 16px; }
+.verse-card .chat-empty-state { padding: 0; align-items: stretch; gap: 0; }
+.verse-card .chat-empty-state > .material-icons, .verse-card .chat-empty-state .chat-empty-text { display: none; }
+.verse-card .chat-suggestions { margin-top: 0; gap: 0; }
+.verse-card .chat-suggestions::before { content: "Or try"; font: 700 12px/1 "Nunito", sans-serif; letter-spacing: 1.5px; text-transform: uppercase; color: rgba(255,255,255,.55); margin-bottom: 8px; }
+.verse-card .chat-suggestion-chip { border: 0 !important; border-radius: 0; padding: 9px 0; font-size: 16px; line-height: 1.4; color: #e6edf7; background: none !important; display: flex; gap: 10px; align-items: flex-start; }
+.verse-card .chat-suggestion-chip::before { content: "subdirectory_arrow_right"; font-family: "Material Icons"; font-size: 18px; line-height: 1.4; letter-spacing: normal; text-transform: none; color: #db2777; flex: none; }
+.verse-card .chat-suggestion-chip:hover { color: #f7a8d0; }
+body.light .verse-card .chat-suggestion-chip { color: #16130f; }
+.verse-card .chat-input-area textarea { height: 44px; min-height: 44px; }
