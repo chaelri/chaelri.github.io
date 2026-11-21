@@ -15201,3 +15201,15 @@ body.light .dv { --dv-card: #ffffff; --dv-ink: #16130f; --dv-mute: #6b6a66; --dv
   .dv .dash-fav-row:first-child .dash-fav-row-text { font-size: 38px !important; max-width: 28ch; }
   .dv .dash-fav-row:first-child::after { font-size: 120px; }
 }
+/* desktop book: compact (about 232px tall) */
+@media (min-width: 861px) {
+  .dv-pg { padding: 32px 40px !important; min-height: 0 !important; }
+  .dv-ribbon { left: 40px; height: 56px; width: 24px; }
+  .dv-ref { margin-top: 24px; font-size: 15px; }
+  .dv-pg h2 { font-size: 24px; margin-top: 8px; }
+  .dv-num { font-size: 144px; right: 24px; bottom: 0; }
+  .dv-pg + .dv-pg { gap: 16px; }
+  .dv-book .dash-continue-recap { font-size: 15px !important; }
+  .dv-go { height: 40px !important; min-height: 40px !important; padding: 0 24px !important; }
+  .dv-mid { margin-top: 24px; }
+}
