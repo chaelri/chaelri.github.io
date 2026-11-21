@@ -15280,3 +15280,5 @@ body.light .dv .dv-fv-num { color: rgba(0,0,0,.1); }
 .dv .dv-ref { font: 800 12px/1 "Nunito", sans-serif !important; letter-spacing: .12em !important; text-transform: uppercase; color: #db2777; }
 .dv .dv-pg h2 { font: italic 38px/1.05 var(--dv-serif) !important; margin-top: 8px; }
 @media (min-width: 861px) { .dv .dv-pg h2 { font-size: 61px !important; } .dv .dv-ref { font-size: 12px !important; margin-top: 32px; } }
+.dv .dv-pg h2 { text-transform: none !important; letter-spacing: 0 !important; }
+@media (min-width: 861px) { .dv .dv-pg h2 { font-size: 38px !important; } }
