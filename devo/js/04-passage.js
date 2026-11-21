@@ -341,6 +341,7 @@ function _wireVerseHoverPopover() {
   };
 
   output.addEventListener("mousemove", (e) => {
+    if (document.body.classList.contains("flow-read")) return; // flowing layout: tap a verse instead
     lx = e.clientX; ly = e.clientY;
     const wrap = e.target.closest(".verse");
     if (!wrap) return;

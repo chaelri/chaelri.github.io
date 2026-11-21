@@ -13,6 +13,8 @@
   const out = $("output");
   const ic = (n) => `<span class="material-symbols-outlined" aria-hidden="true">${n}</span>`;
   const isReading = () => !layout.classList.contains("layout-unset");
+  const deskMQ = matchMedia("(min-width: 1024px)");
+  const isDesk = () => deskMQ.matches;
 
   /* ───────────────────────── Notes sheet ───────────────────────── */
   const sheet = document.createElement("section");
@@ -66,12 +68,18 @@
     const max = Math.round(innerHeight * 0.7), min = Math.round(innerHeight * 0.3);
     body.style.setProperty("--notes-h", Math.max(min, Math.min(max, Math.round(px))) + "px");
   }
+  // Desktop: the notes are a right drawer (width), not a bottom sheet (height).
+  function setNotesW(px) {
+    const max = Math.min(560, Math.round(innerWidth * 0.45)), min = 320;
+    body.style.setProperty("--notes-w", Math.max(min, Math.min(max, Math.round(px))) + "px");
+  }
   function openNotes() {
     if (!isReading()) return;
     closeVerseCard();
     hideBar();
     loadNote();
     if (!body.style.getPropertyValue("--notes-h")) setNotesH(innerHeight * 0.5);
+    if (!body.style.getPropertyValue("--notes-w")) setNotesW(400);
     sheet.hidden = false;
     requestAnimationFrame(() => {
       body.classList.add("notes-open");
@@ -109,7 +117,10 @@
       grab.setPointerCapture(e.pointerId);
       body.classList.add("notes-dragging");
     });
-    grab.addEventListener("pointermove", (e) => { if (dragging) setNotesH(innerHeight - e.clientY); });
+    grab.addEventListener("pointermove", (e) => {
+      if (!dragging) return;
+      if (isDesk()) setNotesW(innerWidth - e.clientX); else setNotesH(innerHeight - e.clientY);
+    });
     const end = () => { dragging = false; body.classList.remove("notes-dragging"); };
     grab.addEventListener("pointerup", end);
     grab.addEventListener("pointercancel", end);
@@ -174,7 +185,8 @@
   });
   let cbOn = false;
   function syncCompact() {
-    const want = isReading() && !passageTitleEl.hidden && layout.scrollTop > 48 && !body.classList.contains("notes-full");
+    // Phones: appears once you scroll. Desktop: the title bar is always pinned.
+    const want = isReading() && !passageTitleEl.hidden && (isDesk() || layout.scrollTop > 48) && !body.classList.contains("notes-full");
     if (want === cbOn) return;
     cbOn = want;
     body.classList.toggle("compact-on", want);
@@ -182,6 +194,7 @@
     else { cbar.classList.remove("on"); setTimeout(() => { if (!cbOn) cbar.hidden = true; }, 260); }
   }
   layout.addEventListener("scroll", syncCompact, { passive: true });
+  deskMQ.addEventListener("change", syncCompact);
   new MutationObserver(syncCompact).observe(layout, { attributes: true, attributeFilter: ["class"] });
   new MutationObserver(syncCompact).observe(body, { attributes: true, attributeFilter: ["class"] });
 
@@ -260,6 +273,22 @@
   body.appendChild(bar);
 
   let selVerse = null;
+  // Desktop: the menu and the card open in the margin right beside the tapped verse.
+  function placeNearVerse(el) {
+    if (!isDesk() || !selVerse || el.hidden) return;
+    const r = selVerse.getClientRects()[0] || selVerse.getBoundingClientRect();
+    const o = out.getBoundingClientRect();
+    const w = el.offsetWidth || 340, h = el.offsetHeight || 56;
+    const drawer = body.classList.contains("notes-open") ? (parseInt(getComputedStyle(body).getPropertyValue("--notes-w")) || 400) : 0;
+    const x = Math.max(8, Math.min(o.right + 24, innerWidth - drawer - w - 16));
+    const y = Math.max(72, Math.min(r.top - 8, innerHeight - h - 24));
+    el.style.left = x + "px";
+    el.style.top = y + "px";
+    el.style.setProperty("--tail-y", Math.max(12, Math.min(r.top + 12 - y, h - 24)) + "px");
+  }
+  const replace = () => { placeNearVerse(bar); placeNearVerse(card); };
+  layout.addEventListener("scroll", () => requestAnimationFrame(replace), { passive: true });
+  addEventListener("resize", replace);
   function hideBar() {
     bar.classList.remove("on");
     setTimeout(() => { if (!bar.classList.contains("on")) bar.hidden = true; }, 220);
@@ -272,6 +301,7 @@
     v.classList.add("verse-sel");
     syncFav();
     bar.hidden = false;
+    placeNearVerse(bar);
     requestAnimationFrame(() => bar.classList.add("on"));
   }
   function syncFav() {
@@ -296,7 +326,7 @@
     if (e.target.closest("#verseBar, #output .verse, #verseCard, #readerDock")) return;
     hideBar();
   });
-  layout.addEventListener("scroll", () => { if (bar.classList.contains("on") && !card.classList.contains("on")) hideBar(); }, { passive: true });
+  layout.addEventListener("scroll", () => { if (!isDesk() && bar.classList.contains("on") && !card.classList.contains("on")) hideBar(); }, { passive: true });
 
   /* ───────── Floating Context / Ask card ───────── */
   const card = document.createElement("div");
@@ -315,6 +345,7 @@
     <div class="vc-pane" data-pane="context"></div>
     <div class="vc-pane" data-pane="ask"></div>`;
   body.appendChild(card);
+  if (window.ResizeObserver) new ResizeObserver(() => placeNearVerse(card)).observe(card);
   const panes = { context: card.querySelector('[data-pane="context"]'), ask: card.querySelector('[data-pane="ask"]') };
   let cardKey = null;
 
@@ -343,13 +374,14 @@
     }
     $("vcRef").textContent = `${info.book} ${info.chapter}:${info.verse}`;
     card.hidden = false;
+    placeNearVerse(card);
     bar.classList.remove("on");
     setTimeout(() => { if (!bar.classList.contains("on")) bar.hidden = true; }, 220);
     requestAnimationFrame(() => card.classList.add("on"));
     body.classList.add("verse-card-open");
     showPane(which);
-    // Keep the tapped verse above the card.
-    setTimeout(() => {
+    // Phones: keep the tapped verse above the card.
+    if (!isDesk()) setTimeout(() => {
       const r = selVerse.getBoundingClientRect(), lim = card.getBoundingClientRect().top - 16;
       if (r.bottom > lim) layout.scrollBy({ top: r.bottom - lim, behavior: "smooth" });
     }, 120);

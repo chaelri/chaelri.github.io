@@ -11600,3 +11600,42 @@ body.flow-read #output .verse-num { line-height: 0 !important; vertical-align: b
 
 /* flowing text: justified by default (setting: Align in the ... menu) */
 body.flow-read.flow-justify #output .verse-content, body.flow-read.flow-justify #output { text-align: justify; hyphens: manual; -webkit-hyphens: manual; }
+
+/* ═══ Desktop / landscape (>= 1024px): centered column, right notes drawer, sticky title, card beside the verse ═══ */
+@media (min-width: 1101px) {
+  .layout:not(.layout-unset) { grid-template-columns: minmax(0, 1fr); }
+  .layout:not(.layout-unset) > .main { width: 100%; max-width: 640px; justify-self: center; }
+}
+@media (min-width: 1024px) {
+  body { --col: 640px; --shift: 0px; }
+  body.notes-open:not(.notes-full) { --shift: calc(var(--notes-w, 400px) / -2); }
+  .layout { transition: transform .38s cubic-bezier(.22,1,.36,1); }
+  body.notes-open:not(.notes-full) .layout { height: 100dvh; transform: translateX(var(--shift)); }
+
+  /* dock hugs the column */
+  .reader-dock { left: calc(50% + var(--shift, 0px) + var(--col) / 2 + 16px) !important; right: auto !important; transition: left .38s cubic-bezier(.22,1,.36,1); }
+  body.notes-open .reader-dock { bottom: 24px !important; }
+
+  /* notes: right drawer, about a third */
+  .notes-sheet { left: auto; right: 0; top: 0; bottom: 0; width: var(--notes-w, 400px); height: auto; transform: translateX(100%); border-radius: 0; padding: 16px 16px 16px; transition: transform .38s cubic-bezier(.22,1,.36,1), width .3s; }
+  body.notes-open .notes-sheet { transform: none; }
+  body.notes-full .notes-sheet { width: 100vw; height: auto; }
+  .notes-grab { position: absolute; left: -8px; top: 0; bottom: 0; width: 16px; height: auto; cursor: ew-resize; }
+  .notes-grab i { width: 4px; height: 40px; }
+  body.notes-full .notes-grab { display: none; }
+  body.notes-dragging .notes-sheet { transition: none !important; }
+
+  /* title bar: always pinned, same width as the column */
+  .compact-bar { left: calc(50% + var(--shift, 0px)); width: min(100%, var(--col)); padding-left: 0; padding-right: 0; transition: transform .28s cubic-bezier(.22,1,.36,1), left .38s cubic-bezier(.22,1,.36,1); }
+  body.compact-on #topActions .top-actions-reading, body.compact-on #storyReflectRow { display: none !important; }
+  body.compact-on .layout:not(.layout-unset) { padding-top: 64px; }
+
+  /* tap menu and card open in the margin beside the verse */
+  .verse-bar, .verse-card { left: 0; right: auto; bottom: auto; top: 0; margin: 0; max-width: none; transform: translateX(-8px) scale(.97); }
+  .verse-bar.on, .verse-card.on { transform: none; }
+  .verse-bar { width: 232px; }
+  .verse-card { width: 340px; max-height: min(70dvh, 560px); }
+  .verse-bar::before, .verse-card::before { content: ""; position: absolute; left: -5px; top: var(--tail-y, 16px); width: 10px; height: 10px; background: inherit; transform: rotate(45deg); border-radius: 2px; }
+  body.notes-open .verse-bar { bottom: auto; }
+}
+.notes-text:focus, .notes-text:focus-visible { outline: 0 !important; box-shadow: none !important; border: 0 !important; }
