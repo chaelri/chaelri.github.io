@@ -875,6 +875,7 @@ function pauseResumeTTS() {
     if (!_ttsInCanvas) _ttsImmShowPausePanel();
   }
   _cmListenBarUpdate();
+  if (document.body.classList.contains("tts-mini")) _ttsMiniUpdate();
   // Sync the lock-screen play/pause icon with the new state.
   if ("mediaSession" in navigator) {
     try { navigator.mediaSession.playbackState = ttsPaused ? "paused" : "playing"; } catch {}
@@ -1017,6 +1018,7 @@ function _ttsProgressTick() {
   const pct = total ? Math.min(100, (elapsed / total) * 100) : 0;
   const fill = document.getElementById("ttsImmProgFill");
   if (fill) fill.style.width = `${pct}%`;
+  document.body.style.setProperty("--tts-pct", (pct / 100).toFixed(4));
   const e = document.getElementById("ttsImmElapsed");
   const t = document.getElementById("ttsImmTotal");
   if (e) e.textContent = _ttsFmt(elapsed);
@@ -1066,6 +1068,11 @@ function _ttsMiniUpdate() {
   label.textContent = _ttsFinished
     ? `${name} ${ch} · Chapter complete`
     : `${name} ${ch}${cur ? ` · Verse ${cur.verseNum}` : ""}`;
+  const chip = document.getElementById("ttsChipText");
+  if (chip) chip.textContent = _ttsFinished
+    ? "Chapter complete"
+    : `${cur ? `Verse ${cur.verseNum} · ` : ""}${name} ${ch}`;
+  document.body.classList.toggle("tts-paused", !!(ttsPaused || _ttsFinished));
   const pause = document.getElementById("ttsPauseBtn");
   if (pause) pause.disabled = !!_ttsFinished;
 }
@@ -1073,7 +1080,8 @@ function _ttsMiniUpdate() {
 function stopTTS() {
   _ttsFinished = false;
   _ttsProgressStop();
-  document.body.classList.remove("tts-mini");
+  document.body.classList.remove("tts-mini", "tts-sheet-open", "tts-paused");
+  document.body.style.setProperty("--tts-pct", "0");
   ttsGen++;
   _synthReset();
   _ttsCleanupMode();

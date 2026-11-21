@@ -1939,9 +1939,17 @@ async function _imgcrShare() {
     const b = e.target.closest("button[data-dock]");
     if (!b) return;
     const map = { study: "studyBtn", reflect: "passageReflectBtn", retell: "passageNarrateBtn" };
-    if (b.dataset.dock === "listen") mtListen?.click();
+    if (b.dataset.dock === "listen") {
+      if (!document.body.classList.contains("tts-mini")) mtListen?.click();
+      else if (_ttsFinished) { stopTTS(); playChapter(); }
+      else pauseResumeTTS();
+    }
     else document.getElementById(map[b.dataset.dock])?.click();
   });
+  const setTtsSheet = (open) => document.body.classList.toggle("tts-sheet-open", open);
+  document.getElementById("ttsChip")?.addEventListener("click", () => setTtsSheet(true));
+  document.getElementById("ttsSheetScrim")?.addEventListener("click", () => setTtsSheet(false));
+  document.getElementById("ttsSheetGrab")?.addEventListener("click", () => setTtsSheet(false));
 
   // Version toggle moved into the overflow sheet (Settings-ish row).
   // Proxies taps to the original .version-pill buttons so all downstream JS

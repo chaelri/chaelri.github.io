@@ -341,8 +341,10 @@
     </div>
 
     <div id="ttsPlayer" class="tts-player" hidden>
+      <button type="button" class="tts-sheet-grab" id="ttsSheetGrab" aria-label="Hide player controls"></button>
       <div id="ttsProgressBar" class="tts-progress-bar"></div>
       <button type="button" id="ttsPassage" class="tts-passage" aria-label="Open Listen"></button>
+      <div class="tts-sheet-prog"><i></i></div>
       <div class="tts-controls">
         <button id="ttsPrevBtn" class="tts-btn">
           <span class="material-symbols-outlined">skip_previous</span>
@@ -756,9 +758,11 @@
     
 
 
+    <button type="button" id="ttsChip" class="tts-chip" aria-label="Show player controls"><span id="ttsChipText"></span><span class="material-symbols-outlined" aria-hidden="true">expand_less</span></button>
+    <div id="ttsSheetScrim" class="tts-sheet-scrim"></div>
     <nav id="readerDock" class="reader-dock" hidden aria-label="Reader actions">
       <button type="button" data-dock="study" aria-label="Study" title="Study"><span class="material-symbols-outlined" aria-hidden="true">auto_stories</span></button>
-      <button type="button" data-dock="listen" aria-label="Listen" title="Listen"><span class="material-symbols-outlined" aria-hidden="true">headphones</span></button>
+      <button type="button" data-dock="listen" aria-label="Listen" title="Listen"><svg class="dock-ring" viewBox="0 0 56 56" aria-hidden="true"><circle class="dock-ring-track" cx="28" cy="28" r="26"/><circle class="dock-ring-fill" cx="28" cy="28" r="26"/></svg><span class="material-symbols-outlined dock-ic-listen" aria-hidden="true">headphones</span><span class="material-symbols-outlined dock-ic-pause" aria-hidden="true">pause</span><span class="material-symbols-outlined dock-ic-play" aria-hidden="true">play_arrow</span></button>
       <button type="button" data-dock="retell" aria-label="Retell" title="Retell"><span class="material-symbols-outlined" aria-hidden="true">forum</span></button>
     </nav>
 

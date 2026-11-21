@@ -14530,3 +14530,57 @@ body.light .mt-textsize-a--sm { color: #6b6a66 !important; }
 @keyframes viewSlideInLeft { from { opacity: 0; transform: translateX(-40%); } to { opacity: 1; transform: none; } }
 #output.view-slide-in-left { animation: viewSlideInLeft 560ms cubic-bezier(.2,.8,.2,1) both; will-change: opacity, transform; }
 @media (prefers-reduced-motion: reduce) { #output.view-slide-in-left { animation: none !important; } }
+
+/* ===== Listen: progress ring on the dock's headphones button, verse chip above the dock, full controls in a bottom sheet ===== */
+.reader-dock button[data-dock="listen"] { position: relative; overflow: visible; }
+.dock-ring { position: absolute; inset: -6px; width: 60px; height: 60px; transform: rotate(-90deg); pointer-events: none; display: none; }
+.dock-ring circle { fill: none; stroke-width: 3; }
+.dock-ring-track { stroke: rgba(255,255,255,.12); }
+.dock-ring-fill { stroke: #db2777; stroke-linecap: round; stroke-dasharray: 163.36; stroke-dashoffset: calc(163.36 * (1 - var(--tts-pct, 0))); transition: stroke-dashoffset .25s linear; }
+body.light .dock-ring-track { stroke: rgba(0,0,0,.1); }
+body.tts-mini .dock-ring { display: block; }
+body.tts-mini .reader-dock button[data-dock="listen"].on { box-shadow: none; }
+.dock-ic-pause, .dock-ic-play { display: none !important; }
+body.tts-mini .dock-ic-listen { display: none !important; }
+body.tts-mini:not(.tts-paused) .dock-ic-pause, body.tts-mini.tts-paused .dock-ic-play { display: inline-block !important; }
+body.tts-mini .reader-dock { bottom: 24px !important; }
+
+.tts-chip { position: fixed; z-index: 800; left: 50%; bottom: 96px; transform: translateX(-50%); display: none; align-items: center; gap: 4px; height: 36px; max-width: calc(100vw - 32px); padding: 0 8px 0 16px; border: 0; border-radius: 999px; background: #1b2238; color: #e6edf7; font: 800 14px/1 "Nunito", sans-serif; white-space: nowrap; box-shadow: 0 8px 24px rgba(0,0,0,.4); cursor: pointer; }
+#ttsChipText { overflow: hidden; text-overflow: ellipsis; }
+.tts-chip .material-symbols-outlined { font-size: 20px; color: rgba(255,255,255,.55); }
+body.light .tts-chip { background: #fff; color: #16130f; box-shadow: 0 8px 24px rgba(0,0,0,.12); }
+body.light .tts-chip .material-symbols-outlined { color: #6b6a66; }
+body.tts-mini .tts-chip { display: inline-flex; }
+body.tts-sheet-open .tts-chip { display: none; }
+@media (max-width: 1023px) {
+  body.tts-mini .reader-dock { bottom: 16px !important; }
+  .tts-chip { bottom: 88px; }
+}
+
+body.tts-mini:not(.tts-sheet-open) #ttsPlayer { display: none !important; }
+.tts-sheet-scrim { position: fixed; inset: 0; z-index: 940; background: rgba(0,0,0,.4); display: none; }
+body.tts-sheet-open .tts-sheet-scrim { display: block; animation: ttsScrimIn .3s ease both; }
+body.tts-sheet-open #ttsPlayer.tts-player { left: 50% !important; bottom: 0 !important; transform: translateX(-50%) !important; width: min(100vw, 480px) !important; flex-direction: column !important; align-items: stretch !important; gap: 0 !important; padding: 0 24px calc(24px + env(safe-area-inset-bottom, 0px)) !important; border: 0 !important; border-radius: 24px 24px 0 0 !important; box-shadow: 0 -12px 40px rgba(0,0,0,.5) !important; z-index: 950 !important; animation: ttsSheetUp .42s cubic-bezier(.22,1,.36,1) both; }
+@keyframes ttsSheetUp { from { translate: 0 100%; } to { translate: 0 0; } }
+@keyframes ttsScrimIn { from { opacity: 0; } to { opacity: 1; } }
+.tts-sheet-grab, .tts-sheet-prog { display: none; }
+body.tts-sheet-open .tts-sheet-grab { display: block; position: relative; width: 100%; height: 32px; margin-bottom: 8px; border: 0; background: none; cursor: pointer; }
+.tts-sheet-grab::before { content: ""; position: absolute; left: 50%; top: 12px; width: 40px; height: 4px; margin-left: -20px; border-radius: 2px; background: rgba(255,255,255,.18); }
+body.light .tts-sheet-grab::before { background: rgba(0,0,0,.15); }
+body.tts-sheet-open #ttsPlayer .tts-progress-bar { display: none; }
+body.tts-sheet-open #ttsPassage { flex: none !important; min-height: 0; font-size: 22px; line-height: 32px; font-weight: 800; }
+body.tts-sheet-open #ttsPassage::before { content: "LISTENING"; display: block; margin-bottom: 4px; font-size: 11px; line-height: 16px; font-weight: 700; letter-spacing: 1.5px; color: rgba(255,255,255,.5); }
+body.light.tts-sheet-open #ttsPassage::before { color: #6b6a66; }
+body.tts-sheet-open .tts-sheet-prog { display: block; height: 4px; margin: 16px 0 0; border-radius: 2px; background: rgba(255,255,255,.1); overflow: hidden; }
+body.light.tts-sheet-open .tts-sheet-prog { background: rgba(0,0,0,.08); }
+.tts-sheet-prog i { display: block; height: 100%; width: calc(var(--tts-pct, 0) * 100%); background: #db2777; border-radius: 2px; transition: width .25s linear; }
+body.tts-sheet-open #ttsPlayer .tts-controls { display: flex; justify-content: center; align-items: center; gap: 24px; margin-top: 24px; }
+body.tts-sheet-open #ttsPlayer .tts-btn { background: transparent; }
+body.tts-sheet-open #ttsPlayer #ttsCloseBtn { color: rgba(255,255,255,.55); }
+body.light.tts-sheet-open #ttsPlayer #ttsCloseBtn { color: #6b6a66; }
+body.tts-sheet-open #ttsPlayer #ttsPauseBtn { width: 64px; height: 64px; min-width: 64px; background: #db2777; color: #fff; box-shadow: 0 6px 20px rgba(219,39,119,.35); }
+body.tts-sheet-open #ttsPlayer #ttsPauseBtn .material-symbols-outlined { font-size: 32px; }
+@media (prefers-reduced-motion: reduce) {
+  body.tts-sheet-open #ttsPlayer.tts-player, body.tts-sheet-open .tts-sheet-scrim { animation: none !important; }
+  .dock-ring-fill, .tts-sheet-prog i { transition: none; }
+}
