@@ -213,7 +213,7 @@ if (nextChapterBtn) {
   };
 }
 
-homeBtn.onclick = () => {
+function _goHome() {
   output.innerHTML = "";
   document.getElementById("prevChapterBtn").classList.add("hidden");
   document.getElementById("nextChapterBtn").classList.add("hidden");
@@ -225,6 +225,16 @@ homeBtn.onclick = () => {
   showDashboard();
   // Keep layout-unset for dashboard view to allow scroll
   // document.querySelector(".layout").classList.add("layout-unset");
+}
+homeBtn.onclick = async () => {
+  // Back to the dashboard: the sweep runs in reverse (in from the right), the swap happens under it.
+  if (typeof _curtainCover === "function" && !_curtain && _curtainCover(true)) {
+    await _curtain.cover;
+    _goHome();
+    _curtainLift();
+  } else {
+    _goHome();
+  }
 };
 
 /* ---------- TTS BUTTON WIRING ---------- */

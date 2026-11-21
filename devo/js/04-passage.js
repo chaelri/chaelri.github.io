@@ -1734,15 +1734,20 @@ let _curtain = null;
 const _SWEEP_OPEN = "polygon(0 0, 0 0, -30% 100%, 0 100%)";
 const _SWEEP_FULL = "polygon(0 0, 130% 0, 100% 100%, 0 100%)";
 const _SWEEP_GONE = "polygon(130% 0, 130% 0, 100% 100%, 100% 100%)";
-function _curtainCover() {
+// Going back (to the dashboard) is the same sweep mirrored: in from the right, out to the left.
+const _SWEEP_OPEN_R = "polygon(100% 0, 100% 0, 130% 100%, 100% 100%)";
+const _SWEEP_FULL_R = "polygon(100% 0, -30% 0, 0 100%, 100% 100%)";
+const _SWEEP_GONE_R = "polygon(-30% 0, -30% 0, 0 100%, 0 100%)";
+function _curtainCover(rev) {
   try {
     const el = document.createElement("div");
     el.className = "nav-curtain";
     el.setAttribute("aria-hidden", "true");
+    if (rev) el.style.clipPath = _SWEEP_OPEN_R;
     document.body.appendChild(el);
-    const cover = el.animate([{ clipPath: _SWEEP_OPEN }, { clipPath: _SWEEP_FULL }],
+    const cover = el.animate([{ clipPath: rev ? _SWEEP_OPEN_R : _SWEEP_OPEN }, { clipPath: rev ? _SWEEP_FULL_R : _SWEEP_FULL }],
       { duration: 480, easing: "cubic-bezier(.7,0,.2,1)", fill: "forwards" }).finished.catch(() => {});
-    _curtain = { el, cover, t: setTimeout(_curtainLift, 6000) };
+    _curtain = { el, cover, rev: !!rev, t: setTimeout(_curtainLift, 6000) };
     return true;
   } catch { return false; }
 }
@@ -1753,7 +1758,7 @@ async function _curtainLift() {
   clearTimeout(c.t);
   await c.cover;
   await new Promise((r) => setTimeout(r, 200));
-  await c.el.animate([{ clipPath: _SWEEP_FULL }, { clipPath: _SWEEP_GONE }],
+  await c.el.animate([{ clipPath: c.rev ? _SWEEP_FULL_R : _SWEEP_FULL }, { clipPath: c.rev ? _SWEEP_GONE_R : _SWEEP_GONE }],
     { duration: 480, easing: "cubic-bezier(.7,0,.2,1)", fill: "forwards" }).finished.catch(() => {});
   c.el.remove();
 }
