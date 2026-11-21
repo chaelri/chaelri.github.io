@@ -11466,8 +11466,6 @@ body:has(.bc-sheet:not([hidden])) .reader-dock, body:has(.bc-sheet:not([hidden])
 .reader-dock button[data-dock="listen"] { flex: 0 0 56px !important; width: 56px !important; min-width: 56px !important; height: 56px !important; }
 .reader-dock button[data-dock="note"].on { background: #db2777; }
 .reader-dock button[data-dock="note"].on .material-symbols-outlined { color: #fff; }
-.reader-dock button[data-dock="note"].has-note::after { content: ""; position: absolute; top: 8px; right: 8px; width: 8px; height: 8px; border-radius: 50%; background: #db2777; }
-.reader-dock button[data-dock="note"].has-note.on::after { background: #fff; }
 .reader-dock button[data-dock="note"] { position: relative; }
 body.tts-mini .reader-dock, body.tts-mini .reader-dock { bottom: 24px !important; }
 @media (max-width: 1023px) { .reader-dock { bottom: 16px !important; right: 16px !important; } body.tts-mini .reader-dock { bottom: 16px !important; } }
@@ -11634,3 +11632,13 @@ body.flow-read.flow-justify #output .verse-content, body.flow-read.flow-justify 
   body.notes-open .verse-bar { bottom: auto; }
 }
 .notes-text:focus, .notes-text:focus-visible { outline: 0 !important; box-shadow: none !important; border: 0 !important; }
+/* justify only the verse text; recap cards, headings and other blocks in #output stay left-aligned */
+body.flow-read.flow-justify #output > :not(.verse), body.flow-read.flow-justify #output > :not(.verse) * { text-align: start; }
+
+/* icon buttons: the global button padding pushed the glyph off-centre */
+.notes-ib, .cb-ib { padding: 0 !important; }
+
+/* the old sidebar is empty now (its 320px bottom padding was the dead space under the chapter) */
+.summary { display: none !important; }
+.bible { padding-bottom: 120px; }
+@media (min-width: 1024px) { .bible { padding-bottom: 24px; } }

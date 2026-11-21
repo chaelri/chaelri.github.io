@@ -44,18 +44,12 @@
     if (curBook == null) return;
     const prev = _loadChapterNote(curBook, curCh).text;
     if (ta.value !== prev) _saveChapterNote(curBook, curCh, ta.value);
-    updateNoteDot();
   }
   function loadNote() {
     curBook = bookEl.value;
     curCh = chapterEl.value;
     ta.value = _loadChapterNote(curBook, curCh).text;
     titleEl.textContent = chapterLabel();
-    updateNoteDot();
-  }
-  function updateNoteDot() {
-    const has = !!_loadChapterNote(bookEl.value, chapterEl.value).text.trim();
-    document.querySelector('#readerDock [data-dock="note"]')?.classList.toggle("has-note", has);
   }
   ta.addEventListener("input", () => {
     clearTimeout(saveT);
@@ -140,8 +134,7 @@
       flushNote();
       loadNote();
     } else if (!body.classList.contains("notes-open")) {
-      updateNoteDot();
-    }
+      }
     if (!isReading()) { if (body.classList.contains("notes-open")) closeNotes(); }
   }).observe(passageTitleEl, { childList: true, characterData: true, subtree: true });
   // Remote sync of the open chapter's note (only when not typing).
