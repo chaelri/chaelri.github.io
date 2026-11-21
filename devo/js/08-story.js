@@ -634,7 +634,7 @@ function buildScrapbookHTML(seg) {
           <div class="story-connector-dot" style="left:${fromPct}%;top:-3px;animation-delay:${animDelay}s"></div>
           <div class="story-connector-dot" style="left:${toPct}%;bottom:-3px;animation-delay:${animDelay}s"></div>
           <svg style="position:absolute;inset:0;width:100%;height:100%;overflow:visible" preserveAspectRatio="none">
-            <line x1="${fromPct}%" y1="0" x2="${toPct}%" y2="100%" stroke="#db2777" stroke-width="1.5" opacity="0.3"/>
+            <line x1="${fromPct}%" y1="0" x2="${toPct}%" y2="100%" stroke="#a03e6a" stroke-width="1.5" opacity="0.3"/>
           </svg>
         </div>
       `);
@@ -644,7 +644,7 @@ function buildScrapbookHTML(seg) {
   const footerDelay = (items.length - 1) * 0.6 + 0.8;
   const footer = `<div style="text-align:center;margin-top:28px;z-index:2;position:relative;opacity:0;animation:nodeIn 0.4s ease-out ${footerDelay}s forwards">
     <div style="width:40px;height:2px;border-radius:1px;background:rgba(255,255,255,0.08);margin:0 auto 12px"></div>
-    <div style="font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:var(--pink-ink,#e0719f)">Verses ${esc(seg.verses)}</div>
+    <div style="font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:var(--pink-ink,#a03e6a)">Verses ${esc(seg.verses)}</div>
     <div style="font-size:13px;font-weight:600;color:#6b7a94;opacity:0.5;margin-top:4px">${esc(seg.title)}</div>
   </div>`;
 
@@ -717,7 +717,7 @@ function buildTeachingHTML(seg) {
     <div class="story-label story-verse-link" onclick="openVersePeek('${esc(seg.verses)}', this)">VERSES ${esc(seg.verses)}</div>
     <div class="story-title">${esc(seg.title)}</div>
     <div class="story-quote-card">
-      <span class="material-icons" style="color:var(--pink-ink,#e0719f);opacity:0.5;margin-bottom:10px">format_quote</span>
+      <span class="material-icons" style="color:var(--pink-ink,#a03e6a);opacity:0.5;margin-bottom:10px">format_quote</span>
       <div class="story-quote-text">${esc(quote || "")}</div>
       ${speaker ? `<div class="story-quote-attr"><span class="story-quote-speaker">— ${esc(speaker)}</span><span class="story-quote-ref" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px" onclick="openVersePeek('${esc(verseRef)}', this)">v. ${esc(verseRef)}</span></div>` : ""}
     </div>
@@ -741,7 +741,7 @@ function buildContrastHTML(seg) {
       <div class="story-vs-label">${esc(right?.label || "After")}</div>
       <div class="story-vs-text blue">${boldify(right?.text || "")}</div>
     </div>
-    ${reflection ? `<div class="story-reflection-row"><span class="material-icons" style="color:var(--pink-ink,#e0719f);font-size:16px;margin-top:2px">lightbulb</span><div class="story-reflection-text">${boldify(reflection)}</div></div>` : ""}
+    ${reflection ? `<div class="story-reflection-row"><span class="material-icons" style="color:var(--pink-ink,#a03e6a);font-size:16px;margin-top:2px">lightbulb</span><div class="story-reflection-text">${boldify(reflection)}</div></div>` : ""}
   `;
 }
 
@@ -750,7 +750,7 @@ function buildRecapHTML({ data, book, chapter }) {
     `<div class="story-recap-row"><div class="story-recap-num">${i + 1}</div><div class="story-recap-text">${esc(p)}</div></div>`
   ).join("");
   return `
-    <span class="story-recap-bg-icon"><span class="material-icons" style="font-size:320px;color:var(--pink-ink,#e0719f)">replay</span></span>
+    <span class="story-recap-bg-icon"><span class="material-icons" style="font-size:320px;color:var(--pink-ink,#a03e6a)">replay</span></span>
     <div class="story-label">QUICK RECAP</div>
     <div class="story-title">${esc(book)} ${chapter}</div>
     <div class="story-recap-points">${points}</div>
@@ -766,12 +766,12 @@ function buildReflectHTML({ data, book, chapter }) {
     <span class="story-float-heart tl2"><span class="material-icons" style="font-size:18px">favorite</span></span>
     <span class="story-float-heart tl3"><span class="material-icons" style="font-size:26px">favorite</span></span>
     <div style="text-align:center">
-      <span class="material-icons" style="font-size:32px;color:var(--pink-ink,#e0719f);margin-bottom:16px">favorite</span>
+      <span class="material-icons" style="font-size:32px;color:var(--pink-ink,#a03e6a);margin-bottom:16px">favorite</span>
       <div class="story-label" style="text-align:center">REFLECT</div>
       <div class="story-title" style="text-align:center">${esc(book)} ${chapter}</div>
       <div class="story-reflect-text">${esc(data.reflectionP1 || "")}</div>
       <div class="story-reflect-text" style="margin-top:16px">${esc(data.reflectionP2 || "")}</div>
-      <div class="story-reflect-closing"><span class="material-icons" style="font-size:14px;color:var(--pink-ink,#e0719f)">auto_awesome</span> ${getReflectClosingLine()}</div>
+      <div class="story-reflect-closing"><span class="material-icons" style="font-size:14px;color:var(--pink-ink,#a03e6a)">auto_awesome</span> ${getReflectClosingLine()}</div>
       <div class="story-reflect-actions">
         <button class="story-reflect-action-btn" onclick="_storyToReflect()">
           Reflect this Chapter
