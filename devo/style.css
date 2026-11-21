@@ -14587,3 +14587,4 @@ body.tts-sheet-open #ttsPlayer #ttsPauseBtn .material-symbols-outlined { font-si
 }
 /* the "..." sheet lives inside the header's stacking context, so the dock would float over it */
 body:has(.mt-sheet:not([hidden])) .reader-dock, body:has(.mt-sheet:not([hidden])) .tts-chip { display: none !important; }
+body.tts-sheet-open #ttsPlayer #ttsCloseBtn { display: none !important; }
