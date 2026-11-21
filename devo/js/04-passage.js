@@ -1546,16 +1546,18 @@ function _renderFavoritesContent(allFavoritePassages) {
       </div>` : ""}
     </h3>`;
   const body = total
-    ? `<div class="dash-fav-list">
-        ${pageItems.map((item) => {
-          const ref = formatKey(item.key);
+    ? `<div class="dash-fav-list dv-fv-strip">
+        ${pageItems.map((item, idx) => {
+          const [bk, ch, vs] = item.key.split("-");
+          const bookName = BIBLE_META[bk]?.name || bk;
+          const numeral = vs ? `${ch}:${vs}` : ch;
           const raw = (item.verseText || "").replace(/\s+/g, " ").trim();
           const preview = raw && raw !== "Verse text not found."
-            ? (raw.length > 110 ? raw.slice(0, 110) + "…" : raw)
+            ? (raw.length > 140 ? raw.slice(0, 140) + "…" : raw)
             : "";
-          return `<div class="dash-fav-row" onclick="loadPassageById('${item.key}')">
-            <div class="dash-fav-row-ref">${ref}<span class="material-icons dash-fav-row-chev">chevron_right</span></div>
-            ${preview ? `<div class="dash-fav-row-text">${_escHtml(preview)}</div>` : ""}
+          return `<div class="dash-fav-row dv-fv-card${idx === 0 && favoritesPage === 0 ? " dv-fv-first" : ""}" onclick="loadPassageById('${item.key}')" role="button" tabindex="0" aria-label="Open ${_escHtml(formatKey(item.key))}">
+            <div class="dv-fv-top"><span class="dv-fv-book">${_escHtml(bookName)}</span><span class="dv-fv-num">${_escHtml(numeral)}</span></div>
+            ${preview ? `<p class="dv-fv-text">${_escHtml(preview)}</p>` : ""}
           </div>`;
         }).join("")}
       </div>`

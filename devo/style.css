@@ -15253,3 +15253,21 @@ body.light .dv { --dv-card: #ffffff; --dv-ink: #16130f; --dv-mute: #6b6a66; --dv
   .dv .dash-fav-row:not(:first-child) .dash-fav-row-text { font-size: 15px !important; line-height: 1.4 !important; display: -webkit-box !important; -webkit-box-orient: vertical; -webkit-line-clamp: 3 !important; overflow: hidden; }
   .dv .dash-fav-row:first-child::after { font-size: 72px; right: 24px; top: -4px; }
 }
+
+/* ===== Favorites poster strip (2026-11-21): portrait cards, giant chapter:verse ===== */
+.dv .dash-fav-list.dv-fv-strip { display: flex !important; flex-direction: row !important; flex-wrap: nowrap !important; gap: 16px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; margin: 0 -16px; padding: 0 16px 8px; scroll-padding-left: 16px; align-items: stretch; width: auto !important; max-width: none !important; contain: none; -webkit-overflow-scrolling: touch; }
+.dv .dv-fv-strip::-webkit-scrollbar { display: none; }
+.dv .dv-fv-card, .dv .dash-fav-row.dv-fv-card:nth-child(n) { flex: 0 0 72%; aspect-ratio: 2 / 3; min-height: 0 !important; scroll-snap-align: start; position: relative; display: flex !important; flex-direction: column; justify-content: space-between; gap: 16px; padding: 24px !important; border-radius: 21px !important; background: var(--dv-card) !important; color: var(--dv-ink) !important; overflow: hidden; container-type: inline-size; cursor: pointer; grid-column: auto; }
+.dv .dv-fv-card::after { content: none !important; }
+.dv .dv-fv-card.dv-fv-first { background: #db2777 !important; color: #fff !important; }
+.dv .dv-fv-card:focus-visible { outline: 3px solid #db2777; outline-offset: 2px; }
+.dv .dv-fv-book { display: block; font: 800 24px/1 "Nunito", sans-serif; color: #db2777; margin-bottom: 16px; }
+.dv .dv-fv-first .dv-fv-book { color: #fff; }
+.dv .dv-fv-num { display: block; font: italic 50cqw/.8 var(--dv-serif); letter-spacing: -.02em; white-space: nowrap; color: rgba(255,255,255,.2); margin-left: -4px; }
+body.light .dv .dv-fv-num { color: rgba(0,0,0,.1); }
+.dv .dv-fv-first .dv-fv-num, body.light .dv .dv-fv-first .dv-fv-num { color: rgba(255,255,255,.4); }
+.dv .dv-fv-text { margin: 0; font: 600 15px/1.5 "Nunito", sans-serif !important; color: inherit !important; display: -webkit-box !important; -webkit-box-orient: vertical; -webkit-line-clamp: 5 !important; overflow: hidden; }
+@media (min-width: 861px) {
+  .dv .dash-fav-list.dv-fv-strip { margin: 0; padding: 0 0 8px; }
+  .dv .dv-fv-card, .dv .dash-fav-row.dv-fv-card:nth-child(n) { flex: 0 0 calc((100% - 64px) / 5); }
+}
