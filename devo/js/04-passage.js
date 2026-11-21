@@ -1293,9 +1293,15 @@ async function renderDashboard() {
             const _dt = n.time ? new Date(n.time) : null;
             const dayStr = _dt ? _dt.getDate() : "";
             const monStr = _dt ? _dt.toLocaleDateString("en-US", { month: "short" }) : "";
-            const label = showTypeLabel
-              ? `<em class="dash-notes-type-label">${n.type === "reflection" ? "Reflection" : "Verse note"}</em>`
-              : "";
+            // Which verse/passage the note is attached to
+            let refText = n.title || "";
+            if (n.type === "verse" && n.verseKeys?.length === 1) {
+              const [bk, ch, vs] = n.verseKeys[0].split("-");
+              refText = `${BIBLE_META[bk]?.name || bk} ${ch}${vs ? ":" + vs : ""}`;
+            } else if (n.type === "verse" && n.subtitle) {
+              refText = `${n.title} · ${n.subtitle}`;
+            }
+            const label = refText ? `<em class="dash-notes-type-label">${_escHtml(refText)}</em>` : "";
             let onclick = `openNotesApp()`;
             if (n.type === "verse" && n.verseKeys?.length) {
               const firstKey = n.verseKeys.sort((a,b) => {
