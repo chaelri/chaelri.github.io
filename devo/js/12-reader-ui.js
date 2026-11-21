@@ -262,7 +262,7 @@
   bar.innerHTML = `
     <button type="button" data-vb="context">${ic("auto_awesome")}<span>Context</span></button>
     <button type="button" data-vb="ask">${ic("chat_bubble_outline")}<span>Ask</span></button>
-    <button type="button" data-vb="fav" aria-label="Favorite">${ic("favorite")}</button>`;
+    <button type="button" data-vb="fav" aria-label="Favorite"><span class="material-icons" aria-hidden="true">favorite_border</span></button>`;
   body.appendChild(bar);
 
   let selVerse = null;
@@ -270,11 +270,25 @@
   function placeNearVerse(el) {
     if (!isDesk() || !selVerse || el.hidden) return;
     const r = selVerse.getClientRects()[0] || selVerse.getBoundingClientRect();
+    const last = selVerse.getClientRects();
     const o = out.getBoundingClientRect();
     const w = el.offsetWidth || 340, h = el.offsetHeight || 56;
     const drawer = body.classList.contains("notes-open") ? (parseInt(getComputedStyle(body).getPropertyValue("--notes-w")) || 400) : 0;
-    const x = Math.max(8, Math.min(o.right + 24, innerWidth - drawer - w - 16));
-    const y = Math.max(72, Math.min(r.top - 8, innerHeight - h - 24));
+    const room = innerWidth - drawer - o.right - 16;
+    let x, y;
+    if (room >= w + 24) {
+      // beside the verse, in the margin
+      x = o.right + 24;
+      y = Math.max(72, Math.min(r.top - 8, innerHeight - h - 24));
+      el.classList.remove("no-tail");
+    } else {
+      // tight: no margin left, so sit just above the verse (below it near the top edge)
+      x = Math.max(8, Math.min(o.left, innerWidth - drawer - w - 16));
+      y = r.top - h - 10;
+      if (y < 72) y = (last[last.length - 1] || r).bottom + 10;
+      y = Math.max(72, Math.min(y, innerHeight - h - 24));
+      el.classList.add("no-tail");
+    }
     el.style.left = x + "px";
     el.style.top = y + "px";
     el.style.setProperty("--tail-y", Math.max(12, Math.min(r.top + 12 - y, h - 24)) + "px");
@@ -302,7 +316,7 @@
     const on = isFavorite(selVerse.dataset.verseKey);
     const b = bar.querySelector('[data-vb="fav"]');
     b.classList.toggle("is-fav", on);
-    b.firstElementChild.style.fontVariationSettings = on ? "'FILL' 1" : "";
+    b.firstElementChild.textContent = on ? "favorite" : "favorite_border";
   }
   out.addEventListener("click", (e) => {
     if (!body.classList.contains("flow-read") || out.classList.contains("tts-mode")) return;
@@ -392,8 +406,23 @@
     if (!b || !selVerse) return;
     if (b.dataset.vb === "fav") {
       toggleFavorite(selVerse.dataset.verseKey);
-      selVerse.classList.toggle("highlighted", isFavorite(selVerse.dataset.verseKey));
+      const on = isFavorite(selVerse.dataset.verseKey);
+      selVerse.classList.toggle("highlighted", on);
       syncFav();
+      const icon = b.firstElementChild;
+      if (on) {
+        // pop + ring; the small heart at the verse end pops in too
+        icon.animate([{ transform: "scale(1)" }, { transform: "scale(1.55)" }, { transform: "scale(.88)" }, { transform: "scale(1.12)" }, { transform: "scale(1)" }], { duration: 520, easing: "cubic-bezier(.34,1.56,.64,1)" });
+        const ring = document.createElement("i");
+        ring.className = "fav-ring";
+        b.appendChild(ring);
+        ring.animate([{ transform: "scale(.4)", opacity: .9 }, { transform: "scale(1.9)", opacity: 0 }], { duration: 600, easing: "ease-out" }).onfinish = () => ring.remove();
+        selVerse.classList.remove("fav-pop");
+        void selVerse.offsetWidth;
+        selVerse.classList.add("fav-pop");
+      } else {
+        icon.animate([{ transform: "scale(1)" }, { transform: "scale(.75)" }, { transform: "scale(1)" }], { duration: 240, easing: "ease-out" });
+      }
       return;
     }
     openVerseCard(b.dataset.vb);

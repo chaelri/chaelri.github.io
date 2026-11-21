@@ -11530,8 +11530,6 @@ body.flow-read #output .verse:first-of-type .verse-num { margin-left: 0; }
 body.flow-read #output .verse { transition: background .2s; border-radius: 6px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
 body.flow-read #output .verse.verse-sel { background: rgba(219,39,119,.22); }
 body.flow-read #output .verse.highlighted .verse-content { background: none; padding: 0; }
-body.flow-read #output .verse.highlighted { background: rgba(219,39,119,.12); }
-body.flow-read #output .verse.highlighted.verse-sel { background: rgba(219,39,119,.28); }
 body.light.flow-read #output .verse.verse-sel { background: rgba(219,39,119,.16); }
 
 /* Verse tap bar: beside the dock */
@@ -11649,3 +11647,14 @@ body.flow-read.flow-justify #output > :not(.verse), body.flow-read.flow-justify 
 
 /* desktop / landscape: the drawer is already roomy, no fullscreen toggle */
 @media (min-width: 1024px) { #notesFull { display: none !important; } }
+
+/* favorited verse (flowing): a small filled heart at the end, no wash */
+body.flow-read #output .verse.highlighted .verse-content::after { content: "favorite"; font-family: "Material Icons"; font-weight: 400; font-style: normal; font-size: 16px; line-height: 1; letter-spacing: normal; text-transform: none; color: #db2777; margin-left: 4px; vertical-align: -2px; display: inline-block; }
+body.flow-read #output .verse.highlighted.fav-pop .verse-content::after { animation: favHeartPop .55s cubic-bezier(.34,1.56,.64,1); }
+@keyframes favHeartPop { 0% { transform: scale(0); } 60% { transform: scale(1.5); } 100% { transform: scale(1); } }
+.verse-bar button[data-vb="fav"] { position: relative; overflow: visible; }
+.fav-ring { position: absolute; left: 50%; top: 50%; width: 36px; height: 36px; margin: -18px; border-radius: 50%; border: 2px solid #db2777; pointer-events: none; opacity: 0; }
+.verse-bar.no-tail::before, .verse-card.no-tail::before { display: none; }
+/* desktop, notes open: the Note button is redundant, the dock is just Listen */
+@media (min-width: 1024px) { body.notes-open .reader-dock [data-dock="note"] { display: none !important; } }
+.verse-bar .material-icons { color: #db2777; font-size: 22px; }
