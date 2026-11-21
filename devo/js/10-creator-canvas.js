@@ -2026,8 +2026,9 @@ async function _imgcrShare() {
       hidden ? "Show reflection" : "Hide reflection";
   }
   let reflectPanelHidden = false;
-  try { reflectPanelHidden = localStorage.getItem(REFLECT_PANEL_KEY) === "1"; } catch {}
-  applyReflectPanel(reflectPanelHidden);
+  // The hide/show toggle was removed: the reflection panel is always shown, and any old "hidden" preference is cleared.
+  try { localStorage.removeItem(REFLECT_PANEL_KEY); } catch {}
+  applyReflectPanel(false);
   mtReflectPanelToggle?.addEventListener("click", () => {
     reflectPanelHidden = !reflectPanelHidden;
     try { localStorage.setItem(REFLECT_PANEL_KEY, reflectPanelHidden ? "1" : "0"); } catch {}
