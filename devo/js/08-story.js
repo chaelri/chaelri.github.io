@@ -960,11 +960,11 @@ async function openReflectModal() {
     <div style="position:relative;">
       <div class="story-title">${bookName} ${chapter}</div>
       ${cleanHTML}
-      <div class="reflect-actions-row">
+      <div class="reflect-actions-row" hidden>
         <button class="share-devo-btn" id="reflectShareNotesBtn" type="button">Save to notes</button>
         <button class="devo-copy-btn" id="reflectCopyNotesBtn" type="button">Copy</button>
       </div>
-      <div class="reflect-copy-status" id="reflectCopyStatus"></div>
+      <div class="reflect-copy-status" id="reflectCopyStatus" hidden></div>
     </div>`;
 
   modal.hidden = false;

@@ -14643,3 +14643,46 @@ body.light .dv .dv-fv-num { color: rgba(0,0,0,.1); }
 @media (min-width: 861px) { .dv .dv-notes-nav { display: flex !important; } }
 /* no scroll-to-top button on the dashboard: the page is short */
 body:has(.dv) #scrollTopBtn { display: none !important; }
+
+/* ===== Reader revamp, "Studio" (2026-11-21) ===== */
+.dv-none { display: none; }
+/* no highlight / glow when a verse is focused */
+.verse-highlight, #output .verse-highlight, #output.tts-mode .verse-highlight { animation: none !important; border-left: 0 !important; padding-left: 0 !important; background: none !important; box-shadow: none !important; }
+.verse-highlight .verse-content { background: none !important; }
+
+/* title: serif italic, sentence case */
+.passage-title-row .passage-title { font-family: "Editors Note", Georgia, serif !important; font-style: italic !important; font-weight: 400 !important; text-transform: capitalize !important; letter-spacing: 0 !important; font-size: 38px !important; line-height: 1.05 !important; }
+@media (min-width: 1024px) { .passage-title-row .passage-title { font-size: 61px !important; } }
+
+/* tabs: plain serif words (Study / Reflect / Retell) */
+.action-buttons-row { gap: 24px !important; }
+.action-buttons-row .action-reflect-btn, body:not(.light) .action-buttons-row .action-reflect-btn, .light .action-buttons-row .action-reflect-btn { background: none !important; border: 0 !important; box-shadow: none !important; border-radius: 0 !important; padding: 0 0 8px !important; min-height: 44px; height: auto !important; font: italic 24px/1 "Editors Note", Georgia, serif !important; color: #a9b0c0 !important; border-bottom: 3px solid transparent !important; }
+.light .action-buttons-row .action-reflect-btn { color: #6b6a66 !important; }
+.action-buttons-row .action-reflect-btn .material-icons { display: none !important; }
+.action-buttons-row .action-reflect-btn:hover { color: #e6edf7 !important; border-bottom-color: #db2777 !important; background: none !important; }
+.light .action-buttons-row .action-reflect-btn:hover { color: #16130f !important; }
+/* Reflect is always open in the right panel on desktop, so no Reflect tab there */
+@media (min-width: 1024px) { #passageReflectBtn { display: none !important; } }
+
+/* Reflect panel: a writing desk, not a card */
+#reflectContent li, #aiReflection ol > li, body:not(.light) #reflectContent li, body:not(.light) #aiReflection ol > li { background: none !important; border: 0 !important; border-radius: 0 !important; padding: 0 !important; margin: 0 !important; }
+#aiReflection ol, #reflectContent ol { padding: 0 !important; margin: 0 !important; list-style: none; }
+#reflectContent li::before, #aiReflection ol > li::before, body:not(.light) #aiReflection ol > li::before { content: "Question to ponder" !important; display: block !important; position: static !important; margin: 0 0 24px !important; font: 800 12px/1 "Nunito", sans-serif !important; letter-spacing: .12em !important; text-transform: uppercase !important; color: #db2777 !important; }
+#aiReflection .refl-obs, #reflectContent .refl-obs { font: italic 24px/1.15 "Editors Note", Georgia, serif !important; color: #e6edf7 !important; margin: 0 0 24px !important; }
+.light #aiReflection .refl-obs, .light #reflectContent .refl-obs { color: #16130f !important; }
+@media (min-width: 1024px) { #aiReflection .refl-obs { font-size: 38px !important; } }
+#aiReflection .refl-obs a, #reflectContent .refl-obs a { display: none !important; }
+#aiReflection .refl-q, #reflectContent .refl-q, body:not(.light) #aiReflection ol > li p.refl-q { font: 400 16px/1.5 "Nunito", sans-serif !important; color: #a9b0c0 !important; margin: 0 0 24px !important; }
+.light #aiReflection .refl-q, .light #reflectContent .refl-q { color: #6b6a66 !important; }
+#aiReflection textarea, #reflectContent textarea, body:not(.light) #aiReflection textarea, body:not(.light) #reflectContent textarea { background: repeating-linear-gradient(transparent 0 31px, rgba(255,255,255,.1) 31px 32px) !important; border: 0 !important; border-radius: 0 !important; padding: 0 !important; font: 400 16px/32px "Nunito", sans-serif !important; color: #e6edf7 !important; min-height: 192px; resize: none; box-shadow: none !important; }
+.light #aiReflection textarea, .light #reflectContent textarea, body.light #aiReflection textarea { background: repeating-linear-gradient(transparent 0 31px, rgba(0,0,0,.12) 31px 32px) !important; color: #16130f !important; }
+#aiReflection textarea:focus, #reflectContent textarea:focus { outline: none !important; box-shadow: none !important; }
+#aiReflection textarea:focus-visible, #reflectContent textarea:focus-visible { outline: 2px solid #db2777 !important; outline-offset: 4px !important; }
+/* Save / Copy are gone: the answer saves as you type */
+#sidebarActionsRow, #notesCopyStatus, .reflect-actions-row, .reflect-copy-status { display: none !important; }
+/* quoted speech is no longer marked in pink; tabs sit left; the right panel does not repeat the title */
+.quote-style, #output .quote-style, .verse-content .quote-style { background: none !important; padding: 0 !important; border-radius: 0 !important; box-shadow: none !important; }
+.action-buttons-row { justify-content: flex-start !important; }
+.summary-quick-title { display: none !important; }
+.action-buttons-row .action-reflect-btn { flex: 0 0 auto !important; width: auto !important; justify-content: flex-start !important; }
+aside.summary .summary-title { display: none !important; }

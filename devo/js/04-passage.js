@@ -2620,10 +2620,8 @@ ${versesText}`;
 // all read the question from there, and the notes app from the Q: line.
 function _unifiedReflectionHTML({ observe, verses, question }) {
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
-  const first = (verses.match(/\d+/) || [])[0];
-  const chip = first
-    ? ` <a href="#${first}" class="reflection-link">${/[-–,]/.test(verses) ? "vv." : "v."} ${esc(verses.replace(/-/g, "–"))}</a>`
-    : "";
+  // (the "v. 3" link chip was removed in the Studio revamp)
+  const chip = "";
   return `
     <button type="button" class="ai-refl-retry" aria-label="Different question" title="Different question">
       <span class="material-symbols-outlined">refresh</span>
