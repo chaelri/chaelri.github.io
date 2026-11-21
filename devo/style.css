@@ -11645,3 +11645,4 @@ body.flow-read.flow-justify #output > :not(.verse), body.flow-read.flow-justify 
 
 /* notes box: no separate fill, same surface as the sheet/drawer */
 .notes-text, body.light .notes-text { background: transparent !important; padding: 8px 0; border-radius: 0; }
+.ar-card.ar-static { cursor: default; }

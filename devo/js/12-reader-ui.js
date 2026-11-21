@@ -431,6 +431,8 @@
           const [b, c, v] = it.verseKey.split("-");
           items.push({ kind: "note", ref: `${BIBLE_META[b]?.name || b} ${c}${v ? ":" + v : ""}`, goto: [b, c, v || ""], text: it.text, time: it.time || 0 });
         });
+      } else if (n.type === "standalone") {
+        if (n.preview) items.push({ kind: "note", ref: n.title, goto: null, text: n.preview, time: n.time || 0 });
       } else if (n.type === "reflection") {
         const [b, c] = n.passageKey.split("-");
         n.QAs.forEach((qa) => {
@@ -446,7 +448,7 @@
     const items = archiveEntries();
     $("arList").innerHTML = items.length
       ? items.map((it, i) => `
-        <button type="button" class="ar-card" data-i="${i}">
+        <button type="button" class="ar-card${it.goto ? "" : " ar-static"}" data-i="${i}">
           <span class="ar-ref">${esc(it.ref)}${it.kind === "reflection" ? " · reflection" : ""}</span>
           ${it.question ? `<span class="ar-q">${esc(it.question)}</span>` : ""}
           <span class="ar-text">${esc(it.text)}</span>
@@ -467,6 +469,7 @@
     const c = e.target.closest(".ar-card");
     if (!c) return;
     const it = $("arList")._items[+c.dataset.i];
+    if (!it.goto) return;
     closeArchive();
     dashNoteGoToVerse(`${it.goto[0]}-${it.goto[1]}-${it.goto[2]}`, it.goto[2]);
   });

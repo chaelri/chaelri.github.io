@@ -35,10 +35,6 @@ function _getAllNotes() {
       time: n.time,
     });
   }
-  const standalone = JSON.parse(localStorage.getItem("devotionStandaloneNotes") || "[]");
-  standalone.forEach(n => {
-    notes.push({ id: `s-${n.id}`, type: "standalone", standaloneId: n.id, title: n.title || "Untitled", preview: _stripNotePreview(n), time: n.updatedAt, data: n });
-  });
   return notes.sort((a, b) => b.time - a.time);
 }
 
@@ -114,6 +110,11 @@ function _getArchiveNotes() {
     });
   });
 
+  // Standalone notes (the old Notes section on the dashboard) are archived too.
+  const standalone = JSON.parse(localStorage.getItem("devotionStandaloneNotes") || "[]");
+  standalone.forEach(n => {
+    notes.push({ id: `s-${n.id}`, type: "standalone", title: n.title || "Untitled", preview: _standaloneFullText(n), time: n.updatedAt || n.createdAt || 0 });
+  });
   return notes.sort((a, b) => b.time - a.time);
 }
 
@@ -210,6 +211,22 @@ function _devoShareToast(msg) {
   toast.textContent = msg;
   document.body.appendChild(toast);
   setTimeout(() => toast.remove(), 2200);
+}
+
+// Full plain text of a standalone note (archive view), no length cap.
+function _standaloneFullText(n) {
+  const html = n.bodyHTML || "";
+  if (html) {
+    const tmp = document.createElement("div");
+    tmp.innerHTML = html;
+    tmp.querySelectorAll(".note-verse-block").forEach(el => {
+      const ref = el.dataset.ref || el.querySelector(".nvb-ref")?.textContent?.trim() || "";
+      el.replaceWith(document.createTextNode(ref ? ` [${ref}] ` : " "));
+    });
+    tmp.querySelectorAll("p, div, li, br, h1, h2, h3, h4").forEach(el => el.after(document.createTextNode("\n")));
+    return (tmp.textContent || "").replace(/[ \t]+/g, " ").replace(/ *\n */g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+  }
+  return (n.body || "").trim();
 }
 
 function _stripNotePreview(n) {
