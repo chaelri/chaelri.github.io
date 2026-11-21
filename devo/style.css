@@ -11660,3 +11660,6 @@ body.flow-read #output .verse.highlighted.fav-pop .verse-content::after { animat
 .verse-bar .material-icons { color: #db2777; font-size: 22px; }
 /* notes open (any screen): the Note button is redundant, the dock is just Listen */
 body.notes-open .reader-dock [data-dock="note"] { display: none !important; }
+
+/* tapped verse: underline instead of a highlight */
+body.flow-read #output .verse.verse-sel, body.light.flow-read #output .verse.verse-sel { background: none !important; text-decoration: underline; text-decoration-color: #db2777; text-decoration-thickness: 2px; text-underline-offset: 6px; text-decoration-skip-ink: none; }
