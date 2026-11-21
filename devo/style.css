@@ -15228,3 +15228,4 @@ body.light .dv { --dv-card: #ffffff; --dv-ink: #16130f; --dv-mute: #6b6a66; --dv
   .dv .dash-fav-row:nth-child(2), .dv .dash-fav-row:nth-child(3) { grid-column: 5 / span 2; }
   .dv .dash-fav-row:nth-child(n+4) { grid-column: span 3; }
 }
+@media (min-width: 861px) { .dv .dash-fav-list { align-items: stretch; } .dv .dash-fav-row:nth-child(n+4) { grid-column: span 2; } }
