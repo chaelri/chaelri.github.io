@@ -15230,3 +15230,10 @@ body.light .dv { --dv-card: #ffffff; --dv-ink: #16130f; --dv-mute: #6b6a66; --dv
 }
 @media (min-width: 861px) { .dv .dash-fav-list { align-items: stretch; } .dv .dash-fav-row:nth-child(n+4) { grid-column: span 2; } }
 @media (max-width: 860px) { .dv-ribbon { height: 56px; width: 24px; } .dv-ref { margin-top: 40px; } .dv .dash-journal-link { padding: 16px !important; } .dv .dash-journal-link .dv-tl { font-size: 15px; } }
+/* phone favorites: one swipe row instead of a long stack */
+@media (max-width: 860px) {
+  .dv .dash-fav-list { display: flex !important; gap: 16px; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: none; padding-bottom: 8px; align-items: stretch; }
+  .dv .dash-fav-list::-webkit-scrollbar { display: none; }
+  .dv .dash-fav-row { flex: 0 0 85%; scroll-snap-align: start; min-height: 168px; }
+  .dv .dash-fav-row:first-child { flex-basis: 92%; justify-content: space-between; }
+}
