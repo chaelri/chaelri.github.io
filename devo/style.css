@@ -15229,3 +15229,4 @@ body.light .dv { --dv-card: #ffffff; --dv-ink: #16130f; --dv-mute: #6b6a66; --dv
   .dv .dash-fav-row:nth-child(n+4) { grid-column: span 3; }
 }
 @media (min-width: 861px) { .dv .dash-fav-list { align-items: stretch; } .dv .dash-fav-row:nth-child(n+4) { grid-column: span 2; } }
+@media (max-width: 860px) { .dv-ribbon { height: 56px; width: 24px; } .dv-ref { margin-top: 40px; } .dv .dash-journal-link { padding: 16px !important; } .dv .dash-journal-link .dv-tl { font-size: 15px; } }
