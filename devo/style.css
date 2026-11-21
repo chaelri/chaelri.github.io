@@ -14426,3 +14426,5 @@ body.light .verse-hover-pop button.on { color: #db2777; }
 .verse-hover-pop.show { opacity: 1; transform: none; pointer-events: auto; }
 .verse-hover-pop.no-move { transition: opacity .16s ease, transform .22s cubic-bezier(.2,.8,.2,1); }
 @media (prefers-reduced-motion: reduce) { .verse-hover-pop, .verse-hover-pop.no-move { transition: opacity .01s; transform: none; } }
+/* desktop: the reflection header row lines up with the Listen row on the left */
+@media (min-width: 1024px) { aside.summary { padding-top: 64px !important; } }
