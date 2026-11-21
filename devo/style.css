@@ -14447,3 +14447,11 @@ body.light .reader-dock button:hover { background: rgba(0,0,0,.06); color: #1613
 @media (max-width: 1023px) { .reader-dock { bottom: 16px; max-width: calc(100vw - 32px); } .reader-dock button { padding: 0 12px; } }
 .bible { padding-bottom: 96px; }
 /* the dock is for reading only: never over the dashboard (it is hidden there by the app) */
+/* verse popover sits above its verse with a down arrow (flips below when there is no room) */
+.verse-hover-pop { transform: translateY(8px) scale(.96); transform-origin: 28px 100%; }
+.verse-hover-pop.above { transform: translateY(8px) scale(.96); transform-origin: 28px 100%; }
+.verse-hover-pop.flip { transform: translateY(-8px) scale(.96); transform-origin: 28px 0; }
+.verse-hover-pop.show, .verse-hover-pop.show.flip, .verse-hover-pop.show.above { transform: none; }
+.verse-hover-pop::after { content: ""; position: absolute; left: 28px; bottom: -6px; width: 10px; height: 10px; background: #1b2238; border-right: 1px solid rgba(255,255,255,.1); border-bottom: 1px solid rgba(255,255,255,.1); transform: rotate(45deg); }
+.verse-hover-pop.flip::after { bottom: auto; top: -6px; border: 0; border-left: 1px solid rgba(255,255,255,.1); border-top: 1px solid rgba(255,255,255,.1); }
+body.light .verse-hover-pop::after { background: #ffffff; border-color: rgba(0,0,0,.12); }

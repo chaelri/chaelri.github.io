@@ -326,12 +326,14 @@ function _wireVerseHoverPopover() {
     });
     const wasOpen = isOpen();
     if (!wasOpen) { pop.classList.add("no-move"); pop.hidden = false; }
-    const w = pop.offsetWidth, h = pop.offsetHeight, gap = 14;
-    let top = y + gap, above = false;
-    if (top + h > window.innerHeight - 8) { top = Math.max(8, y - h - gap); above = true; }
-    // left-aligned to the pointer, not centred
-    const left = Math.min(Math.max(8, x - 20), window.innerWidth - w - 8);
-    pop.classList.toggle("above", above);
+    // Always above the verse (arrow pointing down at it), left-aligned to the
+    // verse; flips below only when there is no room above.
+    const w = pop.offsetWidth, h = pop.offsetHeight, gap = 12;
+    const vr = (wrap.querySelector(".verse-header") || wrap).getBoundingClientRect();
+    let top = vr.top - h - gap, flip = false;
+    if (top < 8) { top = vr.bottom + gap; flip = true; }
+    const left = Math.min(Math.max(8, vr.left), window.innerWidth - w - 8);
+    pop.classList.toggle("flip", flip);
     pop.style.top = top + "px";
     pop.style.left = left + "px";
     if (!wasOpen) {
