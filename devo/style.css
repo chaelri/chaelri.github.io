@@ -14593,3 +14593,6 @@ body.tts-sheet-open #ttsPlayer #ttsCloseBtn { display: none !important; }
 body.tts-sheet-open .tts-sheet-down { display: grid; place-items: center; position: absolute; top: 16px; right: 16px; width: 44px; height: 44px; border: 0; border-radius: 50%; background: rgba(255,255,255,.08); color: #e6edf7; cursor: pointer; }
 body.tts-sheet-open .tts-sheet-down .material-symbols-outlined { font-size: 24px; }
 body.light.tts-sheet-open .tts-sheet-down { background: rgba(0,0,0,.05); color: #16130f; }
+/* the global button:active scale would replace the centring transform and shove the chip sideways */
+.tts-chip, .tts-chip:active { transform: none; translate: -50% 0; }
+body.tts-sheet-open #ttsPlayer.tts-player { animation: ttsScrimIn .15s ease both; }
