@@ -2770,6 +2770,15 @@ async function renderAIReflectionQuestions({ book, chapter, versesText }) {
     // open the same way.
     _appendRecentReflQs([r.question]);
 
+    const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const loader = mount.querySelector(".refl-load");
+    if (loader?.animate && !calm) {
+      await loader.animate(
+        [{ opacity: 1 }, { opacity: 0, transform: "scale(.98)" }],
+        { duration: 180, easing: "ease-out", fill: "forwards" }
+      ).finished.catch(() => {});
+    }
+
     mount.innerHTML = _unifiedReflectionHTML(r);
     const ta = mount.querySelector("textarea");
     ta.id = `reflection-${devotionId()}-0`;
@@ -2777,6 +2786,14 @@ async function renderAIReflectionQuestions({ book, chapter, versesText }) {
     _normalizeReflectionLinks(mount);
     initializeReflections();
     _refreshRetryButtonState(mount);
+    if (!calm) {
+      [".refl-head", ".refl-q", "textarea"].forEach((sel, i) => {
+        mount.querySelector(sel)?.animate(
+          [{ opacity: 0, transform: "translateY(10px)" }, { opacity: 1, transform: "none" }],
+          { duration: 420, delay: i * 80, easing: "cubic-bezier(.22,1,.36,1)", fill: "backwards" }
+        );
+      });
+    }
   } catch (e) {
     console.error(e);
     mount.innerHTML = aiFailHTML("Reflection", e, _reflRetry);
