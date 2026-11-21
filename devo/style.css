@@ -15213,3 +15213,4 @@ body.light .dv { --dv-card: #ffffff; --dv-ink: #16130f; --dv-mute: #6b6a66; --dv
   .dv-go { height: 40px !important; min-height: 40px !important; padding: 0 24px !important; }
   .dv-mid { margin-top: 24px; }
 }
+@media (min-width: 861px) { .dv-ribbon { height: 48px; } .dv-ref { margin-top: 32px; } }
