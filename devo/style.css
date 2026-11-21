@@ -15239,3 +15239,4 @@ body.light .dv { --dv-card: #ffffff; --dv-ink: #16130f; --dv-mute: #6b6a66; --dv
 }
 @media (max-width: 860px) { .dv .dash-fav-list { flex-direction: row !important; flex-wrap: nowrap !important; } .dv .dash-fav-row { width: auto; } }
 @media (max-width: 860px) { .dv, .dv-rest, .dv-sec, #dashFavoritesContent { min-width: 0 !important; max-width: 100% !important; width: 100%; } .dv .dash-fav-list { width: 100% !important; max-width: 100% !important; } }
+@media (max-width: 860px) { main:has(.dv), main:has(.dv) > #output, #output:has(.dv), .dashboard:has(.dv) { min-width: 0 !important; max-width: 100% !important; width: 100% !important; } }
