@@ -11700,3 +11700,21 @@ body.tts-mini .reader-dock { padding: 14px !important; gap: 12px !important; bor
 
 /* Continue -> reading curtain */
 .nav-curtain { position: fixed; left: 0; right: 0; top: -160px; bottom: 0; z-index: 5000; background: #db2777; color: #fff; display: flex; align-items: center; justify-content: center; padding-top: 160px; box-sizing: border-box; font: italic 44px/1.1 "Editors Note", Georgia, serif; text-align: center; border-radius: 50% 50% 0 0 / 72px 72px 0 0; transform: translateY(101%); will-change: transform; }
+
+/* Ask card header, option C: field first, tabs as small text switches under it */
+.verse-card { display: flex; flex-direction: column; }
+.vc-tabs { background: none !important; padding: 0 !important; gap: 16px !important; }
+.vc-tabs button { height: auto !important; padding: 0 !important; background: none !important; color: rgba(255,255,255,.6); font: 700 13px/1 "Nunito", sans-serif !important; border-radius: 0; box-shadow: none !important; }
+.vc-tabs button.on { color: #db2777 !important; }
+body.light .vc-tabs button { color: rgba(22,19,15,.6); }
+.verse-card #vcClose { background: none !important; color: rgba(255,255,255,.6); width: 32px; height: 32px; }
+.verse-card.ask-on .vc-head { order: 1; position: static; margin: 12px 0 8px; padding: 0; }
+.verse-card.ask-on .vc-pane:not([hidden]), .verse-card.ask-on .verse-chat-wrapper { display: contents; }
+.verse-card.ask-on .vc-pane > *, .verse-card.ask-on .verse-chat-wrapper > * { order: 2; }
+.verse-card.ask-on .chat-input-area { order: 0; display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,.06); border-radius: 16px; padding: 0 8px 0 16px; min-height: 52px; border-top: 0; }
+.verse-card.ask-on .chat-input-area textarea { flex: 1; height: auto; min-height: 24px; max-height: 96px; padding: 14px 0 !important; line-height: 24px; background: none !important; border: 0 !important; box-shadow: none !important; border-radius: 0; resize: none; }
+.verse-card.ask-on .chat-send-btn { width: 36px; height: 36px; background: rgba(255,255,255,.08); color: rgba(255,255,255,.6); box-shadow: none; flex: none; }
+.verse-card.ask-on .chat-send-btn .material-icons { font-size: 20px; }
+.verse-card.ask-on .chat-send-btn.active { background: #db2777; color: #fff; }
+body.light .verse-card.ask-on .chat-input-area { background: rgba(0,0,0,.05); }
+.verse-card.ask-on .chat-input-area textarea { height: 52px; box-sizing: border-box; overflow-y: auto; }

@@ -372,6 +372,7 @@
   }
   function showPane(which) {
     card.querySelectorAll("[data-vc]").forEach((b) => b.classList.toggle("on", b.dataset.vc === which));
+    card.classList.toggle("ask-on", which === "ask");
     Object.entries(panes).forEach(([k, el]) => { el.hidden = k !== which; });
     const info = verseInfo(selVerse);
     if (!panes[which].dataset.loaded) {
