@@ -1934,6 +1934,15 @@ async function _imgcrShare() {
   mtNext?.addEventListener("click", () => nextOrigBtn?.click());
   mtListen?.addEventListener("click", () => ttsBtn?.click());
 
+  // Floating dock: proxies to the existing controls so their behaviour is unchanged.
+  document.getElementById("readerDock")?.addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-dock]");
+    if (!b) return;
+    const map = { study: "studyBtn", reflect: "passageReflectBtn", retell: "passageNarrateBtn" };
+    if (b.dataset.dock === "listen") mtListen?.click();
+    else document.getElementById(map[b.dataset.dock])?.click();
+  });
+
   // Version toggle moved into the overflow sheet (Settings-ish row).
   // Proxies taps to the original .version-pill buttons so all downstream JS
   // still runs; mirrors the active state both ways.
@@ -2034,6 +2043,7 @@ async function _imgcrShare() {
     mtPrev.hidden = !loaded;
     mtNext.hidden = !loaded;
     mtActions.hidden = !loaded;
+    { const _dock = document.getElementById("readerDock"); if (_dock) _dock.hidden = !loaded; }
   }
   if (ttsBtn) {
     new MutationObserver(syncPassageLoadedState)
@@ -2045,6 +2055,7 @@ async function _imgcrShare() {
   function syncListenState() {
     const playing = ttsBtn?.classList.contains("playing");
     mtListen?.classList.toggle("playing", !!playing);
+    document.querySelector('#readerDock [data-dock="listen"]')?.classList.toggle("on", !!playing);
   }
   if (ttsBtn) {
     new MutationObserver(syncListenState)

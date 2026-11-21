@@ -14428,3 +14428,22 @@ body.light .verse-hover-pop button.on { color: #db2777; }
 @media (prefers-reduced-motion: reduce) { .verse-hover-pop, .verse-hover-pop.no-move { transition: opacity .01s; transform: none; } }
 /* desktop: the reflection header row lines up with the Listen row on the left */
 @media (min-width: 1024px) { aside.summary { padding-top: 64px !important; } }
+
+/* ===== Floating reader dock: Study / Retell / Listen (Reflect too on phones) ===== */
+.action-buttons-row { display: none !important; }   /* the old tabs under the title (their buttons stay as click targets) */
+#mtListen { display: none !important; }              /* Listen lives in the dock now */
+.reader-dock { position: fixed; z-index: 900; left: 50%; bottom: 24px; transform: translateX(-50%); display: flex; gap: 4px; padding: 4px; border-radius: 999px; background: rgba(27,34,56,.95); border: 1px solid rgba(255,255,255,.1); }
+.reader-dock[hidden] { display: none; }
+.reader-dock button { height: 44px; padding: 0 24px; border-radius: 999px; border: 0; background: transparent; color: #a9b0c0; font: 800 15px/1 "Nunito", sans-serif; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+.reader-dock button .material-symbols-outlined { font-size: 20px; color: #db2777; }
+.reader-dock button:hover { background: rgba(255,255,255,.08); color: #e6edf7; }
+.reader-dock button:focus-visible { outline: 3px solid #db2777; outline-offset: 2px; }
+.reader-dock button.on { background: #db2777; color: #fff; }
+.reader-dock button.on .material-symbols-outlined { color: #fff; }
+body.light .reader-dock { background: rgba(255,255,255,.95); border-color: rgba(0,0,0,.12); }
+body.light .reader-dock button { color: #6b6a66; }
+body.light .reader-dock button:hover { background: rgba(0,0,0,.06); color: #16130f; }
+@media (min-width: 1024px) { .reader-dock .dock-phone-only { display: none; } }
+@media (max-width: 1023px) { .reader-dock { bottom: 16px; max-width: calc(100vw - 32px); } .reader-dock button { padding: 0 12px; } }
+.bible { padding-bottom: 96px; }
+/* the dock is for reading only: never over the dashboard (it is hidden there by the app) */
