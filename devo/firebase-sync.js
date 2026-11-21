@@ -277,17 +277,8 @@ function _injectAppScript() {
     "js/06-notes.js",
     "js/07-immersive.js",
     "js/08-story.js",
-    "js/09-narrate.js",
     "js/10-creator-canvas.js",
     "js/11-boot.js",
-    "js/12-scenes.js",
-    "js/13-scenes-2sa.js",
-    "js/14-scenes-1ki.js",
-    "js/15-scenes-2ki.js",
-    "js/16-scenes-1ch.js",
-    "js/17-scenes-2ch-a.js",
-    "js/18-scenes-2ch-b.js",
-    "js/19-scenes-ezr.js",
   ];
   for (const src of files) {
     const s = document.createElement("script");

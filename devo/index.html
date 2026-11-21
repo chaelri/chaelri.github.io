@@ -178,9 +178,6 @@
             <button id="notesToggleBtn" class="ctrl-icon-btn hidden" title="Toggle all notes">
               <span class="material-symbols-outlined">edit_note</span>
             </button>
-            <button id="canvasModeBtn" class="ctrl-icon-btn hidden" title="Canvas mode">
-              <span class="material-symbols-outlined">brush</span>
-            </button>
             <div id="mode-toggle" class="mode-toggle">
               <span class="material-symbols-outlined">light_mode</span>
             </div>
@@ -264,17 +261,9 @@
               </div>
             </div>
             <div class="action-buttons-row">
-              <button id="studyBtn" class="action-reflect-btn" onclick="document.getElementById('canvasModeBtn')?.click()">
-                <span class="material-icons">auto_stories</span>
-                Study
-              </button>
               <button id="passageReflectBtn" class="action-reflect-btn" onclick="openReflectModal()">
                 <span class="material-icons">volunteer_activism</span>
                 Reflect
-              </button>
-              <button id="passageNarrateBtn" class="action-reflect-btn" onclick="openNarrate()">
-                <span class="material-icons">forum</span>
-                Retell
               </button>
             </div>
           </div>
@@ -513,32 +502,6 @@
       </div>
     </div>
 
-    <!-- RETELL — chapter as narration + dialogue. Built by js/09-narrate.js.
-         Three stages live in here: the curtain that wipes up over the reader,
-         the loading state, and the scroll itself. -->
-    <div id="narrateOverlay" class="nr-overlay" hidden>
-      <div class="nr-curtain" id="nrCurtain"></div>
-      <div class="nr-shell">
-        <header class="nr-bar">
-          <div class="nr-bar-title">
-            <strong id="nrTitle"></strong>
-          </div>
-          <button class="nr-close" id="nrClose" aria-label="Back to chapter">
-            <span class="material-symbols-outlined">close</span>
-          </button>
-        </header>
-        <div class="nr-scroll" id="nrScroll"></div>
-        <footer class="nr-pager" id="nrPager" hidden>
-          <button class="nr-page-btn" id="nrPrev" aria-label="Previous page" title="Previous page (←)">
-            <span class="material-symbols-outlined">arrow_back</span>
-          </button>
-          <span class="nr-page-ind" id="nrPageInd"></span>
-          <button class="nr-page-btn" id="nrNext" aria-label="Next page" title="Next page (→)">
-            <span class="material-symbols-outlined">arrow_forward</span>
-          </button>
-        </footer>
-      </div>
-    </div>
 
     <!-- IMAGE CREATOR PANEL -->
     <div id="imgCreatorPanel" class="imgcr-panel" hidden>
@@ -596,165 +559,6 @@
       </div>
     </div>
 
-    <!-- CANVAS MODE OVERLAY -->
-    <div id="canvasModeOverlay" class="cm-overlay" hidden>
-      <div class="cm-topbar">
-        <button class="cm-icon-btn" id="cmCloseBtn" title="Close">
-          <span class="material-symbols-outlined">arrow_back_ios_new</span>
-        </button>
-        <button class="cm-title" id="cmTitle" type="button" title="Pick passage" aria-label="Pick passage"></button>
-        <div class="cm-topbar-actions">
-          <button class="cm-icon-btn" id="cmUndoBtn" title="Undo" disabled>
-            <span class="material-symbols-outlined">undo</span>
-          </button>
-          <button class="cm-icon-btn" id="cmRedoBtn" title="Redo" disabled>
-            <span class="material-symbols-outlined">redo</span>
-          </button>
-          
-          <button class="cm-listen-btn" id="cmListenBtn" type="button" title="Listen (L)" aria-label="Listen to chapter">
-            <span class="material-symbols-outlined">headphones</span>
-          </button>
-        </div>
-      </div>
-
-      <div class="cm-toolbar">
-        <div class="cm-tools">
-          <button class="cm-tool-btn active" data-tool="highlight" title="Highlight (H)">
-            <span class="material-symbols-outlined">ink_highlighter</span>
-          </button>
-          <button class="cm-tool-btn" data-tool="eraser" title="Eraser (E)">
-            <span class="material-symbols-outlined">ink_eraser</span>
-          </button>
-          <span class="cm-mode-label" id="cmModeLabel" data-tool="highlight">Highlight</span>
-        </div>
-        <div class="cm-swatches" id="cmSwatches">
-          <button class="cm-swatch" data-color="yellow" style="--sw:#ffe66b" title="Yellow (1)" aria-label="Yellow (shortcut: 1)"></button>
-          <button class="cm-swatch" data-color="pink"   style="--sw:#f9a8d4" title="Pink (2)"   aria-label="Pink (shortcut: 2)"></button>
-          <button class="cm-swatch" data-color="blue"   style="--sw:#93c5fd" title="Blue (3)"   aria-label="Blue (shortcut: 3)"></button>
-          <button class="cm-swatch" data-color="orange" style="--sw:#fdba74" title="Orange (4)" aria-label="Orange (shortcut: 4)"></button>
-          <button class="cm-swatch" data-color="green"  style="--sw:#bef264" title="Green (5)"  aria-label="Green (shortcut: 5)"></button>
-        </div>
-      </div>
-
-      <div class="cm-viewport" id="cmViewport">
-        <div class="cm-scroll" id="cmScroll">
-          <div class="cm-paper" id="cmPaper">
-            <div class="cm-passage-title-row">
-              <button class="cm-passage-nav-btn" id="cmPrevChBtn" type="button" aria-label="Previous chapter" title="Previous chapter">
-                <span class="material-symbols-outlined">chevron_left</span>
-              </button>
-              <div class="cm-passage-title" id="cmPassageTitle"></div>
-              <button class="cm-passage-nav-btn" id="cmNextChBtn" type="button" aria-label="Next chapter" title="Next chapter">
-                <span class="material-symbols-outlined">chevron_right</span>
-              </button>
-            </div>
-            <div class="cm-context" id="cmContext" hidden></div>
-            <div class="cm-passage" id="cmPassage"></div>
-            <div class="cm-tail-spacer" aria-hidden="true"></div>
-          </div>
-        </div>
-      </div>
-
-      <div class="cm-popover" id="cmPopover" hidden>
-        <div class="cm-popover-row">
-          <div class="cm-popover-swatches">
-            <button class="cm-pop-swatch" data-color="yellow" style="--sw:#ffe66b"></button>
-            <button class="cm-pop-swatch" data-color="pink"   style="--sw:#f9a8d4"></button>
-            <button class="cm-pop-swatch" data-color="blue"   style="--sw:#93c5fd"></button>
-            <button class="cm-pop-swatch" data-color="orange" style="--sw:#fdba74"></button>
-            <button class="cm-pop-swatch" data-color="green"  style="--sw:#bef264"></button>
-          </div>
-          <div class="cm-popover-actions">
-            <button class="cm-pop-action" data-action="clear" title="Clear highlight">
-              <span class="material-symbols-outlined">ink_eraser</span>
-            </button>
-            <button class="cm-pop-action" data-action="copy" title="Copy verse">
-              <span class="material-symbols-outlined">content_copy</span>
-            </button>
-            <button class="cm-pop-action" data-action="note" title="Add note">
-              <span class="material-symbols-outlined">edit_note</span>
-            </button>
-          </div>
-        </div>
-        <div class="cm-popover-secondary">
-          <button class="cm-pop-secondary-btn" data-action="context">Context</button>
-          <button class="cm-pop-secondary-btn" data-action="ask">Ask Question</button>
-        </div>
-      </div>
-
-      <!-- Sticky Listen mini-player. Only renders when canvas-mode TTS is
-           active (gated by body.tts-canvas-active in CSS). Bottom-center
-           position dodges the radial FAB on the right. -->
-      <div class="cm-listen-bar" id="cmListenBar" role="toolbar" aria-label="Canvas listen controls">
-        <button id="cmListenPrevBtn" type="button" aria-label="Previous verse" title="Previous verse">
-          <span class="material-symbols-outlined">skip_previous</span>
-        </button>
-        <button id="cmListenPauseBtn" class="cm-listen-pause" type="button" aria-label="Pause" title="Pause / play">
-          <span class="material-symbols-outlined">pause</span>
-        </button>
-        <button id="cmListenNextBtn" type="button" aria-label="Next verse" title="Next verse">
-          <span class="material-symbols-outlined">skip_next</span>
-        </button>
-        <span class="cm-listen-verse" id="cmListenVerse"></span>
-        <button id="cmListenFollowBtn" class="cm-listen-follow" type="button" aria-label="Auto-scroll" title="Auto-scroll to current verse">
-          <span class="material-symbols-outlined">lock</span>
-        </button>
-        <button id="cmListenAutoBtn" class="cm-listen-auto" type="button" aria-label="Auto-advance" title="Auto-advance to next chapter">
-          <span class="material-symbols-outlined">repeat</span>
-        </button>
-        <button id="cmListenStopBtn" class="cm-listen-stop" type="button" aria-label="Stop" title="Stop">
-          <span class="material-symbols-outlined">close</span>
-        </button>
-      </div>
-
-      <!-- Light-mode AI popover for Context / Ask (renders fetchInlineQuickContext or toggleVerseChat) -->
-      <div class="cm-ai-modal light" id="cmAiModal" hidden>
-        <div class="cm-ai-card">
-          <div class="cm-ai-header">
-            <div class="cm-ai-ref" id="cmAiRef"></div>
-            <button class="cm-ai-close" id="cmAiClose" aria-label="Close">
-              <span class="material-symbols-outlined">close</span>
-            </button>
-          </div>
-          <div class="cm-ai-body" id="cmAiBody"></div>
-        </div>
-      </div>
-
-      <!-- Note input modal -->
-      <div class="cm-note-modal" id="cmNoteModal" hidden>
-        <div class="cm-note-card">
-          <div class="cm-note-ref" id="cmNoteRef"></div>
-          <textarea class="cm-note-input" id="cmNoteInput" placeholder="Write your note…"></textarea>
-          <div class="cm-note-actions">
-            <button class="cm-note-btn cm-note-cancel" id="cmNoteCancel">Cancel</button>
-            <button class="cm-note-btn cm-note-save" id="cmNoteSave">Save</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Note view popover (verse-card style) -->
-      <div class="cm-note-view" id="cmNoteView" hidden>
-        <div class="cm-note-view-card">
-          <div class="cm-note-view-head">
-            <div class="cm-note-view-ref" id="cmNoteViewRef"></div>
-            <button class="cm-note-view-close" id="cmNoteViewClose" aria-label="Close">
-              <span class="material-symbols-outlined">close</span>
-            </button>
-          </div>
-          <div class="cm-note-view-body" id="cmNoteViewBody"></div>
-          <div class="cm-note-view-actions">
-            <button class="cm-note-view-action-btn" id="cmNoteViewEdit">
-              <span class="material-symbols-outlined">edit</span>
-              Edit
-            </button>
-            <button class="cm-note-view-action-btn cm-note-view-action-danger" id="cmNoteViewDelete">
-              <span class="material-symbols-outlined">delete</span>
-              Delete
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
 
 
     
@@ -763,9 +567,7 @@
     <button type="button" id="ttsChip" class="tts-chip" aria-label="Show player controls"><span id="ttsChipText"></span><span class="material-symbols-outlined" aria-hidden="true">expand_less</span></button>
     <div id="ttsSheetScrim" class="tts-sheet-scrim"></div>
     <nav id="readerDock" class="reader-dock" hidden aria-label="Reader actions">
-      <button type="button" data-dock="study" aria-label="Study" title="Study"><span class="material-symbols-outlined" aria-hidden="true">auto_stories</span></button>
       <button type="button" data-dock="listen" aria-label="Listen" title="Listen"><svg class="dock-ring" viewBox="0 0 56 56" aria-hidden="true"><circle class="dock-ring-track" cx="28" cy="28" r="26"/><circle class="dock-ring-fill" cx="28" cy="28" r="26"/></svg><span class="material-symbols-outlined dock-ic-listen" aria-hidden="true">headphones</span><span class="material-symbols-outlined dock-ic-pause" aria-hidden="true">pause</span><span class="material-symbols-outlined dock-ic-play" aria-hidden="true">play_arrow</span></button>
-      <button type="button" data-dock="retell" aria-label="Retell" title="Retell"><span class="material-symbols-outlined" aria-hidden="true">forum</span></button>
     </nav>
 
     <script src="config.js" onerror="void 0"></script>

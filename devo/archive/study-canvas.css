@@ -1,0 +1,1789 @@
+
+
+#canvasModeOverlay.view-leaving {
+  animation: viewZoomOut 240ms cubic-bezier(0.4, 0, 1, 1) both;
+  will-change: opacity, transform;
+}
+
+/* ── Study-mode intro overlay ────────────────────────────────────────────────
+   Cinematic reveal when entering canvas/highlight mode: full-screen cream
+   paper covers the view, the chapter title rises into the center, a yellow
+   highlighter strokes across it left→right, then everything fades — exposing
+   the already-rendered canvas underneath. ~1.4s total. The wrapper's
+   animationend triggers cleanup in JS. */
+.cm-intro {
+  /* All four intro animations run on one shared timeline — their keyframe
+     percentages are choreographed against each other, so the duration lives
+     here and nowhere else. Change this one number to retime the whole intro;
+     the JS cleanup fallback in _playStudyIntro is sized off it too. */
+  --cm-intro-dur: 2100ms;
+  position: fixed;
+  inset: 0;
+  z-index: 10100; /* above #canvasModeOverlay (10050) */
+  background: #f5f2ea;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  animation: cmIntroWrap var(--cm-intro-dur) cubic-bezier(0.22, 1, 0.36, 1) both;
+  will-change: opacity;
+}
+
+.cm-intro-stage {
+  position: relative;
+  display: inline-block;
+  padding: 0 24px;
+  max-width: 90vw;
+  /* Hoist the title's font size onto the stage so children (highlight bar
+     uses `0.96em`, marker icon uses `1em`) resolve against it instead of
+     against the body's 16px. Otherwise `0.96em` becomes ~15px → thin stripe.
+     Title now inherits this; no need to redeclare on .cm-intro-title. */
+  font-size: clamp(2.6rem, 9vw, 5rem);
+  line-height: 1.05;
+}
+
+.cm-intro-title {
+  font-family: "Editors Note", "EditorsNote-Italic", serif;
+  font-style: italic;
+  font-weight: 400;
+  font-size: 1em;
+  line-height: inherit;
+  color: #1a1a2e;
+  margin: 0;
+  position: relative;
+  z-index: 1;
+  white-space: nowrap;
+  /* Title rises into place, holds, then drifts up & out. */
+  animation: cmIntroTitle var(--cm-intro-dur) cubic-bezier(0.22, 1, 0.36, 1) both;
+  will-change: opacity, transform;
+}
+
+.cm-intro-highlight {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: 52%;
+  /* Bigger! Covers the full glyph height so it reads like an actual marker
+     stroke painted across the title — the same way canvas-mode highlights
+     fill a word's bounding box. */
+  height: 0.96em;
+  /* Color triplet is set by JS via CSS custom props so each open randomizes
+     between the swatch palette (yellow / pink / blue / orange / green).
+     Defaults to yellow if JS doesn't set them. */
+  --cm-hi-1: rgba(255, 230, 107, 0.95);
+  --cm-hi-2: rgba(255, 220, 80, 0.95);
+  --cm-hi-3: rgba(255, 230, 107, 0.85);
+  --cm-hi-glow: rgba(255, 200, 0, 0.22);
+  background: linear-gradient(
+    90deg,
+    var(--cm-hi-1) 0%,
+    var(--cm-hi-2) 60%,
+    var(--cm-hi-3) 100%
+  );
+  border-radius: 8px;
+  transform-origin: left center;
+  transform: translateY(-50%) scaleX(0);
+  z-index: 0;
+  filter: drop-shadow(0 2px 4px var(--cm-hi-glow));
+  /* Slight rotation echoes a hand-drawn highlighter stroke. */
+  animation: cmIntroHighlight var(--cm-intro-dur) cubic-bezier(0.45, 0, 0.55, 1) both;
+  will-change: transform, opacity;
+}
+
+/* Highlighter marker icon — travels with the right edge of the sweep.
+   `left` interpolates from 8px (start of highlight) to calc(100% - 8px)
+   (end of highlight) over the same 28%–62% window the bar uses for scaleX,
+   so the icon visually "draws" the highlight as it crosses the title.
+   Specificity-bump (`span.cm-intro-marker.material-symbols-outlined`) plus
+   `!important` defeats Google's bundled `.material-symbols-outlined`
+   font-size and the CDN's `font-variation-settings` defaults. */
+span.cm-intro-marker.material-symbols-outlined {
+  position: absolute;
+  /* Pen tip lands at the vertical MIDDLE of the title row. The
+     translate(-50%, -100%) anchors the pen's bottom-center at the playhead,
+     then rotate(-22deg) tilts it. With top: 50% the tip sits dead-center;
+     the body extends upward from there, hovering over the title like a
+     real marker doing the stroke. */
+  top: 50%;
+  left: 8px;
+  /* Inherit from .cm-intro-stage so the icon scales with the title. ~1.2em
+     of the title size = a proper marker-tip presence next to the letters. */
+  font-size: 1.2em !important;
+  line-height: 1 !important;
+  color: var(--pink-ink);
+  z-index: 2;
+  pointer-events: none;
+  transform: translate(-50%, -100%) rotate(-22deg);
+  transform-origin: bottom center;
+  filter: drop-shadow(0 6px 14px rgba(219, 39, 119, 0.32));
+  animation: cmIntroMarker var(--cm-intro-dur) cubic-bezier(0.45, 0, 0.55, 1) both;
+  will-change: left, opacity;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cm-intro,
+  .cm-intro-title,
+  .cm-intro-highlight,
+  .cm-intro-marker {
+    animation-duration: 0.01ms !important;
+  }}
+
+/* Canvas mode: center the Reflect button under the passage, paper colors. */
+.cm-reflect-row {
+  display: flex;
+  justify-content: center;
+  padding: 2.5rem 0 3rem;
+}
+.cm-reflect-btn {
+  width: auto !important;
+  padding: 14px 40px !important;
+  border-color: rgba(26, 26, 46, 0.15) !important;
+  background: rgba(255, 255, 255, 0.65) !important;
+  color: #1a1a2e !important;
+}
+.cm-reflect-btn:hover {
+  background: rgba(26, 26, 46, 0.05) !important;
+  border-color: rgba(26, 26, 46, 0.22) !important;
+}
+
+/* ============== CANVAS MODE (paper / always light) ============== */
+.cm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10050;
+  background: #f5f2ea; /* paper */
+  color: #1a1a2e;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  /* The legacy `animation: cmFadeIn 0.2s ease` was removed because it
+     stacked on top of the new .view-enter zoom-in animation, producing a
+     visible double fade / flicker on open. The single .view-enter rule
+     (lines ~1190–1197) now owns canvas-mode entry motion. */
+}
+.cm-overlay[hidden] { display: none !important; }
+
+.cm-topbar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px 10px;
+  padding-top: calc(14px + env(safe-area-inset-top, 0px));
+  background: rgba(250,249,246,0.92);
+  border-bottom: 1px solid rgba(0,0,0,0.06);
+  backdrop-filter: blur(8px);
+  z-index: 3;
+}
+/* Topbar title sits left, next to the back button. Tap to open the book
+   picker. Caret hint after the text says "this is interactive". The
+   `flex: 0 0 auto !important` is the override of the global `button { flex:
+   0 !important }` rule documented in CLAUDE.md memory — we want the click
+   target to fit the text + caret only (not stretch across the topbar).
+   Wrap content forced via inline-flex so trailing whitespace from the
+   ::after caret stays inside the same hover rect. */
+.cm-title {
+  flex: 0 0 auto !important;
+  max-width: 100%;
+  min-width: 0;
+  font: 600 15px/1.2 inherit;
+  color: #1a1a2e;
+  letter-spacing: 0.2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+  background: transparent !important;
+  border: none;
+  padding: 6px 10px !important;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  display: inline-flex !important;
+  align-items: center;
+  width: auto !important;
+}
+.cm-title:hover { background: rgba(190,24,93,0.08) !important; }
+.cm-title::after {
+  content: "expand_more";
+  font-family: "Material Symbols Outlined";
+  font-size: 16px;
+  margin-left: 4px;
+  vertical-align: middle;
+  color: rgba(0,0,0,0.4);
+  font-weight: 400;
+}
+/* margin-left: auto pushes the whole right-side action cluster to the far
+   end of the topbar, no matter how short or long the .cm-title is. Since
+   .cm-title was set to flex: 0 0 auto (fit-content), without this rule the
+   actions would sit immediately next to the title, leaving empty space on
+   the right. */
+.cm-topbar-actions { display: flex; gap: 6px; flex: 0 0 auto; margin-left: auto; align-items: center; }
+
+/* Display passage title row: ‹ Leviticus 11 ›. Lives inside the paper, so
+   the chevrons are visible while reading without taking topbar real-estate.
+   Same italic display font as before; chevrons are restrained ghost buttons
+   that grow on hover. */
+.cm-passage-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.cm-passage-title-row .cm-passage-title {
+  flex: 1 1 auto;
+  margin-bottom: 0;
+  text-align: center;
+}
+.cm-passage-nav-btn {
+  flex: 0 0 auto !important;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0,0,0,0.04) !important;
+  color: rgba(0,0,0,0.55) !important;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 !important;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+.cm-passage-nav-btn:hover {
+  background: rgba(190,24,93,0.10) !important;
+  color: #be185d !important;
+  transform: scale(1.05);
+}
+.cm-passage-nav-btn .material-symbols-outlined { font-size: 24px; }
+
+.cm-icon-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0,0,0,0.06);
+  color: rgba(0,0,0,0.6);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.cm-icon-btn:hover:not(:disabled) { background: rgba(0,0,0,0.11); color: #1a1a2e; }
+.cm-icon-btn.active { background: rgba(219, 39, 119,0.15); color: #be185d; }
+.cm-icon-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.cm-icon-btn .material-symbols-outlined { font-size: 16px; }
+
+.cm-toolbar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  background: rgba(255,255,255,0.55);
+  border-bottom: 1px solid rgba(0,0,0,0.06);
+  z-index: 3;
+  flex-wrap: wrap;
+}
+.cm-tools { display: flex; gap: 6px; align-items: center; }
+.cm-mode-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: rgba(0,0,0,0.45);
+  padding: 0 4px 0 8px;
+  user-select: none;
+  transition: color 0.15s ease;
+}
+.cm-mode-label[data-tool="highlight"] { color: #be185d; }
+.cm-mode-label[data-tool="eraser"]    { color: rgba(0,0,0,0.6); }
+
+.cm-tool-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 13px;
+  border: 1px solid rgba(0,0,0,0.06);
+  background: rgba(0,0,0,0.04);
+  color: rgba(0,0,0,0.55);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+.cm-tool-btn:hover { background: rgba(0,0,0,0.08); color: #1a1a2e; }
+.cm-tool-btn.active {
+  background: linear-gradient(135deg, rgba(219, 39, 119,0.16), rgba(139,92,246,0.12));
+  color: #be185d;
+  border-color: rgba(219, 39, 119,0.4);
+  box-shadow: 0 0 10px rgba(219, 39, 119,0.12);
+}
+.cm-tool-btn .material-symbols-outlined { font-size: 16px; }
+
+.cm-swatches, .cm-popover-swatches { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.cm-swatch, .cm-pop-swatch {
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
+  /* `flex: 0 0 auto !important` defeats the global `button { flex: 0 !important }`
+     at line ~118 AND lets the explicit width/height (cascade-overridable in the
+     mobile media query) decide the size. Without this, the global rule pinned
+     flex-basis to 30px and the mobile `width: 26px` override produced 30×26
+     oblong swatches. The `background: !important` defeats `.light button {
+     background: white }` at line ~2169. See memory: feedback_devo_button_global_rule.md */
+  flex: 0 0 auto !important;
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+  border: 2px solid rgba(0,0,0,0.08);
+  background: var(--sw) !important;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+}
+.cm-swatch:hover, .cm-pop-swatch:hover { transform: scale(1.12); }
+
+/* ---------- Desktop keyboard-shortcut indicators (H / E / 1-5) ----------
+   Tiny "keycap" badges pinned to the bottom-right of each tool & swatch.
+   Hover-only tooltips weren't enough — Charlie wanted them VISIBLE so the
+   shortcut is discoverable without hovering.
+
+   Hidden under 768px because phones don't have keyboards and the badges
+   would just clutter the toolbar. */
+@media (min-width: 768px) {
+  .cm-tool-btn,
+  .cm-swatch {
+    position: relative;
+    overflow: visible;
+  }
+  .cm-tool-btn::after,
+  .cm-swatch::after {
+    position: absolute;
+    bottom: -5px;
+    right: -5px;
+    min-width: 14px;
+    height: 14px;
+    padding: 0 3px;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font: 700 9px/1 ui-monospace, "SF Mono", Menlo, monospace;
+    color: #fff;
+    background: rgba(20, 22, 38, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 4px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+    pointer-events: none;
+    letter-spacing: 0.02em;
+  }
+  .cm-tool-btn[data-tool="highlight"]::after { content: "H"; }
+  .cm-tool-btn[data-tool="eraser"]::after    { content: "E"; }
+  .cm-listen-btn::after                      { content: "L"; }
+  .cm-swatch[data-color="yellow"]::after { content: "1"; }
+  .cm-swatch[data-color="pink"]::after   { content: "2"; }
+  .cm-swatch[data-color="blue"]::after   { content: "3"; }
+  .cm-swatch[data-color="orange"]::after { content: "4"; }
+  .cm-swatch[data-color="green"]::after  { content: "5"; }
+
+  .cm-listen-btn {
+    position: relative;
+    overflow: visible;
+  }
+  .cm-listen-btn::after {
+    position: absolute;
+    bottom: -5px;
+    right: -5px;
+    min-width: 14px;
+    height: 14px;
+    padding: 0 3px;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font: 700 9px/1 ui-monospace, "SF Mono", Menlo, monospace;
+    color: #fff;
+    background: rgba(20, 22, 38, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 4px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+    pointer-events: none;
+    letter-spacing: 0.02em;
+  }}
+
+/* Listen button — matches the H/E tool buttons in the canvas toolbar so the
+   trio reads as one control group. The active state pulses pink while TTS
+   is playing in canvas mode. */
+.cm-listen-btn {
+  width: 40px !important;
+  height: 40px !important;
+  border-radius: 13px !important;
+  border: 1px solid rgba(0,0,0,0.06) !important;
+  background: rgba(0,0,0,0.04) !important;
+  color: rgba(0,0,0,0.55) !important;
+  cursor: pointer;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto !important;
+  padding: 0 !important;
+  transition: all 0.15s ease;
+}
+.cm-listen-btn:hover { background: rgba(0,0,0,0.08) !important; color: #1a1a2e !important; }
+.cm-listen-btn.active {
+  background: linear-gradient(135deg, rgba(219, 39, 119,0.18), rgba(139,92,246,0.14)) !important;
+  color: #be185d !important;
+  border-color: rgba(219, 39, 119,0.45) !important;
+  box-shadow: 0 0 12px rgba(219, 39, 119,0.18);
+  animation: cmListenPulse 1.6s ease-in-out infinite;
+}
+.cm-listen-btn .material-symbols-outlined { font-size: 16px; }
+
+/* Tappable verse number in canvas mode. While TTS is active in canvas, the
+   verse-num gets a subtle "tap me to jump" affordance — same hover state
+   even when idle so the cue is discoverable. Word-tap stays free for the
+   existing popover; only the number is the jump target. */
+.cm-verse-num {
+  cursor: pointer;
+  border-radius: 8px;
+  padding: 0 2px;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+.cm-verse-num:hover {
+  background: rgba(219, 39, 119, 0.12);
+  transform: scale(1.05);
+}
+body.tts-canvas-active .cm-verse-num {
+  background: rgba(219, 39, 119, 0.06);
+}
+
+/* Currently-spoken word in canvas mode. Soft pink wash at low opacity so the
+   text color NEVER changes (no contrast flip = no per-word strobing) and the
+   user's underlying color highlight blends through. The sticky mini-player
+   already supplies the bold "I'm here" cue; this just marks position. */
+.cm-word.cm-word-tts-active {
+  background: rgba(190, 24, 93, 0.20) !important;
+  border-radius: 4px;
+  box-shadow: inset 0 0 0 1px rgba(190, 24, 93, 0.35);
+  transition: background 0.18s ease, box-shadow 0.18s ease;
+}
+
+/* Active-verse emphasis in canvas mode — when auto-follow is LOCKED, dim
+   every other verse so the eye lands on the current one. No border, no
+   padding bump → all verses keep identical layout, just an opacity wash
+   on the inactive ones. When follow is unlocked, the user is free-scrolling
+   and the dim is removed (full opacity everywhere). */
+body.tts-canvas-follow #cmPassage .cm-verse {
+  transition: opacity 0.35s ease;
+}
+/* Dim the verse text but keep verse-num at full opacity so the tap-to-jump
+   affordance reads as obviously clickable even when the verse itself is
+   muted by auto-follow. Targets every direct/descendant child EXCEPT the
+   number — using :not() on the verse itself would dim everything inside it. */
+body.tts-canvas-follow #cmPassage .cm-verse:not(.cm-verse-tts-active) > *:not(.cm-verse-num) {
+  opacity: 0.35 !important;
+}
+
+/* ── Canvas-mode Listen mini-player (sticky bottom-center) ───────────────────
+   Only visible while TTS is active in canvas. Floats above the paper so the
+   user can pause/scrub without leaving study mode. Positioned bottom-center
+   so it doesn't collide with the radial FAB at bottom-right. */
+.cm-listen-bar {
+  position: fixed;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  z-index: 10080;
+  display: none;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  background: rgba(20, 22, 38, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.32), 0 2px 8px rgba(190, 24, 93, 0.18);
+  backdrop-filter: blur(12px);
+  opacity: 0;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+body.tts-canvas-active .cm-listen-bar {
+  display: inline-flex;
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+.cm-listen-bar button {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: transparent !important;
+  color: #fff !important;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto !important;
+  padding: 0 !important;
+  transition: background 0.15s ease;
+}
+.cm-listen-bar button:hover { background: rgba(255, 255, 255, 0.10) !important; }
+.cm-listen-bar button:disabled { opacity: 0.35; cursor: not-allowed; }
+.cm-listen-bar .cm-listen-pause {
+  background: #be185d !important;
+  width: 42px;
+  height: 42px;
+}
+.cm-listen-bar .cm-listen-pause:hover { background: #db2777 !important; }
+.cm-listen-bar .cm-listen-stop { color: rgba(255, 255, 255, 0.7) !important; }
+.cm-listen-bar .cm-listen-follow,
+.cm-listen-bar .cm-listen-auto {
+  color: rgba(255, 255, 255, 0.5) !important;
+}
+.cm-listen-bar .cm-listen-follow.active,
+.cm-listen-bar .cm-listen-auto.active {
+  color: #f9a8d4 !important;
+  background: rgba(190, 24, 93, 0.18) !important;
+}
+.cm-listen-bar .cm-listen-verse {
+  font: 600 13px/1 -apple-system, system-ui, "Segoe UI", Roboto, sans-serif;
+  /* `frac off` disables the OpenType vulgar-fraction feature that some
+     monospace fonts (SF Mono, Menlo) auto-apply to "X/Y", which was stacking
+     the numerator over the denominator. tabular-nums keeps digit columns
+     stable so the counter doesn't jitter as the verse number grows. */
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "frac" 0, "afrc" 0;
+  color: rgba(255, 255, 255, 0.78);
+  padding: 0 10px;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+.cm-listen-bar .cm-listen-verse .cm-listen-verse-cur {
+  color: #fff;
+}
+.cm-listen-bar .cm-listen-verse .cm-listen-verse-sep {
+  color: rgba(255, 255, 255, 0.32);
+  font-weight: 400;
+}
+.cm-listen-bar .material-symbols-outlined { font-size: 16px; }
+.light .cm-tool-btn::after,
+.light .cm-swatch::after {
+  background: rgba(20, 22, 38, 0.88);
+}
+.cm-swatch.active {
+  border-color: #1a1a2e;
+  transform: scale(1.15);
+  box-shadow: 0 0 0 3px rgba(0,0,0,0.06), 0 2px 8px color-mix(in srgb, var(--sw) 70%, transparent);
+}
+
+.cm-viewport {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+.cm-viewport.cm-tool-draw   { cursor: crosshair; }
+.cm-viewport.cm-tool-erase  { cursor: cell; }
+.cm-viewport.cm-tool-text   { cursor: text; }
+
+
+.cm-scroll {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  padding: 40px 16px 0;
+  touch-action: pan-y;
+  display: flex;
+  justify-content: center;
+  scrollbar-width: none; /* Firefox */
+}
+.cm-scroll::-webkit-scrollbar { display: none; } /* WebKit */
+/* Smart gesture mode: `touch-action: pan-y` is always on, so vertical swipes
+   scroll natively and horizontal swipes are delivered to our pointer handlers
+   for highlighting/erasing. No mode-based override needed. */
+.cm-viewport.cm-tool-text .cm-scroll { touch-action: none; }
+
+/* Sticky bottom-right FAB — tap to toggle pan ↔ highlight quickly. Eraser
+   stays in the top toolbar for deliberate access. */
+.cm-fab {
+  position: absolute;
+  right: 20px;
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  background: #1a1a2e;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.25), 0 2px 6px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  z-index: 6;
+  transition: background 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.cm-fab:active { transform: scale(0.93); }
+.cm-fab-icon { font-size: 24px; line-height: 1; }
+.cm-fab[data-current="eraser"] { background: #475569; color: #fff; }
+
+/* Engage FX — subtle burst when long-press locks in stroke mode. Colors
+   are injected inline to match the active highlight swatch. z-index stays
+   above `.cm-overlay` (10050) so the layers float on top of the paper. */
+
+/* Subtle colored ripple at the touch point. Multiply-blended so it reads
+   on paper without looking painted. */
+.cm-engage-ripple {
+  position: fixed;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%) scale(0.25);
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: 10100;
+  mix-blend-mode: multiply;
+  animation: cmEngageRipple 0.45s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Floating "maangas" word label — pops up from the pressed word, hangs
+   for a beat, then drifts and fades. Reads as a proud stamp of what was
+   just grabbed. Anchor `left/top` are set to the word's top-center; the
+   translate(-50%) in the animation centers the label horizontally over it. */
+.cm-engage-word {
+  position: fixed;
+  pointer-events: none;
+  z-index: 10100;
+  /* Matches the passage it was grabbed from. */
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 1.25;
+  letter-spacing: 0.1px;
+  color: #1a1a2e;
+  padding: 4px 10px;
+  border-radius: 8px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2),
+              0 2px 4px rgba(0, 0, 0, 0.14);
+  white-space: nowrap;
+  transform: translate(-50%, -34px) scale(1);
+  opacity: 1;
+  animation: cmEngageWordIn 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@media (max-width: 600px) {
+  .cm-engage-word { font-size: 16px; }}
+.cm-engage-word.cm-engage-word-grow {
+  animation: cmEngageWordGrow 0.22s ease-out;
+}
+.cm-engage-word.cm-engage-word-out {
+  animation: cmEngageWordOut 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Brief glow on the first word to confirm "you're painting this one."
+   `.cm-word` is display:inline so we animate box-shadow/filter instead of
+   transform (transforms don't apply to inline elements). */
+.cm-word.cm-word-engage { animation: cmWordEngage 0.32s ease-out; }
+
+/* The word the popover is currently anchored to — shaken briefly on open
+   then held with an underline + slight bold so the user knows which word
+   "Context" / "Ask Question" will act on. inline-block is needed for the
+   transform-based shake (transforms don't apply to display:inline). */
+.cm-word.cm-word-popover-target {
+  display: inline-block;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-decoration-color: rgba(0, 0, 0, 0.55);
+  text-underline-offset: 3px;
+  font-weight: 600;
+  animation: cmWordPopShake 0.28s ease-out;
+}
+
+/* Active-color dot — pinned to top-right of FAB in pan/eraser modes so the
+   user always knows which color a tap-to-highlight will apply. Hidden in
+   highlight mode since the FAB itself is already that color. */
+.cm-fab-color-dot {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--active-color, #ffe66b);
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+  transition: background 0.15s ease, transform 0.15s ease, opacity 0.15s ease;
+}
+.cm-fab[data-current="highlight"] .cm-fab-color-dot { opacity: 0; transform: scale(0.6); }
+/* In highlight mode, the FAB IS the current color swatch — instant visual
+   read of what color you're painting with. Icon is white for clean contrast. */
+.cm-fab[data-current="highlight"] { color: #fff; }
+.cm-fab[data-current="highlight"][data-color="yellow"] { background: #ffe66b; }
+.cm-fab[data-current="highlight"][data-color="pink"]   { background: #f9a8d4; }
+.cm-fab[data-current="highlight"][data-color="blue"]   { background: #93c5fd; }
+.cm-fab[data-current="highlight"][data-color="orange"] { background: #fdba74; }
+.cm-fab[data-current="highlight"][data-color="green"]  { background: #bef264; }
+
+/* Radial arc of chips around the FAB — 4 other colors + eraser.
+   Each chip reads a precomputed --dx/--dy (set by JS) for its offset and a
+   --i index for the stagger delay. Collapsed state scales chips to 0;
+   opening adds .cm-fab-arc-open which runs the transition per-chip. */
+.cm-fab-arc {
+  position: absolute;
+  right: 20px;
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  width: 56px;
+  height: 56px;
+  z-index: 6;
+  pointer-events: none;
+}
+.cm-fab-arc-chip {
+  position: absolute;
+  left: 28px;
+  top: 28px;
+  width: 40px;
+  height: 40px;
+  margin-left: -20px;
+  margin-top: -20px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  background: var(--sw, #fff);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2), 0 1px 3px rgba(0, 0, 0, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #1a1a2e;
+  cursor: pointer;
+  pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
+  transform: translate(0, 0) scale(0);
+  opacity: 0;
+  transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1),
+              opacity 0.18s ease;
+}
+.cm-fab-arc.cm-fab-arc-open .cm-fab-arc-chip {
+  transform: translate(var(--dx, 0), var(--dy, 0)) scale(1);
+  opacity: 1;
+  transition-delay: calc(var(--i, 0) * 35ms);
+}
+.cm-fab-arc-chip:active { transform: translate(var(--dx, 0), var(--dy, 0)) scale(0.9); }
+.cm-fab-arc-eraser {
+  background: #475569;
+  color: #fff;
+}
+.cm-fab-arc-eraser .material-symbols-outlined { font-size: 16px; }
+
+.cm-paper {
+  position: relative;
+  width: 100%;
+  /* Study mode is for marking up short lines, not for a wide measure — the
+     paper stays a narrow column and .cm-scroll centres it. */
+  max-width: 500px;
+  padding: 20px 8px 0;
+}
+
+/* Real element, not padding — guaranteed to extend scrollHeight on every browser. */
+.cm-tail-spacer {
+  height: 25vh;
+  width: 100%;
+  pointer-events: none;
+}
+
+.cm-passage-title {
+  position: relative;
+  font-family: "Editors Note", "EditorsNote-Italic", serif;
+  font-style: italic;
+  font-weight: 400;
+  font-size: 42px;
+  line-height: 1.1;
+  margin: 6px 0 26px;
+  padding: 0 8px;
+  user-select: none;
+  -webkit-user-select: none;
+  z-index: 1;
+  /* Same shimmer technique as the "devotion." brand logo (.dash-brand): a
+     wide gradient is clipped to the text glyphs and the position is animated
+     so a soft pink highlight glides through the deep navy. ease-in-out
+     alternate gives a calm, continuous breathing motion — no transform,
+     no pulse, just light passing through the letters.
+     `will-change` hoists the title to its own compositor layer so the
+     repaints from background-position never leak into surrounding paints. */
+  background: linear-gradient(
+    115deg,
+    #1a1a2e 25%,
+    #db2777 50%,
+    #1a1a2e 75%
+  );
+  background-size: 220% 220%;
+  background-position: 0% 50%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  will-change: background-position;
+  animation: cmTitleShimmer 7s ease-in-out infinite alternate;
+}
+
+/* Respect users who don't want background motion. */
+@media (prefers-reduced-motion: reduce) {
+  .cm-passage-title {
+    animation: none;
+    background-position: 50% 50%;
+    will-change: auto;
+  }}
+
+.cm-passage {
+  position: relative;
+  color: #1a1a2e;
+  /* Inherit so canvas reading text tracks the Font setting like the main
+     view does, rather than pinning its own face. */
+  font-family: inherit;
+  font-size: 16px;
+  line-height: 1.95;
+  letter-spacing: 0.1px;
+  user-select: none;
+  -webkit-user-select: none;
+  z-index: 1;
+}
+
+/* ── Compact context accordion (canvas mode, above first verse) ─────────── */
+.cm-context {
+  margin: 0 0 18px;
+  font-family: inherit;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Desktop: head + summary panel stay a 320px column, but the Q&A thread spans
+   the full width UNDER them. It used to sit in the leftover right column,
+   which squeezed long answers into a narrow strip off to the side. */
+@media (min-width: 768px) {
+  .cm-context {
+    display: grid;
+    grid-template-columns: 320px minmax(0, 1fr);
+    grid-template-areas:
+      "head    ."
+      "panel   ."
+      "thread  thread";
+    column-gap: 18px;
+    row-gap: 0;
+    align-items: start;
+  }
+  .cm-ctx-head { grid-area: head; }
+  .cm-ctx-panel { grid-area: panel; }
+  .cm-ctx-thread {
+    grid-area: thread;
+    margin-top: 12px;
+    min-width: 0;
+  }
+  .cm-ctx-thread:not(:empty) {
+    padding: 12px 14px;
+    background: rgba(255, 255, 255, 0.55);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    border-radius: 13px;
+    backdrop-filter: blur(6px);
+  }}
+/* (The Context · Ask panel used to pin Nunito here explicitly. Nunito is now
+   the app-wide default on `body`, so the panel inherits it and the override —
+   plus the icon-font pins it needed — is gone.) */
+
+.cm-ctx-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 12px;
+  background: rgba(219, 39, 119, 0.06) !important;
+  border: 1px solid rgba(219, 39, 119, 0.18) !important;
+  border-radius: 999px;
+  color: #6b1a4a;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  cursor: pointer;
+  flex: 0 0 auto !important;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.cm-ctx-head:hover {
+  background: rgba(219, 39, 119, 0.10) !important;
+  border-color: rgba(219, 39, 119, 0.28) !important;
+}
+.cm-ctx-head-icon { font-size: 16px !important; color: var(--pink-ink); }
+.cm-ctx-head-label { flex: 1 1 auto; text-align: left; }
+.cm-ctx-head-chev {
+  font-size: 16px !important;
+  color: rgba(219, 39, 119, 0.6);
+  transition: transform 0.2s ease;
+}
+.cm-ctx-head-open .cm-ctx-head-chev { transform: rotate(180deg); }
+
+/* Outer wrapper animates HEIGHT (via grid-template-rows 0fr→1fr) + opacity +
+   lift. Inner wrapper carries the actual padding/border/background and clips
+   overflow so the height interpolation stays clean. Opening reveals the
+   summary lines in a gentle stagger; closing eases everything back. */
+.cm-ctx-panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  margin-top: 0;
+  opacity: 0;
+  transform: translateY(-10px);
+  pointer-events: none;
+  transition:
+    grid-template-rows 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    margin-top 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 280ms cubic-bezier(0.4, 0, 0.2, 1),
+    transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.cm-ctx-panel-inner {
+  position: relative;
+  overflow: hidden;
+  min-height: 0;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 13px;
+  backdrop-filter: blur(6px);
+}
+
+/* Refresh icon — top-right of the panel. Floats above the summary so summary
+   innerHTML changes (loading → ready → error) don't disturb it. !important on
+   flex + background defuses the global button traps. */
+.cm-ctx-refresh {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  width: 28px;
+  height: 28px;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  border: none !important;
+  background: transparent !important;
+  color: rgba(219, 39, 119, 0.55);
+  cursor: pointer;
+  border-radius: 50%;
+  flex: 0 0 28px !important;
+  padding: 0;
+  z-index: 2;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.cm-ctx-refresh:hover {
+  background: rgba(219, 39, 119, 0.12) !important;
+  color: var(--pink-ink);
+}
+.cm-ctx-refresh:active { transform: scale(0.92); }
+.cm-ctx-refresh .material-symbols-outlined {
+  font-size: 16px;
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.cm-ctx-refresh-spinning .material-symbols-outlined {
+  animation: cmCtxRefreshSpin 0.9s linear infinite;
+}
+
+/* Make sure the summary doesn't tuck its first line under the refresh icon. */
+.cm-ctx-summary { padding-right: 36px; }
+.cm-ctx-panel--open {
+  grid-template-rows: 1fr;
+  margin-top: 8px;
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+/* Stagger the inner content — summary lines + ask form fade-up sequentially
+   on each open. `both` keeps the final state so the items don't snap back. */
+.cm-ctx-panel--open .cm-ctx-summary > *,
+.cm-ctx-panel--open .cm-ctx-ask {
+  animation: cmCtxLineIn 480ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.cm-ctx-panel--open .cm-ctx-summary > *:nth-child(1) { animation-delay: 120ms; }
+.cm-ctx-panel--open .cm-ctx-summary > *:nth-child(2) { animation-delay: 180ms; }
+.cm-ctx-panel--open .cm-ctx-summary > *:nth-child(3) { animation-delay: 240ms; }
+.cm-ctx-panel--open .cm-ctx-summary > *:nth-child(4) { animation-delay: 300ms; }
+.cm-ctx-panel--open .cm-ctx-summary > *:nth-child(5) { animation-delay: 360ms; }
+.cm-ctx-panel--open .cm-ctx-ask { animation-delay: 380ms; }
+
+/* Don't run animations for users who turn off motion. */
+@media (prefers-reduced-motion: reduce) {
+  .cm-ctx-panel,
+  .cm-ctx-panel--open .cm-ctx-summary > *,
+  .cm-ctx-panel--open .cm-ctx-ask {
+    transition-duration: 0ms !important;
+    animation: none !important;
+  }}
+
+.cm-ctx-summary {
+  font-size: 16px;
+  line-height: 1.5;
+  color: rgba(26, 26, 46, 0.85);
+}
+.cm-ctx-summary[data-state="loading"],
+.cm-ctx-summary[data-state="error"] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+}
+.cm-ctx-summary p,
+.cm-ctx-summary .cm-ctx-line {
+  margin: 0 0 4px;
+}
+.cm-ctx-summary p:last-child,
+.cm-ctx-summary .cm-ctx-line:last-child { margin-bottom: 0; }
+.cm-ctx-summary strong { color: var(--pink-ink); font-weight: 700; }
+
+.cm-ctx-loader {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.cm-ctx-loader .gdot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(219, 39, 119, 0.5);
+  animation: cmCtxBlink 1.2s infinite ease-in-out;
+}
+.cm-ctx-loader .gdot:nth-child(2) { animation-delay: 0.15s; }
+.cm-ctx-loader .gdot:nth-child(3) { animation-delay: 0.3s; }
+.cm-ctx-error { color: #b91c1c; font-size: 12px; cursor: pointer; }
+
+.cm-ctx-ask {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 4px 4px 4px 10px;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 999px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.cm-ctx-ask:focus-within {
+  border-color: rgba(219, 39, 119, 0.35);
+  box-shadow: 0 0 0 3px rgba(219, 39, 119, 0.08);
+}
+.cm-ctx-ask-input {
+  flex: 1 1 auto !important;
+  border: none !important;
+  /* `outline-color: transparent !important` defeats the global
+     `input:focus { box-shadow: ...blue glow... }` rule at style.css:101 that
+     was painting the blue ring inside the pink pill on iOS/Safari. */
+  outline: none !important;
+  background: transparent !important;
+  /* iOS auto-zooms <input> with font-size < 16px on focus. Pin to 16px. */
+  font-size: 16px;
+  padding: 6px 0;
+  color: #1a1a2e;
+  backdrop-filter: none;
+}
+.cm-ctx-ask-input:focus {
+  outline: none !important;
+  box-shadow: none !important;
+  border-color: transparent !important;
+}
+.cm-ctx-ask-input::placeholder { color: rgba(26, 26, 46, 0.4); font-size: 16px; }
+.cm-ctx-ask-send {
+  flex: 0 0 28px !important;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none !important;
+  background: #db2777 !important;
+  color: #fff;
+  border-radius: 50%;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+.cm-ctx-ask-send:hover { background: #a91d6f !important; }
+.cm-ctx-ask-send:active { transform: scale(0.92); }
+.cm-ctx-ask-send .material-symbols-outlined { font-size: 16px !important; }
+
+.cm-ctx-thread:empty { display: none; }
+.cm-ctx-thread { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+.cm-ctx-qa {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  background: rgba(219, 39, 119, 0.04);
+  border-radius: 8px;
+  transition: background 0.15s ease;
+}
+.cm-ctx-q {
+  display: flex !important;
+  align-items: flex-start;
+  gap: 6px;
+  width: 100%;
+  padding: 0 !important;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b1a4a;
+  background: transparent !important;
+  border: none !important;
+  cursor: pointer;
+  text-align: left;
+  flex: 0 0 auto !important;
+}
+.cm-ctx-q .material-symbols-outlined { font-size: 16px !important; margin-top: 1px; color: var(--pink-ink); }
+.cm-ctx-q-text { flex: 1 1 auto; line-height: 1.4; }
+.cm-ctx-q-chev {
+  font-size: 16px !important;
+  color: rgba(219, 39, 119, 0.55);
+  transition: transform 0.2s ease;
+  margin-top: 0 !important;
+}
+/* Default open state: chev points up (rotated). */
+.cm-ctx-qa:not(.cm-ctx-qa-collapsed) .cm-ctx-q-chev { transform: rotate(180deg); }
+
+/* Collapse animates grid-template-rows 1fr→0fr instead of max-height, so an
+   answer can be ANY length without being clipped. The old `max-height: 600px`
+   silently chopped long teaching answers with no scroll affordance. */
+.cm-ctx-a {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 0.25s ease, opacity 0.2s ease, margin 0.2s ease;
+}
+.cm-ctx-a-inner {
+  min-height: 0;
+  overflow: hidden;
+  font-size: 16px;
+  line-height: 1.7;
+  color: rgba(26, 26, 46, 0.88);
+  max-width: 68ch;
+}
+.cm-ctx-qa-collapsed .cm-ctx-a {
+  grid-template-rows: 0fr;
+  opacity: 0;
+  margin: 0;
+}
+.cm-ctx-qa-collapsed { padding-bottom: 6px; }
+.cm-ctx-qa:not(.cm-ctx-qa-collapsed) { padding: 12px 14px; gap: 10px; }
+.cm-ctx-q { font-size: 16px; }
+.cm-ctx-a p,
+.cm-ctx-a ul,
+.cm-ctx-a ol { margin: 0 0 12px; }
+.cm-ctx-a ul,
+.cm-ctx-a ol { padding-left: 1.3em; }
+.cm-ctx-a li { margin-bottom: 6px; }
+.cm-ctx-a h1,
+.cm-ctx-a h2,
+.cm-ctx-a h3,
+.cm-ctx-a h4 { font-size: 16px; margin: 16px 0 6px; line-height: 1.4; }
+.cm-ctx-a-inner > :first-child { margin-top: 0; }
+.cm-ctx-a-inner > :last-child { margin-bottom: 0; }
+.cm-ctx-a strong { color: var(--pink-ink); font-weight: 700; }
+.cm-verse { margin-bottom: 14px; }
+.cm-verse-num {
+  display: inline;
+  font-size: 24px;
+  /* Pin line-height so the bigger verse number can't inflate the first line's
+     line-box — otherwise the first line's highlight renders taller than
+     subsequent lines (sub-pixel paint differs between line-heights on iOS). */
+  line-height: 1;
+  font-weight: 800;
+  color: var(--pink-ink);
+  background: transparent;
+  padding: 0;
+  margin-right: 8px;
+  letter-spacing: 0;
+  user-select: none;
+}
+
+/* Heart toggle that flows inline at the end of each verse's text. Sits
+   immediately after the last word so short verses keep it tight; long verses
+   place it at the end of the last line.
+   Both !important defeat the global button traps:
+     • flex: 0 !important (style.css line ~118)
+     • .light button { background: white } (style.css line ~2169)
+   See memory: feedback_devo_button_global_rule.md */
+.cm-fav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  margin-left: 4px;
+  border: none !important;
+  background: transparent !important;
+  color: rgba(219, 39, 119, 0.45);
+  cursor: pointer;
+  border-radius: 50%;
+  flex: 0 0 22px !important;
+  transition: color 0.15s ease, background 0.15s ease, transform 0.18s ease;
+}
+.cm-fav-btn:hover {
+  color: var(--pink-ink);
+  background: rgba(219, 39, 119, 0.10) !important;
+}
+.cm-fav-btn.active { color: var(--pink-ink); }
+.cm-fav-btn .material-icons { font-size: 16px; }
+.cm-fav-btn.cm-fav-pop { animation: cmFavPop 0.32s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.light .cm-fav-btn { color: rgba(190, 24, 93, 0.45); }
+.light .cm-fav-btn:hover { color: #be185d; background: rgba(190, 24, 93, 0.08) !important; }
+.light .cm-fav-btn.active { color: #be185d; }
+
+/* Words live inline; highlight is a solid vivid color (no opacity dimming).
+   Padding is kept constant so toggling a highlight never shifts the text. */
+.cm-word {
+  display: inline;
+  padding: 4px 1px;
+  border-radius: 5px;
+  transition: background-color 0.1s ease;
+  position: relative;
+  cursor: pointer;
+  color: #1a1a2e;
+}
+.cm-word[data-color="yellow"] { background: #ffe66b; }
+.cm-word[data-color="pink"]   { background: #f9a8d4; }
+.cm-word[data-color="blue"]   { background: #a5c8ff; }
+.cm-word[data-color="orange"] { background: #fdba74; }
+.cm-word[data-color="green"]  { background: #c5f26a; }
+
+/* Live preview while the user is still dragging — lighter wash of the
+   chosen color. On pointerup the preview is replaced with the full-saturation
+   data-color, giving a satisfying "commit" moment. Preview wins over
+   committed color (data-color) because it's declared later. */
+.cm-word[data-preview-color="yellow"] { background: rgba(255, 230, 107, 0.45) !important; }
+.cm-word[data-preview-color="pink"]   { background: rgba(249, 168, 212, 0.45) !important; }
+.cm-word[data-preview-color="blue"]   { background: rgba(165, 200, 255, 0.5)  !important; }
+.cm-word[data-preview-color="orange"] { background: rgba(253, 186, 116, 0.45) !important; }
+.cm-word[data-preview-color="green"]  { background: rgba(197, 242, 106, 0.45) !important; }
+
+/* Erase preview — show a lighter wash of the word's EXISTING color so the
+   user sees "this will become uncolored" rather than a mysterious fade. */
+.cm-word[data-color="yellow"][data-preview-erase] { background: rgba(255, 230, 107, 0.35) !important; }
+.cm-word[data-color="pink"][data-preview-erase]   { background: rgba(249, 168, 212, 0.35) !important; }
+.cm-word[data-color="blue"][data-preview-erase]   { background: rgba(165, 200, 255, 0.4)  !important; }
+.cm-word[data-color="orange"][data-preview-erase] { background: rgba(253, 186, 116, 0.35) !important; }
+.cm-word[data-color="green"][data-preview-erase]  { background: rgba(197, 242, 106, 0.35) !important; }
+
+.cm-word[data-preview-color],
+.cm-word[data-preview-erase] { transition: background 0.15s ease; }
+
+/* Gap connectors follow the same preview logic — when both sides of a gap
+   are in a matching preview color, the gap washes too for smooth fusion. */
+.cm-gap[data-preview-color="yellow"] { background: rgba(255, 230, 107, 0.45); }
+.cm-gap[data-preview-color="pink"]   { background: rgba(249, 168, 212, 0.45); }
+.cm-gap[data-preview-color="blue"]   { background: rgba(165, 200, 255, 0.5);  }
+.cm-gap[data-preview-color="orange"] { background: rgba(253, 186, 116, 0.45); }
+.cm-gap[data-preview-color="green"]  { background: rgba(197, 242, 106, 0.45); }
+.cm-gap[data-preview-color] {
+  margin: 0 -2px;
+  padding: 4px 2px;
+  position: relative;
+  z-index: 0;
+  transition: background 0.15s ease;
+}
+
+/* Fuse adjacent same-color words into a single bar — only radius changes,
+   padding stays the same so the text doesn't shift when a run forms. */
+.cm-word[data-color].cm-run-l { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.cm-word[data-color].cm-run-r { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+
+.cm-gap { padding: 4px 0; border-radius: 0; }
+.cm-gap[data-color="yellow"] { background: #ffe66b; }
+.cm-gap[data-color="pink"]   { background: #f9a8d4; }
+.cm-gap[data-color="blue"]   { background: #a5c8ff; }
+.cm-gap[data-color="orange"] { background: #fdba74; }
+.cm-gap[data-color="green"]  { background: #c5f26a; }
+/* Overlap neighbors by 2px each side when the gap is colored — the overlap
+   is same-color so it's invisible but it forcibly bridges any sub-pixel
+   hairline gap that Safari sometimes leaves between inline boxes on iOS. */
+.cm-gap[data-color] {
+  margin: 0 -2px;
+  padding: 4px 2px;
+  position: relative;
+  z-index: 0;
+}
+
+/* Noted-word badge — absolute positioned inside the word so it floats
+   above the text without breaking inline reading flow. */
+.cm-word-has-note { position: relative; }
+.cm-note-badge {
+  position: absolute;
+  top: -16px;
+  right: -6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #db2777;
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(219, 39, 119,0.35);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  user-select: none;
+  z-index: 2;
+  /* Prevent the absolute element from being eaten by inline-level baseline quirks */
+  line-height: 1;
+}
+.cm-note-badge:hover { transform: scale(1.15); box-shadow: 0 3px 10px rgba(219, 39, 119,0.5); }
+.cm-note-badge .material-symbols-outlined { font-size: 12px; }
+
+/* --- Note input modal --- */
+.cm-note-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 10070;
+  background: rgba(15,23,42,0.35);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: cmFadeIn 0.18s ease;
+}
+.cm-note-modal[hidden] { display: none !important; }
+.cm-note-card {
+  background: #fff;
+  border-radius: 13px;
+  width: 100%;
+  max-width: 440px;
+  padding: 20px;
+  box-shadow: 0 16px 40px rgba(0,0,0,0.18);
+  animation: cmPopIn 0.2s ease;
+}
+.cm-note-ref {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--pink-ink);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 10px;
+}
+.cm-note-input {
+  width: 100%;
+  min-height: 120px;
+  border: 1px solid rgba(0,0,0,0.1);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-family: inherit;
+  font-size: 16px;
+  line-height: 1.5;
+  color: #1a1a2e;
+  background: #faf9f6;
+  outline: none;
+  resize: vertical;
+  box-sizing: border-box;
+}
+.cm-note-input:focus {
+  border-color: #db2777;
+  box-shadow: 0 0 0 3px rgba(219, 39, 119,0.14);
+}
+.cm-note-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}
+.cm-note-btn {
+  padding: 8px 18px;
+  border-radius: 999px;
+  border: none;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+.cm-note-cancel { background: rgba(0,0,0,0.06); color: #1a1a2e; }
+.cm-note-cancel:hover { background: rgba(0,0,0,0.1); }
+.cm-note-save { background: #db2777; color: #fff; }
+.cm-note-save:hover { background: #a51f6f; }
+.cm-note-save:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* --- Note view popover (verse-card style, white) --- */
+.cm-note-view {
+  position: fixed;
+  z-index: 10075;
+  max-width: 340px;
+  min-width: 260px;
+  animation: cmPopIn 0.18s ease;
+}
+.cm-note-view[hidden] { display: none !important; }
+.cm-note-view-card {
+  background: #fff;
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 13px;
+  padding: 14px 14px 12px;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.15);
+}
+.cm-note-view-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.cm-note-view-ref {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--pink-ink);
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+}
+.cm-note-view-close {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: rgba(0,0,0,0.05);
+  color: rgba(0,0,0,0.55);
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.cm-note-view-close:hover { background: rgba(0,0,0,0.1); color: #1a1a2e; }
+.cm-note-view-close .material-symbols-outlined { font-size: 16px; }
+.cm-note-view-body {
+  font-family: inherit;
+  font-size: 16px;
+  line-height: 1.55;
+  color: #1a1a2e;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  margin-bottom: 10px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+.cm-note-view-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  border-top: 1px solid rgba(0,0,0,0.06);
+  padding-top: 10px;
+}
+.cm-note-view-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: none;
+  background: rgba(0,0,0,0.04);
+  color: rgba(0,0,0,0.6);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.cm-note-view-action-btn:hover { background: rgba(0,0,0,0.08); color: #1a1a2e; }
+.cm-note-view-action-btn .material-symbols-outlined { font-size: 16px; }
+.cm-note-view-action-danger { color: #be185d; }
+.cm-note-view-action-danger:hover { background: rgba(219, 39, 119,0.1); color: #a51f6f; }
+
+.cm-popover {
+  position: fixed;
+  z-index: 10060;
+  background: #fff;
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 13px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 280px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+  opacity: 0;
+  transform: translateY(14px) scale(0.7);
+  transform-origin: 50% 100%; /* default: popover is above word, pop comes from below */
+}
+.cm-popover[hidden] { display: none !important; }
+.cm-popover[data-side="below"] { transform-origin: 50% 0%; }
+.cm-popover[data-state="open"]    { animation: cmPopInAbove 0.24s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+.cm-popover[data-side="below"][data-state="open"]    { animation-name: cmPopInBelow; }
+.cm-popover[data-state="closing"] { animation: cmPopOutAbove 0.2s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+.cm-popover[data-side="below"][data-state="closing"] { animation-name: cmPopOutBelow; }
+.cm-popover-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.cm-popover-actions { display: flex; gap: 4px; border-left: 1px solid rgba(0,0,0,0.08); padding-left: 10px; }
+.cm-pop-action {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(0,0,0,0.05);
+  color: rgba(0,0,0,0.6);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.cm-pop-action:hover { background: rgba(0,0,0,0.1); color: #1a1a2e; }
+.cm-pop-action .material-symbols-outlined { font-size: 16px; }
+
+.cm-popover-secondary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  border-top: 1px solid rgba(0,0,0,0.06);
+  padding-top: 8px;
+}
+.cm-pop-secondary-btn {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 8px;
+  background: #faf9f6;
+  color: #1a1a2e;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.cm-pop-secondary-btn:hover { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.14); }
+
+/* Light-mode modal for Context / Ask Question. Mounts fetchInlineQuickContext
+   or toggleVerseChat into #cmAiBody — their cards get paper-flavored overrides
+   below. */
+.cm-ai-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 10080;
+  background: rgba(15,23,42,0.35);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: cmFadeIn 0.18s ease;
+}
+.cm-ai-modal[hidden] { display: none !important; }
+.cm-ai-card {
+  background: #faf7f0;
+  border-radius: 13px;
+  width: 100%;
+  max-width: 560px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 16px 40px rgba(0,0,0,0.18);
+  animation: cmPopIn 0.2s ease;
+  overflow: hidden;
+}
+.cm-ai-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid rgba(0,0,0,0.06);
+}
+.cm-ai-ref {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--pink-ink);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.cm-ai-close {
+  width: 32px;
+  height: 32px;
+  border: 1px solid rgba(26, 26, 46, 0.1);
+  background: rgba(26, 26, 46, 0.04);
+  color: rgba(26, 26, 46, 0.65);
+  border-radius: 50%;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.cm-ai-close:hover {
+  background: rgba(26, 26, 46, 0.07);
+  border-color: rgba(26, 26, 46, 0.18);
+  color: #1a1a2e;
+}
+.cm-ai-close .material-symbols-outlined { font-size: 16px; }
+.cm-ai-body {
+  padding: 14px 18px 18px;
+  overflow-y: auto;
+  color: #1a1a2e;
+}
+
+/* Flatten the nested inline-ai-card inside this modal — the modal already
+   provides the card frame and header, so we strip the inner duplicate
+   backgrounds, borders, padding, and header for a single-layer look. */
+.cm-ai-body .inline-ai-card,
+.cm-ai-body .inline-ai-card.dig-deeper {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  overflow: visible;
+  animation: none;
+}
+.cm-ai-body .inline-ai-card .ai-card-gradient {
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  color: #1a1a2e;
+}
+/* Outer modal already shows the reference; hide the inner header entirely. */
+.cm-ai-body .inline-ai-card .ai-card-header { display: none; }
+.cm-ai-body .inline-ai-card .ai-md-content,
+.cm-ai-body .inline-ai-card .ai-md-content p,
+.cm-ai-body .inline-ai-card .ai-md-content strong,
+.cm-ai-body .inline-ai-card .ai-md-content em,
+.cm-ai-body .inline-ai-card .ai-md-content h4,
+.cm-ai-body .inline-ai-card .ai-md-content .md-h2,
+.cm-ai-body .inline-ai-card .ai-md-content .md-h4,
+.cm-ai-body .inline-ai-card .ai-md-content .md-bullet { color: #1a1a2e; }
+/* Dig Deeper footer — paper-card styling, not the default bright white. */
+.cm-ai-body .inline-ai-dig-footer,
+.cm-ai-modal.light .inline-ai-dig-footer {
+  margin-top: 16px;
+  background: rgba(26, 26, 46, 0.04);
+  border: 1px solid rgba(26, 26, 46, 0.1);
+  border-radius: 8px;
+  color: #1a1a2e;
+  padding: 12px 14px;
+}
+.cm-ai-body .inline-ai-dig-footer:hover,
+.cm-ai-modal.light .inline-ai-dig-footer:hover {
+  background: rgba(26, 26, 46, 0.07);
+  border-color: rgba(26, 26, 46, 0.18);
+}
+.cm-ai-body .inline-ai-dig-footer .material-icons { color: var(--pink-ink); opacity: 1; font-size: 16px; }
+.cm-ai-body .inline-ai-dig-footer .chevron { color: var(--pink-ink); opacity: 0.7; }
+
+/* Bullet dots render as 50% white by default — invisible on paper. Darken. */
+.cm-ai-body .inline-ai-card .ai-md-content .md-bullet-dot { color: rgba(26, 26, 46, 0.55); }
+
+/* Respond CTA (from Dig Deeper): match the paper-chip treatment used by the
+   Dig Deeper footer so neither button looks pasted onto the card. */
+.cm-ai-body .soap-respond-row {
+  border-top-color: rgba(26, 26, 46, 0.08);
+  margin-top: 16px;
+  padding-top: 14px;
+}
+.cm-ai-body .soap-respond-btn {
+  background: rgba(26, 26, 46, 0.04);
+  border: 1px solid rgba(26, 26, 46, 0.12);
+  color: #1a1a2e;
+}
+.cm-ai-body .soap-respond-btn:hover {
+  background: rgba(26, 26, 46, 0.07);
+  opacity: 1;
+}
+.cm-ai-body .soap-respond-btn .material-icons { color: var(--pink-ink); }
+/* Flatten look = no sparkle/orbit decorations (they only make sense on a
+   framed card with its own backdrop). */
+.cm-ai-body .dig-spark,
+.cm-ai-body .dig-orbit { display: none; }
+
+/* Flatten the verse-chat wrapper so chat bubbles render directly on the
+   paper card without a second framed panel. */
+.cm-ai-body .verse-chat-wrapper,
+.cm-ai-modal.light .verse-chat-wrapper {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  margin: 0;
+  max-width: none;
+  animation: none;
+  overflow: visible;
+}
+.cm-ai-body .verse-chat-context { padding: 0 0 10px; border-bottom-color: rgba(0,0,0,0.08); }
+/* The mask this used to cancel is gone from .chat-history entirely. */
+.cm-ai-body .chat-history { padding: 10px 0; }
+.cm-ai-body .chat-input-area {
+  padding: 10px 0 0;
+  border-top: none;
+}
+
+/* Chat follow-up chips were tiny (11px) with awkward wrapper padding — scale
+   up to match suggestion chips. Both chip types share the same paper-chip
+   treatment used by Dig Deeper & Respond for a cohesive look. */
+.cm-ai-body .chat-empty-state {
+  padding: 0;
+  gap: 6px;
+}
+.cm-ai-body .chat-suggestions { margin-top: 10px; }
+.cm-ai-body .chat-followups {
+  padding: 0;
+  margin-top: 12px;
+  gap: 8px;
+}
+.cm-ai-body .chat-followups-label {
+  padding: 0;
+  color: rgba(26, 26, 46, 0.5);
+}
+.cm-ai-body .chat-suggestion-chip,
+.cm-ai-body .chat-followup-chip {
+  background: rgba(26, 26, 46, 0.04);
+  border-color: rgba(26, 26, 46, 0.1);
+  color: rgba(26, 26, 46, 0.85);
+  font-size: 16px;
+  padding: 10px 14px;
+  border-radius: 8px;
+}
+.cm-ai-body .chat-suggestion-chip:hover,
+.cm-ai-body .chat-followup-chip:hover {
+  background: rgba(26, 26, 46, 0.07);
+  border-color: rgba(26, 26, 46, 0.18);
+}
+
+/* Sparkle loader: inline-row layout with dark text so the loading state
+   reads as "✦✦✦ Quick context…" instead of 3 orphan stars on paper. */
+.cm-ai-body .sparkle-loader {
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 0;
+}
+.cm-ai-body .sparkle-loader .sparkle-text {
+  color: rgba(26, 26, 46, 0.65);
+}
+
+/* Canvas-mode toast (sits above the canvas overlay, unlike .notes-toast). */
+.cm-toast {
+  position: fixed;
+  bottom: max(env(safe-area-inset-bottom, 0px) + 24px, 40px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(26, 26, 46, 0.95);
+  color: #fff;
+  border-radius: 21px;
+  padding: 10px 20px;
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+  z-index: 10200;
+  white-space: nowrap;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+  animation: cmToastIn 0.18s ease;
+}
+
+@media (max-width: 520px) {
+  .cm-toolbar { padding: 8px 10px; gap: 8px; }
+  .cm-tool-btn { width: 36px; height: 36px; }
+  .cm-swatch, .cm-pop-swatch { width: 26px; height: 26px; min-width: 26px; flex-basis: 26px; }
+  .cm-scroll { padding: 24px 10px 0; }
+  .cm-passage { font-size: 16px; line-height: 1.9; }}
+/* Out of the way of the TTS mini-player when both are up. */
+body.is-offline.tts-canvas-active #offlinePill { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
