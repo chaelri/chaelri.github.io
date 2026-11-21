@@ -170,8 +170,8 @@
   });
   let cbOn = false;
   function syncCompact() {
-    // Phones only: appears once you scroll. Desktop keeps the normal header (no sticky).
-    const want = isReading() && !passageTitleEl.hidden && !isDesk() && layout.scrollTop > 48;
+    // Phones only: appears once the real title has scrolled out of view (so it never doubles it). Desktop keeps the normal header.
+    const want = isReading() && !passageTitleEl.hidden && !isDesk() && passageTitleEl.getBoundingClientRect().bottom < 56;
     if (want === cbOn) return;
     cbOn = want;
     body.classList.toggle("compact-on", want);
