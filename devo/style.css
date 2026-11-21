@@ -11734,3 +11734,12 @@ body.light .verse-card.ask-on .chat-input-area { background: rgba(0,0,0,.05); }
 .vc-pane .inline-ai-dig-footer { margin: 4px -16px -16px; border-radius: 0 0 22px 22px; width: auto; }
 /* the AI card wrappers clipped the full-bleed footer to the text width */
 .vc-pane .inline-ai-card, .vc-pane .ai-card-gradient { overflow: visible !important; }
+
+/* Stop audio: a small round button between Note and Listen, only while audio is on.
+   Even rhythm: 14px padding all round, 14px between the buttons; the ring sticks out 6px, so it keeps 8px from the edge. */
+.reader-dock button[data-dock="stop"] { display: none; flex: 0 0 40px !important; width: 40px !important; min-width: 40px !important; height: 40px !important; border-radius: 50%; background: rgba(255,255,255,.1) !important; color: #fff !important; place-items: center; }
+.reader-dock button[data-dock="stop"] .material-symbols-outlined { font-size: 22px; color: #fff; }
+.reader-dock button[data-dock="stop"]:hover { background: rgba(255,255,255,.18) !important; }
+body.tts-mini .reader-dock button[data-dock="stop"] { display: grid; animation: dockStopIn .32s cubic-bezier(.22,1,.36,1); }
+@keyframes dockStopIn { from { opacity: 0; transform: scale(.5); } to { opacity: 1; transform: none; } }
+body.tts-mini .reader-dock { padding: 14px !important; gap: 14px !important; }

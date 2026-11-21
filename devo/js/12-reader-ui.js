@@ -100,6 +100,10 @@
   }
   $("notesClose").onclick = closeNotes;
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && body.classList.contains("notes-open") && !archiveOpen()) closeNotes(); });
+  // Stop button in the dock (only visible while audio is on): ends the audio session.
+  document.addEventListener("click", (e) => {
+    if (e.target.closest('#readerDock [data-dock="stop"]') && typeof stopTTS === "function") stopTTS();
+  });
   document.addEventListener("click", (e) => {
     const b = e.target.closest('#readerDock [data-dock="note"]');
     if (b) body.classList.contains("notes-open") ? closeNotes() : openNotes();
