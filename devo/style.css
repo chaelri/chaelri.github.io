@@ -15186,3 +15186,10 @@ body.light .dv { --dv-card: #ffffff; --dv-ink: #16130f; --dv-mute: #6b6a66; --dv
 .dv .dv-nb { padding-left: 8px; }
 .dv .dash-notes-open-btn { font: 400 15px "Nunito", sans-serif !important; }
 .dv .dv-mid { margin-top: 32px; }
+/* desktop: tiles sit in a compact row under the book (not stretched beside it) */
+@media (min-width: 861px) {
+  .dv-mid { grid-template-columns: 1fr !important; gap: 16px; }
+  .dv .dash-journal-row { grid-template-columns: 1fr 1fr !important; gap: 16px; }
+  .dv .dash-journal-link { min-height: 104px !important; }
+  .dv-pg { min-height: 288px; }
+}
