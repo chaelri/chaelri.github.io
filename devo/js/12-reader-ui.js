@@ -195,6 +195,14 @@
     if (!flow) { hideBar(); closeVerseCard(); }
   }
 
+  const ALIGN_KEY = "devoReadAlign"; // "justify" (default) | "left"
+  const getJustify = () => { try { return localStorage.getItem(ALIGN_KEY) !== "left"; } catch { return true; } };
+  function applyAlign() {
+    const j = getJustify();
+    body.classList.toggle("flow-justify", j);
+    document.querySelectorAll("#mtAlignRow [data-align]").forEach((b) => b.classList.toggle("active", (b.dataset.align === "justify") === j));
+  }
+
   /* ───────── ⋯ menu: Layout row + Archive item ───────── */
   const themeItem = $("mtThemeToggle");
   if (themeItem) {
@@ -208,6 +216,22 @@
         <button class="mt-sheet-ver" data-layout="blocks">Verses</button>
       </div>`;
     themeItem.insertAdjacentElement("beforebegin", row);
+    const alignRow = document.createElement("div");
+    alignRow.className = "mt-sheet-row";
+    alignRow.id = "mtAlignRow";
+    alignRow.innerHTML = `
+      <div class="mt-sheet-row-left"><span class="material-symbols-outlined">format_align_justify</span>Align</div>
+      <div class="mt-sheet-version">
+        <button class="mt-sheet-ver" data-align="left">Left</button>
+        <button class="mt-sheet-ver" data-align="justify">Justified</button>
+      </div>`;
+    themeItem.insertAdjacentElement("beforebegin", alignRow);
+    alignRow.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-align]");
+      if (!b) return;
+      try { localStorage.setItem(ALIGN_KEY, b.dataset.align); } catch {}
+      applyAlign();
+    });
     row.addEventListener("click", (e) => {
       const b = e.target.closest("[data-layout]");
       if (!b) return;
@@ -222,6 +246,7 @@
     arch.addEventListener("click", () => { $("mtOverflowSheet").hidden = true; openArchive(); });
   }
   applyFlow();
+  applyAlign();
 
   /* ───────── Verse tap bar (flowing layout) ───────── */
   const bar = document.createElement("div");
