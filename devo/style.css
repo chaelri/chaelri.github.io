@@ -14477,3 +14477,14 @@ body.tts-mini .reader-dock { bottom: 90px !important; }
   .scroll-top-btn { bottom: 86px !important; transition: bottom .2s ease, opacity .2s ease; }
   body.tts-mini .scroll-top-btn { bottom: 160px !important; }
 }
+/* dock: icons only, Listen is the pink circle in the middle */
+.reader-dock { gap: 16px; padding: 6px 16px; align-items: center; }
+.reader-dock button { width: 48px; height: 48px; padding: 0 !important; justify-content: center; }
+.reader-dock button .material-symbols-outlined { font-size: 24px; }
+.reader-dock button[data-dock="listen"] { background: #db2777; color: #fff; }
+.reader-dock button[data-dock="listen"] .material-symbols-outlined { color: #fff; font-variation-settings: 'FILL' 1; }
+.reader-dock button[data-dock="listen"]:hover { background: #e0357f; }
+.reader-dock button[data-dock="listen"].on { box-shadow: 0 0 0 3px rgba(219,39,119,.35); }
+@media (max-width: 1023px) { .reader-dock { padding: 6px 16px; } .reader-dock button { padding: 0 !important; } }
+.reader-dock button { flex: 0 0 48px !important; min-width: 48px !important; width: 48px !important; height: 48px !important; box-sizing: border-box; }
+.reader-dock { width: max-content; }
