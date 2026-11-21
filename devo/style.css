@@ -11743,3 +11743,11 @@ body.light .verse-card.ask-on .chat-input-area { background: rgba(0,0,0,.05); }
 body.tts-mini .reader-dock button[data-dock="stop"] { display: grid; animation: dockStopIn .32s cubic-bezier(.22,1,.36,1); }
 @keyframes dockStopIn { from { opacity: 0; transform: scale(.5); } to { opacity: 1; transform: none; } }
 body.tts-mini .reader-dock { padding: 14px !important; gap: 14px !important; }
+
+/* phone, keyboard up: the notes are a full-height editor right above the keyboard (option B).
+   The top keeps real breathing room: the notch / status bar safe area plus 16px, grab bar dropped. */
+@media (max-width: 1023px) {
+  body.kb-open .notes-sheet { border-radius: 0; padding-top: calc(env(safe-area-inset-top, 0px) + 16px); box-shadow: none; }
+  body.kb-open .notes-grab { display: none; }
+  body.kb-open .reader-dock, body.kb-open .verse-bar { display: none !important; }
+}

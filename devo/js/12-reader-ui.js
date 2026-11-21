@@ -57,13 +57,13 @@
   window.addEventListener("pagehide", flushNote);
   document.addEventListener("visibilitychange", () => { if (document.hidden) flushNote(); });
 
-  // The height you chose (drag / 50% default). While the on-screen keyboard is up, the sheet
-  // shrinks to what is left above the keyboard so the line you are typing stays visible.
+  // The height you chose (drag / 50% default). On a phone, when the on-screen keyboard opens the notes
+  // become a full-height editor above the keyboard (scripture slides away); keyboard down = back to the split.
   let userNotesH = 0, kbPx = 0, vvH = innerHeight;
   function applyNotesH() {
     if (!userNotesH) return;
-    const kbOpen = kbPx > 120;
-    const h = kbOpen ? Math.min(userNotesH, Math.max(200, vvH - 150)) : userNotesH;
+    const kbOpen = kbPx > 120 && !isDesk() && body.classList.contains("notes-open");
+    const h = kbOpen ? vvH : userNotesH;
     body.style.setProperty("--notes-h", Math.round(h) + "px");
     body.classList.toggle("kb-open", kbOpen);
   }
@@ -87,13 +87,14 @@
     sheet.hidden = false;
     requestAnimationFrame(() => {
       body.classList.add("notes-open");
+      applyNotesH();
       setTimeout(() => { if (!matchMedia("(pointer: coarse)").matches) ta.focus(); }, 250);
     });
     document.querySelector('#readerDock [data-dock="note"]')?.classList.add("on");
   }
   function closeNotes() {
     flushNote();
-    body.classList.remove("notes-open");
+    body.classList.remove("notes-open", "kb-open");
     document.querySelector('#readerDock [data-dock="note"]')?.classList.remove("on");
     ta.blur();
     setTimeout(() => { if (!body.classList.contains("notes-open")) sheet.hidden = true; }, 360);
