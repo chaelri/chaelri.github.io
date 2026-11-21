@@ -11642,3 +11642,6 @@ body.flow-read.flow-justify #output > :not(.verse), body.flow-read.flow-justify 
 .summary { display: none !important; }
 .bible { padding-bottom: 120px; }
 @media (min-width: 1024px) { .bible { padding-bottom: 24px; } }
+
+/* notes box: no separate fill, same surface as the sheet/drawer */
+.notes-text, body.light .notes-text { background: transparent !important; padding: 8px 0; border-radius: 0; }
