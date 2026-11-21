@@ -11675,3 +11675,6 @@ body.verse-card-open .reader-dock { transform: translateX(calc(100% + 40px)) !im
 .verse-card .chat-empty-state { padding: 8px 0 0; }
 .verse-card .chat-input-area { border-top: 0; padding: 8px 0 0; }
 .verse-card .chat-history { padding-left: 0; padding-right: 0; }
+
+/* tapped-verse underline appears instantly: a background transition made it slide down from the top of the line */
+body.flow-read #output .verse { transition: none !important; }
