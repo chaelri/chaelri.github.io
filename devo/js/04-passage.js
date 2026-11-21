@@ -1734,10 +1734,11 @@ let _curtain = null;
 const _SWEEP_OPEN = "polygon(0 0, 0 0, -30% 100%, 0 100%)";
 const _SWEEP_FULL = "polygon(0 0, 130% 0, 100% 100%, 0 100%)";
 const _SWEEP_GONE = "polygon(130% 0, 130% 0, 100% 100%, 100% 100%)";
-// Going back (to the dashboard) is the same sweep mirrored: in from the right, out to the left.
-const _SWEEP_OPEN_R = "polygon(100% 0, 100% 0, 130% 100%, 100% 100%)";
-const _SWEEP_FULL_R = "polygon(100% 0, -30% 0, 0 100%, 100% 100%)";
-const _SWEEP_GONE_R = "polygon(-30% 0, -30% 0, 0 100%, 0 100%)";
+// Going back (to the dashboard) is the same sweep turned 180 degrees: forward runs upper-left to
+// lower-right, back runs lower-right to upper-left (same slant, opposite direction).
+const _SWEEP_OPEN_R = "polygon(100% 100%, 100% 100%, 130% 0, 100% 0)";
+const _SWEEP_FULL_R = "polygon(100% 100%, -30% 100%, 0 0, 100% 0)";
+const _SWEEP_GONE_R = "polygon(-30% 100%, -30% 100%, 0 0, 0 0)";
 function _curtainCover(rev) {
   try {
     const el = document.createElement("div");
