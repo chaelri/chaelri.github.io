@@ -14488,3 +14488,18 @@ body.tts-mini .reader-dock { bottom: 90px !important; }
 @media (max-width: 1023px) { .reader-dock { padding: 6px 16px; } .reader-dock button { padding: 0 !important; } }
 .reader-dock button { flex: 0 0 48px !important; min-width: 48px !important; width: 48px !important; height: 48px !important; box-sizing: border-box; }
 .reader-dock { width: max-content; }
+
+/* ===== "..." menu on desktop: popover under the button with an arrow ===== */
+@media (min-width: 1024px) {
+  .mt-sheet-backdrop { background: transparent; backdrop-filter: none; animation: none; }
+  .mt-sheet-panel { right: auto; bottom: auto; width: 384px; padding: 8px 24px; border-radius: 21px; box-shadow: none; animation: devoPopIn .18s cubic-bezier(.2,.8,.2,1); transform-origin: calc(100% - var(--arrow-right, 28px) - 5px) 0; }
+  .mt-sheet-panel::before { content: ""; position: absolute; top: -6px; right: var(--arrow-right, 28px); width: 10px; height: 10px; background: #1b2238; border-left: 1px solid rgba(255,255,255,.1); border-top: 1px solid rgba(255,255,255,.1); transform: rotate(45deg); }
+  body.light .mt-sheet-panel::before { background: #fff; border-color: rgba(0,0,0,.08); }
+  .mt-sheet-row, .mt-sheet-item { min-height: 56px; }
+  .mt-sheet-panel > * + * { border-top: 1px solid rgba(255,255,255,.1); }
+  body.light .mt-sheet-panel > * + * { border-top-color: rgba(0,0,0,.08); }
+  .mt-sheet-row, .mt-sheet-item { padding-left: 0; padding-right: 0; background: none; }
+  .mt-sheet-item:hover { background: none; }
+}
+@keyframes devoPopIn { from { opacity: 0; transform: translateY(-6px) scale(.97); } to { opacity: 1; transform: none; } }
+@media (min-width: 1024px) { .mt-sheet-panel { box-sizing: border-box; } }

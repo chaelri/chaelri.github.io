@@ -2004,7 +2004,19 @@ async function _imgcrShare() {
   });
 
   // Overflow sheet
-  function openOverflow() { mtOverflowSheet.hidden = false; }
+  // Desktop: the menu is a popover just under the ... button (phones keep the bottom sheet).
+  function placeOverflowPopover() {
+    const panel = mtOverflowSheet.querySelector(".mt-sheet-panel");
+    if (!panel) return;
+    if (window.innerWidth < 1024 || !mtOverflow) { panel.style.top = panel.style.left = ""; return; }
+    const r = mtOverflow.getBoundingClientRect();
+    const w = 384;
+    const left = Math.max(8, Math.min(r.right - w, window.innerWidth - w - 8));
+    panel.style.top = Math.round(r.bottom + 12) + "px";
+    panel.style.left = Math.round(left) + "px";
+    panel.style.setProperty("--arrow-right", Math.round(Math.max(16, left + w - r.right + r.width / 2 - 5)) + "px");
+  }
+  function openOverflow() { mtOverflowSheet.hidden = false; placeOverflowPopover(); }
   function closeOverflow() { mtOverflowSheet.hidden = true; }
   mtOverflow?.addEventListener("click", openOverflow);
   mtOverflowBackdrop?.addEventListener("click", closeOverflow);
