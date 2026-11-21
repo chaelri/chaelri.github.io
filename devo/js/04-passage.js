@@ -289,7 +289,7 @@ function _openVerseSwipe(wrap, side) {
 }
 
 // ── Verse hover popover (mouse only) ──────────────────────────────────────
-// Rest the pointer on a verse for a moment and a small Context / Ask / Note
+// Point at a verse and a small Context / Ask / Note
 // popover appears just below the pointer (above it near the bottom of the
 // window). Rest on another verse and it moves there. It stays while the pointer
 // is over the verse or the popover, so it can be clicked. Buttons proxy to the
@@ -341,13 +341,12 @@ function _wireVerseHoverPopover() {
     }
   };
   const inside = (t) => !!(t && (pop.contains(t) || t.closest?.(".verse")));
+  // No dwell delay: it appears the moment the pointer is on a verse and animates in.
   const dwell = (wrap) => {
     clearTimeout(dwellT);
     if (wrap === cur && isOpen()) return;
-    dwellT = setTimeout(() => {
-      if (output.classList.contains("tts-mode") || window.getSelection()?.toString()) return;
-      show(wrap, lx, ly);
-    }, 550);
+    if (output.classList.contains("tts-mode") || window.getSelection()?.toString()) return;
+    show(wrap, lx, ly);
   };
 
   output.addEventListener("mousemove", (e) => {
