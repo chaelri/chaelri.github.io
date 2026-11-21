@@ -11672,3 +11672,7 @@ body.flow-read #output .verse.verse-sel { border-radius: 0 !important; }
 .reader-dock { transition: transform .38s cubic-bezier(.22,1,.36,1), opacity .26s ease, left .38s cubic-bezier(.22,1,.36,1), bottom .2s ease !important; }
 body.verse-card-open .reader-dock { transform: translateX(calc(100% + 40px)) !important; opacity: 0; pointer-events: none; }
 @media (max-width: 1023px) { .verse-card { right: 12px; } }
+
+/* the Context / Ask card (and its menu) float above the notes sheet */
+.verse-card { z-index: 880 !important; }
+.verse-bar { z-index: 870 !important; }
