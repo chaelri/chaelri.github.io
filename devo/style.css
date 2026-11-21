@@ -15214,3 +15214,10 @@ body.light .dv { --dv-card: #ffffff; --dv-ink: #16130f; --dv-mute: #6b6a66; --dv
   .dv-mid { margin-top: 24px; }
 }
 @media (min-width: 861px) { .dv-ribbon { height: 48px; } .dv-ref { margin-top: 32px; } }
+/* desktop: book 2/3, tiles 1/3 stacked, same compact height */
+@media (min-width: 861px) {
+  .dv-mid { grid-template-columns: 2fr 1fr !important; gap: 16px; }
+  .dv .dash-journal-row { grid-template-columns: 1fr !important; gap: 16px; }
+  .dv .dash-journal-link { min-height: 104px !important; }
+  .dv-mid:has(#continue-reading.hidden) { grid-template-columns: 1fr !important; }
+}
