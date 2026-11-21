@@ -1950,6 +1950,7 @@ async function _imgcrShare() {
   document.getElementById("ttsChip")?.addEventListener("click", () => setTtsSheet(true));
   document.getElementById("ttsSheetScrim")?.addEventListener("click", () => setTtsSheet(false));
   document.getElementById("ttsSheetGrab")?.addEventListener("click", () => setTtsSheet(false));
+  document.getElementById("ttsSheetDown")?.addEventListener("click", () => setTtsSheet(false));
 
   // Version toggle moved into the overflow sheet (Settings-ish row).
   // Proxies taps to the original .version-pill buttons so all downstream JS

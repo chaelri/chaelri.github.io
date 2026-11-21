@@ -14589,3 +14589,7 @@ body.tts-sheet-open #ttsPlayer #ttsPauseBtn .material-symbols-outlined { font-si
 body:has(.mt-sheet:not([hidden])) .reader-dock, body:has(.mt-sheet:not([hidden])) .tts-chip { display: none !important; }
 body.tts-sheet-open #ttsPlayer #ttsCloseBtn { display: none !important; }
 .tts-sheet-scrim { background: transparent !important; }
+.tts-sheet-down { display: none; }
+body.tts-sheet-open .tts-sheet-down { display: grid; place-items: center; position: absolute; top: 16px; right: 16px; width: 44px; height: 44px; border: 0; border-radius: 50%; background: rgba(255,255,255,.08); color: #e6edf7; cursor: pointer; }
+body.tts-sheet-open .tts-sheet-down .material-symbols-outlined { font-size: 24px; }
+body.light.tts-sheet-open .tts-sheet-down { background: rgba(0,0,0,.05); color: #16130f; }
