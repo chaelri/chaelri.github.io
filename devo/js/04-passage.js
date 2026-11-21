@@ -2025,13 +2025,7 @@ async function loadPassage() {
       _loadPassageHeadings(bookId, chapterNum, fullVersesText, _headingGen);
     }
 
-    // Add Reflect button below the last verse
-    const reflectRow = document.createElement("div");
-    reflectRow.className = "passage-end-reflect";
-    reflectRow.innerHTML = `
-      <button class="passage-end-reflect-btn" onclick="openReflectModal()">Reflect</button>
-    `;
-    output.appendChild(reflectRow);
+    // (the Reflect button below the last verse was removed: the reflection card is right there)
 
     renderSummary();
     hideLoading();

@@ -14461,3 +14461,9 @@ body.light .verse-hover-pop::after { background: #ffffff; border-color: rgba(0,0
 .verse-hover-pop::after { left: auto; right: 28px; }
 /* leaving is quick: short fade out */
 .verse-hover-pop:not(.show) { transition: opacity .09s ease, transform .09s ease; }
+/* dock: solid so verses never show through it; no Reflect (it is at the end of the page on phones) */
+.reader-dock { background: #1b2238 !important; }
+body.light .reader-dock { background: #ffffff !important; }
+/* dock never sits on top of the Listen overlay or the mini player */
+.reader-dock { z-index: 800 !important; transition: bottom .2s ease; }
+body.tts-mini .reader-dock { bottom: 90px !important; }
