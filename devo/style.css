@@ -15292,3 +15292,8 @@ body.light .dv .dv-fv-num { color: rgba(0,0,0,.1); }
 .dv .dash-fav-nav .dash-fav-nav-btn { flex: none !important; width: 44px !important; min-width: 44px !important; height: 44px !important; min-height: 44px !important; padding: 0 !important; border-radius: 999px !important; display: grid !important; place-items: center; }
 .dv .dash-fav-nav .dash-fav-nav-btn .material-icons { font-size: 24px; line-height: 1; }
 .dv .dash-fav-nav-page { white-space: nowrap; min-width: 48px; text-align: center; }
+/* phone: the swipe strip must never widen the page (keeps the right padding) */
+@media (max-width: 860px) {
+  .dv .dash-fav-list.dv-fv-strip { contain: inline-size !important; }
+  .dv, .dv-mid, .dv-rest, .dv-sec, .dv-book, #dashFavoritesContent { min-width: 0 !important; max-width: 100% !important; }
+}
