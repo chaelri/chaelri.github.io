@@ -11691,3 +11691,6 @@ body.flow-read #output .verse { transition: none !important; }
 .verse-card .chat-suggestion-chip:hover { color: #f7a8d0; }
 body.light .verse-card .chat-suggestion-chip { color: #16130f; }
 .verse-card .chat-input-area textarea { height: 44px; min-height: 44px; }
+
+/* Listen is 56px now: the progress ring is centred on it (it was sized for 48px) */
+.reader-dock button[data-dock="listen"] .dock-ring { inset: -6px; width: 68px; height: 68px; }
