@@ -11751,3 +11751,15 @@ body.tts-mini .reader-dock { padding: 14px !important; gap: 14px !important; }
   body.kb-open .notes-grab { display: none; }
   body.kb-open .reader-dock, body.kb-open .verse-bar { display: none !important; }
 }
+
+/* Dock sizing (option B): Note, Stop and Listen are all 56px circles, 8px apart, 8px of padding.
+   While audio is on the progress ring is drawn INSIDE Listen's circle, so it adds no size. */
+body .reader-dock, body.tts-mini .reader-dock { padding: 8px !important; gap: 8px !important; border-radius: 40px !important; }
+.reader-dock button[data-dock="note"], .reader-dock button[data-dock="stop"], .reader-dock button[data-dock="listen"] { flex: 0 0 56px !important; width: 56px !important; min-width: 56px !important; height: 56px !important; }
+.reader-dock button[data-dock="note"] .material-symbols-outlined, .reader-dock button[data-dock="stop"] .material-symbols-outlined, .reader-dock button[data-dock="listen"] .material-symbols-outlined { font-size: 26px; }
+.reader-dock button[data-dock="listen"] .dock-ring { inset: 0 !important; width: 56px !important; height: 56px !important; }
+.reader-dock .dock-ring circle { stroke-width: 3; }
+body.tts-mini .reader-dock button[data-dock="listen"] { background: transparent !important; box-shadow: none !important; }
+body.tts-mini .reader-dock button[data-dock="listen"]::before { content: ""; position: absolute; inset: 6px; border-radius: 50%; background: #db2777; transition: background .15s; }
+body.tts-mini .reader-dock button[data-dock="listen"]:hover::before { background: #e0357f; }
+body.tts-mini .reader-dock button[data-dock="listen"] .material-symbols-outlined { position: relative; z-index: 1; }
