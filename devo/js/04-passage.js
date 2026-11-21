@@ -1728,18 +1728,19 @@ async function fetchAllOriginsUnli(url) {
 let _slideFromDash = false;   // true when the next passage should slide in
 let _slideDir = "next";       // "next" (from the right) or "prev" (from the left)
 let _navDir = null;           // set by the previous / next chapter buttons
-// Continue (dashboard -> reading): a pink curtain rises with the chapter name, the passage renders
-// behind it, then the curtain lifts away. Chapter next/previous keep the slide above.
+// Continue / chapter picker: a pink diagonal sweep crosses the screen, the passage renders behind it,
+// then the sweep exits to the right. No text. Chapter next/previous keep the slide below.
 let _curtain = null;
+const _SWEEP_OPEN = "polygon(0 0, 0 0, -30% 100%, 0 100%)";
+const _SWEEP_FULL = "polygon(0 0, 130% 0, 100% 100%, 0 100%)";
+const _SWEEP_GONE = "polygon(130% 0, 130% 0, 100% 100%, 100% 100%)";
 function _curtainCover() {
   try {
-    const name = `${BIBLE_META[bookEl.value]?.name || ""} ${chapterEl.value}`.trim();
     const el = document.createElement("div");
     el.className = "nav-curtain";
     el.setAttribute("aria-hidden", "true");
-    el.textContent = name;
     document.body.appendChild(el);
-    const cover = el.animate([{ transform: "translateY(101%)" }, { transform: "translateY(0)" }],
+    const cover = el.animate([{ clipPath: _SWEEP_OPEN }, { clipPath: _SWEEP_FULL }],
       { duration: 480, easing: "cubic-bezier(.7,0,.2,1)", fill: "forwards" }).finished.catch(() => {});
     _curtain = { el, cover, t: setTimeout(_curtainLift, 6000) };
     return true;
@@ -1751,9 +1752,9 @@ async function _curtainLift() {
   _curtain = null;
   clearTimeout(c.t);
   await c.cover;
-  await new Promise((r) => setTimeout(r, 350));
-  await c.el.animate([{ transform: "translateY(0)" }, { transform: "translateY(-101%)" }],
-    { duration: 520, easing: "cubic-bezier(.7,0,.2,1)", fill: "forwards" }).finished.catch(() => {});
+  await new Promise((r) => setTimeout(r, 200));
+  await c.el.animate([{ clipPath: _SWEEP_FULL }, { clipPath: _SWEEP_GONE }],
+    { duration: 480, easing: "cubic-bezier(.7,0,.2,1)", fill: "forwards" }).finished.catch(() => {});
   c.el.remove();
 }
 
