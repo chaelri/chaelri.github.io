@@ -14394,3 +14394,14 @@ aside.summary .summary-title { display: none !important; }
 #aiReflection { position: relative; }
 #aiReflection .ai-refl-retry { position: absolute !important; top: 0 !important; right: 0 !important; margin: 0 !important; width: 44px; height: 44px; }
 #aiReflection ol > li::before { display: flex !important; align-items: center; height: 44px; margin: 0 0 16px !important; }
+/* reflection header: label and refresh button in one centred row; question in the normal font */
+.refl-head { display: flex; justify-content: space-between; align-items: center; min-height: 44px; margin: 0 0 16px; }
+.refl-label { font: 800 12px/1 "Nunito", sans-serif; letter-spacing: .12em; text-transform: uppercase; color: #db2777; }
+#aiReflection .refl-head .ai-refl-retry, #reflectContent .refl-head .ai-refl-retry { position: static !important; margin: 0 !important; flex: none !important; }
+#aiReflection:has(.refl-head) ol > li::before, #reflectContent:has(.refl-head) li::before { display: none !important; }
+#aiReflection .refl-q, #reflectContent .refl-q, body:not(.light) #aiReflection ol > li p.refl-q { font: 700 24px/1.3 "Nunito", sans-serif !important; letter-spacing: 0 !important; }
+@media (min-width: 1024px) { #aiReflection .refl-q, body:not(.light) #aiReflection ol > li p.refl-q { font-size: 24px !important; } }
+/* the descender of "g" in "Kings" was being clipped */
+.passage-title-row { overflow: visible !important; }
+.passage-title-row .passage-title { overflow: visible !important; text-overflow: clip !important; line-height: 1.25 !important; padding: 2px 0 8px !important; }
+html body #aiReflection:has(.refl-head) ol > li::before, html body #reflectContent:has(.refl-head) li::before { display: none !important; content: none !important; }

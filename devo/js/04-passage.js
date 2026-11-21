@@ -2344,6 +2344,20 @@ function _ensureReflectionRetryUI(mount) {
     mount.insertBefore(btn, mount.firstChild);
   }
 
+  // Older saved reflections have the refresh button loose above the list:
+  // put it in the same row as the label so the two line up.
+  {
+    const _ol = mount.querySelector("ol.refl-unified");
+    const _btn = mount.querySelector(".ai-refl-retry");
+    if (_ol && _btn && !mount.querySelector(".refl-head")) {
+      const head = document.createElement("div");
+      head.className = "refl-head";
+      head.innerHTML = '<span class="refl-label">Question to ponder</span>';
+      head.appendChild(_btn);
+      _ol.parentNode.insertBefore(head, _ol);
+    }
+  }
+
   // Repair any malformed verse-chip hrefs after every innerHTML overwrite
   // (fresh render, cache restore, partial retry) so the global anchor delegate
   // can resolve them. Idempotent.
@@ -2623,9 +2637,10 @@ function _unifiedReflectionHTML({ observe, verses, question }) {
   // (the "v. 3" link chip was removed in the Studio revamp)
   const chip = "";
   return `
+    <div class="refl-head"><span class="refl-label">Question to ponder</span>
     <button type="button" class="ai-refl-retry" aria-label="Different question" title="Different question">
       <span class="material-symbols-outlined">refresh</span>
-    </button>
+    </button></div>
     <ol class="refl-unified"><li>
       <p class="refl-q">${esc(question)}</p>
       <textarea placeholder="What you noticed, and how it applies to you…"></textarea>
