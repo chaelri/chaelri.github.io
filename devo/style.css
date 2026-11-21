@@ -15193,3 +15193,11 @@ body.light .dv { --dv-card: #ffffff; --dv-ink: #16130f; --dv-mute: #6b6a66; --dv
   .dv .dash-journal-link { min-height: 104px !important; }
   .dv-pg { min-height: 288px; }
 }
+/* desktop favorites: compact, big quote on its own row, small cards two across */
+@media (min-width: 861px) {
+  .dv .dash-fav-list { grid-template-columns: repeat(6, 1fr); gap: 16px; }
+  .dv .dash-fav-row { grid-column: span 3; min-height: 0; }
+  .dv .dash-fav-row:first-child { grid-column: span 6; grid-row: auto; min-height: 0; padding: 32px !important; gap: 24px; }
+  .dv .dash-fav-row:first-child .dash-fav-row-text { font-size: 38px !important; max-width: 28ch; }
+  .dv .dash-fav-row:first-child::after { font-size: 120px; }
+}
