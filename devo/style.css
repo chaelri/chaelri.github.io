@@ -14569,8 +14569,9 @@ body.tts-sheet-open .tts-sheet-grab { display: block; position: relative; width:
 body.light .tts-sheet-grab::before { background: rgba(0,0,0,.15); }
 body.tts-sheet-open #ttsPlayer .tts-progress-bar { display: none; }
 body.tts-sheet-open #ttsPassage { flex: none !important; min-height: 0; font-size: 22px; line-height: 32px; font-weight: 800; }
-body.tts-sheet-open #ttsPassage::before { content: "LISTENING"; display: block; margin-bottom: 4px; font-size: 11px; line-height: 16px; font-weight: 700; letter-spacing: 1.5px; color: rgba(255,255,255,.5); }
-body.light.tts-sheet-open #ttsPassage::before { color: #6b6a66; }
+.tts-sheet-label { display: none; }
+body.tts-sheet-open .tts-sheet-label { display: block; margin-bottom: 4px; font-size: 11px; line-height: 16px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: rgba(255,255,255,.5); }
+body.light.tts-sheet-open .tts-sheet-label { color: #6b6a66; }
 body.tts-sheet-open .tts-sheet-prog { display: block; height: 4px; margin: 16px 0 0; border-radius: 2px; background: rgba(255,255,255,.1); overflow: hidden; }
 body.light.tts-sheet-open .tts-sheet-prog { background: rgba(0,0,0,.08); }
 .tts-sheet-prog i { display: block; height: 100%; width: calc(var(--tts-pct, 0) * 100%); background: #db2777; border-radius: 2px; transition: width .25s linear; }
