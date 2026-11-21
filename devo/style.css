@@ -11694,3 +11694,6 @@ body.light .verse-card .chat-suggestion-chip { color: #16130f; }
 
 /* Listen is 56px now: the progress ring is centred on it (it was sized for 48px) */
 .reader-dock button[data-dock="listen"] .dock-ring { inset: -6px; width: 68px; height: 68px; }
+
+/* while Listen shows its progress ring, the pill gets more breathing room */
+body.tts-mini .reader-dock { padding: 14px !important; gap: 12px !important; border-radius: 44px !important; }
