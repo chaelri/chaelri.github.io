@@ -1286,22 +1286,10 @@ async function renderDashboard() {
     updatedAt: r.updatedAt || Date.now(), // Fallback to current time if 0, so it displays something
   }));
 
-  // Game-feel ambient layer: floating pink motes drifting up across the
-  // dashboard area + twinkling sparkles scattered behind. Generated once per
-  // dashboard render with randomized CSS custom properties so each particle
-  // has its own duration/delay/path. All behind prefers-reduced-motion so
-  // users with that OS setting see a still page.
-  const moteCount = 18;
+  // Twinkling sparkles scattered behind the dashboard, each with randomized
+  // CSS custom properties. Behind prefers-reduced-motion so users with that
+  // OS setting see a still page.
   const twinkleCount = 10;
-  const motesHTML = Array.from({ length: moteCount }, () => {
-    const x = Math.random() * 100;
-    const dur = 9 + Math.random() * 12;       // 9–21s
-    const delay = -(Math.random() * 20);       // start mid-flight so the field is full from t=0
-    const scale = 0.55 + Math.random() * 0.95; // 0.55–1.5
-    const opacity = 0.18 + Math.random() * 0.42;
-    const drift = (Math.random() - 0.5) * 40;  // ±20px lateral drift
-    return `<span class="dash-ambient-mote" style="--m-x:${x}%;--m-d:${dur}s;--m-l:${delay}s;--m-s:${scale};--m-o:${opacity};--m-drift:${drift}px"></span>`;
-  }).join("");
   const twinklesHTML = Array.from({ length: twinkleCount }, () => {
     const x = Math.random() * 100;
     const y = Math.random() * 100;
@@ -1314,7 +1302,6 @@ async function renderDashboard() {
   const dashboardHTML = `
   <div class="dashboard ai-fade-in">
 
-  <div class="dash-ambient" aria-hidden="true">${motesHTML}</div>
   <div class="dash-twinkles" aria-hidden="true">${twinklesHTML}</div>
 
   <div class="dv">
