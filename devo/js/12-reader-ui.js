@@ -361,7 +361,23 @@
     <div class="vc-pane" data-pane="context"></div>
     <div class="vc-pane" data-pane="ask"></div>`;
   body.appendChild(card);
-  if (window.ResizeObserver) new ResizeObserver(() => placeNearVerse(card)).observe(card);
+  // Any height change while the card is open (tab switch, an answer arriving, suggestions loading) eases instead of jumping.
+  let cardLastH = 0, cardBusy = false;
+  function smoothCardHeight(from, to) {
+    cardBusy = true;
+    card.style.overflow = "hidden";
+    const a = card.animate([{ height: from + "px" }, { height: to + "px" }], { duration: 340, easing: "cubic-bezier(.22,1,.36,1)" });
+    const done = () => { card.style.overflow = ""; cardBusy = false; cardLastH = card.offsetHeight; };
+    a.onfinish = done;
+    a.oncancel = done;
+  }
+  if (window.ResizeObserver) new ResizeObserver(() => {
+    placeNearVerse(card);
+    if (cardBusy) return;
+    const h = card.offsetHeight;
+    if (cardLastH && card.classList.contains("on") && Math.abs(h - cardLastH) > 2) smoothCardHeight(cardLastH, h);
+    else cardLastH = h;
+  }).observe(card);
   const panes = { context: card.querySelector('[data-pane="context"]'), ask: card.querySelector('[data-pane="ask"]') };
   let cardKey = null;
 
@@ -371,6 +387,13 @@
     return { key, bookId, chapter, verse, book: BIBLE_META[bookId]?.name || bookId, text: getVerseText(bookId, chapter, verse) || "" };
   }
   function showPane(which) {
+    // Switching tabs while the card is open: the card's height and the tabs row glide to their new places
+    const current = card.querySelector("[data-vc].on")?.dataset.vc;
+    const animate = card.classList.contains("on") && current && current !== which;
+    const head = card.querySelector(".vc-head");
+    const h0 = card.offsetHeight;
+    const headY0 = head.getBoundingClientRect().top - card.getBoundingClientRect().top;
+
     card.querySelectorAll("[data-vc]").forEach((b) => b.classList.toggle("on", b.dataset.vc === which));
     card.classList.toggle("ask-on", which === "ask");
     Object.entries(panes).forEach(([k, el]) => { el.hidden = k !== which; });
@@ -383,6 +406,15 @@
         // Ask: the box is first, so you can type straight away (not on touch: it would raise the keyboard)
         if (!matchMedia("(pointer: coarse)").matches) setTimeout(() => panes.ask.querySelector("textarea")?.focus(), 60);
       }
+    }
+
+    if (animate) {
+      const ease = "cubic-bezier(.22,1,.36,1)";
+      const h1 = card.offsetHeight;
+      if (Math.abs(h1 - h0) > 2) smoothCardHeight(h0, h1);
+      const headY1 = head.getBoundingClientRect().top - card.getBoundingClientRect().top;
+      if (Math.abs(headY0 - headY1) > 1) head.animate([{ transform: `translateY(${headY0 - headY1}px)` }, { transform: "none" }], { duration: 340, easing: ease });
+      panes[which].animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300, easing: "ease-out" });
     }
   }
   function openVerseCard(which) {
@@ -409,6 +441,7 @@
   }
   function closeVerseCard() {
     if (card.hidden) return;
+    cardLastH = 0;
     card.classList.remove("on");
     body.classList.remove("verse-card-open");
     out.querySelectorAll(".verse.verse-sel").forEach((x) => x.classList.remove("verse-sel"));

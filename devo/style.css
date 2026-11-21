@@ -11732,3 +11732,5 @@ body.light .verse-card.ask-on .chat-input-area { background: rgba(0,0,0,.05); }
 .vc-pane .ai-card-gradient { padding-top: 0; padding-bottom: 0; }
 .vc-pane[data-pane="context"] .ai-card-body { padding-bottom: 12px; }
 .vc-pane .inline-ai-dig-footer { margin: 4px -16px -16px; border-radius: 0 0 22px 22px; width: auto; }
+/* the AI card wrappers clipped the full-bleed footer to the text width */
+.vc-pane .inline-ai-card, .vc-pane .ai-card-gradient { overflow: visible !important; }
