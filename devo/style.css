@@ -14472,3 +14472,8 @@ body.tts-mini .reader-dock { bottom: 90px !important; }
 #ttsPassage { pointer-events: none; cursor: default; }
 /* the word being read: a pink square, like before */
 .tts-word-active { background: #db2777 !important; color: #fff !important; padding: 2px 4px !important; margin: 0 -4px !important; border-radius: 4px !important; }
+/* scroll-to-top arrow sits above the dock (and above the mini player when Listen is on) */
+@media (max-width: 1023px) {
+  .scroll-top-btn { bottom: 86px !important; transition: bottom .2s ease, opacity .2s ease; }
+  body.tts-mini .scroll-top-btn { bottom: 160px !important; }
+}
