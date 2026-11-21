@@ -38,7 +38,6 @@
     <div class="layout layout-unset">
       <div id="app-splash" class="splash-screen">
         <div class="splash-logo">devotion.</div>
-        <div class="splash-tagline">draw near to God</div>
       </div>
       <div class="main">
         <div id="topActions" class="top-actions-bar">
@@ -325,55 +324,7 @@
     </button>
 
     <!-- NOTES APP -->
-    <div id="notesApp" class="notes-app" hidden>
-      <!-- List View -->
-      <div class="notes-list-view" id="notesListView">
-        <div class="notes-app-bar">
-          <button class="notes-app-close" id="notesAppClose">
-            <span class="material-symbols-outlined">arrow_back_ios_new</span>
-          </button>
-          <div class="notes-app-bar-title">Notes</div>
-          <button class="notes-app-new" id="notesNewBtn" title="New note">
-            <span class="material-symbols-outlined">edit_square</span>
-          </button>
-        </div>
-        <div class="notes-search-bar">
-          <span class="material-symbols-outlined">search</span>
-          <input type="search" id="notesSearch" placeholder="Search notes…" autocomplete="off">
-        </div>
-        <div class="notes-list-scroll">
-          <div id="notesList" class="notes-list"></div>
-          <p id="notesEmptyState" class="notes-empty" hidden>No notes yet. Tap + to write your first note, or start adding notes to Bible passages.</p>
-        </div>
-        <div id="notesCount" class="notes-list-count"></div>
-      </div>
-
-      <!-- Detail / Editor View -->
-      <div class="notes-detail-view" id="notesDetailView" hidden>
-        <div class="notes-detail-bar">
-          <button class="notes-detail-back" id="notesDetailBack">
-            <span class="material-symbols-outlined">arrow_back_ios_new</span>
-            <span>Notes</span>
-          </button>
-          <div class="notes-detail-bar-actions">
-            <button class="notes-detail-action-btn" id="notesDetailMore" aria-label="More note actions" aria-haspopup="menu" aria-expanded="false">
-              <span class="material-symbols-outlined">more_horiz</span>
-            </button>
-            <div class="notes-detail-menu" id="notesDetailMenu" role="menu" hidden>
-              <button class="notes-detail-menu-item" id="notesDetailShare" role="menuitem">
-                <span class="material-symbols-outlined">content_copy</span>Copy
-              </button>
-              <button class="notes-detail-menu-item notes-delete-btn" id="notesDetailDelete" role="menuitem">
-                <span class="material-symbols-outlined">delete</span>Delete
-              </button>
-            </div>
-          </div>
-        </div>
-        <div class="notes-detail-scroll" id="notesDetailScroll">
-          <div id="notesDetailContent" class="notes-detail-content"></div>
-        </div>
-      </div>
-    </div>
+    
 
     <!-- NAME PROMPT SCREEN -->
     <div id="namePromptScreen" class="name-prompt-screen" hidden>

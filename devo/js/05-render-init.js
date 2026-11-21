@@ -940,7 +940,7 @@ function _hideSplash() {
 }
 
 const _onAppLoad = () => {
-  initNotesApp();
+  // (the Notes screens were removed; nothing to initialise)
 };
 
 const aiTextareas = document.querySelectorAll("#aiReflection textarea");

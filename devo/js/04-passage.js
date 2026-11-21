@@ -1272,54 +1272,9 @@ async function renderDashboard() {
       <section class="dv-sec dv-notes">
         <h3>
           <span class="dv-mk" aria-hidden="true"><span class="material-symbols-outlined">edit</span></span><span class="dv-vh">Notes</span>
-          <button class="dash-notes-open-btn" onclick="openNotesApp()">View all →</button>
+          <div id="dashNotesNav" class="dash-fav-nav dv-notes-nav">${_renderNotesNav()}</div>
         </h3>
-        ${(() => {
-          const allNotes = _getAllNotes()
-            .filter(n => n.preview)
-            .sort((a, b) => (b.time || 0) - (a.time || 0))
-            .slice(0, 5);
-          if (!allNotes.length) return `<p class="empty-state">No notes yet. Add notes to Bible verses, complete a Guided Reflection, or tap "View all" to write your first note.</p>`;
-          // Only show the type label when the visible set contains both
-          // reflections and verse notes — otherwise every row carries the same
-          // tag and it reads as visual noise.
-          const types = new Set(allNotes.map(n => n.type));
-          const showTypeLabel = types.size > 1;
-          return `<div class="dash-notes-list">${allNotes.map(n => {
-            // Pass a generous upper bound; the actual visual ellipsis is done
-            // by CSS line-clamp on .dash-notes-card-preview, which adapts to
-            // the card's real width — narrow on mobile, much wider on desktop.
-            const preview = n.preview.length > 400 ? n.preview.slice(0, 400) + "…" : n.preview;
-            const _dt = n.time ? new Date(n.time) : null;
-            const dayStr = _dt ? _dt.getDate() : "";
-            const monStr = _dt ? _dt.toLocaleDateString("en-US", { month: "short" }) : "";
-            // Which verse/passage the note is attached to
-            let refText = n.title || "";
-            if (n.type === "verse" && n.verseKeys?.length === 1) {
-              const [bk, ch, vs] = n.verseKeys[0].split("-");
-              refText = `${BIBLE_META[bk]?.name || bk} ${ch}${vs ? ":" + vs : ""}`;
-            } else if (n.type === "verse" && n.subtitle) {
-              refText = `${n.title} · ${n.subtitle}`;
-            }
-            const label = refText ? `<em class="dash-notes-type-label">${_escHtml(refText)}</em>` : "";
-            let onclick = `openNotesApp()`;
-            if (n.type === "verse" && n.verseKeys?.length) {
-              const firstKey = n.verseKeys.sort((a,b) => {
-                const va = parseInt(a.split("-")[2] || "1"), vb = parseInt(b.split("-")[2] || "1");
-                return va - vb;
-              })[0];
-              const verseNum = firstKey.split("-")[2] || "";
-              onclick = `dashNoteGoToVerse('${_escHtml(firstKey)}', '${_escHtml(verseNum)}')`;
-            } else if (n.type === "reflection" && n.passageKey) {
-              onclick = `dashNoteGoToReflection('${_escHtml(n.passageKey)}')`;
-            }
-            return `<div class="dash-notes-card" onclick="${onclick}">
-              <div class="dv-d"><b>${dayStr}</b><span>${monStr}</span></div>
-              <span class="dv-dot" aria-hidden="true"></span>
-              <div class="dv-nb">${label}<div class="dash-notes-card-preview">${_escHtml(preview)}</div></div>
-            </div>`;
-          }).join("")}</div>`;
-        })()}
+        <div id="dashNotesContent">${_renderNotesContent()}</div>
       </section>
       </div>
 
@@ -1571,6 +1526,77 @@ function _renderFavoritesContent(allFavoritePassages) {
 
 // Crossing the phone/desktop breakpoint changes the page size, so restart at page 1
 _favMQ.addEventListener("change", () => { favoritesPage = 0; if (document.getElementById("dashFavoritesContent")) changeFavoritesPage(0); });
+
+// ---- Dashboard notes: five on desktop (+ View all); one at a time on phones with next / previous ----
+let notesPage = 0;
+function _notesAll() { return _getAllNotes().filter(n => n.preview); }
+function _renderNotesNav() {
+  const total = _notesAll().length, size = _favPageSize();
+  const lastPage = Math.max(0, Math.ceil(total / size) - 1);
+  if (total <= size) return "";
+  if (notesPage > lastPage) notesPage = lastPage;
+  return `<button class="dash-fav-nav-btn" onclick="changeNotesPage(-1)" aria-label="Previous notes"${notesPage <= 0 ? " disabled" : ""}><span class="material-icons">chevron_left</span></button>
+    <span class="dash-fav-nav-page">${notesPage + 1}/${lastPage + 1}</span>
+    <button class="dash-fav-nav-btn" onclick="changeNotesPage(1)" aria-label="Next notes"${notesPage >= lastPage ? " disabled" : ""}><span class="material-icons">chevron_right</span></button>`;
+}
+function _renderNotesContent() {
+  const _last = Math.max(0, Math.ceil(_notesAll().length / _favPageSize()) - 1);
+  if (notesPage > _last) notesPage = _last;
+  return (() => {
+          let allNotes = _getAllNotes()
+            .filter(n => n.preview)
+            .sort((a, b) => (b.time || 0) - (a.time || 0));
+          const _all = allNotes;
+          allNotes = _all.slice(notesPage * _favPageSize(), (notesPage + 1) * _favPageSize());
+          if (!allNotes.length) return `<p class="empty-state">No notes yet. Add notes to Bible verses or complete a Guided Reflection.</p>`;
+          // Only show the type label when the visible set contains both
+          // reflections and verse notes — otherwise every row carries the same
+          // tag and it reads as visual noise.
+          const types = new Set(allNotes.map(n => n.type));
+          const showTypeLabel = types.size > 1;
+          return `<div class="dash-notes-list">${allNotes.map(n => {
+            // Pass a generous upper bound; the actual visual ellipsis is done
+            // by CSS line-clamp on .dash-notes-card-preview, which adapts to
+            // the card's real width — narrow on mobile, much wider on desktop.
+            const preview = n.preview.length > 400 ? n.preview.slice(0, 400) + "…" : n.preview;
+            const _dt = n.time ? new Date(n.time) : null;
+            const dayStr = _dt ? _dt.getDate() : "";
+            const monStr = _dt ? _dt.toLocaleDateString("en-US", { month: "short" }) : "";
+            // Which verse/passage the note is attached to
+            let refText = n.title || "";
+            if (n.type === "verse" && n.verseKeys?.length === 1) {
+              const [bk, ch, vs] = n.verseKeys[0].split("-");
+              refText = `${BIBLE_META[bk]?.name || bk} ${ch}${vs ? ":" + vs : ""}`;
+            } else if (n.type === "verse" && n.subtitle) {
+              refText = `${n.title} · ${n.subtitle}`;
+            }
+            const label = refText ? `<em class="dash-notes-type-label">${_escHtml(refText)}</em>` : "";
+            let onclick = "";
+            if (n.type === "verse" && n.verseKeys?.length) {
+              const firstKey = n.verseKeys.sort((a,b) => {
+                const va = parseInt(a.split("-")[2] || "1"), vb = parseInt(b.split("-")[2] || "1");
+                return va - vb;
+              })[0];
+              const verseNum = firstKey.split("-")[2] || "";
+              onclick = `dashNoteGoToVerse('${_escHtml(firstKey)}', '${_escHtml(verseNum)}')`;
+            } else if (n.type === "reflection" && n.passageKey) {
+              onclick = `dashNoteGoToReflection('${_escHtml(n.passageKey)}')`;
+            }
+            return `<div class="dash-notes-card"${onclick ? ` onclick="${onclick}"` : ""}>
+              <div class="dv-d"><b>${dayStr}</b><span>${monStr}</span></div>
+              <span class="dv-dot" aria-hidden="true"></span>
+              <div class="dv-nb">${label}<div class="dash-notes-card-preview">${_escHtml(preview)}</div></div>
+            </div>`;
+          }).join("")}</div>`;
+  })();
+}
+function changeNotesPage(delta) {
+  notesPage = Math.max(0, notesPage + delta);
+  const c = document.getElementById("dashNotesContent"), n = document.getElementById("dashNotesNav");
+  if (c) c.innerHTML = _renderNotesContent();
+  if (n) n.innerHTML = _renderNotesNav();
+}
+_favMQ.addEventListener("change", () => { notesPage = 0; changeNotesPage(0); });
 
 function changeFavoritesPage(delta) {
   favoritesPage = Math.max(0, favoritesPage + delta);

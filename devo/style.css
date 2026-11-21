@@ -15304,3 +15304,17 @@ body.light .dv .dv-fv-num { color: rgba(0,0,0,.1); }
   .dv .dash-fav-list.dv-fv-strip { display: block !important; overflow: hidden !important; margin: 0 !important; padding: 0 !important; scroll-snap-type: none; }
   .dv .dv-fv-card, .dv .dash-fav-row.dv-fv-card:nth-child(n) { width: 100% !important; aspect-ratio: 3 / 4; flex: none; }
 }
+/* no hover lift on favorite cards (it was clipping the top edge) */
+.dv .dv-fv-card, .dv .dv-fv-card:hover, .dv .dv-fv-card:active, .dv .dash-fav-row.dv-fv-card:nth-child(n):hover { transform: none !important; box-shadow: none !important; }
+.dv .dash-fav-list.dv-fv-strip { overflow-y: visible; }
+/* notes: pager on phones replaces "View all" */
+.dv .dv-notes-nav:empty { display: none; }
+.dv .dv-notes > h3 { gap: 8px; }
+@media (max-width: 860px) { .dv .dv-notes .dash-notes-open-btn { display: none !important; } .dv .dv-notes .dash-notes-list::before { top: 8px; bottom: 8px; } }
+@media (min-width: 861px) { .dv .dv-notes-nav { display: none !important; } }
+/* favorite cards: padding must not add to the 100% width (was cutting the right edge on phones) */
+.dv .dv-fv-card, .dv .dash-fav-row.dv-fv-card:nth-child(n) { box-sizing: border-box !important; }
+/* notes pager shows on every screen size now (the Notes app is gone) */
+@media (min-width: 861px) { .dv .dv-notes-nav { display: flex !important; } }
+/* no scroll-to-top button on the dashboard: the page is short */
+body:has(.dv) #scrollTopBtn { display: none !important; }
