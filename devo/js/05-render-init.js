@@ -289,6 +289,7 @@ document.querySelectorAll(".version-pill").forEach(btn => {
   btn.addEventListener("click", () => switchVersion(btn.dataset.ver));
 });
 loadBtn.onclick = async () => {
+  _slideGhostFromDashboard(); // snapshot the dashboard (if it is showing) before it is cleared
   output.innerHTML = "";
   stopTTS(); // fully reset TTS state so new chapter gets a fresh queue
   document.getElementById("prevChapterBtn").classList.remove("hidden");
@@ -326,6 +327,7 @@ if (prevChapterBtn) {
       return; // Start of Bible
     }
     verseEl.value = "";
+    _navDir = "prev";
     loadBtn.click();
   };
 }
@@ -348,6 +350,7 @@ if (nextChapterBtn) {
       return; // End of Bible
     }
     verseEl.value = "";
+    _navDir = "next";
     loadBtn.click();
   };
 }

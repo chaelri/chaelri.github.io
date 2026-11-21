@@ -14512,3 +14512,21 @@ body.tts-mini .reader-dock { bottom: 90px !important; }
 #mtThemeToggle .mt-theme-seg b { font: 800 12px/1 "Nunito", sans-serif; color: #a9b0c0; height: 32px; padding: 0 16px; border-radius: 999px; display: grid; place-items: center; }
 body:not(.light) #mtThemeToggle b[data-t="dark"], body.light #mtThemeToggle b[data-t="light"] { background: #db2777; color: #fff; }
 body.light #mtThemeToggle .mt-theme-seg { background: rgba(0,0,0,.06); }
+/* Continue -> reading: the passage slides in from the right (the dashboard slides out left) */
+@keyframes viewSlideIn { from { opacity: 0; transform: translateX(40%); } to { opacity: 1; transform: none; } }
+#output.view-slide-in { animation: viewSlideIn 560ms cubic-bezier(.2,.8,.2,1) both; will-change: opacity, transform; }
+@media (prefers-reduced-motion: reduce) { #output.view-slide-in { animation: none !important; } }
+/* quoted speech inside a quote: the same pink as the rest of the app (was lavender) */
+.quote-style-nested, .light .quote-style-nested { color: #db2777; }
+/* light mode: menu switches and text size */
+body.light .mt-sheet-version, body.light .mt-theme-seg { background: rgba(0,0,0,.06) !important; }
+body.light .mt-sheet-ver, body.light .mt-sheet-ver:not(.active) { background: transparent !important; color: rgba(22,19,15,.6) !important; box-shadow: none !important; }
+body.light .mt-sheet-ver.active { background: #db2777 !important; color: #fff !important; }
+body.light #mtThemeToggle .mt-theme-seg b { color: rgba(22,19,15,.6); }
+body.light .mt-textsize-a, body.light .mt-textsize-a--sm, body.light .mt-textsize-a--lg { color: #16130f !important; opacity: 1 !important; }
+body.light .mt-textsize-a--sm { color: #6b6a66 !important; }
+/* dashboard notes: show the whole note, no "…" */
+.dv .dash-notes-card-preview { display: block !important; -webkit-line-clamp: unset !important; -webkit-box-orient: initial !important; overflow: visible !important; text-overflow: clip !important; max-height: none !important; white-space: pre-wrap; overflow-wrap: anywhere; }
+@keyframes viewSlideInLeft { from { opacity: 0; transform: translateX(-40%); } to { opacity: 1; transform: none; } }
+#output.view-slide-in-left { animation: viewSlideInLeft 560ms cubic-bezier(.2,.8,.2,1) both; will-change: opacity, transform; }
+@media (prefers-reduced-motion: reduce) { #output.view-slide-in-left { animation: none !important; } }

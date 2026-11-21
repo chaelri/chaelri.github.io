@@ -18,7 +18,7 @@ let favoritesPage = 0;
 // canvas-mode zoom in/out. Curve + durations are defined in style.css.
 function _playViewAnim(el, className, fallbackMs = 360) {
   if (!el) return;
-  el.classList.remove("view-enter", "view-leaving");
+  el.classList.remove("view-enter", "view-leaving", "view-slide-in", "view-slide-in-left");
   // Force reflow so the next class addition retriggers the animation.
   void el.offsetWidth;
   el.classList.add(className);

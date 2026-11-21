@@ -1647,7 +1647,7 @@ function _renderNotesContent() {
             // Pass a generous upper bound; the actual visual ellipsis is done
             // by CSS line-clamp on .dash-notes-card-preview, which adapts to
             // the card's real width — narrow on mobile, much wider on desktop.
-            const preview = n.preview.length > 400 ? n.preview.slice(0, 400) + "…" : n.preview;
+            const preview = n.preview; // full text, never cut
             const _dt = n.time ? new Date(n.time) : null;
             const dayStr = _dt ? _dt.getDate() : "";
             const monStr = _dt ? _dt.toLocaleDateString("en-US", { month: "short" }) : "";
@@ -1765,6 +1765,35 @@ async function fetchAllOriginsUnli(url) {
 }
 
 /* ---------- LOAD PASSAGE ---------- */
+// Slide transition. Continue (dashboard -> reading) and chapter next: the old view slides off to the
+// left while the new one slides in from the right. Chapter previous runs the same thing mirrored.
+let _slideFromDash = false;   // true when the next passage should slide in
+let _slideDir = "next";       // "next" (from the right) or "prev" (from the left)
+let _navDir = null;           // set by the previous / next chapter buttons
+function _slideGhostFromDashboard() {
+  _slideFromDash = false;
+  const dir = _navDir; _navDir = null;
+  try {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const src = dir ? document.querySelector("#output .bible, #output") : document.querySelector("#output .dashboard");
+    const node = dir ? (document.getElementById("output")) : src;
+    if (!node || !node.offsetWidth || !node.children.length) return;
+    const r = node.getBoundingClientRect();
+    const ghost = node.cloneNode(true);
+    ghost.removeAttribute("id");
+    ghost.querySelectorAll("[id]").forEach((e) => e.removeAttribute("id"));
+    ghost.querySelectorAll("button, a, textarea, input").forEach((e) => e.setAttribute("tabindex", "-1"));
+    Object.assign(ghost.style, { position: "fixed", left: r.left + "px", top: r.top + "px", width: r.width + "px", height: Math.min(r.height, window.innerHeight - Math.max(0, r.top)) + "px", margin: "0", overflow: "hidden", pointerEvents: "none", zIndex: "40" });
+    ghost.setAttribute("aria-hidden", "true");
+    document.body.appendChild(ghost);
+    const out = dir === "prev" ? "translateX(30%) scale(.96)" : "translateX(-30%) scale(.96)";
+    ghost.animate([{ transform: "none", opacity: 1 }, { transform: out, opacity: 0 }], { duration: 520, easing: "cubic-bezier(.2,.8,.2,1)", fill: "forwards" }).onfinish = () => ghost.remove();
+    setTimeout(() => ghost.remove(), 900);
+    _slideFromDash = true;
+    _slideDir = dir === "prev" ? "prev" : "next";
+  } catch { _slideFromDash = false; }
+}
+
 async function loadPassage() {
   document.querySelector(".layout").classList.remove("layout-unset");
   showLoading();
@@ -2032,7 +2061,8 @@ async function loadPassage() {
     // Drill-in transition: passage rises + fades into place after dashboard
     // fades out. Same easing as the canvas overlay so all view-changes feel
     // like one motion vocabulary.
-    _playViewAnim(output, "view-enter");
+    _playViewAnim(output, _slideFromDash ? (_slideDir === "prev" ? "view-slide-in-left" : "view-slide-in") : "view-enter", _slideFromDash ? 700 : 360);
+    _slideFromDash = false;
 
     // Background TTS prefetch — fire-and-forget. Cache hits are instant IDB
     // reads; cache misses queue behind the 10-slot semaphore and stream into
