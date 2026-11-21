@@ -288,6 +288,79 @@ function _openVerseSwipe(wrap, side) {
   _setSwipeX(wrap, SWIPE_OPEN[side]);
 }
 
+// ── Verse hover popover (mouse only) ──────────────────────────────────────
+// Rest the pointer on a verse for a moment and a small Context / Ask / Note
+// popover appears just below the pointer (above it near the bottom of the
+// window). Rest on another verse and it moves there. It stays while the pointer
+// is over the verse or the popover, so it can be clicked. Buttons proxy to the
+// verse's own hidden .verse-action-btn buttons, so all behaviour is unchanged.
+function _wireVerseHoverPopover() {
+  if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+  const output = document.getElementById("output");
+  if (!output || output._hoverPopWired) return;
+  output._hoverPopWired = true;
+
+  const ACTIONS = [["context", "auto_awesome", "Context"], ["ask", "chat_bubble_outline", "Ask"], ["note", "edit_note", "Note"]];
+  const pop = document.createElement("div");
+  pop.className = "verse-hover-pop";
+  pop.hidden = true;
+  pop.setAttribute("role", "toolbar");
+  pop.setAttribute("aria-label", "Verse actions");
+  pop.innerHTML = ACTIONS.map(([a, ic, label]) =>
+    `<button type="button" data-pop-act="${a}"><span class="material-icons" aria-hidden="true">${ic}</span><span>${label}</span></button>`).join("");
+  document.body.appendChild(pop);
+
+  let cur = null, dwellT = null, hideT = null, lx = 0, ly = 0, overPop = false;
+  const hide = () => { clearTimeout(dwellT); clearTimeout(hideT); pop.hidden = true; cur = null; };
+  const show = (wrap, x, y) => {
+    cur = wrap;
+    _syncVerseActionStates(wrap);
+    pop.querySelectorAll("button").forEach((b) => {
+      b.classList.toggle("on", !!wrap.querySelector(`.verse-action-btn[data-action="${b.dataset.popAct}"].verse-action-btn-on`));
+    });
+    pop.hidden = false;
+    const w = pop.offsetWidth, h = pop.offsetHeight, gap = 16;
+    let top = y + gap;
+    if (top + h > window.innerHeight - 8) top = Math.max(8, y - h - gap);
+    const left = Math.min(Math.max(8, x - w / 2), window.innerWidth - w - 8);
+    pop.style.top = top + "px";
+    pop.style.left = left + "px";
+  };
+  const inside = (t) => !!(t && (pop.contains(t) || t.closest?.(".verse")));
+  const dwell = (wrap) => {
+    clearTimeout(dwellT);
+    if (wrap === cur && !pop.hidden) return;
+    dwellT = setTimeout(() => {
+      if (output.classList.contains("tts-mode") || window.getSelection()?.toString()) return;
+      show(wrap, lx, ly);
+    }, 550);
+  };
+
+  output.addEventListener("mousemove", (e) => {
+    lx = e.clientX; ly = e.clientY;
+    const wrap = e.target.closest(".verse");
+    if (!wrap) return;
+    clearTimeout(hideT);
+    dwell(wrap);
+  });
+  output.addEventListener("mouseleave", (e) => {
+    clearTimeout(dwellT);
+    if (e.relatedTarget && pop.contains(e.relatedTarget)) return;
+    hideT = setTimeout(() => { if (!overPop) hide(); }, 250);
+  });
+  pop.addEventListener("mouseenter", () => { overPop = true; clearTimeout(hideT); });
+  pop.addEventListener("mouseleave", () => { overPop = false; hideT = setTimeout(hide, 200); });
+  pop.addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-pop-act]");
+    if (!b || !cur) return;
+    const wrap = cur;
+    hide();
+    wrap.querySelector(`.verse-action-btn[data-action="${b.dataset.popAct}"]`)?.click();
+  });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") hide(); });
+  document.addEventListener("scroll", () => { if (!pop.hidden) hide(); }, true);
+}
+
 function _wireVerseSwipe() {
   if (output._swipeWired) return;
   output._swipeWired = true;
@@ -1915,6 +1988,7 @@ async function loadPassage() {
     // every card renderer. #output is a stable node across passage loads, so
     // guard against stacking duplicate listeners.
     _wireVerseSwipe();
+    _wireVerseHoverPopover();
 
     if (!output._verseActionSyncWired) {
       output.addEventListener("click", (e) => {

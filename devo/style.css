@@ -14405,3 +14405,18 @@ aside.summary .summary-title { display: none !important; }
 .passage-title-row { overflow: visible !important; }
 .passage-title-row .passage-title { overflow: visible !important; text-overflow: clip !important; line-height: 1.25 !important; padding: 2px 0 8px !important; }
 html body #aiReflection:has(.refl-head) ol > li::before, html body #reflectContent:has(.refl-head) li::before { display: none !important; content: none !important; }
+
+/* ===== Verse hover popover: Context / Ask / Note near the pointer ===== */
+@media (hover: hover) and (pointer: fine) {
+  /* the old inline row is replaced by the popover (its buttons stay in the DOM as click targets) */
+  .verse .verse-actions, #output .verse .verse-actions { display: none !important; }
+}
+.verse-hover-pop { position: fixed; z-index: 9000; display: flex; gap: 4px; padding: 4px; border-radius: 999px; background: #1b2238; border: 1px solid rgba(255,255,255,.1); color: #e6edf7; }
+.verse-hover-pop[hidden] { display: none; }
+.verse-hover-pop button { height: 40px; padding: 0 16px; border-radius: 999px; border: 0; background: transparent; color: inherit; font: 600 15px/1 "Nunito", sans-serif; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+.verse-hover-pop button .material-icons { font-size: 16px; color: #db2777; }
+.verse-hover-pop button:hover, .verse-hover-pop button:focus-visible { background: rgba(255,255,255,.1); outline: none; }
+.verse-hover-pop button.on { color: #f7a8d0; }
+body.light .verse-hover-pop { background: #ffffff; border-color: rgba(0,0,0,.12); color: #16130f; }
+body.light .verse-hover-pop button:hover, body.light .verse-hover-pop button:focus-visible { background: rgba(0,0,0,.07); }
+body.light .verse-hover-pop button.on { color: #db2777; }
