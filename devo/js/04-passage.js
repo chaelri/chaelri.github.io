@@ -1728,9 +1728,39 @@ async function fetchAllOriginsUnli(url) {
 let _slideFromDash = false;   // true when the next passage should slide in
 let _slideDir = "next";       // "next" (from the right) or "prev" (from the left)
 let _navDir = null;           // set by the previous / next chapter buttons
+// Continue (dashboard -> reading): a pink curtain rises with the chapter name, the passage renders
+// behind it, then the curtain lifts away. Chapter next/previous keep the slide above.
+let _curtain = null;
+function _curtainCover() {
+  try {
+    const name = `${BIBLE_META[bookEl.value]?.name || ""} ${chapterEl.value}`.trim();
+    const el = document.createElement("div");
+    el.className = "nav-curtain";
+    el.setAttribute("aria-hidden", "true");
+    el.textContent = name;
+    document.body.appendChild(el);
+    const cover = el.animate([{ transform: "translateY(101%)" }, { transform: "translateY(0)" }],
+      { duration: 480, easing: "cubic-bezier(.7,0,.2,1)", fill: "forwards" }).finished.catch(() => {});
+    _curtain = { el, cover, t: setTimeout(_curtainLift, 6000) };
+    return true;
+  } catch { return false; }
+}
+async function _curtainLift() {
+  const c = _curtain;
+  if (!c) return;
+  _curtain = null;
+  clearTimeout(c.t);
+  await c.cover;
+  await new Promise((r) => setTimeout(r, 350));
+  await c.el.animate([{ transform: "translateY(0)" }, { transform: "translateY(-101%)" }],
+    { duration: 520, easing: "cubic-bezier(.7,0,.2,1)", fill: "forwards" }).finished.catch(() => {});
+  c.el.remove();
+}
+
 function _slideGhostFromDashboard() {
   _slideFromDash = false;
   const dir = _navDir; _navDir = null;
+  if (!dir && document.querySelector("#output .dashboard") && !_curtain && _curtainCover()) return;
   try {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const src = dir ? document.querySelector("#output .bible, #output") : document.querySelector("#output .dashboard");
@@ -1989,6 +2019,7 @@ async function loadPassage() {
     // like one motion vocabulary.
     _playViewAnim(output, _slideFromDash ? (_slideDir === "prev" ? "view-slide-in-left" : "view-slide-in") : "view-enter", _slideFromDash ? 700 : 360);
     _slideFromDash = false;
+    _curtainLift();
 
     // Background TTS prefetch — fire-and-forget. Cache hits are instant IDB
     // reads; cache misses queue behind the 10-slot semaphore and stream into

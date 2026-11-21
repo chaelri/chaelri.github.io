@@ -301,7 +301,7 @@
     syncFav();
     bar.hidden = false;
     placeNearVerse(bar);
-    requestAnimationFrame(() => bar.classList.add("on"));
+    requestAnimationFrame(() => { if (selVerse === v) bar.classList.add("on"); });
   }
   function syncFav() {
     if (!selVerse) return;
@@ -310,6 +310,23 @@
     b.classList.toggle("is-fav", on);
     b.firstElementChild.textContent = on ? "favorite" : "favorite_border";
   }
+  // Double-tap = favorite (flowing layout): just the small heart, no flash and no selection.
+  out.addEventListener("dblclick", (e) => {
+    if (!body.classList.contains("flow-read") || out.classList.contains("tts-mode")) return;
+    const v = e.target.closest(".verse");
+    if (!v) return;
+    e.stopPropagation(); // the old per-verse handler flashes a highlight
+    getSelection()?.removeAllRanges();
+    const key = v.dataset.verseKey;
+    toggleFavorite(key);
+    const on = isFavorite(key);
+    v.classList.toggle("highlighted", on);
+    v.classList.remove("fav-pop");
+    if (on) { void v.offsetWidth; v.classList.add("fav-pop"); }
+    closeVerseCard();
+    hideBar();
+    v.classList.remove("verse-sel");
+  }, true);
   out.addEventListener("click", (e) => {
     if (!body.classList.contains("flow-read") || out.classList.contains("tts-mode")) return;
     if (getSelection().toString().trim()) return;
