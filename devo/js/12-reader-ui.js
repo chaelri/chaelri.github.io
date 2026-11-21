@@ -264,9 +264,6 @@
     themeItem.insertAdjacentElement("afterend", arch);
     arch.addEventListener("click", () => { $("mtOverflowSheet").hidden = true; openArchive(); });
   }
-  applyFlow();
-  applyAlign();
-
   /* ───────── Verse tap bar (flowing layout) ───────── */
   const bar = document.createElement("div");
   bar.id = "verseBar";
@@ -592,4 +589,7 @@
     a.click();
     setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
   };
+  // Last, so everything applyFlow touches (the tap bar, the card) already exists.
+  applyFlow();
+  applyAlign();
 })();
