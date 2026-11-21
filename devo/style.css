@@ -14420,3 +14420,9 @@ html body #aiReflection:has(.refl-head) ol > li::before, html body #reflectConte
 body.light .verse-hover-pop { background: #ffffff; border-color: rgba(0,0,0,.12); color: #16130f; }
 body.light .verse-hover-pop button:hover, body.light .verse-hover-pop button:focus-visible { background: rgba(0,0,0,.07); }
 body.light .verse-hover-pop button.on { color: #db2777; }
+/* hover popover motion: fades and lifts in from the pointer, glides between verses */
+.verse-hover-pop { opacity: 0; transform: translateY(-8px) scale(.96); transform-origin: 20px 0; pointer-events: none; transition: opacity .16s ease, transform .22s cubic-bezier(.2,.8,.2,1), top .22s cubic-bezier(.2,.8,.2,1), left .22s cubic-bezier(.2,.8,.2,1); }
+.verse-hover-pop.above { transform: translateY(8px) scale(.96); transform-origin: 20px 100%; }
+.verse-hover-pop.show { opacity: 1; transform: none; pointer-events: auto; }
+.verse-hover-pop.no-move { transition: opacity .16s ease, transform .22s cubic-bezier(.2,.8,.2,1); }
+@media (prefers-reduced-motion: reduce) { .verse-hover-pop, .verse-hover-pop.no-move { transition: opacity .01s; transform: none; } }

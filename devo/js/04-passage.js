@@ -311,25 +311,39 @@ function _wireVerseHoverPopover() {
   document.body.appendChild(pop);
 
   let cur = null, dwellT = null, hideT = null, lx = 0, ly = 0, overPop = false;
-  const hide = () => { clearTimeout(dwellT); clearTimeout(hideT); pop.hidden = true; cur = null; };
+  const isOpen = () => pop.classList.contains("show");
+  const hide = () => {
+    clearTimeout(dwellT); clearTimeout(hideT);
+    cur = null;
+    pop.classList.remove("show");
+    setTimeout(() => { if (!pop.classList.contains("show")) pop.hidden = true; }, 180);
+  };
   const show = (wrap, x, y) => {
     cur = wrap;
     _syncVerseActionStates(wrap);
     pop.querySelectorAll("button").forEach((b) => {
       b.classList.toggle("on", !!wrap.querySelector(`.verse-action-btn[data-action="${b.dataset.popAct}"].verse-action-btn-on`));
     });
-    pop.hidden = false;
-    const w = pop.offsetWidth, h = pop.offsetHeight, gap = 16;
-    let top = y + gap;
-    if (top + h > window.innerHeight - 8) top = Math.max(8, y - h - gap);
-    const left = Math.min(Math.max(8, x - w / 2), window.innerWidth - w - 8);
+    const wasOpen = isOpen();
+    if (!wasOpen) { pop.classList.add("no-move"); pop.hidden = false; }
+    const w = pop.offsetWidth, h = pop.offsetHeight, gap = 14;
+    let top = y + gap, above = false;
+    if (top + h > window.innerHeight - 8) { top = Math.max(8, y - h - gap); above = true; }
+    // left-aligned to the pointer, not centred
+    const left = Math.min(Math.max(8, x - 20), window.innerWidth - w - 8);
+    pop.classList.toggle("above", above);
     pop.style.top = top + "px";
     pop.style.left = left + "px";
+    if (!wasOpen) {
+      void pop.offsetWidth; // commit the start state, then animate in
+      pop.classList.add("show");
+      requestAnimationFrame(() => pop.classList.remove("no-move"));
+    }
   };
   const inside = (t) => !!(t && (pop.contains(t) || t.closest?.(".verse")));
   const dwell = (wrap) => {
     clearTimeout(dwellT);
-    if (wrap === cur && !pop.hidden) return;
+    if (wrap === cur && isOpen()) return;
     dwellT = setTimeout(() => {
       if (output.classList.contains("tts-mode") || window.getSelection()?.toString()) return;
       show(wrap, lx, ly);
@@ -358,7 +372,7 @@ function _wireVerseHoverPopover() {
     wrap.querySelector(`.verse-action-btn[data-action="${b.dataset.popAct}"]`)?.click();
   });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") hide(); });
-  document.addEventListener("scroll", () => { if (!pop.hidden) hide(); }, true);
+  document.addEventListener("scroll", () => { if (isOpen()) hide(); }, true);
 }
 
 function _wireVerseSwipe() {
