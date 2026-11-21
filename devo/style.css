@@ -14620,3 +14620,4 @@ body.tts-sheet-open .tts-sheet-grab { flex: none !important; }
 #ttsPassage { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
 body.tts-sheet-open .tts-sheet-down { z-index: 1; }
 body.tts-sheet-open .scroll-top-btn { opacity: 0 !important; pointer-events: none !important; }
+.refl-load { width: 100%; box-sizing: border-box; padding: 24px; }
