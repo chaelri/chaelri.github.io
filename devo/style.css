@@ -14615,3 +14615,7 @@ body.light .refl-load { background: rgba(0,0,0,.03); }
 .refl-load .sparkle-text { font-size: 14px; font-weight: 600; color: rgba(255,255,255,.55); }
 body.light .refl-load .sparkle-text { color: #6b6a66; }
 #aiReflection:has(.refl-load) .ai-refl-retry { display: none !important; }
+/* the global button rule (flex: 0 !important, backdrop blur) collapsed the handle and blurred the down arrow through the title */
+body.tts-sheet-open .tts-sheet-grab { flex: none !important; }
+#ttsPassage { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+body.tts-sheet-open .tts-sheet-down { z-index: 1; }
