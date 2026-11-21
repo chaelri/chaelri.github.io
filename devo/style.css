@@ -11726,3 +11726,9 @@ body.light .verse-card.ask-on .chat-input-area { background: rgba(0,0,0,.05); }
 @media (max-width: 1023px) {
   body.notes-open .verse-card { bottom: calc(var(--notes-h, 50dvh) + var(--kb, 0px) + 12px); max-height: min(58dvh, calc(100dvh - var(--notes-h, 50dvh) - var(--kb, 0px) - 72px)); transition: opacity .22s, transform .3s cubic-bezier(.22,1,.36,1), bottom .3s cubic-bezier(.22,1,.36,1); }
 }
+
+/* Context pane in the card: tighter under the tabs, Dig Deeper runs edge to edge along the bottom */
+.vc-pane .inline-ai-card { margin-top: 0; }
+.vc-pane .ai-card-gradient { padding-top: 0; padding-bottom: 0; }
+.vc-pane[data-pane="context"] .ai-card-body { padding-bottom: 12px; }
+.vc-pane .inline-ai-dig-footer { margin: 4px -16px -16px; border-radius: 0 0 22px 22px; width: auto; }
