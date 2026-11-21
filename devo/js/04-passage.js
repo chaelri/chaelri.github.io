@@ -1237,8 +1237,8 @@ async function renderDashboard() {
       <div class="dv-book">
         <span class="dv-ribbon" aria-hidden="true"></span>
         <div class="dv-pg">
-          <div class="dv-ref">${_escHtml(recentPassage)}</div>
-          <h2>Pick up where you left off.</h2>
+          <div class="dv-ref">Pick up where you left off</div>
+          <h2>${_escHtml(recentPassage)}</h2>
           <span class="dv-num" aria-hidden="true">${(String(recentPassage).match(/(\d+)\s*$/) || [])[1] || ""}</span>
         </div>
         <div class="dv-pg">

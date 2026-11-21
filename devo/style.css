@@ -15276,3 +15276,7 @@ body.light .dv .dv-fv-num { color: rgba(0,0,0,.1); }
   .dv .dv-fv-card, .dv .dash-fav-row.dv-fv-card:nth-child(n) { flex: none; width: auto; }
 }
 .dv .dash-fav-row.dv-fv-card.dv-fv-first:nth-child(n) { background: #db2777 !important; color: #fff !important; }
+/* Continue book: the passage is the hero, the prompt is the small line */
+.dv .dv-ref { font: 800 12px/1 "Nunito", sans-serif !important; letter-spacing: .12em !important; text-transform: uppercase; color: #db2777; }
+.dv .dv-pg h2 { font: italic 38px/1.05 var(--dv-serif) !important; margin-top: 8px; }
+@media (min-width: 861px) { .dv .dv-pg h2 { font-size: 61px !important; } .dv .dv-ref { font-size: 12px !important; margin-top: 32px; } }
