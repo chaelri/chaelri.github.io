@@ -11646,3 +11646,6 @@ body.flow-read.flow-justify #output > :not(.verse), body.flow-read.flow-justify 
 /* notes box: no separate fill, same surface as the sheet/drawer */
 .notes-text, body.light .notes-text { background: transparent !important; padding: 8px 0; border-radius: 0; }
 .ar-card.ar-static { cursor: default; }
+
+/* desktop / landscape: the drawer is already roomy, no fullscreen toggle */
+@media (min-width: 1024px) { #notesFull { display: none !important; } }
