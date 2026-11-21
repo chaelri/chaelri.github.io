@@ -14601,3 +14601,8 @@ body.tts-sheet-open .tts-chip { padding: 0 8px 0 16px; }
 .tts-chip { padding: 0 8px 0 16px; }
 body.tts-sheet-open .tts-sheet-grab { height: 24px; margin-bottom: 4px; }
 body.tts-sheet-open .tts-sheet-grab::before { top: 10px; }
+/* Listen sheet open/close is animated from JS (spring from the dock); these are the resting states */
+body.tts-sheet-open #ttsPlayer.tts-player { animation: none; transform-origin: 50% 100%; }
+body.tts-mini.tts-sheet-open .tts-chip { display: inline-flex; opacity: 0; pointer-events: none; }
+.reader-dock { transform-origin: 50% 100%; }
+body.tts-sheet-open .reader-dock { opacity: 0; pointer-events: none; }

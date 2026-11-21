@@ -1946,7 +1946,50 @@ async function _imgcrShare() {
     }
     else document.getElementById(map[b.dataset.dock])?.click();
   });
-  const setTtsSheet = (open) => document.body.classList.toggle("tts-sheet-open", open);
+  // Spring from the dock: the sheet scales up from the bottom centre while the
+  // dock shrinks away and the chip lifts off. Closing plays it in reverse and
+  // only drops the open class once the sheet has gone.
+  let _ttsSheetAnims = [];
+  const setTtsSheet = (open) => {
+    const body = document.body;
+    if (body.classList.contains("tts-sheet-open") === open && !_ttsSheetAnims.length) return;
+    _ttsSheetAnims.forEach((a) => a.cancel());
+    _ttsSheetAnims = [];
+    const sheet = document.getElementById("ttsPlayer");
+    const dock = document.getElementById("readerDock");
+    const chip = document.getElementById("ttsChip");
+    if (open) body.classList.add("tts-sheet-open");
+    if (!sheet?.animate || matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      body.classList.toggle("tts-sheet-open", open);
+      return;
+    }
+    const spring = "cubic-bezier(.34,1.32,.64,1)";
+    const run = (el, frames, duration, delay, easing) => {
+      if (!el) return null;
+      const a = el.animate(frames, { duration, delay, easing, fill: "both" });
+      _ttsSheetAnims.push(a);
+      return a;
+    };
+    const sheetOff = { opacity: 0, scale: ".86", translate: "0 24px" }, sheetOn = { opacity: 1, scale: "1", translate: "0 0" };
+    const dockOff = { opacity: 0, scale: ".88" }, dockOn = { opacity: 1, scale: "1" };
+    const chipOff = { opacity: 0, translate: "-50% -24px" }, chipOn = { opacity: 1, translate: "-50% 0" };
+    if (open) {
+      run(dock, [dockOn, dockOff], 200, 0, "ease-out");
+      run(chip, [chipOn, chipOff], 200, 0, "ease-out");
+      run(sheet, [sheetOff, sheetOn], 460, 40, spring);
+    } else {
+      const out = run(sheet, [sheetOn, sheetOff], 240, 0, "cubic-bezier(.4,0,1,1)");
+      run(dock, [dockOff, dockOn], 320, 160, spring);
+      run(chip, [chipOff, chipOn], 260, 200, "ease-out");
+      out.onfinish = () => body.classList.remove("tts-sheet-open");
+    }
+    const last = _ttsSheetAnims;
+    Promise.all(last.map((a) => a.finished)).then(() => {
+      if (_ttsSheetAnims !== last) return;
+      last.forEach((a) => a.cancel());
+      _ttsSheetAnims = [];
+    }, () => {});
+  };
   document.getElementById("ttsChip")?.addEventListener("click", () => setTtsSheet(true));
   document.getElementById("ttsSheetScrim")?.addEventListener("click", () => setTtsSheet(false));
   document.getElementById("ttsSheetGrab")?.addEventListener("click", () => setTtsSheet(false));
