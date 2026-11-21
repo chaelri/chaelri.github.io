@@ -415,8 +415,8 @@
       } else {
         icon.animate([{ transform: "scale(1)" }, { transform: "scale(.75)" }, { transform: "scale(1)" }], { duration: 240, easing: "ease-out" });
       }
-      // done: let the pop play, then drop the selection (underline + menu)
-      setTimeout(() => { if (card.hidden || !card.classList.contains("on")) hideBar(); }, on ? 650 : 320);
+      // done: drop the selection (underline + menu) right away; the heart at the verse end pops in
+      if (card.hidden || !card.classList.contains("on")) hideBar();
       return;
     }
     openVerseCard(b.dataset.vb);
