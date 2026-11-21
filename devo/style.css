@@ -15271,3 +15271,8 @@ body.light .dv .dv-fv-num { color: rgba(0,0,0,.1); }
   .dv .dash-fav-list.dv-fv-strip { margin: 0; padding: 0 0 8px; }
   .dv .dv-fv-card, .dv .dash-fav-row.dv-fv-card:nth-child(n) { flex: 0 0 calc((100% - 64px) / 5); }
 }
+@media (min-width: 861px) {
+  .dv .dash-fav-list.dv-fv-strip { display: grid !important; grid-template-columns: repeat(5, minmax(0, 1fr)); overflow: visible; }
+  .dv .dv-fv-card, .dv .dash-fav-row.dv-fv-card:nth-child(n) { flex: none; width: auto; }
+}
+.dv .dash-fav-row.dv-fv-card.dv-fv-first:nth-child(n) { background: #db2777 !important; color: #fff !important; }
