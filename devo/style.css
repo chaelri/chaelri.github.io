@@ -11721,3 +11721,8 @@ body.light .verse-card.ask-on .chat-input-area { background: rgba(0,0,0,.05); }
 
 /* phones: the tap menu is only as wide as its buttons, lower left (aligned with the dock) */
 @media (max-width: 1023px) { .verse-bar { left: 12px; right: auto; width: max-content; max-width: calc(100vw - 112px); margin: 0; justify-content: flex-start; gap: 4px; } }
+
+/* phones, notes open: the Context / Ask card sits on top of the notes sheet (not over it) so you can keep writing */
+@media (max-width: 1023px) {
+  body.notes-open .verse-card { bottom: calc(var(--notes-h, 50dvh) + var(--kb, 0px) + 12px); max-height: min(58dvh, calc(100dvh - var(--notes-h, 50dvh) - var(--kb, 0px) - 72px)); transition: opacity .22s, transform .3s cubic-bezier(.22,1,.36,1), bottom .3s cubic-bezier(.22,1,.36,1); }
+}
