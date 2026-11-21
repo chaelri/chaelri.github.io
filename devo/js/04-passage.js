@@ -1229,9 +1229,6 @@ async function renderDashboard() {
   <div class="dash-twinkles" aria-hidden="true">${twinklesHTML}</div>
 
   <div class="dv">
-  <div class="dash-greeting">
-    <div id="dashGreetingMsg" class="dash-greeting-msg"></div>
-  </div>
 
   ${/* Daily featured story removed — was driving image-gen costs. */ ""}
 
@@ -1342,7 +1339,7 @@ async function renderDashboard() {
     track(loadDashContinueRecap());
   }
 
-  track(loadDashGreetingMsg());
+  // greeting message removed (also saves an AI call)
   _refreshGratitudeJournalLink();
   _refreshPrayersJournalLink();
 
