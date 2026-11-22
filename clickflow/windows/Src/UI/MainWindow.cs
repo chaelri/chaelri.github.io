@@ -21,7 +21,7 @@ public sealed class MainWindow : Window
     readonly Store store = Store.Shared;
     readonly Runner runner = Runner.Shared;
 
-    readonly TextBox search = new() { PlaceholderText = "Search macros" };
+    readonly TextBox search = Theme.Pin(new TextBox { PlaceholderText = "Search macros" });
     readonly MacroList list = new();
     readonly NavButton historyNav = new("Run History", ""), settingsNav = new("Settings", "");
     readonly ContentControl content = new() { HorizontalContentAlignment = HorizontalAlignment.Stretch, VerticalContentAlignment = VerticalAlignment.Stretch };
@@ -159,10 +159,10 @@ public sealed class MainWindow : Window
         root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(290) });
         root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
-        var titleBar = new Grid { Background = new SolidColorBrush(Colors.Transparent) };
+        var titleBar = new Grid { Background = Theme.Solid(Theme.Dark ? Theme.Shape : Theme.Sun), BorderBrush = Theme.Solid(Theme.Ink), BorderThickness = new Thickness(0, 0, 0, 2) };
         var titleRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Margin = new Thickness(16, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
         titleRow.Children.Add(new Image { Source = Theme.ToImage(new Icon(AppIcon.Get(), 32, 32).ToBitmap()), Width = 18, Height = 18 });
-        titleRow.Children.Add(Theme.Label("ClickFlow", 12, Theme.Muted));
+        titleRow.Children.Add(Theme.Label("ClickFlow", 12, Theme.Solid(Theme.Dark ? Theme.Ink : Theme.Rgb(31, 26, 23)), bold: true));
         titleBar.Children.Add(titleRow);
         Grid.SetColumnSpan(titleBar, 2);
         root.Children.Add(titleBar);
@@ -174,8 +174,7 @@ public sealed class MainWindow : Window
 
         var main = new Grid
         {
-            Background = Theme.Res("LayerFillColorDefaultBrush"), BorderBrush = Theme.Res("CardStrokeColorDefaultBrush"),
-            BorderThickness = new Thickness(1, 1, 0, 0), CornerRadius = new CornerRadius(8, 0, 0, 0),
+            Background = Theme.Solid(Theme.Paper),
         };
         main.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         main.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
@@ -220,11 +219,11 @@ public sealed class MainWindow : Window
 
     FrameworkElement BuildSidebar()
     {
-        var side = new Grid { Padding = new Thickness(10, 0, 10, 10) };
+        var side = new Grid { Padding = new Thickness(16, 16, 16, 16), BorderBrush = Theme.Solid(Theme.Ink), BorderThickness = new Thickness(0, 0, 2, 0) };
         for (int i = 0; i < 5; i++) side.RowDefinitions.Add(new RowDefinition { Height = i == 3 ? new GridLength(1, GridUnitType.Star) : GridLength.Auto });
 
         var brand = Theme.H1("ClickFlow");
-        brand.Foreground = Theme.BrandGradient();
+        brand.Foreground = Theme.Solid(Theme.Accent);
         brand.Margin = new Thickness(6, 0, 0, 10);
         side.Children.Add(brand);
 
@@ -276,7 +275,7 @@ public sealed class MainWindow : Window
 
     UIElement BuildToolbar()
     {
-        var bar = new Grid { Padding = new Thickness(24, 16, 16, 8), BorderBrush = Theme.Res("DividerStrokeColorDefaultBrush"), BorderThickness = new Thickness(0, 0, 0, 1) };
+        var bar = new Grid { Padding = new Thickness(24, 16, 24, 16), BorderBrush = Theme.Solid(Theme.Ink), BorderThickness = new Thickness(0, 0, 0, 2) };
         bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         bar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         bar.Children.Add(pageTitle);
@@ -710,8 +709,8 @@ sealed class MacroRow : Grid
     readonly TextBlock schedule = Theme.Label("", 12, wrap: false);
     readonly StackPanel scheduleLine = new() { Orientation = Orientation.Horizontal, Spacing = 5 };
     readonly TextBlock next = Theme.Label("", 12, wrap: false);
-    readonly ToggleSwitch toggle = new() { OnContent = "", OffContent = "", MinWidth = 0, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, -2, -6, 0) };
-    readonly Border tile = new() { Width = 34, Height = 34, CornerRadius = new CornerRadius(Theme.R8), VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 2, 10, 0) };
+    readonly ToggleSwitch toggle = Theme.Pin(new ToggleSwitch { OnContent = "", OffContent = "", MinWidth = 0, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, -2, -6, 0) });
+    readonly Border tile = new() { Width = 32, Height = 32, CornerRadius = new CornerRadius(16), BorderBrush = Theme.Solid(Theme.Ink), BorderThickness = new Thickness(2), VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 0, 8, 0) };
     readonly FontIcon tileIcon = Theme.Icon("", 15);
     // The accent pill at the left edge of the selected row.
     readonly Border pill = new() { Width = 3, Height = 20, CornerRadius = new CornerRadius(2), HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(-10, 0, 0, 0), Visibility = Visibility.Collapsed };
@@ -722,14 +721,14 @@ sealed class MacroRow : Grid
     public MacroRow(Guid id)
     {
         Id = id;
-        Padding = new Thickness(10, 7, 10, 9);
-        CornerRadius = new CornerRadius(Theme.R8);
-        BorderThickness = new Thickness(1);
+        Padding = new Thickness(8, 8, 8, 8);
+        CornerRadius = new CornerRadius(Theme.R13);
+        BorderThickness = new Thickness(2);
         ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         var c = Theme.TileColor(id);
-        tile.Background = Theme.Tint(c, Theme.Dark ? (byte)0x40 : (byte)0x26);
+        tile.Background = Theme.Solid(Theme.Shape);
         tileIcon.Foreground = Theme.Solid(c);
         tile.Child = tileIcon;
         Children.Add(tile);
@@ -766,7 +765,7 @@ sealed class MacroRow : Grid
     public void Update(Macro m, bool selected, bool paused, bool running)
     {
         if (selected && !isSelected) Anim.Enter(pill, slide: false, ms: 260);
-        pill.Visibility = selected ? Visibility.Visible : Visibility.Collapsed;
+        pill.Visibility = Visibility.Collapsed;
         // Scheduled macros get a clock, the rest a play button; running ones a pulse.
         tileIcon.Glyph = running ? "" : m.Schedules.Count > 0 ? "" : "";
         if (running && !this.running) Anim.Pop(tile, 0.12f);
@@ -774,13 +773,13 @@ sealed class MacroRow : Grid
         isSelected = selected;
         name.Text = m.Name;
         stats.Text = running ? "Running…" : m.Stats;
-        stats.Foreground = running ? Theme.Solid(Theme.Accent) : Theme.Muted;
+        stats.Foreground = running ? Theme.Solid(Theme.Ink) : Theme.Muted;
         var summary = m.ScheduleSummary;
         scheduleLine.Visibility = summary != null ? Visibility.Visible : Visibility.Collapsed;
         schedule.Text = summary ?? "";
         schedule.Foreground = clock.Foreground = m.Enabled ? Theme.Muted : Theme.Faint;
-        if (summary != null && paused) { next.Text = "Paused"; next.Foreground = Theme.Solid(Theme.Orange); }
-        else if (summary != null && m.NextRun(DateTime.Now) is { } n) { next.Text = $"Next: {Fmt.NextRun(n)}"; next.Foreground = Theme.Solid(Theme.Accent); }
+        if (summary != null && paused) { next.Text = "Paused"; next.Foreground = Theme.Solid(Theme.Ink); }
+        else if (summary != null && m.NextRun(DateTime.Now) is { } n) { next.Text = $"Next: {Fmt.NextRun(n)}"; next.Foreground = Theme.Solid(Theme.Ink); }
         else next.Text = "";
         next.Visibility = next.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
         toggle.Visibility = m.Schedules.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -792,8 +791,8 @@ sealed class MacroRow : Grid
 
     void Paint()
     {
-        Background = isSelected ? Theme.Res("CardBackgroundFillColorDefaultBrush") : hot ? Theme.Res("SubtleFillColorSecondaryBrush") : new SolidColorBrush(Colors.Transparent);
-        BorderBrush = isSelected ? Theme.Res("CardStrokeColorDefaultBrush") : new SolidColorBrush(Colors.Transparent);
+        Background = isSelected ? Theme.Solid(Theme.Dark ? Theme.PurpleSoft : Theme.Sun) : hot ? Theme.Res("SubtleFillColorSecondaryBrush") : new SolidColorBrush(Colors.Transparent);
+        BorderBrush = isSelected ? Theme.Solid(Theme.Ink) : new SolidColorBrush(Colors.Transparent);
     }
 }
 
@@ -811,7 +810,7 @@ sealed class NavButton : Button
             active = value;
             icon.Foreground = active ? Theme.Solid(Theme.Accent) : Theme.Muted;
             label.FontWeight = active ? Microsoft.UI.Text.FontWeights.SemiBold : Microsoft.UI.Text.FontWeights.Normal;
-            Background = active ? Theme.Res("SubtleFillColorSecondaryBrush") : new SolidColorBrush(Colors.Transparent);
+            Background = active ? Theme.Solid(Theme.Dark ? Theme.PurpleSoft : Theme.Sun) : new SolidColorBrush(Colors.Transparent);
         }
     }
 

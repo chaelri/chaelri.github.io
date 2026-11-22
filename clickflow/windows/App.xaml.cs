@@ -11,8 +11,8 @@ public partial class App : Application
     {
         // Settings › Appearance; "system" leaves it to Windows.
         var look = Store.Shared.Prefs.Appearance;
-        if (look == "light") RequestedTheme = ApplicationTheme.Light;
-        else if (look == "dark") RequestedTheme = ApplicationTheme.Dark;
+        // Option B is a light paper design, so "system" now means light; only an explicit "dark" goes dark.
+        RequestedTheme = look == "dark" ? ApplicationTheme.Dark : ApplicationTheme.Light;
         InitializeComponent();
         Theme.Dark = RequestedTheme == ApplicationTheme.Dark;
         UnhandledException += (_, e) => { e.Handled = true; Crash.Report(e.Exception); };

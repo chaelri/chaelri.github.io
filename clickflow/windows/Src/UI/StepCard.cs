@@ -41,14 +41,14 @@ public sealed class StepCard : UserControl
     void Paint()
     {
         var c = ShowOnlyLook ? Theme.Purple : Kind;
-        card.Background = editing || flashing ? Theme.Solid(Wash(c, editing ? 0.24 : 0.32)) : restingFill;
-        card.BorderBrush = editing ? Theme.Solid(c) : hot ? Theme.Tint(c, 0x90) : restingEdge;
+        card.Background = editing ? Theme.Solid(Theme.Dark ? Theme.PurpleSoft : Theme.Sun) : flashing ? Theme.Solid(Wash(c, 0.32)) : restingFill;
+        card.BorderBrush = hot && !editing ? Theme.Solid(Theme.Accent) : restingEdge;
     }
 
     /// The colour mixed into the card's own background (solid, so it doesn't look see-through).
     static Color Wash(Color c, double amount)
     {
-        var b = Theme.Dark ? Theme.Rgb(44, 44, 44) : Theme.Rgb(255, 255, 255);
+        var b = Theme.Shape;
         byte M(byte x, byte y) => (byte)(y + (x - y) * amount);
         return Theme.Rgb(M(c.R, b.R), M(c.G, b.G), M(c.B, b.B));
     }
@@ -74,7 +74,7 @@ public sealed class StepCard : UserControl
         // A stripe in the step's colour down the left edge, then the content.
         var stripe = new Border
         {
-            Width = 4, CornerRadius = new CornerRadius(2), Margin = new Thickness(-8, 0, 16, 0),
+            Width = 0, Margin = new Thickness(-8, 0, 8, 0), Visibility = Visibility.Collapsed,
             Background = Theme.Solid(ShowOnlyLook ? Theme.Purple : Kind),
         };
         var body = new Grid();
@@ -122,7 +122,7 @@ public sealed class StepCard : UserControl
     {
         var badge = new Border
         {
-            Background = Theme.Solid(ShowOnlyLook ? Theme.Purple : Kind), CornerRadius = new CornerRadius(Theme.R13), MinWidth = 24, Height = 24,
+            Background = Theme.Solid(ShowOnlyLook ? Theme.Purple : Kind), CornerRadius = new CornerRadius(Theme.R13), MinWidth = 24, Height = 24, BorderBrush = Theme.Solid(Theme.Ink), BorderThickness = new Thickness(2),
             Padding = new Thickness(4, 0, 4, 0), VerticalAlignment = VerticalAlignment.Center, Child = number,
         };
         var grip = new DragHandle();
@@ -139,7 +139,7 @@ public sealed class StepCard : UserControl
         // The name reads as the card's title: no box until it's hovered or clicked.
         var name = new TextBox
         {
-            Text = Step.Name, PlaceholderText = "Add a name", VerticalAlignment = VerticalAlignment.Center, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            Text = Step.Name, PlaceholderText = "Add a name", VerticalAlignment = VerticalAlignment.Center, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, MinWidth = 96, Padding = new Thickness(8, 4, 8, 4),
             Background = new SolidColorBrush(Colors.Transparent), BorderBrush = new SolidColorBrush(Colors.Transparent), Margin = new Thickness(6, 0, 12, 0),
         };
         name.TextChanged += (_, _) => { Step.Name = name.Text; editor.StepChanged(); };

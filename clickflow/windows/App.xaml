@@ -11,53 +11,104 @@
            and a full accent ring while typing. -->
       <CornerRadius x:Key="ControlCornerRadius">8</CornerRadius>
       <CornerRadius x:Key="OverlayCornerRadius">13</CornerRadius>
-      <Thickness x:Key="TextControlThemePadding">16,8,16,8</Thickness>
-      <x:Double x:Key="TextControlThemeMinHeight">40</x:Double>
-      <Thickness x:Key="TextControlBorderThemeThickness">1</Thickness>
-      <Thickness x:Key="TextControlBorderThemeThicknessFocused">2</Thickness>
-      <Thickness x:Key="ComboBoxPadding">16,8,0,8</Thickness>
+      <Thickness x:Key="TextControlThemePadding">12,4,12,4</Thickness>
+      <x:Double x:Key="TextControlThemeMinHeight">32</x:Double>
+      <Thickness x:Key="TextControlBorderThemeThickness">2</Thickness>
+      <Thickness x:Key="TextControlBorderThemeThicknessFocused">3</Thickness>
+      <Thickness x:Key="ComboBoxPadding">12,4,0,4</Thickness>
 
       <FontFamily x:Key="ContentControlThemeFontFamily">Outfit, Segoe UI Variable, Segoe UI</FontFamily>
-      <x:Double x:Key="ControlContentThemeFontSize">15</x:Double>
+      <x:Double x:Key="ControlContentThemeFontSize">12</x:Double>
+      <Thickness x:Key="ButtonBorderThemeThickness">2</Thickness>
 
       <ResourceDictionary.ThemeDictionaries>
         <ResourceDictionary x:Key="Light">
-          <Color x:Key="SystemAccentColor">#0B7A52</Color>
-          <SolidColorBrush x:Key="ApplicationPageBackgroundThemeBrush" Color="#EEF2F0" />
-          <SolidColorBrush x:Key="LayerFillColorDefaultBrush" Color="#F8FAF9" />
-          <SolidColorBrush x:Key="CardBackgroundFillColorDefaultBrush" Color="#F8FAF9" />
-          <SolidColorBrush x:Key="CardStrokeColorDefaultBrush" Color="#1F10191D" />
-          <SolidColorBrush x:Key="TextFillColorPrimaryBrush" Color="#10191D" />
-          <SolidColorBrush x:Key="TextFillColorSecondaryBrush" Color="#4A5A60" />
-          <SolidColorBrush x:Key="TextFillColorTertiaryBrush" Color="#566A71" />
-          <SolidColorBrush x:Key="AccentFillColorDefaultBrush" Color="#0B7A52" />
-          <SolidColorBrush x:Key="AccentFillColorSecondaryBrush" Color="#0E8F61" />
-          <SolidColorBrush x:Key="TextOnAccentFillColorPrimaryBrush" Color="#F8FAF9" />
-          <SolidColorBrush x:Key="TextControlBorderBrush" Color="#1F000000" />
-          <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="#38000000" />
-          <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#0B7A52" />
-          <SolidColorBrush x:Key="ComboBoxBorderBrush" Color="#1F000000" />
-          <SolidColorBrush x:Key="ComboBoxBorderBrushPointerOver" Color="#38000000" />
+          <Color x:Key="SystemAccentColor">#2F6B4F</Color>
+          <SolidColorBrush x:Key="ApplicationPageBackgroundThemeBrush" Color="#EFE8D8" />
+          <SolidColorBrush x:Key="LayerFillColorDefaultBrush" Color="#F7F2E6" />
+          <SolidColorBrush x:Key="CardBackgroundFillColorDefaultBrush" Color="#F7F2E6" />
+          <SolidColorBrush x:Key="CardStrokeColorDefaultBrush" Color="#1F1A17" />
+          <SolidColorBrush x:Key="TextFillColorPrimaryBrush" Color="#1F1A17" />
+          <SolidColorBrush x:Key="TextFillColorSecondaryBrush" Color="#5A4E45" />
+          <SolidColorBrush x:Key="TextFillColorTertiaryBrush" Color="#5A4E45" />
+          <SolidColorBrush x:Key="AccentFillColorDefaultBrush" Color="#2F6B4F" />
+          <SolidColorBrush x:Key="AccentFillColorSecondaryBrush" Color="#3A7D5E" />
+          <SolidColorBrush x:Key="AccentFillColorTertiaryBrush" Color="#255A42" />
+          <SolidColorBrush x:Key="TextOnAccentFillColorPrimaryBrush" Color="#F7F2E6" />
+          <SolidColorBrush x:Key="ButtonBackground" Color="#F7F2E6" />
+          <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#F4C94B" />
+          <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#F4C94B" />
+          <SolidColorBrush x:Key="ButtonForeground" Color="#1F1A17" />
+          <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#1F1A17" />
+          <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#1F1A17" />
+          <SolidColorBrush x:Key="ButtonBorderBrush" Color="#1F1A17" />
+          <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="#1F1A17" />
+          <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="#1F1A17" />
+          <SolidColorBrush x:Key="AccentButtonBackground" Color="#2F6B4F" />
+          <SolidColorBrush x:Key="AccentButtonBackgroundPointerOver" Color="#3A7D5E" />
+          <SolidColorBrush x:Key="AccentButtonBackgroundPressed" Color="#255A42" />
+          <SolidColorBrush x:Key="AccentButtonForeground" Color="#F7F2E6" />
+          <SolidColorBrush x:Key="AccentButtonForegroundPointerOver" Color="#F7F2E6" />
+          <SolidColorBrush x:Key="AccentButtonForegroundPressed" Color="#F7F2E6" />
+          <SolidColorBrush x:Key="AccentButtonBorderBrush" Color="#1F1A17" />
+          <SolidColorBrush x:Key="AccentButtonBorderBrushPointerOver" Color="#1F1A17" />
+          <SolidColorBrush x:Key="AccentButtonBorderBrushPressed" Color="#1F1A17" />
+          <SolidColorBrush x:Key="TextControlBorderBrush" Color="#1F1A17" />
+          <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="#1F1A17" />
+          <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#2F6B4F" />
+          <SolidColorBrush x:Key="ComboBoxBorderBrush" Color="#1F1A17" />
+          <SolidColorBrush x:Key="ComboBoxBorderBrushPointerOver" Color="#1F1A17" />
+        
+          <SolidColorBrush x:Key="ToggleSwitchFillOn" Color="#2F6B4F" />
+          <SolidColorBrush x:Key="ToggleSwitchFillOnPointerOver" Color="#3A7D5E" />
+          <SolidColorBrush x:Key="ToggleSwitchFillOnPressed" Color="#255A42" />
+          <SolidColorBrush x:Key="ToggleSwitchKnobFillOn" Color="#F7F2E6" />
+          <SolidColorBrush x:Key="TextControlElevationBorderFocusedBrush" Color="#2F6B4F" />
         </ResourceDictionary>
         <ResourceDictionary x:Key="Dark">
-          <Color x:Key="SystemAccentColor">#3DDC97</Color>
-          <SolidColorBrush x:Key="ApplicationPageBackgroundThemeBrush" Color="#0F1417" />
-          <SolidColorBrush x:Key="LayerFillColorDefaultBrush" Color="#1B252B" />
-          <SolidColorBrush x:Key="CardBackgroundFillColorDefaultBrush" Color="#1B252B" />
-          <SolidColorBrush x:Key="CardStrokeColorDefaultBrush" Color="#2C3A42" />
-          <SolidColorBrush x:Key="TextFillColorPrimaryBrush" Color="#E8EEF0" />
-          <SolidColorBrush x:Key="TextFillColorSecondaryBrush" Color="#9AA8AD" />
-          <SolidColorBrush x:Key="TextFillColorTertiaryBrush" Color="#8A989E" />
-          <SolidColorBrush x:Key="AccentFillColorDefaultBrush" Color="#3DDC97" />
-          <SolidColorBrush x:Key="AccentFillColorSecondaryBrush" Color="#33C487" />
-          <SolidColorBrush x:Key="TextOnAccentFillColorPrimaryBrush" Color="#0F1417" />
-          <SolidColorBrush x:Key="TextControlBorderBrush" Color="#24FFFFFF" />
-          <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="#3DFFFFFF" />
-          <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#3DDC97" />
-          <SolidColorBrush x:Key="ComboBoxBorderBrush" Color="#24FFFFFF" />
-          <SolidColorBrush x:Key="ComboBoxBorderBrushPointerOver" Color="#3DFFFFFF" />
+          <Color x:Key="SystemAccentColor">#7FD1A6</Color>
+          <SolidColorBrush x:Key="ApplicationPageBackgroundThemeBrush" Color="#1F1A17" />
+          <SolidColorBrush x:Key="LayerFillColorDefaultBrush" Color="#2B2520" />
+          <SolidColorBrush x:Key="CardBackgroundFillColorDefaultBrush" Color="#2B2520" />
+          <SolidColorBrush x:Key="CardStrokeColorDefaultBrush" Color="#EFE8D8" />
+          <SolidColorBrush x:Key="TextFillColorPrimaryBrush" Color="#EFE8D8" />
+          <SolidColorBrush x:Key="TextFillColorSecondaryBrush" Color="#A89A8C" />
+          <SolidColorBrush x:Key="TextFillColorTertiaryBrush" Color="#A89A8C" />
+          <SolidColorBrush x:Key="AccentFillColorDefaultBrush" Color="#7FD1A6" />
+          <SolidColorBrush x:Key="AccentFillColorSecondaryBrush" Color="#93DDB6" />
+          <SolidColorBrush x:Key="AccentFillColorTertiaryBrush" Color="#6BBF94" />
+          <SolidColorBrush x:Key="TextOnAccentFillColorPrimaryBrush" Color="#1F1A17" />
+          <SolidColorBrush x:Key="ButtonBackground" Color="#2B2520" />
+          <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#3A3220" />
+          <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#3A3220" />
+          <SolidColorBrush x:Key="ButtonForeground" Color="#EFE8D8" />
+          <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#EFE8D8" />
+          <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#EFE8D8" />
+          <SolidColorBrush x:Key="ButtonBorderBrush" Color="#EFE8D8" />
+          <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="#EFE8D8" />
+          <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="#EFE8D8" />
+          <SolidColorBrush x:Key="AccentButtonBackground" Color="#7FD1A6" />
+          <SolidColorBrush x:Key="AccentButtonBackgroundPointerOver" Color="#93DDB6" />
+          <SolidColorBrush x:Key="AccentButtonBackgroundPressed" Color="#6BBF94" />
+          <SolidColorBrush x:Key="AccentButtonForeground" Color="#1F1A17" />
+          <SolidColorBrush x:Key="AccentButtonForegroundPointerOver" Color="#1F1A17" />
+          <SolidColorBrush x:Key="AccentButtonForegroundPressed" Color="#1F1A17" />
+          <SolidColorBrush x:Key="AccentButtonBorderBrush" Color="#EFE8D8" />
+          <SolidColorBrush x:Key="AccentButtonBorderBrushPointerOver" Color="#EFE8D8" />
+          <SolidColorBrush x:Key="AccentButtonBorderBrushPressed" Color="#EFE8D8" />
+          <SolidColorBrush x:Key="TextControlBorderBrush" Color="#EFE8D8" />
+          <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="#EFE8D8" />
+          <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#7FD1A6" />
+          <SolidColorBrush x:Key="ComboBoxBorderBrush" Color="#EFE8D8" />
+          <SolidColorBrush x:Key="ComboBoxBorderBrushPointerOver" Color="#EFE8D8" />
+        
+          <SolidColorBrush x:Key="ToggleSwitchFillOn" Color="#7FD1A6" />
+          <SolidColorBrush x:Key="ToggleSwitchFillOnPointerOver" Color="#93DDB6" />
+          <SolidColorBrush x:Key="ToggleSwitchFillOnPressed" Color="#6BBF94" />
+          <SolidColorBrush x:Key="ToggleSwitchKnobFillOn" Color="#1F1A17" />
+          <SolidColorBrush x:Key="TextControlElevationBorderFocusedBrush" Color="#7FD1A6" />
         </ResourceDictionary>
-      </ResourceDictionary.ThemeDictionaries>
+        </ResourceDictionary.ThemeDictionaries>
     </ResourceDictionary>
   </Application.Resources>
 </Application>

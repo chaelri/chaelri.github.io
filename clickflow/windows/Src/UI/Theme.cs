@@ -28,24 +28,23 @@ public static class Theme
     /// it runs, so changing it restarts ClickFlow.
     public static bool Dark;
 
-    // Charlie design system, mood "techy": paper / shape / ink / primary mint / accent amber.
-    // Dark: paper #0F1417, shape #1B252B, ink #E8EEF0, primary #3DDC97, accent #FFB547.
-    // Light: paper #EEF2F0, shape #F8FAF9, ink #10191D, primary #0B7A52, accent #8A5300.
-    // Every text/background pair was run through contrast.py (all >= 4.5:1).
-    public static Color Paper => Dark ? Rgb(15, 20, 23) : Rgb(238, 242, 240);
-    public static Color Shape => Dark ? Rgb(27, 37, 43) : Rgb(248, 250, 249);
-    public static Color Ink => Dark ? Rgb(232, 238, 240) : Rgb(16, 25, 29);
-    public static Color Accent => Dark ? Rgb(61, 220, 151) : Rgb(11, 122, 82);     // primary
-    public static Color Purple => Dark ? Rgb(255, 181, 71) : Rgb(138, 83, 0);       // accent (show-only, schedules)
-    public static Color PurpleSoft => Dark ? Rgb(43, 40, 30) : Rgb(244, 236, 222);
-    public static Color PurpleEdge => Dark ? Rgb(96, 76, 38) : Rgb(214, 190, 150);
-    public static Color Red => Dark ? Rgb(255, 122, 122) : Rgb(192, 50, 45);
+    // Charlie design system, option B "paper": warm paper, ink outlines, green primary, mustard shape.
+    // Light: paper #EFE8D8, card #F7F2E6, ink #1F1A17, green #2F6B4F, mustard #F4C94B, rust #9A3417.
+    // Dark: paper #1F1A17, card #2B2520, ink #EFE8D8, green #7FD1A6, mustard #F4C94B, coral #FF9A7A.
+    // Every text pair was run through contrast.py (>= 4.5:1); on mustard fills only ink text is used.
+    public static Color Paper => Dark ? Rgb(31, 26, 23) : Rgb(239, 232, 216);
+    public static Color Shape => Dark ? Rgb(43, 37, 32) : Rgb(247, 242, 230);
+    public static Color Sun => Rgb(244, 201, 75);
+    public static Color Ink => Dark ? Rgb(239, 232, 216) : Rgb(31, 26, 23);
+    public static Color Accent => Dark ? Rgb(127, 209, 166) : Rgb(47, 107, 79);     // primary green
+    public static Color Purple => Dark ? Rgb(244, 201, 75) : Rgb(122, 82, 0);        // accent (show-only, schedules)
+    public static Color PurpleSoft => Dark ? Rgb(58, 50, 32) : Rgb(249, 231, 168);
+    public static Color PurpleEdge => Ink;
+    public static Color Red => Dark ? Rgb(255, 154, 122) : Rgb(154, 52, 23);
     public static Color Orange => Purple;
     public static Color Green => Accent;
-    /// Text on an Accent or Purple fill (the step number badge): ink on the bright dark-mode fills,
-    /// paper on the deep light-mode fills.
-    public static Color OnAccent => Dark ? Rgb(15, 20, 23) : Rgb(248, 250, 249);
-    public static Color Muted2 => Dark ? Rgb(154, 168, 173) : Rgb(74, 90, 96);
+    public static Color OnAccent => Dark ? Rgb(31, 26, 23) : Rgb(247, 242, 230);
+    public static Color Muted2 => Dark ? Rgb(168, 154, 140) : Rgb(90, 78, 69);
 
     // Type scale x1.618: 12 / 15 / 24 / 38. Radii x1.618: 8 / 13 / 21 (then pill).
     public const double T12 = 12, T15 = 15, T24 = 24, T38 = 38;
@@ -81,7 +80,7 @@ public static class Theme
     public static Brush Muted => Res("TextFillColorSecondaryBrush");
     public static Brush Faint => Res("TextFillColorTertiaryBrush");
 
-    public static TextBlock Label(string text, double size = T15, Brush? color = null, bool bold = false, bool wrap = true) => new()
+    public static TextBlock Label(string text, double size = T12, Brush? color = null, bool bold = false, bool wrap = true) => new()
     {
         Text = text, FontSize = size, Foreground = color ?? Text, FontWeight = bold ? FontWeights.SemiBold : FontWeights.Normal,
         TextWrapping = wrap ? TextWrapping.Wrap : TextWrapping.NoWrap, TextTrimming = wrap ? TextTrimming.None : TextTrimming.CharacterEllipsis,
@@ -103,8 +102,18 @@ public static class Theme
     /// plain one's text (Delete in red, Live in green).
     public static Button Button(string text, string? glyph = null, bool primary = false, Color? tint = null)
     {
-        var b = new Button { Padding = new Thickness(text.Length > 0 ? 16 : 8, 8, text.Length > 0 ? 16 : 8, 8), VerticalAlignment = VerticalAlignment.Center };
-        if (primary) b.Style = (Style)Application.Current.Resources["AccentButtonStyle"];
+        var b = new Button { Padding = new Thickness(text.Length > 0 ? 16 : 8, 4, text.Length > 0 ? 16 : 8, 4), VerticalAlignment = VerticalAlignment.Center, CornerRadius = new CornerRadius(16), MinHeight = 32 };
+        if (primary)
+        {
+            b.Style = (Style)Application.Current.Resources["AccentButtonStyle"];
+            // The system accent (Windows blue) leaks through the template: pin the primary fill here.
+            foreach (var k in new[] { "AccentButtonBackground", "AccentButtonBackgroundPointerOver", "AccentButtonBackgroundPressed" })
+                b.Resources[k] = Solid(Accent);
+            foreach (var k in new[] { "AccentButtonForeground", "AccentButtonForegroundPointerOver", "AccentButtonForegroundPressed" })
+                b.Resources[k] = Solid(OnAccent);
+            foreach (var k in new[] { "AccentButtonBorderBrush", "AccentButtonBorderBrushPointerOver", "AccentButtonBorderBrushPressed" })
+                b.Resources[k] = Solid(Ink);
+        }
         var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         if (glyph != null) row.Children.Add(Icon(glyph, 13));
         if (text.Length > 0) row.Children.Add(new TextBlock { Text = text, VerticalAlignment = VerticalAlignment.Center });
@@ -114,13 +123,23 @@ public static class Theme
         return b;
     }
 
+    /// Pins the green primary onto a control whose template would otherwise use the Windows accent.
+    public static T Pin<T>(T c) where T : FrameworkElement
+    {
+        foreach (var k in new[] { "ToggleSwitchFillOn", "ToggleSwitchFillOnPointerOver", "ToggleSwitchFillOnPressed", "TextControlElevationBorderFocusedBrush", "TextControlBorderBrushFocused" })
+            c.Resources[k] = Solid(Accent);
+        foreach (var k in new[] { "ToggleSwitchKnobFillOn", "ToggleSwitchKnobFillOnPointerOver", "ToggleSwitchKnobFillOnPressed" })
+            c.Resources[k] = Solid(OnAccent);
+        return c;
+    }
+
     /// A flat shape-colour card.
     public static Border Card(UIElement child, Color? fill = null, Color? edge = null, Thickness? padding = null) => new()
     {
         Child = child,
-        Background = fill is { } f ? Solid(f) : Res("CardBackgroundFillColorDefaultBrush"),
-        BorderBrush = edge is { } e ? Solid(e) : Res("CardStrokeColorDefaultBrush"),
-        BorderThickness = new Thickness(1),
+        Background = Solid(fill ?? Shape),
+        BorderBrush = Solid(edge ?? Ink),
+        BorderThickness = new Thickness(2, 2, 3, 3),   // ink outline, heavier bottom/right edge = hard offset shadow
         CornerRadius = new CornerRadius(R13),
         Padding = padding ?? new Thickness(16, 16, 16, 16),
     };
@@ -181,6 +200,8 @@ public static class Theme
             if (editing)
             {
                 b.Style = (Style)Application.Current.Resources["AccentButtonStyle"];
+                foreach (var k in new[] { "AccentButtonBackground", "AccentButtonBackgroundPointerOver", "AccentButtonBackgroundPressed" }) b.Resources[k] = Solid(Accent);
+                foreach (var k in new[] { "AccentButtonForeground", "AccentButtonForegroundPointerOver", "AccentButtonForegroundPressed" }) b.Resources[k] = Solid(OnAccent);
                 b.ClearValue(Control.BackgroundProperty);
                 b.ClearValue(Control.BorderBrushProperty);
             }
