@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ClickFlow step options</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--page:#E4DBC6;--paper:#EFE8D8;--card:#F7F2E6;--sun:#F4C94B;--ink:#1F1A17;--green:#2F6B4F;--muted:#5A4E45;--rust:#9A3417}
+*{box-sizing:border-box;margin:0}
+body{background:var(--page);color:var(--ink);font:400 15px/1.4 Outfit,system-ui,sans-serif;padding:96px 16px 64px;display:flex;justify-content:center}
+.sw{position:fixed;top:0;left:0;right:0;display:flex;gap:8px;justify-content:center;padding:16px;z-index:9;flex-wrap:wrap;background:var(--page)}
+.sw button{font:700 15px Outfit;height:40px;padding:0 24px;border-radius:999px;border:2px solid var(--ink);background:var(--card);color:var(--ink);cursor:pointer}
+.sw button[aria-pressed=true]{background:var(--ink);color:var(--card)}
+.nm{position:fixed;bottom:0;left:0;right:0;text-align:center;padding:8px 16px;background:var(--page);font-size:15px}
+.pane{width:860px;max-width:100%;background:var(--paper);border:2px solid var(--ink);border-radius:21px;padding:24px;display:none;flex-direction:column;gap:16px}
+.pane.on{display:flex}
+h2{font-weight:700;font-size:15px;line-height:1.2}
+.t12{font-size:12px;color:var(--muted)}
+.num{width:32px;height:32px;border-radius:50%;border:2px solid var(--ink);background:var(--green);color:var(--card);display:grid;place-items:center;font-weight:700;font-size:15px;flex:none}
+.num.w{background:var(--sun);color:var(--ink)}
+.card{background:var(--card);border:2px solid var(--ink);border-width:2px 3px 3px 2px;border-radius:13px;padding:16px}
+.card.sel{background:var(--sun)}
+.row{display:flex;align-items:center;gap:16px}
+.sp{flex:1}
+.pill{font:700 12px Outfit;height:24px;padding:0 16px;border-radius:999px;border:2px solid var(--green);color:var(--green);display:inline-grid;place-items:center;background:transparent}
+.pill.show{border-color:var(--rust);color:var(--rust)}
+.ib{width:32px;height:32px;border-radius:50%;border:2px solid var(--ink);background:var(--card);display:grid;place-items:center;font-size:15px;cursor:pointer;flex:none}
+.ib:hover{background:var(--sun)}
+.btn{font:700 12px Outfit;height:32px;padding:0 16px;border-radius:999px;border:2px solid var(--ink);background:var(--card);cursor:pointer;color:var(--ink)}
+.btn.p{background:var(--green);color:var(--card)}
+.f{display:flex;flex-direction:column;gap:4px}
+.f label{font:700 12px Outfit;color:var(--muted)}
+.f input{height:32px;border:2px solid var(--ink);border-radius:8px;background:#fff;padding:0 8px;font:400 15px Outfit;width:96px;color:var(--ink)}
+.f input.w{width:100%}
+.fields{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;margin-top:16px}
+.sum{font-size:15px}.sum b{font-weight:700}
+.list{display:flex;flex-direction:column;gap:8px}
+.mono{font-variant-numeric:tabular-nums}
+/* C timeline */
+.tl{position:relative;padding-left:48px;display:flex;flex-direction:column}
+.tl:before{content:"";position:absolute;left:15px;top:16px;bottom:16px;width:2px;background:var(--ink)}
+.tl .num{position:absolute;left:-48px;top:12px}
+.tl .it{position:relative}
+.gap{margin:8px 0;display:flex;align-items:center;position:relative;height:24px}
+.chip{font:700 12px Outfit;border:2px solid var(--ink);border-radius:999px;padding:0 16px;height:24px;display:inline-grid;place-items:center;background:var(--sun)}
+/* E master-detail */
+.md{display:grid;grid-template-columns:288px 1fr;gap:24px}
+.md .l{display:flex;flex-direction:column;gap:8px}
+.mi{display:flex;gap:16px;align-items:center;border:2px solid transparent;border-radius:13px;padding:8px 16px;cursor:pointer;min-height:56px}
+.mi.sel{background:var(--sun);border-color:var(--ink)}
+.big{display:flex;flex-direction:column;gap:24px}
+.big h1{font-size:24px;font-weight:700;line-height:1.1}
+.big .f input{font-size:15px;height:40px;width:128px}
+</style></head><body>
+<div class="sw" id="sw"></div>
+
+<!-- A -->
+<section class="pane" id="p0"></section>
+<section class="pane" id="p1"></section>
+<section class="pane" id="p2"></section>
+<section class="pane" id="p3"></section>
+<section class="pane" id="p4"></section>
+<div class="nm" id="nm"></div>
+
+<script>
+const S=[
+ {n:1,type:'Open link in Chrome',icon:'🔗',name:'Open HRForte',f:[['URL','https://eva.hrforte.com/dashboard','w']],delay:0,sum:'Opens <b>eva.hrforte.com/dashboard</b>'},
+ {n:2,type:'Left click',icon:'⌖',name:'Click on Clock Out',f:[['X','1689'],['Y','149']],delay:20,sum:'Click at <b>1689, 149</b>'},
+ {n:3,type:'Left click',icon:'⌖',name:'Click on Clock Out',f:[['X','1612'],['Y','351']],delay:3.5,sum:'Click at <b>1612, 351</b>'},
+ {n:4,type:'Wait',icon:'◷',name:'Waiting for Location to initialized',f:[['Seconds','5.0']],delay:0,sum:'Wait <b>5 s</b>',w:1}
+];
+const names=[
+ 'A · Clear cards: title first, type underneath, labels above fields, icon buttons',
+ 'B · Summary list: one readable sentence per step, open one to edit',
+ 'C · Timeline: steps on a rail, waits shown between them as chips',
+ 'D · Blocks: big number, sentence summary, fields only when you press Edit',
+ 'E · Master-detail: compact list on the left, big editor for the picked step'
+];
+const fld=(l,v,c)=>`<div class="f"><label>${l}</label><input class="${c||''}" value="${v}"></div>`;
+const num=s=>`<div class="num ${s.w?'w':''}">${s.n}</div>`;
+const acts=`<span class="pill">Live</span><div class="ib" title="Test">▷</div><div class="ib" title="Edit">✎</div><div class="ib" title="More">⋯</div>`;
+const delayF=s=>s.w?'':fld('Wait before (s)',s.delay.toFixed(1));
+
+// A
+p0.innerHTML='<div class="list">'+S.map(s=>`<div class="card"><div class="row">${num(s)}<div><h2>${s.name}</h2><div class="t12">${s.icon} ${s.type}</div></div><div class="sp"></div>${acts}</div><div class="fields">${s.f.map(x=>fld(...x)).join('')}${delayF(s)}</div></div>`).join('')+'</div>';
+
+// B
+p1.innerHTML='<div class="list">'+S.map((s,i)=>i==1?`<div class="card sel"><div class="row">${num(s)}<div><h2>${s.name}</h2><div class="sum">${s.sum}${s.delay?' · after <b>'+s.delay+' s</b>':''}</div></div><div class="sp"></div>${acts}</div><div class="fields">${s.f.map(x=>fld(...x)).join('')}${delayF(s)}<button class="btn p">Done</button></div></div>`:`<div class="card"><div class="row">${num(s)}<div><h2>${s.name}</h2><div class="sum">${s.sum}${s.delay?' · after <b>'+s.delay+' s</b>':''}</div></div><div class="sp"></div>${acts}</div></div>`).join('')+'</div>';
+
+// C
+p2.innerHTML='<div class="tl">'+S.map((s,i)=>`${i&&s.delay?`<div class="gap"><span class="chip">wait ${s.delay} s</span></div>`:(i?'<div class="gap"></div>':'')}<div class="it">${num(s)}<div class="card"><div class="row"><div><h2>${s.name}</h2><div class="t12">${s.icon} ${s.type} · ${s.sum.replace(/<\/?b>/g,'')}</div></div><div class="sp"></div>${acts}</div></div></div>`).join('')+'</div>';
+
+// D
+p3.innerHTML='<div class="list">'+S.map((s,i)=>`<div class="card" style="padding:0;overflow:hidden"><div class="row" style="gap:0;align-items:stretch"><div style="background:${s.w?'var(--sun)':'var(--green)'};color:${s.w?'var(--ink)':'var(--card)'};width:64px;display:grid;place-items:center;font:700 24px Outfit;border-right:2px solid var(--ink)">${s.n}</div><div style="padding:16px;flex:1"><div class="row"><div><h2>${s.name}</h2><div class="sum" style="margin-top:4px">${s.sum}${s.delay?' · after <b>'+s.delay+' s</b>':''}</div></div><div class="sp"></div><span class="pill">Live</span><button class="btn">Test</button><button class="btn ${i==0?'p':''}">${i==0?'Done':'Edit'}</button></div>${i==0?`<div class="fields">${s.f.map(x=>fld(...x)).join('')}${delayF(s)}</div>`:''}</div></div></div>`).join('')+'</div>';
+
+// E
+const sel=S[1];
+p4.innerHTML=`<div class="md"><div class="l">${S.map((s,i)=>`<div class="mi ${i==1?'sel':''}">${num(s)}<div><h2>${s.name.length>22?s.name.slice(0,21)+'…':s.name}</h2><div class="t12">${s.type}</div></div></div>`).join('')}<button class="btn p" style="align-self:flex-start;margin-top:8px">Add step</button></div>
+<div class="big"><div class="row"><div><div class="t12">${sel.icon} ${sel.type}</div><h1>${sel.name}</h1></div><div class="sp"></div><span class="pill">Live</span><button class="btn">Test</button><button class="btn">Pick on screen</button></div>
+<div class="row" style="align-items:flex-end;gap:24px">${sel.f.map(x=>fld(...x)).join('')}${delayF(sel)}</div>
+<div class="t12">Runs after the previous step finishes.</div></div></div>`;
+
+sw.innerHTML=names.map((n,i)=>`<button data-i="${i}">${'ABCDE'[i]}</button>`).join('');
+function set(i){document.querySelectorAll('.pane').forEach((p,j)=>p.classList.toggle('on',i==j));document.querySelectorAll('#sw button').forEach((b,j)=>b.setAttribute('aria-pressed',i==j));nm.textContent=names[i]}
+document.querySelectorAll('#sw button').forEach(b=>b.onclick=()=>set(+b.dataset.i));
+addEventListener('keydown',e=>{const i='12345'.indexOf(e.key);if(i>=0)set(i)});
+set(0);
+</script></body></html>

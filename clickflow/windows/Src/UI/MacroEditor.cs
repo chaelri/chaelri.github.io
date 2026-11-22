@@ -67,7 +67,7 @@ public sealed class MacroEditor : UserControl, IDisposable
     UIElement BuildHeader()
     {
         var inner = new StackPanel { Spacing = 10 };
-        var name = new TextBox { Text = macro.Name, FontSize = Theme.T24, PlaceholderText = "Macro name" };
+        var name = new TextBox { Text = macro.Name, FontSize = Theme.T15, FontWeight = Microsoft.UI.Text.FontWeights.Bold, PlaceholderText = "Macro name" };
         name.TextChanged += (_, _) =>
         {
             var t = name.Text.Trim();
