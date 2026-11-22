@@ -30,7 +30,7 @@ public sealed class MainWindow : Window
     // macros only flips which one is visible.
     readonly Grid editorHost = new();
     readonly Dictionary<Guid, MacroEditor> editors = new();
-    readonly TextBlock pageTitle = Theme.Label("", 20, bold: true, wrap: false);
+    readonly TextBlock pageTitle = Theme.Label("", Theme.T24, bold: true, wrap: false);
     readonly Button recordButton = Theme.Button("Record", "", tint: Theme.Red);
     readonly Button previewButton = Theme.Button("Preview", "");
     readonly Button runButton = Theme.Button("Run", "", primary: true);
@@ -57,7 +57,7 @@ public sealed class MainWindow : Window
         Title = "ClickFlow";
         Hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
         Owner = new HwndOwner(Hwnd);
-        SystemBackdrop = new MicaBackdrop();
+        
         ExtendsContentIntoTitleBar = true;
         AppWindow.SetIcon(Win32Interop.GetIconIdFromIcon(AppIcon.Get().Handle));
         AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Tall;
@@ -153,7 +153,7 @@ public sealed class MainWindow : Window
 
     UIElement BuildRoot()
     {
-        var root = new Grid();
+        var root = new Grid { Background = Theme.Solid(Theme.Paper) };
         root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(48) });
         root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(290) });
@@ -276,7 +276,7 @@ public sealed class MainWindow : Window
 
     UIElement BuildToolbar()
     {
-        var bar = new Grid { Padding = new Thickness(24, 14, 18, 12), BorderBrush = Theme.Res("DividerStrokeColorDefaultBrush"), BorderThickness = new Thickness(0, 0, 0, 1) };
+        var bar = new Grid { Padding = new Thickness(24, 16, 16, 8), BorderBrush = Theme.Res("DividerStrokeColorDefaultBrush"), BorderThickness = new Thickness(0, 0, 0, 1) };
         bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         bar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         bar.Children.Add(pageTitle);
@@ -711,7 +711,7 @@ sealed class MacroRow : Grid
     readonly StackPanel scheduleLine = new() { Orientation = Orientation.Horizontal, Spacing = 5 };
     readonly TextBlock next = Theme.Label("", 12, wrap: false);
     readonly ToggleSwitch toggle = new() { OnContent = "", OffContent = "", MinWidth = 0, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, -2, -6, 0) };
-    readonly Border tile = new() { Width = 34, Height = 34, CornerRadius = new CornerRadius(9), VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 2, 10, 0) };
+    readonly Border tile = new() { Width = 34, Height = 34, CornerRadius = new CornerRadius(Theme.R8), VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 2, 10, 0) };
     readonly FontIcon tileIcon = Theme.Icon("", 15);
     // The accent pill at the left edge of the selected row.
     readonly Border pill = new() { Width = 3, Height = 20, CornerRadius = new CornerRadius(2), HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(-10, 0, 0, 0), Visibility = Visibility.Collapsed };
@@ -723,7 +723,7 @@ sealed class MacroRow : Grid
     {
         Id = id;
         Padding = new Thickness(10, 7, 10, 9);
-        CornerRadius = new CornerRadius(10);
+        CornerRadius = new CornerRadius(Theme.R8);
         BorderThickness = new Thickness(1);
         ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });

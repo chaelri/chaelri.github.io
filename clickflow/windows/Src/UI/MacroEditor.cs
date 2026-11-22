@@ -67,7 +67,7 @@ public sealed class MacroEditor : UserControl, IDisposable
     UIElement BuildHeader()
     {
         var inner = new StackPanel { Spacing = 10 };
-        var name = new TextBox { Text = macro.Name, FontSize = 20, PlaceholderText = "Macro name" };
+        var name = new TextBox { Text = macro.Name, FontSize = Theme.T24, PlaceholderText = "Macro name" };
         name.TextChanged += (_, _) =>
         {
             var t = name.Text.Trim();
@@ -99,7 +99,7 @@ public sealed class MacroEditor : UserControl, IDisposable
             Theme.Label("Repeat"), repeat, Theme.Label("times (0 = until stopped)", color: Theme.Muted),
             gap, Theme.Label("Pause between repeats"), delay, Theme.Label("s", color: Theme.Muted), edit));
         // The brand gradient along the top edge.
-        inner.Children.Insert(0, new Border { Height = 3, Margin = new Thickness(-18, -14, -18, 6), CornerRadius = new CornerRadius(12, 12, 0, 0), Background = Theme.BrandGradient() });
+        inner.Children.Insert(0, new Border { Height = 3, Margin = new Thickness(-16, -16, -16, 8), CornerRadius = new CornerRadius(Theme.R13, Theme.R13, 0, 0), Background = Theme.BrandGradient() });
         card = Theme.Card(inner);
         card.BackgroundTransition = new BrushTransition { Duration = TimeSpan.FromMilliseconds(220) };
         resting = card.BorderBrush;
@@ -118,10 +118,10 @@ public sealed class MacroEditor : UserControl, IDisposable
 
     static UIElement SectionHeader(string title, string glyph, Windows.UI.Color color, UIElement action)
     {
-        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, Margin = new Thickness(2, 14, 0, 14) };
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(2, 16, 0, 16) };
         var tile = new Border
         {
-            Width = 30, Height = 30, CornerRadius = new CornerRadius(8), Background = Theme.Tint(color, Theme.Dark ? (byte)0x38 : (byte)0x22),
+            Width = 30, Height = 30, CornerRadius = new CornerRadius(Theme.R8), Background = Theme.Tint(color, Theme.Dark ? (byte)0x38 : (byte)0x22),
             Child = Theme.Icon(glyph, 15, Theme.Solid(color)), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, -4, 0),
         };
         row.Children.Add(tile);

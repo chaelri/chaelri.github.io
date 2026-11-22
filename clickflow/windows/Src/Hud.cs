@@ -22,10 +22,10 @@ public sealed class Hud : OverlayForm
     Rectangle stopButton, skipButton;
     string hover = "";
 
-    static readonly Color Bg = Color.FromArgb(32, 33, 38), Card = Color.FromArgb(44, 46, 53), Text1 = Color.FromArgb(242, 242, 245),
-        Text2 = Color.FromArgb(160, 163, 172), Text3 = Color.FromArgb(105, 108, 118), Accent = Color.FromArgb(10, 132, 255),
-        Purple = Color.FromArgb(160, 110, 245), Red = Color.FromArgb(235, 72, 66), Green = Color.FromArgb(52, 199, 89),
-        Orange = Color.FromArgb(255, 159, 10), Track = Color.FromArgb(62, 64, 72);
+    static readonly Color Bg = Color.FromArgb(15, 20, 23), Card = Color.FromArgb(27, 37, 43), Text1 = Color.FromArgb(232, 238, 240),
+        Text2 = Color.FromArgb(154, 168, 173), Text3 = Color.FromArgb(138, 152, 158), Accent = Color.FromArgb(61, 220, 151),
+        Purple = Color.FromArgb(255, 181, 71), Red = Color.FromArgb(255, 122, 122), Green = Color.FromArgb(61, 220, 151),
+        Orange = Color.FromArgb(255, 181, 71), Track = Color.FromArgb(44, 58, 66);
 
     Hud() : base(false)
     {
@@ -177,8 +177,10 @@ public sealed class Hud : OverlayForm
         using var b = new SolidBrush(hot ? ControlPaint.Light(fill, 0.25f) : fill);
         using var p = Rounded(r, S(8));
         g.FillPath(b, p);
-        using var f = F(12.5f, FontStyle.Bold);
-        Txt(g, label, f, Color.White, r, TextFormatFlags.HorizontalCenter);
+        using var f = F(12, FontStyle.Bold);
+        // Ink on the bright fills (mint, amber, red), light text on the dark ones: always >= 4.5:1.
+        bool bright = (0.299 * fill.R + 0.587 * fill.G + 0.114 * fill.B) > 140;
+        Txt(g, label, f, bright ? Color.FromArgb(15, 20, 23) : Text1, r, TextFormatFlags.HorizontalCenter);
         return r;
     }
 
@@ -206,7 +208,7 @@ public sealed class Hud : OverlayForm
         g.FillEllipse(dot, pad, S(20), S(12), S(12));
         int n = Recorder.Shared.ClickCount;
         using var title = F(15, FontStyle.Bold);
-        using var small = F(12.5f);
+        using var small = F(12);
         Txt(g, $"Recording · {n} click{(n == 1 ? "" : "s")}", title, Text1, new Rectangle(pad + S(20), S(12), W - S(150), S(28)));
         Txt(g, "Click anywhere to record. Esc or Stop finishes.", small, Text2, new Rectangle(pad + S(20), S(40), W - S(150), S(22)));
         stopButton = Button(g, "Stop", new Rectangle(W - pad - S(84), S(22), S(84), S(34)), Red, hover == "stop");
@@ -227,7 +229,7 @@ public sealed class Hud : OverlayForm
         using var icon = new Font(Theme.IconFamily, 18 * DpiScale, GraphicsUnit.Pixel);
         Txt(g, glyph, icon, color, new Rectangle(pad, S(14), S(28), S(28)));
         using var title = F(15, FontStyle.Bold);
-        using var small = F(12.5f);
+        using var small = F(12);
         Txt(g, $"{word} · {s.MacroName}", title, Text1, new Rectangle(pad + S(36), S(10), W - 2 * pad - S(36), S(26)));
         Txt(g, $"{s.StepCount} step{(s.StepCount == 1 ? "" : "s")} · {Fmt.Seconds(s.Duration)}", small, Text2, new Rectangle(pad + S(36), S(36), W - 2 * pad - S(36), S(20)));
         int y = S(60);
@@ -253,8 +255,8 @@ public sealed class Hud : OverlayForm
             g.DrawImage(image, ir);
             x += (int)ir.Width + S(10);
         }
-        using var lab = F(11, FontStyle.Bold);
-        using var f = F(12.5f, FontStyle.Regular, "Consolas");
+        using var lab = F(12, FontStyle.Bold);
+        using var f = F(12, FontStyle.Regular, "Cascadia Mono");
         Txt(g, "READ", lab, Text3, new Rectangle(x, r.Y + S(6), S(60), S(16)));
         var flat = string.IsNullOrEmpty(text) ? "(no text found)" : text.Replace("\r", "").Replace("\n", " ⏎ ");
         Txt(g, flat, f, Text1, new Rectangle(x, r.Y + S(22), r.Right - x - S(8), S(26)));
@@ -265,10 +267,10 @@ public sealed class Hud : OverlayForm
         var st = Runner.Shared.Status;
         if (st == null) return;
         int pad = S(16), w = W;
-        using var title = F(14, FontStyle.Bold);
+        using var title = F(15, FontStyle.Bold);
         using var small = F(12);
-        using var tiny = F(11, FontStyle.Bold);
-        using var big = F(15.5f, FontStyle.Bold);
+        using var tiny = F(12, FontStyle.Bold);
+        using var big = F(15, FontStyle.Bold);
         using var icon = new Font(Theme.IconFamily, 15 * DpiScale, GraphicsUnit.Pixel);
 
         // Header: macro, step count, mode tag.
@@ -337,10 +339,10 @@ public sealed class Hud : OverlayForm
         Bar(g, barRect, f, st.Preview || (st.Step?.ShowOnly ?? false) ? Purple : Accent);
         Txt(g, left, small, Text2, new Rectangle(barRect.Right + S(8), y + S(2), S(70), S(24)));
         stopButton = Button(g, "Stop", new Rectangle(w - pad - btnW, y, btnW, S(30)), Red, hover == "stop");
-        if (st.Preview) skipButton = Button(g, "Skip", new Rectangle(w - pad - btnW - gap - btnW, y, btnW, S(30)), Color.FromArgb(80, 82, 92), hover == "skip");
+        if (st.Preview) skipButton = Button(g, "Skip", new Rectangle(w - pad - btnW - gap - btnW, y, btnW, S(30)), Color.FromArgb(60, 76, 84), hover == "skip");
         y += S(36);
         var hint = st.InputLocked ? "Mouse & keyboard locked · Esc, Ctrl+Alt+. or Alt+F4 stops" : "Esc or Ctrl+Alt+. stops";
-        using var hintFont = F(11);
+        using var hintFont = F(12);
         Txt(g, hint, hintFont, Text3, new Rectangle(pad, y, w - 2 * pad, S(16)));
         y += S(20);
 

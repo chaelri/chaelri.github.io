@@ -19,7 +19,7 @@ public sealed class StepCard : UserControl
     readonly TextBlock number = new()
     {
         Foreground = Theme.Solid(Theme.OnAccent), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-        HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, FontSize = 13,
+        HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, FontSize = Theme.T12,
     };
     readonly Button more = Theme.Button("", "");
     // X, Y, delays: locked until Edit, so scrolling past can't nudge them.
@@ -74,7 +74,7 @@ public sealed class StepCard : UserControl
         // A stripe in the step's colour down the left edge, then the content.
         var stripe = new Border
         {
-            Width = 4, CornerRadius = new CornerRadius(2), Margin = new Thickness(-8, 1, 14, 1),
+            Width = 4, CornerRadius = new CornerRadius(2), Margin = new Thickness(-8, 0, 16, 0),
             Background = Theme.Solid(ShowOnlyLook ? Theme.Purple : Kind),
         };
         var body = new Grid();
@@ -122,7 +122,7 @@ public sealed class StepCard : UserControl
     {
         var badge = new Border
         {
-            Background = Theme.Solid(ShowOnlyLook ? Theme.Purple : Kind), CornerRadius = new CornerRadius(12), MinWidth = 24, Height = 24,
+            Background = Theme.Solid(ShowOnlyLook ? Theme.Purple : Kind), CornerRadius = new CornerRadius(Theme.R13), MinWidth = 24, Height = 24,
             Padding = new Thickness(4, 0, 4, 0), VerticalAlignment = VerticalAlignment.Center, Child = number,
         };
         var grip = new DragHandle();
@@ -132,7 +132,7 @@ public sealed class StepCard : UserControl
         grip.PointerCaptureLost += (_, _) => editor.DragEnd(commit: false);
         var icon = Theme.Icon(Step.Type.Glyph(), 15, Theme.Solid(Kind));
         icon.VerticalAlignment = VerticalAlignment.Center;
-        var type = Theme.Label(Step.Type.Label(), 13, Theme.Muted, wrap: false);
+        var type = Theme.Label(Step.Type.Label(), Theme.T12, Theme.Muted, wrap: false);
         var lead = Theme.Row(grip, badge, icon, type);
         lead.VerticalAlignment = VerticalAlignment.Center;
 
@@ -150,7 +150,7 @@ public sealed class StepCard : UserControl
             // Live / Show only as a coloured pill.
             var c = Step.ShowOnly ? Theme.Purple : Theme.Green;
             var mode = Theme.Button(Step.ShowOnly ? "Show only" : "Live", Step.ShowOnly ? "" : "", tint: c);
-            mode.CornerRadius = new CornerRadius(14);
+            mode.CornerRadius = new CornerRadius(Theme.R13);
             mode.Background = Theme.Tint(c, Theme.Dark ? (byte)0x30 : (byte)0x1C);
             mode.BorderBrush = new SolidColorBrush(Colors.Transparent);
             mode.Margin = new Thickness(0, 0, 6, 0);
@@ -353,8 +353,8 @@ public sealed class StepCard : UserControl
         Add(DelayRow());
 
         outputImage = new Image { Stretch = Stretch.Uniform, Width = 120, Height = 50 };
-        outputText = new TextBlock { FontFamily = new FontFamily("Consolas"), FontSize = 13, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
-        var frame = outputFrame = new Border { Child = outputImage, BorderBrush = Theme.Res("CardStrokeColorDefaultBrush"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(4) };
+        outputText = new TextBlock { FontFamily = new FontFamily("Cascadia Mono"), FontSize = Theme.T12, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
+        var frame = outputFrame = new Border { Child = outputImage, BorderBrush = Theme.Res("CardStrokeColorDefaultBrush"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(Theme.R8) };
         var grid = new Grid { ColumnSpacing = 10 };
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });

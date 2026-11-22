@@ -22,7 +22,7 @@ public sealed class ScheduleDialog : ContentDialog
     readonly TextBox requireApp = new() { Width = 220, PlaceholderText = "e.g. chrome" };
     readonly CheckBox frontmost = new() { Content = "and it must be the app in front" };
     readonly NumberBox idle = Theme.Num(0, 86400, 0, 0, 120);
-    readonly TextBlock summary = Theme.Label("", 16, bold: true);
+    readonly TextBlock summary = Theme.Label("", Theme.T15, bold: true);
     readonly TextBlock next = Theme.Label("");
     readonly TextBlock atLabel = Theme.Label("At");
     readonly WrapPanel daysRow, timeRow, dateRow, intervalRow;

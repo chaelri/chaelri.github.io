@@ -18,7 +18,7 @@ public sealed class HistoryView : Grid, IDisposable
     public HistoryView(MainWindow main)
     {
         this.main = main;
-        Padding = new Thickness(24, 14, 24, 20);
+        Padding = new Thickness(24, 16, 24, 24);
         RowSpacing = 10;
         RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
@@ -40,7 +40,7 @@ public sealed class HistoryView : Grid, IDisposable
             t.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
             t.Foreground = Theme.Muted;
         }
-        header.Padding = new Thickness(16, 10, 16, 8);
+        header.Padding = new Thickness(16, 8, 16, 8);
         // Rows are recycled as you scroll: one empty template, filled in when a row is shown.
         list.ItemTemplate = (DataTemplate)XamlReader.Load("<DataTemplate xmlns=\"http://schemas.microsoft.com/winfx/2006/xaml/presentation\"><Grid/></DataTemplate>");
         list.ContainerContentChanging += (_, e) =>
@@ -112,7 +112,7 @@ public sealed class HistoryView : Grid, IDisposable
 public sealed class SettingsView : UserControl
 {
     readonly Store store = Store.Shared;
-    readonly StackPanel stack = new() { Spacing = 12, Padding = new Thickness(24, 16, 24, 32), MaxWidth = 900, HorizontalAlignment = HorizontalAlignment.Left };
+    readonly StackPanel stack = new() { Spacing = 8, Padding = new Thickness(24, 16, 24, 32), MaxWidth = 900, HorizontalAlignment = HorizontalAlignment.Left };
     readonly MainWindow main;
 
     public SettingsView(MainWindow main)
@@ -132,7 +132,7 @@ public sealed class SettingsView : UserControl
         var h = Theme.H2(title);
         h.Margin = new Thickness(0, 0, 0, 6);
         inner.Children.Add(h);
-        return (Theme.Card(inner, padding: new Thickness(18, 14, 18, 16)), inner);
+        return (Theme.Card(inner, padding: new Thickness(16, 16, 16, 16)), inner);
     }
 
     static CheckBox Check(string text, bool value, Action<bool> set)
@@ -247,7 +247,7 @@ public sealed class SettingsView : UserControl
     {
         var (card, c) = Card("Click accuracy test");
         c.Children.Add(Theme.Small("Puts a target on every display, clicks it, and reports where the click landed. It only clicks ClickFlow's own targets."));
-        var result = new TextBlock { FontFamily = new FontFamily("Consolas"), FontSize = 13, TextWrapping = TextWrapping.Wrap };
+        var result = new TextBlock { FontFamily = new FontFamily("Cascadia Mono"), FontSize = Theme.T12, TextWrapping = TextWrapping.Wrap };
         var run = Theme.Button("Run test", "");
         run.HorizontalAlignment = HorizontalAlignment.Left;
         run.Margin = new Thickness(0, 6, 0, 0);

@@ -48,7 +48,7 @@ public static class Placer
         active = bar = null;
     }
 
-    static readonly Color Ink = Color.FromArgb(10, 132, 255);
+    static readonly Color Ink = Color.FromArgb(61, 220, 151);
 
     /// Target you drag; its centre is the point.
     sealed class TargetForm : OverlayForm
@@ -88,7 +88,7 @@ public static class Placer
             int c = Width / 2, r = S(18);
             // Key-coloured pixels click through, so a wide pale band gives the drag something to
             // hold while the centre stays see-through for aiming.
-            using var band = new Pen(Color.FromArgb(214, 232, 255), S(12));
+            using var band = new Pen(Color.FromArgb(190, 245, 220), S(12));
             using var white = new Pen(Color.White, S(5));
             using var pen = new Pen(Ink, S(2.5f));
             g.DrawEllipse(band, c - r, c - r, 2 * r, 2 * r);
@@ -183,7 +183,7 @@ public static class Placer
 
         public BarForm() : base(false)
         {
-            BackColor = Color.FromArgb(32, 33, 38);
+            BackColor = Color.FromArgb(15, 20, 23);
             Size = new Size(S(250), S(38));
             Region = new Region(Rounded(new RectangleF(0, 0, Width, Height), S(10)));
         }
@@ -211,15 +211,15 @@ public static class Placer
         {
             var g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
-            using var f = new Font("Segoe UI", 12.5f * DpiScale, GraphicsUnit.Pixel);
+            using var f = new Font("Segoe UI", 12f * DpiScale, GraphicsUnit.Pixel);
             using var bf = new Font("Segoe UI", 15 * DpiScale, FontStyle.Bold, GraphicsUnit.Pixel);
             TextRenderer.DrawText(g, label, f, new Rectangle(S(12), 0, Width - S(100), Height), Color.White,
                 TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
             int b = S(38);
             cancel = new Rectangle(Width - 2 * b - S(4), S(4), b, Height - S(8));
             ok = new Rectangle(Width - b - S(4), S(4), b, Height - S(8));
-            using var green = new SolidBrush(Color.FromArgb(52, 199, 89));
-            using var grey = new SolidBrush(Color.FromArgb(70, 72, 80));
+            using var green = new SolidBrush(Color.FromArgb(61, 220, 151));
+            using var grey = new SolidBrush(Color.FromArgb(44, 58, 66));
             using (var p = Rounded(cancel, S(7))) g.FillPath(grey, p);
             using (var p = Rounded(ok, S(7))) g.FillPath(green, p);
             TextRenderer.DrawText(g, "✕", bf, cancel, Color.White, TextFormatFlags.VerticalCenter | TextFormatFlags.HorizontalCenter);

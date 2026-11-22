@@ -88,7 +88,7 @@ public static class Ghost
         {
             var g = e.Graphics;
             g.SmoothingMode = SmoothingMode.None;   // antialiased edges would blend with the colour key into a pink fringe
-            var purple = Color.FromArgb(160, 90, 240);
+            var purple = Color.FromArgb(255, 181, 71);
             using var pen = new Pen(purple, S(3));
             using var font = new Font("Segoe UI Semibold", 12f * DpiScale, GraphicsUnit.Pixel);
             if (Area)
@@ -192,7 +192,7 @@ public sealed class ClickRing : OverlayForm
         var g = e.Graphics;
         g.SmoothingMode = SmoothingMode.None;   // antialiased edges would blend with the colour key into a pink fringe
         float rad = (float)(S(6) + (Width / 2 - S(6)) * t) - S(3);
-        using var pen = new Pen(Color.FromArgb(10, 132, 255), S(3));
+        using var pen = new Pen(Color.FromArgb(61, 220, 151), S(3));
         float c = Width / 2f;
         g.DrawEllipse(pen, c - rad, c - rad, rad * 2, rad * 2);
     }

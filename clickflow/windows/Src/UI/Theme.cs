@@ -28,28 +28,37 @@ public static class Theme
     /// it runs, so changing it restarts ClickFlow.
     public static bool Dark;
 
-    public static Color Accent => Dark ? Rgb(96, 165, 250) : Rgb(10, 110, 230);
-    public static Color Purple => Dark ? Rgb(167, 139, 250) : Rgb(130, 80, 230);
-    public static Color PurpleSoft => Dark ? Rgb(44, 36, 66) : Rgb(240, 232, 255);
-    public static Color PurpleEdge => Dark ? Rgb(84, 68, 130) : Rgb(214, 196, 250);
-    public static Color Red => Dark ? Rgb(248, 113, 113) : Rgb(214, 52, 46);
-    public static Color Orange => Dark ? Rgb(251, 170, 60) : Rgb(214, 120, 0);
-    public static Color Green => Dark ? Rgb(74, 200, 120) : Rgb(30, 150, 70);
-    /// Text on an Accent or Purple fill (the step number badge).
-    public static Color OnAccent => Dark ? Rgb(18, 18, 18) : Rgb(255, 255, 255);
+    // Charlie design system, mood "techy": paper / shape / ink / primary mint / accent amber.
+    // Dark: paper #0F1417, shape #1B252B, ink #E8EEF0, primary #3DDC97, accent #FFB547.
+    // Light: paper #EEF2F0, shape #F8FAF9, ink #10191D, primary #0B7A52, accent #8A5300.
+    // Every text/background pair was run through contrast.py (all >= 4.5:1).
+    public static Color Paper => Dark ? Rgb(15, 20, 23) : Rgb(238, 242, 240);
+    public static Color Shape => Dark ? Rgb(27, 37, 43) : Rgb(248, 250, 249);
+    public static Color Ink => Dark ? Rgb(232, 238, 240) : Rgb(16, 25, 29);
+    public static Color Accent => Dark ? Rgb(61, 220, 151) : Rgb(11, 122, 82);     // primary
+    public static Color Purple => Dark ? Rgb(255, 181, 71) : Rgb(138, 83, 0);       // accent (show-only, schedules)
+    public static Color PurpleSoft => Dark ? Rgb(43, 40, 30) : Rgb(244, 236, 222);
+    public static Color PurpleEdge => Dark ? Rgb(96, 76, 38) : Rgb(214, 190, 150);
+    public static Color Red => Dark ? Rgb(255, 122, 122) : Rgb(192, 50, 45);
+    public static Color Orange => Purple;
+    public static Color Green => Accent;
+    /// Text on an Accent or Purple fill (the step number badge): ink on the bright dark-mode fills,
+    /// paper on the deep light-mode fills.
+    public static Color OnAccent => Dark ? Rgb(15, 20, 23) : Rgb(248, 250, 249);
+    public static Color Muted2 => Dark ? Rgb(154, 168, 173) : Rgb(74, 90, 96);
 
-    /// Each kind of step has its own colour: the card's stripe, badge, icon and edit highlight.
+    // Type scale x1.618: 12 / 15 / 24 / 38. Radii x1.618: 8 / 13 / 21 (then pill).
+    public const double T12 = 12, T15 = 15, T24 = 24, T38 = 38;
+    public const double R8 = 8, R13 = 13, R21 = 21;
+
+    /// Three step colours plus the muted ink: primary for clicks and links, accent for timing and
+    /// reading, muted for typing and keys, red only for shutdown.
     public static Color StepColor(StepType t) => t switch
     {
         StepType.LeftClick or StepType.DoubleClick or StepType.RightClick => Accent,
-        StepType.Move => Dark ? Rgb(148, 163, 184) : Rgb(100, 116, 139),
-        StepType.Wait => Dark ? Rgb(251, 191, 36) : Rgb(217, 119, 6),
-        StepType.TypeText => Dark ? Rgb(45, 212, 191) : Rgb(13, 148, 136),
-        StepType.KeyShortcut => Dark ? Rgb(129, 140, 248) : Rgb(79, 70, 229),
-        StepType.PostClipboard => Dark ? Rgb(34, 211, 238) : Rgb(8, 145, 178),
-        StepType.ReadText => Dark ? Rgb(244, 114, 182) : Rgb(219, 39, 119),
-        StepType.OpenUrl => Dark ? Rgb(74, 222, 128) : Rgb(22, 163, 74),
-        StepType.DiscordMessage => Dark ? Rgb(150, 160, 255) : Rgb(88, 101, 242),
+        StepType.OpenUrl or StepType.DiscordMessage => Accent,
+        StepType.Wait or StepType.ReadText => Purple,
+        StepType.Move or StepType.TypeText or StepType.KeyShortcut or StepType.PostClipboard => Muted2,
         StepType.Shutdown => Red,
         _ => Accent,
     };
@@ -61,14 +70,8 @@ public static class Theme
     /// The colour at a low opacity, for washes behind content.
     public static SolidColorBrush Tint(Color c, byte alpha) => new(Color.FromArgb(alpha, c.R, c.G, c.B));
 
-    /// The brand gradient (the app icon's blue to purple).
-    public static LinearGradientBrush BrandGradient()
-    {
-        var g = new LinearGradientBrush { StartPoint = new Windows.Foundation.Point(0, 0), EndPoint = new Windows.Foundation.Point(1, 0) };
-        g.GradientStops.Add(new GradientStop { Color = Dark ? Rgb(96, 165, 250) : Rgb(40, 130, 255), Offset = 0 });
-        g.GradientStops.Add(new GradientStop { Color = Dark ? Rgb(192, 132, 252) : Rgb(130, 70, 230), Offset = 1 });
-        return g;
-    }
+    /// The brand fill: flat primary (the system has no gradients outside liquid glass).
+    public static SolidColorBrush BrandGradient() => new(Accent);
 
     public static Color Rgb(byte r, byte g, byte b) => Color.FromArgb(255, r, g, b);
     public static SolidColorBrush Solid(Color c) => new(c);
@@ -78,16 +81,16 @@ public static class Theme
     public static Brush Muted => Res("TextFillColorSecondaryBrush");
     public static Brush Faint => Res("TextFillColorTertiaryBrush");
 
-    public static TextBlock Label(string text, double size = 14, Brush? color = null, bool bold = false, bool wrap = true) => new()
+    public static TextBlock Label(string text, double size = T15, Brush? color = null, bool bold = false, bool wrap = true) => new()
     {
         Text = text, FontSize = size, Foreground = color ?? Text, FontWeight = bold ? FontWeights.SemiBold : FontWeights.Normal,
         TextWrapping = wrap ? TextWrapping.Wrap : TextWrapping.NoWrap, TextTrimming = wrap ? TextTrimming.None : TextTrimming.CharacterEllipsis,
         VerticalAlignment = VerticalAlignment.Center, IsTextSelectionEnabled = false,
     };
 
-    public static TextBlock Small(string text, Brush? color = null) => Label(text, 12, color ?? Muted);
-    public static TextBlock H1(string text) => Label(text, 24, bold: true);
-    public static TextBlock H2(string text) => Label(text, 17, bold: true);
+    public static TextBlock Small(string text, Brush? color = null) => Label(text, T12, color ?? Muted);
+    public static TextBlock H1(string text) => Label(text, T24, bold: true);
+    public static TextBlock H2(string text) => Label(text, T15, bold: true);
 
     public static FontIcon Icon(string glyph, double size = 14, Brush? color = null)
     {
@@ -100,9 +103,9 @@ public static class Theme
     /// plain one's text (Delete in red, Live in green).
     public static Button Button(string text, string? glyph = null, bool primary = false, Color? tint = null)
     {
-        var b = new Button { Padding = new Thickness(text.Length > 0 ? 11 : 8, 5, text.Length > 0 ? 11 : 8, 6), VerticalAlignment = VerticalAlignment.Center };
+        var b = new Button { Padding = new Thickness(text.Length > 0 ? 16 : 8, 8, text.Length > 0 ? 16 : 8, 8), VerticalAlignment = VerticalAlignment.Center };
         if (primary) b.Style = (Style)Application.Current.Resources["AccentButtonStyle"];
-        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 7 };
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         if (glyph != null) row.Children.Add(Icon(glyph, 13));
         if (text.Length > 0) row.Children.Add(new TextBlock { Text = text, VerticalAlignment = VerticalAlignment.Center });
         b.Content = row;
@@ -111,15 +114,15 @@ public static class Theme
         return b;
     }
 
-    /// A white rounded card.
+    /// A flat shape-colour card.
     public static Border Card(UIElement child, Color? fill = null, Color? edge = null, Thickness? padding = null) => new()
     {
         Child = child,
         Background = fill is { } f ? Solid(f) : Res("CardBackgroundFillColorDefaultBrush"),
         BorderBrush = edge is { } e ? Solid(e) : Res("CardStrokeColorDefaultBrush"),
         BorderThickness = new Thickness(1),
-        CornerRadius = new CornerRadius(12),
-        Padding = padding ?? new Thickness(18, 14, 18, 16),
+        CornerRadius = new CornerRadius(R13),
+        Padding = padding ?? new Thickness(16, 16, 16, 16),
     };
 
     public static NumberBox Num(double min, double max, int decimals, double value, double width = 104)

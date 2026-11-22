@@ -9,26 +9,51 @@
 
       <!-- Softer controls: rounder, roomier, an even border instead of the hard underline,
            and a full accent ring while typing. -->
-      <CornerRadius x:Key="ControlCornerRadius">10</CornerRadius>
-      <CornerRadius x:Key="OverlayCornerRadius">14</CornerRadius>
-      <Thickness x:Key="TextControlThemePadding">12,7,10,7</Thickness>
-      <x:Double x:Key="TextControlThemeMinHeight">36</x:Double>
+      <CornerRadius x:Key="ControlCornerRadius">8</CornerRadius>
+      <CornerRadius x:Key="OverlayCornerRadius">13</CornerRadius>
+      <Thickness x:Key="TextControlThemePadding">16,8,16,8</Thickness>
+      <x:Double x:Key="TextControlThemeMinHeight">40</x:Double>
       <Thickness x:Key="TextControlBorderThemeThickness">1</Thickness>
       <Thickness x:Key="TextControlBorderThemeThicknessFocused">2</Thickness>
-      <Thickness x:Key="ComboBoxPadding">12,6,0,7</Thickness>
+      <Thickness x:Key="ComboBoxPadding">16,8,0,8</Thickness>
+
+      <FontFamily x:Key="ContentControlThemeFontFamily">Outfit, Segoe UI Variable, Segoe UI</FontFamily>
+      <x:Double x:Key="ControlContentThemeFontSize">15</x:Double>
 
       <ResourceDictionary.ThemeDictionaries>
         <ResourceDictionary x:Key="Light">
+          <Color x:Key="SystemAccentColor">#0B7A52</Color>
+          <SolidColorBrush x:Key="ApplicationPageBackgroundThemeBrush" Color="#EEF2F0" />
+          <SolidColorBrush x:Key="LayerFillColorDefaultBrush" Color="#F8FAF9" />
+          <SolidColorBrush x:Key="CardBackgroundFillColorDefaultBrush" Color="#F8FAF9" />
+          <SolidColorBrush x:Key="CardStrokeColorDefaultBrush" Color="#1F10191D" />
+          <SolidColorBrush x:Key="TextFillColorPrimaryBrush" Color="#10191D" />
+          <SolidColorBrush x:Key="TextFillColorSecondaryBrush" Color="#4A5A60" />
+          <SolidColorBrush x:Key="TextFillColorTertiaryBrush" Color="#566A71" />
+          <SolidColorBrush x:Key="AccentFillColorDefaultBrush" Color="#0B7A52" />
+          <SolidColorBrush x:Key="AccentFillColorSecondaryBrush" Color="#0E8F61" />
+          <SolidColorBrush x:Key="TextOnAccentFillColorPrimaryBrush" Color="#F8FAF9" />
           <SolidColorBrush x:Key="TextControlBorderBrush" Color="#1F000000" />
           <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="#38000000" />
-          <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#0A6EE6" />
+          <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#0B7A52" />
           <SolidColorBrush x:Key="ComboBoxBorderBrush" Color="#1F000000" />
           <SolidColorBrush x:Key="ComboBoxBorderBrushPointerOver" Color="#38000000" />
         </ResourceDictionary>
         <ResourceDictionary x:Key="Dark">
+          <Color x:Key="SystemAccentColor">#3DDC97</Color>
+          <SolidColorBrush x:Key="ApplicationPageBackgroundThemeBrush" Color="#0F1417" />
+          <SolidColorBrush x:Key="LayerFillColorDefaultBrush" Color="#1B252B" />
+          <SolidColorBrush x:Key="CardBackgroundFillColorDefaultBrush" Color="#1B252B" />
+          <SolidColorBrush x:Key="CardStrokeColorDefaultBrush" Color="#2C3A42" />
+          <SolidColorBrush x:Key="TextFillColorPrimaryBrush" Color="#E8EEF0" />
+          <SolidColorBrush x:Key="TextFillColorSecondaryBrush" Color="#9AA8AD" />
+          <SolidColorBrush x:Key="TextFillColorTertiaryBrush" Color="#8A989E" />
+          <SolidColorBrush x:Key="AccentFillColorDefaultBrush" Color="#3DDC97" />
+          <SolidColorBrush x:Key="AccentFillColorSecondaryBrush" Color="#33C487" />
+          <SolidColorBrush x:Key="TextOnAccentFillColorPrimaryBrush" Color="#0F1417" />
           <SolidColorBrush x:Key="TextControlBorderBrush" Color="#24FFFFFF" />
           <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="#3DFFFFFF" />
-          <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#60A5FA" />
+          <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#3DDC97" />
           <SolidColorBrush x:Key="ComboBoxBorderBrush" Color="#24FFFFFF" />
           <SolidColorBrush x:Key="ComboBoxBorderBrushPointerOver" Color="#3DFFFFFF" />
         </ResourceDictionary>
