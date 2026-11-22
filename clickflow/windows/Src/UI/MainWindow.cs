@@ -79,7 +79,7 @@ public sealed class MainWindow : Window
         // Emergency stop from any app: Ctrl+Alt+.
         RegisterHotKey(messages.Handle, HotkeyId, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, 0xBE);
 
-        store.MacrosChanged += () => { list.Reload(Filtered()); UpdateTray(); DropStaleEditors(); };
+        store.MacrosChanged += () => { list.Reload(Filtered()); RebuildPills(); UpdateTray(); DropStaleEditors(); };
         runner.BusyChanged += UpdateButtons;
         Recorder.Shared.Changed += UpdateButtons;
         runner.HideMain = () =>
@@ -156,21 +156,14 @@ public sealed class MainWindow : Window
         var root = new Grid { Background = Theme.Solid(Theme.Paper) };
         root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(48) });
         root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-        root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(290) });
-        root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
         var titleBar = new Grid { Background = Theme.Solid(Theme.Dark ? Theme.Shape : Theme.Sun), BorderBrush = Theme.Solid(Theme.Ink), BorderThickness = new Thickness(0, 0, 0, 2) };
         var titleRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Margin = new Thickness(16, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
         titleRow.Children.Add(new Image { Source = Theme.ToImage(new Icon(AppIcon.Get(), 32, 32).ToBitmap()), Width = 18, Height = 18 });
         titleRow.Children.Add(Theme.Label("ClickFlow", 12, Theme.Solid(Theme.Dark ? Theme.Ink : Theme.Rgb(31, 26, 23)), bold: true));
         titleBar.Children.Add(titleRow);
-        Grid.SetColumnSpan(titleBar, 2);
         root.Children.Add(titleBar);
         SetTitleBar(titleBar);
-
-        var side = BuildSidebar();
-        Grid.SetRow(side, 1);
-        root.Children.Add(side);
 
         var main = new Grid
         {
@@ -178,11 +171,10 @@ public sealed class MainWindow : Window
         };
         main.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         main.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-        main.Children.Add(BuildToolbar());
+        main.Children.Add(BuildTopBar());
         Grid.SetRow(content, 1);
         main.Children.Add(content);
         Grid.SetRow(main, 1);
-        Grid.SetColumn(main, 1);
         root.Children.Add(main);
 
         Key(root, VirtualKey.R, VirtualKeyModifiers.Control, () => ClickIfEnabled(runButton));
@@ -214,7 +206,7 @@ public sealed class MainWindow : Window
         else if (b == recordButton) RecordNew();
     }
 
-    void RunSelected() { if (selected is { } id) runner.RunNow(id, Owner); }
+    public void RunSelected() { if (selected is { } id) runner.RunNow(id, Owner); }
     void PreviewSelected() { if (selected is { } id) runner.PreviewRun(id, Owner); }
 
     FrameworkElement BuildSidebar()
@@ -273,18 +265,37 @@ public sealed class MainWindow : Window
         return side;
     }
 
-    UIElement BuildToolbar()
+    readonly StackPanel pills = new() { Orientation = Orientation.Horizontal, Spacing = 8 };
+
+    /// Macros as pills across the top (replaces the sidebar), the few global actions at the right.
+    UIElement BuildTopBar()
     {
-        var bar = new Grid { Padding = new Thickness(24, 16, 24, 16), BorderBrush = Theme.Solid(Theme.Ink), BorderThickness = new Thickness(0, 0, 0, 2) };
+        var bar = new Grid { Padding = new Thickness(32, 16, 32, 8), ColumnSpacing = 16 };
         bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         bar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        bar.Children.Add(pageTitle);
-        var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-        buttons.Children.Add(recordButton);
-        buttons.Children.Add(previewButton);
-        buttons.Children.Add(runButton);
-        Grid.SetColumn(buttons, 1);
-        bar.Children.Add(buttons);
+        var sv = new ScrollViewer
+        {
+            Content = pills, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollMode = ScrollMode.Enabled,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Disabled, VerticalScrollMode = ScrollMode.Disabled, VerticalAlignment = VerticalAlignment.Center,
+        };
+        bar.Children.Add(sv);
+
+        historyNav.Click += (_, _) => ShowPage(Page.History);
+        settingsNav.Click += (_, _) => ShowPage(Page.Settings);
+        var ioButton = Theme.Ghost(Theme.Button("", ""));
+        ToolTipService.SetToolTip(ioButton, "Import / export");
+        var ioMenu = new MenuFlyout();
+        ioMenu.Items.Add(Item("Import Macros…", () => { if (store.Import(Owner) is { } m) Select(m.Id); }));
+        ioMenu.Items.Add(Item("Export All Macros…", () => store.Export(Owner, store.Macros)));
+        ioButton.Flyout = ioMenu;
+        Theme.Ghost(recordButton);
+        var right = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, VerticalAlignment = VerticalAlignment.Center };
+        right.Children.Add(recordButton);
+        right.Children.Add(historyNav);
+        right.Children.Add(settingsNav);
+        right.Children.Add(ioButton);
+        Grid.SetColumn(right, 1);
+        bar.Children.Add(right);
 
         recordButton.Click += (_, _) => RecordNew();
         previewButton.Click += (_, _) => PreviewSelected();
@@ -292,7 +303,36 @@ public sealed class MainWindow : Window
         ToolTipService.SetToolTip(recordButton, "Record your clicks into a new macro (Ctrl+Shift+R)");
         ToolTipService.SetToolTip(previewButton, "Play it without clicking, typing or sending anything; markers show where each click would land (Ctrl+Alt+R)");
         ToolTipService.SetToolTip(runButton, "Run the selected macro (Ctrl+R)");
+        RebuildPills();
         return bar;
+    }
+
+    void RebuildPills()
+    {
+        pills.Children.Clear();
+        foreach (var m in store.Macros)
+        {
+            var id = m.Id;
+            bool on = page == Page.Macro && selected == id;
+            var fill = on ? Theme.Solid(Theme.Dark ? Theme.PurpleSoft : Theme.Sun) : new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+            var hover = Theme.Solid(Theme.Dark ? Theme.PurpleSoft : Theme.Sun);
+            var b = new Button
+            {
+                Content = new TextBlock { Text = m.Name, FontSize = Theme.T12, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = Theme.Solid(on && !Theme.Dark ? Theme.Rgb(31, 26, 23) : Theme.Ink) },
+                MinHeight = 32, Padding = new Thickness(16, 4, 16, 4), CornerRadius = new CornerRadius(16),
+                BorderThickness = new Thickness(on ? 2 : 1), BorderBrush = Theme.Solid(Theme.Ink), Background = fill,
+            };
+            b.Resources["ButtonBackground"] = fill;
+            b.Resources["ButtonBackgroundPointerOver"] = hover;
+            b.Resources["ButtonBackgroundPressed"] = hover;
+            b.Resources["ButtonForegroundPointerOver"] = Theme.Solid(Theme.Rgb(31, 26, 23));
+            b.Click += (_, _) => Select(id);
+            b.RightTapped += (_, e) => { e.Handled = true; MacroMenu(id, b, e.GetPosition(b)); };
+            pills.Children.Add(b);
+        }
+        var add = Theme.Ghost(Theme.Button("New", ""));
+        add.Click += (_, _) => Select(store.NewMacro().Id);
+        pills.Children.Add(add);
     }
 
     public static MenuFlyoutItem Item(string text, Action a, bool enabled = true, bool danger = false)
@@ -316,6 +356,7 @@ public sealed class MainWindow : Window
         selected = id;
         page = Page.Macro;
         list.Selected = id;
+        RebuildPills();
         historyNav.Active = settingsNav.Active = false;
         UIElement view;
         // A bug in one step's editor shouldn't take the window (or the tray) down with it.
@@ -394,6 +435,7 @@ public sealed class MainWindow : Window
         list.Selected = null;
         historyNav.Active = p == Page.History;
         settingsNav.Active = p == Page.Settings;
+        RebuildPills();
         Swap(p == Page.History ? new HistoryView(this) : new SettingsView(this));
         UpdateButtons();
     }
@@ -408,6 +450,7 @@ public sealed class MainWindow : Window
             foreach (var other in editors.Values) if (other != ed) other.Visibility = Visibility.Collapsed;
             ed.Visibility = Visibility.Visible;
             content.Content = editorHost;
+            ed.HostButtons(previewButton, runButton);
             if (changed) { Anim.Enter(ed, distance: 18); ed.Cascade(); }
         }
         else
@@ -436,13 +479,14 @@ public sealed class MainWindow : Window
     {
         if (page == Page.Macro && selected is { } id && store.Macro(id) is { } m) pageTitle.Text = m.Name;
         list.Refresh();
+        RebuildPills();
     }
 
     UIElement Empty()
     {
         var box = new StackPanel { Spacing = 6, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 0, 80) };
         box.Children.Add(Theme.H1("No macro selected"));
-        box.Children.Add(Theme.Label("Pick one on the left, make a new one, or record your clicks.", color: Theme.Muted));
+        box.Children.Add(Theme.Label("Pick one above, make a new one, or record your clicks.", color: Theme.Muted));
         var newB = Theme.Button("New Macro", "");
         newB.Click += (_, _) => Select(store.NewMacro().Id);
         var recB = Theme.Button("Record", "", primary: true);

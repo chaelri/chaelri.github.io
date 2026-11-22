@@ -29,6 +29,18 @@ public sealed class MacroEditor : UserControl, IDisposable
     readonly ContentControl panel = new() { HorizontalContentAlignment = HorizontalAlignment.Stretch };
     int sel;
     double flowWidth;
+    bool editing;
+    readonly TextBlock titleText = new() { FontSize = Theme.T38, FontWeight = Microsoft.UI.Text.FontWeights.Bold, TextAlignment = TextAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center, TextWrapping = TextWrapping.Wrap };
+    TextBox nameBox = new();
+    readonly TextBlock schedText = Theme.Small("");
+    readonly StackPanel schedLine = new() { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Center };
+    readonly ToggleSwitch schedToggle = Theme.Pin(new ToggleSwitch { OnContent = "", OffContent = "", MinWidth = 0 });
+    bool updatingSched;
+    readonly StackPanel runHost = new() { Orientation = Orientation.Horizontal, Spacing = 16, HorizontalAlignment = HorizontalAlignment.Center };
+    readonly Button doneButton = Theme.Button("Done", "", primary: true);
+    readonly Button editLink = Theme.Ghost(Theme.Button("Edit steps", ""));
+    Border settings = new();
+    readonly StackPanel schedulesSection = new() { Spacing = 0 };
 
     public Macro Macro => macro;
     public MainWindow Main => main;
@@ -39,26 +51,35 @@ public sealed class MacroEditor : UserControl, IDisposable
         this.main = main;
         scroll.Content = stack;
         Content = scroll;
+        stack.Padding = new Thickness(64, 24, 64, 48);
+        stack.Spacing = 24;
+        stack.MaxWidth = 1000;
+        stack.HorizontalAlignment = HorizontalAlignment.Center;
+        scroll.SizeChanged += (_, e) => stack.Width = Math.Max(320, Math.Min(1000, e.NewSize.Width - 16));
+        stats.HorizontalAlignment = HorizontalAlignment.Center;
+        stats.TextAlignment = TextAlignment.Center;
 
-        stack.Children.Add(BuildHeader());
-        stack.Children.Add(SectionHeader("Steps", "", Theme.Accent, AddStepButton()));
+        stack.Children.Add(BuildTitleBlock());
+        stack.Children.Add(BuildRunRow());
         flowFrame.Child = flowCanvas;
-        flowFrame.BorderBrush = Theme.Solid(Theme.Ink);
-        flowFrame.BorderThickness = new Thickness(2, 2, 3, 3);
-        flowFrame.CornerRadius = new CornerRadius(Theme.R13);
-        flowFrame.Background = Theme.Solid(Theme.Shape);
         flowFrame.SizeChanged += (_, e) => { if (Math.Abs(e.NewSize.Width - flowWidth) > 8) RebuildFlow(); };
-        stepsBox.Children.Add(flowFrame);
-        stepsBox.Children.Add(panel);
-        stack.Children.Add(stepsBox);
-        var addSchedule = Theme.Button("Add schedule", "");
+        stack.Children.Add(flowFrame);
+        editLink.HorizontalAlignment = HorizontalAlignment.Center;
+        editLink.Click += (_, _) => { editing = true; ApplyMode(); };
+        stack.Children.Add(editLink);
+        stack.Children.Add(panel);
+        stack.Children.Add(BuildSettings());
+        var addSchedule = Theme.Button("Add schedule", "");
         addSchedule.Click += (_, _) => EditSchedule(null);
-        stack.Children.Add(SectionHeader("Schedules", "", Theme.Purple, addSchedule));
-        stack.Children.Add(schedulesBox);
+        schedulesSection.Children.Add(SectionHeader("Schedules", "", Theme.Purple, addSchedule));
+        schedulesSection.Children.Add(schedulesBox);
+        stack.Children.Add(schedulesSection);
 
+        editing = macro.Steps.Count == 0;
         RebuildSteps();
         RebuildSchedules();
         UpdateStats();
+        ApplyMode();
         StepOutputs.Changed += OnOutput;
     }
 
@@ -75,6 +96,103 @@ public sealed class MacroEditor : UserControl, IDisposable
     void OnOutput(Guid stepId)
     {
         foreach (var c in cards) if (c.Step.Id == stepId) c.ShowOutput();
+    }
+
+    // ---------- the calm layout: title, one Run, the route; editing opens on request ----------
+
+    UIElement BuildTitleBlock()
+    {
+        var box = new StackPanel { Spacing = 8, HorizontalAlignment = HorizontalAlignment.Center };
+        titleText.Text = macro.Name;
+        nameBox = new TextBox
+        {
+            Text = macro.Name, FontSize = Theme.T24, FontWeight = Microsoft.UI.Text.FontWeights.Bold, PlaceholderText = "Macro name",
+            TextAlignment = TextAlignment.Center, MinWidth = 420, HorizontalAlignment = HorizontalAlignment.Center,
+        };
+        nameBox.TextChanged += (_, _) =>
+        {
+            var t = nameBox.Text.Trim();
+            if (t.Length == 0) return;
+            macro.Name = t;
+            titleText.Text = t;
+            store.Touch();
+            main.RefreshEditorHeader();
+        };
+        nameBox.LostFocus += (_, _) => { if (nameBox.Text.Trim().Length == 0) nameBox.Text = macro.Name; store.Changed(); };
+        box.Children.Add(titleText);
+        box.Children.Add(nameBox);
+        box.Children.Add(stats);
+        schedLine.Children.Add(schedText);
+        schedLine.Children.Add(schedToggle);
+        schedToggle.Toggled += (_, _) =>
+        {
+            if (updatingSched) return;
+            if (macro.ScheduleOn != schedToggle.IsOn) macro.SetScheduleOn(!macro.ScheduleOn);
+            store.Changed();
+            RebuildSchedules();
+            UpdateSchedLine();
+            main.RefreshEditorHeader();
+        };
+        box.Children.Add(schedLine);
+        return box;
+    }
+
+    void UpdateSchedLine()
+    {
+        var summary = macro.ScheduleSummary;
+        schedLine.Visibility = summary != null ? Visibility.Visible : Visibility.Collapsed;
+        if (summary == null) return;
+        string next = macro.NextRun(DateTime.Now) is { } n ? $" · Next: {Fmt.NextRun(n)}" : "";
+        schedText.Text = summary + next;
+        updatingSched = true;
+        if (schedToggle.IsOn != macro.ScheduleOn) schedToggle.IsOn = macro.ScheduleOn;
+        updatingSched = false;
+    }
+
+    UIElement BuildRunRow()
+    {
+        doneButton.Click += (_, _) => { editing = false; store.Changed(); ApplyMode(); };
+        var g = new Grid { HorizontalAlignment = HorizontalAlignment.Center };
+        g.Children.Add(runHost);
+        g.Children.Add(doneButton);
+        return g;
+    }
+
+    /// The window moves its Preview / Run buttons into the editor that is showing.
+    public void HostButtons(Button preview, Button run)
+    {
+        foreach (var b in new[] { preview, run }) if (b.Parent is Panel old) old.Children.Remove(b);
+        runHost.Children.Clear();
+        runHost.Children.Add(preview);
+        runHost.Children.Add(run);
+        run.MinHeight = 48;
+        run.Padding = new Thickness(40, 8, 40, 8);
+        run.CornerRadius = new CornerRadius(24);
+    }
+
+    UIElement BuildSettings()
+    {
+        var repeat = Theme.Num(0, 100000, 0, macro.RepeatCount);
+        repeat.ValueChanged += (_, e) => { if (double.IsNaN(e.NewValue)) return; macro.RepeatCount = (int)e.NewValue; store.Touch(); UpdateStats(); };
+        var delay = Theme.Num(0, 86400, 1, macro.RepeatDelay);
+        delay.ValueChanged += (_, e) => { if (double.IsNaN(e.NewValue)) return; macro.RepeatDelay = e.NewValue; store.Touch(); UpdateStats(); };
+        var row = Theme.Row(Theme.Label("Repeat"), repeat, Theme.Label("times (0 = until stopped)", color: Theme.Muted),
+            new Border { Width = 16 }, Theme.Label("Pause between repeats"), delay, Theme.Label("s", color: Theme.Muted));
+        settings = Theme.Card(row);
+        return settings;
+    }
+
+    void ApplyMode()
+    {
+        titleText.Visibility = editing ? Visibility.Collapsed : Visibility.Visible;
+        nameBox.Visibility = editing ? Visibility.Visible : Visibility.Collapsed;
+        runHost.Visibility = editing ? Visibility.Collapsed : Visibility.Visible;
+        doneButton.Visibility = editing ? Visibility.Visible : Visibility.Collapsed;
+        editLink.Visibility = editing || macro.Steps.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+        var v = editing ? Visibility.Visible : Visibility.Collapsed;
+        panel.Visibility = settings.Visibility = schedulesSection.Visibility = v;
+        RebuildFlow();
+        if (editing) Anim.Enter(panel, slide: false, ms: 260);
     }
 
     // ---------- header ----------
@@ -128,6 +246,7 @@ public sealed class MacroEditor : UserControl, IDisposable
         var single = Fmt.Seconds(macro.SingleRunDuration);
         var total = macro.TotalDuration is { } t ? $"{Fmt.Seconds(t)} in all" : "repeats until stopped";
         stats.Text = $"{n} step{(n == 1 ? "" : "s")} · {single} per run · {total}";
+        UpdateSchedLine();
         main.RefreshEditorHeader();
     }
 
@@ -217,86 +336,104 @@ public sealed class MacroEditor : UserControl, IDisposable
 
     public void RebuildFlow()
     {
-        double w = flowFrame.ActualWidth > 100 ? flowFrame.ActualWidth - 5 : 820;
+        double w = flowFrame.ActualWidth > 100 ? flowFrame.ActualWidth : 820;
         flowWidth = flowFrame.ActualWidth;
-        int n = macro.Steps.Count, slots = n + 1;   // the last slot is the "add step" node
-        int perRow = Math.Max(1, (int)((w - 2 * Pad + GapX) / (NodeW + GapX)));
-        int rows = (slots + perRow - 1) / perRow;
-        double rowW = perRow * NodeW + (perRow - 1) * GapX, left = Math.Max(Pad, (w - rowW) / 2);
-        Windows.Foundation.Point At(int i) => new(left + (i % perRow) * (NodeW + GapX), Pad + (i / perRow) * (NodeH + GapY));
+        int n = macro.Steps.Count;
         flowCanvas.Children.Clear();
-        flowCanvas.Height = 2 * Pad + rows * NodeH + (rows - 1) * GapY;
         var ink = Theme.Solid(Theme.Ink);
+        if (n == 0)
+        {
+            flowCanvas.Height = 64;
+            var none = Theme.Label("No steps yet. Press + to add the first one, or Record from the top bar.", color: Theme.Muted);
+            Canvas.SetLeft(none, 0); Canvas.SetTop(none, 8);
+            flowCanvas.Children.Add(none);
+            var first = InsertButton(0);
+            Canvas.SetLeft(first, 0); Canvas.SetTop(first, 32);
+            flowCanvas.Children.Add(first);
+            panel.Content = null;
+            return;
+        }
+        const double cell = 96, rowH = 104, circleY = 40;
+        int slots = n + (editing ? 1 : 0);
+        int perRow = Math.Max(1, (int)(w / cell));
+        int rows = (slots + perRow - 1) / perRow;
+        double rowW = Math.Min(perRow, slots) * cell, left = Math.Max(0, (w - rowW) / 2);
+        double X(int i) => left + (i % perRow) * cell + cell / 2;
+        double Y(int i) => (i / perRow) * rowH + circleY;
+        flowCanvas.Height = rows * rowH;
 
-        // Arrows first, so the nodes sit on top of them.
+        for (int r = 0; r < rows; r++)
+        {
+            int first = r * perRow, last = Math.Min(slots - 1, first + perRow - 1);
+            if (last > first)
+            {
+                var line = new Rectangle { Width = X(last) - X(first), Height = 1, Fill = ink };
+                Canvas.SetLeft(line, X(first)); Canvas.SetTop(line, Y(first));
+                flowCanvas.Children.Add(line);
+            }
+        }
         for (int i = 0; i < n; i++)
         {
-            var a = At(i); var b = At(i + 1);
-            bool same = Math.Abs(a.Y - b.Y) < 1;
-            var from = same ? new Windows.Foundation.Point(a.X + NodeW, a.Y + NodeH / 2) : new Windows.Foundation.Point(a.X + NodeW / 2, a.Y + NodeH);
-            var to = same ? new Windows.Foundation.Point(b.X - 6, b.Y + NodeH / 2) : new Windows.Foundation.Point(b.X + NodeW / 2, b.Y - 6);
-            var fig = new PathFigure { StartPoint = from, IsClosed = false };
-            if (same) fig.Segments.Add(new LineSegment { Point = to });
-            else fig.Segments.Add(new BezierSegment { Point1 = new Windows.Foundation.Point(from.X, from.Y + GapY / 2), Point2 = new Windows.Foundation.Point(to.X, to.Y - GapY / 2), Point3 = to });
-            var geo = new PathGeometry(); geo.Figures.Add(fig);
-            flowCanvas.Children.Add(new Microsoft.UI.Xaml.Shapes.Path { Data = geo, Stroke = ink, StrokeThickness = 2 });
-            var head = new Polygon { Fill = ink };
-            if (same)
+            var st = macro.Steps[i];
+            bool on = editing && i == sel;
+            var color = st.ShowOnly ? Theme.Purple : Theme.StepColor(st.Type);
+            double size = on ? 32 : 24;
+            var halo = new Ellipse { Width = size + 14, Height = size + 14, Fill = Theme.Solid(Theme.Paper) };
+            Canvas.SetLeft(halo, X(i) - (size + 14) / 2); Canvas.SetTop(halo, Y(i) - (size + 14) / 2);
+            flowCanvas.Children.Add(halo);
+            var dot = new Border
             {
-                head.Points.Add(new Windows.Foundation.Point(to.X + 6, to.Y));
-                head.Points.Add(new Windows.Foundation.Point(to.X - 4, to.Y - 6));
-                head.Points.Add(new Windows.Foundation.Point(to.X - 4, to.Y + 6));
-            }
-            else
+                Width = size, Height = size, CornerRadius = new CornerRadius(size / 2), BorderBrush = ink, BorderThickness = new Thickness(2),
+                Background = Theme.Solid(on ? Theme.Sun : color),
+                Child = new TextBlock
+                {
+                    Text = (i + 1).ToString(), FontSize = Theme.T12, FontWeight = Microsoft.UI.Text.FontWeights.Bold, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
+                    Foreground = Theme.Solid(on ? Theme.Rgb(31, 26, 23) : Theme.OnAccent),
+                },
+            };
+            Canvas.SetLeft(dot, X(i) - size / 2); Canvas.SetTop(dot, Y(i) - size / 2);
+            flowCanvas.Children.Add(dot);
+            var label = new TextBlock
             {
-                head.Points.Add(new Windows.Foundation.Point(to.X, to.Y + 6));
-                head.Points.Add(new Windows.Foundation.Point(to.X - 6, to.Y - 4));
-                head.Points.Add(new Windows.Foundation.Point(to.X + 6, to.Y - 4));
-            }
-            flowCanvas.Children.Add(head);
-            double midX = (from.X + to.X) / 2, midY = same ? from.Y : (from.Y + to.Y) / 2;
-            int j = i + 1;
-            var next = j < n ? macro.Steps[j] : null;   // the last arrow points at the "add step" slot
-            double d = next == null || next.Type == StepType.Wait ? 0 : next.DelayBefore;
-            double yOff = 0;
-            if (d > 0)
+                Text = string.IsNullOrWhiteSpace(st.Name) ? st.Type.Label() : st.Name, Width = cell - 8, TextAlignment = TextAlignment.Center, TextWrapping = TextWrapping.Wrap,
+                MaxLines = 2, TextTrimming = TextTrimming.CharacterEllipsis, FontSize = Theme.T12, LineHeight = 14,
+                FontWeight = on ? Microsoft.UI.Text.FontWeights.Bold : Microsoft.UI.Text.FontWeights.Normal, Foreground = on ? Theme.Text : Theme.Muted,
+            };
+            Canvas.SetLeft(label, X(i) - (cell - 8) / 2); Canvas.SetTop(label, Y(i) + 24);
+            flowCanvas.Children.Add(label);
+            // The whole stop is the click target while editing.
+            var hit = new Border { Width = cell - 8, Height = 76, Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent) };
+            Canvas.SetLeft(hit, X(i) - (cell - 8) / 2); Canvas.SetTop(hit, Y(i) - 20);
+            int idx = i;
+            hit.Tapped += (_, _) => { if (editing && sel != idx) { sel = idx; RebuildFlow(); Anim.Enter(panel, slide: false, ms: 200); } };
+            flowCanvas.Children.Add(hit);
+            double d = st.Type == StepType.Wait ? 0 : st.DelayBefore;
+            if (i > 0 && d > 0 && i % perRow != 0)
             {
                 var chip = new Border
                 {
-                    Background = Theme.Solid(Theme.Sun), BorderBrush = ink, BorderThickness = new Thickness(2), CornerRadius = new CornerRadius(12),
-                    Padding = new Thickness(8, 2, 8, 2),
-                    Child = new TextBlock { Text = $"wait {d:0.#} s", FontSize = Theme.T12, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = Theme.Solid(Theme.Rgb(31, 26, 23)) },
+                    Background = Theme.Solid(Theme.Sun), CornerRadius = new CornerRadius(10), Padding = new Thickness(8, 1, 8, 1),
+                    Child = new TextBlock { Text = $"{d:0.#} s", FontSize = Theme.T12, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = Theme.Solid(Theme.Rgb(31, 26, 23)) },
                 };
                 chip.Measure(new Windows.Foundation.Size(200, 40));
-                Canvas.SetLeft(chip, midX - chip.DesiredSize.Width / 2); Canvas.SetTop(chip, midY - 36);
+                Canvas.SetLeft(chip, (X(i - 1) + X(i)) / 2 - chip.DesiredSize.Width / 2); Canvas.SetTop(chip, Y(i) - 36);
                 flowCanvas.Children.Add(chip);
-                yOff = 6;
             }
-            var plus = InsertButton(j);
-            Canvas.SetLeft(plus, midX - 12); Canvas.SetTop(plus, midY - 12 + yOff);
-            flowCanvas.Children.Add(plus);
         }
-
-        for (int i = 0; i < n; i++)
+        if (editing)
         {
-            var node = Node(i);
-            var p = At(i);
-            Canvas.SetLeft(node, p.X); Canvas.SetTop(node, p.Y);
-            flowCanvas.Children.Add(node);
+            for (int i = 1; i <= n; i++)
+            {
+                // Insert before step i (the last one appends); none across a row break.
+                if (i < n && i % perRow == 0) continue;
+                var plus = InsertButton(i);
+                double px = i < n ? (X(i - 1) + X(i)) / 2 : X(i);
+                Canvas.SetLeft(plus, px - 12); Canvas.SetTop(plus, Y(i < n ? i : i) - 12);
+                flowCanvas.Children.Add(plus);
+            }
         }
-        // The closing slot: add a step at the end.
-        var add = new Button
-        {
-            Width = NodeW, Height = NodeH, CornerRadius = new CornerRadius(Theme.R13), BorderThickness = new Thickness(2), BorderBrush = ink,
-            Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent), Flyout = TypeMenu(t => AddStep(t)),
-            Content = new TextBlock { Text = n == 0 ? "+  Add the first step" : "+  Add step", FontWeight = Microsoft.UI.Text.FontWeights.Bold, FontSize = Theme.T12 },
-        };
-        var ap = At(n);
-        Canvas.SetLeft(add, ap.X); Canvas.SetTop(add, ap.Y);
-        flowCanvas.Children.Add(add);
-
         panel.Content = null;
-        if (n > 0) panel.Content = cards[sel];
+        if (editing && n > 0) panel.Content = cards[sel];
     }
 
     Button InsertButton(int at)

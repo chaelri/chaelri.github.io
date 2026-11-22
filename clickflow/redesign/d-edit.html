@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ClickFlow D, editing</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--page:#E4DBC6;--paper:#EFE8D8;--card:#F7F2E6;--sun:#F4C94B;--ink:#1F1A17;--green:#2F6B4F;--muted:#5A4E45;--rust:#9A3417;--line:#CFC5AE}
+*{box-sizing:border-box;margin:0}
+body{background:var(--page);color:var(--ink);font:400 15px/1.4 Outfit,system-ui,sans-serif;padding:48px 16px;display:flex;flex-direction:column;align-items:center;gap:16px}
+button,input{font-family:inherit;color:inherit}
+.win{width:1040px;max-width:100%;height:700px;background:var(--paper);border:2px solid var(--ink);border-radius:21px;box-shadow:8px 8px 0 var(--ink);display:flex;flex-direction:column;overflow:hidden;position:relative}
+.tb{height:40px;background:var(--sun);border-bottom:2px solid var(--ink);display:flex;align-items:center;padding:0 16px;gap:8px;font-weight:700;font-size:12px;flex:none}
+.tb i{width:12px;height:12px;border-radius:50%;background:var(--green);border:2px solid var(--ink)}
+.view{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;padding:24px 64px;gap:24px;overflow:hidden}
+.t12{font-size:12px;color:var(--muted)}.sp{flex:1}.row{display:flex;align-items:center;gap:16px}
+.btn{font:700 12px Outfit;height:32px;padding:0 16px;border-radius:999px;border:2px solid var(--ink);background:transparent;cursor:pointer}
+.btn:hover{background:var(--sun)}.btn.p{background:var(--green);color:var(--card);border-color:var(--ink)}.btn.p:hover{background:#3A7D5E}
+.btn.big{height:48px;padding:0 40px;font-size:15px}
+.btn.danger{border-color:var(--rust);color:var(--rust)}.btn.danger:hover{background:var(--rust);color:var(--card)}
+.lnk{font:700 12px Outfit;background:none;border:0;cursor:pointer;padding:8px}.lnk:hover{text-decoration:underline}
+.pillm{font:700 12px Outfit;height:32px;padding:0 16px;border-radius:999px;border:1px solid var(--ink);background:none;cursor:pointer}
+.pillm.on{background:var(--sun);border:2px solid var(--ink)}
+h1,.h1{font-size:38px;font-weight:700;line-height:1;letter-spacing:-.01em;text-align:center}
+input.h1{background:transparent;border:0;border-bottom:2px dashed var(--ink);width:560px;outline:none;padding-bottom:4px}
+.route{position:relative;width:100%;max-width:800px;height:88px;flex:none}
+.route .ln{position:absolute;left:36px;right:36px;top:12px;height:1px;background:var(--ink)}
+.st{position:absolute;top:0;width:72px;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:default;transform:translateX(-50%)}
+.edit .st{cursor:pointer}
+.num{width:24px;height:24px;border-radius:50%;border:2px solid var(--ink);background:var(--green);color:var(--card);display:grid;place-items:center;font:700 12px Outfit;box-shadow:0 0 0 6px var(--paper);position:relative;transition:transform .2s}
+.num.k{background:var(--muted)}.num.w{background:var(--sun);color:var(--ink)}.num.r{background:var(--rust)}
+.st.on .num{background:var(--sun);color:var(--ink);transform:scale(1.35)}
+.st.run .num{background:var(--green);color:var(--card);transform:scale(1.35)}
+.st .lb{font-size:12px;text-align:center;line-height:1.2;color:var(--muted)}
+.st.on .lb{color:var(--ink);font-weight:700}
+.gapw{position:absolute;top:-22px;transform:translateX(-50%);font:700 12px Outfit;background:var(--sun);border-radius:999px;padding:0 8px;height:20px;display:grid;place-items:center}
+.add{position:absolute;top:0;width:24px;height:24px;border-radius:50%;border:2px solid var(--ink);background:var(--card);font:700 15px/1 Outfit;cursor:pointer;display:none;place-items:center;transform:translateX(-50%);z-index:3;padding:0}
+.edit .add{display:grid}.add:hover{background:var(--sun)}
+.panel{width:100%;max-width:800px;background:var(--card);border:2px solid var(--ink);border-width:2px 3px 3px 2px;border-radius:13px;padding:24px;display:none;flex-direction:column;gap:16px}
+.edit .panel{display:flex}
+.f{display:flex;flex-direction:column;gap:4px}.f label{font:700 12px Outfit;color:var(--muted)}
+.f input{height:32px;border:1px solid var(--ink);border-radius:8px;background:#fff;padding:0 8px;font:400 15px Outfit;width:96px}
+.f input.w{width:100%}.f input.nm{width:280px;font-weight:700}
+.seg{display:inline-flex;border:2px solid var(--ink);border-radius:999px;overflow:hidden;height:32px}
+.seg button{font:700 12px Outfit;border:0;background:none;padding:0 16px;cursor:pointer}.seg .on{background:var(--ink);color:var(--card)}
+.menu{position:absolute;background:var(--card);border:2px solid var(--ink);border-width:2px 3px 3px 2px;border-radius:13px;padding:8px;display:none;flex-direction:column;z-index:9;width:240px}
+.menu.on{display:flex}.menu div{padding:8px 16px;border-radius:8px;cursor:pointer;font-weight:700;font-size:12px}.menu div:hover{background:var(--sun)}
+.toast{position:absolute;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--card);border-radius:999px;padding:8px 24px;font-size:12px;font-weight:700;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.on{opacity:1}
+.cap{max-width:1040px;width:100%;color:var(--muted);font-size:15px}
+</style></head><body>
+<div class="cap"><b style="color:var(--ink)">Try it:</b> press Edit steps, click a step, change its name or numbers, use the arrows, + between steps, Delete. Preview and Run play the route.</div>
+<div class="win" id="win"><div class="tb"><i></i>ClickFlow</div><div class="view" id="v"></div><div class="menu" id="menu"></div><div class="toast" id="toast"></div></div>
+<script>
+let steps=[
+ {name:'Open HRForte',type:'Open link',kind:'',url:'https://eva.hrforte.com/dashboard',d:0,live:1},
+ {name:'Click Clock Out',type:'Left click',kind:'',x:1689,y:149,d:20,live:1},
+ {name:'Click Clock Out',type:'Left click',kind:'',x:1612,y:351,d:3.5,live:1},
+ {name:'Wait for location',type:'Wait',kind:'w',sec:5,d:0,live:1},
+ {name:'End',type:'Left click',kind:'',x:1334,y:975,d:0,live:1},
+ {name:'Send status',type:'Read text',kind:'w',d:5,live:1},
+ {name:'Close HRForte',type:'Key shortcut',kind:'k',d:2,live:1},
+ {name:'Shutdown PC',type:'Shutdown',kind:'r',d:5,live:1}];
+const types=[['Left click','',{x:960,y:540}],['Wait','w',{sec:5}],['Type text','k',{}],['Read text','w',{}],['Key shortcut','k',{}],['Open link','',{url:'https://'}]];
+let edit=false,sel=1,macro='Auto Clock-Out',runIdx=-1,timer=null,addAt=-1;
+const v=document.getElementById('v'),menu=document.getElementById('menu'),toast=document.getElementById('toast');
+const say=t=>{toast.textContent=t;toast.classList.add('on');clearTimeout(say.t);say.t=setTimeout(()=>toast.classList.remove('on'),1400)};
+const total=()=>steps.reduce((a,s)=>a+(s.d||0)+(s.sec||1),0);
+function fields(s){
+ if(s.type=='Open link')return `<div class="f" style="flex:1"><label>Link</label><input class="w" data-k="url" value="${s.url||''}"></div>`;
+ if(s.type=='Wait')return `<div class="f"><label>Seconds</label><input data-k="sec" value="${s.sec||5}"></div>`;
+ if(['Left click','Move'].includes(s.type))return `<div class="f"><label>X</label><input data-k="x" value="${s.x||0}"></div><div class="f"><label>Y</label><input data-k="y" value="${s.y||0}"></div>`;
+ if(s.type=='Type text')return `<div class="f" style="flex:1"><label>Text</label><input class="w" data-k="text" value="${s.text||''}"></div>`;
+ if(s.type=='Key shortcut')return `<div class="f"><label>Keys</label><input data-k="keys" value="${s.keys||'Ctrl+W'}"></div>`;
+ return `<div class="f"><label>Area</label><input data-k="area" value="${s.area||'300 × 120'}"></div>`}
+function draw(){
+ if(sel>=steps.length)sel=steps.length-1;
+ const W=800,pad=36,n=steps.length,gap=(W-2*pad)/(n-1||1);
+ const X=i=>pad+i*gap;
+ const route=`<div class="route"><div class="ln"></div>${steps.map((s,i)=>`${s.d&&s.type!='Wait'&&i>0?`<span class="gapw" style="left:${X(i)-gap/2}px">${s.d} s</span>`:''}<div class="st ${edit&&i==sel?'on':''} ${i==runIdx?'run':''}" data-i="${i}" style="left:${X(i)}px"><div class="num ${s.kind}">${i+1}</div><span class="lb">${s.name}</span></div>`).join('')}${edit?steps.map((s,i)=>i<n-1?`<button class="add" data-a="${i+1}" style="left:${X(i)+gap/2}px;top:0">+</button>`:'').join('')+`<button class="add" data-a="${n}" style="left:${W-12}px;top:0">+</button>`:''}</div>`;
+ const s=steps[sel];
+ const panel=edit&&s?`<div class="panel"><div class="row"><div class="f"><label>Name</label><input class="nm" data-k="name" value="${s.name}"></div><span class="t12" style="margin-top:20px">${s.type} · step ${sel+1} of ${n}</span><span class="sp"></span><div class="seg" style="margin-top:20px"><button data-live="1" class="${s.live?'on':''}">Live</button><button data-live="0" class="${s.live?'':'on'}">Show only</button></div></div>
+ <div class="row" style="align-items:flex-end">${fields(s)}<div class="f"><label>Wait before (s)</label><input data-k="d" value="${s.d||0}"></div><span class="sp"></span><button class="btn" data-act="pick">Pick on screen</button><button class="btn" data-act="test">Test</button></div>
+ <div class="row" style="border-top:1px solid var(--line);padding-top:16px"><button class="btn" data-act="left" ${sel==0?'disabled style="opacity:.4"':''}>◀ Move earlier</button><button class="btn" data-act="right" ${sel==n-1?'disabled style="opacity:.4"':''}>Move later ▶</button><button class="btn" data-act="dup">Duplicate</button><span class="sp"></span><button class="btn danger" data-act="del">Delete step</button></div></div>`:'';
+ const head=edit?`<div style="text-align:center"><input class="h1" id="mn" value="${macro}"><div class="t12" style="margin-top:12px">${n} steps · about ${Math.round(total())} s · every weekday at 4:00 pm · <button class="lnk" style="padding:0" id="sch">Change schedule</button> · Repeat 1× </div></div>`:`<div style="text-align:center;margin-top:32px"><div class="h1">${macro}</div><div class="t12" style="margin:8px 0 24px">Next run today at 4:00 pm · last run passed</div></div>`;
+ const buttons=edit?`<div class="row" style="margin-top:-8px"><button class="btn p" id="done">Done</button></div>`:`<div class="row" style="margin-top:-8px"><button class="btn" id="prev">Preview</button><button class="btn p big" id="run">Run now</button></div>`;
+ v.className='view '+(edit?'edit':'');
+ v.innerHTML=`<div class="row" style="width:100%"><button class="pillm on">${macro}</button><button class="pillm">Auto Clock-In</button><button class="lnk">+ New</button><span class="sp"></span><button class="lnk">Record</button><button class="lnk">History</button><button class="lnk">Settings</button></div>${head}${buttons}<div style="margin-top:${edit?8:16}px;width:100%;display:flex;flex-direction:column;align-items:center;gap:${edit?32:24}px;${edit?'':'padding-top:24px'}">${route}${edit?'':'<button class="lnk" id="ed">Edit steps</button>'}</div>${panel}`;
+ bind();
+}
+function bind(){
+ const $=q=>v.querySelector(q);
+ if($('#ed'))$('#ed').onclick=()=>{edit=true;draw()};
+ if($('#done'))$('#done').onclick=()=>{edit=false;draw();say('Saved')};
+ if($('#run'))$('#run').onclick=()=>play(true);
+ if($('#prev'))$('#prev').onclick=()=>play(false);
+ if($('#mn'))$('#mn').oninput=e=>{macro=e.target.value};
+ if($('#sch'))$('#sch').onclick=()=>say('Schedule dialog opens here');
+ v.querySelectorAll('.st').forEach(e=>e.onclick=()=>{if(edit){sel=+e.dataset.i;draw()}});
+ v.querySelectorAll('.add').forEach(b=>b.onclick=e=>{addAt=+b.dataset.a;const r=b.getBoundingClientRect(),w=document.getElementById('win').getBoundingClientRect();menu.innerHTML='<div style="font-size:12px;color:var(--muted);cursor:default">Add a step</div>'+types.map((t,i)=>`<div data-t="${i}">${t[0]}</div>`).join('');menu.style.left=Math.min(r.left-w.left-120,w.width-260)+'px';menu.style.top=(r.top-w.top+32)+'px';menu.classList.add('on');menu.querySelectorAll('[data-t]').forEach(m=>m.onclick=()=>{const t=types[+m.dataset.t];steps.splice(addAt,0,{name:t[0],type:t[0],kind:t[1],d:0,live:1,...t[2]});sel=addAt;menu.classList.remove('on');draw();say('Step added')});e.stopPropagation()});
+ v.querySelectorAll('.panel input').forEach(i=>i.oninput=()=>{const k=i.dataset.k,s=steps[sel];s[k]=['x','y','d','sec'].includes(k)?(parseFloat(i.value)||0):i.value;if(k=='name'||k=='d'||k=='x'||k=='y'){const lb=v.querySelector('.st.on .lb');if(k=='name'&&lb)lb.textContent=i.value}});
+ v.querySelectorAll('[data-live]').forEach(b=>b.onclick=()=>{steps[sel].live=+b.dataset.live;draw()});
+ v.querySelectorAll('[data-act]').forEach(b=>b.onclick=()=>{const a=b.dataset.act,s=steps[sel];
+  if(a=='left'&&sel>0){[steps[sel-1],steps[sel]]=[steps[sel],steps[sel-1]];sel--}
+  else if(a=='right'&&sel<steps.length-1){[steps[sel+1],steps[sel]]=[steps[sel],steps[sel+1]];sel++}
+  else if(a=='dup'){steps.splice(sel+1,0,{...s});sel++}
+  else if(a=='del'){if(steps.length>1){steps.splice(sel,1);say('Step deleted')}}
+  else if(a=='test'){say('Tested: '+s.name)}else if(a=='pick'){say('Screen picker opens here')}
+  draw()});
+}
+document.addEventListener('click',e=>{if(!e.target.closest('.add')&&!e.target.closest('.menu'))menu.classList.remove('on')});
+function play(real){clearInterval(timer);let i=0;say(real?'Running…':'Preview: nothing is clicked');timer=setInterval(()=>{runIdx=i++;if(runIdx>=steps.length){clearInterval(timer);runIdx=-1;say(real?'Run finished · 40 s':'Preview finished')}draw()},650)}
+draw();
+</script></body></html>

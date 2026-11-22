@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ClickFlow simple layouts</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--page:#E4DBC6;--paper:#EFE8D8;--card:#F7F2E6;--sun:#F4C94B;--ink:#1F1A17;--green:#2F6B4F;--muted:#5A4E45;--rust:#9A3417;--line:#CFC5AE}
+*{box-sizing:border-box;margin:0}
+body{background:var(--page);color:var(--ink);font:400 15px/1.4 Outfit,system-ui,sans-serif;padding:96px 16px 72px;display:flex;justify-content:center}
+button{font-family:inherit;color:inherit}
+.sw{position:fixed;top:0;left:0;right:0;display:flex;gap:8px;justify-content:center;padding:16px;z-index:9;background:var(--page)}
+.sw button{font:700 15px Outfit;height:40px;padding:0 24px;border-radius:999px;border:2px solid var(--ink);background:var(--card);cursor:pointer}
+.sw button[aria-pressed=true]{background:var(--ink);color:var(--card)}
+.nm{position:fixed;bottom:0;left:0;right:0;text-align:center;padding:8px 16px;background:var(--page)}
+.win{width:1040px;max-width:100%;height:640px;background:var(--paper);border:2px solid var(--ink);border-radius:21px;box-shadow:8px 8px 0 var(--ink);display:none;flex-direction:column;overflow:hidden;position:relative}
+.win.on{display:flex}
+.tb{height:40px;background:var(--sun);border-bottom:2px solid var(--ink);display:flex;align-items:center;padding:0 16px;gap:8px;font-weight:700;font-size:12px;flex:none}
+.view{flex:1;min-height:0;position:relative;display:flex;flex-direction:column}
+.t12{font-size:12px;color:var(--muted)}
+.sp{flex:1}
+.btn{font:700 12px Outfit;height:32px;padding:0 16px;border-radius:999px;border:2px solid var(--ink);background:transparent;cursor:pointer}
+.btn:hover{background:var(--sun)}
+.btn.p{background:var(--green);color:var(--card)}.btn.p:hover{background:#3A7D5E}
+.btn.big{height:48px;padding:0 40px;font-size:15px}
+.lnk{font:700 12px Outfit;background:none;border:0;cursor:pointer;color:var(--ink);padding:8px}
+.lnk:hover{text-decoration:underline}
+.sel{font:700 15px Outfit;background:none;border:0;cursor:pointer;display:flex;align-items:center;gap:8px}
+.top{display:flex;align-items:center;gap:16px;padding:16px 32px}
+.logo{font-weight:700;font-size:15px;color:var(--green)}
+h1{font-size:38px;font-weight:700;line-height:1;letter-spacing:-.01em}
+h2{font-size:15px;font-weight:700;line-height:1.2}
+.num{width:24px;height:24px;border-radius:50%;border:2px solid var(--ink);background:var(--green);color:var(--card);display:grid;place-items:center;font:700 12px Outfit;flex:none}
+.num.k{background:var(--muted)}.num.w{background:var(--sun);color:var(--ink)}.num.r{background:var(--rust)}
+.node{background:var(--card);border:1px solid var(--ink);border-radius:13px;padding:8px 16px;display:flex;gap:8px;align-items:center;cursor:pointer;min-height:48px}
+.node:hover{background:#FBF7EC}.node.on{background:var(--sun);border:2px solid var(--ink)}
+.node h2{font-weight:700;font-size:12px}
+.chip{font:700 12px Outfit;border-radius:999px;padding:0 8px;height:24px;display:inline-grid;place-items:center;background:var(--sun)}
+.f{display:flex;flex-direction:column;gap:4px}.f label{font:700 12px Outfit;color:var(--muted)}
+.f input{height:32px;border:1px solid var(--ink);border-radius:8px;background:#fff;padding:0 8px;font:400 15px Outfit;width:96px}
+.f input.w{width:100%}
+.flow{display:grid;gap:40px 40px;align-items:center;justify-items:stretch}
+.flow .cell{position:relative}
+.flow .cell:not(:last-child):after{content:"";position:absolute;right:-40px;top:50%;width:40px;height:1px;background:var(--ink)}
+.flow .cell.endrow:after{display:none}
+.toggle{width:40px;height:24px;border-radius:12px;background:var(--green);position:relative;flex:none}
+.toggle:after{content:"";position:absolute;right:3px;top:3px;width:18px;height:18px;border-radius:50%;background:var(--card)}
+.toggle.off{background:var(--line)}.toggle.off:after{left:3px;right:auto}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;margin-right:8px}
+.hair{border:0;border-top:1px solid var(--line)}
+.row{display:flex;align-items:center;gap:16px}
+</style></head><body>
+<div class="sw" id="sw"></div>
+<section class="win" id="w0"></section><section class="win" id="w1"></section><section class="win" id="w2"></section><section class="win" id="w3"></section><section class="win" id="w4"></section>
+<div class="nm" id="nm"></div>
+<script>
+const S=[
+ {n:1,name:'Open HRForte',sub:'Open link',k:''},{n:2,name:'Click Clock Out',sub:'1689, 149',k:'',d:20},{n:3,name:'Click Clock Out',sub:'1612, 351',k:'',d:3.5},
+ {n:4,name:'Wait for location',sub:'5 s',k:'w'},{n:5,name:'End',sub:'1334, 975',k:''},{n:6,name:'Send status',sub:'Screenshot',k:'w',d:5},
+ {n:7,name:'Close HRForte',sub:'Shortcut',k:'k',d:2},{n:8,name:'Shutdown PC',sub:'Force',k:'r',d:5}];
+const names=[
+ 'A · Top switcher + side drawer: one macro at a time, the flow in the middle, edit in a drawer that appears only when you pick a step',
+ 'B · Two screens: a calm home of big macro cards, tap one to open its flow (replaces the sidebar)',
+ 'C · Quiet list: no boxes, one narrow column, big title, the step you pick opens in place',
+ 'D · Run first: the macro is one big Run button with its route as a thin line; edit only when you ask',
+ 'E · Tabs + dock: macros as tabs on top, flow centered, actions in a small bottom dock'];
+const tb=t=>`<div class="tb"><span style="width:12px;height:12px;border-radius:50%;background:var(--green);border:2px solid var(--ink)"></span>${t||'ClickFlow'}</div>`;
+const nodeH=(s,on)=>`<div class="node ${on?'on':''}"><div class="num ${s.k}">${s.n}</div><div><h2>${s.name}</h2></div></div>`;
+const chip=d=>d?`<span class="chip" style="position:absolute;right:-60px;top:calc(50% - 30px);z-index:2">${d} s</span>`:'';
+function flow(cols,sel,ns){const rows=[];let h='<div class="flow" style="grid-template-columns:repeat('+cols+',1fr)">';ns.forEach((s,i)=>{h+=`<div class="cell ${(i+1)%cols==0?'endrow':''}" data-i="${i}">${nodeH(s,i==sel)}${(i+1)%cols? chip(ns[i+1]&&ns[i+1].d):''}</div>`});return h+'</div>'}
+const fld=(l,v,w)=>`<div class="f"><label>${l}</label><input class="${w||''}" value="${v}"></div>`;
+
+/* A */
+(function(){let sel=1;const el=w0;
+ function draw(){el.innerHTML=tb()+`<div class="view"><div class="top"><span class="logo">ClickFlow</span><button class="sel">Auto Clock-Out <span class="t12">▾</span></button><span class="sp"></span><button class="lnk">Record</button><button class="lnk">Preview</button><button class="btn p">Run</button></div>
+ <div style="display:flex;flex:1;min-height:0"><div style="flex:1;padding:8px 32px 32px;overflow:hidden"><div class="t12" style="margin-bottom:32px">8 steps · 40 s · every weekday at 4:00 pm</div>${flow(4,sel,S)}<div style="margin-top:32px"><button class="lnk">+ Add step</button></div></div>
+ <aside style="width:304px;border-left:1px solid var(--ink);padding:24px;display:flex;flex-direction:column;gap:24px;background:var(--card)"><div><div class="t12">Step ${S[sel].n} · Left click</div><h2 style="font-size:24px;margin-top:4px">${S[sel].name}</h2></div><div class="row">${fld('X','1689')}${fld('Y','149')}</div>${fld('Wait before (s)','20')}<div class="sp"></div><div class="row"><button class="btn">Test</button><button class="btn">Pick on screen</button><span class="sp"></span><button class="lnk" style="color:var(--rust)">Delete</button></div></aside></div></div>`;
+ el.querySelectorAll('.cell').forEach(c=>c.onclick=()=>{sel=+c.dataset.i;draw()})}
+ draw()})();
+
+/* B */
+(function(){const el=w1;let open=false;
+ function draw(){ if(!open){el.innerHTML=tb()+`<div class="view" style="padding:48px 64px;gap:40px"><div class="row"><h1>Your macros</h1><span class="sp"></span><button class="btn">Record new</button></div>
+ <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">${[['Auto Clock-Out','Every weekday · 4:00 pm','Next: today 4:00 pm',1],['Auto Clock-In','Every weekday · 6:00 am','Next: tomorrow 6:00 am',1]].map(m=>`<div class="node" data-o="1" style="flex-direction:column;align-items:stretch;gap:16px;padding:24px;min-height:200px;border-radius:21px"><div class="row"><h2 style="font-size:24px">${m[0]}</h2><span class="sp"></span><div class="toggle"></div></div><div class="t12">${m[1]}<br>${m[2]}</div><div class="sp"></div><div class="row"><span class="t12"><i class="dot"></i>Last run passed · 40 s</span><span class="sp"></span><button class="btn p">Run</button></div></div>`).join('')}</div></div>`;
+ el.querySelectorAll('[data-o]').forEach(c=>c.onclick=e=>{if(e.target.closest('.btn'))return;open=true;draw()})}
+ else{el.innerHTML=tb()+`<div class="view" style="padding:24px 64px;gap:24px"><div class="row"><button class="lnk" id="bk" style="padding-left:0">‹ Macros</button><span class="sp"></span><button class="lnk">Preview</button><button class="btn p">Run</button></div><div><h1>Auto Clock-Out</h1><div class="t12" style="margin-top:8px">8 steps · 40 s · every weekday at 4:00 pm</div></div>
+ <div style="margin-top:16px">${flow(4,0,S)}</div><div class="row" style="margin-top:auto;border-top:1px solid var(--line);padding-top:16px;align-items:flex-end">${fld('URL','https://eva.hrforte.com/dashboard','w')}${fld('Wait before (s)','0')}<button class="btn">Test</button></div></div>`;
+ el.querySelector('#bk').onclick=()=>{open=false;draw()}}}
+ draw()})();
+
+/* C */
+(function(){let sel=1;const el=w2;
+ function draw(){el.innerHTML=tb()+`<div class="view" style="align-items:center;overflow:hidden"><div style="width:640px;padding:32px 0;display:flex;flex-direction:column;gap:24px">
+ <div class="row"><button class="sel t12" style="font-size:12px;color:var(--muted)">Auto Clock-Out ▾</button><span class="sp"></span><button class="btn p">Run</button></div>
+ <div><h1>Auto Clock-Out</h1><div class="t12" style="margin-top:8px">8 steps · 40 s · every weekday at 4:00 pm</div></div>
+ <div>${S.slice(0,6).map((s,i)=>i==sel?`<div style="background:var(--sun);border-radius:13px;padding:16px;margin:8px 0"><div class="row"><div class="num ${s.k}">${s.n}</div><h2 style="font-size:15px">${s.name}</h2><span class="sp"></span><span class="t12" style="color:var(--ink)">after ${s.d||0} s</span></div><div class="row" style="margin:16px 0 0 40px;align-items:flex-end">${fld('X','1689')}${fld('Y','149')}${fld('Wait (s)',s.d||0)}<button class="btn">Test</button><button class="btn">Pick</button></div></div>`:`<div class="row" data-i="${i}" style="padding:12px 16px;border-bottom:1px solid var(--line);cursor:pointer"><div class="num ${s.k}">${s.n}</div><h2>${s.name}</h2><span class="t12">${s.sub}</span><span class="sp"></span><span class="t12">${s.d?'+'+s.d+' s':''}</span></div>`).join('')}</div>
+ <button class="lnk" style="align-self:flex-start;padding-left:16px">+ Add step</button></div></div>`;
+ el.querySelectorAll('[data-i]').forEach(c=>c.onclick=()=>{sel=+c.dataset.i;draw()})}
+ draw()})();
+
+/* D */
+(function(){const el=w3;let edit=false;
+ function draw(){el.innerHTML=tb()+`<div class="view" style="align-items:center;padding:32px 64px;gap:32px;overflow:hidden"><div class="row" style="width:100%"><button class="sel" style="background:var(--sun);border:2px solid var(--ink);border-radius:999px;height:32px;padding:0 16px;font-size:12px">Auto Clock-Out</button><button class="sel" style="border:1px solid var(--ink);border-radius:999px;height:32px;padding:0 16px;font-size:12px">Auto Clock-In</button><button class="lnk">+ New</button><span class="sp"></span><button class="lnk">Record</button><button class="lnk">History</button><button class="lnk">Settings</button></div>
+ <div style="text-align:center;margin-top:${edit?0:40}px"><h1 style="font-size:38px">Auto Clock-Out</h1><div class="t12" style="margin:8px 0 24px">Next run today at 4:00 pm · last run passed</div><button class="btn p big">Run now</button></div>
+ <div style="width:100%;max-width:720px"><div class="row" style="gap:0;align-items:flex-start;justify-content:space-between;position:relative"><div style="position:absolute;left:12px;right:12px;top:12px;height:1px;background:var(--ink)"></div>${S.map(s=>`<div style="position:relative;display:flex;flex-direction:column;align-items:center;gap:8px;width:72px"><div class="num ${s.k}" style="width:24px;height:24px;background-clip:padding-box;box-shadow:0 0 0 6px var(--paper)">${s.n}</div><span class="t12" style="text-align:center;font-size:12px;line-height:1.2">${s.name.split(' ').slice(0,2).join(' ')}</span></div>`).join('')}</div>
+ <div style="text-align:center;margin-top:24px"><button class="lnk" id="ed">${edit?'Hide steps':'Edit steps'}</button></div></div>
+ ${edit?`<div style="width:100%;max-width:720px;display:grid;grid-template-columns:1fr 1fr;gap:8px">${S.slice(0,4).map((s,i)=>`<div class="node ${i==1?'on':''}"><div class="num ${s.k}">${s.n}</div><div><h2>${s.name}</h2><div class="t12" style="${i==1?'color:var(--ink)':''}">${s.sub}</div></div></div>`).join('')}</div>`:''}</div>`;
+ el.querySelector('#ed').onclick=()=>{edit=!edit;draw()}}
+ draw()})();
+
+/* E */
+(function(){let sel=2;const el=w4;
+ function draw(){el.innerHTML=tb()+`<div class="view"><div class="row" style="padding:0 32px;height:48px;border-bottom:1px solid var(--line);gap:0"><button class="sel" style="height:48px;padding:0 24px;border-bottom:3px solid var(--green);font-size:12px">Auto Clock-Out</button><button class="sel t12" style="height:48px;padding:0 24px;font-size:12px;color:var(--muted)">Auto Clock-In</button><button class="lnk">+</button></div>
+ <div style="flex:1;padding:32px 64px 0;overflow:hidden"><div style="margin-bottom:40px"><h1>Auto Clock-Out</h1><div class="t12" style="margin-top:8px">8 steps · 40 s · every weekday at 4:00 pm</div></div>${flow(4,sel,S)}</div>
+ <div style="position:absolute;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--card);border-radius:999px;padding:8px 8px 8px 24px;display:flex;align-items:center;gap:16px"><span class="t12" style="color:var(--card)">Step ${S[sel].n} · ${S[sel].name}</span><button class="lnk" style="color:var(--card)">Edit</button><button class="lnk" style="color:var(--card)">Test</button><button class="lnk" style="color:var(--card)">+ Add</button><button class="btn p" style="border-color:var(--green);height:40px;padding:0 32px">Run</button></div></div>`;
+ el.querySelectorAll('.cell').forEach(c=>c.onclick=()=>{sel=+c.dataset.i;draw()})}
+ draw()})();
+
+sw.innerHTML=names.map((n,i)=>`<button data-i="${i}">${'ABCDE'[i]}</button>`).join('');
+function set(i){document.querySelectorAll('.win').forEach((p,j)=>p.classList.toggle('on',i==j));document.querySelectorAll('#sw button').forEach((b,j)=>b.setAttribute('aria-pressed',i==j));nm.textContent=names[i]}
+document.querySelectorAll('#sw button').forEach(b=>b.onclick=()=>set(+b.dataset.i));
+addEventListener('keydown',e=>{const i='12345'.indexOf(e.key);if(i>=0)set(i)});
+set(0);
+</script></body></html>
