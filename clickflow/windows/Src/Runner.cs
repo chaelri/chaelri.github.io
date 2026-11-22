@@ -231,6 +231,7 @@ public sealed class Runner
             var result = RunResult.Completed;
             string? reason = note;
             bool shutDown = false;
+            var stepErrors = new List<string>();
             try
             {
                 if (hid) await Task.Delay(350, ct);
@@ -332,6 +333,12 @@ public sealed class Runner
                                 }
                             }
                         }
+                        catch (Exception e) when (e is not OperationCanceledException)
+                        {
+                            // A failed step must not freeze the run: note it, move on to the next step.
+                            stepErrors.Add($"{step.Title(number)}: {e.Message}");
+                            UI.Post(() => Hud.Shared.Undodge());
+                        }
                         finally
                         {
                             if (ghost) UI.Post(Ghost.Hide);
@@ -351,6 +358,11 @@ public sealed class Runner
             {
                 result = RunResult.Failed;
                 reason = (st.Step is { } s ? $"{s.Title(st.StepIndex + 1)}: " : "") + e.Message;
+            }
+            if (result == RunResult.Completed && stepErrors.Count > 0)
+            {
+                result = RunResult.Failed;
+                reason = (stepErrors.Count == 1 ? "1 step failed, run continued. " : $"{stepErrors.Count} steps failed, run continued. ") + string.Join(" | ", stepErrors);
             }
             if (shutDown) reason = "Forced shutdown";
             UI.Post(() =>
