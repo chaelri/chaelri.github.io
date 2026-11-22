@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ClickFlow concepts</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--page:#E4DBC6;--paper:#EFE8D8;--card:#F7F2E6;--sun:#F4C94B;--ink:#1F1A17;--green:#2F6B4F;--muted:#5A4E45;--rust:#9A3417}
+*{box-sizing:border-box;margin:0}
+body{background:var(--page);color:var(--ink);font:400 15px/1.4 Outfit,system-ui,sans-serif;padding:96px 16px 80px;display:flex;justify-content:center}
+.sw{position:fixed;top:0;left:0;right:0;display:flex;gap:8px;justify-content:center;padding:16px;z-index:9;flex-wrap:wrap;background:var(--page)}
+.sw button{font:700 15px Outfit;height:40px;padding:0 24px;border-radius:999px;border:2px solid var(--ink);background:var(--card);color:var(--ink);cursor:pointer}
+.sw button[aria-pressed=true]{background:var(--ink);color:var(--card)}
+.nm{position:fixed;bottom:0;left:0;right:0;text-align:center;padding:8px 16px;background:var(--page)}
+.win{width:980px;max-width:100%;background:var(--paper);border:2px solid var(--ink);border-radius:21px;box-shadow:8px 8px 0 var(--ink);display:none;flex-direction:column;overflow:hidden;min-height:560px}
+.win.on{display:flex}
+.bar{display:flex;align-items:center;gap:16px;padding:16px 24px;border-bottom:2px solid var(--ink)}
+.bar h1{font-size:24px;font-weight:700;line-height:1;flex:1}
+.btn{font:700 12px Outfit;height:32px;padding:0 16px;border-radius:999px;border:2px solid var(--ink);background:var(--card);cursor:pointer;color:var(--ink)}
+.btn:hover{background:var(--sun)}.btn.p{background:var(--green);color:var(--card)}.btn.p:hover{background:#3A7D5E}
+.body{padding:24px;flex:1;position:relative}
+.t12{font-size:12px;color:var(--muted)}
+h2{font-size:15px;font-weight:700;line-height:1.2}
+.num{width:24px;height:24px;border-radius:50%;border:2px solid var(--ink);background:var(--green);color:var(--card);display:grid;place-items:center;font:700 12px Outfit;flex:none}
+.num.w{background:var(--sun);color:var(--ink)}
+.f{display:flex;flex-direction:column;gap:4px}.f label{font:700 12px Outfit;color:var(--muted)}
+.f input{height:32px;border:2px solid var(--ink);border-radius:8px;background:#fff;padding:0 8px;font:400 15px Outfit;width:88px;color:var(--ink)}
+.row{display:flex;align-items:center;gap:16px}
+.pill{font:700 12px Outfit;height:24px;padding:0 16px;border-radius:999px;border:2px solid var(--green);color:var(--green);display:inline-grid;place-items:center}
+.chip{font:700 12px Outfit;border:2px solid var(--ink);border-radius:999px;padding:0 16px;height:24px;display:inline-grid;place-items:center;background:var(--sun)}
+/* 1 canvas */
+.canvas{position:relative;height:440px;background-image:radial-gradient(var(--ink) 1px,transparent 1.5px);background-size:24px 24px;background-color:var(--paper);border:2px solid var(--ink);border-radius:13px;overflow:hidden}
+.node{position:absolute;width:200px;background:var(--card);border:2px solid var(--ink);border-width:2px 3px 3px 2px;border-radius:13px;padding:8px 16px;cursor:pointer;transition:transform .15s,background .2s}
+.node:hover{transform:translateY(-2px)}
+.node.sel{background:var(--sun)}.node.live{background:#CFE5D8;border-color:var(--green)}
+.node .row{gap:8px}
+svg.edges{position:absolute;inset:0;pointer-events:none}
+.edge{position:absolute;transform:translate(-50%,-50%)}
+.plus{position:absolute;width:24px;height:24px;border-radius:50%;border:2px solid var(--ink);background:var(--card);display:grid;place-items:center;font:700 15px Outfit;cursor:pointer;transform:translate(-50%,-50%)}
+.plus:hover{background:var(--sun)}
+.pop{position:absolute;right:16px;bottom:16px;background:var(--card);border:2px solid var(--ink);border-width:2px 3px 3px 2px;border-radius:13px;padding:16px;display:flex;gap:16px;align-items:flex-end}
+/* 2 filmstrip */
+.stage{height:300px;border:2px solid var(--ink);border-radius:13px;background:#fff;position:relative;overflow:hidden}
+.stage .chrome{height:32px;background:var(--sun);border-bottom:2px solid var(--ink);display:flex;align-items:center;gap:8px;padding:0 16px}
+.stage .chrome i{width:8px;height:8px;border-radius:50%;background:var(--ink)}
+.blk{position:absolute;border:2px solid var(--ink);border-radius:8px;background:var(--paper)}
+.mark{position:absolute;width:40px;height:40px;border-radius:50%;border:3px solid var(--green);background:rgba(47,107,79,.18);transform:translate(-50%,-50%);transition:left .35s cubic-bezier(.7,0,.2,1),top .35s cubic-bezier(.7,0,.2,1)}
+.mark:after{content:"";position:absolute;inset:-3px;border-radius:50%;border:3px solid var(--green);animation:ping 1.4s infinite}
+@keyframes ping{from{transform:scale(1);opacity:.8}to{transform:scale(2);opacity:0}}
+.strip{display:flex;gap:16px;overflow-x:auto;padding:16px 4px 8px}
+.tile{flex:none;width:176px;background:var(--card);border:2px solid var(--ink);border-width:2px 3px 3px 2px;border-radius:13px;padding:8px 16px;cursor:pointer;display:flex;flex-direction:column;gap:4px;transition:transform .15s}
+.tile:hover{transform:translateY(-4px)}.tile.sel{background:var(--sun)}
+/* 3 map */
+.map{display:grid;grid-template-columns:1fr 280px;gap:24px}
+.screen{position:relative;height:340px;background:#fff;border:2px solid var(--ink);border-radius:13px;overflow:hidden}
+.pin{position:absolute;transform:translate(-50%,-50%);cursor:pointer;transition:transform .15s}
+.pin:hover{transform:translate(-50%,-50%) scale(1.15)}
+.pin .num{width:32px;height:32px;font-size:15px;box-shadow:3px 3px 0 var(--ink)}
+.pin.sel .num{background:var(--sun);color:var(--ink)}
+.li{display:flex;gap:8px;align-items:center;padding:8px;border:2px solid transparent;border-radius:13px;cursor:pointer}
+.li.sel{background:var(--sun);border-color:var(--ink)}
+/* 4 sentences */
+.sent{display:flex;flex-direction:column;gap:8px;max-width:760px}
+.line{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 16px;border-radius:13px;border:2px solid transparent;min-height:48px}
+.line:hover{background:var(--card);border-color:var(--ink)}
+.line .num{margin-right:8px}
+.tok{font:700 15px Outfit;border:2px solid var(--ink);border-radius:8px;background:#fff;padding:0 8px;height:32px;display:inline-flex;align-items:center;min-width:48px;justify-content:center;cursor:text}
+.tok.g{background:#CFE5D8;border-color:var(--green)}
+.slash{display:flex;align-items:center;gap:16px;padding:8px 16px;border:2px dashed var(--ink);border-radius:13px;min-height:48px;color:var(--muted);cursor:pointer}
+.palette{background:var(--card);border:2px solid var(--ink);border-width:2px 3px 3px 2px;border-radius:13px;padding:8px;display:none;flex-direction:column;gap:4px;width:320px;margin-top:8px}
+.palette.on{display:flex}
+.palette div{padding:8px 16px;border-radius:8px;cursor:pointer;font-weight:700}
+.palette div:hover{background:var(--sun)}
+.palette small{font-weight:400;color:var(--muted);margin-left:8px;font-size:12px}
+/* 5 timeline */
+.ruler{position:relative;height:24px;border-bottom:2px solid var(--ink);margin-left:200px}
+.ruler span{position:absolute;top:0;font-size:12px;color:var(--muted);transform:translateX(-50%)}
+.tr{display:flex;align-items:center;height:48px;border-bottom:1px solid #C9BFA8}
+.tr .lab{width:200px;display:flex;gap:8px;align-items:center;flex:none;padding-right:8px;cursor:pointer}
+.tr .lane{position:relative;flex:1;height:100%}
+.barx{position:absolute;top:8px;height:32px;border:2px solid var(--ink);border-radius:8px;display:flex;align-items:center;padding:0 8px;font:700 12px Outfit;cursor:pointer;white-space:nowrap}
+.barx.wait{background:repeating-linear-gradient(45deg,var(--paper) 0 6px,#E2D9C3 6px 12px);border-style:dashed}
+.barx.act{background:var(--green);color:var(--card)}.barx.sel{background:var(--sun);color:var(--ink)}
+.head{position:absolute;top:0;bottom:0;width:2px;background:var(--rust);left:200px;pointer-events:none}
+.head:before{content:"";position:absolute;top:-8px;left:-6px;border:7px solid transparent;border-top-color:var(--rust)}
+</style></head><body>
+<div class="sw" id="sw"></div>
+
+<section class="win" id="w0"></section>
+<section class="win" id="w1"></section>
+<section class="win" id="w2"></section>
+<section class="win" id="w3"></section>
+<section class="win" id="w4"></section>
+<div class="nm" id="nm"></div>
+
+<script>
+const S=[
+ {n:1,t:'Open link',name:'Open HRForte',v:'eva.hrforte.com/dashboard',x:0,y:0,d:0,dur:1,url:1},
+ {n:2,t:'Left click',name:'Click on Clock Out',x:1689,y:149,d:20,dur:1},
+ {n:3,t:'Left click',name:'Click on Clock Out',x:1612,y:351,d:3.5,dur:1},
+ {n:4,t:'Wait',name:'Waiting for location',x:0,y:0,d:0,dur:5,w:1}
+];
+const names=[
+ 'A · Canvas: steps are nodes joined by arrows, waits sit on the arrows, + inserts a step',
+ 'B · Filmstrip: a screen preview shows where the click lands, steps are tiles below',
+ 'C · Screen map: numbered pins on a screen, drag the order by looking, list on the side',
+ 'D · Sentences: each step reads like a line, edit the highlighted words, / adds a step',
+ 'E · Timeline: time runs left to right, bars show waits and actions, a playhead plays the run'
+];
+const num=s=>`<div class="num ${s.w?'w':''}">${s.n}</div>`;
+const sum=s=>s.url?`Open ${s.v}`:s.w?`Wait ${s.dur} s`:`Click at ${s.x}, ${s.y}`;
+const fld=(l,v)=>`<div class="f"><label>${l}</label><input value="${v}"></div>`;
+const hdr=(title)=>`<div class="bar"><h1>${title}</h1><button class="btn">Record</button><button class="btn">Preview</button><button class="btn p run">Run</button></div>`;
+const sx=x=>x/1920, sy=y=>y/1080;
+
+/* ---- A canvas ---- */
+const pos=[[40,40],[300,40],[560,40],[560,200]]; // node top-left
+const nodePos=[[40,64],[300,64],[560,64],[300,240]];
+w0.innerHTML=hdr('Auto Clock-Out')+`<div class="body"><div class="canvas" id="cv"></div></div>`;
+(function(){
+ const cv=document.getElementById('cv');let sel=1;
+ function draw(){
+  let svg='<svg class="edges" width="100%" height="100%"><defs><marker id="ar" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#1F1A17"/></marker></defs>';
+  let h='';
+  for(let i=0;i<4;i++){
+   const [x,y]=nodePos[i];
+   h+=`<div class="node ${i==sel?'sel':''}" data-i="${i}" style="left:${x}px;top:${y}px"><div class="row">${num(S[i])}<div><h2>${S[i].name}</h2><div class="t12">${sum(S[i])}</div></div></div></div>`;
+   if(i<3){
+    const [x2,y2]=nodePos[i+1];
+    let a=[x+200,y+36],b=[x2,y2+36];
+    if(i==2){a=[x+100,y+72];b=[x2+100,y2];}
+    if(i==2){svg+=`<path d="M${a[0]},${a[1]} C${a[0]},${a[1]+50} ${b[0]},${b[1]-50} ${b[0]},${b[1]}" stroke="#1F1A17" stroke-width="2" fill="none" marker-end="url(#ar)"/>`;}
+    else svg+=`<path d="M${a[0]},${a[1]} L${b[0]-2},${b[1]}" stroke="#1F1A17" stroke-width="2" fill="none" marker-end="url(#ar)"/>`;
+    const m=[(a[0]+b[0])/2,(a[1]+b[1])/2];
+    const dd=S[i+1].d;
+    h+=dd?`<div class="edge chip" style="left:${m[0]}px;top:${m[1]-20}px">wait ${dd} s</div>`:'';
+    h+=`<div class="plus" title="Insert a step here" style="left:${m[0]}px;top:${m[1]+(dd?4:0)}px">+</div>`;
+   }
+  }
+  cv.innerHTML=svg+'</svg>'+h+`<div class="pop"><div class="t12" style="align-self:center"><b style="font-size:15px;color:#1F1A17">${S[sel].name}</b><br>${S[sel].t}</div>${S[sel].url?fld('URL',S[sel].v):S[sel].w?fld('Seconds',S[sel].dur):fld('X',S[sel].x)+fld('Y',S[sel].y)}${fld('Wait before (s)',S[sel].d)}</div>`;
+  cv.querySelectorAll('.node').forEach(n=>n.onclick=()=>{sel=+n.dataset.i;draw()});
+ }
+ draw();
+ w0.querySelector('.run').onclick=async()=>{for(let i=0;i<4;i++){sel=-1;draw();cv.querySelectorAll('.node')[i].classList.add('live');await new Promise(r=>setTimeout(r,700))}sel=1;draw()};
+})();
+
+/* ---- B filmstrip ---- */
+w1.innerHTML=hdr('Auto Clock-Out')+`<div class="body"><div class="stage" id="st"><div class="chrome"><i></i><i></i><i></i><span class="t12" style="color:#1F1A17;margin-left:8px">eva.hrforte.com/dashboard</span></div>
+<div class="blk" style="left:24px;top:56px;width:180px;height:224px"></div><div class="blk" style="left:224px;top:56px;width:420px;height:80px"></div><div class="blk" style="left:224px;top:152px;width:200px;height:128px"></div><div class="blk" style="left:444px;top:152px;width:200px;height:128px"></div><div class="blk" style="left:664px;top:56px;width:230px;height:224px;background:var(--sun)"></div>
+<div class="mark" id="mk"></div></div>
+<div class="row" id="fb" style="margin-top:16px;align-items:flex-end"></div><div class="strip" id="sp"></div></div>`;
+(function(){
+ let sel=1;const st=document.getElementById('st'),mk=document.getElementById('mk');
+ function draw(){
+  const s=S[sel];const W=st.clientWidth||900,H=st.clientHeight||300;
+  mk.style.display=s.url||s.w?'none':'block';mk.style.left=(sx(s.x)*W)+'px';mk.style.top=(32+sy(s.y)*(H-32))+'px';
+  document.getElementById('fb').innerHTML=`<div><h2>${s.n}. ${s.name}</h2><div class="t12">${s.t}</div></div><div style="flex:1"></div>${s.url?fld('URL',s.v):s.w?fld('Seconds',s.dur):fld('X',s.x)+fld('Y',s.y)}${fld('Wait before (s)',s.d)}<button class="btn">Pick on screen</button><button class="btn">Test</button>`;
+  document.getElementById('sp').innerHTML=S.map((t,i)=>`<div class="tile ${i==sel?'sel':''}" data-i="${i}"><div class="row" style="gap:8px">${num(t)}<h2>${t.t}</h2></div><div class="t12">${sum(t)}</div><div class="t12">${t.d?'after '+t.d+' s':'right away'}</div></div>`).join('')+'<div class="tile" style="align-items:center;justify-content:center;background:none;border-style:dashed;font-weight:700">+ Add step</div>';
+  document.querySelectorAll('#sp .tile[data-i]').forEach(e=>e.onclick=()=>{sel=+e.dataset.i;draw()});
+ }
+ draw();setTimeout(draw,50);addEventListener('resize',draw);
+ w1.querySelector('.run').onclick=async()=>{for(let i=0;i<4;i++){sel=i;draw();await new Promise(r=>setTimeout(r,900))}};
+})();
+
+/* ---- C screen map ---- */
+w2.innerHTML=hdr('Auto Clock-Out')+`<div class="body"><div class="map"><div class="screen" id="sc"><div class="blk" style="left:16px;top:16px;width:140px;height:306px"></div><div class="blk" style="left:176px;top:16px;width:360px;height:64px"></div><div class="blk" style="left:176px;top:96px;width:170px;height:226px"></div><div class="blk" style="left:366px;top:96px;width:170px;height:226px"></div><div class="blk" style="left:556px;top:16px;width:210px;height:306px;background:var(--sun)"></div><svg id="ln" style="position:absolute;inset:0;pointer-events:none" width="100%" height="100%"></svg></div><div id="ls" style="display:flex;flex-direction:column;gap:4px"></div></div><div class="t12" style="margin-top:16px">Pins are the click points on the real screen. Select a pin or a row to edit it.</div></div>`;
+(function(){
+ let sel=1;const sc=document.getElementById('sc');
+ function draw(){
+  const W=sc.clientWidth||780,H=sc.clientHeight||340;
+  const pts=S.filter(s=>!s.url&&!s.w);
+  let ln='';pts.forEach((s,i)=>{if(i){const p=pts[i-1];ln+=`<line x1="${sx(p.x)*W}" y1="${sy(p.y)*H}" x2="${sx(s.x)*W}" y2="${sy(s.y)*H}" stroke="#1F1A17" stroke-width="2" stroke-dasharray="6 6"/>`}});
+  document.getElementById('ln').innerHTML=ln;
+  sc.querySelectorAll('.pin').forEach(p=>p.remove());
+  pts.forEach(s=>{const e=document.createElement('div');e.className='pin '+(s.n==sel?'sel':'');e.style.left=sx(s.x)*W+'px';e.style.top=sy(s.y)*H+'px';e.innerHTML=num(s);e.onclick=()=>{sel=s.n;draw()};sc.appendChild(e)});
+  document.getElementById('ls').innerHTML=S.map(s=>`<div class="li ${s.n==sel?'sel':''}" data-n="${s.n}">${num(s)}<div><h2>${s.name}</h2><div class="t12">${sum(s)}${s.d?' · after '+s.d+' s':''}</div></div></div>`).join('')+(`<div class="row" style="margin-top:16px;align-items:flex-end">${(()=>{const s=S[sel-1];return s.url?fld('URL',s.v):s.w?fld('Seconds',s.dur):fld('X',s.x)+fld('Y',s.y)})()}</div>`);
+  document.querySelectorAll('#ls .li').forEach(e=>e.onclick=()=>{sel=+e.dataset.n;draw()});
+ }
+ draw();setTimeout(draw,50);addEventListener('resize',draw);
+ w2.querySelector('.run').onclick=async()=>{for(let i=1;i<=4;i++){sel=i;draw();await new Promise(r=>setTimeout(r,700))}};
+})();
+
+/* ---- D sentences ---- */
+w3.innerHTML=hdr('Auto Clock-Out')+`<div class="body"><div class="sent" id="se"></div><div class="slash" id="sl"><b style="color:#1F1A17">/</b> Add a step: click, type, wait, read text, open link…</div><div class="palette" id="pa"></div></div>`;
+(function(){
+ const lines=S.map(s=>({...s}));
+ const tok=(v,g)=>`<span class="tok ${g?'g':''}" contenteditable="true">${v}</span>`;
+ function body(s){
+  if(s.url)return `Open ${tok(s.v,1)} in Chrome`;
+  if(s.w)return `Wait ${tok(s.dur,1)} s`;
+  return `Click at ${tok(s.x,1)} ${tok(s.y,1)}`+(s.d?` after ${tok(s.d)} s`:'');
+ }
+ function draw(act){
+  document.getElementById('se').innerHTML=lines.map((s,i)=>`<div class="line" style="${act==i?'background:#CFE5D8;border-color:#2F6B4F':''}">${num({n:i+1,w:s.w})}${body(s)}<span style="flex:1"></span><span class="pill">Live</span><button class="btn">Test</button></div>`).join('');
+ }
+ draw();
+ const pa=document.getElementById('pa');
+ const ops=[['Click','at a position'],['Type text','into the focused field'],['Wait','a number of seconds'],['Read text','from an area of the screen'],['Open link','in Chrome']];
+ pa.innerHTML=ops.map(o=>`<div>${o[0]}<small>${o[1]}</small></div>`).join('');
+ document.getElementById('sl').onclick=()=>pa.classList.toggle('on');
+ pa.querySelectorAll('div').forEach((d,i)=>d.onclick=()=>{lines.push(i==2?{n:lines.length+1,w:1,dur:5,d:0}:i==4?{n:lines.length+1,url:1,v:'example.com',d:0}:{n:lines.length+1,x:960,y:540,d:0});pa.classList.remove('on');draw()});
+ w3.querySelector('.run').onclick=async()=>{for(let i=0;i<lines.length;i++){draw(i);await new Promise(r=>setTimeout(r,700))}draw()};
+})();
+
+/* ---- E timeline ---- */
+w4.innerHTML=hdr('Auto Clock-Out')+`<div class="body" style="padding-top:16px"><div class="ruler" id="ru"></div><div id="tl" style="position:relative"></div><div class="row" id="det" style="margin-top:24px;align-items:flex-end"></div></div>`;
+(function(){
+ let sel=1;const total=34;let t0=0;
+ // cumulative: start times
+ let c=0;const seg=S.map(s=>{const w={wait:s.d,start:c};c+=s.d;const a={start:c,dur:s.dur};c+=s.dur;return {w,a}});
+ const T=c; // 30.5 + ... total
+ const pct=v=>`calc(${v/Math.max(T,1)*100}% )`;
+ document.getElementById('ru').innerHTML=[0,10,20,30].map(v=>`<span style="left:${v/T*100}%">${v}s</span>`).join('');
+ function draw(){
+  document.getElementById('tl').innerHTML=S.map((s,i)=>`<div class="tr"><div class="lab" data-i="${i}">${num(s)}<h2>${s.name.length>18?s.name.slice(0,17)+'…':s.name}</h2></div><div class="lane">${seg[i].w.wait?`<div class="barx wait" data-i="${i}" style="left:${seg[i].w.start/T*100}%;width:${seg[i].w.wait/T*100}%">wait ${seg[i].w.wait} s</div>`:''}<div class="barx ${i==sel?'sel':'act'}" data-i="${i}" style="left:${seg[i].a.start/T*100}%;min-width:72px">${s.url?'open':s.w?s.dur+' s':'click'}</div></div></div>`).join('')+'<div class="head" id="hd"></div>';
+  const s=S[sel];
+  document.getElementById('det').innerHTML=`<div><h2>${s.n}. ${s.name}</h2><div class="t12">${s.t}</div></div><div style="flex:1"></div>${s.url?fld('URL',s.v):s.w?fld('Seconds',s.dur):fld('X',s.x)+fld('Y',s.y)}${fld('Wait before (s)',s.d)}`;
+  document.querySelectorAll('#tl [data-i]').forEach(e=>e.onclick=()=>{sel=+e.dataset.i;draw()});
+ }
+ draw();
+ w4.querySelector('.run').onclick=()=>{const hd=()=>document.getElementById('hd');const lane0=200;const start=performance.now(),dur=5000;
+  (function f(now){const p=Math.min(1,(now-start)/dur);const tl=document.getElementById('tl');const w=tl.clientWidth-200;if(hd())hd().style.left=(200+p*w)+'px';const cur=p*T;let k=0;S.forEach((s,i)=>{if(cur>=seg[i].a.start)k=i});sel=k;if(p<1){draw();const h=hd();if(h)h.style.left=(200+p*w)+'px';requestAnimationFrame(f)}else{sel=1;draw()}})(start)};
+})();
+
+sw.innerHTML=names.map((n,i)=>`<button data-i="${i}">${'ABCDE'[i]}</button>`).join('');
+function set(i){document.querySelectorAll('.win').forEach((p,j)=>p.classList.toggle('on',i==j));document.querySelectorAll('#sw button').forEach((b,j)=>b.setAttribute('aria-pressed',i==j));nm.textContent=names[i];window.dispatchEvent(new Event('resize'))}
+document.querySelectorAll('#sw button').forEach(b=>b.onclick=()=>{set(+b.dataset.i);setTimeout(()=>document.querySelectorAll('.win.on .btn.p')[0]&&0,0)});
+addEventListener('keydown',e=>{const i='12345'.indexOf(e.key);if(i>=0)set(i)});
+set(0);
+</script></body></html>

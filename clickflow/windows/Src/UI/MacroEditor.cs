@@ -6,6 +6,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Shapes;
 using Windows.System;
 using Windows.UI.Core;
 
@@ -21,7 +22,13 @@ public sealed class MacroEditor : UserControl, IDisposable
     readonly ScrollViewer scroll = new() { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
     readonly TextBlock stats = Theme.Small("");
     readonly List<StepCard> cards = new();
-    readonly StackPanel stepsBox = new() { Spacing = 12 }, schedulesBox = new() { Spacing = 10 };
+    readonly StackPanel stepsBox = new() { Spacing = 16 }, schedulesBox = new() { Spacing = 10 };
+    // The flow: steps as nodes on a canvas, joined by arrows; the picked step's full card sits below it.
+    readonly Canvas flowCanvas = new();
+    readonly Border flowFrame = new();
+    readonly ContentControl panel = new() { HorizontalContentAlignment = HorizontalAlignment.Stretch };
+    int sel;
+    double flowWidth;
 
     public Macro Macro => macro;
     public MainWindow Main => main;
@@ -35,6 +42,14 @@ public sealed class MacroEditor : UserControl, IDisposable
 
         stack.Children.Add(BuildHeader());
         stack.Children.Add(SectionHeader("Steps", "", Theme.Accent, AddStepButton()));
+        flowFrame.Child = flowCanvas;
+        flowFrame.BorderBrush = Theme.Solid(Theme.Ink);
+        flowFrame.BorderThickness = new Thickness(2, 2, 3, 3);
+        flowFrame.CornerRadius = new CornerRadius(Theme.R13);
+        flowFrame.Background = Theme.Solid(Theme.Shape);
+        flowFrame.SizeChanged += (_, e) => { if (Math.Abs(e.NewSize.Width - flowWidth) > 8) RebuildFlow(); };
+        stepsBox.Children.Add(flowFrame);
+        stepsBox.Children.Add(panel);
         stack.Children.Add(stepsBox);
         var addSchedule = Theme.Button("Add schedule", "");
         addSchedule.Click += (_, _) => EditSchedule(null);
@@ -147,7 +162,7 @@ public sealed class MacroEditor : UserControl, IDisposable
 
     // ---------- steps ----------
 
-    void AddStep(StepType type)
+    void AddStep(StepType type, int at = -1)
     {
         var p = Native.CursorPos();
         var s = new Step(type) { X = p.X, Y = p.Y };
@@ -155,33 +170,185 @@ public sealed class MacroEditor : UserControl, IDisposable
         if (type == StepType.ReadText) { s.Width = 300; s.Height = 120; s.X = p.X - 150; s.Y = p.Y - 60; }
         if (type == StepType.DiscordMessage) s.Text = "{macro} finished at {time}";
         if (type == StepType.Shutdown) s.Text = "PC Shutdown at {time}";
-        macro.Steps.Add(s);
+        if (at < 0 || at > macro.Steps.Count) at = macro.Steps.Count;
+        macro.Steps.Insert(at, s);
+        sel = at;
         store.Changed();
         RebuildSteps();
         UpdateStats();
-        var card = cards.Last();
-        Anim.Enter(card, slide: false, ms: 360);
-        BringIntoView(card);
+        var card = cards[sel];
+        Anim.Enter(panel, slide: false, ms: 360);
         // Adding a click or screenshot step opens the placer straight away.
         if (type.HasPoint() || type.HasArea()) card.Pick();
     }
 
     public void RebuildSteps()
     {
-        stepsBox.Children.Clear();
         cards.Clear();
-        for (int i = 0; i < macro.Steps.Count; i++)
+        for (int i = 0; i < macro.Steps.Count; i++) cards.Add(new StepCard(this, macro.Steps[i], i));
+        sel = Math.Clamp(sel, 0, Math.Max(0, macro.Steps.Count - 1));
+        RebuildFlow();
+    }
+
+    // ---------- the flow canvas ----------
+    const double NodeW = 208, NodeH = 64, GapX = 72, GapY = 80, Pad = 24;
+
+    MenuFlyout TypeMenu(Action<StepType> pick)
+    {
+        var menu = new MenuFlyout();
+        foreach (var t in StepTypes.All)
         {
-            var card = new StepCard(this, macro.Steps[i], i);
-            cards.Add(card);
-            stepsBox.Children.Add(card);
+            var type = t;
+            var item = new MenuFlyoutItem { Text = t.Label(), Icon = new FontIcon { Glyph = t.Glyph() } };
+            item.Click += (_, _) => pick(type);
+            menu.Items.Add(item);
+            if (t is StepType.Move or StepType.KeyShortcut) menu.Items.Add(new MenuFlyoutSeparator());
         }
-        if (macro.Steps.Count == 0)
+        return menu;
+    }
+
+    static string Summary(Step st)
+    {
+        var l = st.Type.Label();
+        if (st.Type.HasPoint()) return $"{l} · {st.X}, {st.Y}";
+        if (st.Type == StepType.Wait) return $"{l} · {st.Seconds:0.#} s";
+        return l;
+    }
+
+    public void RebuildFlow()
+    {
+        double w = flowFrame.ActualWidth > 100 ? flowFrame.ActualWidth - 5 : 820;
+        flowWidth = flowFrame.ActualWidth;
+        int n = macro.Steps.Count, slots = n + 1;   // the last slot is the "add step" node
+        int perRow = Math.Max(1, (int)((w - 2 * Pad + GapX) / (NodeW + GapX)));
+        int rows = (slots + perRow - 1) / perRow;
+        double rowW = perRow * NodeW + (perRow - 1) * GapX, left = Math.Max(Pad, (w - rowW) / 2);
+        Windows.Foundation.Point At(int i) => new(left + (i % perRow) * (NodeW + GapX), Pad + (i / perRow) * (NodeH + GapY));
+        flowCanvas.Children.Clear();
+        flowCanvas.Height = 2 * Pad + rows * NodeH + (rows - 1) * GapY;
+        var ink = Theme.Solid(Theme.Ink);
+
+        // Arrows first, so the nodes sit on top of them.
+        for (int i = 0; i < n; i++)
         {
-            var empty = Theme.Label("No steps yet. Add one, or press Record in the toolbar to capture your clicks.", color: Theme.Muted);
-            empty.Margin = new Thickness(4, 0, 0, 12);
-            stepsBox.Children.Add(empty);
+            var a = At(i); var b = At(i + 1);
+            bool same = Math.Abs(a.Y - b.Y) < 1;
+            var from = same ? new Windows.Foundation.Point(a.X + NodeW, a.Y + NodeH / 2) : new Windows.Foundation.Point(a.X + NodeW / 2, a.Y + NodeH);
+            var to = same ? new Windows.Foundation.Point(b.X - 6, b.Y + NodeH / 2) : new Windows.Foundation.Point(b.X + NodeW / 2, b.Y - 6);
+            var fig = new PathFigure { StartPoint = from, IsClosed = false };
+            if (same) fig.Segments.Add(new LineSegment { Point = to });
+            else fig.Segments.Add(new BezierSegment { Point1 = new Windows.Foundation.Point(from.X, from.Y + GapY / 2), Point2 = new Windows.Foundation.Point(to.X, to.Y - GapY / 2), Point3 = to });
+            var geo = new PathGeometry(); geo.Figures.Add(fig);
+            flowCanvas.Children.Add(new Microsoft.UI.Xaml.Shapes.Path { Data = geo, Stroke = ink, StrokeThickness = 2 });
+            var head = new Polygon { Fill = ink };
+            if (same)
+            {
+                head.Points.Add(new Windows.Foundation.Point(to.X + 6, to.Y));
+                head.Points.Add(new Windows.Foundation.Point(to.X - 4, to.Y - 6));
+                head.Points.Add(new Windows.Foundation.Point(to.X - 4, to.Y + 6));
+            }
+            else
+            {
+                head.Points.Add(new Windows.Foundation.Point(to.X, to.Y + 6));
+                head.Points.Add(new Windows.Foundation.Point(to.X - 6, to.Y - 4));
+                head.Points.Add(new Windows.Foundation.Point(to.X + 6, to.Y - 4));
+            }
+            flowCanvas.Children.Add(head);
+            double midX = (from.X + to.X) / 2, midY = same ? from.Y : (from.Y + to.Y) / 2;
+            int j = i + 1;
+            var next = j < n ? macro.Steps[j] : null;   // the last arrow points at the "add step" slot
+            double d = next == null || next.Type == StepType.Wait ? 0 : next.DelayBefore;
+            double yOff = 0;
+            if (d > 0)
+            {
+                var chip = new Border
+                {
+                    Background = Theme.Solid(Theme.Sun), BorderBrush = ink, BorderThickness = new Thickness(2), CornerRadius = new CornerRadius(12),
+                    Padding = new Thickness(8, 2, 8, 2),
+                    Child = new TextBlock { Text = $"wait {d:0.#} s", FontSize = Theme.T12, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = Theme.Solid(Theme.Rgb(31, 26, 23)) },
+                };
+                chip.Measure(new Windows.Foundation.Size(200, 40));
+                Canvas.SetLeft(chip, midX - chip.DesiredSize.Width / 2); Canvas.SetTop(chip, midY - 36);
+                flowCanvas.Children.Add(chip);
+                yOff = 6;
+            }
+            var plus = InsertButton(j);
+            Canvas.SetLeft(plus, midX - 12); Canvas.SetTop(plus, midY - 12 + yOff);
+            flowCanvas.Children.Add(plus);
         }
+
+        for (int i = 0; i < n; i++)
+        {
+            var node = Node(i);
+            var p = At(i);
+            Canvas.SetLeft(node, p.X); Canvas.SetTop(node, p.Y);
+            flowCanvas.Children.Add(node);
+        }
+        // The closing slot: add a step at the end.
+        var add = new Button
+        {
+            Width = NodeW, Height = NodeH, CornerRadius = new CornerRadius(Theme.R13), BorderThickness = new Thickness(2), BorderBrush = ink,
+            Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent), Flyout = TypeMenu(t => AddStep(t)),
+            Content = new TextBlock { Text = n == 0 ? "+  Add the first step" : "+  Add step", FontWeight = Microsoft.UI.Text.FontWeights.Bold, FontSize = Theme.T12 },
+        };
+        var ap = At(n);
+        Canvas.SetLeft(add, ap.X); Canvas.SetTop(add, ap.Y);
+        flowCanvas.Children.Add(add);
+
+        panel.Content = null;
+        if (n > 0) panel.Content = cards[sel];
+    }
+
+    Button InsertButton(int at)
+    {
+        var b = new Button
+        {
+            Width = 24, Height = 24, MinWidth = 24, MinHeight = 24, Padding = new Thickness(0), CornerRadius = new CornerRadius(12),
+            Content = new TextBlock { Text = "+", FontSize = Theme.T15, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Margin = new Thickness(0, -3, 0, 0) },
+            Flyout = TypeMenu(t => AddStep(t, at)),
+        };
+        ToolTipService.SetToolTip(b, "Insert a step here");
+        return b;
+    }
+
+    Border Node(int i)
+    {
+        var st = macro.Steps[i];
+        bool on = i == sel;
+        var color = st.ShowOnly ? Theme.Purple : Theme.StepColor(st.Type);
+        var badge = new Border
+        {
+            Width = 24, Height = 24, CornerRadius = new CornerRadius(12), Background = Theme.Solid(color), BorderBrush = Theme.Solid(Theme.Ink), BorderThickness = new Thickness(2),
+            VerticalAlignment = VerticalAlignment.Center,
+            Child = new TextBlock { Text = (i + 1).ToString(), FontSize = Theme.T12, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = Theme.Solid(Theme.OnAccent), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center },
+        };
+        // On the mustard (selected) fill only ink text keeps its contrast.
+        Brush textColor = on && !Theme.Dark ? Theme.Solid(Theme.Rgb(31, 26, 23)) : Theme.Text;
+        Brush subColor = on && !Theme.Dark ? Theme.Solid(Theme.Rgb(90, 78, 69)) : Theme.Muted;
+        bool named = !string.IsNullOrWhiteSpace(st.Name);
+        var name = Theme.Label(named ? st.Name : st.Type.Label(), Theme.T12, textColor, bold: true, wrap: false);
+        var detail = Summary(st);
+        if (!named) detail = detail.Contains(" · ") ? detail[(detail.IndexOf(" · ") + 3)..] : "";
+        var sub = Theme.Label(detail + (st.ShowOnly ? (detail.Length > 0 ? " · " : "") + "show only" : ""), Theme.T12, subColor, wrap: false);
+        var text = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
+        text.Children.Add(name); text.Children.Add(sub);
+        var row = new Grid { ColumnSpacing = 8 };
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        row.Children.Add(badge);
+        Grid.SetColumn(text, 1); row.Children.Add(text);
+        var node = new Border
+        {
+            Width = NodeW, Height = NodeH, Padding = new Thickness(16, 0, 8, 0), CornerRadius = new CornerRadius(Theme.R13),
+            Background = Theme.Solid(on ? (Theme.Dark ? Theme.PurpleSoft : Theme.Sun) : Theme.Shape),
+            BorderBrush = Theme.Solid(Theme.Ink), BorderThickness = new Thickness(2, 2, 3, 3),
+            Child = row,
+        };
+        node.Tapped += (_, _) => { if (sel != i) { sel = i; RebuildFlow(); Anim.Enter(panel, slide: false, ms: 220); } };
+        node.PointerEntered += (_, _) => node.Translation = new Vector3(0, -2, 0);
+        node.PointerExited += (_, _) => node.Translation = default;
+        node.TranslationTransition = new Vector3Transition { Duration = TimeSpan.FromMilliseconds(120) };
+        return node;
     }
 
     void BringIntoView(UIElement e, double ratio = 0.3)
@@ -192,7 +359,7 @@ public sealed class MacroEditor : UserControl, IDisposable
 
     public void ScrollToStep(int i)
     {
-        if (i >= 0 && i < cards.Count) BringIntoView(cards[i], 0);
+        if (i >= 0 && i < cards.Count) { sel = i; RebuildFlow(); }
     }
 
     public void ScrollToEnd() => AfterLayout(() => scroll.ChangeView(null, scroll.ScrollableHeight, null));
@@ -212,20 +379,17 @@ public sealed class MacroEditor : UserControl, IDisposable
         int i = macro.Steps.IndexOf(s), j = i + delta;
         if (i < 0 || j < 0 || j >= macro.Steps.Count || dragging != null || settling) return;
         Reorder(i, j);
-        BringIntoView(cards[j]);
     }
 
     /// Moves step i to j, moving its existing card instead of rebuilding them all.
     void Reorder(int from, int to)
     {
-        var card = cards[from];
+        var step = macro.Steps[from];
         macro.Steps.RemoveAt(from);
-        macro.Steps.Insert(to, card.Step);
-        cards.RemoveAt(from);
-        cards.Insert(to, card);
-        stepsBox.Children.Move((uint)from, (uint)to);
-        for (int k = Math.Min(from, to); k <= Math.Max(from, to); k++) cards[k].Renumber(k);
+        macro.Steps.Insert(to, step);
+        sel = to;
         store.Changed();
+        RebuildSteps();
     }
 
     // ---------- drag to reorder ----------
@@ -246,6 +410,8 @@ public sealed class MacroEditor : UserControl, IDisposable
 
     public void DragStart(StepCard card, UIElement grip, PointerRoutedEventArgs e)
     {
+        return;   // reordering is Move Up / Move Down in the step menu (the flow is not a list)
+#pragma warning disable CS0162
         if (dragging != null || settling || cards.Count < 2 || !e.GetCurrentPoint(grip).Properties.IsLeftButtonPressed) return;
         dragFrom = dragTo = cards.IndexOf(card);
         if (dragFrom < 0 || !grip.CapturePointer(e.Pointer)) return;
@@ -340,6 +506,7 @@ public sealed class MacroEditor : UserControl, IDisposable
     {
         int i = macro.Steps.IndexOf(s);
         macro.Steps.Insert(i + 1, s.Clone());
+        sel = i + 1;
         store.Changed();
         RebuildSteps();
         UpdateStats();
@@ -347,27 +514,20 @@ public sealed class MacroEditor : UserControl, IDisposable
 
     public void Remove(Step s)
     {
-        if (dragging != null || settling || cards.FirstOrDefault(c => c.Step == s) is not { } card) return;
-        // Fade the card out, then take just that one out (the rest are renumbered, not rebuilt).
-        settling = true;
-        Anim.Leave(card, () =>
-        {
-            settling = false;
-            int i = cards.IndexOf(card);
-            macro.Steps.Remove(s);
-            store.Changed();
-            if (i < 0 || macro.Steps.Count == 0) { RebuildSteps(); UpdateStats(); return; }
-            cards.RemoveAt(i);
-            stepsBox.Children.Remove(card);
-            for (int k = i; k < cards.Count; k++) cards[k].Renumber(k);
-            UpdateStats();
-        });
+        int i = macro.Steps.IndexOf(s);
+        if (i < 0) return;
+        macro.Steps.Remove(s);
+        sel = Math.Min(i, macro.Steps.Count - 1);
+        store.Changed();
+        RebuildSteps();
+        UpdateStats();
     }
 
     /// Switching to this macro: the cards cascade in.
     public void Cascade()
     {
-        for (int i = 0; i < cards.Count; i++) Anim.Enter(cards[i], 30 + Math.Min(i, 10) * 28, slide: false);
+        Anim.Enter(flowFrame, 30, slide: false);
+        Anim.Enter(panel, 120, slide: false);
     }
 
     public void Test(Step s)

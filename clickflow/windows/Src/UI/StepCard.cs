@@ -125,7 +125,7 @@ public sealed class StepCard : UserControl
             Background = Theme.Solid(ShowOnlyLook ? Theme.Purple : Kind), CornerRadius = new CornerRadius(Theme.R13), MinWidth = 24, Height = 24, BorderBrush = Theme.Solid(Theme.Ink), BorderThickness = new Thickness(2),
             Padding = new Thickness(4, 0, 4, 0), VerticalAlignment = VerticalAlignment.Center, Child = number,
         };
-        var grip = new DragHandle();
+        var grip = new DragHandle { Visibility = Visibility.Collapsed };
         grip.PointerPressed += (_, e) => editor.DragStart(this, grip, e);
         grip.PointerMoved += (_, e) => editor.DragMove(e);
         grip.PointerReleased += (_, _) => editor.DragEnd(commit: true);
