@@ -1287,13 +1287,13 @@ const gemHtml = (v) => `<div class="gem-hero" aria-hidden="true"><canvas class="
 
 // ---------- summary card: gem, projected, lowest point, trend ----------
 const trendK = (v) => { const a = Math.abs(v), sg = v < 0 ? "-" : ""; return a >= 1e6 ? sg + "₱" + (a / 1e6).toFixed(2) + "M" : a >= 1e5 ? sg + "₱" + Math.round(a / 1e3) + "k" : a >= 1e3 ? sg + "₱" + (a / 1e3).toFixed(1) + "k" : sg + "₱" + Math.round(a); };
-// The big number of the summary: the month's projected balance in short form, with the change from last month under it.
+// The big number of the summary: the month's projected balance in full, with the full change from last month under it.
 function heroParts(k) {
   const v = runningFundsAt(k), prevK = addMonths(k, -1), prev = timeline().includes(prevK) ? runningFundsAt(prevK) : null;
   const dl = prev == null ? null : v - prev;
-  const delta = dl == null ? (k === currentKey() ? "now" : "") : (dl < 0 ? "-" : "+") + trendK(Math.abs(dl)).replace("₱", "");
+  const delta = dl == null ? (k === currentKey() ? "now" : "") : (dl < 0 ? "-" : "+") + peso(Math.abs(dl));
   const dcol = dl == null ? "text-white/85" : dl < 0 ? "text-rose-300" : "text-emerald-300";
-  return { big: trendK(v), delta, dcol };
+  return { big: peso(v), delta, dcol };
 }
 function summaryParts() {
   const pts = peekMonths();
