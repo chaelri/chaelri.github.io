@@ -1263,13 +1263,14 @@ const JarFx = (() => {
         ctx.strokeStyle = isSel ? "rgba(255,255,255,.6)" : "rgba(255,255,255,.14)"; ctx.stroke(); hit.push({ P: o.P, band: o.src.band });
       });
     }
+    // glass outline is drawn before the lid so the cap hides the neck lines behind it
+    EV.forEach(({ e, nf }) => { if (e.f.length === 2 && nf === 1) line(e.a, e.b, 0.6 * ST.wire + 0.15, 1.6); else if (nf >= 1 && e.ring) line(e.a, e.b, 0.28 * ST.wire + 0.05, 1.1); });
     const fr = [...gf.map((o) => ((o.glass = 1), o)), ...lidF.map((f) => R(f, yaw, pitch)).filter((o) => o.n[2] > -0.02 || o.src.n[1] > 0.9)].sort((a, b) => a.z - b.z);
     fr.forEach((o, k) => {
       const { d, spec, tw } = light(o.n, t, k + 40); path(ctx, o.P, cx, cy, S);
       if (o.glass) { ctx.fillStyle = `rgba(255,255,255,${0.025 + d * 0.05 + (spec * 0.5 + tw * 0.25) * ST.sp})`; ctx.fill(); }
       else { const col = mixc(mixc([70, 78, 84], [172, 182, 188], 0.2 + d * 1.2), [255, 255, 255], cl((spec + tw) * ST.sp, 0, 0.8)).map((x) => Math.round(x * ST.lid)); ctx.fillStyle = rgb(col); ctx.fill(); ctx.strokeStyle = rgb(col); ctx.lineWidth = 0.6; ctx.stroke(); }
     });
-    EV.forEach(({ e, nf }) => { if (e.f.length === 2 && nf === 1) line(e.a, e.b, 0.6 * ST.wire + 0.15, 1.6); else if (nf >= 1 && e.ring) line(e.a, e.b, 0.28 * ST.wire + 0.05, 1.1); });
   }
   function frame(ms) {
     requestAnimationFrame(frame);
