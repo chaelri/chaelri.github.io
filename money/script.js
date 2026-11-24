@@ -1768,6 +1768,7 @@ window.openMonthList = function () {
   const ov = $("month-overlay");
   if (ov.classList.contains("open")) return;
   renderMonthList();
+  ov.getAnimations().forEach((an) => an.cancel()); // drop the last close's filled slide-out, or the drawer snaps off-screen
   ov.classList.add("open");
   if (isDeskWide()) document.body.classList.add("month-drawer"); // desktop: the whole app slides right
   $("month-toggle")?.setAttribute("aria-expanded", "true");
@@ -1782,8 +1783,10 @@ window.closeMonthList = async function () {
   document.body.classList.remove("month-drawer");
   $("month-toggle")?.setAttribute("aria-expanded", "false");
   const to = isDeskWide() ? "translateX(-100%)" : "translateY(100%)";
-  await ov.animate([{ transform: "none" }, { transform: to }], { duration: 260, easing: "cubic-bezier(.7,0,.2,1)", fill: "forwards" }).finished;
+  const out = ov.animate([{ transform: "none" }, { transform: to }], { duration: 260, easing: "cubic-bezier(.7,0,.2,1)", fill: "forwards" });
+  await out.finished;
   ov.classList.remove("open");
+  out.cancel();
 };
 window.pickMonthFromList = function (k) { selectMonth(k); closeMonthList(); };
 
