@@ -1287,6 +1287,14 @@ const gemHtml = (v) => `<div class="gem-hero" aria-hidden="true"><canvas class="
 
 // ---------- summary card: gem, projected, lowest point, trend ----------
 const trendK = (v) => { const a = Math.abs(v), sg = v < 0 ? "-" : ""; return a >= 1e6 ? sg + "₱" + (a / 1e6).toFixed(2) + "M" : a >= 1e5 ? sg + "₱" + Math.round(a / 1e3) + "k" : a >= 1e3 ? sg + "₱" + (a / 1e3).toFixed(1) + "k" : sg + "₱" + Math.round(a); };
+// The big number of the summary: the month's projected balance in short form, with the change from last month under it.
+function heroParts(k) {
+  const v = runningFundsAt(k), prevK = addMonths(k, -1), prev = timeline().includes(prevK) ? runningFundsAt(prevK) : null;
+  const dl = prev == null ? null : v - prev;
+  const delta = dl == null ? (k === currentKey() ? "now" : "") : (dl < 0 ? "-" : "+") + trendK(Math.abs(dl)).replace("₱", "");
+  const dcol = dl == null ? "text-white/85" : dl < 0 ? "text-rose-300" : "text-emerald-300";
+  return { big: trendK(v), delta, dcol };
+}
 function summaryParts() {
   const pts = peekMonths();
   if (pts.length < 2) return { cards: "" };
@@ -1316,12 +1324,13 @@ function renderBudget() {
   const projected = runningFundsAt(k);
 
   const sp = summaryParts();
+  const hp = heroParts(k);
   const summary = `<section class="relative py-2" id="summary-card">
     <div class="grid gap-6 md:grid-cols-[160px_auto_minmax(0,1fr)] md:items-center">
       ${gemHtml(projected)}
       <div class="text-center">
-        <p class="text-xs font-black text-white/85">Projected</p>
-        <p id="sum-projected" class="text-4xl font-black text-white mt-1 leading-none">${peso(projected)}</p>
+        <p id="sum-projected" class="text-4xl font-black text-white leading-none">${hp.big}</p>
+        <p id="sum-delta" class="text-sm font-extrabold mt-2 ${hp.dcol}">${hp.delta}</p>
       </div>
       <div id="sum-cards">${sp.cards}</div>
     </div>
@@ -2317,7 +2326,9 @@ function applyPaidVisual(btn, settled) {
 function refreshRealized() {
   const t = monthTotals(selectedKey);
   const proj = $("sum-projected");
-  if (proj) proj.textContent = peso(runningFundsAt(selectedKey));
+  const hp = heroParts(selectedKey);
+  if (proj) proj.textContent = hp.big;
+  const pd = $("sum-delta"); if (pd) { pd.textContent = hp.delta; pd.className = `text-sm font-extrabold mt-2 ${hp.dcol}`; }
   const gcv = document.querySelector(".gem-cv[data-hero]"); // the gem follows the projected number
   if (gcv) gcv.dataset.v = runningFundsAt(selectedKey);
   const sp = summaryParts(); // lowest point + trend follow too
