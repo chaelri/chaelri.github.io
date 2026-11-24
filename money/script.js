@@ -1363,16 +1363,21 @@ window.setPersonTab = function (who) {
 };
 
 // Installments + projection live in the "More" sheet (header insights button), not the main page.
-window.openMore = function () {
-  const body = $("more-body");
-  const inst = installmentsCardHtml() || `<div class="glass-card rounded-2xl p-6 text-center text-[12px] text-slate-500">No installments yet — add an expense with a "runs until" month.</div>`;
-  body.innerHTML = inst + projectionCardHtml();
-  body.querySelectorAll("details").forEach((d) => (d.open = true));
+window.openMore = async function () {
   const ov = $("more-overlay");
-  ov.classList.add("open");
+  const fill = () => {
+    const body = $("more-body");
+    const inst = installmentsCardHtml() || `<div class="glass-card rounded-2xl p-6 text-center text-[12px] text-slate-500">No installments yet — add an expense with a "runs until" month.</div>`;
+    body.innerHTML = inst + projectionCardHtml();
+    body.querySelectorAll("details").forEach((d) => (d.open = true));
+  };
+  if (ov.classList.contains("open")) return fill(); // already on the screen: just refresh it
+  await withWash(() => { fill(); ov.classList.add("open"); ov.scrollTop = 0; });
 };
-window.closeMore = function () {
-  $("more-overlay").classList.remove("open");
+window.closeMore = async function () {
+  const ov = $("more-overlay");
+  if (!ov.classList.contains("open")) return;
+  await withWash(() => ov.classList.remove("open"));
 };
 
 // Count how many months of an installment have been checked as paid.
@@ -2427,14 +2432,10 @@ function initParticles() {
 // =============================
 // Boot
 // =============================
-// Splash -> app: liquid wash. A sheet in the current month's gem colour rises like the debt jar filling (rippling surface),
-// the app is swapped in underneath, then the liquid drains back down. Web Animations API on purpose: it ignores the OS reduce-motion setting.
-let revealing = false;
-async function revealApp() {
-  if (revealing) return;
-  revealing = true;
-  const intro = $("intro-screen");
-  const app = $("app");
+// Liquid wash: a sheet in the current month's gem colour rises like the debt jar filling (rippling surface), swap() runs while it covers
+// the screen, then it drains back down. Used for splash -> app and for opening/closing the overview screen.
+// Web Animations API on purpose: it ignores the OS reduce-motion setting.
+async function liquidWash(swap) {
   const W = innerWidth, H = innerHeight;
   const wash = (() => { try { return GemFx.colorOf(runningFundsAt(currentKey())); } catch (e) { return "#3DD9F0"; } })(); // gem colour of the current month
   const light = (() => { const [r, g, b] = [1, 3, 5].map((i) => parseInt(wash.slice(i, i + 2), 16)); return "#" + [r, g, b].map((v) => Math.round(v + (255 - v) * 0.3).toString(16).padStart(2, "0")).join(""); })();
@@ -2444,7 +2445,7 @@ async function revealApp() {
   const box = (css, parent) => { const d = document.createElement("div"); d.style.cssText = css; parent.appendChild(d); return d; };
   const loop = (el, ms, dir) => el.animate([{ transform: "translateX(0)" }, { transform: `translateX(${dir * -n * P}px)` }], { duration: ms, iterations: Infinity, easing: "linear" });
   const c = document.createElement("div");
-  c.style.cssText = "position:fixed;inset:0;z-index:200;overflow:hidden;pointer-events:none";
+  c.style.cssText = "position:fixed;inset:0;z-index:200;overflow:hidden;pointer-events:auto"; // blocks taps while the wash runs
   document.body.appendChild(c);
   const g = box(`position:absolute;left:0;right:0;top:0;height:${H + 80}px;transform:translateY(${H + 50}px)`, c);
   const w1 = box("position:absolute;left:0;right:0;top:0;height:40px", g); w1.innerHTML = wave(light, -33);
@@ -2453,15 +2454,28 @@ async function revealApp() {
   const w2 = box("position:absolute;left:0;right:0;top:12px;height:40px", g); w2.innerHTML = wave(wash, -39);
   loop(w1.firstChild, 1300, 1); loop(w2.firstChild, 900, -1);
   await g.animate([{ transform: `translateY(${H + 50}px)` }, { transform: "translateY(-20px)" }], { duration: 900, easing: "cubic-bezier(.4,0,.2,1)", fill: "forwards" }).finished;
-  intro.style.display = "none";
-  intro.style.pointerEvents = "none";
-  app.style.opacity = "1";
-  scrollChipIntoView(true);
-  if (document.fonts?.ready) document.fonts.ready.then(() => scrollChipIntoView(true));
-  initParticles();
+  try { await swap(); } catch (e) { console.error(e); }
   await new Promise((r) => setTimeout(r, 150));
   await g.animate([{ transform: "translateY(-20px)" }, { transform: `translateY(${H + 60}px)` }], { duration: 900, easing: "cubic-bezier(.6,0,.4,1)", fill: "forwards" }).finished;
   c.remove();
+}
+let washing = false;
+async function withWash(swap) { if (washing) return; washing = true; try { await liquidWash(swap); } finally { washing = false; } }
+
+let revealing = false;
+async function revealApp() {
+  if (revealing) return;
+  revealing = true;
+  const intro = $("intro-screen");
+  const app = $("app");
+  await withWash(() => {
+    intro.style.display = "none";
+    intro.style.pointerEvents = "none";
+    app.style.opacity = "1";
+    scrollChipIntoView(true);
+    if (document.fonts?.ready) document.fonts.ready.then(() => scrollChipIntoView(true));
+    initParticles();
+  });
 }
 
 function runIntro() {

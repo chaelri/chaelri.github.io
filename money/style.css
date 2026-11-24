@@ -414,15 +414,9 @@ input[type="checkbox"]:checked::before {
   touch-action: none;
 }
 
-/* More sheet (installments + projection) */
-#more-overlay.open {
-  opacity: 1;
-  pointer-events: auto;
-}
-#more-overlay.open #more-sheet {
-  transform: translateY(0);
-  opacity: 1;
-}
+/* Overview screen (installments + projection): a full screen, shown only while open */
+#more-overlay { display: none; }
+#more-overlay.open { display: block; }
 
 /* Confirm Modal */
 #confirm-overlay.open {

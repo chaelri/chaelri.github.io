@@ -144,22 +144,16 @@
       </main>
     </div>
 
-    <!-- MORE SHEET (installments + projection) -->
-    <div
-      id="more-overlay"
-      class="fixed inset-0 z-[55] bg-black/60 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300 flex items-end sm:items-center justify-center p-0 sm:p-4"
-    >
-      <div
-        id="more-sheet"
-        class="bg-slate-900 w-full max-w-2xl rounded-t-3xl sm:rounded-3xl border border-white/5 shadow-2xl flex flex-col max-h-[85vh] translate-y-full sm:translate-y-6 sm:opacity-0 transition-all duration-400 ease-out"
-      >
-        <div class="flex items-center justify-between px-6 pt-5 pb-3 flex-shrink-0">
-          <h3 class="text-lg font-black uppercase tracking-wide text-white">Overview</h3>
-          <button onclick="closeMore()" class="w-10 h-10 flex items-center justify-center bg-slate-800 rounded-xl">
-            <span class="material-icons text-slate-400">close</span>
+    <!-- OVERVIEW SCREEN (installments + projection), opened and closed through the liquid wash -->
+    <div id="more-overlay" class="fixed inset-0 z-[55] overflow-y-auto custom-scrollbar" style="background:#0F1012">
+      <div class="max-w-3xl mx-auto w-full">
+        <div class="sticky top-0 z-10 flex items-center gap-4 px-5 pt-5 pb-3" style="background:#0F1012">
+          <button onclick="closeMore()" aria-label="Back" class="w-12 h-12 flex items-center justify-center bg-slate-800 rounded-2xl flex-shrink-0">
+            <span class="material-icons text-slate-300">arrow_back</span>
           </button>
+          <h3 class="text-lg font-black uppercase tracking-wide text-white">Overview</h3>
         </div>
-        <div id="more-body" class="px-6 pb-8 space-y-4 overflow-y-auto custom-scrollbar">
+        <div id="more-body" class="px-5 pb-16 space-y-4">
           <!-- installments + projection injected -->
         </div>
       </div>
