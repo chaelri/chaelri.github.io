@@ -1349,11 +1349,11 @@ function renderBudget() {
   $("budget-body").dataset.tab = personTab;
 }
 
-// "Next 5 months": projected balance at the end of each month (the selected month + the 4 after it).
+// "Next 5 months": projected balance at the end of each of the 5 months AFTER the selected one (the selected month is the big gem above).
 function peekMonths() {
   const tl = timeline();
   const out = [];
-  for (let i = 0; i < 5; i++) {
+  for (let i = 1; i <= 5; i++) {
     const k = addMonths(selectedKey, i);
     if (tl.includes(k)) out.push({ k, v: runningFundsAt(k) });
   }
