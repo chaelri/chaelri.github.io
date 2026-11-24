@@ -1661,13 +1661,13 @@ function installmentsCardHtml() {
   });
   const lvl = grandOrig ? grandRemaining / grandOrig : 0, paidPct = Math.round((1 - lvl) * 100);
   JarFx.prepare(run, lvl);
-  return `<section class="md:col-span-2 px-1 pt-2 pb-4">
+  return `<section class="px-1 pt-2 pb-4 min-w-0">
     <div class="flex items-center justify-between gap-4 mb-6">
       <h3 class="text-sm font-black text-white uppercase tracking-wide">Installments</h3>
       <div class="text-right"><p class="text-2xl font-black text-cyan-300 leading-none">${peso(grandRemaining)}</p><p class="text-[12px] text-slate-400 mt-1">total left</p></div>
     </div>
     <div class="grid md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] gap-x-6 gap-y-6 items-start">
-      <canvas class="jar-cv" onclick="JarFx.click(this,event)" style="width:100%;max-width:320px;aspect-ratio:360/460;display:block;margin:0 auto"></canvas>
+      <canvas class="jar-cv" onclick="JarFx.click(this,event)" style="width:100%;max-width:380px;aspect-ratio:360/460;display:block;margin:0 auto"></canvas>
       <div>
         ${lastEnd ? `<p class="text-[15px] text-slate-400">jar is empty by ${monthShort(lastEnd)}</p>` : `<p class="text-[15px] text-emerald-400">jar is empty</p>`}
         <div class="flex gap-8 mt-6 whitespace-nowrap">
@@ -1683,7 +1683,7 @@ function installmentsCardHtml() {
 // 5-year projection as an inline collapsed card (no separate tab).
 function projectionCardHtml() {
   const endBal = runningFundsAt(timeline()[HORIZON - 1]);
-  return `<details class="glass-card rounded-2xl overflow-hidden border border-indigo-500/10 md:col-span-2">
+  return `<details class="glass-card rounded-2xl overflow-hidden border border-indigo-500/10 min-w-0">
     <summary class="flex items-center justify-between px-5 py-4 cursor-pointer list-none">
       <div class="flex items-center gap-3">
         <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center"><span class="material-icons text-white" style="font-size:18px">trending_up</span></div>
