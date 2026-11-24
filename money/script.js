@@ -1147,38 +1147,45 @@ const GemFx = (() => {
   const sizeK = (v) => cl(0.5 + 0.5 * Math.sqrt(Math.max(v, 0) / 1e6), 0.5, 1);
   function frame(ms) {
     requestAnimationFrame(frame);
-    const cv = document.querySelector(".gem-cv");
-    if (!cv || !cv.offsetParent) return;
-    const dpr = Math.min(2, devicePixelRatio || 1), w = cv.clientWidth, h = cv.clientHeight;
-    if (cv.width !== Math.round(w * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
-    const ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);
-    const v = +cv.dataset.v || 0;
-    draw(ctx, w, h, v <= 0 ? 0 : cashTierOf(v), sizeK(v), ms / 1000);
+    const dpr = Math.min(2, devicePixelRatio || 1);
+    document.querySelectorAll(".gem-cv").forEach((cv) => {
+      if (!cv.offsetParent) return;
+      const w = cv.clientWidth, h = cv.clientHeight;
+      if (!w || !h) return;
+      if (cv.width !== Math.round(w * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+      const ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);
+      const v = +cv.dataset.v || 0;
+      draw(ctx, w, h, v <= 0 ? 0 : cashTierOf(v), +cv.dataset.s || sizeK(v), ms / 1000 + (+cv.dataset.p || 0));
+    });
   }
   requestAnimationFrame(frame);
   return { colorOf: (v) => { const c = TIERS[v <= 0 ? 0 : cashTierOf(v)]; return c.hi || c.b; }, tier: (v) => TIERS[v <= 0 ? 0 : cashTierOf(v)] };
 })();
-const gemHtml = (v) => `<div class="gem-hero" aria-hidden="true"><canvas class="gem-cv" data-v="${v}"></canvas></div>`;
+const gemHtml = (v) => `<div class="gem-hero" aria-hidden="true"><canvas class="gem-cv" data-hero="1" data-v="${v}"></canvas></div>`;
 
 // ---------- summary card: gem, projected, lowest point, trend ----------
 const trendK = (v) => { const a = Math.abs(v), sg = v < 0 ? "-" : ""; return a >= 1e6 ? sg + "₱" + (a / 1e6).toFixed(2) + "M" : a >= 1e5 ? sg + "₱" + Math.round(a / 1e3) + "k" : a >= 1e3 ? sg + "₱" + (a / 1e3).toFixed(1) + "k" : sg + "₱" + Math.round(a); };
-function trendSvg(pts, W, H, cls) {
-  const n = pts.length, pl = 28, pr = 28, pt = 30, pb = 30, vals = pts.map((p) => p.v), hi = Math.max(...vals, 1), lo = Math.min(...vals, 0);
-  const x = (i) => pl + (i * (W - pl - pr)) / Math.max(1, n - 1), y = (v) => pt + (H - pt - pb) * (1 - (v - lo) / (hi - lo || 1));
-  const li = vals.indexOf(Math.min(...vals)), xy = pts.map((p, i) => [x(i), y(p.v)]), line = xy.map((q) => q.join(",")).join(" ");
-  const gemAt = (cx, cy, r, c) => { const P = (pts2) => pts2.map(([ux, uy]) => `${(cx + ux * r).toFixed(1)},${(cy + (uy + 0.15) * r).toFixed(1)}`).join(" ");
-    return `<polygon points="${P([[-1, 0], [-0.55, -0.6], [0.55, -0.6], [1, 0]])}" fill="${c.b}"/><polygon points="${P([[-1, 0], [1, 0], [0, 1]])}" fill="${c.e1}"/><polygon points="${P([[-0.55, -0.6], [0.55, -0.6], [0.3, 0], [-0.3, 0]])}" fill="#fff" fill-opacity=".3"/>`; };
-  const dots = pts.map((p, i) => { const low = i === li;
-    return `${gemAt(x(i), y(p.v), low ? 15 : 11, GemFx.tier(p.v))}<text x="${x(i)}" y="${y(p.v) - 22}" text-anchor="middle" font-size="12" font-weight="800" fill="${low ? "#FCD34D" : "#F1EEE6"}">${trendK(p.v)}</text><text x="${x(i)}" y="${H - 8}" text-anchor="middle" font-size="12" font-weight="700" fill="#E7E3DB">${MONTHS_SHORT[keyParts(p.k).m]}</text>`; }).join("");
-  return `<svg class="${cls}" viewBox="0 0 ${W} ${H}" style="width:100%;height:auto"><defs><linearGradient id="trendFill${cls}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3DD9F0" stop-opacity=".28"/><stop offset="1" stop-color="#3DD9F0" stop-opacity="0"/></linearGradient></defs><polygon points="${xy[0][0]},${H - pb} ${line} ${xy[n - 1][0]},${H - pb}" fill="url(#trendFill${cls})"/><polyline points="${line}" fill="none" stroke="#3DD9F0" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>${dots}</svg>`;
-}
 function summaryParts() {
-  const pts = peekMonths(), v = runningFundsAt(selectedKey);
-  if (pts.length < 2) return { low: "", chart: "" };
-  const lo = pts.reduce((m, p) => (p.v < m.v ? p : m), pts[0]);
+  const pts = peekMonths();
+  if (pts.length < 2) return { low: "", cards: "" };
+  const lo = pts.reduce((m, p) => (p.v < m.v ? p : m), pts[0]), mx = Math.max(...pts.map((p) => p.v), 1);
+  const tl = timeline();
+  const cards = pts.map((p, i) => {
+    const prevK = addMonths(p.k, -1), prev = i ? pts[i - 1].v : tl.includes(prevK) ? runningFundsAt(prevK) : null;
+    const dl = prev == null ? null : p.v - prev;
+    const delta = dl == null ? (p.k === currentKey() ? "now" : "") : (dl < 0 ? "-" : "+") + trendK(Math.abs(dl)).replace("₱", "");
+    const dcol = dl == null ? "text-white/85" : dl < 0 ? "text-rose-300" : "text-emerald-300";
+    const s = (0.45 + 0.55 * Math.sqrt(Math.max(p.v, 0) / mx)).toFixed(2);
+    return `<div class="rounded-2xl bg-black/20 px-1 py-3 text-center" style="${p === lo ? "outline:2px solid #FCD34D;outline-offset:-2px" : ""}">
+      <p class="text-xs font-bold text-white/85">${MONTHS_SHORT[keyParts(p.k).m]}</p>
+      <canvas class="gem-cv sum-gem" data-v="${p.v}" data-s="${s}" data-p="${(i * 0.4).toFixed(1)}"></canvas>
+      <p class="text-sm font-black text-white whitespace-nowrap">${trendK(p.v)}</p>
+      <p class="text-xs font-extrabold whitespace-nowrap ${dcol} min-h-[16px]">${delta}</p>
+    </div>`;
+  }).join("");
   return {
     low: `lowest <b class="${lo.v < 0 ? "text-rose-300" : "text-amber-300"}">${peso(lo.v).replace(/\.00$/, "")}</b> at end of ${MONTHS_SHORT[keyParts(lo.k).m]}`,
-    chart: `<div class="md:hidden">${trendSvg(pts, 350, 150, "tr-ph")}</div><div class="hidden md:block">${trendSvg(pts, 1000, 190, "tr-dk")}</div>`,
+    cards: `<div class="grid grid-cols-5 gap-2">${cards}</div>`,
   };
 }
 
@@ -1190,14 +1197,14 @@ function renderBudget() {
   const sp = summaryParts();
   const summary = `<section class="rounded-3xl overflow-hidden relative shadow-xl" id="summary-card">
     <div class="absolute inset-0 bg-gradient-to-br ${bannerGradient(k)}"></div>
-    <div class="relative p-6 md:p-7 flex flex-col gap-4">
+    <div class="relative p-6 md:p-7 grid gap-4 md:grid-cols-[170px_260px_minmax(0,1fr)] md:gap-6 md:items-center">
       ${gemHtml(projected)}
       <div class="text-center">
         <p class="text-xs font-black text-white/85">Projected</p>
-        <p id="sum-projected" class="text-4xl md:text-5xl font-black text-white mt-1 leading-none">${peso(projected)}</p>
+        <p id="sum-projected" class="text-4xl font-black text-white mt-1 leading-none">${peso(projected)}</p>
         <p id="sum-low" class="text-sm text-white/85 mt-4">${sp.low}</p>
       </div>
-      <div id="sum-chart">${sp.chart}</div>
+      <div id="sum-cards">${sp.cards}</div>
     </div>
   </section>`;
 
@@ -2212,11 +2219,11 @@ function refreshRealized() {
   const t = monthTotals(selectedKey);
   const proj = $("sum-projected");
   if (proj) proj.textContent = peso(runningFundsAt(selectedKey));
-  const gcv = document.querySelector(".gem-cv"); // the gem follows the projected number
+  const gcv = document.querySelector(".gem-cv[data-hero]"); // the gem follows the projected number
   if (gcv) gcv.dataset.v = runningFundsAt(selectedKey);
   const sp = summaryParts(); // lowest point + trend follow too
   const lowEl = $("sum-low"); if (lowEl) lowEl.innerHTML = sp.low;
-  const chEl = $("sum-chart"); if (chEl) chEl.innerHTML = sp.chart;
+  const cdEl = $("sum-cards"); if (cdEl) cdEl.innerHTML = sp.cards;
   const pi = $("projection-inner"); // inline projection card — refresh in place
   if (pi) pi.innerHTML = projectionInnerHtml();
 }
