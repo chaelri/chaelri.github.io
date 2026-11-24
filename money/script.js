@@ -1008,7 +1008,7 @@ function accountsCardHtml() {
   const rows = accts.length
     ? groups.map((g) => (g.items.length > 1 ? acctGroupHtml(g) : acctRowHtml(g.items[0]))).join("")
     : `<p class="text-[11px] text-slate-600 px-3 py-2">No accounts yet — add your current balances.</p>`;
-  const acctOpen = accountsOpen === null ? (viewMode === "accounts" || (viewMode === "all" && window.matchMedia("(min-width:1024px)").matches)) : accountsOpen;
+  const acctOpen = accountsOpen === null ? (viewMode === "all" && window.matchMedia("(min-width:1024px)").matches) : accountsOpen;
   return `<details ${acctOpen ? "open" : ""} ontoggle="setAccountsOpen(this.open)" class="glass-card rounded-2xl overflow-hidden border border-emerald-500/10 md:col-span-2">
     <summary class="flex items-center justify-between px-5 py-4 cursor-pointer list-none">
       <div class="flex items-center gap-3">
@@ -1307,6 +1307,7 @@ function renderBudget() {
     `<div class="person-wrap" data-who="karla">${personSectionHtml("karla")}</div>` +
     `<div class="md:col-span-2" data-sec="history">${historyCardHtml()}</div>`;
   $("budget-body").dataset.view = viewMode;
+  accountsRenderedAt = performance.now();
 }
 
 // ---------- Home (landing page) + the view switch: home / all / accounts / charlie / karla ----------
@@ -1314,9 +1315,15 @@ let viewMode = "home"; // the app always opens on Home
 const homePg = { charlie: 0, karla: 0 };
 const HOME_PER = 4;
 function viewToggleHtml() {
-  const items = ["home", "all", "accounts", "charlie", "karla"];
-  return `<div class="vseg grid grid-cols-5 gap-1 p-1 rounded-full md:max-w-[560px]" role="tablist">${items.map((v) => `<button role="tab" aria-selected="${viewMode === v}" onclick="setView('${v}')" class="vseg-btn h-10 px-0 rounded-full text-sm font-bold tracking-tight whitespace-nowrap ${viewMode === v ? "is-on" : ""}">${v}</button>`).join("")}</div>`;
+  const page = (v) => `<button type="button" aria-current="${viewMode === v}" onclick="setView('${v}')" class="vseg-btn h-12 md:h-10 px-6 rounded-full text-sm font-bold ${viewMode === v ? "is-on" : ""}">${v}</button>`;
+  // charlie / karla are filters: press once to focus on them, press again to go back to Home
+  const who = (w) => `<button type="button" aria-pressed="${viewMode === w}" aria-label="${OWNERS[w].label}" data-w="${w}" onclick="pickWho('${w}')" class="vav ${viewMode === w ? "is-on" : ""}"><img src="assets/avatar-${w}.jpg" alt="" /></button>`;
+  return `<div class="flex items-center gap-6">
+    <div class="vseg inline-grid grid-flow-col gap-1 p-1 rounded-full">${page("home")}${page("all")}</div>
+    <div class="flex items-center gap-4">${who("charlie")}${who("karla")}</div>
+  </div>`;
 }
+window.pickWho = function (w) { setView(viewMode === w ? "home" : w); };
 window.setView = function (v) {
   viewMode = v;
   renderBudget();
@@ -1382,7 +1389,9 @@ function personTabsHtml(t) {
   const btn = (who, label, net) => `<button onclick="setPersonTab('${who}')" data-w="${who}" class="seg-btn h-12 rounded-xl text-sm font-bold flex flex-col items-center justify-center leading-tight"><span>${label}</span><span class="text-[10px] font-bold opacity-80">${signedPeso(net)}</span></button>`;
   return `<div class="seg md:hidden grid grid-cols-2 gap-2">${btn("charlie", "Charlie", t.cI - t.cE)}${btn("karla", "Karla", t.kI - t.kE)}</div>`;
 }
-window.setAccountsOpen = function (open) { accountsOpen = open; };
+let accountsRenderedAt = 0;
+// A re-render that opens the card by default also fires "toggle"; only a real tap should be remembered.
+window.setAccountsOpen = function (open) { if (performance.now() - accountsRenderedAt < 250) return; accountsOpen = open; };
 window.setPersonTab = function (who) {
   personTab = who;
   $("budget-body").dataset.tab = who;

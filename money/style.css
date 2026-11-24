@@ -853,10 +853,6 @@ details.item-parent[open] > summary .parent-caret { transform: rotate(90deg); }
 #budget-body[data-view="home"] .person-wrap,
 #budget-body[data-view="home"] [data-sec="history"] { display: none; }
 #budget-body[data-view="all"] [data-sec="home"] { display: none; }
-#budget-body[data-view="accounts"] [data-sec="summary"],
-#budget-body[data-view="accounts"] [data-sec="home"],
-#budget-body[data-view="accounts"] [data-sec="history"],
-#budget-body[data-view="accounts"] .person-wrap { display: none; }
 #budget-body[data-view="charlie"] [data-sec="summary"],
 #budget-body[data-view="charlie"] [data-sec="home"],
 #budget-body[data-view="charlie"] [data-sec="accounts"],
@@ -869,3 +865,10 @@ details.item-parent[open] > summary .parent-caret { transform: rotate(90deg); }
 #budget-body[data-view="karla"] .person-wrap[data-who="charlie"] { display: none; }
 #budget-body[data-view="charlie"] .person-wrap,
 #budget-body[data-view="karla"] .person-wrap { grid-column: 1 / -1; }
+
+/* Avatar filters next to the home / all switch */
+.vav { width: 48px; height: 48px; border-radius: 50%; padding: 0; border: 0; background: none; cursor: pointer; }
+.vav img { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; display: block; opacity: .55; transition: opacity .2s, box-shadow .2s; }
+.vav.is-on img { opacity: 1; }
+.vav.is-on[data-w="charlie"] img { box-shadow: 0 0 0 2px #0F1012, 0 0 0 4px #3DD9F0; }
+.vav.is-on[data-w="karla"] img { box-shadow: 0 0 0 2px #0F1012, 0 0 0 4px #FB7185; }
