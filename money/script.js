@@ -1212,7 +1212,7 @@ const JarFx = (() => {
   const light = (n, t, id) => { const d = Math.max(0, n[0] * Lv[0] + n[1] * Lv[1] + n[2] * Lv[2]), hv = [Lv[0], Lv[1], Lv[2] + 1], hm = Math.hypot(...hv), spec = Math.pow(Math.max(0, (n[0] * hv[0] + n[1] * hv[1] + n[2] * hv[2]) / hm), 22), tw = Math.pow(Math.max(0, Math.sin(t * 2.2 + id * 1.7)), 14) * 0.5 * ST.tw; return { d, spec, tw }; };
   const path = (ctx, P, cx, cy, S) => { ctx.beginPath(); P.forEach((p, i) => { const x = cx + p[0] * S, y = cy - p[1] * S; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.closePath(); };
   // Shine presets (swap JAR_SHINE): "calm" = soft highlights, slow twinkle; "matte" = no glints at all, shading only
-  const JAR_SHINE = "calm", SHINES = { calm: { sp: 0.2, tw: 0.25 }, matte: { sp: 0, tw: 0 } };
+  const JAR_SHINE = "calm", SHINES = { calm: { sp: 0.2, tw: 0 }, matte: { sp: 0, tw: 0 } };
   const ST = { sp: 0.5, dk: 0.9, wire: 0.45, lid: 0.65, ...SHINES[JAR_SHINE] };
   const PER = 5; let items = [], bands = [], lvl = 0, L = null, sel = -1, page = 0, yawA = 0, last = 0, hit = [], view = null;
   function prepare(rows, level) { // rows: soonest-ending first, {left}; adds .w (band share) and .col (ring colour)
@@ -1252,7 +1252,6 @@ const JarFx = (() => {
     for (const o of gb) { path(ctx, o.P, cx, cy, S); ctx.fillStyle = "rgba(255,255,255,.03)"; ctx.fill(); }
     const line = (a, b, al, wd) => { const A = rot(a, yaw, pitch), B = rot(b, yaw, pitch); ctx.beginPath(); ctx.moveTo(cx + A[0] * S, cy - A[1] * S); ctx.lineTo(cx + B[0] * S, cy - B[1] * S); ctx.strokeStyle = `rgba(255,255,255,${al})`; ctx.lineWidth = wd; ctx.stroke(); };
     const EV = edges.map((e) => ({ e, nf: e.f.filter((i) => fr0[i].n[2] >= 0).length }));
-    EV.forEach(({ e, nf }) => { if (nf === 0 && e.ring) line(e.a, e.b, 0.1 * ST.wire, 1); });
     hit = [];
     if (L) {
       const lq = L.F.map((f) => R(f, yaw, pitch)).filter((o) => o.n[2] > -0.02 || o.src.n[1] > 0.9).sort((a, b) => a.z - b.z);
@@ -1263,12 +1262,12 @@ const JarFx = (() => {
         ctx.strokeStyle = isSel ? "rgba(255,255,255,.6)" : "rgba(255,255,255,.14)"; ctx.stroke(); hit.push({ P: o.P, band: o.src.band });
       });
     }
-    // glass outline is drawn before the lid so the cap hides the neck lines behind it
-    EV.forEach(({ e, nf }) => { if (e.f.length === 2 && nf === 1) line(e.a, e.b, 0.6 * ST.wire + 0.15, 1.6); else if (nf >= 1 && e.ring) line(e.a, e.b, 0.28 * ST.wire + 0.05, 1.1); });
+    // only the outer silhouette of the glass is outlined (no inner ring/facet lines), drawn before the lid so the cap hides the neck behind it
+    EV.forEach(({ e, nf }) => { if (e.f.length === 2 && nf === 1) line(e.a, e.b, 0.6 * ST.wire + 0.15, 1.6); });
     const fr = [...gf.map((o) => ((o.glass = 1), o)), ...lidF.map((f) => R(f, yaw, pitch)).filter((o) => o.n[2] > -0.02 || o.src.n[1] > 0.9)].sort((a, b) => a.z - b.z);
     fr.forEach((o, k) => {
-      const { d, spec, tw } = light(o.n, t, k + 40); path(ctx, o.P, cx, cy, S);
-      if (o.glass) { ctx.fillStyle = `rgba(255,255,255,${0.025 + d * 0.05 + (spec * 0.5 + tw * 0.25) * ST.sp})`; ctx.fill(); }
+      const nn = o.glass ? o.n : rot(o.src.n[1] > 0.9 ? [0, 1, 0] : (() => { const c = o.src.c, m = Math.hypot(c[0], c[2]) || 1; return [c[0] / m, 0, c[2] / m]; })(), yaw, pitch), { d, spec, tw } = light(nn, t, k + 40); path(ctx, o.P, cx, cy, S); // cap is shaded by a smooth radial normal, not per facet
+      if (o.glass) { ctx.fillStyle = "rgba(255,255,255,.07)"; ctx.fill(); }
       else { const col = mixc(mixc([70, 78, 84], [172, 182, 188], 0.2 + d * 1.2), [255, 255, 255], cl((spec + tw) * ST.sp, 0, 0.8)).map((x) => Math.round(x * ST.lid)); ctx.fillStyle = rgb(col); ctx.fill(); ctx.strokeStyle = rgb(col); ctx.lineWidth = 0.6; ctx.stroke(); }
     });
   }
