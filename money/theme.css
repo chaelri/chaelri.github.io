@@ -338,3 +338,4 @@ button[onclick*="toggleField"] > span.left-7 { left: 28px !important; }
 
 
 .cash-morph canvas { width: 100%; height: 100%; display: block; }
+@media (max-width: 640px) { .cash-morph { width: 96px; height: 64px; right: 12px; top: 12px; } }
