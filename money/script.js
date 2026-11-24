@@ -1534,31 +1534,23 @@ function installmentsCardHtml() {
     for (let k = it.start; cmpKey(k, it.end) <= 0; k = addMonths(k, 1)) if (itemActiveIn(it, k) && !isPaid(it.id, k)) remaining += amountIn(it, k);
     const pct = total ? Math.round((monthsPaid / total) * 100) : 0;
     grandRemaining += remaining; if (monthsLeft > 0) grandMonthly += monthly / everyMonths(it);
-    const urgency = monthsLeft === 0 ? "text-emerald-400 bg-emerald-500/15" : monthsLeft <= 6 ? "text-rose-400 bg-rose-500/15" : monthsLeft <= 12 ? "text-amber-400 bg-amber-500/15" : "text-slate-400 bg-slate-500/15";
-    return `<div class="px-3 py-2.5 rounded-xl space-y-2">
-      <div class="flex items-center justify-between gap-3">
-        <div class="min-w-0">
-          <div class="flex items-center gap-2"><p class="text-sm font-bold text-slate-200 truncate">${escapeHtml(it.name)}</p><span class="text-[9px] font-bold uppercase ${o.text}">${o.label}</span></div>
-          <p class="text-[10px] text-slate-500">${monthShort(it.start)} → ${monthShort(it.end)}</p>
-        </div>
-        <span class="text-[10px] font-black px-2.5 py-1 rounded-lg ${urgency} uppercase flex-shrink-0">${monthsLeft === 0 ? "Done" : monthsLeft + (everyMonths(it) === 3 ? " left" : " mo left")}</span>
-      </div>
-      <div class="flex items-end justify-between gap-3">
-        <p class="text-xl font-black text-white leading-none">${peso(monthly)}<span class="text-[11px] font-bold text-slate-400"> ${everyMonths(it) === 3 ? "/qtr" : "/mo"}</span></p>
-        <p class="text-sm font-black text-fuchsia-300 leading-none text-right">${peso(remaining)}<span class="text-[11px] font-bold text-slate-400"> left</span></p>
-      </div>
-      <div class="h-2 bg-slate-900/60 rounded-full overflow-hidden"><div class="h-full bg-gradient-to-r ${o.grad} rounded-full" style="width:${pct}%"></div></div>
+    const q = everyMonths(it) === 3;
+    const numCls = monthsLeft === 0 ? "text-emerald-400" : monthsLeft <= 6 ? "text-rose-400" : "text-white";
+    return `<div class="grid items-center py-2" style="grid-template-columns:64px 24px 1fr;column-gap:16px">
+      <div class="text-center leading-none"><p class="text-2xl font-black ${numCls}">${monthsLeft === 0 ? "done" : monthsLeft}</p>${monthsLeft === 0 ? "" : `<p class="text-[12px] text-slate-500 mt-1">${q ? "left" : "mo left"}</p>`}</div>
+      <img src="assets/avatar-${it.who}.jpg" alt="${o.label}" class="w-6 h-6 rounded-full object-cover block" onerror="this.style.visibility='hidden'" />
+      <div class="min-w-0"><p class="text-[15px] font-bold text-slate-200 truncate">${escapeHtml(it.name)}</p><p class="text-[15px] text-slate-500">${peso(monthly)}${q ? "/qtr" : ""}</p></div>
     </div>`;
   }).join("");
   return `<details class="glass-card rounded-2xl overflow-hidden border border-fuchsia-500/15 md:col-span-2">
     <summary class="flex items-center justify-between px-5 py-4 cursor-pointer list-none">
       <div class="flex items-center gap-3">
         <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-fuchsia-600 flex items-center justify-center"><span class="material-icons text-white" style="font-size:18px">hourglass_top</span></div>
-        <div><h3 class="text-sm font-black text-white uppercase tracking-wide">Installments</h3><p class="text-[10px] text-slate-400">${insts.length} running · ${peso(grandMonthly)}/mo</p></div>
+        <h3 class="text-sm font-black text-white uppercase tracking-wide">Installments</h3>
       </div>
-      <div class="text-right"><p class="text-base font-black text-fuchsia-300 leading-none">${peso(grandRemaining)}</p><p class="text-[10px] text-slate-400 mt-1">total left</p></div>
+      <div class="text-right"><p class="text-2xl font-black text-cyan-300 leading-none">${peso(grandRemaining)}</p><p class="text-[12px] text-slate-400 mt-1">total left</p></div>
     </summary>
-    <div class="p-3 pt-0 space-y-1">${rows}</div>
+    <div class="grid md:grid-cols-2 gap-x-10 gap-y-1 px-5 pb-5 pt-1">${rows}</div>
   </details>`;
 }
 
