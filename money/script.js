@@ -1167,8 +1167,8 @@ const gemHtml = (v) => `<div class="gem-hero" aria-hidden="true"><canvas class="
 const trendK = (v) => { const a = Math.abs(v), sg = v < 0 ? "-" : ""; return a >= 1e6 ? sg + "₱" + (a / 1e6).toFixed(2) + "M" : a >= 1e5 ? sg + "₱" + Math.round(a / 1e3) + "k" : a >= 1e3 ? sg + "₱" + (a / 1e3).toFixed(1) + "k" : sg + "₱" + Math.round(a); };
 function summaryParts() {
   const pts = peekMonths();
-  if (pts.length < 2) return { low: "", cards: "" };
-  const lo = pts.reduce((m, p) => (p.v < m.v ? p : m), pts[0]), mx = Math.max(...pts.map((p) => p.v), 1);
+  if (pts.length < 2) return { cards: "" };
+  const mx = Math.max(...pts.map((p) => p.v), 1);
   const tl = timeline();
   const cards = pts.map((p, i) => {
     const prevK = addMonths(p.k, -1), prev = i ? pts[i - 1].v : tl.includes(prevK) ? runningFundsAt(prevK) : null;
@@ -1176,7 +1176,7 @@ function summaryParts() {
     const delta = dl == null ? (p.k === currentKey() ? "now" : "") : (dl < 0 ? "-" : "+") + trendK(Math.abs(dl)).replace("₱", "");
     const dcol = dl == null ? "text-white/85" : dl < 0 ? "text-rose-300" : "text-emerald-300";
     const s = (0.45 + 0.55 * Math.sqrt(Math.max(p.v, 0) / mx)).toFixed(2);
-    return `<div class="rounded-2xl bg-black/20 px-1 py-3 text-center" style="${p === lo ? "outline:2px solid #FCD34D;outline-offset:-2px" : ""}">
+    return `<div class="rounded-2xl bg-black/20 px-1 py-3 text-center">
       <p class="text-xs font-bold text-white/85">${MONTHS_SHORT[keyParts(p.k).m]}</p>
       <canvas class="gem-cv sum-gem" data-v="${p.v}" data-s="${s}" data-p="${(i * 0.4).toFixed(1)}"></canvas>
       <p class="text-sm font-black text-white whitespace-nowrap">${trendK(p.v)}</p>
@@ -1184,7 +1184,6 @@ function summaryParts() {
     </div>`;
   }).join("");
   return {
-    low: `lowest <b class="${lo.v < 0 ? "text-rose-300" : "text-amber-300"}">${peso(lo.v).replace(/\.00$/, "")}</b> at end of ${MONTHS_SHORT[keyParts(lo.k).m]}`,
     cards: `<div class="grid grid-cols-5 gap-2">${cards}</div>`,
   };
 }
@@ -1202,7 +1201,6 @@ function renderBudget() {
       <div class="text-center">
         <p class="text-xs font-black text-white/85">Projected</p>
         <p id="sum-projected" class="text-4xl font-black text-white mt-1 leading-none">${peso(projected)}</p>
-        <p id="sum-low" class="text-sm text-white/85 mt-4">${sp.low}</p>
       </div>
       <div id="sum-cards">${sp.cards}</div>
     </div>
@@ -2222,7 +2220,6 @@ function refreshRealized() {
   const gcv = document.querySelector(".gem-cv[data-hero]"); // the gem follows the projected number
   if (gcv) gcv.dataset.v = runningFundsAt(selectedKey);
   const sp = summaryParts(); // lowest point + trend follow too
-  const lowEl = $("sum-low"); if (lowEl) lowEl.innerHTML = sp.low;
   const cdEl = $("sum-cards"); if (cdEl) cdEl.innerHTML = sp.cards;
   const pi = $("projection-inner"); // inline projection card — refresh in place
   if (pi) pi.innerHTML = projectionInnerHtml();
