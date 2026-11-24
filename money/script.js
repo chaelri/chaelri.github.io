@@ -1104,7 +1104,7 @@ const MINI = {
   8: { body: "#3A3D48", coin: "#FBBF24", e1: "#2E3039", e2: "#FBBF24" },
 };
 // Projected money as a floating "money with wings" emoji: it bobs gently and is bigger when there is more money.
-// Behind it a soft colour wash takes the colour of the selected month.
+// The selected month's colour washes over the whole summary card (see renderBudget).
 const MONTH_WASH = ["#60A5FA", "#F472B6", "#34D399", "#A3E635", "#FBBF24", "#F97316", "#EF4444", "#22D3EE", "#A78BFA", "#D97706", "#2DD4BF", "#BE123C"];
 const GemFx = (() => {
   const cl = (x, a, b) => Math.max(a, Math.min(b, x));
@@ -1136,7 +1136,7 @@ function trendSvg(pts, W, H, cls) {
   const x = (i) => pl + (i * (W - pl - pr)) / Math.max(1, n - 1), y = (v) => pt + (H - pt - pb) * (1 - (v - lo) / (hi - lo || 1));
   const li = vals.indexOf(Math.min(...vals)), xy = pts.map((p, i) => [x(i), y(p.v)]), line = xy.map((q) => q.join(",")).join(" ");
   const dots = pts.map((p, i) => { const low = i === li, col = low ? "#FCD34D" : "#6EE7B7";
-    return `<circle cx="${x(i)}" cy="${y(p.v)}" r="${low ? 6 : 4}" fill="${col}"/><text x="${x(i)}" y="${y(p.v) - 12}" text-anchor="middle" font-size="12" font-weight="800" fill="${low ? "#FCD34D" : "#F1EEE6"}">${trendK(p.v)}</text><text x="${x(i)}" y="${H - 8}" text-anchor="middle" font-size="12" font-weight="700" fill="#A09B94">${MONTHS_SHORT[keyParts(p.k).m]}</text>`; }).join("");
+    return `<circle cx="${x(i)}" cy="${y(p.v)}" r="${low ? 6 : 4}" fill="${col}"/><text x="${x(i)}" y="${y(p.v) - 12}" text-anchor="middle" font-size="12" font-weight="800" fill="${low ? "#FCD34D" : "#F1EEE6"}">${trendK(p.v)}</text><text x="${x(i)}" y="${H - 8}" text-anchor="middle" font-size="12" font-weight="700" fill="#E7E3DB">${MONTHS_SHORT[keyParts(p.k).m]}</text>`; }).join("");
   return `<svg class="${cls}" viewBox="0 0 ${W} ${H}" style="width:100%;height:auto"><defs><linearGradient id="trendFill${cls}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6EE7B7" stop-opacity=".28"/><stop offset="1" stop-color="#6EE7B7" stop-opacity="0"/></linearGradient></defs><polygon points="${xy[0][0]},${H - pb} ${line} ${xy[n - 1][0]},${H - pb}" fill="url(#trendFill${cls})"/><polyline points="${line}" fill="none" stroke="#6EE7B7" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>${dots}</svg>`;
 }
 function summaryParts() {
@@ -1157,12 +1157,13 @@ function renderBudget() {
   const sp = summaryParts();
   const summary = `<section class="rounded-3xl overflow-hidden relative shadow-xl" id="summary-card">
     <div class="absolute inset-0 bg-gradient-to-br ${bannerGradient(k)}"></div>
+    <div class="absolute inset-0" style="background:radial-gradient(130% 100% at 50% 0%, color-mix(in srgb, ${MONTH_WASH[keyParts(k).m]} 34%, #2A2C31), color-mix(in srgb, ${MONTH_WASH[keyParts(k).m]} 12%, #2A2C31) 75%)"></div>
     <div class="relative p-6 md:p-7 flex flex-col gap-4">
       ${gemHtml(projected, keyParts(k).m)}
       <div class="text-center">
-        <p class="text-xs font-black text-white/60">Projected</p>
+        <p class="text-xs font-black text-white/85">Projected</p>
         <p id="sum-projected" class="text-4xl md:text-5xl font-black text-white mt-1 leading-none">${peso(projected)}</p>
-        <p id="sum-low" class="text-sm text-white/60 mt-4">${sp.low}</p>
+        <p id="sum-low" class="text-sm text-white/85 mt-4">${sp.low}</p>
       </div>
       <div id="sum-chart">${sp.chart}</div>
     </div>
