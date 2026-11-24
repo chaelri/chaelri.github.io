@@ -1104,7 +1104,6 @@ const MINI = {
   8: { body: "#3A3D48", coin: "#FBBF24", e1: "#2E3039", e2: "#FBBF24" },
 };
 // Projected money as one 3D gem: a brilliant cut spinning at a low angle, tinted by the cash tier, bigger with more money.
-const MONTH_WASH = ["#60A5FA", "#F472B6", "#34D399", "#A3E635", "#FBBF24", "#F97316", "#EF4444", "#22D3EE", "#A78BFA", "#D97706", "#2DD4BF", "#BE123C"]; // month colour for the summary card
 const GemFx = (() => {
   const TIERS = [
     { b: "#FB7185", e1: "#E11D48" }, { b: "#4ADE9F", e1: "#2DBE88" }, { b: "#60A5FA", e1: "#3B82F6" },
@@ -1189,7 +1188,6 @@ function renderBudget() {
   const sp = summaryParts();
   const summary = `<section class="rounded-3xl overflow-hidden relative shadow-xl" id="summary-card">
     <div class="absolute inset-0 bg-gradient-to-br ${bannerGradient(k)}"></div>
-    <div class="absolute inset-0" style="background:radial-gradient(130% 100% at 50% 0%, color-mix(in srgb, ${MONTH_WASH[keyParts(k).m]} 34%, #2A2C31), color-mix(in srgb, ${MONTH_WASH[keyParts(k).m]} 12%, #2A2C31) 75%)"></div>
     <div class="relative p-6 md:p-7 flex flex-col gap-4">
       ${gemHtml(projected)}
       <div class="text-center">
