@@ -1073,24 +1073,6 @@ function accountsCardHtml() {
 }
 
 // The 4 summary stat cells with the color/sign rules.
-function statsGridHtml(t) {
-  const current = currentMoneyAt();
-  const savColor = t.savings > 0.005 ? "text-emerald-300" : t.savings < -0.005 ? "text-rose-300" : "text-amber-300";
-  const cell = (icon, iconColor, label, valColor, val) =>
-    `<div class="bg-black/20 rounded-2xl px-4 py-3">
-      <div class="flex items-center gap-1.5">
-        <span class="material-icons ${iconColor}" style="font-size:13px">${icon}</span>
-        <p class="text-[9px] font-bold uppercase text-white/60">${label}</p>
-      </div>
-      <p class="text-base font-black ${valColor} mt-1">${val}</p>
-    </div>`;
-  return (
-    cell("account_balance_wallet", "text-white/70", "Current Money", "text-white", peso(current)) +
-    cell("savings", savColor, "Savings", savColor, signedPeso(t.savings)) +
-    cell("south_west", "text-emerald-300", "To receive", "text-emerald-300", signedPeso(t.toReceive)) +
-    cell("north_east", "text-rose-300", "To pay", "text-rose-300", signedPeso(-t.toPay))
-  );
-}
 
 // The projected banner gets its own color each year.
 const BANNER_GRADIENTS = [
@@ -1141,7 +1123,7 @@ const GemFx = (() => {
   const rot = (p, yaw, pitch) => { const [x, y, z] = p, cy = Math.cos(yaw), sy = Math.sin(yaw), x1 = x * cy + z * sy, z1 = -x * sy + z * cy, cp = Math.cos(pitch), sp = Math.sin(pitch); return [x1, y * cp - z1 * sp, y * sp + z1 * cp]; };
   const Lv = (() => { const v = [-0.45, 0.75, 0.55], m = Math.hypot(...v); return v.map((x) => x / m); })();
   function draw(ctx, W, H, tier, k, t) {
-    const c = TIERS[tier], S = Math.min(W, H) * 0.34 * k * 1.1, cx = W / 2, cy = H * 0.52, neg = tier === 0, yaw = t * 0.55, pitch = 0.52, out = [];
+    const c = TIERS[tier], S = Math.min(W, H) * 0.34 * k * 1.5, cx = W / 2, cy = H * 0.52, neg = tier === 0, yaw = t * 0.55, pitch = 0.52, out = [];
     for (const f of FACES) {
       const P = f.map((p) => rot(p, yaw, pitch)), [a, b, d] = P;
       const u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], w = [d[0] - a[0], d[1] - a[1], d[2] - a[2]];
@@ -1175,28 +1157,49 @@ const GemFx = (() => {
   }
   requestAnimationFrame(frame);
 })();
-const gemHtml = (v) => `<div class="cash-morph" aria-hidden="true"><canvas class="gem-cv" data-v="${v}"></canvas></div>`;
+const gemHtml = (v) => `<div class="gem-hero" aria-hidden="true"><canvas class="gem-cv" data-v="${v}"></canvas></div>`;
+
+// ---------- summary card: gem, projected, lowest point, trend ----------
+const trendK = (v) => { const a = Math.abs(v), sg = v < 0 ? "-" : ""; return a >= 1e6 ? sg + "₱" + (a / 1e6).toFixed(2) + "M" : a >= 1e5 ? sg + "₱" + Math.round(a / 1e3) + "k" : a >= 1e3 ? sg + "₱" + (a / 1e3).toFixed(1) + "k" : sg + "₱" + Math.round(a); };
+function trendSvg(pts, W, H, cls) {
+  const n = pts.length, pl = 28, pr = 28, pt = 30, pb = 30, vals = pts.map((p) => p.v), hi = Math.max(...vals, 1), lo = Math.min(...vals, 0);
+  const x = (i) => pl + (i * (W - pl - pr)) / Math.max(1, n - 1), y = (v) => pt + (H - pt - pb) * (1 - (v - lo) / (hi - lo || 1));
+  const li = vals.indexOf(Math.min(...vals)), xy = pts.map((p, i) => [x(i), y(p.v)]), line = xy.map((q) => q.join(",")).join(" ");
+  const dots = pts.map((p, i) => { const low = i === li, col = low ? "#FCD34D" : "#6EE7B7";
+    return `<circle cx="${x(i)}" cy="${y(p.v)}" r="${low ? 6 : 4}" fill="${col}"/><text x="${x(i)}" y="${y(p.v) - 12}" text-anchor="middle" font-size="12" font-weight="800" fill="${low ? "#FCD34D" : "#F1EEE6"}">${trendK(p.v)}</text><text x="${x(i)}" y="${H - 8}" text-anchor="middle" font-size="12" font-weight="700" fill="#A09B94">${MONTHS_SHORT[keyParts(p.k).m]}</text>`; }).join("");
+  return `<svg class="${cls}" viewBox="0 0 ${W} ${H}" style="width:100%;height:auto"><defs><linearGradient id="trendFill${cls}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6EE7B7" stop-opacity=".28"/><stop offset="1" stop-color="#6EE7B7" stop-opacity="0"/></linearGradient></defs><polygon points="${xy[0][0]},${H - pb} ${line} ${xy[n - 1][0]},${H - pb}" fill="url(#trendFill${cls})"/><polyline points="${line}" fill="none" stroke="#6EE7B7" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>${dots}</svg>`;
+}
+function summaryParts() {
+  const pts = peekMonths(), v = runningFundsAt(selectedKey);
+  if (pts.length < 2) return { low: "", chart: "" };
+  const lo = pts.reduce((m, p) => (p.v < m.v ? p : m), pts[0]);
+  return {
+    low: `lowest <b class="${lo.v < 0 ? "text-rose-300" : "text-amber-300"}">${peso(lo.v).replace(/\.00$/, "")}</b> at end of ${MONTHS_SHORT[keyParts(lo.k).m]}`,
+    chart: `<div class="md:hidden">${trendSvg(pts, 350, 150, "tr-ph")}</div><div class="hidden md:block">${trendSvg(pts, 1000, 190, "tr-dk")}</div>`,
+  };
+}
 
 function renderBudget() {
   const k = selectedKey;
   const t = monthTotals(k);
   const projected = runningFundsAt(k);
 
-  const summary = `<section class="rounded-3xl overflow-hidden relative shadow-xl">
+  const sp = summaryParts();
+  const summary = `<section class="rounded-3xl overflow-hidden relative shadow-xl" id="summary-card">
     <div class="absolute inset-0 bg-gradient-to-br ${bannerGradient(k)}"></div>
-    ${gemHtml(projected)}
-    <div class="ambient-glow" style="top:-30px;right:60px"></div>
-    <div class="relative p-6 md:p-7 space-y-5">
-      <div>
-        <p class="text-[10px] font-black uppercase tracking-[0.3em] text-white/60">Projected</p>
+    <div class="relative p-6 md:p-7 flex flex-col gap-4">
+      ${gemHtml(projected)}
+      <div class="text-center">
+        <p class="text-xs font-black text-white/60">Projected</p>
         <p id="sum-projected" class="text-4xl md:text-5xl font-black text-white mt-1 leading-none">${peso(projected)}</p>
+        <p id="sum-low" class="text-sm text-white/60 mt-4">${sp.low}</p>
       </div>
-      <div id="sum-stats" class="grid grid-cols-2 gap-3">${statsGridHtml(t)}</div>
+      <div id="sum-chart">${sp.chart}</div>
     </div>
   </section>`;
 
   $("budget-body").innerHTML =
-    `<div class="md:col-span-2 grid gap-4 md:grid-cols-[3fr_2fr]">${summary}${peekCardHtml()}</div>` +
+    `<div class="md:col-span-2">${summary}</div>` +
     accountsCardHtml() +
     personTabsHtml(t) +
     `<div class="person-wrap" data-who="charlie">${personSectionHtml("charlie")}</div>` +
@@ -1214,75 +1217,6 @@ function peekMonths() {
     if (tl.includes(k)) out.push({ k, v: runningFundsAt(k) });
   }
   return out;
-}
-function peekCardHtml() {
-  const pts = peekMonths();
-  if (pts.length < 2) return "";
-  // each month is a pile of cash: a banknote on top, the edges of the bills under it, taller = more money
-  const W = 360, H = 208, pl = 44, pr = 44, base = 180, edge = 8, noteH = 28, billW = 48, maxEdges = 14;
-  const hi = Math.max(1, ...pts.map((p) => p.v));
-  const x = (i) => pl + (i * (W - pl - pr)) / (pts.length - 1);
-  const amt = (v) => (Math.abs(v) >= 1000000 ? `${v < 0 ? "-" : ""}₱${(Math.abs(v) / 1000000).toFixed(2)}M` : `${v < 0 ? "-" : ""}₱${formatMoney(Math.abs(Math.round(v)))}`);
-  // rarity tiers: the more money, the rarer the cash.
-  // 1 common green, 2 blue, 3 purple, 4 gold, 5 legendary, 6 diamond (icy), 7 ruby (red and gold trim), 8 black and gold (premium)
-  const tierOf = cashTierOf;
-  const PAL = {
-    1: { body: "#4ADE9F", coin: "#86EFC0", e1: "#2DBE88", e2: "#34D399", spark: "#BBF7D0" },
-    2: { body: "#60A5FA", coin: "#BFDBFE", e1: "#3B82F6", e2: "#60A5FA", spark: "#DBEAFE" },
-    3: { body: "#A78BFA", coin: "#DDD6FE", e1: "#8B5CF6", e2: "#A78BFA", spark: "#EDE9FE" },
-    4: { body: "#FBBF24", coin: "#FDE68A", e1: "#F59E0B", e2: "#FBBF24", spark: "#FFF3B0" },
-    5: { body: "url(#cashLegend)", coin: "#FFF7ED", e1: "#F46A5C", e2: "#FB8A6B", spark: "#FFFFFF" },
-    6: { body: "url(#cashIce)", coin: "#FFFFFF", e1: "#4CC3E6", e2: "#79D7F1", spark: "#FFFFFF" },
-    7: { body: "url(#cashRuby)", coin: "#FDE68A", e1: "#9F1239", e2: "#E11D48", spark: "#FECDD3", frame: "#FDE68A", fop: 0.85, ink: "#B45309", peso: "#7F1D1D", pesoOp: 0.9, dot: "#FDE68A", dotOp: 0.9 },
-    8: { body: "#262830", coin: "#FBBF24", e1: "#2E3039", e2: "#FBBF24", es: "#FBBF24", spark: "#FDE68A", frame: "#FBBF24", fop: 0.9, ink: "#FBBF24", peso: "#111827", pesoOp: 1, dot: "#FBBF24", dotOp: 0.9 },
-  };
-  const SPARKS = { 1: 1, 2: 2, 3: 3, 4: 4, 5: 4, 6: 4, 7: 4, 8: 4 };
-  const SPOTS = [[31, 8, 0], [-30, 24, 0], [-31, 4, 1], [29, 32, 0], [33, -6, 1], [-34, 36, 1], [36, 22, 0], [-36, 12, 0], [26, -14, 1], [-26, -12, 0]];
-  const note = (cx, y, pal, shine, id) => `<g>
-      <rect x="${cx - billW / 2}" y="${y}" width="${billW}" height="${noteH}" rx="3" fill="${pal.body}"/>
-      <rect x="${cx - billW / 2 + 3}" y="${y + 3}" width="${billW - 6}" height="${noteH - 6}" rx="2" fill="none" stroke="${pal.frame || "#0F1012"}" stroke-opacity="${pal.fop || 0.28}" stroke-width="1"/>
-      <circle cx="${cx}" cy="${y + noteH / 2}" r="9" fill="${pal.coin}" stroke="${pal.ink || "#0F1012"}" stroke-opacity="${pal.ink ? 0.9 : 0.3}" stroke-width="1"/>
-      <text x="${cx}" y="${y + noteH / 2 + 4}" text-anchor="middle" font-size="12" font-weight="700" fill="${pal.peso || "#0F1012"}" fill-opacity="${pal.pesoOp || 0.6}">₱</text>
-      <circle cx="${cx - billW / 2 + 8}" cy="${y + 7}" r="1.6" fill="${pal.dot || "#0F1012"}" fill-opacity="${pal.dotOp || 0.3}"/><circle cx="${cx + billW / 2 - 8}" cy="${y + noteH - 7}" r="1.6" fill="${pal.dot || "#0F1012"}" fill-opacity="${pal.dotOp || 0.3}"/>
-      ${shine ? `<clipPath id="cn${id}"><rect x="${cx - billW / 2}" y="${y}" width="${billW}" height="${noteH}" rx="3"/></clipPath><g clip-path="url(#cn${id})"><rect class="cash-shine" style="animation-delay:${(id * 0.2).toFixed(2)}s" x="${cx - 4}" y="${y - 2}" width="8" height="${noteH + 4}" fill="#FFFFFF" fill-opacity=".6"/></g>` : ""}
-    </g>`;
-  const star = (sx, sy, d, big, col) => `<g transform="translate(${sx} ${sy})"><path class="cash-sparkle" style="animation-delay:${d}s" d="${big ? "M0 -7 L2 -2 L7 0 L2 2 L0 7 L-2 2 L-7 0 L-2 -2Z" : "M0 -5 L1.5 -1.5 L5 0 L1.5 1.5 L0 5 L-1.5 1.5 L-5 0 L-1.5 -1.5Z"}" fill="${col}"/></g>`;
-  const stacks = pts.map((p, i) => {
-    const cx = x(i), neg = p.v <= 0;
-    const tier = neg ? 0 : tierOf(p.v), pal = PAL[tier] || PAL[1];
-    const n = neg ? 0 : Math.max(1, Math.round((p.v / hi) * maxEdges));
-    let g = "";
-    for (let j = 0; j < n; j++) g += `<rect x="${cx - billW / 2}" y="${base - (j + 1) * edge}" width="${billW}" height="${edge - 1}" rx="2" fill="${j % 2 ? pal.e2 : pal.e1}"${pal.es ? ` stroke="${pal.es}" stroke-opacity=".75" stroke-width="1"` : ""}/>`;
-    const noteY = base - n * edge - noteH;
-    const lift = neg ? `<rect x="${cx - billW / 2}" y="${base - noteH}" width="${billW}" height="${noteH}" rx="3" fill="none" stroke="#FB7185" stroke-width="1.5" stroke-dasharray="4 3"/>` : note(cx, noteY, pal, tier >= 7, i);
-    const top = neg ? base - noteH : noteY;
-    // sparkles alternate sides; the rarer the tier, the more of them
-    const L = i % 2 ? 1 : -1, d0 = i * 0.5;
-    let sparkles = "";
-    for (let k = 0; k < (SPARKS[tier] || 0); k++) { const [dx, dy, big] = SPOTS[k]; sparkles += star(cx + dx * L, top + dy, d0 + k * 0.55, !!big, pal.spark); }
-    const labelY = top - 8;
-    // the top banknote and its amount float together (idle animation, staggered per month)
-    return `${g}<g class="cash-note" style="animation-delay:${(i * 0.2).toFixed(2)}s">${lift}<text x="${cx.toFixed(1)}" y="${labelY}" text-anchor="middle" font-size="12" font-weight="700" fill="${neg ? "#FB7185" : tier === 8 ? "#FBBF24" : tier >= 6 ? "#FFFFFF" : tier >= 4 ? "#FDE68A" : "#F2EFEA"}">${amt(p.v)}</text></g>
-${sparkles}
-      <text x="${cx.toFixed(1)}" y="${H - 8}" text-anchor="middle" font-size="12" fill="#A09B94">${MONTHS_SHORT[keyParts(p.k).m]}</text>`;
-  }).join("");
-  const ground = `<line x1="${pl - 24}" x2="${W - pr + 24}" y1="${base + 4}" y2="${base + 4}" stroke="#2A2C31" stroke-width="2" stroke-linecap="round"/>`;
-  const table = pts.map((p) => `${monthName(p.k)} ${peso(p.v)}`).join(", ");
-  return `<section class="glass-card rounded-3xl p-6 flex flex-col" id="peek-card">
-    <div>
-      <h3 class="text-sm font-bold text-white">Next 5 months</h3>
-    </div>
-    <div class="relative mt-4 flex-1 flex items-center">
-      <svg viewBox="0 0 ${W} ${H}" class="w-full" role="img" aria-label="Projected month-end balance as stacks of cash. ${escapeHtml(table)}">
-        <defs>
-          <linearGradient id="cashLegend" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F472B6"/><stop offset=".5" stop-color="#FB923C"/><stop offset="1" stop-color="#FACC15"/></linearGradient>
-          <linearGradient id="cashIce" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#67E8F9"/><stop offset=".6" stop-color="#93C5FD"/><stop offset="1" stop-color="#C4B5FD"/></linearGradient>
-          <linearGradient id="cashRuby" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FB7185"/><stop offset=".55" stop-color="#E11D48"/><stop offset="1" stop-color="#9F1239"/></linearGradient>
-        </defs>
-        ${ground}${stacks}
-      </svg>
-    </div>
-  </section>`;
 }
 
 // Phones show one person at a time (a segmented switch); desktop shows both side by side.
@@ -2277,10 +2211,9 @@ function refreshRealized() {
   if (proj) proj.textContent = peso(runningFundsAt(selectedKey));
   const gcv = document.querySelector(".gem-cv"); // the gem follows the projected number
   if (gcv) gcv.dataset.v = runningFundsAt(selectedKey);
-  const peek = $("peek-card"); // next-5-months piles follow too
-  if (peek) { const h = peekCardHtml(); if (h) peek.outerHTML = h; }
-  const stats = $("sum-stats");
-  if (stats) stats.innerHTML = statsGridHtml(t);
+  const sp = summaryParts(); // lowest point + trend follow too
+  const lowEl = $("sum-low"); if (lowEl) lowEl.innerHTML = sp.low;
+  const chEl = $("sum-chart"); if (chEl) chEl.innerHTML = sp.chart;
   const pi = $("projection-inner"); // inline projection card — refresh in place
   if (pi) pi.innerHTML = projectionInnerHtml();
 }
