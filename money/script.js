@@ -1156,7 +1156,7 @@ const GemFx = (() => {
     draw(ctx, w, h, v <= 0 ? 0 : cashTierOf(v), sizeK(v), ms / 1000);
   }
   requestAnimationFrame(frame);
-  return { colorOf: (v) => { const c = TIERS[v <= 0 ? 0 : cashTierOf(v)]; return c.hi || c.b; } };
+  return { colorOf: (v) => { const c = TIERS[v <= 0 ? 0 : cashTierOf(v)]; return c.hi || c.b; }, tier: (v) => TIERS[v <= 0 ? 0 : cashTierOf(v)] };
 })();
 const gemHtml = (v) => `<div class="gem-hero" aria-hidden="true"><canvas class="gem-cv" data-v="${v}"></canvas></div>`;
 
@@ -1166,9 +1166,11 @@ function trendSvg(pts, W, H, cls) {
   const n = pts.length, pl = 28, pr = 28, pt = 30, pb = 30, vals = pts.map((p) => p.v), hi = Math.max(...vals, 1), lo = Math.min(...vals, 0);
   const x = (i) => pl + (i * (W - pl - pr)) / Math.max(1, n - 1), y = (v) => pt + (H - pt - pb) * (1 - (v - lo) / (hi - lo || 1));
   const li = vals.indexOf(Math.min(...vals)), xy = pts.map((p, i) => [x(i), y(p.v)]), line = xy.map((q) => q.join(",")).join(" ");
-  const dots = pts.map((p, i) => { const low = i === li, col = low ? "#FCD34D" : "#6EE7B7";
-    return `<circle cx="${x(i)}" cy="${y(p.v)}" r="${low ? 6 : 4}" fill="${col}"/><text x="${x(i)}" y="${y(p.v) - 12}" text-anchor="middle" font-size="12" font-weight="800" fill="${low ? "#FCD34D" : "#F1EEE6"}">${trendK(p.v)}</text><text x="${x(i)}" y="${H - 8}" text-anchor="middle" font-size="12" font-weight="700" fill="#E7E3DB">${MONTHS_SHORT[keyParts(p.k).m]}</text>`; }).join("");
-  return `<svg class="${cls}" viewBox="0 0 ${W} ${H}" style="width:100%;height:auto"><defs><linearGradient id="trendFill${cls}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6EE7B7" stop-opacity=".28"/><stop offset="1" stop-color="#6EE7B7" stop-opacity="0"/></linearGradient></defs><polygon points="${xy[0][0]},${H - pb} ${line} ${xy[n - 1][0]},${H - pb}" fill="url(#trendFill${cls})"/><polyline points="${line}" fill="none" stroke="#6EE7B7" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>${dots}</svg>`;
+  const gemAt = (cx, cy, r, c) => { const P = (pts2) => pts2.map(([ux, uy]) => `${(cx + ux * r).toFixed(1)},${(cy + (uy + 0.15) * r).toFixed(1)}`).join(" ");
+    return `<polygon points="${P([[-1, 0], [-0.55, -0.6], [0.55, -0.6], [1, 0]])}" fill="${c.b}"/><polygon points="${P([[-1, 0], [1, 0], [0, 1]])}" fill="${c.e1}"/><polygon points="${P([[-0.55, -0.6], [0.55, -0.6], [0.3, 0], [-0.3, 0]])}" fill="#fff" fill-opacity=".3"/>`; };
+  const dots = pts.map((p, i) => { const low = i === li;
+    return `${gemAt(x(i), y(p.v), low ? 15 : 11, GemFx.tier(p.v))}<text x="${x(i)}" y="${y(p.v) - 22}" text-anchor="middle" font-size="12" font-weight="800" fill="${low ? "#FCD34D" : "#F1EEE6"}">${trendK(p.v)}</text><text x="${x(i)}" y="${H - 8}" text-anchor="middle" font-size="12" font-weight="700" fill="#E7E3DB">${MONTHS_SHORT[keyParts(p.k).m]}</text>`; }).join("");
+  return `<svg class="${cls}" viewBox="0 0 ${W} ${H}" style="width:100%;height:auto"><defs><linearGradient id="trendFill${cls}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3DD9F0" stop-opacity=".28"/><stop offset="1" stop-color="#3DD9F0" stop-opacity="0"/></linearGradient></defs><polygon points="${xy[0][0]},${H - pb} ${line} ${xy[n - 1][0]},${H - pb}" fill="url(#trendFill${cls})"/><polyline points="${line}" fill="none" stroke="#3DD9F0" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>${dots}</svg>`;
 }
 function summaryParts() {
   const pts = peekMonths(), v = runningFundsAt(selectedKey);
