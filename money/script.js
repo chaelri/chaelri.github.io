@@ -597,7 +597,8 @@ function renderMonthBanner() {
 }
 
 // A sub-expense row (checked/edited individually).
-function childRowHtml(parentId, c, k, who) {
+// asItem: draw it with the same padding / icon / type sizes as a normal item row (used on Home, where sub-expenses sit beside top-level rows).
+function childRowHtml(parentId, c, k, who, asItem = false) {
   const paid = isPaid(c.id, k);
   const est = Number(c.amount) || 0;
   const spent = spentIn(c.id, k);
@@ -614,16 +615,16 @@ function childRowHtml(parentId, c, k, who) {
         <span class="text-[10px] font-bold ${over ? "text-rose-400" : "text-emerald-400"}">${over ? `over ${peso(-remaining)}` : `${peso(remaining)} left`}</span>
       </div>`
     : "";
-  return `<div data-child="${c.id}" onclick="openChildModal('${who}','${parentId}','${c.id}')" class="item-row flex items-center gap-2 py-1.5 pl-2 rounded-lg cursor-pointer ${paid ? "opacity-60" : ""}">
+  return `<div data-child="${c.id}" onclick="openChildModal('${who}','${parentId}','${c.id}')" class="item-row flex items-center ${asItem ? "gap-3 py-2.5 px-3 rounded-xl" : "gap-2 py-1.5 pl-2 rounded-lg"} cursor-pointer ${paid ? "opacity-60" : ""}">
     <button onclick="togglePaidQuick(event,'${c.id}','expenses')" title="Mark paid" class="paid-check ${paid ? "is-paid bg-emerald-500 border-emerald-500" : "border-slate-600"} w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 border">
       <span class="material-icons check-icon text-white" style="font-size:16px">check</span>
     </button>
-    ${rowIconHtml(c.name, 24)}
+    ${rowIconHtml(c.name, asItem ? 28 : 24)}
     <div class="flex-1 min-w-0">
-      <span class="item-name block text-[13px] font-bold text-slate-300 truncate ${paid ? "line-through" : ""}">${escapeHtml(c.name)}</span>
+      <span class="item-name block ${asItem ? "text-sm text-slate-200" : "text-[13px] text-slate-300"} font-bold truncate ${paid ? "line-through" : ""}">${escapeHtml(c.name)}</span>
       ${spendLine}
     </div>
-    <span class="child-amt text-[13px] font-black text-slate-100 flex-shrink-0">${peso(rightMain)}</span>
+    <span class="child-amt ${asItem ? "text-sm" : "text-[13px]"} font-black text-slate-100 flex-shrink-0">${peso(rightMain)}</span>
   </div>`;
 }
 // An expandable parent (its amount = sum of sub-expenses).
@@ -1417,7 +1418,7 @@ function leftLeaves(who) {
     for (const it of getItems(who, kind).filter((x) => itemActiveIn(x, k) && !x.virtual)) {
       const kids = getKids(it);
       if (kids.length) {
-        for (const c of kids) if (!isPaid(c.id, k)) out.push({ amt: Number(c.amount) || 0, html: childRowHtml(it.id, c, k, who) });
+        for (const c of kids) if (!isPaid(c.id, k)) out.push({ amt: Number(c.amount) || 0, html: childRowHtml(it.id, c, k, who, true) });
       } else if (!isPaid(it.id, k)) out.push({ amt: Math.abs(Number(amountIn(it, k)) || 0), html: itemRowHtml(it, k, kind, who) });
     }
   }
