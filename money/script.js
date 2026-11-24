@@ -680,7 +680,7 @@ function parentRowHtml(it, k, kind, who, opts = {}) {
     : `<span class="material-icons text-white" style="font-size:20px">home_work</span>`;
   const iconBg = icon ? "" : "bg-gradient-to-br from-violet-500 to-fuchsia-600";
   const childRows = kids.map((c) => childRowHtml(it.id, c, k, who)).join("");
-  return `<details open class="item-parent glass-card rounded-2xl border border-violet-500/25 overflow-hidden my-1.5" data-parent="${it.id}" data-who="${who}">
+  return `<details open class="item-parent glass-card rounded-2xl overflow-hidden my-1.5" data-parent="${it.id}" data-who="${who}">
     <summary class="parent-summary flex items-center gap-3 px-4 py-3.5 cursor-pointer list-none bg-gradient-to-r from-violet-500/[0.12] via-violet-500/[0.04] to-transparent ${allPaid ? "opacity-70" : ""}">
       <div class="acct-icon ${iconBg} flex-shrink-0">${iconInner}</div>
       <div class="flex-1 min-w-0">
