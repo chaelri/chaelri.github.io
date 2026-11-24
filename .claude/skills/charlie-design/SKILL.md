@@ -191,6 +191,25 @@ Posters and art-heavy graphics get the same strictness as UI. Charlie caught all
 23. **Always run the checks unasked** (poster-check.js, px_contrast.py, look at the render) on every take after every change; Charlie should never have to say "run the spacing skill".
 24. **Theme (light/dark) switches are instant (Charlie, 2026-11-21).** No colour fades or animated transitions when the mode toggles: add a class (e.g. `theme-instant`) that sets `transition:none!important` on everything, flip the theme, remove the class two frames later. Never leave per-element `transition: background/color` to animate a theme swap.
 
+## 17. Gem glass: real 3D faceted objects (Charlie, 2026-11-24, the debt jar)
+
+Charlie loved this look and wants it reused for any "how much is left / how full" visual. It started as "a 3D jar with shiny liquid, the goal is an empty jar" and he asked for "gem 3D vibe". Reference implementation: `JarFx` in `money/script.js` (production) and the same engine as `GemFx` just above it. Do not redo it from scratch.
+
+**How we got there (so the next one is faster)**
+1. Flat SVG jars (gradients, waves, bubbles, a facet fill) were rejected: "totally not gem 3D". A gem look needs real rotating 3D facets, not a drawing of one.
+2. Engine = canvas 2D painter's algorithm like `GemFx`: build faces in 3D, rotate (yaw spins, fixed pitch about 0.42), sort by depth, shade each face with diffuse + a tight specular + a slow per-face twinkle. No libraries.
+3. Shape = lathe of a profile `[radius, y]` with N=10 sides. Gem facets come from alternating the rings by half a step and joining them with triangles, so the surface reads as cut stones, not a smooth bottle. Poles (radius 0) become fans.
+4. Glass = the same lathe: back faces a faint white fill, front faces a faint fill that brightens with light. Lines only on the OUTSIDE: silhouette edges (an edge shared by one front and one back face, brightest) plus the ring outlines (dim). Never the inner triangle web (Charlie: "outer lang na lines tho ganon pa rin yung structure"). Edges with a single face (the open rim) are not silhouettes.
+5. Contents = another lathe at 92% radius, cut at every band boundary so each face sits in one band; flat table cap (outer ring, raised inner ring, raised centre) for the surface. One band per item, colour per category, soonest-to-finish on top so it drains first. Give tiny items a minimum share (about 0.09, or 0.5/n) so they stay visible.
+6. First render was "masakit sa mata" (harsh): near-white top surface, slanted slivers, busy wires. Chosen fix = **deep jewel**: darker teal/crimson pairs (light, dark) per band, specular x0.5, wire alpha x0.45, metal lid x0.65. Never let one large face go near white. (Soft = muted, clean bands = level rings with no half-step offset; Charlie picked deep jewel.)
+7. Gem-lid: grey faceted cylinder + table cap, darkened.
+
+**Navigating the data (what failed)**: tapping thin spinning bands is hard; arrows beside the jar were bad ("arrow is bad"); a dim-everything-else focus mode hides the whole. What works: a list beside the jar in the same order as the layers (face with a ring in the band colour, name, amount left); tapping a row or a band lights that band (lighten + white edge) while the rest stay in full colour and the jar keeps spinning; the row then shows the extra numbers; page the list 5 at a time (jar still shows everything); jumping to a band on another page switches the page.
+
+**Layout**: flat inside its parent, not a card (Charlie: "make it flat within overview"). Jar left (about 5fr), list right (7fr), jar aligned to the top, stats (percent done, per-month total, "empty by <month>") above the list.
+
+**Pitfalls we hit**: the colour-mix helper must accept both hex strings and [r,g,b] arrays; the liquid cap ring must use the same half-step offset as the top side ring or dark slivers appear; scale = min(height/span, width/2.35) so wide shapes never clip; with a `<script type="module">` expose the object on `window` for inline onclick; never animate through the OS reduce-motion setting; a coloured left-edge stripe on the legend rows was rejected (section 6).
+
 ## 14. Reusable pieces (copy these, Charlie likes them)
 
 **Loading-screen curtain (screen change).** Reference implementation: `gif-maker/index.html` (search `#curtain` and `async function go`).
