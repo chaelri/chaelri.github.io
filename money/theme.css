@@ -296,6 +296,8 @@ button[onclick*="toggleField"] > span.left-7 { left: 28px !important; }
 /* quick spend: what is left is the hero, updates while you type */
 .spend-left-card { grid-column: 1 / -1; border: 0; border-radius: 13px; padding: 16px; background: #0F1012; }
 .spend-left-num { font-size: 38px; font-weight: 900; line-height: 1; color: #34D399; font-variant-numeric: tabular-nums; margin: 0; }
+.spend-left-num.yellow { color: #FBBF24; }
+.spend-left-num.orange { color: #FB923C; }
 .spend-left-num.over { color: #FB7185; }
 .spend-left-cap { font-size: 15px; color: #A09B94; margin: 8px 0 0; }
 

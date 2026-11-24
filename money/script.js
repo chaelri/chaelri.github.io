@@ -1873,10 +1873,16 @@ function enhanceAddExpense() {
   body.insertAdjacentHTML("beforeend",
     `<div data-mode="extra" class="space-y-1"><label>What did you spend on?</label><input type="text" id="f-xlabel" placeholder="e.g. grab, lunch, gas" class="w-full" /></div>` +
     `<div data-mode="extra" class="space-y-1"><label>How much? (₱)</label><input type="number" id="f-xamount" inputmode="decimal" placeholder="0" oninput="updateXLeft()" class="w-full" /></div>` +
-    `<div data-mode="extra" id="f-xleft" class="spend-left-card" data-base="${left}" data-month="${monthShort(selectedKey)}"><p id="f-xnum" class="spend-left-num ${left < 0 ? "over" : ""}">${left < 0 ? "-" : ""}${peso(Math.abs(left))}</p><p id="f-xcap" class="spend-left-cap">${left < 0 ? "over" : "left"} in extra spending for ${monthShort(selectedKey)}</p></div>`);
+    `<div data-mode="extra" id="f-xleft" class="spend-left-card" data-base="${left}" data-budget="${Number(ex.child.amount) || 0}" data-month="${monthShort(selectedKey)}"><p id="f-xnum" class="spend-left-num ${xTone(left, Number(ex.child.amount) || 0)}">${left < 0 ? "-" : ""}${peso(Math.abs(left))}</p><p id="f-xcap" class="spend-left-cap">${left < 0 ? "over" : "left"} in extra spending for ${monthShort(selectedKey)}</p></div>`);
   setExpenseMode("extra");
 }
 // As you type, show what would be left in extra spending after this spend.
+// Colour of the number by how much of the month's extra spending is still left: green, yellow, orange, then red near 0 or over.
+function xTone(left, budget) {
+  if (left <= 0 || budget <= 0) return "over";
+  const r = left / budget;
+  return r > 0.5 ? "" : r > 0.25 ? "yellow" : r > 0.1 ? "orange" : "over";
+}
 window.updateXLeft = function () {
   const card = $("f-xleft");
   if (!card) return;
@@ -1885,7 +1891,7 @@ window.updateXLeft = function () {
   const left = base - amt;
   const num = $("f-xnum");
   num.textContent = `${left < 0 ? "-" : ""}${peso(Math.abs(left))}`;
-  num.classList.toggle("over", left < 0);
+  num.className = `spend-left-num ${xTone(left, Number(card.dataset.budget) || 0)}`;
   $("f-xcap").textContent = amt ? (left < 0 ? `over after this spend, ${card.dataset.month}` : `left after this spend, ${card.dataset.month}`) : `${left < 0 ? "over" : "left"} in extra spending for ${card.dataset.month}`;
 };
 window.setExpenseMode = function (m) {
