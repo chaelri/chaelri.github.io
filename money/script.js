@@ -1209,9 +1209,11 @@ const JarFx = (() => {
   const rot = (p, yaw, pitch) => { const [x, y, z] = p, cy = Math.cos(yaw), sy = Math.sin(yaw), x1 = x * cy + z * sy, z1 = -x * sy + z * cy, cp = Math.cos(pitch), sp = Math.sin(pitch); return [x1, y * cp - z1 * sp, y * sp + z1 * cp]; };
   const Lv = (() => { const v = [-0.45, 0.75, 0.55], m = Math.hypot(...v); return v.map((x) => x / m); })();
   const R = (f, yaw, pitch) => ({ P: f.p.map((p) => rot(p, yaw, pitch)), n: rot(f.n, yaw, pitch), z: rot(f.c, yaw, pitch)[2], src: f });
-  const light = (n, t, id) => { const d = Math.max(0, n[0] * Lv[0] + n[1] * Lv[1] + n[2] * Lv[2]), hv = [Lv[0], Lv[1], Lv[2] + 1], hm = Math.hypot(...hv), spec = Math.pow(Math.max(0, (n[0] * hv[0] + n[1] * hv[1] + n[2] * hv[2]) / hm), 22), tw = Math.pow(Math.max(0, Math.sin(t * 2.2 + id * 1.7)), 14) * 0.5; return { d, spec, tw }; };
+  const light = (n, t, id) => { const d = Math.max(0, n[0] * Lv[0] + n[1] * Lv[1] + n[2] * Lv[2]), hv = [Lv[0], Lv[1], Lv[2] + 1], hm = Math.hypot(...hv), spec = Math.pow(Math.max(0, (n[0] * hv[0] + n[1] * hv[1] + n[2] * hv[2]) / hm), 22), tw = Math.pow(Math.max(0, Math.sin(t * 2.2 + id * 1.7)), 14) * 0.5 * ST.tw; return { d, spec, tw }; };
   const path = (ctx, P, cx, cy, S) => { ctx.beginPath(); P.forEach((p, i) => { const x = cx + p[0] * S, y = cy - p[1] * S; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.closePath(); };
-  const ST = { sp: 0.5, dk: 0.9, wire: 0.45, lid: 0.65 };
+  // Shine presets (swap JAR_SHINE): "calm" = soft highlights, slow twinkle; "matte" = no glints at all, shading only
+  const JAR_SHINE = "calm", SHINES = { calm: { sp: 0.2, tw: 0.25 }, matte: { sp: 0, tw: 0 } };
+  const ST = { sp: 0.5, dk: 0.9, wire: 0.45, lid: 0.65, ...SHINES[JAR_SHINE] };
   const PER = 5; let items = [], bands = [], lvl = 0, L = null, sel = -1, page = 0, yawA = 0, last = 0, hit = [], view = null;
   function prepare(rows, level) { // rows: soonest-ending first, {left}; adds .w (band share) and .col (ring colour)
     items = rows; lvl = cl(level, 0, 1); if (sel >= rows.length) sel = -1; if (page > Math.max(0, Math.ceil(rows.length / PER) - 1)) page = 0;
