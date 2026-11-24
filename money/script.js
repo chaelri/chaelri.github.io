@@ -1371,12 +1371,12 @@ window.openMore = async function () {
     body.querySelectorAll("details").forEach((d) => (d.open = true));
   };
   if (ov.classList.contains("open")) return fill(); // already on the screen: just refresh it
-  await withWash(() => { fill(); ov.classList.add("open"); ov.scrollTop = 0; });
+  await withWash(() => { fill(); ov.classList.add("open"); ov.scrollTop = 0; }, "#3DD9F0");
 };
 window.closeMore = async function () {
   const ov = $("more-overlay");
   if (!ov.classList.contains("open")) return;
-  await withWash(() => ov.classList.remove("open"));
+  await withWash(() => ov.classList.remove("open"), "#3DD9F0");
 };
 
 // Count how many months of an installment have been checked as paid.
@@ -2434,9 +2434,9 @@ function initParticles() {
 // Liquid wash: a sheet in the current month's gem colour rises like the debt jar filling (rippling surface), swap() runs while it covers
 // the screen, then it drains back down. Used for splash -> app and for opening/closing the overview screen.
 // Web Animations API on purpose: it ignores the OS reduce-motion setting.
-async function liquidWash(swap) {
+async function liquidWash(swap, color) {
   const W = innerWidth, H = innerHeight;
-  const wash = (() => { try { return GemFx.colorOf(runningFundsAt(currentKey())); } catch (e) { return "#3DD9F0"; } })(); // gem colour of the current month
+  const wash = color || (() => { try { return GemFx.colorOf(runningFundsAt(currentKey())); } catch (e) { return "#3DD9F0"; } })(); // gem colour of the current month unless a colour is given
   const light = (() => { const [r, g, b] = [1, 3, 5].map((i) => parseInt(wash.slice(i, i + 2), 16)); return "#" + [r, g, b].map((v) => Math.round(v + (255 - v) * 0.3).toString(16).padStart(2, "0")).join(""); })();
   const P = 130, n = Math.ceil(W / P), SW = 2 * n * P; // wave period 130px: shifting by n whole periods loops seamlessly
   const wavePath = (y) => { let d = `M0 ${y}`; for (let x = 0; x <= SW; x += 65) d += x ? ` T${x + 65} ${y}` : ` Q32 ${y - 4} 65 ${y}`; return d; };
@@ -2459,7 +2459,7 @@ async function liquidWash(swap) {
   c.remove();
 }
 let washing = false;
-async function withWash(swap) { if (washing) return; washing = true; try { await liquidWash(swap); } finally { washing = false; } }
+async function withWash(swap, color) { if (washing) return; washing = true; try { await liquidWash(swap, color); } finally { washing = false; } }
 
 let revealing = false;
 async function revealApp() {
