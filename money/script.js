@@ -889,7 +889,7 @@ function personSectionHtml(who) {
   const fundHtml = fund ? `<div class="fund-row rounded-2xl mb-2">${itemRowHtml(fund, k, "expenses", who)}</div>` : "";
   const expHtml = fundHtml + groupedRowsHtml(expenses.filter((it) => !it.virtual), k, "expenses", who);
   return `<div class="glass-card rounded-2xl overflow-hidden border ${o.ring}">
-    <div class="flex flex-wrap items-center justify-between gap-y-2 px-5 py-4 bg-slate-800 border-b border-slate-700">
+    <div class="flex flex-wrap items-center justify-between gap-y-2 px-5 py-4 bg-slate-800">
       <div class="flex items-center gap-3">
         <img src="assets/avatar-${who}.jpg" alt="${o.label}" class="w-10 h-10 rounded-xl object-cover ring-2 ring-current ${o.text} flex-shrink-0" />
         <div>
