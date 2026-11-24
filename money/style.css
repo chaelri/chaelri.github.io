@@ -153,9 +153,9 @@ input[type="checkbox"]:checked::before {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 56px;
-  height: 56px;
-  margin: -28px 0 0 -28px;
+  width: 76px;
+  height: 76px;
+  margin: -38px 0 0 -38px;
   object-fit: contain;
   opacity: 0;
   z-index: 3;
@@ -175,8 +175,8 @@ input[type="checkbox"]:checked::before {
 }
 @keyframes introMoneyPop {
   0% { transform: translateY(-8px) scale(0) rotate(-25deg); opacity: 0; }
-  60% { transform: translateY(-64px) scale(1.18) rotate(10deg); opacity: 1; }
-  100% { transform: translateY(-56px) scale(1) rotate(0deg); opacity: 1; }
+  60% { transform: translateY(-96px) scale(1.18) rotate(10deg); opacity: 1; }
+  100% { transform: translateY(-86px) scale(1) rotate(0deg); opacity: 1; }
 }
 
 /* Intro Particles using Emoji */

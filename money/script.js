@@ -2277,7 +2277,7 @@ function celebrate() {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
   canvas.style.opacity = "1";
-  const emojis = ["💸", "💵", "🪙"];
+  const gemColors = ["#FB9B6B", "#4ADE9F", "#60A5FA", "#A78BFA", "#FBBF24", "#7DD3FC"];
   const bills = Array.from({ length: 18 }, () => ({
     x: Math.random() * canvas.width,
     y: -40 - Math.random() * 200,
@@ -2285,7 +2285,7 @@ function celebrate() {
     vx: (Math.random() - 0.5) * 2,
     rot: Math.random() * Math.PI,
     vr: (Math.random() - 0.5) * 0.2,
-    e: emojis[Math.floor(Math.random() * emojis.length)],
+    e: gemColors[Math.floor(Math.random() * gemColors.length)],
     size: 24 + Math.random() * 16,
   }));
   let frames = 0;
@@ -2296,9 +2296,12 @@ function celebrate() {
       ctx.save();
       ctx.translate(b.x, b.y);
       ctx.rotate(b.rot);
-      ctx.font = `${b.size}px serif`;
-      ctx.textAlign = "center";
-      ctx.fillText(b.e, 0, 0);
+      const g = b.size / 24; // a small brilliant-cut gem instead of emoji
+      ctx.scale(g, g);
+      ctx.fillStyle = b.e; ctx.beginPath(); ctx.moveTo(-12, -2); ctx.lineTo(-6, -10); ctx.lineTo(6, -10); ctx.lineTo(12, -2); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = b.e; ctx.beginPath(); ctx.moveTo(-12, -2); ctx.lineTo(12, -2); ctx.lineTo(0, 12); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = "rgba(0,0,0,.2)"; ctx.beginPath(); ctx.moveTo(-12, -2); ctx.lineTo(12, -2); ctx.lineTo(0, 12); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = "rgba(255,255,255,.35)"; ctx.beginPath(); ctx.moveTo(-6, -10); ctx.lineTo(6, -10); ctx.lineTo(3, -2); ctx.lineTo(-3, -2); ctx.closePath(); ctx.fill();
       ctx.restore();
     });
     frames++;
@@ -2327,7 +2330,7 @@ function initParticles() {
 // =============================
 // Boot
 // =============================
-// Splash -> app: the gif-maker curtain. A cyan sheet with a curved top wipes up over the splash,
+// Splash -> app: the gif-maker curtain. A sheet in the current month's gem colour with a curved top wipes up over the splash,
 // the app is swapped in underneath, then the sheet lifts away upward (no second loader: the splash is the loader).
 // Web Animations API on purpose: it ignores the OS reduce-motion setting.
 let revealing = false;
@@ -2337,8 +2340,9 @@ async function revealApp() {
   const intro = $("intro-screen");
   const app = $("app");
   const ease = "cubic-bezier(.7,0,.2,1)";
+  const wash = (() => { try { return GemFx.colorOf(runningFundsAt(currentKey())); } catch (e) { return "#3DD9F0"; } })(); // gem colour of the current month
   const c = document.createElement("div");
-  c.style.cssText = "position:fixed;top:-160px;left:0;right:0;bottom:0;padding-top:160px;box-sizing:border-box;z-index:200;background:#3DD9F0;color:#0F1012;display:flex;align-items:center;justify-content:center;transform:translateY(101%);pointer-events:none;border-radius:50% 50% 0 0 / 96px 96px 0 0;will-change:transform";
+  c.style.cssText = "position:fixed;top:-160px;left:0;right:0;bottom:0;padding-top:160px;box-sizing:border-box;z-index:200;background:" + wash + ";color:#0F1012;display:flex;align-items:center;justify-content:center;transform:translateY(101%);pointer-events:none;border-radius:50% 50% 0 0 / 96px 96px 0 0;will-change:transform";
   document.body.appendChild(c);
   await c.animate([{ transform: "translateY(101%)" }, { transform: "translateY(0)" }], { duration: 440, easing: ease, fill: "forwards" }).finished;
   intro.style.display = "none";
