@@ -1212,15 +1212,27 @@ const JarFx = (() => {
   const light = (n, t, id) => { const d = Math.max(0, n[0] * Lv[0] + n[1] * Lv[1] + n[2] * Lv[2]), hv = [Lv[0], Lv[1], Lv[2] + 1], hm = Math.hypot(...hv), spec = Math.pow(Math.max(0, (n[0] * hv[0] + n[1] * hv[1] + n[2] * hv[2]) / hm), 22), tw = Math.pow(Math.max(0, Math.sin(t * 2.2 + id * 1.7)), 14) * 0.5; return { d, spec, tw }; };
   const path = (ctx, P, cx, cy, S) => { ctx.beginPath(); P.forEach((p, i) => { const x = cx + p[0] * S, y = cy - p[1] * S; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.closePath(); };
   const ST = { sp: 0.5, dk: 0.9, wire: 0.45, lid: 0.65 };
-  let items = [], bands = [], lvl = 0, L = null, sel = -1, yawA = 0, last = 0, hit = [], view = null;
+  const PER = 5; let items = [], bands = [], lvl = 0, L = null, sel = -1, page = 0, yawA = 0, last = 0, hit = [], view = null;
   function prepare(rows, level) { // rows: soonest-ending first, {left}; adds .w (band share) and .col (ring colour)
-    items = rows; lvl = cl(level, 0, 1); if (sel >= rows.length) sel = -1;
+    items = rows; lvl = cl(level, 0, 1); if (sel >= rows.length) sel = -1; if (page > Math.max(0, Math.ceil(rows.length / PER) - 1)) page = 0;
     bands = rows.slice().reverse(); const n = bands.length, mn = Math.min(0.09, 0.5 / Math.max(1, n)), tot = bands.reduce((s, b) => s + b.left, 0) || 1;
     const ws = bands.reduce((s, b) => s + Math.max(b.left / tot, mn), 0), ci = { charlie: 0, karla: 0, joint: 0 };
     bands.forEach((b) => { b.w = Math.max(b.left / tot, mn) / ws; const p = PAL[b.who] || PAL.charlie; b.pair = p[ci[b.who]++ % p.length] || p[0]; b.col = b.pair[0]; });
     L = n ? liquid(lvl, bands) : null;
   }
-  function pick(k) { sel = sel === k ? -1 : k; document.querySelectorAll(".jar-row").forEach((r) => r.classList.toggle("on", +r.dataset.k === sel)); }
+  function listHtml() {
+    const pages = Math.max(1, Math.ceil(items.length / PER)), from = page * PER;
+    const rows = items.slice(from, from + PER).map((r, j) => { const k = from + j; return `<div class="jar-row${k === sel ? " on" : ""}" onclick="JarFx.pick(${k})">
+      <img src="assets/avatar-${r.who}.jpg" alt="" style="--rc:${r.col}" onerror="this.style.visibility='hidden'" />
+      <span class="jn">${escapeHtml(r.name)}</span><b>${peso(r.left)}</b>
+      <small>${peso(r.a)}${r.q ? "/qtr" : "/mo"} · ${r.l}${r.q ? "" : " mo"} left</small>
+    </div>`; }).join("");
+    const pager = pages > 1 ? `<div class="jar-pg"><button type="button" onclick="JarFx.go(-1)" ${page === 0 ? "disabled" : ""}>prev</button><span>${page + 1} / ${pages}</span><button type="button" onclick="JarFx.go(1)" ${page >= pages - 1 ? "disabled" : ""}>next</button></div>` : "";
+    return rows + pager;
+  }
+  function refresh() { const el = document.getElementById("jarLegend"); if (el) el.innerHTML = listHtml(); }
+  function pick(k) { sel = sel === k ? -1 : k; if (sel >= 0) page = Math.floor(sel / PER); refresh(); }
+  function go(d) { page = cl(page + d, 0, Math.max(0, Math.ceil(items.length / PER) - 1)); refresh(); }
   function click(cv, e) {
     if (!view) return; const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
     for (let k = hit.length - 1; k >= 0; k--) {
@@ -1267,7 +1279,7 @@ const JarFx = (() => {
     });
   }
   requestAnimationFrame(frame);
-  return { prepare, pick, click };
+  return { prepare, pick, click, go, listHtml };
 })();
 window.JarFx = JarFx; // inline onclick handlers live outside the module scope
 
@@ -1644,20 +1656,12 @@ function installmentsCardHtml() {
   });
   const lvl = grandOrig ? grandRemaining / grandOrig : 0, paidPct = Math.round((1 - lvl) * 100);
   JarFx.prepare(run, lvl);
-  const legend = run.map((r, i) => `<div class="jar-row" data-k="${i}" onclick="JarFx.pick(${i})">
-      <img src="assets/avatar-${r.who}.jpg" alt="" style="--rc:${r.col}" onerror="this.style.visibility='hidden'" />
-      <span class="jn">${escapeHtml(r.name)}</span><b>${peso(r.left)}</b>
-      <small>${peso(r.a)}${r.q ? "/qtr" : "/mo"} · ${r.l}${r.q ? "" : " mo"} left</small>
-    </div>`).join("");
-  return `<details class="glass-card rounded-2xl overflow-hidden border border-fuchsia-500/15 md:col-span-2">
-    <summary class="flex items-center justify-between px-5 py-4 cursor-pointer list-none">
-      <div class="flex items-center gap-3">
-        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-fuchsia-600 flex items-center justify-center"><span class="material-icons text-white" style="font-size:18px">hourglass_top</span></div>
-        <h3 class="text-sm font-black text-white uppercase tracking-wide">Installments</h3>
-      </div>
+  return `<section class="md:col-span-2 px-1 pt-2 pb-4">
+    <div class="flex items-center justify-between gap-4 mb-6">
+      <h3 class="text-sm font-black text-white uppercase tracking-wide">Installments</h3>
       <div class="text-right"><p class="text-2xl font-black text-cyan-300 leading-none">${peso(grandRemaining)}</p><p class="text-[12px] text-slate-400 mt-1">total left</p></div>
-    </summary>
-    <div class="grid md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] gap-x-6 gap-y-6 px-5 pb-6 pt-2 items-start">
+    </div>
+    <div class="grid md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] gap-x-6 gap-y-6 items-start">
       <canvas class="jar-cv" onclick="JarFx.click(this,event)" style="width:100%;max-width:320px;aspect-ratio:360/460;display:block;margin:0 auto"></canvas>
       <div>
         ${lastEnd ? `<p class="text-[15px] text-slate-400">jar is empty by ${monthShort(lastEnd)}</p>` : `<p class="text-[15px] text-emerald-400">jar is empty</p>`}
@@ -1665,10 +1669,10 @@ function installmentsCardHtml() {
           <div><p class="text-2xl font-black text-white leading-none">${paidPct}%</p><p class="text-[12px] text-slate-500 mt-1">already paid</p></div>
           <div><p class="text-2xl font-black text-white leading-none">${peso(grandMonthly)}</p><p class="text-[12px] text-slate-500 mt-1">every month</p></div>
         </div>
-        <div class="mt-6">${legend}</div>
+        <div class="mt-6" id="jarLegend">${JarFx.listHtml()}</div>
       </div>
     </div>
-  </details>`;
+  </section>`;
 }
 
 // 5-year projection as an inline collapsed card (no separate tab).

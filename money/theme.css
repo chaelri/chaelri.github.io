@@ -350,3 +350,7 @@ button[onclick*="toggleField"] > span.left-7 { left: 28px !important; }
 .jar-row b { font-weight: 800; color: #F2EFEA; }
 .jar-row small { display: none; grid-column: 2 / 4; color: #A09B94; font-size: 12px; }
 .jar-row.on small { display: block; }
+.jar-pg { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 16px; color: #A09B94; font-size: 15px; }
+.jar-pg button { height: 40px; padding: 0 16px; border-radius: 13px; border: 1px solid #2A2C31; background: transparent; color: #F2EFEA; font-weight: 700; cursor: pointer; }
+.jar-pg button:disabled { opacity: .35; cursor: default; }
+@media (max-width: 1023.98px) { .jar-pg button { height: 44px; } }
