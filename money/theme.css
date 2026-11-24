@@ -357,3 +357,5 @@ button[onclick*="toggleField"] > span.left-7 { left: 28px !important; }
 @media (max-width: 440px) { .sum-gem { height: 44px; } }
 /* cards never have an outline (accounts, owner totals, expandable expenses, ...) */
 .glass-card { border: 0 !important; }
+/* summary: no card, just the gem, the number and the next five months on the page */
+#summary-card .gem-hero { max-width: 160px; height: 120px; margin: 0 auto; }

@@ -1298,7 +1298,7 @@ function summaryParts() {
     const delta = dl == null ? (p.k === currentKey() ? "now" : "") : (dl < 0 ? "-" : "+") + trendK(Math.abs(dl)).replace("₱", "");
     const dcol = dl == null ? "text-white/85" : dl < 0 ? "text-rose-300" : "text-emerald-300";
     const s = (0.45 + 0.55 * Math.sqrt(Math.max(p.v, 0) / mx)).toFixed(2);
-    return `<div class="rounded-2xl bg-black/20 px-0.5 md:px-1 py-3 text-center min-w-0">
+    return `<div class="px-0.5 md:px-1 py-1 text-center min-w-0">
       <p class="text-xs font-bold text-white/85">${MONTHS_SHORT[keyParts(p.k).m]}</p>
       <canvas class="gem-cv sum-gem" data-v="${p.v}" data-s="${s}" data-p="${(i * 0.4).toFixed(1)}"></canvas>
       <p class="sum-v text-sm font-black text-white whitespace-nowrap tracking-tight">${trendK(p.v)}</p>
@@ -1316,9 +1316,8 @@ function renderBudget() {
   const projected = runningFundsAt(k);
 
   const sp = summaryParts();
-  const summary = `<section class="rounded-3xl overflow-hidden relative shadow-xl" id="summary-card">
-    <div class="absolute inset-0 bg-gradient-to-br ${bannerGradient(k)}"></div>
-    <div class="relative p-4 md:p-7 grid gap-4 md:grid-cols-[170px_260px_minmax(0,1fr)] md:gap-6 md:items-center">
+  const summary = `<section class="relative py-2" id="summary-card">
+    <div class="grid gap-6 md:grid-cols-[160px_auto_minmax(0,1fr)] md:items-center">
       ${gemHtml(projected)}
       <div class="text-center">
         <p class="text-xs font-black text-white/85">Projected</p>
