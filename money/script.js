@@ -2452,11 +2452,11 @@ async function liquidWash(swap) {
   box(`position:absolute;left:0;right:0;top:0;bottom:0;background:${light}`, g);
   box(`position:absolute;left:0;right:0;top:12px;bottom:0;background:${wash}`, g);
   const w2 = box("position:absolute;left:0;right:0;top:12px;height:40px", g); w2.innerHTML = wave(wash, -39);
-  loop(w1.firstChild, 1300, 1); loop(w2.firstChild, 900, -1);
-  await g.animate([{ transform: `translateY(${H + 50}px)` }, { transform: "translateY(-20px)" }], { duration: 900, easing: "cubic-bezier(.4,0,.2,1)", fill: "forwards" }).finished;
+  loop(w1.firstChild, 900, 1); loop(w2.firstChild, 650, -1);
+  await g.animate([{ transform: `translateY(${H + 50}px)` }, { transform: "translateY(-20px)" }], { duration: 520, easing: "cubic-bezier(.4,0,.2,1)", fill: "forwards" }).finished;
   try { await swap(); } catch (e) { console.error(e); }
-  await new Promise((r) => setTimeout(r, 150));
-  await g.animate([{ transform: "translateY(-20px)" }, { transform: `translateY(${H + 60}px)` }], { duration: 900, easing: "cubic-bezier(.6,0,.4,1)", fill: "forwards" }).finished;
+  await new Promise((r) => setTimeout(r, 60));
+  await g.animate([{ transform: "translateY(-20px)" }, { transform: `translateY(${H + 60}px)` }], { duration: 520, easing: "cubic-bezier(.6,0,.4,1)", fill: "forwards" }).finished;
   c.remove();
 }
 let washing = false;
