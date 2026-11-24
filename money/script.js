@@ -1268,12 +1268,12 @@ function summaryParts() {
     const delta = dl == null ? (p.k === currentKey() ? "now" : "") : (dl < 0 ? "-" : "+") + trendK(Math.abs(dl)).replace("₱", "");
     const dcol = dl == null ? "text-white/85" : dl < 0 ? "text-rose-300" : "text-emerald-300";
     const s = (0.45 + 0.55 * Math.sqrt(Math.max(p.v, 0) / mx)).toFixed(2);
-    return `<div class="px-0.5 md:px-1 py-1 text-center min-w-0">
+    return `<button type="button" onclick="selectMonth('${p.k}')" aria-label="Go to ${monthName(p.k)}" class="month-peek px-0.5 md:px-1 py-1 text-center min-w-0 block w-full">
       <p class="text-xs font-bold text-white/85">${MONTHS_SHORT[keyParts(p.k).m]}</p>
       <canvas class="gem-cv sum-gem" data-v="${p.v}" data-s="${s}" data-p="${(i * 0.4).toFixed(1)}"></canvas>
       <p class="sum-v text-sm font-black text-white whitespace-nowrap tracking-tight">${trendK(p.v)}</p>
       <p class="sum-d text-xs font-extrabold whitespace-nowrap tracking-tight ${dcol} min-h-[16px]">${delta}</p>
-    </div>`;
+    </button>`;
   }).join("");
   return {
     cards: `<div class="grid grid-cols-5 gap-1.5 md:gap-2">${cards}</div>`,

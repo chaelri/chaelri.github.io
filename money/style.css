@@ -874,3 +874,8 @@ details.item-parent[open] > summary .parent-caret { transform: rotate(90deg); }
 .vdot.is-on img { display: block; width: 32px; height: 32px; border-radius: 50%; object-fit: cover; margin-left: -8px; }
 .vdot.is-on[data-w="charlie"] img { box-shadow: 0 0 0 2px #23262d, 0 0 0 3px #3DD9F0; }
 .vdot.is-on[data-w="karla"] img { box-shadow: 0 0 0 2px #23262d, 0 0 0 3px #FB7185; }
+
+/* Forecast gems are buttons: press one to jump to that month */
+.month-peek { border-radius: 16px; transition: background .2s, transform .12s; cursor: pointer; }
+.month-peek:hover { background: rgba(255,255,255,.06); }
+.month-peek:active { transform: scale(.96); }
