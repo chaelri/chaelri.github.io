@@ -847,3 +847,11 @@ details.item-parent[open] > summary .parent-caret { transform: rotate(90deg); }
 @media (min-width: 768px) {
   #month-strip.is-closed { max-height: 0; padding-top: 0; padding-bottom: 0; opacity: 0; overflow: hidden; pointer-events: none; }
 }
+
+/* Phone month picker: a full list, one row per month with its gem and projected balance. */
+#month-overlay { display: none; }
+#month-overlay.open { display: flex; }
+.mrow { display: grid; grid-template-columns: 56px 1fr auto; gap: 16px; align-items: center; width: 100%; height: 64px; padding: 0 8px; border-radius: 13px; text-align: left; }
+.mrow.is-sel { background: #1e293b; }
+.mrow canvas { width: 56px; height: 56px; display: block; }
+.myear { padding: 16px 8px 8px; font-size: 12px; font-weight: 800; color: #94a3b8; }

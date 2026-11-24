@@ -596,18 +596,6 @@ function renderMonthStrip() {
       return `<button onclick="selectMonth('${k}')" data-k="${k}" class="month-chip ${isNow ? "is-now" : ""} flex-shrink-0 relative px-4 h-12 text-sm font-bold transition-colors ${cls}">${MONTHS_SHORT[keyParts(k).m]}${isNow ? '<span class="now-dot"></span>' : ""}</button>`;
     }).join("")}</div>
   </div>`).join("") + '<div class="flex-shrink-0" style="width:60%" aria-hidden="true"></div>';
-  // phones: a slim stepper instead of a long strip of pills
-  const stp = $("month-stepper");
-  if (stp) {
-    const tl = timeline();
-    const at = tl.indexOf(selectedKey);
-    const prev = at > 0 ? tl[at - 1] : null;
-    const next = at >= 0 && at < tl.length - 1 ? tl[at + 1] : null;
-    const arrow = (k, icon, label) => `<button ${k ? `onclick="selectMonth('${k}')"` : "disabled"} aria-label="${label}" class="flex-shrink-0 w-12 h-12 rounded-xl border border-slate-700 text-slate-100 flex items-center justify-center ${k ? "" : "opacity-30"}"><span class="material-icons">${icon}</span></button>`;
-    stp.innerHTML = `${arrow(prev, "chevron_left", "Previous month")}
-      <div class="flex-1 h-12 rounded-xl bg-slate-800 text-sm font-bold text-white flex items-center justify-center">${monthShort(selectedKey)}</div>
-      ${arrow(next, "chevron_right", "Next month")}`;
-  }
   renderMonthBanner();
 }
 
@@ -1738,7 +1726,44 @@ function setMonthStripOpen(open) {
   $("month-toggle")?.setAttribute("aria-expanded", String(open));
   if (open) scrollChipIntoView(true);
 }
-window.toggleMonthStrip = function () { setMonthStripOpen($("month-strip").classList.contains("is-closed")); };
+window.toggleMonthStrip = function () {
+  if (!matchMedia("(min-width: 768px)").matches) return openMonthList(); // phones get the full list
+  setMonthStripOpen($("month-strip").classList.contains("is-closed"));
+};
+// Phones: full-screen list, one row per month (gem + projected balance). Pick a month and it closes.
+function renderMonthList() {
+  const nowK = currentKey();
+  let year = null, html = "";
+  for (const k of timeline()) {
+    const y = keyParts(k).y;
+    if (y !== year) { year = y; html += `<p class="myear">${y}</p>`; }
+    const v = runningFundsAt(k);
+    html += `<button class="mrow ${k === selectedKey ? "is-sel" : ""}" data-k="${k}" onclick="pickMonthFromList('${k}')">
+      <canvas class="gem-cv" data-v="${v}"></canvas>
+      <span class="min-w-0"><b class="block font-extrabold text-white">${monthName(k)}</b><span class="block text-xs text-slate-400">${k === nowK ? "this month" : y}</span></span>
+      <span class="font-extrabold whitespace-nowrap ${v < 0 ? "text-rose-300" : "text-white"}">${trendK(v)}</span>
+    </button>`;
+  }
+  $("month-list").innerHTML = html;
+}
+window.openMonthList = function () {
+  const ov = $("month-overlay");
+  if (ov.classList.contains("open")) return;
+  renderMonthList();
+  ov.classList.add("open");
+  $("month-toggle")?.setAttribute("aria-expanded", "true");
+  const sel = $("month-list").querySelector(".is-sel");
+  if (sel) $("month-list").scrollTop = Math.max(0, sel.offsetTop - 80);
+  ov.animate([{ transform: "translateY(100%)" }, { transform: "none" }], { duration: 320, easing: "cubic-bezier(.7,0,.2,1)" });
+};
+window.closeMonthList = async function () {
+  const ov = $("month-overlay");
+  if (!ov.classList.contains("open")) return;
+  await ov.animate([{ transform: "none" }, { transform: "translateY(100%)" }], { duration: 260, easing: "cubic-bezier(.7,0,.2,1)", fill: "forwards" }).finished;
+  ov.classList.remove("open");
+  $("month-toggle")?.setAttribute("aria-expanded", "false");
+};
+window.pickMonthFromList = function (k) { selectMonth(k); closeMonthList(); };
 
 // =============================
 // Modal — items
@@ -2520,6 +2545,7 @@ document.addEventListener("keydown", (e) => {
     if ($("confirm-overlay").classList.contains("open")) return closeConfirm();
     if ($("modal-overlay").classList.contains("open")) return closeModal();
     if ($("more-overlay").classList.contains("open")) return closeMore();
+    if ($("month-overlay").classList.contains("open")) return closeMonthList();
     return;
   }
   if (e.key !== "Enter") return;

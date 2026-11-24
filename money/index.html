@@ -98,7 +98,7 @@
           <p
             class="text-indigo-400 text-[10px] font-black tracking-[0.4em] uppercase mt-1"
           >
-            <span id="current-year-display">2026</span><span class="material-icons hidden md:inline-block" id="month-chev" style="font-size:14px;vertical-align:middle;margin-left:4px">expand_more</span>
+            <span id="current-year-display">2026</span><span class="material-icons" id="month-chev" style="font-size:14px;vertical-align:middle;margin-left:4px">expand_more</span>
           </p>
         </div>
         <div class="flex items-center gap-3">
@@ -126,7 +126,6 @@
           class="absolute inset-0 overflow-y-auto pb-10"
         >
           <!-- Month strip -->
-          <div id="month-stepper" class="md:hidden flex items-center gap-2 px-6 pt-4 pb-3"></div>
           <div
             id="month-strip"
             class="is-closed hidden md:flex items-center gap-2 overflow-x-auto md:px-4 pt-6 pb-3 no-scrollbar"
@@ -145,6 +144,15 @@
     </div>
 
     <!-- OVERVIEW SCREEN (installments + projection), opened and closed through the liquid wash -->
+    <!-- MONTH LIST (phones): every month with its gem and projected balance -->
+    <div id="month-overlay" class="fixed inset-0 z-[55] flex-col" style="background:#0F1012" role="dialog" aria-label="Pick a month">
+      <div class="flex items-center justify-between px-6 pt-6 pb-4">
+        <h3 class="text-2xl font-black text-white tracking-tight">jump to</h3>
+        <button onclick="closeMonthList()" class="h-10 px-6 rounded-full bg-slate-800 text-sm font-bold text-white">close</button>
+      </div>
+      <div id="month-list" class="flex-1 overflow-y-auto px-4 pb-8 custom-scrollbar"></div>
+    </div>
+
     <div id="more-overlay" class="fixed inset-0 z-[55] overflow-y-auto custom-scrollbar" style="background:#0F1012">
       <div class="max-w-6xl mx-auto w-full">
         <div class="sticky top-0 z-10 flex items-center gap-4 px-5 pt-5 pb-3" style="background:#0F1012">
