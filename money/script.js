@@ -1121,30 +1121,61 @@ const MINI = {
   7: { body: "#E11D48", coin: "#FDE68A", e1: "#9F1239", e2: "#E11D48" },
   8: { body: "#3A3D48", coin: "#FBBF24", e1: "#2E3039", e2: "#FBBF24" },
 };
-// Pyramid of the projected money: every brick is a fixed amount (shown under the pyramid), so the brick count is the money.
-// Bricks fill from the bottom row up; the last brick is cut to the exact remainder.
-const PYR_STEPS = [500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000, 1000000, 2000000, 5000000];
-function pyramidHtml(v, label) {
-  const cs = MINI[v <= 0 ? 0 : cashTierOf(v)];
-  const step = PYR_STEPS.find((s) => Math.ceil(v / s) <= 55) || PYR_STEPS[PYR_STEPS.length - 1];
-  const bricks = v > 0 ? v / step : 0;
-  const N = Math.ceil(bricks - 1e-9);
-  let R = 1; while ((R * (R + 1)) / 2 < N) R++;
-  const w = Math.min(11, 96 / Math.max(R, 1)), h = w * 0.56, cx = 60, base = 72;
-  let g = `<line x1="8" x2="112" y1="${base + 2}" y2="${base + 2}" stroke="#4A4C54" stroke-width="1.5" stroke-linecap="round"/>`;
-  let left = bricks;
-  for (let r = 0; r < R && left > 1e-9; r++) {
-    const inRow = R - r; // bottom row holds R bricks, each row above one fewer
-    const y = base - (r + 1) * h;
-    for (let c = 0; c < inRow && left > 1e-9; c++) {
-      const f = Math.min(1, left); left -= f;
-      const x = cx - (inRow * w) / 2 + c * w;
-      g += `<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${(w * f - 0.8).toFixed(2)}" height="${(h - 0.8).toFixed(2)}" rx="1" fill="${(r + c) % 2 ? cs.e2 : cs.e1}"/>`;
+// Projected money as one 3D gem: a brilliant cut spinning at a low angle, tinted by the cash tier, bigger with more money.
+const GemFx = (() => {
+  const TIERS = [
+    { b: "#FB7185", e1: "#E11D48" }, { b: "#4ADE9F", e1: "#2DBE88" }, { b: "#60A5FA", e1: "#3B82F6" },
+    { b: "#A78BFA", e1: "#8B5CF6" }, { b: "#FBBF24", e1: "#F59E0B" }, { b: "#FB9B6B", e1: "#F46A5C" },
+    { b: "#7DD3FC", e1: "#4CC3E6" }, { b: "#E11D48", e1: "#9F1239" }, { b: "#4A4D5A", e1: "#23252C", hi: "#FBBF24" },
+  ];
+  const N = 10, hx = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  const cl = (x, a, b) => Math.max(a, Math.min(b, x));
+  const mixc = (a, b, t) => { const A = hx(a), B = hx(b); return "#" + A.map((c, i) => Math.round(c + (B[i] - c) * cl(t, 0, 1)).toString(16).padStart(2, "0")).join(""); };
+  const ring = (r, y, off = 0) => [...Array(N)].map((_, i) => { const a = ((i + off) / N) * Math.PI * 2; return [Math.cos(a) * r, y, Math.sin(a) * r]; });
+  const table = ring(0.56, 0.34), girdle = ring(1, 0), mid = ring(0.8, 0.2, 0.5), culet = [0, -0.95, 0], FACES = [];
+  for (let i = 0; i < N; i++) {
+    const j = (i + 1) % N;
+    FACES.push([table[i], table[j], mid[i]], [table[i], mid[i], girdle[i], mid[(i + N - 1) % N]], [mid[i], girdle[i], girdle[j]], [girdle[i], girdle[j], culet]);
+  }
+  FACES.push(table); FACES.forEach((f, k) => (f.id = k));
+  const rot = (p, yaw, pitch) => { const [x, y, z] = p, cy = Math.cos(yaw), sy = Math.sin(yaw), x1 = x * cy + z * sy, z1 = -x * sy + z * cy, cp = Math.cos(pitch), sp = Math.sin(pitch); return [x1, y * cp - z1 * sp, y * sp + z1 * cp]; };
+  const Lv = (() => { const v = [-0.45, 0.75, 0.55], m = Math.hypot(...v); return v.map((x) => x / m); })();
+  function draw(ctx, W, H, tier, k, t) {
+    const c = TIERS[tier], S = Math.min(W, H) * 0.34 * k * 1.1, cx = W / 2, cy = H * 0.52, neg = tier === 0, yaw = t * 0.55, pitch = 0.52, out = [];
+    for (const f of FACES) {
+      const P = f.map((p) => rot(p, yaw, pitch)), [a, b, d] = P;
+      const u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], w = [d[0] - a[0], d[1] - a[1], d[2] - a[2]];
+      let n = [u[1] * w[2] - u[2] * w[1], u[2] * w[0] - u[0] * w[2], u[0] * w[1] - u[1] * w[0]]; const m = Math.hypot(...n) || 1; n = n.map((x) => x / m);
+      const ctr = P.reduce((s, p) => [s[0] + p[0], s[1] + p[1], s[2] + p[2]], [0, 0, 0]).map((x) => x / P.length);
+      if (n[0] * ctr[0] + n[1] * (ctr[1] + 0.1) + n[2] * ctr[2] < 0) n = n.map((x) => -x);
+      out.push({ P, n, z: ctr[2], id: f.id });
+    }
+    out.sort((p, q) => p.z - q.z);
+    ctx.lineJoin = "round";
+    for (const o of out) {
+      if (o.n[2] <= -0.02 && !neg) continue;
+      const d = Math.max(0, o.n[0] * Lv[0] + o.n[1] * Lv[1] + o.n[2] * Lv[2]), hv = [Lv[0], Lv[1], Lv[2] + 1], hm = Math.hypot(...hv);
+      const spec = Math.pow(Math.max(0, (o.n[0] * hv[0] + o.n[1] * hv[1] + o.n[2] * hv[2]) / hm), 22), tw = Math.pow(Math.max(0, Math.sin(t * 2.2 + o.id * 1.7)), 14) * 0.5;
+      const col = mixc(mixc(c.e1, c.b, 0.25 + d * 1.1), c.hi || "#ffffff", cl(spec * 1.1 + tw, 0, 0.9));
+      ctx.beginPath(); o.P.forEach((p, i) => { const x = cx + p[0] * S, y = cy - p[1] * S; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.closePath();
+      if (neg) { ctx.setLineDash([3, 3]); ctx.strokeStyle = "rgba(251,113,133,.7)"; ctx.lineWidth = 1; ctx.stroke(); ctx.setLineDash([]); }
+      else { ctx.fillStyle = col; ctx.fill(); ctx.strokeStyle = col; ctx.lineWidth = 0.6; ctx.stroke(); }
     }
   }
-  const unit = step >= 1000000 ? step / 1000000 + "M" : step >= 1000 ? step / 1000 + "k" : step;
-  return `<div class="cash-morph" aria-hidden="true"><svg viewBox="0 0 120 84" width="100%" height="100%">${g}<text x="60" y="83" text-anchor="middle" font-size="7" font-weight="700" fill="#A09B94">${label} · 1 brick = ₱${unit}</text></svg></div>`;
-}
+  const sizeK = (v) => cl(0.5 + 0.5 * Math.sqrt(Math.max(v, 0) / 1e6), 0.5, 1);
+  function frame(ms) {
+    requestAnimationFrame(frame);
+    const cv = document.querySelector(".gem-cv");
+    if (!cv || !cv.offsetParent) return;
+    const dpr = Math.min(2, devicePixelRatio || 1), w = cv.clientWidth, h = cv.clientHeight;
+    if (cv.width !== Math.round(w * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+    const ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);
+    const v = +cv.dataset.v || 0;
+    draw(ctx, w, h, v <= 0 ? 0 : cashTierOf(v), sizeK(v), ms / 1000);
+  }
+  requestAnimationFrame(frame);
+})();
+const gemHtml = (v) => `<div class="cash-morph" aria-hidden="true"><canvas class="gem-cv" data-v="${v}"></canvas></div>`;
 
 function renderBudget() {
   const k = selectedKey;
@@ -1153,7 +1184,7 @@ function renderBudget() {
 
   const summary = `<section class="rounded-3xl overflow-hidden relative shadow-xl">
     <div class="absolute inset-0 bg-gradient-to-br ${bannerGradient(k)}"></div>
-    ${pyramidHtml(projected, MONTHS_SHORT[keyParts(k).m])}
+    ${gemHtml(projected)}
     <div class="ambient-glow" style="top:-30px;right:60px"></div>
     <div class="relative p-6 md:p-7 space-y-5">
       <div>
@@ -2244,8 +2275,8 @@ function refreshRealized() {
   const t = monthTotals(selectedKey);
   const proj = $("sum-projected");
   if (proj) proj.textContent = peso(runningFundsAt(selectedKey));
-  const pyr = document.querySelector(".cash-morph"); // pyramid follows the projected number
-  if (pyr) pyr.outerHTML = pyramidHtml(runningFundsAt(selectedKey), MONTHS_SHORT[keyParts(selectedKey).m]);
+  const gcv = document.querySelector(".gem-cv"); // the gem follows the projected number
+  if (gcv) gcv.dataset.v = runningFundsAt(selectedKey);
   const peek = $("peek-card"); // next-5-months piles follow too
   if (peek) { const h = peekCardHtml(); if (h) peek.outerHTML = h; }
   const stats = $("sum-stats");
