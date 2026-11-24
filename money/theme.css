@@ -353,3 +353,5 @@ button[onclick*="toggleField"] > span.left-7 { left: 28px !important; }
 @media (max-width: 1023.98px) { .jar-pg button { height: 44px; } }
 /* five-month strip: big numbers (₱1.10M, +69.8k) must fit their card on phones */
 @media (max-width: 440px) { #summary-card .sum-v, #summary-card .sum-d { font-size: 12px !important; } }
+/* phones: shrink the strip gems so they do not touch the card edges */
+@media (max-width: 440px) { .sum-gem { height: 44px; } }
