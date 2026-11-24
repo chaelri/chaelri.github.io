@@ -605,7 +605,7 @@ function renderMonthStrip() {
     const next = at >= 0 && at < tl.length - 1 ? tl[at + 1] : null;
     const arrow = (k, icon, label) => `<button ${k ? `onclick="selectMonth('${k}')"` : "disabled"} aria-label="${label}" class="flex-shrink-0 w-12 h-12 rounded-xl border border-slate-700 text-slate-100 flex items-center justify-center ${k ? "" : "opacity-30"}"><span class="material-icons">${icon}</span></button>`;
     stp.innerHTML = `${arrow(prev, "chevron_left", "Previous month")}
-      <button onclick="toggleMonthPicker()" class="flex-1 h-12 rounded-xl bg-slate-800 text-sm font-bold text-white">${monthShort(selectedKey)}</button>
+      <div class="flex-1 h-12 rounded-xl bg-slate-800 text-sm font-bold text-white flex items-center justify-center">${monthShort(selectedKey)}</div>
       ${arrow(next, "chevron_right", "Next month")}`;
   }
   renderMonthBanner();
@@ -1298,15 +1298,15 @@ function summaryParts() {
     const delta = dl == null ? (p.k === currentKey() ? "now" : "") : (dl < 0 ? "-" : "+") + trendK(Math.abs(dl)).replace("₱", "");
     const dcol = dl == null ? "text-white/85" : dl < 0 ? "text-rose-300" : "text-emerald-300";
     const s = (0.45 + 0.55 * Math.sqrt(Math.max(p.v, 0) / mx)).toFixed(2);
-    return `<div class="rounded-2xl bg-black/20 px-1 py-3 text-center">
+    return `<div class="rounded-2xl bg-black/20 px-0.5 md:px-1 py-3 text-center min-w-0">
       <p class="text-xs font-bold text-white/85">${MONTHS_SHORT[keyParts(p.k).m]}</p>
       <canvas class="gem-cv sum-gem" data-v="${p.v}" data-s="${s}" data-p="${(i * 0.4).toFixed(1)}"></canvas>
-      <p class="text-sm font-black text-white whitespace-nowrap">${trendK(p.v)}</p>
-      <p class="text-xs font-extrabold whitespace-nowrap ${dcol} min-h-[16px]">${delta}</p>
+      <p class="sum-v text-sm font-black text-white whitespace-nowrap tracking-tight">${trendK(p.v)}</p>
+      <p class="sum-d text-xs font-extrabold whitespace-nowrap tracking-tight ${dcol} min-h-[16px]">${delta}</p>
     </div>`;
   }).join("");
   return {
-    cards: `<div class="grid grid-cols-5 gap-2">${cards}</div>`,
+    cards: `<div class="grid grid-cols-5 gap-1.5 md:gap-2">${cards}</div>`,
   };
 }
 
@@ -1318,7 +1318,7 @@ function renderBudget() {
   const sp = summaryParts();
   const summary = `<section class="rounded-3xl overflow-hidden relative shadow-xl" id="summary-card">
     <div class="absolute inset-0 bg-gradient-to-br ${bannerGradient(k)}"></div>
-    <div class="relative p-6 md:p-7 grid gap-4 md:grid-cols-[170px_260px_minmax(0,1fr)] md:gap-6 md:items-center">
+    <div class="relative p-4 md:p-7 grid gap-4 md:grid-cols-[170px_260px_minmax(0,1fr)] md:gap-6 md:items-center">
       ${gemHtml(projected)}
       <div class="text-center">
         <p class="text-xs font-black text-white/85">Projected</p>
@@ -1713,28 +1713,6 @@ window.selectMonth = function (k) {
   renderMonthStrip();
   renderBudget();
   scrollChipIntoView();
-  if ($("month-picker").classList.contains("open")) toggleMonthPicker();
-};
-
-// =============================
-// Month picker
-// =============================
-window.toggleMonthPicker = function () {
-  const mp = $("month-picker");
-  const open = mp.classList.toggle("open");
-  mp.style.opacity = open ? "1" : "0";
-  mp.style.pointerEvents = open ? "auto" : "none";
-  if (open) {
-    const years = {};
-    timeline().forEach((k) => { const y = keyParts(k).y; (years[y] = years[y] || []).push(k); });
-    $("month-picker-grid").innerHTML = Object.entries(years).map(([y, keys]) => `
-      <div>
-        <p class="text-xs font-black uppercase tracking-[0.3em] text-slate-500 mb-3">${y}</p>
-        <div class="grid grid-cols-3 gap-3">
-          ${keys.map((k) => `<button onclick="selectMonth('${k}')" class="py-4 rounded-2xl font-black text-sm ${k === selectedKey ? "bg-indigo-600 text-white" : "bg-slate-800 text-slate-300"} transition-transform">${MONTHS_SHORT[keyParts(k).m]}</button>`).join("")}
-        </div>
-      </div>`).join("");
-  }
 };
 
 // =============================
@@ -2488,7 +2466,6 @@ document.addEventListener("keydown", (e) => {
     if ($("confirm-overlay").classList.contains("open")) return closeConfirm();
     if ($("modal-overlay").classList.contains("open")) return closeModal();
     if ($("more-overlay").classList.contains("open")) return closeMore();
-    if ($("month-picker").classList.contains("open")) return toggleMonthPicker();
     return;
   }
   if (e.key !== "Enter") return;

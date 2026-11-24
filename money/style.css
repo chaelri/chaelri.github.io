@@ -370,11 +370,6 @@ input[type="checkbox"]:checked::before {
     max-width: 480px;
     border-radius: 2.5rem !important;
   }
-
-  /* Month picker full screen on desktop too */
-  #month-picker {
-    display: none !important;
-  }
 }
 
 /* Large desktop: even wider sections */

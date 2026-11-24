@@ -124,7 +124,7 @@ tr.bg-indigo-600, tr.bg-indigo-600 td, tr.bg-indigo-600 th { color: #FFFFFF !imp
 #more-overlay .text-\[9px\].text-slate-400 { color: #BDB8B0 !important; }
 
 /* =====================================================================
-   MODALS (add/edit, confirm, overview sheet, month picker)
+   MODALS (add/edit, confirm, overview sheet)
    charlie-design: type 10/15/24, radii 8/13/21, 8px spacing, one solid primary,
    control height 48 on touch / 40 on desktop, thin lines, no tinted slabs.
    ===================================================================== */
@@ -168,9 +168,6 @@ tr.bg-indigo-600, tr.bg-indigo-600 td, tr.bg-indigo-600 th { color: #FFFFFF !imp
 #confirm-icon { background: var(--line) !important; border-radius: 13px !important; box-shadow: none !important; }
 @media (min-width: 1024px) { #confirm-card button { height: 40px; } }
 
-/* month picker */
-#month-picker .bg-indigo-600 { background: #3DD9F0 !important; color: #0F1012 !important; }
-#month-picker-grid button { border-radius: 8px !important; }
 
 /* desktop: forms fit in one view, two columns, tighter gaps (no scrolling inside the modal) */
 @media (min-width: 1024px) {
@@ -354,3 +351,5 @@ button[onclick*="toggleField"] > span.left-7 { left: 28px !important; }
 .jar-pg button { height: 40px; padding: 0 16px; border-radius: 13px; border: 1px solid #2A2C31; background: transparent; color: #F2EFEA; font-weight: 700; cursor: pointer; }
 .jar-pg button:disabled { opacity: .35; cursor: default; }
 @media (max-width: 1023.98px) { .jar-pg button { height: 44px; } }
+/* five-month strip: big numbers (₱1.10M, +69.8k) must fit their card on phones */
+@media (max-width: 440px) { #summary-card .sum-v, #summary-card .sum-d { font-size: 12px !important; } }
