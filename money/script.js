@@ -1316,17 +1316,60 @@ const homePg = { charlie: 0, karla: 0 };
 const HOME_PER = 4;
 // Pages in swipe order. The dots at the bottom mirror this list.
 const VIEW_ORDER = ["home", "charlie", "karla", "all"];
-function renderViewDots() {
-  const nav = $("view-dots");
-  if (!nav) return;
-  nav.innerHTML = VIEW_ORDER.map((v) => {
-    const on = viewMode === v, person = v === "charlie" || v === "karla";
-    return `<button type="button" onclick="setView('${v}')" aria-label="${v}" aria-current="${on}" data-w="${v}" class="vdot ${on ? "is-on" : ""}">${person ? `<img src="assets/avatar-${v}.jpg" alt="" />` : ""}<span>${v}</span></button>`;
-  }).join("");
+// ---------- bottom nav: a liquid-glass capsule. Inactive pages are small dots (cyan / rose for charlie / karla),
+// the active one opens into a name pill, and one glass "lens" glides to it while the capsule stretches. ----------
+function buildViewDots() {
+  const host = $("view-dots");
+  if (!host) return;
+  host.innerHTML = `<nav class="vcap" id="vcap" aria-label="Views"><i class="vlens"></i>${VIEW_ORDER.map((v) => {
+    const person = v === "charlie" || v === "karla";
+    return `<button type="button" class="vd" data-w="${v}" ${person ? 'data-p="1"' : ""} onclick="setView('${v}')" aria-label="${v}">${person ? `<img src="assets/avatar-${v}.jpg" alt="" />` : ""}<span>${v}</span></button>`;
+  }).join("")}</nav>`;
+  measureViewDots();
+  const cap = $("vcap");
+  cap.classList.add("no-tr");
+  cap.querySelector(`.vd[data-w="${viewMode}"]`).classList.add("on");
+  syncVLens(50);
+  requestAnimationFrame(() => requestAnimationFrame(() => cap.classList.remove("no-tr")));
 }
+// Each pill's open width is measured once so its width can animate (auto can't).
+function measureViewDots() {
+  document.querySelectorAll("#vcap .vd").forEach((b) => {
+    b.classList.add("measure");
+    const w = b.offsetWidth;
+    b.classList.remove("measure");
+    b.style.setProperty("--w", w + "px");
+  });
+}
+// While the pills animate, the lens follows the active pill's real box every frame.
+function syncVLens(ms) {
+  const cap = $("vcap");
+  if (!cap) return;
+  const lens = cap.querySelector(".vlens"), t0 = performance.now();
+  (function step() {
+    const b = cap.querySelector(".vd.on");
+    if (b) { lens.style.left = b.offsetLeft + "px"; lens.style.top = b.offsetTop + "px"; lens.style.width = b.offsetWidth + "px"; lens.style.height = b.offsetHeight + "px"; }
+    if (performance.now() - t0 < ms) requestAnimationFrame(step);
+  })();
+}
+function setDotsActive(v, animate) {
+  const cap = $("vcap");
+  if (!cap) return;
+  if (cap.querySelector(".vd.on")?.dataset.w === v) return;
+  cap.querySelectorAll(".vd").forEach((b) => { const on = b.dataset.w === v; b.classList.toggle("on", on); b.setAttribute("aria-current", String(on)); });
+  syncVLens(animate ? 900 : 60);
+  if (animate) cap.querySelector(".vlens").animate([{ transform: "scale(1,1)" }, { transform: "scale(1.1,.9)", offset: 0.35 }, { transform: "scale(1,1)" }], { duration: 560, easing: "cubic-bezier(.34,1.35,.5,1)" });
+}
+function renderViewDots() {
+  if (!$("vcap")) buildViewDots(); else setDotsActive(viewMode, false);
+}
+let dotsResizeT;
+window.addEventListener("resize", () => { clearTimeout(dotsResizeT); dotsResizeT = setTimeout(() => { if ($("vcap")) { measureViewDots(); syncVLens(50); } }, 150); });
+if (document.fonts?.ready) document.fonts.ready.then(() => { if ($("vcap")) { measureViewDots(); syncVLens(50); } });
 let viewSwitching = false, pendingView = null;
 window.setView = async function (v) {
   if (v === viewMode) return;
+  setDotsActive(v, true);
   if (viewSwitching) { pendingView = v; return; }
   viewSwitching = true;
   const dir = Math.sign(VIEW_ORDER.indexOf(v) - VIEW_ORDER.indexOf(viewMode)) || 1;
@@ -1339,7 +1382,7 @@ window.setView = async function (v) {
   out.cancel();
   await $("budget-body").animate([{ transform: `translateX(${24 * dir}px)`, opacity: 0 }, { transform: "none", opacity: 1 }], { duration: 220, easing: "cubic-bezier(.2,.8,.2,1)" }).finished;
   viewSwitching = false;
-  if (pendingView && pendingView !== viewMode) { const p = pendingView; pendingView = null; setView(p); } else pendingView = null;
+  if (pendingView && pendingView !== viewMode) { const p = pendingView; pendingView = null; setView(p); } else { pendingView = null; setDotsActive(viewMode, true); }
 };
 // Swipe left / right on the page (or arrow keys) to change page.
 function anyOverlayOpen() { return ["modal-overlay", "more-overlay", "month-overlay", "confirm-overlay"].some((id) => $(id)?.classList.contains("open")); }
