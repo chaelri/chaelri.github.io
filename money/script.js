@@ -1259,7 +1259,8 @@ const JarFx = (() => {
         const b = bands[o.src.band], { d, spec, tw } = light(o.n, t, k), isSel = sel >= 0 && items.length - 1 - o.src.band === sel;
         let col = mixc(mixc(b.pair[1], b.pair[0], 0.25 + d * ST.dk), [255, 255, 255], cl((spec * 1.1 + tw) * ST.sp, 0, 0.9)); if (isSel) col = mixc(col, [255, 255, 255], 0.2);
         path(ctx, o.P, cx, cy, S); ctx.fillStyle = rgb(col); ctx.fill(); ctx.strokeStyle = rgb(col); ctx.lineWidth = 0.6; ctx.stroke();
-        ctx.strokeStyle = isSel ? "rgba(255,255,255,.6)" : "rgba(255,255,255,.14)"; ctx.stroke(); hit.push({ P: o.P, band: o.src.band });
+        if (isSel) { ctx.strokeStyle = "rgba(255,255,255,.6)"; ctx.stroke(); } // no subtle facet outlines on the liquid, only the picked band is outlined
+        hit.push({ P: o.P, band: o.src.band });
       });
     }
     // only the outer silhouette of the glass is outlined (no inner ring/facet lines), drawn before the lid so the cap hides the neck behind it
