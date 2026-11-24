@@ -10,6 +10,12 @@ This file is auto-loaded by Claude Code in every session opened anywhere in this
 
 When Charlie says "create a local website" (or asks for any page, tool, dashboard or UI), invoke the `charlie-design` skill BEFORE writing HTML, then run `design-audit` in Chrome (430px) before delivery. Never hand-roll styles. He has had to repeat this.
 
+## Charlie's shorthand (applies on every device)
+
+- **tlw** = temporary local website. A throwaway page served locally (e.g. `python -m http.server` on 127.0.0.1) to compare options or preview something. Follows the design-skill rule above. Leave the server running and give Charlie the URL; stop it once he has chosen.
+- **cic** = Claude in Chrome (the `mcp__claude-in-chrome__*` tools). "Remain the cic" / "keep the cic" means leave the Chrome tab open so he can look at it; don't close it.
+- "Put the before" = include the original/previous version as a panel for comparison.
+
 ## First-time setup on a new machine
 
 If hooks aren't firing or `jq` isn't installed, see [`SETUP.md`](SETUP.md). When Charlie says **"do the claude rules in this repo"** or **"set up the claude system"**, follow `SETUP.md` steps 1–4.
