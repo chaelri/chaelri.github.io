@@ -2244,6 +2244,10 @@ function refreshRealized() {
   const t = monthTotals(selectedKey);
   const proj = $("sum-projected");
   if (proj) proj.textContent = peso(runningFundsAt(selectedKey));
+  const pyr = document.querySelector(".cash-morph"); // pyramid follows the projected number
+  if (pyr) pyr.outerHTML = pyramidHtml(runningFundsAt(selectedKey), MONTHS_SHORT[keyParts(selectedKey).m]);
+  const peek = $("peek-card"); // next-5-months piles follow too
+  if (peek) { const h = peekCardHtml(); if (h) peek.outerHTML = h; }
   const stats = $("sum-stats");
   if (stats) stats.innerHTML = statsGridHtml(t);
   const pi = $("projection-inner"); // inline projection card — refresh in place
