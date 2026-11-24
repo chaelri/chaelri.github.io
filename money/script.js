@@ -1188,7 +1188,9 @@ function renderBudget() {
 
   const sp = summaryParts();
   const wash = GemFx.colorOf(projected); // the gem's colour tints the page behind; the card takes the month colour
-  document.body.style.background = `radial-gradient(120% 60% at 50% 0%, color-mix(in srgb, ${wash} 20%, var(--paper)), var(--paper) 70%) fixed`;
+  document.body.style.background = "";
+  const appEl = $("app"); // the wash lives inside the app column (it has its own dark background)
+  if (appEl) appEl.style.background = `radial-gradient(120% 55% at 50% 0%, color-mix(in srgb, ${wash} 16%, var(--paper)), var(--paper) 75%)`;
   const summary = `<section class="rounded-3xl overflow-hidden relative shadow-xl" id="summary-card">
     <div class="absolute inset-0 bg-gradient-to-br ${bannerGradient(k)}"></div>
     <div class="absolute inset-0" style="background:radial-gradient(130% 100% at 50% 0%, color-mix(in srgb, ${MONTH_WASH[keyParts(k).m]} 34%, #2A2C31), color-mix(in srgb, ${MONTH_WASH[keyParts(k).m]} 12%, #2A2C31) 75%)"></div>
