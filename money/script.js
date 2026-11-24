@@ -1121,72 +1121,39 @@ const MINI = {
   7: { body: "#E11D48", coin: "#FDE68A", e1: "#9F1239", e2: "#E11D48" },
   8: { body: "#3A3D48", coin: "#FBBF24", e1: "#2E3039", e2: "#FBBF24" },
 };
-let morph = null; // { v0, v1, m0, m1 } set on every render; the frame loop reads it
-let morphKey = null, morphT0 = 0; // the cycle restarts from "this month" whenever the selected month changes
-const lerp = (a, b, t) => a + (b - a) * t;
-const hexMix = (a, b, t) => {
-  const p = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
-  const [x, y] = [p(a), p(b)];
-  return "#" + x.map((c, i) => Math.round(lerp(c, y[i], t)).toString(16).padStart(2, "0")).join("");
-};
-const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
-// one loop: hold this month, morph to next month, hold, fade, repeat
-const MORPH = { hold0: 1.7, morph: 1.6, hold1: 2.2, fade: 0.9 };
-function morphState(now) {
-  const T = MORPH.hold0 + MORPH.morph + MORPH.hold1 + MORPH.fade;
-  const t = now % T;
-  const a = MORPH.hold0, b = a + MORPH.morph, c = b + MORPH.hold1;
-  if (t < a) return { p: 0, o: t < 0.35 ? t / 0.35 : 1, a: 0 };
-  if (t < b) return { p: easeInOut((t - a) / MORPH.morph), o: 1, a: 0 };
-  if (t < c) return { p: 1, o: 1, a: Math.min(1, (t - b) / 0.45) };
-  const f = (t - c) / MORPH.fade;
-  return { p: f < 0.5 ? 1 : 0, o: f < 0.5 ? 1 - f / 0.5 : 0, a: f < 0.5 ? 1 : 0 };
+// Pyramid of the projected money: every brick is a fixed amount (shown under the pyramid), so the brick count is the money.
+// Bricks fill from the bottom row up; the last brick is cut to the exact remainder.
+const PYR_STEPS = [500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000, 1000000, 2000000, 5000000];
+function pyramidHtml(v, label) {
+  const cs = MINI[v <= 0 ? 0 : cashTierOf(v)];
+  const step = PYR_STEPS.find((s) => Math.ceil(v / s) <= 55) || PYR_STEPS[PYR_STEPS.length - 1];
+  const bricks = v > 0 ? v / step : 0;
+  const N = Math.ceil(bricks - 1e-9);
+  let R = 1; while ((R * (R + 1)) / 2 < N) R++;
+  const w = Math.min(11, 96 / Math.max(R, 1)), h = w * 0.56, cx = 60, base = 72;
+  let g = `<line x1="8" x2="112" y1="${base + 2}" y2="${base + 2}" stroke="#4A4C54" stroke-width="1.5" stroke-linecap="round"/>`;
+  let left = bricks;
+  for (let r = 0; r < R && left > 1e-9; r++) {
+    const inRow = R - r; // bottom row holds R bricks, each row above one fewer
+    const y = base - (r + 1) * h;
+    for (let c = 0; c < inRow && left > 1e-9; c++) {
+      const f = Math.min(1, left); left -= f;
+      const x = cx - (inRow * w) / 2 + c * w;
+      g += `<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${(w * f - 0.8).toFixed(2)}" height="${(h - 0.8).toFixed(2)}" rx="1" fill="${(r + c) % 2 ? cs.e2 : cs.e1}"/>`;
+    }
+  }
+  const unit = step >= 1000000 ? step / 1000000 + "M" : step >= 1000 ? step / 1000 + "k" : step;
+  return `<div class="cash-morph" aria-hidden="true"><svg viewBox="0 0 120 84" width="100%" height="100%">${g}<text x="60" y="83" text-anchor="middle" font-size="7" font-weight="700" fill="#A09B94">${label} · 1 brick = ₱${unit}</text></svg></div>`;
 }
-function morphFrame(ms) {
-  requestAnimationFrame(morphFrame);
-  const el = document.getElementById("cash-morph");
-  if (!el || !morph || !el.offsetParent) return;
-  const { v0, v1, m0, m1 } = morph;
-  const { p, o } = morphState(Math.max(0, (ms - morphT0) / 1000));
-  const top = Math.max(1, v0, v1);
-  const n = (v) => (v <= 0 ? 0.5 : Math.max(0.7, (v / top) * 11));
-  const v = lerp(v0, v1, p), nn = lerp(n(v0), n(v1), p);
-  const A = MINI[v0 <= 0 ? 0 : cashTierOf(v0)], B = MINI[v1 <= 0 ? 0 : cashTierOf(v1)];
-  const col = (k) => hexMix(A[k], B[k], p);
-  const base = 78, edge = 4, noteH = 15, w = 30, cx = 62;
-  const full = Math.floor(nn), part = nn - full;
-  let edges = "";
-  for (let j = 0; j < full; j++) edges += `<rect x="${cx - w / 2}" y="${base - (j + 1) * edge}" width="${w}" height="${edge - 0.8}" rx="1.2" fill="${j % 2 ? col("e2") : col("e1")}"/>`;
-  if (part > 0.05) edges += `<rect x="${cx - w / 2}" y="${base - full * edge - edge * part}" width="${w}" height="${Math.max(0.5, edge * part - 0.8)}" rx="1.2" fill="${full % 2 ? col("e2") : col("e1")}"/>`;
-  const ny = base - nn * edge - noteH;
-  const note = `<rect x="${cx - w / 2}" y="${ny}" width="${w}" height="${noteH}" rx="2.2" fill="${col("body")}"/><rect x="${cx - w / 2 + 2}" y="${ny + 2}" width="${w - 4}" height="${noteH - 4}" rx="1.5" fill="none" stroke="#0F1012" stroke-opacity=".28"/><circle cx="${cx}" cy="${ny + noteH / 2}" r="4.6" fill="${col("coin")}" stroke="#0F1012" stroke-opacity=".3" stroke-width=".8"/>`;
-  const up = v1 >= v0, ac = up ? "#34D399" : "#FB7185", dir = up ? -1 : 1;
-  // the arrow comes out together with the morph: it fades and scales in while sliding the way the money goes,
-  // follows the middle of the pile, then keeps a gentle nudge in that direction
-  const reveal = Math.min(1, Math.max(0, (p - 0.04) / 0.5)), kk = easeInOut(reveal);
-  const bob = p > 0.98 ? Math.sin(ms / 1000 * 6) * 1.8 * dir : 0;
-  const midY = base - (nn * edge + noteH) / 2;
-  const arrowSvg = reveal > 0 ? `<g transform="translate(100 ${(midY + dir * 12 * (1 - kk) + bob).toFixed(2)}) scale(${(0.45 + 0.55 * kk).toFixed(3)} ${((up ? 1 : -1) * (0.45 + 0.55 * kk)).toFixed(3)})" opacity="${kk.toFixed(3)}"><path d="M0 11 V-9 M-8 -1 L0 -10 L8 -1" fill="none" stroke="${ac}" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></g>` : "";
-  // month label rides on top of the pile: it sinks when the money drops and rises when it grows; the text swaps (with a fade) halfway
-  const mOp = Math.min(1, Math.abs(p - 0.5) * 7);
-  const monthLabel = `<text x="${cx}" y="${Math.max(15, ny - 6).toFixed(1)}" text-anchor="middle" font-size="17" font-weight="700" fill="#A09B94" fill-opacity="${mOp.toFixed(2)}">${p < 0.5 ? m0 : m1}</text>`;
-  const ground = `<line x1="35" x2="120" y1="${base + 2}" y2="${base + 2}" stroke="#4A4C54" stroke-width="1.5" stroke-linecap="round"/>`;
-  el.style.opacity = o;
-  el.firstElementChild.innerHTML = ground + edges + note + monthLabel + arrowSvg;
-}
-requestAnimationFrame(morphFrame);
 
 function renderBudget() {
   const k = selectedKey;
   const t = monthTotals(k);
   const projected = runningFundsAt(k);
-  const nextK = addMonths(k, 1), hasNext = timeline().includes(nextK);
-  if (morphKey !== k) { morphKey = k; morphT0 = performance.now(); }
-  morph = hasNext ? { v0: projected, v1: runningFundsAt(nextK), m0: MONTHS_SHORT[keyParts(k).m], m1: MONTHS_SHORT[keyParts(nextK).m] } : null;
 
   const summary = `<section class="rounded-3xl overflow-hidden relative shadow-xl">
     <div class="absolute inset-0 bg-gradient-to-br ${bannerGradient(k)}"></div>
-    ${hasNext ? '<div id="cash-morph" class="cash-morph" aria-hidden="true"><svg viewBox="0 0 120 84" width="84" height="59"></svg></div>' : ""}
+    ${pyramidHtml(projected, MONTHS_SHORT[keyParts(k).m])}
     <div class="ambient-glow" style="top:-30px;right:60px"></div>
     <div class="relative p-6 md:p-7 space-y-5">
       <div>
