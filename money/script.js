@@ -1299,7 +1299,6 @@ function renderBudget() {
   </section>`;
 
   $("budget-body").innerHTML =
-    `<div class="md:col-span-2" data-sec="toggle">${viewToggleHtml()}</div>` +
     `<div class="md:col-span-2" data-sec="summary">${summary}</div>` +
     `<div class="md:col-span-2" id="home-glance" data-sec="home">${homeGlanceHtml()}</div>` +
     `<div class="md:col-span-2" data-sec="accounts">${accountsCardHtml()}</div>` +
@@ -1307,6 +1306,7 @@ function renderBudget() {
     `<div class="person-wrap" data-who="karla">${personSectionHtml("karla")}</div>` +
     `<div class="md:col-span-2" data-sec="history">${historyCardHtml()}</div>`;
   $("budget-body").dataset.view = viewMode;
+  renderViewDots();
   accountsRenderedAt = performance.now();
 }
 
@@ -1314,21 +1314,59 @@ function renderBudget() {
 let viewMode = "home"; // the app always opens on Home
 const homePg = { charlie: 0, karla: 0 };
 const HOME_PER = 4;
-function viewToggleHtml() {
-  const page = (v) => `<button type="button" aria-current="${viewMode === v}" onclick="setView('${v}')" class="vseg-btn h-12 md:h-10 px-6 rounded-full text-sm font-bold ${viewMode === v ? "is-on" : ""}">${v}</button>`;
-  // charlie / karla are filters: press once to focus on them, press again to go back to Home
-  const who = (w) => `<button type="button" aria-pressed="${viewMode === w}" aria-label="${OWNERS[w].label}" data-w="${w}" onclick="pickWho('${w}')" class="vav ${viewMode === w ? "is-on" : ""}"><img src="assets/avatar-${w}.jpg" alt="" /></button>`;
-  return `<div class="flex items-center gap-6">
-    <div class="vseg inline-grid grid-flow-col gap-1 p-1 rounded-full">${page("home")}${page("all")}</div>
-    <div class="flex items-center gap-4">${who("charlie")}${who("karla")}</div>
-  </div>`;
+// Pages in swipe order. The dots at the bottom mirror this list.
+const VIEW_ORDER = ["home", "charlie", "karla", "all"];
+function renderViewDots() {
+  const nav = $("view-dots");
+  if (!nav) return;
+  nav.innerHTML = VIEW_ORDER.map((v) => {
+    const on = viewMode === v, person = v === "charlie" || v === "karla";
+    return `<button type="button" onclick="setView('${v}')" aria-label="${v}" aria-current="${on}" data-w="${v}" class="vdot ${on ? "is-on" : ""}">${person ? `<img src="assets/avatar-${v}.jpg" alt="" />` : ""}<span>${v}</span></button>`;
+  }).join("");
 }
-window.pickWho = function (w) { setView(viewMode === w ? "home" : w); };
-window.setView = function (v) {
+let viewSwitching = false, pendingView = null;
+window.setView = async function (v) {
+  if (v === viewMode) return;
+  if (viewSwitching) { pendingView = v; return; }
+  viewSwitching = true;
+  const dir = Math.sign(VIEW_ORDER.indexOf(v) - VIEW_ORDER.indexOf(viewMode)) || 1;
+  const body = $("budget-body");
+  const out = body.animate([{ transform: "none", opacity: 1 }, { transform: `translateX(${-24 * dir}px)`, opacity: 0 }], { duration: 120, easing: "ease-in", fill: "forwards" });
+  await out.finished;
   viewMode = v;
   renderBudget();
   $("budget-view").scrollTop = 0;
+  out.cancel();
+  await $("budget-body").animate([{ transform: `translateX(${24 * dir}px)`, opacity: 0 }, { transform: "none", opacity: 1 }], { duration: 220, easing: "cubic-bezier(.2,.8,.2,1)" }).finished;
+  viewSwitching = false;
+  if (pendingView && pendingView !== viewMode) { const p = pendingView; pendingView = null; setView(p); } else pendingView = null;
 };
+// Swipe left / right on the page (or arrow keys) to change page.
+function anyOverlayOpen() { return ["modal-overlay", "more-overlay", "month-overlay", "confirm-overlay"].some((id) => $(id)?.classList.contains("open")); }
+function stepView(d) {
+  const n = VIEW_ORDER.indexOf(viewMode) + d;
+  if (n >= 0 && n < VIEW_ORDER.length) setView(VIEW_ORDER[n]);
+}
+function initViewSwipe() {
+  const bv = $("budget-view");
+  let sx = null, sy = null;
+  bv.addEventListener("touchstart", (e) => {
+    if (e.touches.length !== 1 || e.target.closest?.("input,textarea,select,[contenteditable]")) { sx = null; return; }
+    sx = e.touches[0].clientX; sy = e.touches[0].clientY;
+  }, { passive: true });
+  bv.addEventListener("touchend", (e) => {
+    if (sx == null || anyOverlayOpen()) { sx = null; return; }
+    const t = e.changedTouches[0], dx = t.clientX - sx, dy = t.clientY - sy;
+    sx = null;
+    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    stepView(dx < 0 ? 1 : -1);
+  }, { passive: true });
+  document.addEventListener("keydown", (e) => {
+    if ((e.key !== "ArrowLeft" && e.key !== "ArrowRight") || anyOverlayOpen() || e.target.closest?.("input,textarea,select,[contenteditable]")) return;
+    stepView(e.key === "ArrowRight" ? 1 : -1);
+  });
+}
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initViewSwipe); else initViewSwipe();
 // What is still open this month for one person (income not yet received, expenses not yet paid), biggest first.
 function leftLeaves(who) {
   const k = selectedKey, out = [];

@@ -846,10 +846,6 @@ details.item-parent[open] > summary .parent-caret { transform: rotate(90deg); }
   /* centred in the room left of the drawer (half the drawer width), and never wider than that room */
   body.month-drawer #app { transform: translateX(180px); max-width: min(1024px, calc(100vw - 360px)); }
 }
-/* Home / all / accounts / charlie / karla switch */
-.vseg { background: #0b0c0e; border: 1px solid #1e293b; }
-.vseg-btn { color: #94a3b8; }
-.vseg-btn.is-on { background: #23262d; color: #fff; }
 #budget-body[data-view="home"] .person-wrap,
 #budget-body[data-view="home"] [data-sec="history"] { display: none; }
 #budget-body[data-view="all"] [data-sec="home"] { display: none; }
@@ -866,9 +862,15 @@ details.item-parent[open] > summary .parent-caret { transform: rotate(90deg); }
 #budget-body[data-view="charlie"] .person-wrap,
 #budget-body[data-view="karla"] .person-wrap { grid-column: 1 / -1; }
 
-/* Avatar filters next to the home / all switch */
-.vav { width: 48px; height: 48px; border-radius: 50%; padding: 0; border: 0; background: none; cursor: pointer; }
-.vav img { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; display: block; opacity: .55; transition: opacity .2s, box-shadow .2s; }
-.vav.is-on img { opacity: 1; }
-.vav.is-on[data-w="charlie"] img { box-shadow: 0 0 0 2px #0F1012, 0 0 0 4px #3DD9F0; }
-.vav.is-on[data-w="karla"] img { box-shadow: 0 0 0 2px #0F1012, 0 0 0 4px #FB7185; }
+/* Page dots at the bottom: tiny dots that open into a name pill (avatar for charlie / karla, text only for home / all) */
+#view-dots { gap: 8px; padding: 8px 0 max(16px, env(safe-area-inset-bottom)); min-height: 64px; }
+.vdot { position: relative; display: flex; align-items: center; justify-content: center; gap: 8px; height: 12px; width: 12px; padding: 0; border: 0; border-radius: 999px; background: #94a3b8; opacity: .45; color: #f3f4f6; font-weight: 800; font-size: 15px; transition: width .3s cubic-bezier(.7,0,.2,1), height .3s cubic-bezier(.7,0,.2,1), opacity .2s; cursor: pointer; }
+.vdot::before { content: ""; position: absolute; inset: -16px -4px; }
+.vdot[data-w="charlie"] { background: #3DD9F0; }
+.vdot[data-w="karla"] { background: #FB7185; }
+.vdot span, .vdot img { display: none; }
+.vdot.is-on { opacity: 1; background: #23262d; width: auto; height: 40px; padding: 0 16px; }
+.vdot.is-on span { display: inline; }
+.vdot.is-on img { display: block; width: 24px; height: 24px; border-radius: 50%; object-fit: cover; margin-left: -8px; }
+.vdot.is-on[data-w="charlie"] img { box-shadow: 0 0 0 2px #23262d, 0 0 0 3px #3DD9F0; }
+.vdot.is-on[data-w="karla"] img { box-shadow: 0 0 0 2px #23262d, 0 0 0 3px #FB7185; }
