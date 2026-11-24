@@ -355,3 +355,5 @@ button[onclick*="toggleField"] > span.left-7 { left: 28px !important; }
 @media (max-width: 440px) { #summary-card .sum-v, #summary-card .sum-d { font-size: 12px !important; } }
 /* phones: shrink the strip gems so they do not touch the card edges */
 @media (max-width: 440px) { .sum-gem { height: 44px; } }
+/* expandable expense cards: no outline at all */
+details.item-parent.glass-card { border: 0; }
