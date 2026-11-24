@@ -1017,7 +1017,7 @@ function accountsCardHtml() {
         </div>
         <div>
           <h3 class="text-sm font-black text-white uppercase tracking-wide">Accounts</h3>
-          <p class="text-[10px] text-slate-400">Starting balances on hand</p>
+          
         </div>
       </div>
       <div class="flex items-center gap-4">
