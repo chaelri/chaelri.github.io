@@ -1161,6 +1161,116 @@ const GemFx = (() => {
   requestAnimationFrame(frame);
   return { colorOf: (v) => { const c = TIERS[v <= 0 ? 0 : cashTierOf(v)]; return c.hi || c.b; }, tier: (v) => TIERS[v <= 0 ? 0 : cashTierOf(v)] };
 })();
+// Debt jar: a gem-cut glass jar whose faceted liquid is everything still to pay, one band per installment (soonest-ending on top).
+const JarFx = (() => {
+  const N = 10, cl = (x, a, b) => Math.max(a, Math.min(b, x)), hx = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)), tc = (x) => (typeof x === "string" ? hx(x) : x);
+  const mixc = (a, b, t) => { const A = tc(a), B = tc(b); return A.map((c, i) => Math.round(c + (B[i] - c) * cl(t, 0, 1))); }, rgb = (c) => `rgb(${c[0]},${c[1]},${c[2]})`;
+  const PAL = {
+    charlie: [["#22b8d4", "#0b6d85"], ["#0e9bb8", "#075870"], ["#35c9e2", "#0d7f98"], ["#0a89a6", "#064a5e"], ["#4fd6ea", "#1296b0"]],
+    karla: [["#f0506b", "#9c1f3a"], ["#e0334f", "#7c1229"], ["#f56f86", "#b02a46"]],
+    joint: [["#fbbf24", "#9a6a0a"], ["#f59e0b", "#7c4a05"], ["#fcd34d", "#b7860f"]],
+  };
+  const ring = (r, y, off) => [...Array(N)].map((_, i) => { const a = ((i + off) / N) * Math.PI * 2; return [Math.cos(a) * r, y, Math.sin(a) * r]; });
+  const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], cr = (u, w) => [u[1] * w[2] - u[2] * w[1], u[2] * w[0] - u[0] * w[2], u[0] * w[1] - u[1] * w[0]];
+  function mk(p, yref, nUp) {
+    let n = cr(sub(p[1], p[0]), sub(p[2], p[0])); const m = Math.hypot(...n); if (m < 1e-5) return null; n = n.map((x) => x / m);
+    const c = p.reduce((s, q) => [s[0] + q[0], s[1] + q[1], s[2] + q[2]], [0, 0, 0]).map((x) => x / p.length);
+    if (nUp) n = [0, 1, 0]; else if (n[0] * c[0] + n[1] * (c[1] - yref) + n[2] * c[2] < 0) n = n.map((x) => -x);
+    return { p, n, c };
+  }
+  function lathe(pr, yref) { // gem style: alternating half-step rings, triangle facets
+    const R = pr.map(([r, y], k) => ring(r, y, (k % 2) * 0.5)), F = [];
+    for (let k = 0; k < R.length - 1; k++) {
+      const A = R[k], B = R[k + 1], o1 = (k % 2) * 0.5, o2 = ((k + 1) % 2) * 0.5;
+      for (let i = 0; i < N; i++) { const j = o1 - o2 > 0 ? i + 1 : i; F.push([A[i], A[(i + 1) % N], B[((j % N) + N) % N]]); }
+      for (let j = 0; j < N; j++) { const i = o2 - o1 > 0 ? j + 1 : j; F.push([B[j], B[(j + 1) % N], A[((i % N) + N) % N]]); }
+    }
+    return F.map((p) => mk(p, yref)).filter(Boolean);
+  }
+  function cap(r, y, up, off = 0) {
+    const o = ring(r, y, off), i2 = ring(r * 0.55, y + 0.025, off + 0.5), F = [];
+    for (let i = 0; i < N; i++) { F.push(mk([o[i], o[(i + 1) % N], i2[i]], 0, up)); F.push(mk([i2[i], i2[(i + 1) % N], o[(i + 1) % N]], 0, up)); }
+    const t = [0, y + 0.04, 0]; for (let i = 0; i < N; i++) F.push(mk([t, i2[i], i2[(i + 1) % N]], 0, up));
+    return F.filter(Boolean);
+  }
+  const G = [[0, 0], [0.5, 0.02], [0.82, 0.2], [1, 0.5], [1, 1.4], [0.84, 1.7], [0.4, 1.95], [0.4, 2.2]], YB = 1.7, Y0 = 0.04, SPAN = 3.05, PIV = 1.25, PITCH = 0.42;
+  const glassF = lathe(G, 1.1), lidF = [...lathe([[0, 2.2], [0.5, 2.2], [0.5, 2.5]], 2.35), ...cap(0.5, 2.5, true)];
+  const interp = (y) => { for (let k = 0; k < G.length - 1; k++) { const [a, b] = [G[k], G[k + 1]]; if (y >= a[1] && y <= b[1]) return a[0] + (b[0] - a[0]) * ((y - a[1]) / (b[1] - a[1] || 1)); } return 1; };
+  const edges = (() => { const M = new Map(), k = (p) => p.map((v) => v.toFixed(3)).join(","); glassF.forEach((f, i) => { for (let e = 0; e < 3; e++) { const a = f.p[e], b = f.p[(e + 1) % 3], ka = k(a), kb = k(b), key = ka < kb ? ka + "|" + kb : kb + "|" + ka; if (!M.has(key)) M.set(key, { a, b, f: [], ring: Math.abs(a[1] - b[1]) < 1e-4 }); M.get(key).f.push(i); } }); return [...M.values()]; })();
+  function liquid(lvl, bands) {
+    const yL = Y0 + lvl * (YB - Y0), cuts = new Set([yL]); let acc = 0; const bandY = [];
+    bands.forEach((b) => { acc += b.w; bandY.push(Y0 + acc * (yL - Y0)); cuts.add(Y0 + acc * (yL - Y0)); });
+    const ys = new Set([Y0, ...G.map((g) => g[1]).filter((y) => y > Y0 + 0.01 && y < yL - 0.01), ...cuts]);
+    const arr = [...ys].filter((y) => y <= yL + 1e-6).sort((a, b) => a - b), prof = arr.map((y) => [y <= 0.0401 ? 0 : interp(y) * 0.92, y]);
+    const F = lathe(prof, yL / 2); F.forEach((o) => { o.band = Math.min(bands.length - 1, bandY.findIndex((by) => o.c[1] <= by + 1e-6)); });
+    const C = cap(prof[prof.length - 1][0], yL, true, ((prof.length - 1) % 2) * 0.5); C.forEach((o) => (o.band = bands.length - 1));
+    return { F: [...F, ...C], yL };
+  }
+  const rot = (p, yaw, pitch) => { const [x, y, z] = p, cy = Math.cos(yaw), sy = Math.sin(yaw), x1 = x * cy + z * sy, z1 = -x * sy + z * cy, cp = Math.cos(pitch), sp = Math.sin(pitch); return [x1, y * cp - z1 * sp, y * sp + z1 * cp]; };
+  const Lv = (() => { const v = [-0.45, 0.75, 0.55], m = Math.hypot(...v); return v.map((x) => x / m); })();
+  const R = (f, yaw, pitch) => ({ P: f.p.map((p) => rot(p, yaw, pitch)), n: rot(f.n, yaw, pitch), z: rot(f.c, yaw, pitch)[2], src: f });
+  const light = (n, t, id) => { const d = Math.max(0, n[0] * Lv[0] + n[1] * Lv[1] + n[2] * Lv[2]), hv = [Lv[0], Lv[1], Lv[2] + 1], hm = Math.hypot(...hv), spec = Math.pow(Math.max(0, (n[0] * hv[0] + n[1] * hv[1] + n[2] * hv[2]) / hm), 22), tw = Math.pow(Math.max(0, Math.sin(t * 2.2 + id * 1.7)), 14) * 0.5; return { d, spec, tw }; };
+  const path = (ctx, P, cx, cy, S) => { ctx.beginPath(); P.forEach((p, i) => { const x = cx + p[0] * S, y = cy - p[1] * S; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.closePath(); };
+  const ST = { sp: 0.5, dk: 0.9, wire: 0.45, lid: 0.65 };
+  let items = [], bands = [], lvl = 0, L = null, sel = -1, yawA = 0, last = 0, hit = [], view = null;
+  function prepare(rows, level) { // rows: soonest-ending first, {left}; adds .w (band share) and .col (ring colour)
+    items = rows; lvl = cl(level, 0, 1); if (sel >= rows.length) sel = -1;
+    bands = rows.slice().reverse(); const n = bands.length, mn = Math.min(0.09, 0.5 / Math.max(1, n)), tot = bands.reduce((s, b) => s + b.left, 0) || 1;
+    const ws = bands.reduce((s, b) => s + Math.max(b.left / tot, mn), 0), ci = { charlie: 0, karla: 0, joint: 0 };
+    bands.forEach((b) => { b.w = Math.max(b.left / tot, mn) / ws; const p = PAL[b.who] || PAL.charlie; b.pair = p[ci[b.who]++ % p.length] || p[0]; b.col = b.pair[0]; });
+    L = n ? liquid(lvl, bands) : null;
+  }
+  function pick(k) { sel = sel === k ? -1 : k; document.querySelectorAll(".jar-row").forEach((r) => r.classList.toggle("on", +r.dataset.k === sel)); }
+  function click(cv, e) {
+    if (!view) return; const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+    for (let k = hit.length - 1; k >= 0; k--) {
+      const Q = hit[k].P.map((p) => [view.cx + p[0] * view.S, view.cy - p[1] * view.S]); let ins = false;
+      for (let i = 0, j = Q.length - 1; i < Q.length; j = i++) if ((Q[i][1] > y) !== (Q[j][1] > y) && x < ((Q[j][0] - Q[i][0]) * (y - Q[i][1])) / (Q[j][1] - Q[i][1]) + Q[i][0]) ins = !ins;
+      if (ins) { pick(items.length - 1 - hit[k].band); return; }
+    }
+    if (sel >= 0) pick(sel);
+  }
+  function draw(ctx, w, h, ms) {
+    const dt = Math.min(0.05, (ms - last) / 1000); last = ms; yawA += dt * 0.5;
+    const t = ms / 1000, yaw = yawA, pitch = PITCH, S = Math.min(h / SPAN, w / 2.35), cx = w / 2, cy = h / 2 + PIV * Math.cos(pitch) * S + Math.sin(t * 1.4) * h * 0.006; view = { S, cx, cy };
+    ctx.lineJoin = "round"; ctx.lineCap = "round";
+    const fr0 = glassF.map((f) => R(f, yaw, pitch)), gb = fr0.filter((r) => r.n[2] < 0).sort((a, b) => a.z - b.z), gf = fr0.filter((r) => r.n[2] >= 0);
+    for (const o of gb) { path(ctx, o.P, cx, cy, S); ctx.fillStyle = "rgba(255,255,255,.03)"; ctx.fill(); }
+    const line = (a, b, al, wd) => { const A = rot(a, yaw, pitch), B = rot(b, yaw, pitch); ctx.beginPath(); ctx.moveTo(cx + A[0] * S, cy - A[1] * S); ctx.lineTo(cx + B[0] * S, cy - B[1] * S); ctx.strokeStyle = `rgba(255,255,255,${al})`; ctx.lineWidth = wd; ctx.stroke(); };
+    const EV = edges.map((e) => ({ e, nf: e.f.filter((i) => fr0[i].n[2] >= 0).length }));
+    EV.forEach(({ e, nf }) => { if (nf === 0 && e.ring) line(e.a, e.b, 0.1 * ST.wire, 1); });
+    hit = [];
+    if (L) {
+      const lq = L.F.map((f) => R(f, yaw, pitch)).filter((o) => o.n[2] > -0.02 || o.src.n[1] > 0.9).sort((a, b) => a.z - b.z);
+      lq.forEach((o, k) => {
+        const b = bands[o.src.band], { d, spec, tw } = light(o.n, t, k), isSel = sel >= 0 && items.length - 1 - o.src.band === sel;
+        let col = mixc(mixc(b.pair[1], b.pair[0], 0.25 + d * ST.dk), [255, 255, 255], cl((spec * 1.1 + tw) * ST.sp, 0, 0.9)); if (isSel) col = mixc(col, [255, 255, 255], 0.2);
+        path(ctx, o.P, cx, cy, S); ctx.fillStyle = rgb(col); ctx.fill(); ctx.strokeStyle = rgb(col); ctx.lineWidth = 0.6; ctx.stroke();
+        ctx.strokeStyle = isSel ? "rgba(255,255,255,.6)" : "rgba(255,255,255,.14)"; ctx.stroke(); hit.push({ P: o.P, band: o.src.band });
+      });
+    }
+    const fr = [...gf.map((o) => ((o.glass = 1), o)), ...lidF.map((f) => R(f, yaw, pitch)).filter((o) => o.n[2] > -0.02 || o.src.n[1] > 0.9)].sort((a, b) => a.z - b.z);
+    fr.forEach((o, k) => {
+      const { d, spec, tw } = light(o.n, t, k + 40); path(ctx, o.P, cx, cy, S);
+      if (o.glass) { ctx.fillStyle = `rgba(255,255,255,${0.025 + d * 0.05 + (spec * 0.5 + tw * 0.25) * ST.sp})`; ctx.fill(); }
+      else { const col = mixc(mixc([70, 78, 84], [172, 182, 188], 0.2 + d * 1.2), [255, 255, 255], cl((spec + tw) * ST.sp, 0, 0.8)).map((x) => Math.round(x * ST.lid)); ctx.fillStyle = rgb(col); ctx.fill(); ctx.strokeStyle = rgb(col); ctx.lineWidth = 0.6; ctx.stroke(); }
+    });
+    EV.forEach(({ e, nf }) => { if (e.f.length === 2 && nf === 1) line(e.a, e.b, 0.6 * ST.wire + 0.15, 1.6); else if (nf >= 1 && e.ring) line(e.a, e.b, 0.28 * ST.wire + 0.05, 1.1); });
+  }
+  function frame(ms) {
+    requestAnimationFrame(frame);
+    const dpr = Math.min(2, devicePixelRatio || 1);
+    document.querySelectorAll(".jar-cv").forEach((cv) => {
+      if (!cv.offsetParent) return; const w = cv.clientWidth, h = cv.clientHeight; if (!w || !h) return;
+      if (cv.width !== Math.round(w * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+      const ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h); draw(ctx, w, h, ms);
+    });
+  }
+  requestAnimationFrame(frame);
+  return { prepare, pick, click };
+})();
+window.JarFx = JarFx; // inline onclick handlers live outside the module scope
+
 const gemHtml = (v) => `<div class="gem-hero" aria-hidden="true"><canvas class="gem-cv" data-hero="1" data-v="${v}"></canvas></div>`;
 
 // ---------- summary card: gem, projected, lowest point, trend ----------
@@ -1522,26 +1632,23 @@ function installmentsCardHtml() {
   const isDone = (it) => paymentCount(it) - monthsPaidCount(it) <= 0;
   const insts = allInstallments().sort((a, b) => isDone(a) - isDone(b) || cmpKey(a.end, b.end) || a.name.localeCompare(b.name));
   if (!insts.length) return "";
-  let grandRemaining = 0, grandMonthly = 0;
-  const rows = insts.map((it) => {
-    const o = OWNERS[it.who];
-    const total = paymentCount(it);
-    const monthsPaid = monthsPaidCount(it);
-    const monthsLeft = Math.max(0, total - monthsPaid);
-    const monthly = Number(it.amount) || 0;
-    // Sum the unpaid months so a smaller final payment (a monthly override) is counted correctly.
-    let remaining = 0;
-    for (let k = it.start; cmpKey(k, it.end) <= 0; k = addMonths(k, 1)) if (itemActiveIn(it, k) && !isPaid(it.id, k)) remaining += amountIn(it, k);
-    const pct = total ? Math.round((monthsPaid / total) * 100) : 0;
-    grandRemaining += remaining; if (monthsLeft > 0) grandMonthly += monthly / everyMonths(it);
-    const q = everyMonths(it) === 3;
-    const numCls = monthsLeft === 0 ? "text-emerald-400" : monthsLeft <= 6 ? "text-rose-400" : "text-white";
-    return `<div class="grid items-center py-2" style="grid-template-columns:64px 24px 1fr;column-gap:16px">
-      <div class="text-center leading-none"><p class="text-2xl font-black ${numCls}">${monthsLeft === 0 ? "done" : monthsLeft}</p>${monthsLeft === 0 ? "" : `<p class="text-[12px] text-slate-500 mt-1">${q ? "left" : "mo left"}</p>`}</div>
-      <img src="assets/avatar-${it.who}.jpg" alt="${o.label}" class="w-6 h-6 rounded-full object-cover block" onerror="this.style.visibility='hidden'" />
-      <div class="min-w-0"><p class="text-[15px] font-bold text-slate-200 truncate">${escapeHtml(it.name)}</p><p class="text-[15px] text-slate-500">${peso(monthly)}${q ? "/qtr" : ""}</p></div>
-    </div>`;
-  }).join("");
+  let grandRemaining = 0, grandOrig = 0, grandMonthly = 0, lastEnd = null;
+  const run = [];
+  insts.forEach((it) => {
+    const monthsLeft = Math.max(0, paymentCount(it) - monthsPaidCount(it)), monthly = Number(it.amount) || 0;
+    // Walk every payment so a smaller final payment (a monthly override) is counted correctly.
+    let remaining = 0, orig = 0;
+    for (let k = it.start; cmpKey(k, it.end) <= 0; k = addMonths(k, 1)) if (itemActiveIn(it, k)) { const a = amountIn(it, k); orig += a; if (!isPaid(it.id, k)) remaining += a; }
+    grandOrig += orig; grandRemaining += remaining;
+    if (monthsLeft > 0) { grandMonthly += monthly / everyMonths(it); if (!lastEnd || cmpKey(it.end, lastEnd) > 0) lastEnd = it.end; run.push({ name: it.name, who: it.who, left: remaining, a: monthly, l: monthsLeft, q: everyMonths(it) === 3 }); }
+  });
+  const lvl = grandOrig ? grandRemaining / grandOrig : 0, paidPct = Math.round((1 - lvl) * 100);
+  JarFx.prepare(run, lvl);
+  const legend = run.map((r, i) => `<div class="jar-row" data-k="${i}" onclick="JarFx.pick(${i})">
+      <img src="assets/avatar-${r.who}.jpg" alt="" style="--rc:${r.col}" onerror="this.style.visibility='hidden'" />
+      <span class="jn">${escapeHtml(r.name)}</span><b>${peso(r.left)}</b>
+      <small>${peso(r.a)}${r.q ? "/qtr" : "/mo"} · ${r.l}${r.q ? "" : " mo"} left</small>
+    </div>`).join("");
   return `<details class="glass-card rounded-2xl overflow-hidden border border-fuchsia-500/15 md:col-span-2">
     <summary class="flex items-center justify-between px-5 py-4 cursor-pointer list-none">
       <div class="flex items-center gap-3">
@@ -1550,7 +1657,17 @@ function installmentsCardHtml() {
       </div>
       <div class="text-right"><p class="text-2xl font-black text-cyan-300 leading-none">${peso(grandRemaining)}</p><p class="text-[12px] text-slate-400 mt-1">total left</p></div>
     </summary>
-    <div class="grid md:grid-cols-2 gap-x-10 gap-y-1 px-5 pb-5 pt-1">${rows}</div>
+    <div class="grid md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] gap-x-6 gap-y-6 px-5 pb-6 pt-2 items-start">
+      <canvas class="jar-cv" onclick="JarFx.click(this,event)" style="width:100%;max-width:320px;aspect-ratio:360/460;display:block;margin:0 auto"></canvas>
+      <div>
+        ${lastEnd ? `<p class="text-[15px] text-slate-400">jar is empty by ${monthShort(lastEnd)}</p>` : `<p class="text-[15px] text-emerald-400">jar is empty</p>`}
+        <div class="flex gap-8 mt-6 whitespace-nowrap">
+          <div><p class="text-2xl font-black text-white leading-none">${paidPct}%</p><p class="text-[12px] text-slate-500 mt-1">already paid</p></div>
+          <div><p class="text-2xl font-black text-white leading-none">${peso(grandMonthly)}</p><p class="text-[12px] text-slate-500 mt-1">every month</p></div>
+        </div>
+        <div class="mt-6">${legend}</div>
+      </div>
+    </div>
   </details>`;
 }
 

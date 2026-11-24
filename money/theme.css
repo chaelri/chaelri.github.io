@@ -341,3 +341,12 @@ button[onclick*="toggleField"] > span.left-7 { left: 28px !important; }
 .gem-hero { width: 100%; max-width: 260px; height: 150px; margin: 0 auto; }
 @media (min-width: 768px) { .gem-hero { max-width: none; height: 170px; } }
 .sum-gem { display: block; width: 100%; height: 56px; margin: 4px 0; }
+
+/* installments jar legend */
+.jar-row { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; column-gap: 16px; align-items: center; padding: 8px 16px; border-radius: 13px; cursor: pointer; }
+.jar-row.on { background: #1F2024; }
+.jar-row img { width: 24px; height: 24px; border-radius: 24px; object-fit: cover; box-shadow: 0 0 0 2px #17181B, 0 0 0 4px var(--rc); }
+.jar-row .jn { font-weight: 700; color: #E2E8F0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jar-row b { font-weight: 800; color: #F2EFEA; }
+.jar-row small { display: none; grid-column: 2 / 4; color: #A09B94; font-size: 12px; }
+.jar-row.on small { display: block; }
