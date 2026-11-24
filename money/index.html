@@ -88,7 +88,7 @@
       <header
         class="px-6 md:px-8 pt-6 pb-3 flex justify-between items-end bg-slate-900/80 backdrop-blur-md sticky top-0 z-40 flex-shrink-0"
       >
-        <div>
+        <div id="month-toggle" role="button" tabindex="0" aria-expanded="false" aria-controls="month-strip" onclick="toggleMonthStrip()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleMonthStrip()}" class="cursor-pointer select-none">
           <h1
             id="current-month-display"
             class="text-3xl font-black tracking-tight text-white uppercase italic leading-none"
@@ -98,7 +98,7 @@
           <p
             class="text-indigo-400 text-[10px] font-black tracking-[0.4em] uppercase mt-1"
           >
-            <span id="current-year-display">2026</span>
+            <span id="current-year-display">2026</span><span class="material-icons hidden md:inline-block" id="month-chev" style="font-size:14px;vertical-align:middle;margin-left:4px">expand_more</span>
           </p>
         </div>
         <div class="flex items-center gap-3">
@@ -129,7 +129,7 @@
           <div id="month-stepper" class="md:hidden flex items-center gap-2 px-6 pt-4 pb-3"></div>
           <div
             id="month-strip"
-            class="hidden md:flex items-center gap-2 overflow-x-auto md:px-4 pt-6 pb-3 no-scrollbar"
+            class="is-closed hidden md:flex items-center gap-2 overflow-x-auto md:px-4 pt-6 pb-3 no-scrollbar"
           >
             <!-- month chips injected -->
           </div>

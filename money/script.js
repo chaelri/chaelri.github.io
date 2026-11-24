@@ -1728,8 +1728,17 @@ window.selectMonth = function (k) {
   updateHeader();
   renderMonthStrip();
   renderBudget();
-  scrollChipIntoView();
+  setMonthStripOpen(false); // picking a month tucks the strip away again
 };
+// Desktop: the month strip stays hidden until the month title is pressed.
+function setMonthStripOpen(open) {
+  const strip = $("month-strip");
+  if (!strip) return;
+  strip.classList.toggle("is-closed", !open);
+  $("month-toggle")?.setAttribute("aria-expanded", String(open));
+  if (open) scrollChipIntoView(true);
+}
+window.toggleMonthStrip = function () { setMonthStripOpen($("month-strip").classList.contains("is-closed")); };
 
 // =============================
 // Modal — items

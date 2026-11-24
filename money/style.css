@@ -839,3 +839,11 @@ details.item-parent[open] > summary .parent-caret { transform: rotate(90deg); }
 .fund-row .paid-check:not(.is-paid) { border-color: #5E5B57 !important; }
 .fund-row .text-amber-400\/80,
 .fund-row .inst-bar-count { color: #fff !important; }
+
+/* Desktop month strip: tucked away until the month title is pressed. */
+#month-strip { max-height: 160px; transition: max-height .3s ease, padding .3s ease, opacity .2s ease; }
+#month-toggle #month-chev { transition: transform .2s ease; }
+#month-toggle[aria-expanded="true"] #month-chev { transform: rotate(180deg); }
+@media (min-width: 768px) {
+  #month-strip.is-closed { max-height: 0; padding-top: 0; padding-bottom: 0; opacity: 0; overflow: hidden; pointer-events: none; }
+}
