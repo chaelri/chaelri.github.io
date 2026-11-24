@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
   pages: write
   id-token: write
 
@@ -30,7 +31,7 @@ jobs:
       - name: Stage site
         run: |
           rsync -a --exclude='.git' --exclude='.github' --exclude='_site' \
-            --exclude='devo-mobile/' --exclude='money-app/' \
+            --exclude='devo-mobile/' \
             --exclude='elevate-eo-campus-unite-2026/assets/tickets/' \
             --exclude='elevate-eo-campus-unite-2026/assets/tickets-all.zip' \
             --exclude='elevate-eo-campus-unite-2026/assets/print-tickets.pdf' \
