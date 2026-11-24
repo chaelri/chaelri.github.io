@@ -567,46 +567,17 @@ function renderAll() {
   clampSelected();
   updateHeader();
   renderMonthStrip();
-  if (!stripPositioned) { stripPositioned = true; scrollChipIntoView(true); }
   renderBudget();
 }
-let stripPositioned = false;
 
 function updateHeader() {
   $("current-month-display").textContent = monthName(selectedKey).toUpperCase();
   $("current-year-display").textContent = keyParts(selectedKey).y;
 }
 
+// The month list (drawer/overlay) replaced the old strip; only the past/future banner is left to refresh here.
 function renderMonthStrip() {
-  const strip = $("month-strip");
-  const nowK = currentKey();
-  // months grouped by year: the year sits on its own line above its months
-  const groups = [];
-  for (const k of timeline()) {
-    const { y } = keyParts(k);
-    if (!groups.length || groups[groups.length - 1].y !== y) groups.push({ y, keys: [] });
-    groups[groups.length - 1].keys.push(k);
-  }
-  strip.innerHTML = groups.map((g, gi) => `<div class="flex-shrink-0 ${gi ? "pl-2 ml-2 border-l border-slate-700" : ""}">
-    <p class="sticky text-[10px] font-bold text-slate-500 px-4 w-max" style="left:0">${g.y}</p>
-    <div class="flex items-center">${g.keys.map((k) => {
-      const active = k === selectedKey;
-      const isNow = k === nowK;
-      const cls = active ? "is-active text-white" : isNow ? "text-slate-200" : "text-slate-400";
-      return `<button onclick="selectMonth('${k}')" data-k="${k}" class="month-chip ${isNow ? "is-now" : ""} flex-shrink-0 relative px-4 h-12 text-sm font-bold transition-colors ${cls}">${MONTHS_SHORT[keyParts(k).m]}${isNow ? '<span class="now-dot"></span>' : ""}</button>`;
-    }).join("")}</div>
-  </div>`).join("") + '<div class="flex-shrink-0" style="width:60%" aria-hidden="true"></div>';
   renderMonthBanner();
-}
-
-// Scroll the selected chip into view only on an explicit pick (not on every render/load).
-// The selected month sits at the left edge of the strip (earlier months scroll off to the left).
-function scrollChipIntoView(instant) {
-  const strip = $("month-strip");
-  const btn = strip?.querySelector(`[data-k="${selectedKey}"]`);
-  if (!btn) return;
-  const left = btn.getBoundingClientRect().left - strip.getBoundingClientRect().left + strip.scrollLeft - 16;
-  strip.scrollTo({ left: Math.max(0, left), behavior: instant ? "auto" : "smooth" });
 }
 
 function renderMonthBanner() {
@@ -1037,7 +1008,7 @@ function accountsCardHtml() {
   const rows = accts.length
     ? groups.map((g) => (g.items.length > 1 ? acctGroupHtml(g) : acctRowHtml(g.items[0]))).join("")
     : `<p class="text-[11px] text-slate-600 px-3 py-2">No accounts yet — add your current balances.</p>`;
-  const acctOpen = accountsOpen === null ? window.matchMedia("(min-width:1024px)").matches : accountsOpen;
+  const acctOpen = accountsOpen === null ? (viewMode === "accounts" || (viewMode === "all" && window.matchMedia("(min-width:1024px)").matches)) : accountsOpen;
   return `<details ${acctOpen ? "open" : ""} ontoggle="setAccountsOpen(this.open)" class="glass-card rounded-2xl overflow-hidden border border-emerald-500/10 md:col-span-2">
     <summary class="flex items-center justify-between px-5 py-4 cursor-pointer list-none">
       <div class="flex items-center gap-3">
@@ -1328,14 +1299,70 @@ function renderBudget() {
   </section>`;
 
   $("budget-body").innerHTML =
-    `<div class="md:col-span-2">${summary}</div>` +
-    accountsCardHtml() +
-    personTabsHtml(t) +
+    `<div class="md:col-span-2" data-sec="toggle">${viewToggleHtml()}</div>` +
+    `<div class="md:col-span-2" data-sec="summary">${summary}</div>` +
+    `<div class="md:col-span-2" id="home-glance" data-sec="home">${homeGlanceHtml()}</div>` +
+    `<div class="md:col-span-2" data-sec="accounts">${accountsCardHtml()}</div>` +
     `<div class="person-wrap" data-who="charlie">${personSectionHtml("charlie")}</div>` +
     `<div class="person-wrap" data-who="karla">${personSectionHtml("karla")}</div>` +
-    historyCardHtml();
-  $("budget-body").dataset.tab = personTab;
+    `<div class="md:col-span-2" data-sec="history">${historyCardHtml()}</div>`;
+  $("budget-body").dataset.view = viewMode;
 }
+
+// ---------- Home (landing page) + the view switch: home / all / accounts / charlie / karla ----------
+let viewMode = "home"; // the app always opens on Home
+const homePg = { charlie: 0, karla: 0 };
+const HOME_PER = 4;
+function viewToggleHtml() {
+  const items = ["home", "all", "accounts", "charlie", "karla"];
+  return `<div class="vseg grid grid-cols-5 gap-1 p-1 rounded-full md:max-w-[560px]" role="tablist">${items.map((v) => `<button role="tab" aria-selected="${viewMode === v}" onclick="setView('${v}')" class="vseg-btn h-10 px-0 rounded-full text-sm font-bold tracking-tight whitespace-nowrap ${viewMode === v ? "is-on" : ""}">${v}</button>`).join("")}</div>`;
+}
+window.setView = function (v) {
+  viewMode = v;
+  renderBudget();
+  $("budget-view").scrollTop = 0;
+};
+// What is still open this month for one person (income not yet received, expenses not yet paid), biggest first.
+function leftLeaves(who) {
+  const k = selectedKey, out = [];
+  for (const kind of ["income", "expenses"]) {
+    for (const it of getItems(who, kind).filter((x) => itemActiveIn(x, k) && !x.virtual)) {
+      const kids = getKids(it);
+      if (kids.length) {
+        for (const c of kids) if (!isPaid(c.id, k)) out.push({ amt: Number(c.amount) || 0, html: childRowHtml(it.id, c, k, who) });
+      } else if (!isPaid(it.id, k)) out.push({ amt: Math.abs(Number(amountIn(it, k)) || 0), html: itemRowHtml(it, k, kind, who) });
+    }
+  }
+  return out.sort((a, b) => b.amt - a.amt);
+}
+function homeGroupHtml(who) {
+  const o = OWNERS[who], t = monthTotals(selectedKey);
+  const net = who === "charlie" ? t.cI - t.cE : t.kI - t.kE;
+  const list = leftLeaves(who), pages = Math.max(1, Math.ceil(list.length / HOME_PER));
+  homePg[who] = Math.min(homePg[who], pages - 1);
+  const pg = homePg[who], rows = list.slice(pg * HOME_PER, pg * HOME_PER + HOME_PER).map((r) => r.html).join("");
+  const pager = pages > 1 ? `<div class="flex items-center justify-between px-5 pb-4">
+    <button type="button" onclick="homePage('${who}',-1)" ${pg === 0 ? "disabled" : ""} class="h-8 px-4 rounded-full bg-slate-800 text-[12px] font-bold text-white disabled:opacity-30">prev</button>
+    <span class="text-[12px] font-bold text-slate-400">${pg + 1} / ${pages}</span>
+    <button type="button" onclick="homePage('${who}',1)" ${pg >= pages - 1 ? "disabled" : ""} class="h-8 px-4 rounded-full bg-slate-800 text-[12px] font-bold text-white disabled:opacity-30">next</button>
+  </div>` : "";
+  return `<div class="glass-card rounded-2xl overflow-hidden border ${o.ring} flex flex-col">
+    <button type="button" onclick="setView('${who}')" class="flex items-center gap-3 px-5 py-4 bg-slate-800 w-full text-left">
+      <span class="owner-ring ${o.text}"><img src="assets/avatar-${who}.jpg" alt="${o.label}" class="w-10 h-10 rounded-xl object-cover block" /></span>
+      <span class="flex-1 min-w-0"><span class="block text-sm font-black ${o.text} uppercase tracking-wide">${o.label}</span><span class="block text-[12px] font-bold text-slate-400">${list.length} left this month</span></span>
+      <span class="text-sm font-black whitespace-nowrap ${net >= 0 ? "text-emerald-300" : "text-rose-300"}">${signedPeso(net)}</span>
+    </button>
+    <div class="p-3 space-y-0.5 flex-1">${rows || `<p class="text-[12px] font-bold text-slate-500 px-3 py-4">all done for this month</p>`}</div>
+    ${pager}
+  </div>`;
+}
+function homeGlanceHtml() {
+  return `<div class="grid gap-5 md:grid-cols-2 md:items-stretch">${homeGroupHtml("charlie")}${homeGroupHtml("karla")}</div>`;
+}
+window.homePage = function (who, d) {
+  homePg[who] += d;
+  $("home-glance").innerHTML = homeGlanceHtml();
+};
 
 // "Next 5 months": projected balance at the end of each of the 5 months AFTER the selected one (the selected month is the big gem above).
 function peekMonths() {
@@ -1716,19 +1743,9 @@ window.selectMonth = function (k) {
   updateHeader();
   renderMonthStrip();
   renderBudget();
-  setMonthStripOpen(false); // picking a month tucks the strip away again
 };
-// Desktop: the month strip stays hidden until the month title is pressed.
-function setMonthStripOpen(open) {
-  const strip = $("month-strip");
-  if (!strip) return;
-  strip.classList.toggle("is-closed", !open);
-  $("month-toggle")?.setAttribute("aria-expanded", String(open));
-  if (open) scrollChipIntoView(true);
-}
 window.toggleMonthStrip = function () {
-  if (!matchMedia("(min-width: 768px)").matches) return openMonthList(); // phones get the full list
-  setMonthStripOpen($("month-strip").classList.contains("is-closed"));
+  if ($("month-overlay").classList.contains("open")) closeMonthList(); else openMonthList();
 };
 // Phones: full-screen list, one row per month (gem + projected balance). Pick a month and it closes.
 function renderMonthList() {
@@ -1746,22 +1763,27 @@ function renderMonthList() {
   }
   $("month-list").innerHTML = html;
 }
+const isDeskWide = () => matchMedia("(min-width: 768px)").matches;
 window.openMonthList = function () {
   const ov = $("month-overlay");
   if (ov.classList.contains("open")) return;
   renderMonthList();
   ov.classList.add("open");
+  if (isDeskWide()) document.body.classList.add("month-drawer"); // desktop: the whole app slides right
   $("month-toggle")?.setAttribute("aria-expanded", "true");
   const sel = $("month-list").querySelector(".is-sel");
   if (sel) $("month-list").scrollTop = Math.max(0, sel.offsetTop - 80);
-  ov.animate([{ transform: "translateY(100%)" }, { transform: "none" }], { duration: 320, easing: "cubic-bezier(.7,0,.2,1)" });
+  const from = isDeskWide() ? "translateX(-100%)" : "translateY(100%)";
+  ov.animate([{ transform: from }, { transform: "none" }], { duration: 320, easing: "cubic-bezier(.7,0,.2,1)" });
 };
 window.closeMonthList = async function () {
   const ov = $("month-overlay");
   if (!ov.classList.contains("open")) return;
-  await ov.animate([{ transform: "none" }, { transform: "translateY(100%)" }], { duration: 260, easing: "cubic-bezier(.7,0,.2,1)", fill: "forwards" }).finished;
-  ov.classList.remove("open");
+  document.body.classList.remove("month-drawer");
   $("month-toggle")?.setAttribute("aria-expanded", "false");
+  const to = isDeskWide() ? "translateX(-100%)" : "translateY(100%)";
+  await ov.animate([{ transform: "none" }, { transform: to }], { duration: 260, easing: "cubic-bezier(.7,0,.2,1)", fill: "forwards" }).finished;
+  ov.classList.remove("open");
 };
 window.pickMonthFromList = function (k) { selectMonth(k); closeMonthList(); };
 
@@ -2525,8 +2547,6 @@ async function revealApp() {
     intro.style.display = "none";
     intro.style.pointerEvents = "none";
     app.style.opacity = "1";
-    scrollChipIntoView(true);
-    if (document.fonts?.ready) document.fonts.ready.then(() => scrollChipIntoView(true));
     initParticles();
   });
 }
