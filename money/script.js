@@ -2427,28 +2427,40 @@ function initParticles() {
 // =============================
 // Boot
 // =============================
-// Splash -> app: the gif-maker curtain. A sheet in the current month's gem colour with a curved top wipes up over the splash,
-// the app is swapped in underneath, then the sheet lifts away upward (no second loader: the splash is the loader).
-// Web Animations API on purpose: it ignores the OS reduce-motion setting.
+// Splash -> app: liquid wash. A sheet in the current month's gem colour rises like the debt jar filling (rippling surface),
+// the app is swapped in underneath, then the liquid drains back down. Web Animations API on purpose: it ignores the OS reduce-motion setting.
 let revealing = false;
 async function revealApp() {
   if (revealing) return;
   revealing = true;
   const intro = $("intro-screen");
   const app = $("app");
-  const ease = "cubic-bezier(.7,0,.2,1)";
+  const W = innerWidth, H = innerHeight;
   const wash = (() => { try { return GemFx.colorOf(runningFundsAt(currentKey())); } catch (e) { return "#3DD9F0"; } })(); // gem colour of the current month
+  const light = (() => { const [r, g, b] = [1, 3, 5].map((i) => parseInt(wash.slice(i, i + 2), 16)); return "#" + [r, g, b].map((v) => Math.round(v + (255 - v) * 0.3).toString(16).padStart(2, "0")).join(""); })();
+  const P = 130, n = Math.ceil(W / P), SW = 2 * n * P; // wave period 130px: shifting by n whole periods loops seamlessly
+  const wavePath = (y) => { let d = `M0 ${y}`; for (let x = 0; x <= SW; x += 65) d += x ? ` T${x + 65} ${y}` : ` Q32 ${y - 4} 65 ${y}`; return d; };
+  const wave = (c, top) => `<svg width="${SW}" height="40" viewBox="0 0 ${SW} 40" style="position:absolute;left:0;top:${top}px;display:block"><path d="${wavePath(20)}V40H0Z" fill="${c}"/></svg>`;
+  const box = (css, parent) => { const d = document.createElement("div"); d.style.cssText = css; parent.appendChild(d); return d; };
+  const loop = (el, ms, dir) => el.animate([{ transform: "translateX(0)" }, { transform: `translateX(${dir * -n * P}px)` }], { duration: ms, iterations: Infinity, easing: "linear" });
   const c = document.createElement("div");
-  c.style.cssText = "position:fixed;top:-160px;left:0;right:0;bottom:0;padding-top:160px;box-sizing:border-box;z-index:200;background:" + wash + ";color:#0F1012;display:flex;align-items:center;justify-content:center;transform:translateY(101%);pointer-events:none;border-radius:50% 50% 0 0 / 96px 96px 0 0;will-change:transform";
+  c.style.cssText = "position:fixed;inset:0;z-index:200;overflow:hidden;pointer-events:none";
   document.body.appendChild(c);
-  await c.animate([{ transform: "translateY(101%)" }, { transform: "translateY(0)" }], { duration: 440, easing: ease, fill: "forwards" }).finished;
+  const g = box(`position:absolute;left:0;right:0;top:0;height:${H + 80}px;transform:translateY(${H + 50}px)`, c);
+  const w1 = box("position:absolute;left:0;right:0;top:0;height:40px", g); w1.innerHTML = wave(light, -33);
+  box(`position:absolute;left:0;right:0;top:0;bottom:0;background:${light}`, g);
+  box(`position:absolute;left:0;right:0;top:12px;bottom:0;background:${wash}`, g);
+  const w2 = box("position:absolute;left:0;right:0;top:12px;height:40px", g); w2.innerHTML = wave(wash, -39);
+  loop(w1.firstChild, 1300, 1); loop(w2.firstChild, 900, -1);
+  await g.animate([{ transform: `translateY(${H + 50}px)` }, { transform: "translateY(-20px)" }], { duration: 900, easing: "cubic-bezier(.4,0,.2,1)", fill: "forwards" }).finished;
   intro.style.display = "none";
   intro.style.pointerEvents = "none";
   app.style.opacity = "1";
   scrollChipIntoView(true);
   if (document.fonts?.ready) document.fonts.ready.then(() => scrollChipIntoView(true));
   initParticles();
-    await c.animate([{ transform: "translateY(0)" }, { transform: "translateY(-101%)" }], { duration: 380, easing: ease, fill: "forwards" }).finished;
+  await new Promise((r) => setTimeout(r, 150));
+  await g.animate([{ transform: "translateY(-20px)" }, { transform: `translateY(${H + 60}px)` }], { duration: 900, easing: "cubic-bezier(.6,0,.4,1)", fill: "forwards" }).finished;
   c.remove();
 }
 
