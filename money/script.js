@@ -891,7 +891,7 @@ function personSectionHtml(who) {
   return `<div class="glass-card rounded-2xl overflow-hidden border ${o.ring}">
     <div class="flex flex-wrap items-center justify-between gap-y-2 px-5 py-4 bg-slate-800">
       <div class="flex items-center gap-3">
-        <img src="assets/avatar-${who}.jpg" alt="${o.label}" class="w-10 h-10 rounded-xl object-cover ring-2 ring-current ${o.text} flex-shrink-0" />
+        <span class="owner-ring ${o.text}"><img src="assets/avatar-${who}.jpg" alt="${o.label}" class="w-10 h-10 rounded-xl object-cover block" /></span>
         <div>
           <h3 class="text-sm font-black ${o.text} uppercase tracking-wide">${o.label}</h3>
           <p class="text-[10px] font-bold whitespace-nowrap ${net >= 0 ? "text-emerald-300" : "text-rose-300"} mt-1">net ${signedPeso(net)}</p>

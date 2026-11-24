@@ -359,3 +359,5 @@ button[onclick*="toggleField"] > span.left-7 { left: 28px !important; }
 .glass-card { border: 0 !important; }
 /* summary: no card, just the gem, the number and the next five months on the page */
 #summary-card .gem-hero { max-width: 160px; height: 120px; margin: 0 auto; }
+/* owner avatar: coloured ring with a clear gap between it and the photo */
+.owner-ring { display: inline-flex; flex-shrink: 0; padding: 4px; border: 2px solid currentColor; border-radius: 18px; }
