@@ -54,6 +54,7 @@ const MODEL_WHITELIST = new Set([
   "gemini-flash-latest",
 ]);
 const DEFAULT_MODEL = "gemini-3.1-flash-lite";
+const FALLBACK_MODEL = "gemini-3.5-flash-lite";
 
 app.post("/", async (req, res) => {
   try {
@@ -82,14 +83,24 @@ app.post("/", async (req, res) => {
     geminiBody.generationConfig = baseGenConfig;
 
     const endpoint = stream ? "streamGenerateContent?alt=sse&" : "generateContent?";
-    const url =
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:${endpoint}key=${process.env.GEMINI_API_KEY}`;
+    const callGemini = (m) =>
+      fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${m}:${endpoint}key=${process.env.GEMINI_API_KEY}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(geminiBody),
+        }
+      );
 
-    const r = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(geminiBody),
-    });
+    let r = await callGemini(model);
+    // Google sometimes returns 503 "high demand" for one model while others
+    // are fine (2026-11-25: 3.1-flash-lite down, 3.5-flash-lite up). Retry
+    // once on a fallback model so apps keep working.
+    if (r.status === 503 && model !== FALLBACK_MODEL) {
+      console.warn(`${model} returned 503, retrying on ${FALLBACK_MODEL}`);
+      r = await callGemini(FALLBACK_MODEL);
+    }
 
     if (stream) {
       // Pipe SSE chunks through without buffering. Using Readable.fromWeb to
