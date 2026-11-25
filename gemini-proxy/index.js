@@ -114,7 +114,9 @@ app.post("/", async (req, res) => {
       res.setHeader("Cache-Control", "no-cache, no-transform");
       res.setHeader("X-Accel-Buffering", "no");
       res.flushHeaders?.();
-      Readable.fromWeb(r.body).pipe(res);
+      // node-fetch v3 gives a Node stream; a Web ReadableStream needs fromWeb.
+      const body = typeof r.body?.getReader === "function" ? Readable.fromWeb(r.body) : r.body;
+      body.pipe(res);
     } else {
       const data = await r.json();
       res.json(data);
