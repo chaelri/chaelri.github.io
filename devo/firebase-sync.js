@@ -280,6 +280,7 @@ function _injectAppScript() {
     "js/10-creator-canvas.js",
     "js/11-boot.js",
     "js/12-reader-ui.js",
+    "js/13-dialog.js",
   ];
   for (const src of files) {
     const s = document.createElement("script");

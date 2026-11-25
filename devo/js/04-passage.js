@@ -1869,6 +1869,9 @@ async function loadPassage() {
 
     /* ---------- RENDER ---------- */
     output.innerHTML = "";
+    // Dialog mode (13-dialog.js) reads the same verses the reader shows.
+    window.__passageVerses = { bookId, chapter: Number(chapterNum), single: !!single, verses };
+    setTimeout(() => document.dispatchEvent(new CustomEvent("devo:passage")), 0);
 
     _headingGen++;
 

@@ -11,7 +11,7 @@
 //   - Everything else cross-origin (Gemini proxy, RTDB long-polling, TTS) is not
 //     intercepted at all. Caching RTDB's JSONP polls or AI POSTs is wrong.
 
-const DEPLOYMENT_ID = "v1.78.3-" + Date.now(); // Date.now() ensures a new cache on every SW update
+const DEPLOYMENT_ID = "v1.79.0-" + Date.now(); // Date.now() ensures a new cache on every SW update
 const SHELL_CACHE = "dudu-devotion-" + DEPLOYMENT_ID;
 // Long-lived caches survive deploys; only old shell caches are deleted.
 const DATA_CACHE = "devo-data-v1";
@@ -47,6 +47,7 @@ const CORE_ASSETS = [
   "./js/10-creator-canvas.js",
   "./js/11-boot.js",
   "./js/12-reader-ui.js",
+  "./js/13-dialog.js",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
   "./icons/icon-maskable-512.png",
