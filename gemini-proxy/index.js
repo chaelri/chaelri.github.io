@@ -83,13 +83,13 @@ app.post("/", async (req, res) => {
     geminiBody.generationConfig = baseGenConfig;
 
     const endpoint = stream ? "streamGenerateContent?alt=sse&" : "generateContent?";
-    const callGemini = (m) =>
+    const callGemini = (m, body = geminiBody) =>
       fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${m}:${endpoint}key=${process.env.GEMINI_API_KEY}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(geminiBody),
+          body: JSON.stringify(body),
         }
       );
 
@@ -99,7 +99,9 @@ app.post("/", async (req, res) => {
     // once on a fallback model so apps keep working.
     if (r.status === 503 && model !== FALLBACK_MODEL) {
       console.warn(`${model} returned 503, retrying on ${FALLBACK_MODEL}`);
-      r = await callGemini(FALLBACK_MODEL);
+      // 3.5 models reject thinkingBudget (400 INVALID_ARGUMENT), so drop it.
+      const { thinkingConfig, ...genConfig } = geminiBody.generationConfig || {};
+      r = await callGemini(FALLBACK_MODEL, { ...geminiBody, generationConfig: genConfig });
     }
 
     if (stream) {
