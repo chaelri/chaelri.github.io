@@ -76,6 +76,12 @@
     return Math.max(0, idx);
   }
 
+  // Names/places list, built once from the NASB text (always capitalised
+  // mid-sentence, minus Lord/God/pronouns). Loaded on first open.
+  let NAMES = null;
+  const namesReady = () => NAMES ? Promise.resolve() :
+    fetch("bible-names.json").then((r) => r.json()).then((a) => { NAMES = new Set(a); }).catch(() => { NAMES = new Set(); });
+
   // ── typewriter over the quote-formatted HTML ──
   function verseHTML(v, stack) {
     const holder = document.createElement("p");
@@ -83,14 +89,25 @@
     const walker = document.createTreeWalker(holder, NodeFilter.SHOW_TEXT);
     const nodes = [];
     while (walker.nextNode()) nodes.push(walker.currentNode);
-    nodes.forEach((t) => {
-      const frag = document.createDocumentFragment();
-      for (const ch of t.textContent) {
+    const charsInto = (parent, str) => {
+      for (const ch of str) {
         const s = document.createElement("span");
         s.className = "dlgm-c";
         s.textContent = ch;
-        frag.appendChild(s);
+        parent.appendChild(s);
       }
+    };
+    nodes.forEach((t) => {
+      const frag = document.createDocumentFragment();
+      // Names and places (bible-names.json) read in pink.
+      t.textContent.split(/([A-Za-z][A-Za-z-]*)/).forEach((part, k) => {
+        if (k % 2 && NAMES?.has(part)) {
+          const nm = document.createElement("span");
+          nm.className = "dlgm-name";
+          charsInto(nm, part);
+          frag.appendChild(nm);
+        } else charsInto(frag, part);
+      });
       t.replaceWith(frag);
     });
     return holder;
@@ -242,6 +259,7 @@
     if (inDialog || !data?.verses?.length) return;
     build();
     inDialog = true;
+    await namesReady();
     $("dlgmTitle").textContent = `${bookName()} ${data.chapter}`;
     root.hidden = false;
     document.body.classList.add("dialog-open");

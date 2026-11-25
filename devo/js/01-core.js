@@ -167,6 +167,9 @@ function normalizeVerseText(raw) {
     // before the quote is what keeps this off apostrophes — the ’ in
     // "Gideon’s" has a letter before it, not a full stop, so it never matches.
     .replace(/([.!?,;:][”’"]+)(?=[A-Za-z])/g, "$1 ")
+    // An opening quote straight after punctuation is a missing space too:
+    // EASY has "said to Solomon,‘I have heard" (Charlie, 2026-11-26).
+    .replace(/([.!?,;:])(?=[“‘])/g, "$1 ")
     .replace(/\s+/g, " ");
 }
 
