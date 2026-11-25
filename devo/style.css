@@ -10921,7 +10921,7 @@ body.light .dv { --dv-card: #ffffff; --dv-ink: #16130f; --dv-mute: #6b6a66; --dv
 .dv-ref { margin-top: 56px; font: italic 24px/1 var(--dv-serif); text-transform: uppercase; color: #db2777; }
 .dv-pg h2 { margin: 16px 0 0; font: italic 38px/1.1 var(--dv-serif); color: var(--dv-paper-ink); position: relative; z-index: 1; }
 .dv-num { position: absolute; right: 16px; bottom: 0; font: italic 120px/.8 var(--dv-serif); color: rgba(219,39,119,.18); pointer-events: none; }
-.dv-book .dash-continue-recap { margin: 0 !important; padding: 0 !important; color: #4a4339 !important; font: 400 16px/1.4 "Nunito", sans-serif !important; opacity: 1 !important; max-width: 34ch; -webkit-line-clamp: unset !important; }
+.dv-book .dash-continue-recap { margin: 0 !important; padding: 0 !important; color: #4a4339 !important; font: 700 16px/1.4 "Nunito", sans-serif !important; opacity: 1 !important; max-width: 34ch; -webkit-line-clamp: unset !important; }
 .dv-book .dash-continue-recap:empty { display: none; }
 .dv-go { height: 48px; padding: 0 24px; border-radius: 999px; border: 0; background: #db2777; color: #fff; font: 800 16px "Nunito", sans-serif; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
 .dv-go .material-symbols-outlined { font-size: 24px; color: #fff !important; }
