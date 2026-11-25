@@ -11792,11 +11792,11 @@ body.dialog-open .reader-dock, body.dialog-open .tts-chip { display: none !impor
 body.font-system .dlgm-box { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
 .dlgm-box p { margin: 0; }
 .dlgm-n { color: #be185d; font-weight: 900; margin-right: 8px; }
-/* Speech reads in pink, like the reader (darker pink on the cream for contrast, 4.9:1). */
-.dlgm-box .quote-style, .dlgm-box .quote-style-nested { color: #be185d; }
+/* Speech: darker ink than the narration, no extra colour (Charlie, 2026-11-26). #2b2318 on cream 10:1. */
+.dlgm-box .quote-style, .dlgm-box .quote-style-nested { color: #2b2318; }
 .dlgm-box.old { background: #283052; color: #cfc8b4; box-shadow: none; font-size: calc(var(--verse-fs, 16px) - 1px); padding: 16px 24px; margin: 0 8px; }
 .dlgm-box.old .dlgm-n { color: #f472b6; }
-.dlgm-box.old .quote-style, .dlgm-box.old .quote-style-nested { color: #f472b6; }
+.dlgm-box.old .quote-style, .dlgm-box.old .quote-style-nested { color: #f3eee0; }
 /* Names and places: the same pink (Charlie picked pink over teal, 2026-11-26). */
 .dlgm-name { color: #be185d; }
 .dlgm-box.old .dlgm-name { color: #f472b6; }
@@ -11842,5 +11842,6 @@ body.light .dlgm-prog, body.light .dlgm-end { color: #6b6a66; }
 body.light .dlgm-bar { background: #e6e0d2; }
 body.light .dlgm-box { background: #fffdf7; box-shadow: 0 8px 24px rgba(107,95,69,.2); }
 body.light .dlgm-box.old { background: #e6e0d2; color: #5c5139; }
-body.light .dlgm-box.old .dlgm-n, body.light .dlgm-box.old .quote-style, body.light .dlgm-box.old .quote-style-nested { color: #be185d; }
+body.light .dlgm-box.old .dlgm-n { color: #be185d; }
+body.light .dlgm-box.old .quote-style, body.light .dlgm-box.old .quote-style-nested { color: #2b2318; }
 body.light .dlgm-act { background: #e6e0d2; color: #be185d; }
