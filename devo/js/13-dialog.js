@@ -147,8 +147,11 @@
     const w = wraps[i];
     setTimeout(() => {
       const hgt = log.clientHeight, bot = w.offsetTop + w.offsetHeight;
-      const reserve = root.classList.contains("split") ? 48 : 112;
-      log.scrollTo({ top: Math.max(0, Math.max(w.offsetTop - hgt * 0.38, bot - (hgt - reserve))), behavior: "smooth" });
+      // Split (landscape/desktop): the lit verse sits in the vertical middle.
+      const top = root.classList.contains("split")
+        ? w.offsetTop + w.offsetHeight / 2 - hgt / 2
+        : Math.max(w.offsetTop - hgt * 0.38, bot - (hgt - 112));
+      log.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
     }, 40);
   }
   function next() {

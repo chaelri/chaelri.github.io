@@ -11811,14 +11811,14 @@ body.font-system .dlgm-box { font-family: -apple-system, BlinkMacSystemFont, "Se
 
 /* split: landscape phone + desktop */
 .dlgm.split .dlgm-top { left: calc(32px + env(safe-area-inset-left)); right: auto; width: calc(36% - 48px); top: 24px; bottom: 24px; display: flex; flex-direction: column; align-items: flex-start; }
-.dlgm.split .dlgm-title { margin-top: 24px; }
+.dlgm.split .dlgm-title { margin-top: auto; }
 .dlgm.split .dlgm-side { display: block; width: 100%; margin-top: 16px; }
 .dlgm.split .dlgm-more { margin-top: auto; }
 .dlgm-sect { font: 800 16px/1.4 "Nunito", sans-serif; color: #e2e8f0; }
 .dlgm-prog { font: 700 15px/1.4 "Nunito", sans-serif; color: #a9b0c0; margin-top: 8px; }
 .dlgm-bar { height: 4px; border-radius: 2px; background: #263050; margin-top: 8px; overflow: hidden; }
 .dlgm-bar i { display: block; height: 100%; width: 0; background: #db2777; transition: width .3s; }
-.dlgm.split .dlgm-log { top: 0; left: 36%; right: env(safe-area-inset-right); padding: 48px 32px 40vh 0;
+.dlgm.split .dlgm-log { top: 0; left: 36%; right: env(safe-area-inset-right); padding: 50vh 32px 50vh 0;
   -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 48px, #000 calc(100% - 48px), transparent);
           mask-image: linear-gradient(to bottom, transparent 0, #000 48px, #000 calc(100% - 48px), transparent); }
 @media (min-width: 1024px) { .dlgm.split .dlgm-log { padding-right: 15%; } }
