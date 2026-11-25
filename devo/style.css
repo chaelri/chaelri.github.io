@@ -11821,7 +11821,12 @@ body.font-system .dlgm-box { font-family: -apple-system, BlinkMacSystemFont, "Se
 .dlgm.split .dlgm-log { top: 0; left: 36%; right: env(safe-area-inset-right); padding: 50vh 32px 50vh 0;
   -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 48px, #000 calc(100% - 48px), transparent);
           mask-image: linear-gradient(to bottom, transparent 0, #000 48px, #000 calc(100% - 48px), transparent); }
-@media (min-width: 1024px) { .dlgm.split .dlgm-log { padding-right: 15%; } }
+/* Desktop: one centred 1200px frame (panel 320px + gap 48px + log), equal side margins. */
+@media (min-width: 1024px) {
+  .dlgm.split { --dlgm-l: max(32px, calc((100% - 1200px) / 2)); }
+  .dlgm.split .dlgm-top { left: var(--dlgm-l); width: 320px; }
+  .dlgm.split .dlgm-log { left: calc(var(--dlgm-l) + 368px); right: var(--dlgm-l); padding-right: 8px; }
+}
 
 /* light theme */
 body.light .dlgm { background: #f4f1ea; color: #2a2a35; }
