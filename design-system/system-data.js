@@ -240,7 +240,8 @@ h1,h2{font-weight:700;line-height:.95;letter-spacing:-.01em}
     "shapes are flat, or deliberately liquid glass (never half and half); no emoji decoration",
     "one focal point; one handwritten accent at most; plenty of white space; no decorative mini label chips (eyebrow, version, date, count)",
     "looks designed for this subject and mood, one consistent shape style. if it looks like a template or the last piece, redo it",
-    "verified in Claude in Chrome before delivering (every web design job): JS spacing audit, real screenshots of each section, 390px mobile check; fix, re-check, then report"
+    "verified in Claude in Chrome before delivering (every web design job): JS spacing audit, real screenshots of each section, 390px mobile check; fix, re-check, then report",
+    "judge it before showing it: does anything look awkward? weird? is it good from a UI/UX perspective? does it satisfy the brief checklist? fix fails, re-render, and report per take what passes, what was fixed, what is still weak"
   ],
 
   extend: [

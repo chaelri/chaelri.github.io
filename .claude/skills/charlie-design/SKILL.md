@@ -252,3 +252,9 @@ Always use the Web Animations API (ignores the OS reduce-motion that is ON on Ch
     - Take real screenshots of every section and look at them (uneven image sizes, cramped legends and cramped label-to-cell gaps only show by eye).
     - `resize_window` may not change the viewport: test mobile (430px = Charlie and Kuya's iPhone 15 Pro Max, and 360px; 16px gutters, no sideways scroll, nothing hidden that desktop shows) in a fixed-position iframe and measure inside it.
     - Fix, re-check, then report what passed and what was fixed.
+12. **Judge it before showing it (Charlie, 2026-11-26).** After every render, look at it and ask out loud, then answer honestly in the reply:
+    - **Does anything look awkward?** (cramped, floating, clipped, pasted-on, mismatched scale or lighting, odd gaps)
+    - **Does anything look weird?** (off-theme, wrong mood, AI-looking shine, cheap fake shapes like flat CSS ribbons)
+    - **Is it good from a UI/UX perspective?** (one-second read of what it is, clear hierarchy, every detail findable, readable at thumbnail and phone size)
+    - **Does it satisfy the brief?** Write a checklist from the brief and any reference (e.g. "obviously Christmas at thumbnail size", faith context, ties to the requester's sample) before building; score each item per take.
+    Fix every fail and re-render before delivering. Never hand over with just "there it is": the reply states, per take, what passes, what was fixed, and anything still weak.
