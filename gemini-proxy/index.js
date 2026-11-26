@@ -60,11 +60,12 @@ const FALLBACK_MODEL = "gemini-3.5-flash-lite";
 // proxy, 5 runs each: 3.1-flash-lite median 1.3s but spikes to 12s;
 // flash-lite-latest median 1.2s; 3.5-flash-lite 4.1s; flash 5.7s; 3.5-flash 8.2s.
 // The slowness people feel is the spikes, so: if the default model hasn't
-// answered in HEDGE_MS, also ask HEDGE_MODEL and use whichever answers first
-// (the loser is aborted). Any error response launches FALLBACK_MODEL at once
+// answered in HEDGE_MS, send the same request to it again and use whichever
+// answers first (the loser is aborted). Spikes are per request, so a second
+// copy usually lands fast. (flash-lite-latest was tried as the hedge first,
+// but it measured slower than 3.1-flash-lite: 3.0s vs 1.0s median.) Any error response launches FALLBACK_MODEL at once
 // (covers the 503 "high demand" case). Free tier, so a duplicate request only
 // costs quota, and only on slow calls.
-const HEDGE_MODEL = "gemini-flash-lite-latest";
 const HEDGE_MS = 3000;
 
 function hedgedCall(callGemini, primary, plainBody) {
@@ -110,8 +111,8 @@ function hedgedCall(callGemini, primary, plainBody) {
     const timer = setTimeout(() => {
       if (done || hedged) return;
       hedged = true;
-      console.warn(`${primary} slow (>${HEDGE_MS}ms), hedging on ${HEDGE_MODEL}`);
-      launch(HEDGE_MODEL, plainBody);
+      console.warn(`${primary} slow (>${HEDGE_MS}ms), sending a second copy`);
+      launch(primary);
     }, HEDGE_MS);
   });
 }
