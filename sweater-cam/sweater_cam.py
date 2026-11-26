@@ -20,6 +20,8 @@ from mediapipe.tasks.python import vision
 HERE = os.path.dirname(os.path.abspath(__file__))
 SEG_MODEL = os.path.join(HERE, "selfie_multiclass.tflite")
 HAND_MODEL = os.path.join(HERE, "hand_landmarker.task")
+POSE_MODEL = os.path.join(HERE, "pose_landmarker.task")
+SWEATER = os.path.join(HERE, "assets", "sweater.png")
 
 # selfie_multiclass classes
 BG, HAIR, BODY_SKIN, FACE_SKIN, CLOTHES, OTHER = range(6)
@@ -91,6 +93,72 @@ def paint_sweater(frame, mask, tex):
     return (frame.astype(np.float32) * (1 - a) + sweater * a).clip(0, 255).astype(np.uint8)
 
 
+class TryOn:
+    """Warp a real sweater photo onto the body from pose shoulder landmarks."""
+
+    # asset coords (assets/sweater.png): where the arm joints sit inside the shoulders
+    SH_L = (75.0, 115.0)
+    SH_R = (770.0, 115.0)
+
+    def __init__(self, asset, widen=1.5, drop=-0.14, smooth=0.5):
+        rgba = cv2.imread(asset, cv2.IMREAD_UNCHANGED)
+        gray = cv2.cvtColor(rgba[..., :3], cv2.COLOR_BGR2GRAY).astype(np.float32)
+        # neutral black knit (the photo is slightly navy)
+        self.bgr = np.dstack([gray * 1.04, gray, gray * 0.98])
+        self.alpha = rgba[..., 3].astype(np.float32) / 255.0
+        # neck opening = convex hull of the top of the sweater minus the sweater itself;
+        # filled later with the dark inside of the back collar
+        top = (self.alpha > 0.5).astype(np.uint8)
+        top[260:] = 0
+        hull = np.zeros_like(top)
+        cv2.fillConvexPoly(hull, cv2.convexHull(cv2.findNonZero(top)), 1)
+        hole = np.clip(hull.astype(np.float32) - self.alpha, 0, 1)
+        hole[:55] = 0  # only the low part: the back collar seen through the opening
+        self.hole = cv2.GaussianBlur(hole, (0, 0), 3)
+        self.widen, self.drop, self.smooth = widen, drop, smooth
+        self.pts = None
+        self.pose = vision.PoseLandmarker.create_from_options(vision.PoseLandmarkerOptions(
+            base_options=mp_python.BaseOptions(model_asset_path=POSE_MODEL),
+            running_mode=vision.RunningMode.VIDEO, num_poses=1))
+
+    def shoulders(self, rgb_small, ts, w, h):
+        res = self.pose.detect_for_video(mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_small), ts)
+        if not res.pose_landmarks:
+            return None
+        lm = res.pose_landmarks[0]
+        a, b = lm[11], lm[12]
+        if min(getattr(a, "visibility", 1), getattr(b, "visibility", 1)) < 0.3:
+            return None
+        p = np.array([[a.x * w, a.y * h], [b.x * w, b.y * h]], np.float32)
+        p = p[np.argsort(p[:, 0])]  # image-left first
+        self.pts = p if self.pts is None else self.smooth * p + (1 - self.smooth) * self.pts
+        return self.pts
+
+    def render(self, frame, pts, keep, skin=None):
+        """Composite the sweater over frame; `keep` (0..1) = face/hair/hands drawn on top."""
+        h, w = frame.shape[:2]
+        c = pts.mean(axis=0)
+        d = (pts[1] - pts[0]) / 2 * self.widen
+        sw = np.linalg.norm(pts[1] - pts[0])
+        down = np.array([-d[1], d[0]]) / max(np.linalg.norm(d), 1) * sw * self.drop
+        dst = np.array([c - d + down, c + d + down], np.float32)
+        M, _ = cv2.estimateAffinePartial2D(np.array([self.SH_L, self.SH_R], np.float32), dst)
+        if M is None:
+            return frame
+        img = cv2.warpAffine(self.bgr, M, (w, h), flags=cv2.INTER_LINEAR)
+        a = cv2.warpAffine(self.alpha, M, (w, h), flags=cv2.INTER_LINEAR)
+        hole = cv2.warpAffine(self.hole, M, (w, h), flags=cv2.INTER_LINEAR)
+        scene = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY).mean()
+        inner = np.full_like(img, 24.0) * np.clip(scene / 120.0, 0.75, 1.35)
+        hole_a = hole * (1.0 - np.maximum(keep, skin if skin is not None else 0))
+        frame = (frame.astype(np.float32) * (1 - hole_a[..., None]) + inner * hole_a[..., None])
+        # match the room's exposure a little
+        img = img * np.clip(scene / 120.0, 0.75, 1.35)
+        a = a * (1.0 - keep)
+        a3 = a[..., None]
+        return (frame.astype(np.float32) * (1 - a3) + img * a3).clip(0, 255).astype(np.uint8)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--camera", type=int, default=0, help="camera index (default 0)")
@@ -101,14 +169,21 @@ def main():
     ap.add_argument("--no-vcam", action="store_true", help="preview only, don't start the virtual camera")
     ap.add_argument("--no-preview", action="store_true", help="no preview window")
     ap.add_argument("--snapshot", help="process one frame, save before|after to this path, exit")
+    ap.add_argument("--image", help="use this image file instead of the camera (with --snapshot)")
+    ap.add_argument("--paint-only", action="store_true", help="old mode: only darken your own clothes")
     args = ap.parse_args()
 
-    cap = cv2.VideoCapture(args.camera)
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, args.width)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, args.height)
-    cap.set(cv2.CAP_PROP_FPS, args.fps)
-    for _ in range(15):  # let exposure settle; first frames are often dark
-        ok, frame = cap.read()
+    if args.image:
+        cap, frame = None, cv2.imread(args.image)
+        ok = frame is not None
+        args.snapshot = args.snapshot or "out.jpg"
+    else:
+        cap = cv2.VideoCapture(args.camera)
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, args.width)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, args.height)
+        cap.set(cv2.CAP_PROP_FPS, args.fps)
+        for _ in range(15):  # let exposure settle; first frames are often dark
+            ok, frame = cap.read()
     if not ok:
         raise SystemExit("Camera did not open. Give your terminal camera access in "
                          "System Settings > Privacy & Security > Camera, or try --camera 1.")
@@ -122,6 +197,7 @@ def main():
         base_options=mp_python.BaseOptions(model_asset_path=HAND_MODEL),
         running_mode=vision.RunningMode.VIDEO, num_hands=2))
 
+    tryon = None if args.paint_only else TryOn(SWEATER)
     small_w = 512
     small_h = int(h * small_w / w)
     tex = knit_texture(h, w)
@@ -141,6 +217,7 @@ def main():
                              "'Start Virtual Camera' (approve the system extension), then quit OBS and rerun.")
 
     frames, fps_t = 0, time.monotonic()
+    hands_cache = pts_cache = None
     try:
         while True:
             if frames:  # first frame already read
@@ -157,13 +234,25 @@ def main():
                 rgb = cv2.cvtColor(cv2.resize(frame, (small_w, small_h)), cv2.COLOR_BGR2RGB)
                 res = seg.segment_for_video(mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb), ts)
                 conf = [np.squeeze(m.numpy_view()).astype(np.float32) for m in res.confidence_masks]
-                hands = hand_mask(hands_lm, rgb, ts, (small_h, small_w)) if sleeves else 0.0
+                if (sleeves or tryon) and (frames % 3 == 1 or hands_cache is None):
+                    hands_cache = hand_mask(hands_lm, rgb, ts, (small_h, small_w))
+                hands = hands_cache if (sleeves or tryon) else 0.0
                 m = build_mask(conf, sleeves, hands)
                 m = cv2.resize(m, (w, h), interpolation=cv2.INTER_LINEAR)
                 prev = m if prev is None else 0.55 * m + 0.45 * prev  # less flicker
                 soft = cv2.GaussianBlur(prev, (0, 0), 3)
                 soft = np.clip((soft - 0.25) / 0.3, 0, 1)  # tighten edge, keep feather
                 out = paint_sweater(frame, soft, tex)
+                if tryon and (frames % 2 == 1 or pts_cache is None):
+                    pts_cache = tryon.shoulders(rgb, ts, w, h)
+                pts = pts_cache if tryon else None
+                if pts is not None:
+                    keep = np.maximum(np.maximum(conf[FACE_SKIN], conf[HAIR]), hands)
+                    keep = cv2.resize(keep, (w, h), interpolation=cv2.INTER_LINEAR)
+                    keep = np.clip((cv2.GaussianBlur(keep, (0, 0), 2) - 0.3) / 0.4, 0, 1)
+                    skin = cv2.resize(conf[BODY_SKIN], (w, h), interpolation=cv2.INTER_LINEAR)
+                    skin = np.clip((cv2.GaussianBlur(skin, (0, 0), 2) - 0.3) / 0.4, 0, 1)
+                    out = tryon.render(out, pts, keep, skin)
 
             if args.snapshot:
                 cv2.imwrite(args.snapshot, np.hstack([frame, out]))
@@ -188,7 +277,8 @@ def main():
                 print(f"{90 / (now - fps_t):.1f} fps", end="\r", flush=True)
                 fps_t = now
     finally:
-        cap.release()
+        if cap:
+            cap.release()
         if vcam:
             vcam.close()
         cv2.destroyAllWindows()

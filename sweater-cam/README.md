@@ -1,8 +1,8 @@
 # sweater-cam
 
-Live camera filter that repaints your clothes as a plain black sweater and feeds it to Teams as a camera.
+Live virtual try-on: a real black knit sweater photo is warped onto your shoulders (MediaPipe Pose) and fed to Teams as a camera. Face, hair and hands stay on top; your neck shows through the collar.
 
-MediaPipe multiclass selfie segmentation finds clothes (and bare arms below the collar line, hands kept via the hand landmarker). The area is repainted dark with the original folds kept, then sent to the OBS Virtual Camera.
+Under the sweater, MediaPipe multiclass selfie segmentation also darkens your own clothes (and bare arms below the collar line, hands kept via the hand landmarker). The area is repainted dark with the original folds kept, then sent to the OBS Virtual Camera.
 
 ## Use
 
@@ -14,3 +14,7 @@ MediaPipe multiclass selfie segmentation finds clothes (and bare arms below the 
 
 Preview keys: `s` sweater on/off, `a` sleeves on/off, `q` quit.
 Flags: `--camera 1` (other camera), `--no-preview`, `--no-vcam`, `--snapshot out.jpg`.
+
+Tuning: `TryOn(widen=1.5, drop=-0.14)` in `sweater_cam.py` (width vs shoulders, vertical offset). `--paint-only` = old recolour mode. `--image photo.jpg --snapshot out.jpg` tests on a still.
+
+Sweater photo: "2008 ROCN acrylic wool sweater" by Solomon203, CC BY-SA 4.0, via Wikimedia Commons (anchor patch removed, cut out, brightened). `assets/sweater.png` is shared under the same licence.
