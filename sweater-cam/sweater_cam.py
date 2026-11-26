@@ -202,7 +202,8 @@ def main():
 
     tryon = TryOn(SWEATER) if args.photo else None
     from worn import Worn
-    worn = None if (args.paint_only or args.photo) else Worn(SWEATER, frame.shape)
+    hw, hh = w // 2, h // 2  # sweater maths at half res; face/background stay full res
+    worn = None if (args.paint_only or args.photo) else Worn(SWEATER, (hh, hw))
     ai = None
     if worn is not None and not args.no_ai:
         print("Loading SD-Turbo on the Mac GPU...", flush=True)
@@ -251,15 +252,21 @@ def main():
                 if worn is not None:
                     if frames % 3 == 1 or hands_cache is None:
                         hands_cache = hand_mask(hands_lm, rgb, ts, (small_h, small_w))
-                    full = [cv2.resize(c, (w, h), interpolation=cv2.INTER_LINEAR) for c in conf + [hands_cache]]
+                    full = [cv2.resize(c, (hw, hh), interpolation=cv2.INTER_LINEAR) for c in conf + [hands_cache]]
                     prev = full if prev is None else [0.6 * a + 0.4 * b for a, b in zip(full, prev)]
-                    out = worn.render(frame, prev[:6], prev[6])
-                    if ai is not None and getattr(worn, "last_mask", None) is not None:
-                        if args.snapshot:
-                            out = ai.render(out, worn.last_mask)
-                        else:
-                            ai.submit(out, worn.last_mask)
-                            out = ai.apply(out, worn.last_mask)
+                    small = cv2.resize(frame, (hw, hh), interpolation=cv2.INTER_AREA)
+                    worn.last_mask = None
+                    out_s = worn.render(small, prev[:6], prev[6])
+                    if worn.last_mask is not None:
+                        if ai is not None:
+                            if args.snapshot:
+                                out_s = ai.render(out_s, worn.last_mask)
+                            else:
+                                ai.submit(out_s, worn.last_mask)
+                                out_s = ai.apply(out_s, worn.last_mask)
+                        a = cv2.resize(worn.last_mask, (w, h), interpolation=cv2.INTER_LINEAR)[..., None]
+                        up = cv2.resize(out_s, (w, h), interpolation=cv2.INTER_LINEAR)
+                        out = (frame * (1 - a) + up * a).astype(np.uint8)
                 elif (sleeves or tryon) and (frames % 3 == 1 or hands_cache is None):
                     hands_cache = hand_mask(hands_lm, rgb, ts, (small_h, small_w))
                 if worn is None:
