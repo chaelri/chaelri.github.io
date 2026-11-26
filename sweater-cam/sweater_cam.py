@@ -220,6 +220,8 @@ def main():
     ap.add_argument("--no-bg", action="store_true", help="keep your real room")
     ap.add_argument("--no-ai", action="store_true", help="skip the SD-Turbo pass (procedural sweater only)")
     ap.add_argument("--ai-strength", type=float, default=0.6, help="how much the AI redraws (0.3-0.8)")
+    ap.add_argument("--ai-interval", type=float, default=0.0,
+                    help="min seconds between AI updates; e.g. 1.5 keeps the laptop cool")
     args = ap.parse_args()
 
     if args.image:
@@ -259,7 +261,7 @@ def main():
             ai = AISweater(strength=args.ai_strength)
         else:
             from ai_sweater import AsyncAI
-            ai = AsyncAI(strength=args.ai_strength)
+            ai = AsyncAI(strength=args.ai_strength, interval=args.ai_interval)
     small_w = 512
     small_h = int(h * small_w / w)
     tex = knit_texture(h, w)

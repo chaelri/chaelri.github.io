@@ -82,8 +82,9 @@ class AISweater:
 class AsyncAI:
     """Runs AISweater on a background thread; the camera never waits for it."""
 
-    def __init__(self, **kw):
+    def __init__(self, interval=0.0, **kw):
         import threading
+        self.interval = interval  # min seconds between AI updates (rests the GPU = less heat)
         self.ai = AISweater(**kw)
         self.job, self.result = None, None
         self.cv = threading.Condition()
@@ -104,6 +105,8 @@ class AsyncAI:
             t = time.time()
             r = self.ai.render_crop(job[0], job[1])
             self.last_ms = (time.time() - t) * 1000
+            if self.interval > 0:
+                time.sleep(max(0.0, self.interval - (time.time() - t)))
             if r is None:
                 continue
             prev = self.result
