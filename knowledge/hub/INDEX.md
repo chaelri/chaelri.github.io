@@ -42,4 +42,6 @@ One line per project. Full detail (tech, deploy, quirks) lives in `knowledge/hub
 - `functions/` + `firebase.json` — Firebase Functions/Hosting (public: `weddingbar/`)
 - `index.html` — root hub page
 
+**Backlog ideas** — `doodle-ig/` (AI doodle IG on newlyweds + psychology selling PDF workbooks; research + plan pages, see `knowledge/doodle-ig/SUMMARY.md`)
+
 **Parked** — `devo-mobile/`, `flux/`, `pray/`, `echoes/`, `wedding100/`, `weddingbar/`, `weddingtimeline/`, `horizon/`, `money/`, `anohana/`, `animedownloader-ext/`, `bubududu/`

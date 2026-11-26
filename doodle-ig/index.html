@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Newlywed Psychology Plan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Nunito+Sans:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#FBF3EC; --ink:#3B2A25; --muted:#7A5F57; --primary:#B4483C; --shape:#F7DCD3; --accent:#E2A63A; --card:#FFF8F3;
+  --pink:#F3C9C0; --peach:#FBE6CF;
+  --r1:8px; --r2:13px; --r3:21px;
+  --hand:'Patrick Hand','Comic Sans MS',cursive;
+  --font:'Nunito Sans',system-ui,sans-serif;
+}
+@media(min-width:1024px){html{zoom:.8}}
+*{box-sizing:border-box;margin:0}
+body{background:var(--paper);color:var(--ink);font:400 16px/1.45 var(--font)}
+.wrap{max-width:1180px;margin:0 auto;padding:64px 16px}
+h1,h2,h3{font-family:var(--hand);font-weight:400;line-height:.95}
+h1{font-size:61px;max-width:16ch}
+h2{font-size:38px;margin-bottom:24px}
+h3{font-size:24px;line-height:1.05}
+.red{color:var(--primary)}
+.muted{color:var(--muted)}
+section{margin-top:104px}
+.lede{font-size:24px;line-height:1.35;margin-top:24px;max-width:40ch}
+.note{margin-top:24px;font-size:15px;color:var(--muted);max-width:72ch}
+
+/* positioning */
+.pos{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:40px}
+.pos div{padding:24px;border-radius:var(--r2);background:var(--shape)}
+.pos p{margin-top:8px;font-size:15px}
+
+/* sample posts */
+.feed{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.tile{display:flex;flex-direction:column;gap:8px}
+.post{aspect-ratio:4/5;border-radius:var(--r1);border:2px solid var(--ink);background:var(--pink);padding:24px;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden}
+.post.peach{background:var(--peach)}
+.post.light{background:var(--card)}
+.post .say{font:400 38px/1 var(--hand);color:var(--ink)}
+.post .say em{font-style:normal;color:#8C2F25}
+.post .foot{font:400 15px/1.1 var(--hand);color:var(--ink)}
+.post svg{width:100%;height:auto;max-height:36%;flex:none}
+.bubbles{display:flex;flex-direction:column;gap:8px}
+.bub{font:400 38px/1 var(--hand);background:var(--card);border:2px solid var(--ink);border-radius:var(--r3);padding:16px;align-self:flex-start}
+.bub.r{align-self:flex-end}
+.split{display:grid;grid-template-rows:1fr 1fr;gap:8px;height:100%}
+.split > div{display:flex;flex-direction:column;justify-content:center;gap:8px}
+.split > div + div{border-top:2px dashed var(--ink);padding-top:8px}
+.tile .meta{font-size:15px}
+.tile .meta b{font-weight:800}
+
+/* options */
+.opts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;align-items:stretch}
+.opt{border:2px solid var(--ink);border-radius:var(--r3);padding:24px;background:var(--card);display:flex;flex-direction:column;gap:16px}
+.opt.rec{background:var(--shape)}
+.opt header{display:flex;justify-content:space-between;align-items:baseline;gap:16px}
+.letter{font:400 38px/1 var(--hand);color:var(--primary)}
+.pick{font:400 24px/1 var(--hand);color:var(--primary)}
+.handle{font:400 38px/1 var(--hand);overflow-wrap:anywhere}
+.opt p{font-size:15px}
+.kv{display:grid;grid-template-columns:104px minmax(0,1fr);gap:8px 16px;font-size:15px}
+.kv dt{font-weight:800}
+.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+
+/* plan */
+.mix{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-bottom:40px}
+.mix div{border:2px solid var(--ink);border-radius:var(--r2);padding:24px;background:var(--card)}
+.mix b{display:block;font:400 38px/1 var(--hand);color:var(--primary)}
+.mix span{display:block;margin-top:8px;font-size:15px}
+.weeks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px}
+.week h3{margin-bottom:16px}
+.week ol{list-style:none;padding:0;display:grid;gap:8px;counter-reset:d}
+.week li{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:16px;align-items:center;padding:16px;border-radius:var(--r1);background:var(--card);font-size:15px}
+.week li .d{font:400 24px/1 var(--hand);color:var(--primary)}
+.week li .f{font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+
+/* funnel */
+.funnel{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;align-items:stretch}
+.fstep{position:relative;border:2px solid var(--ink);border-radius:var(--r2);padding:24px;background:var(--card)}
+.fstep p{margin-top:8px;font-size:15px}
+.fstep:not(:last-child)::after{content:'';position:absolute;right:-17px;top:50%;width:16px;height:2px;background:var(--ink)}
+.pickline{margin-top:64px;font:400 24px/1.3 var(--hand);max-width:52ch}
+
+@media(max-width:1023.98px){
+  h1{font-size:38px} h2{font-size:24px;margin-bottom:16px} .lede{font-size:16px}
+  section{margin-top:64px} .wrap{padding:40px 16px}
+  .pos,.opts,.three,.weeks,.funnel,.mix{grid-template-columns:minmax(0,1fr)}
+  .feed{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .post{padding:16px}
+  .post .say,.bub{font-size:24px}
+  .bub{padding:8px}
+  .post .foot{font-size:12px}
+  .fstep:not(:last-child)::after{right:auto;left:50%;top:auto;bottom:-17px;width:2px;height:16px}
+  .kv{grid-template-columns:88px minmax(0,1fr)}
+  .week li{grid-template-columns:32px minmax(0,1fr);padding:8px}
+  .week li .f{grid-column:2}
+}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="couple" viewBox="0 0 200 110">
+      <g stroke="#3B2A25" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+        <!-- her -->
+        <path d="M58 108 L64 62 Q78 54 92 62 L98 108 Z" fill="#B4483C"/>
+        <circle cx="78" cy="36" r="17" fill="#FBE6CF"/>
+        <path d="M58 66 Q54 30 62 20 Q78 6 94 20 Q102 30 98 66 Q93 50 94 34 Q86 26 78 26 Q68 26 62 34 Q63 50 58 66 Z" fill="#3B2A25"/>
+        <path d="M71 40 h1 M84 40 h1 M74 47 Q78 50 82 47" fill="none"/>
+        <!-- him -->
+        <path d="M104 108 L110 60 Q126 52 142 60 L148 108 Z" fill="#E2A63A"/>
+        <circle cx="126" cy="33" r="17" fill="#FBE6CF"/>
+        <path d="M109 30 Q112 12 128 14 Q144 15 143 30 Q134 22 120 24 Q114 25 109 30 Z" fill="#3B2A25"/>
+        <path d="M119 37 h1 M132 37 h1 M122 44 Q126 47 130 44" fill="none"/>
+        <!-- hands -->
+        <path d="M95 80 Q101 84 108 80" fill="none"/>
+      </g>
+    </symbol>
+  </defs>
+</svg>
+<div class="wrap">
+
+<header>
+  <h1>first years, <span class="red">explained</span></h1>
+  <p class="lede">Cute doodles of the first years of marriage, each one carrying one real idea from relationship psychology.</p>
+  <div class="pos">
+    <div><h3>the feeling</h3><p>The small moments every new couple has: the dishes fight, the "you okay?", the silent drive home. People send these to their partner.</p></div>
+    <div><h3>the why</h3><p>One true idea per post, from couple research (mostly John Gottman's studies of newlyweds). People save these and come back.</p></div>
+    <div><h3>the book</h3><p>The ideas that get the most saves become a ₱400 to ₱700 PDF workbook for couples to do together.</p></div>
+  </div>
+</header>
+
+<section>
+  <h2>what the feed looks like</h2>
+  <div class="feed">
+    <div class="tile">
+      <div class="post"><div class="bubbles"><span class="bub">look, a bird.</span><span class="bub r">wait, where?</span></div><svg><use href="#couple"/></svg></div>
+      <p class="meta"><b>dialogue comic.</b> Caption: couples still married 6 years later answered these small "bids" 86% of the time; couples who divorced, 33%.</p>
+    </div>
+    <div class="tile">
+      <div class="post light"><p class="say">You're not fighting about the dishes. You're fighting about <em>feeling unseen</em>.</p><svg><use href="#couple"/></svg></div>
+      <p class="meta"><b>hard truth.</b> The share post. Made to be sent with "this is us".</p>
+    </div>
+    <div class="tile">
+      <div class="post peach"><p class="say">5 signs your spouse is <em>anxiously</em> attached</p><svg><use href="#couple"/></svg></div>
+      <p class="meta"><b>numbered carousel.</b> The save post: 1 cover + 5 slides + 1 recap.</p>
+    </div>
+    <div class="tile">
+      <div class="post"><div class="split"><div><p class="say">year 1: "we never fight."</p></div><div><p class="say">year 2: "we <em>fight better</em>."</p></div></div></div>
+      <p class="meta"><b>before / after.</b> Repair beats avoiding conflict.</p>
+    </div>
+    <div class="tile">
+      <div class="post light"><p class="say">Heart racing mid-fight? Take <em>20 minutes</em>.</p><svg><use href="#couple"/></svg></div>
+      <p class="meta"><b>one fact, one picture.</b> "Flooding": past about 100 bpm, listening shuts down.</p>
+    </div>
+    <div class="tile">
+      <div class="post peach"><p class="say">Q12: What small thing makes you feel loved?</p><svg><use href="#couple"/></svg><p class="foot">52 questions inside · link in bio</p></div>
+      <p class="meta"><b>book page.</b> A real page from the workbook, with the footer. One in every 5 posts.</p>
+    </div>
+  </div>
+  <p class="note">These are layout mock-ups. The real posts get full AI illustrations in one fixed style (same couple, same pink, same hand lettering), the way easy_drawing_ideas__ keeps his.</p>
+</section>
+
+<section>
+  <h2>pick a name</h2>
+  <div class="opts">
+    <article class="opt rec"><header><span class="letter">1</span><span class="pick">my pick</span></header><p class="handle">@first.years.drawn</p><p>Says the niche and the art style in three words. Bio: "The psychology of the first years of marriage, illustrated."</p></article>
+    <article class="opt"><header><span class="letter">2</span></header><p class="handle">@married.mind</p><p>Leans on the psychology side. Short and easy to say. Grows with you beyond year 3.</p></article>
+    <article class="opt"><header><span class="letter">3</span></header><p class="handle">@tiny.marriage.lessons</p><p>Warm and clear about the promise. Long to type, but it's what people would search.</p></article>
+    <article class="opt"><header><span class="letter">4</span></header><p class="handle">@us.in.doodles</p><p>The softest one. Easy to put on a book cover ("Us, in Doodles: 52 questions").</p></article>
+  </div>
+  <p class="note">I haven't checked if these handles are free. Check on Instagram before you choose.</p>
+</section>
+
+<section>
+  <h2>pick the first book</h2>
+  <div class="opts three">
+    <article class="opt rec"><header><span class="letter">A</span><span class="pick">my pick</span></header><h3>52 Questions for the First Years</h3>
+      <dl class="kv"><dt>what</dt><dd>one question a week to answer together, each with a doodle and a 2-line "why this matters"</dd><dt>price</dt><dd>~₱450</dd><dt>build</dt><dd>easiest: 52 pages, one template</dd></dl>
+      <p>Every page can be posted as a sample. It's a wedding and anniversary gift too.</p></article>
+    <article class="opt"><header><span class="letter">B</span></header><h3>Fight Better: a repair guide for new couples</h3>
+      <dl class="kv"><dt>what</dt><dd>flooding, repair phrases, the 20-minute break, scripts to say instead</dd><dt>price</dt><dd>~₱600</dd><dt>build</dt><dd>medium: needs careful writing</dd></dl>
+      <p>The most psychology-heavy. Buyers are couples who are struggling, so it needs a gentle tone.</p></article>
+    <article class="opt"><header><span class="letter">C</span></header><h3>Bids: 100 tiny ways to turn toward each other</h3>
+      <dl class="kv"><dt>what</dt><dd>100 small daily actions, each a doodle card, plus a 30-day tracker</dd><dt>price</dt><dd>~₱550</dd><dt>build</dt><dd>medium: 100 illustrations</dd></dl>
+      <p>Built on the 86% / 33% bids study. Lines up with his "Date Nights" book, so it has proven demand.</p></article>
+  </div>
+</section>
+
+<section>
+  <h2>the first 30 posts</h2>
+  <div class="mix">
+    <div><b>15</b><span>feeling posts (comics, hard truths). These grow the page.</span></div>
+    <div><b>9</b><span>psychology carousels. These get saves and build trust.</span></div>
+    <div><b>6</b><span>book pages with the "link in bio" footer. These sell.</span></div>
+  </div>
+  <div class="weeks">
+    <div class="week"><h3>days 1–4</h3><ol>
+      <li><span class="d">1</span><span>"Look, a bird." The bids comic</span><span class="f">comic</span></li>
+      <li><span class="d">1</span><span>You're not fighting about the dishes</span><span class="f">truth</span></li>
+      <li><span class="d">2</span><span>5 signs of an anxious attachment style</span><span class="f">carousel</span></li>
+      <li><span class="d">2</span><span>Year 1 vs year 2: we fight better</span><span class="f">comic</span></li>
+      <li><span class="d">3</span><span>The 5:1 rule: 5 good moments for every hard one</span><span class="f">carousel</span></li>
+      <li><span class="d">3</span><span>"You okay?" "I'm fine." (he is not fine)</span><span class="f">comic</span></li>
+      <li><span class="d">4</span><span>Question 1 of 52 + footer</span><span class="f">book</span></li>
+      <li><span class="d">4</span><span>Marry someone who asks how your day really was</span><span class="f">truth</span></li>
+    </ol></div>
+    <div class="week"><h3>days 5–8</h3><ol>
+      <li><span class="d">5</span><span>The 20-minute break when you're flooded</span><span class="f">carousel</span></li>
+      <li><span class="d">5</span><span>First grocery run as a married couple</span><span class="f">comic</span></li>
+      <li><span class="d">6</span><span>The mental load nobody talks about</span><span class="f">carousel</span></li>
+      <li><span class="d">6</span><span>He remembered how I take my coffee</span><span class="f">truth</span></li>
+      <li><span class="d">7</span><span>Question 5 of 52 + footer</span><span class="f">book</span></li>
+      <li><span class="d">7</span><span>Your love language, as a doodle</span><span class="f">comic</span></li>
+      <li><span class="d">8</span><span>3 repair phrases that end a fight early</span><span class="f">carousel</span></li>
+      <li><span class="d">8</span><span>The first big fight, then the first real sorry</span><span class="f">comic</span></li>
+    </ol></div>
+  </div>
+  <p class="note">Days 9–15 follow the same rhythm: 2 posts a day, a book page every 5th post, and the ideas that get the most saves get more slides. I'll write all 30 once you pick a name and a book.</p>
+</section>
+
+<section>
+  <h2>how it sells</h2>
+  <div class="funnel">
+    <div class="fstep"><h3>shared post</h3><p>A spouse sends a comic to the other. New followers arrive.</p></div>
+    <div class="fstep"><h3>saved carousel</h3><p>A real idea they hadn't heard of. They follow to learn more.</p></div>
+    <div class="fstep"><h3>book page</h3><p>"Question 12 of 52, link in bio." They already know what the book feels like.</p></div>
+    <div class="fstep"><h3>one bio link</h3><p>Straight to the PDF page. One product first, more later.</p></div>
+  </div>
+</section>
+
+<p class="pickline">Tell me a name number and a book letter (e.g. 1 + A), and I'll write the 30 posts and outline the book.</p>
+
+</div>
+</body>
+</html>

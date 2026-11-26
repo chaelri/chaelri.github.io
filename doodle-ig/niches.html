@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Doodle Niche Options</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Nunito+Sans:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#FBF3EC; --ink:#3B2A25; --muted:#7A5F57; --primary:#B4483C; --shape:#F7DCD3; --accent:#E2A63A; --on-dark:#fff;
+  --u:8px; --r1:8px; --r2:13px; --r3:21px;
+  --hand:'Patrick Hand', 'Comic Sans MS', cursive;
+  --font:'Nunito Sans', system-ui, sans-serif;
+}
+@media(min-width:1024px){html{zoom:.8}}
+*{box-sizing:border-box;margin:0}
+body{background:var(--paper);color:var(--ink);font:400 16px/1.45 var(--font)}
+.wrap{max-width:1180px;margin:0 auto;padding:64px 16px}
+h1,h2,h3{font-family:var(--hand);font-weight:400;line-height:.95;letter-spacing:-.005em}
+h1{font-size:61px}
+h2{font-size:38px;margin-bottom:24px}
+h3{font-size:24px;line-height:1.05}
+p{max-width:68ch}
+.hl{background:var(--accent);padding:0 .15em;border-radius:var(--r1)}
+.red{color:var(--primary)}
+.muted{color:var(--muted)}
+section{margin-top:104px}
+.lede{font-size:24px;line-height:1.35;margin-top:24px;max-width:36ch}
+
+/* stats row */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:40px}
+.stat{border:2px solid var(--ink);border-radius:var(--r2);padding:24px;background:#fff8f3}
+.stat b{display:block;font:400 38px/1 var(--hand);color:var(--primary)}
+.stat span{display:block;margin-top:8px;font-size:15px;color:var(--muted)}
+
+/* playbook */
+.play{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+.step{display:grid;grid-template-columns:48px 1fr;gap:16px;align-items:start;padding:24px;border-radius:var(--r2);background:var(--shape)}
+.num{width:48px;height:48px;border-radius:999px;background:var(--ink);color:var(--paper);display:flex;align-items:center;justify-content:center;font:400 24px/1 var(--hand)}
+.step p{margin-top:8px;font-size:15px}
+
+/* funnel */
+.funnel{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;align-items:stretch}
+.fstep{position:relative;border:2px solid var(--ink);border-radius:var(--r2);padding:24px;background:#fff8f3;display:flex;flex-direction:column}
+.fstep small{font:700 12px/1 var(--font);letter-spacing:.2em;text-transform:uppercase;color:var(--primary)}
+.fstep h3{margin-top:16px}
+.fstep p{margin-top:8px;font-size:15px}
+.fstep:not(:last-child)::after{content:'';position:absolute;right:-17px;top:50%;width:16px;height:2px;background:var(--ink)}
+
+/* top posts table */
+.tops{display:grid;gap:8px}
+.trow{display:grid;grid-template-columns:96px 1fr 160px;gap:16px;align-items:center;padding:16px 24px;border-radius:var(--r2);background:#fff8f3;border:2px solid var(--shape)}
+.trow b{font:400 24px/1 var(--hand);color:var(--primary)}
+.trow .t{font-size:15px}
+.trow .k{font-size:15px;color:var(--muted);text-align:right}
+
+/* niche cards */
+.niches{display:grid;grid-template-columns:repeat(2,1fr);gap:24px;align-items:stretch}
+.card{border:2px solid var(--ink);border-radius:var(--r3);padding:24px;background:#fff8f3;display:flex;flex-direction:column;gap:16px}
+.card.rec{background:var(--shape)}
+.card header{display:flex;justify-content:space-between;align-items:baseline;gap:16px}
+.letter{font:400 38px/1 var(--hand);color:var(--primary)}
+.pick{font:400 24px/1 var(--hand);color:var(--primary)}
+.posts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.post{aspect-ratio:4/5;border-radius:var(--r1);border:2px solid var(--ink);background:#F3C9C0;padding:16px;display:flex;flex-direction:column;justify-content:space-between;font:400 15px/1.1 var(--hand);color:var(--ink)}
+.post:nth-child(2){background:#FFF8F3}
+.post:nth-child(3){background:#FBE6CF}
+.post svg{width:48px;height:32px;align-self:flex-end;stroke:var(--ink);fill:none;stroke-width:2;stroke-linecap:round}
+.kv{display:grid;grid-template-columns:104px minmax(0,1fr);gap:8px 16px;font-size:15px}
+.kv dt{font-weight:800}
+.meter{display:flex;gap:8px;align-items:center}
+.meter i{width:16px;height:16px;border-radius:999px;border:2px solid var(--ink)}
+.meter i.on{background:var(--primary);border-color:var(--primary)}
+.card .why{font-size:15px;margin-top:auto}
+
+.vid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 24px}
+.vrow{display:grid;grid-template-columns:200px auto;gap:8px 16px;align-items:center;padding:16px 0;border-bottom:2px solid var(--shape)}
+.vrow p{grid-column:1/-1;font-size:15px}
+.note{margin-top:24px;font-size:15px;color:var(--muted)}
+.pickline{margin-top:40px;font:400 24px/1.3 var(--hand)}
+
+@media(max-width:1023.98px){
+  h1{font-size:38px} h2{font-size:24px;margin-bottom:16px} .lede{font-size:16px}
+  section{margin-top:64px} .wrap{padding:40px 16px}
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .play,.niches{grid-template-columns:minmax(0,1fr)}
+  .funnel{grid-template-columns:1fr}
+  .fstep:not(:last-child)::after{right:auto;left:50%;top:auto;bottom:-17px;width:2px;height:16px}
+  .trow{grid-template-columns:72px 1fr;padding:16px}
+  .trow .k{grid-column:2;text-align:left}
+  .post{font-size:15px;padding:8px}
+  .post svg{width:32px;height:24px}
+  .kv{grid-template-columns:88px minmax(0,1fr)}
+  .vid{grid-template-columns:minmax(0,1fr)}
+  .vrow{grid-template-columns:minmax(0,1fr) auto}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>how <span class="red">easy_drawing_ideas__</span> sells books<br>with cute doodles</h1>
+  <p class="lede">3.3M followers, no videos. Pink doodle cards about marriage and parenting, plus a shop of PDF books.</p>
+  <div class="stats">
+    <div class="stat"><b>3.3M</b><span>followers, 1,473 posts, follows 0</span></div>
+    <div class="stat"><b id="s-posts">100</b><span>recent posts read for this page</span></div>
+    <div class="stat"><b id="s-med">11K</b><span id="s-med-l">median likes per post</span></div>
+    <div class="stat"><b>₱400–1,400</b><span>digital PDF prices (CAD store; shown in PHP)</span></div>
+  </div>
+</header>
+
+<section>
+  <h2>what he actually posts</h2>
+  <div class="play">
+    <div class="step"><div class="num">1</div><div><h3>one feeling per card</h3><p>A single sentence in big hand lettering, one or two small doodle people underneath. "Your oldest is still a child." "If you want strong kids, be strong." Readable at thumbnail size.</p></div></div>
+    <div class="step"><div class="num">2</div><div><h3>same look every time</h3><p>Pink/blush background, brown ink, chunky marker font, the same doodle family. The grid reads as one brand even though it is all AI.</p></div></div>
+    <div class="step"><div class="num">3</div><div><h3>four repeating formats</h3><p>Dialogue comic (2 bubbles), hard-truth quote, numbered list carousel ("7 strategies", "10 signs"), and before/after split ("1990 / 2026", "same mom / a different mindset").</p></div></div>
+    <div class="step"><div class="num">4</div><div><h3>captions are short and soft</h3><p>One or two lines that add a small story or feeling, not a sales pitch. The image carries the post; the caption is the nod.</p></div></div>
+    <div class="step"><div class="num">5</div><div><h3>very high volume</h3><p>100 posts in 53 days, about 2 a day, every day. AI makes this cheap, so he tests many hooks and lets the algorithm pick. Instagram tags them "AI content" and they still go viral.</p></div></div>
+    <div class="step"><div class="num">6</div><div><h3>he pivoted into books</h3><p>The shop started in 2024 as physical markers and craft toys (33 of 39 products). All 5 new products since Aug 2026 are PDFs that match the posts' topics.</p></div></div>
+  </div>
+</section>
+
+<section id="top">
+  <h2>what got the most likes</h2>
+  <div class="tops" id="tops">
+    <div class="trow"><b>177K</b><span class="t">10-slide comic story: "Your dad is really a great man, Sophie" (the dad who never looked up from his phone)</span><span class="k">1.8K comments · 10.5K reposts</span></div>
+    <div class="trow"><b>164K</b><span class="t">"It's National Send Your Wife Money Day." One card, made to be sent to a spouse</span><span class="k">2.1K comments · 11.1K reposts</span></div>
+    <div class="trow"><b>134K</b><span class="t">"How to say NO to your wife. A husband's survival guide." Joke carousel</span><span class="k">630 comments · 6.8K reposts</span></div>
+    <div class="trow"><b>129K</b><span class="t">caption: "I just want you to know that.." A love note to a partner</span><span class="k">1.4K comments</span></div>
+    <div class="trow"><b>122K</b><span class="t">caption: "A little chaos. A lot of childhood magic." Parenting nostalgia</span><span class="k">350 comments</span></div>
+    <div class="trow"><b>89K</b><span class="t">caption: "Let me dance with her one last time" Aging couple</span><span class="k">457 comments</span></div>
+    <div class="trow"><b>17K</b><span class="t">"Ten date ideas for making time for your wife": the Date Nights book, as a post</span><span class="k">the selling posts land below average but still sell</span></div>
+    <div class="trow"><b>269–2.3K</b><span class="t">real-photo DIY craft posts (leaf fairies, Halloween crafts): his old niche</span><span class="k">the flops: all 6 under 2.5K, 3 of the 6 lowest posts</span></div>
+  </div>
+  <p class="note" id="top-note">100 posts, Oct 4 to Nov 25 2026. Median 11K likes, but 23 posts passed 50K and 35 stayed under 5K: a few big hits carry the page. The hits are things people send to their partner or parent.</p>
+</section>
+
+<section>
+  <h2>how the posts lead to the shop</h2>
+  <div class="funnel">
+    <div class="fstep"><small>step 1</small><h3>a feeling post</h3><p>Marriage or parenting card. Gets shared to a spouse or a group chat, which brings new followers.</p></div>
+    <div class="fstep"><small>step 2</small><h3>a sample page post</h3><p>"Cute Dinosaurs step by step" is literally a page from the ebook, with a footer: "Love drawing these? 100 more inside, link in bio".</p></div>
+    <div class="fstep"><small>step 3</small><h3>one bio link</h3><p>The bio link goes straight to the shop collection, not a link tree. The bio line matches the books: "Parenting, connection and everyday family life, illustrated."</p></div>
+    <div class="fstep"><small>step 4</small><h3>a PDF in the same style</h3><p>Covers use the same doodle people. "Date Nights for Tired Couples" is the post topic, made into a book. Sale pricing (₱1,400 crossed out to ₱700).</p></div>
+  </div>
+  <p class="note">Each book is a bundle of the posts that already did well. The feed tests the topics for free; the winners become a ₱400 to ₱1,400 PDF. Zero shipping, zero stock.</p>
+</section>
+
+<section>
+  <h2>my family-life options</h2>
+  <div class="niches">
+
+    <article class="card rec">
+      <header><span class="letter">A</span><span class="pick">my pick</span></header>
+      <h3>newlyweds: the first years of marriage</h3>
+      <div class="posts">
+        <div class="post">"You still text me 'kain ka na' from the other room."<svg viewBox="0 0 48 32"><circle cx="14" cy="12" r="7"/><circle cx="34" cy="12" r="7"/><path d="M6 30c2-8 14-8 16 0M26 30c2-8 14-8 16 0"/></svg></div>
+        <div class="post">Year 1 of marriage vs what Instagram said it would be.<svg viewBox="0 0 48 32"><path d="M4 28h40M10 28V14h28v14"/></svg></div>
+        <div class="post">5 tiny habits that saved our first year.<svg viewBox="0 0 48 32"><path d="M8 8h32M8 16h24M8 24h28"/></svg></div>
+      </div>
+      <dl class="kv">
+        <dt>first product</dt><dd>"Our First Year" couple journal + 52 question cards (PDF, ~₱450)</dd>
+        <dt>buyers</dt><dd>engaged and newly married couples, people buying wedding gifts</dd>
+        <dt>competition</dt><dd><span class="meter"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></dd>
+        <dt>your fit</dt><dd><span class="meter"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></dd>
+      </dl>
+      <p class="why">You married in July, so you have a real content source every week. His marriage posts are his strongest, and his "Never Stop Dating" and "Date Nights" books show couples buy PDFs. A narrower angle (first years) keeps you from fighting a 3.3M account head-on.</p>
+    </article>
+
+    <article class="card">
+      <header><span class="letter">B</span></header>
+      <h3>faith at home: gentle Christian family life</h3>
+      <div class="posts">
+        <div class="post">She prayed for him before she ever met him.<svg viewBox="0 0 48 32"><path d="M24 4v24M16 12h16"/></svg></div>
+        <div class="post">Grace at the dinner table, the 2-minute version.<svg viewBox="0 0 48 32"><path d="M4 26h40M12 26c0-10 24-10 24 0"/></svg></div>
+        <div class="post">7 verses to pray over your kids before school.<svg viewBox="0 0 48 32"><path d="M8 8h32M8 16h24M8 24h28"/></svg></div>
+      </div>
+      <dl class="kv">
+        <dt>first product</dt><dd>30-day couple devotional, or a kids' Bible story colouring book (PDF)</dd>
+        <dt>buyers</dt><dd>Christian moms and couples, church groups buying in bulk</dd>
+        <dt>competition</dt><dd><span class="meter"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span></dd>
+        <dt>your fit</dt><dd><span class="meter"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></dd>
+      </dl>
+      <p class="why">Christian buyers pay well for devotionals and gifts, and few faith pages use this cute, non-preachy style. Your devo app content can feed it. Risk: faith posts get fewer shares outside the faith crowd.</p>
+    </article>
+
+    <article class="card">
+      <header><span class="letter">C</span></header>
+      <h3>Pinoy family life (for Filipinos abroad too)</h3>
+      <div class="posts">
+        <div class="post">Lola: "Kumain ka na?" Me: "Opo." Lola: *serves 3 more plates*<svg viewBox="0 0 48 32"><circle cx="24" cy="18" r="10"/></svg></div>
+        <div class="post">My dad worked abroad for 12 years. This is what I wish I'd told him.<svg viewBox="0 0 48 32"><path d="M4 24l20-16 20 16"/></svg></div>
+        <div class="post">10 laro ng lahi your kids have never played.<svg viewBox="0 0 48 32"><path d="M8 8h32M8 16h24M8 24h28"/></svg></div>
+      </div>
+      <dl class="kv">
+        <dt>first product</dt><dd>"Laro ng Lahi" screen-free games PDF, or a Tagalog-English first words book for Fil-Am kids</dd>
+        <dt>buyers</dt><dd>OFW and Fil-Am parents (they pay in USD/CAD/AUD)</dd>
+        <dt>competition</dt><dd><span class="meter"><i class="on"></i><i></i><i></i><i></i><i></i></span></dd>
+        <dt>your fit</dt><dd><span class="meter"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></dd>
+      </dl>
+      <p class="why">Almost nobody does this in the cute doodle style, and OFW stories are some of the most shared posts in PH. Local buyers pay less, so the product has to target the diaspora.</p>
+    </article>
+
+    <article class="card">
+      <header><span class="letter">D</span></header>
+      <h3>grandparents and aging parents</h3>
+      <div class="posts">
+        <div class="post">Call your mom. She's pretending she isn't waiting.<svg viewBox="0 0 48 32"><rect x="16" y="4" width="16" height="26" rx="3"/></svg></div>
+        <div class="post">"Excuse me, is this seat taken?" 50 years later.<svg viewBox="0 0 48 32"><path d="M4 22h40M8 22v8M40 22v8"/></svg></div>
+        <div class="post">20 questions to ask your parents while you still can.<svg viewBox="0 0 48 32"><path d="M8 8h32M8 16h24M8 24h28"/></svg></div>
+      </div>
+      <dl class="kv">
+        <dt>first product</dt><dd>"Tell Me Your Story" memory journal for a parent or grandparent (PDF to print)</dd>
+        <dt>buyers</dt><dd>adult children buying a gift, grandparents themselves</dd>
+        <dt>competition</dt><dd><span class="meter"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span></dd>
+        <dt>your fit</dt><dd><span class="meter"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></dd>
+      </dl>
+      <p class="why">His elderly couple posts are among his most shared, and memory journals are a proven gift product (Mother's Day, birthdays). Older buyers are less price-sensitive.</p>
+    </article>
+
+    <article class="card">
+      <header><span class="letter">E</span></header>
+      <h3>step-by-step cute drawing for kids</h3>
+      <div class="posts">
+        <div class="post">Cute Jeepney, step by step. 6 steps.<svg viewBox="0 0 48 32"><rect x="4" y="8" width="40" height="16" rx="4"/><circle cx="14" cy="26" r="4"/><circle cx="34" cy="26" r="4"/></svg></div>
+        <div class="post">Draw a sleepy cat in 4 lines.<svg viewBox="0 0 48 32"><path d="M8 26c4-14 28-14 32 0"/></svg></div>
+        <div class="post">Love drawing these? 100 more inside.<svg viewBox="0 0 48 32"><path d="M8 4h32v24H8z"/></svg></div>
+      </div>
+      <dl class="kv">
+        <dt>first product</dt><dd>"Draw 100 Cute Things" ebook (his is ₱700, marked down from ₱1,400)</dd>
+        <dt>buyers</dt><dd>parents, teachers, homeschoolers</dd>
+        <dt>competition</dt><dd><span class="meter"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></dd>
+        <dt>your fit</dt><dd><span class="meter"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span></dd>
+      </dl>
+      <p class="why">The shortest path to a sale: the post is the product sample. But Pinterest and Etsy are flooded with it, and these posts get fewer shares than the feeling posts. Better as a second product than a whole page.</p>
+    </article>
+
+    <article class="card">
+      <header><span class="letter">F</span></header>
+      <h3>money for young couples and families</h3>
+      <div class="posts">
+        <div class="post">We stopped fighting about money when we did this one thing.<svg viewBox="0 0 48 32"><circle cx="24" cy="16" r="12"/></svg></div>
+        <div class="post">Our "no-spend Sunday" date ideas.<svg viewBox="0 0 48 32"><path d="M4 28h40M12 28V12h24v16"/></svg></div>
+        <div class="post">The 3-jar rule for a family of 4.<svg viewBox="0 0 48 32"><rect x="4" y="8" width="10" height="20" rx="3"/><rect x="19" y="8" width="10" height="20" rx="3"/><rect x="34" y="8" width="10" height="20" rx="3"/></svg></div>
+      </div>
+      <dl class="kv">
+        <dt>first product</dt><dd>cute printable family budget planner + debt jar tracker (PDF)</dd>
+        <dt>buyers</dt><dd>newly married couples, young parents</dd>
+        <dt>competition</dt><dd><span class="meter"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></dd>
+        <dt>your fit</dt><dd><span class="meter"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></dd>
+      </dl>
+      <p class="why">Planners sell steadily, and your money app already has the jar idea. Money posts get saved more than shared, so growth is slower than A or C.</p>
+    </article>
+
+  </div>
+</section>
+
+<section>
+  <h2>the niches from your video, through this formula</h2>
+  <p class="note" style="margin:0 0 24px">Scored on one question: can it be a cute doodle that makes people feel something every day, and become a PDF people buy?</p>
+  <div class="vid">
+    <div class="vrow"><h3>psychology</h3><span class="meter"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span><p><span class="muted">post:</span> "7 habits of kids raised by irritable parents", "why children save their biggest feelings for mom"</p><p><span class="muted">product:</span> feelings flashcards for kids, a calm-down workbook</p></div>
+    <div class="vrow"><h3>animals</h3><span class="meter"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span><p><span class="muted">post:</span> "10 signs you might be secretly a cat", a dog waiting at the door</p><p><span class="muted">product:</span> pet memory journal, "draw 100 cute animals"</p></div>
+    <div class="vrow"><h3>cooking</h3><span class="meter"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span><p><span class="muted">post:</span> "Lola's adobo, drawn", 5 lunchbox ideas a picky kid will eat</p><p><span class="muted">product:</span> family recipe book template, kids' cooking cards</p></div>
+    <div class="vrow"><h3>games</h3><span class="meter"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span><p><span class="muted">post:</span> "10 games for a long car ride, no screens"</p><p><span class="muted">product:</span> his Anywhere Play PDF already proves this one</p></div>
+    <div class="vrow"><h3>finance</h3><span class="meter"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span><p><span class="muted">post:</span> "we stopped fighting about money" (option F above)</p><p><span class="muted">product:</span> cute budget planner, savings jar tracker</p></div>
+    <div class="vrow"><h3>books</h3><span class="meter"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span><p><span class="muted">post:</span> "read to them even when they can read"</p><p><span class="muted">product:</span> reading tracker, 50 bedtime-story prompts</p></div>
+    <div class="vrow"><h3>science / maths</h3><span class="meter"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span><p><span class="muted">post:</span> "why is the sky blue, explained to a 5-year-old"</p><p><span class="muted">product:</span> printable worksheets for parents and teachers</p></div>
+    <div class="vrow"><h3>history</h3><span class="meter"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span><p><span class="muted">post:</span> "what a kid's day looked like in 1950"</p><p><span class="muted">product:</span> hard to make heartfelt every day</p></div>
+    <div class="vrow"><h3>AI / business</h3><span class="meter"><i class="on"></i><i></i><i></i><i></i><i></i></span><p><span class="muted">post:</span> cute doodles clash with the topic</p><p><span class="muted">product:</span> buyers want templates, not feelings</p></div>
+    <div class="vrow"><h3>world, war, cars, movies</h3><span class="meter"><i class="on"></i><i></i><i></i><i></i><i></i></span><p><span class="muted">post:</span> not cute or heartfelt; movies bring copyright problems</p><p><span class="muted">product:</span> no natural PDF</p></div>
+  </div>
+  <p class="note">Best ones mix in: psychology + parenting is what his best carousels already are. Animals and cooking work as side series inside a family page.</p>
+</section>
+<section style="margin-top:40px">
+  <p class="pickline">Pick a letter, a topic from your video, or a mix (e.g. A + psychology: the feelings side of early marriage), and I'll plan the first 30 posts and the first book.</p>
+</section>
+
+</div>
+<script>
+// filled from the post read
+const DATA = window.DATA || null;
+</script>
+</body>
+</html>
