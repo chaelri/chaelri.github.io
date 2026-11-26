@@ -89,6 +89,8 @@ class AsyncAI:
         self.job, self.result = None, None
         self.cv = threading.Condition()
         self.last_ms = 0.0
+        self.skipped = 0
+        self.done = None  # (anchor, mask) of the last real AI render
         threading.Thread(target=self._loop, daemon=True).start()
 
     def submit(self, worn_frame, mask, anchor):
@@ -102,6 +104,11 @@ class AsyncAI:
                 while self.job is None:
                     self.cv.wait()
                 job, self.job = self.job, None
+            if self.result is not None and self._still(job):
+                self.skipped += 1
+                time.sleep(max(self.interval, 0.3))
+                continue
+            self.done = (job[2], job[1] > 127)
             t = time.time()
             r = self.ai.render_crop(job[0], job[1])
             self.last_ms = (time.time() - t) * 1000
@@ -118,6 +125,19 @@ class AsyncAI:
                 old = cv2.warpAffine(old_img, M, (r[0][2], r[0][2]), borderMode=cv2.BORDER_REPLICATE)
                 r = (r[0], (0.6 * r[1] + 0.4 * old).astype(np.uint8))
             self.result = (r, job[2])
+
+    def _still(self, job, move_px=6.0, min_iou=0.96):
+        """True if the body barely moved since the last AI render (skip it, save power)."""
+        if self.done is None:
+            return False
+        a, m = self.done
+        if np.abs(job[2] - a).max() > move_px:
+            return False
+        cur = job[1] > 127
+        if cur.shape != m.shape:
+            return False
+        union = np.logical_or(cur, m).sum()
+        return union == 0 or np.logical_and(cur, m).sum() / union >= min_iou
 
     def apply(self, worn_frame, mask, anchor):
         """Use the latest AI sweater, moved along with your body since it was made."""

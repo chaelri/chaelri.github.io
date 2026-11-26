@@ -359,7 +359,8 @@ def main():
                     sleeves = not sleeves
             if frames % 90 == 0:
                 now = time.monotonic()
-                extra = f" | AI {ai.last_ms:.0f} ms/update" if ai is not None and hasattr(ai, "last_ms") else ""
+                extra = (f" | AI {ai.last_ms:.0f} ms/update, {ai.skipped} skipped (still)"
+                         if ai is not None and hasattr(ai, "skipped") else "")
                 print(f"{90 / (now - fps_t):.1f} fps{extra}     ", end="\r", flush=True)
                 fps_t = now
     finally:
