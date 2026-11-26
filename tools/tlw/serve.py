@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """tlw server: serves a folder and takes Charlie's pick from the page.
 
-usage: python3 tools/tlw/serve.py <folder> [port]
+usage: python3 tools/tlw/serve.py <folder> [port] [--keep]
 
 GET  /tlw.js  -> the pick/comment/submit widget (this folder's tlw.js)
-POST /submit  -> writes <folder>/answer.json (Claude waits on that file)
+POST /submit  -> writes <folder>/answer.json, prints ANSWER, then EXITS
+                 (Claude must start this with run_in_background so the exit
+                 notifies it; --keep stays up after a submit)
 """
-import json, os, sys, time
+import json, os, sys, threading, time
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from functools import partial
 
@@ -44,6 +46,13 @@ class H(SimpleHTTPRequestHandler):
         self.send_header("Content-Type", "application/json")
         self.end_headers()
         self.wfile.write(b'{"ok":true}')
+        self.wfile.flush()
+        # Exit after the answer: Claude runs this as a background job, and the
+        # job ending is what wakes Claude to respond (no polling, no waiting).
+        if not KEEP:
+            threading.Thread(target=SRV.shutdown, daemon=True).start()
 
 
-ThreadingHTTPServer(("127.0.0.1", PORT), partial(H, directory=ROOT)).serve_forever()
+KEEP = "--keep" in sys.argv
+SRV = ThreadingHTTPServer(("127.0.0.1", PORT), partial(H, directory=ROOT))
+SRV.serve_forever()

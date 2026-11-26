@@ -6,7 +6,8 @@
    - Tap the lit (cream) box or empty space → next verse (typed out the first
      time, shown at once when stepping through verses already read).
    - Tap a dim verse → jump back to it.
-   - Swipe a verse left → Context / Ask, mounted under that verse here.
+   - The lit verse shows "context" / "ask" buttons under it; the result mounts
+     under that verse (replaced the swipe-left, Charlie 2026-11-26).
    - Portrait: stacked log under the header. Landscape phones and desktop:
      split panel (title, section, progress on the left, log on the right).
    - Reads window.__passageVerses (set by loadPassage) and the AI section
@@ -15,7 +16,7 @@
 */
 (function () {
   const $ = (id) => document.getElementById(id);
-  let root, log, inDialog = false, boxes = [], wraps = [], f = -1, ty = null, dragged = false, data = null;
+  let root, log, inDialog = false, boxes = [], wraps = [], f = -1, ty = null, data = null;
 
   function build() {
     if (root) return;
@@ -34,11 +35,7 @@
     document.body.appendChild(root);
     log = $("dlgmLog");
     $("dlgmBack").addEventListener("click", close);
-    log.addEventListener("click", () => {
-      if (dragged) return;
-      if (wraps.some((w) => w.classList.contains("open"))) return closeSwipes();
-      next();
-    });
+    log.addEventListener("click", () => next());
     addEventListener("keydown", (e) => {
       if (!inDialog || !document.querySelector("#mtOverflowSheet[hidden]")) return;
       if (e.target.closest?.("input, textarea, [contenteditable]")) return;
@@ -134,14 +131,25 @@
     if (h) { const el = document.createElement("div"); el.className = "dlgm-head"; el.textContent = h; log.appendChild(el); }
     const w = document.createElement("div");
     w.className = "dlgm-vw";
-    w.innerHTML = `<div class="dlgm-acts"><button type="button" class="dlgm-act" data-act="context" aria-label="Context"><span class="material-icons">auto_awesome</span></button><button type="button" class="dlgm-act" data-act="ask" aria-label="Ask"><span class="material-icons">chat_bubble_outline</span></button></div><div class="dlgm-box"></div><div class="dlgm-mount"></div>`;
+    w.innerHTML = `<div class="dlgm-box"></div><div class="dlgm-acts"><button type="button" class="dlgm-act" data-act="context"><span class="material-icons" aria-hidden="true">auto_awesome</span>context</button><button type="button" class="dlgm-act" data-act="ask"><span class="material-icons" aria-hidden="true">chat_bubble_outline</span>ask</button></div><div class="dlgm-mount"></div>`;
     const box = w.querySelector(".dlgm-box");
     box.appendChild(verseHTML(v, quoteStack));
     log.appendChild(w);
     boxes.push(box);
     wraps.push(w);
-    wireSwipe(w, i);
-    w.querySelectorAll(".dlgm-act").forEach((a) => a.addEventListener("click", (e) => { e.stopPropagation(); closeSwipes(); runAction(a.dataset.act, i); }));
+    box.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (i === f) next();
+      else { if (ty && !ty.done()) ty.skip(); focus(i); }
+    });
+    w.querySelector(".dlgm-mount").addEventListener("click", (e) => e.stopPropagation());
+    w.querySelectorAll(".dlgm-act").forEach((a) => a.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const was = a.classList.contains("on");
+      w.querySelectorAll(".dlgm-act").forEach((x) => x.classList.remove("on"));
+      a.classList.toggle("on", !was);
+      runAction(a.dataset.act, i);
+    }));
     if (instant) box.querySelectorAll(".dlgm-c").forEach((c) => c.classList.add("on"));
     else { box.classList.add("new"); ty = typer(box); }
     if (i === data.verses.length - 1) {
@@ -155,6 +163,7 @@
   function focus(i) {
     f = i;
     boxes.forEach((b, j) => b.classList.toggle("old", j !== i));
+    wraps.forEach((w, j) => w.classList.toggle("lit", j === i));
     const n = i + 1, total = data.verses.length;
     $("dlgmSect").textContent = headingFor(i);
     $("dlgmProg").textContent = `verse ${data.verses[i].verse} of ${total}`;
@@ -196,57 +205,6 @@
     } else {
       toggleVerseChat(keyOf(v.book_id, v.chapter, v.verse), bookName(), v.chapter, v.verse, v.text, mount);
     }
-  }
-
-  // ── swipe left → Context / Ask ──
-  const OPEN_X = -112;
-  function closeSwipes(except) {
-    wraps.forEach((w) => { if (w !== except) { w.style.setProperty("--x", "0px"); w.classList.remove("show", "armed", "open"); } });
-  }
-  function wireSwipe(w, i) {
-    let st = null;
-    w.addEventListener("pointerdown", (e) => {
-      if (e.target.closest(".dlgm-act, .dlgm-mount")) return;
-      st = { x: e.clientX, y: e.clientY, base: w.classList.contains("open") ? OPEN_X : 0, mode: null, dx: 0 };
-    });
-    w.addEventListener("pointermove", (e) => {
-      if (!st) return;
-      const dx = e.clientX - st.x, dy = e.clientY - st.y;
-      if (!st.mode) {
-        if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
-        st.mode = Math.abs(dx) > Math.abs(dy) ? "h" : "v";
-        if (st.mode === "h") { w.setPointerCapture(e.pointerId); w.classList.add("drag"); closeSwipes(w); }
-      }
-      if (st.mode !== "h") return;
-      st.dx = dx;
-      const x = Math.max(-140, Math.min(0, st.base + dx * 0.8));
-      w.style.setProperty("--x", x + "px");
-      w.classList.toggle("show", x < 0);
-      const armed = dx <= -56 && !w.classList.contains("open");
-      if (armed !== w.classList.contains("armed")) { w.classList.toggle("armed", armed); if (armed && typeof haptic === "function") haptic(8); }
-    });
-    const end = () => {
-      if (!st) return;
-      const { mode, dx, base } = st;
-      st = null;
-      w.classList.remove("drag", "armed");
-      if (mode !== "h") return;
-      dragged = true;
-      setTimeout(() => (dragged = false), 50);
-      if (base < 0) { if (dx > 24) closeSwipes(); else w.style.setProperty("--x", OPEN_X + "px"); return; }
-      if (dx <= -56) { w.classList.add("open", "show"); w.style.setProperty("--x", OPEN_X + "px"); return; }
-      closeSwipes();
-    };
-    w.addEventListener("pointerup", end);
-    w.addEventListener("pointercancel", end);
-    w.querySelector(".dlgm-box").addEventListener("click", (e) => {
-      if (dragged) return;
-      e.stopPropagation();
-      if (wraps.some((x) => x.classList.contains("open"))) return closeSwipes();
-      if (i === f) next();
-      else { if (ty && !ty.done()) ty.skip(); focus(i); }
-    });
-    w.querySelector(".dlgm-mount").addEventListener("click", (e) => e.stopPropagation());
   }
 
   // ── open / close (curtain rise with a curved top, like the loader) ──
