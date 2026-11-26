@@ -161,6 +161,29 @@ const G='var(--gold)',C='var(--cream)',R='var(--red)',PN='var(--pine)';
   const b=el('g',{transform:'translate(700 1246)'},s);
   el('rect',{x:0,y:0,width:110,height:84,fill:R},b);el('rect',{x:47,y:0,width:16,height:84,fill:G},b);el('rect',{x:-6,y:-18,width:122,height:22,fill:'#94161F'},b);el('rect',{x:47,y:-18,width:16,height:22,fill:G},b);
   P(b,'55,-18 22,-46 30,-18',G);P(b,'55,-18 88,-46 80,-18',G);
+  // second gift, cream, right of the tree
+  const b2=el('g',{transform:'translate(944 1226)'},s);
+  el('rect',{x:0,y:0,width:96,height:70,fill:C},b2);el('rect',{x:40,y:0,width:16,height:70,fill:R},b2);el('rect',{x:-6,y:-16,width:108,height:20,fill:'#E8D9B8'},b2);el('rect',{x:40,y:-16,width:16,height:20,fill:R},b2);
+  P(b2,'48,-16 18,-40 26,-16',R);P(b2,'48,-16 78,-40 70,-16',R);
+  // hanging ornaments, top corners
+  const orn=(x,len,kind,fill)=>{const o=el('g',{transform:`translate(${x} 0)`},s);
+    el('line',{x1:0,y1:0,x2:0,y2:len,stroke:G,'stroke-width':3},o);
+    el('rect',{x:-8,y:len,width:16,height:12,fill:G},o);const y=len+12;
+    if(kind==='oct')P(o,`-14,${y} 14,${y} 34,${y+20} 34,${y+48} 14,${y+68} -14,${y+68} -34,${y+48} -34,${y+20}`,fill);
+    if(kind==='dia')P(o,`0,${y} 26,${y+40} 0,${y+80} -26,${y+40}`,fill);
+    if(kind==='fin')P(o,`-8,${y} 8,${y} 22,${y+30} 0,${y+96} -22,${y+30}`,fill);
+    if(kind==='oct')el('rect',{x:-34,y:y+30,width:68,height:8,fill:fill===G?R:G},o);
+  };
+  orn(72,118,'oct',G);orn(136,48,'dia',C);orn(28,36,'fin',PN);
+  orn(1008,118,'oct',G);orn(944,48,'dia',C);orn(1052,36,'fin',PN);
+  // holly on the banner corners
+  const holly=(x,y,flip)=>{const h=el('g',{transform:`translate(${x} ${y}) scale(${flip} 1)`},s);
+    P(h,'0,0 -18,-22 -40,-18 -46,-40 -70,-44 -58,-62 -34,-54 -20,-34',PN);
+    P(h,'0,0 -30,6 -40,26 -62,24 -76,44 -50,48 -34,30 -14,20',PN);
+    [[4,-8],[-12,4],[8,10]].forEach(([cx,cy])=>el('circle',{cx,cy,r:9,fill:'#D42A35'},h));};
+  holly(210,700,1);holly(870,700,-1);
+  // sparkles in the open red
+  [[150,560,12],[930,560,12],[140,940,10],[520,960,14],[330,1020,8],[700,900,9],[860,190,0]].forEach(([x,y,r])=>r&&spark(s,x,y,r,C));
 })();
 
 // ---------- B: star + stable ----------
