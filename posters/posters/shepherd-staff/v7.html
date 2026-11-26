@@ -68,6 +68,9 @@ figure{display:flex;flex-direction:column;gap:16px}
 .B .card{position:absolute;left:calc(var(--p)*198);width:calc(var(--p)*715);top:calc(var(--p)*220);height:calc(var(--p)*1015);
   display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;mix-blend-mode:multiply;color:#8E1420}
 .B .card *{text-shadow:none}
+.B .card .clock{display:flex;align-items:center;gap:calc(var(--p)*16);margin-bottom:calc(var(--p)*40)}
+.B .card .clock i{display:block;width:calc(var(--p)*61);height:calc(var(--p)*61);background:#8E1420;-webkit-mask:url(ccf-logo.png) center/contain no-repeat;mask:url(ccf-logo.png) center/contain no-repeat}
+.B .card .clock span{font-family:'Futura','Jost',sans-serif;font-weight:500;font-size:calc(var(--p)*24);letter-spacing:.2em;color:#8E1420}
 .B .card .star{width:calc(var(--p)*38);height:calc(var(--p)*38);background:#B08A2E;clip-path:polygon(50% 0,61% 39%,100% 50%,61% 61%,50% 100%,39% 61%,0 50%,39% 39%);margin-bottom:calc(var(--p)*24)}
 .B .card .o{font-family:var(--serif);font-weight:900;font-size:calc(var(--p)*38);letter-spacing:.08em}
 .B .card .th{font-family:var(--serif);font-weight:700;font-size:calc(var(--p)*24);letter-spacing:.3em;color:#9A7421;margin-top:calc(var(--p)*16)}
@@ -121,8 +124,8 @@ html.still .poster{width:1080px;border-radius:0}
 
     <figure data-take="b">
       <div class="poster"><div class="art B">
-        <div class="ab lock"><i role="img" aria-label="CCF"></i><span>EAST ORTIGAS</span></div>
         <div class="card">
+          <div class="clock"><i role="img" aria-label="CCF"></i><span>EAST ORTIGAS</span></div>
           <i class="star"></i>
           <div class="o">SHEPHERD STAFF</div>
           <div class="th">THANKSGIVING</div>
