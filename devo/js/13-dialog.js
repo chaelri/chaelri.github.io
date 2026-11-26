@@ -212,10 +212,24 @@
   // Opens as a white speech bubble whose tail points at the pressed button and
   // pops out of it; closes back into it (Charlie picked this, 2026-11-26).
   // Web Animations API so it plays with the OS reduce-motion setting on.
-  function tailX(w, act) {
-    // Buttons sit inside the box (their offsetParent); the mount sits beside it.
-    const btn = w.querySelector(`.dlgm-act[data-act="${act}"]`), m = w.querySelector(".dlgm-mount");
-    return btn.offsetParent.offsetLeft + btn.offsetLeft + btn.offsetWidth / 2 - m.offsetLeft;
+  // Types an answer out letter by letter, like the verse boxes.
+  function typeOutAnswer(root) {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), nodes = [], cs = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    nodes.forEach((t) => {
+      const frag = document.createDocumentFragment();
+      for (const ch of t.textContent) {
+        const s = document.createElement("span");
+        s.className = "dlgm-c";
+        s.textContent = ch;
+        frag.appendChild(s);
+        cs.push(s);
+      }
+      t.replaceWith(frag);
+    });
+    let i = 0;
+    const step = () => { if (i < cs.length && root.isConnected) { cs[i++].classList.add("on"); setTimeout(step, 9); } };
+    step();
   }
   // Open/close the Context / Ask row inside the box. The row's height grows
   // first with the pills held invisible, then they pop in once (no double
@@ -250,9 +264,9 @@
   async function closeMount(w, i) {
     const m = w.querySelector(".dlgm-mount"), k = m.dataset.k, card = m.firstElementChild;
     if (card) {
-      card.style.transformOrigin = `${tailX(w, k)}px -8px`;
-      await card.animate([{ transform: "none", opacity: 1 }, { transform: "scale(.85)", opacity: 0 }],
-        { duration: 160, easing: "ease-in", fill: "forwards" }).finished;
+      card._typeObs?.disconnect();
+      await card.animate([{ transform: "none", opacity: 1 }, { transform: "translateY(16px)", opacity: 0 }],
+        { duration: 180, easing: "ease-in", fill: "forwards" }).finished.catch(() => {});
     }
     m.innerHTML = "";
     delete m.dataset.k;
@@ -273,8 +287,6 @@
     const cur = m.dataset.k;
     if (cur) await closeMount(w, i);
     if (cur !== act) {
-      const x = tailX(w, act);
-      m.style.setProperty("--tail", `${x - 8}px`);
       m.dataset.k = act;
       if (act === "context") {
         fetchInlineQuickContext({ book: bookName(), chapter: v.chapter, verse: v.verse, text: v.text }, m);
@@ -285,11 +297,25 @@
       }
       const close = m.querySelector(".ai-card-close");
       if (close) close.onclick = (e) => { e.stopPropagation(); runAction(act, i); };
+      // Answer = a second dialog box with a pink name tag: it slides up with a
+      // spring, the tag pops, and the Quick Context text types out when it lands
+      // (Charlie picked this, 2026-11-26).
       const card = m.firstElementChild;
       if (card) {
-        card.style.transformOrigin = `${x}px -8px`;
-        card.animate([{ transform: "scale(.2)", opacity: 0 }, { transform: "none", opacity: 1 }],
+        card.animate([{ transform: "translateY(24px) scale(.96)", opacity: 0 }, { transform: "none", opacity: 1 }],
           { duration: 420, easing: "cubic-bezier(.2,1.3,.4,1)" });
+        card.querySelector(".ai-card-label")?.animate([{ transform: "scale(0)" }, { transform: "none" }],
+          { duration: 360, delay: 200, easing: "cubic-bezier(.2,1.3,.4,1)", fill: "backwards" });
+        const body = card.querySelector(".ai-card-body");
+        if (body) {
+          card._typeObs = new MutationObserver(() => {
+            const md = body.querySelector(".ai-md-content:not([data-typed])");
+            if (!md) return;
+            md.dataset.typed = "1";
+            typeOutAnswer(md);
+          });
+          card._typeObs.observe(body, { childList: true });
+        }
       }
     }
     w.querySelectorAll(".dlgm-act").forEach((b) => b.classList.toggle("on", b.dataset.act === m.dataset.k));
