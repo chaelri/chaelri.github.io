@@ -20,7 +20,7 @@ def _tileable(gray):
 
 class Worn:
     def __init__(self, asset, frame_shape, knit_scale=0.55,
-                 base=34.0, shade_gain=10.0, knit_gain=1.0):
+                 base=30.0, shade_gain=9.0, knit_gain=0.5):
         h, w = frame_shape[:2]
         rgba = cv2.imread(asset, cv2.IMREAD_UNCHANGED)
         g = cv2.cvtColor(rgba[..., :3], cv2.COLOR_BGR2GRAY).astype(np.float32)
@@ -29,8 +29,10 @@ class Worn:
         hp = patch - cv2.GaussianBlur(patch, (0, 0), 2.5)  # stitch detail only
         hp /= hp.std() + 1e-6
         tile = _tileable(hp)
-        reps = (h // tile.shape[0] + 2, w // tile.shape[1] + 2)
-        self.knit = np.tile(tile, reps)[:h, :w].astype(np.float32)
+        # fine jersey knit: faint vertical wales, no photo noise (it read as TV static)
+        xs = np.arange(w, dtype=np.float32)[None, :]
+        ys = np.arange(h, dtype=np.float32)[:, None]
+        self.knit = (0.6 * np.sin(xs * 2 * np.pi / 3.0) * (0.8 + 0.2 * np.sin(ys * 2 * np.pi / 4.0))).astype(np.float32)
         # collar ribs: vertical ribs, a little coarser than the body knit
         x = np.arange(w, dtype=np.float32)
         self.ribs = np.sin(x * 2 * np.pi / 7.0)[None, :].repeat(h, 0)
@@ -70,7 +72,7 @@ class Worn:
         # whatever you're wearing is always covered below the chin; bare skin only below the neckline
         clothes = np.clip((conf_full[CLOTHES] + conf_full[OTHER] - 0.3) / 0.3, 0, 1) * (self.yy > ny - rise)
         mask = np.maximum(body * below, clothes * (1 - top_layer))
-        mask = cv2.GaussianBlur(mask, (0, 0), 1.2)
+        mask = cv2.GaussianBlur(mask, (0, 0), 2.2)
 
         # shading from your own body, blurred so the shirt underneath doesn't print through
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY).astype(np.float32)
@@ -82,7 +84,7 @@ class Worn:
 
         # edges of the body fall into shadow (fabric turning away from the light)
         dist = cv2.distanceTransform(inside.astype(np.uint8), cv2.DIST_L2, 5)
-        ao = np.clip(dist / (0.18 * fh), 0, 1) * 0.35 + 0.65
+        ao = np.clip(dist / (0.25 * fh), 0, 1) ** 0.7 * 0.45 + 0.55
 
         val = (self.base + self.shade_gain * shade + self.knit_gain * 4.0 * self.knit) * ao
 
