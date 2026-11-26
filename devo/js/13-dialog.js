@@ -29,13 +29,11 @@
         <button type="button" class="dlgm-back" id="dlgmBack"><span class="material-symbols-outlined" aria-hidden="true">chevron_left</span>Reader</button>
         <h1 class="dlgm-title" id="dlgmTitle"></h1>
         <div class="dlgm-side"><div class="dlgm-sect" id="dlgmSect"></div><div class="dlgm-prog" id="dlgmProg"></div><div class="dlgm-bar"><i id="dlgmBar"></i></div></div>
-        <button type="button" class="dlgm-more" id="dlgmMore" aria-label="More actions"><span class="material-symbols-outlined" aria-hidden="true">more_horiz</span></button>
       </div>
       <div class="dlgm-log" id="dlgmLog"></div>`;
     document.body.appendChild(root);
     log = $("dlgmLog");
     $("dlgmBack").addEventListener("click", close);
-    $("dlgmMore").addEventListener("click", (e) => { e.stopPropagation(); $("mtOverflow")?.click(); });
     log.addEventListener("click", () => {
       if (dragged) return;
       if (wraps.some((w) => w.classList.contains("open"))) return closeSwipes();
