@@ -1,0 +1,28 @@
+# devo/ — Bible Devotional PWA
+
+This file auto-loads when Claude opens any session inside or below `chaelri.github.io/devo/`. It pulls the deep knowledge MDs so Claude can answer architecture/pattern questions without re-investigating.
+
+## Knowledge
+
+@../knowledge/devo/SUMMARY.md
+
+- On demand: `../knowledge/devo/ARCHITECTURE.md`
+- On demand: `../knowledge/devo/KEY_FILES.md`
+- On demand: `../knowledge/devo/PATTERNS.md`
+- On demand: `../knowledge/devo/TTS.md`
+- On demand: `../knowledge/devo/AI_FEATURES.md`
+- On demand: `../knowledge/devo/COMMON_TASKS.md`
+- On demand: `../knowledge/devo/DECISIONS.md`
+- On demand: `../knowledge/devo/DESIGN.md`
+
+## Quick reminders
+
+- **`script.js` was split (2026-04-27):** Code now lives in 11 ordered chunks under `devo/js/` (`01-core.js` … `11-boot.js`). They load as classic `<script>` tags via `firebase-sync.js` (`async=false`) and share one script-global scope, so cross-file globals work unchanged. See `KEY_FILES.md` for the line-range → file map. **Knowledge MD line numbers reference the pre-split monolithic file** — translate via the map.
+- **`11-boot.js` runs the kickoff** (`fetchBibleData`, `loadBooks`, `showDashboard`, `updateControlStates`, recent-passage restore, `_onAppLoad` trigger). Never put synchronous cross-file calls in earlier chunks — hoisting only works within a chunk, not across them.
+- **TTS is Microsoft Edge "Read Aloud"** via `gemini-proxy` `/edge-tts` endpoint (voice `en-US-BrianNeural`). Synthesis is ~10× faster than the old Google Journey-D path; entire chapter prefetched on `loadPassage` and cached in IndexedDB (3-day TTL). Old "Google Cloud TTS" / "Kokoro" memories are stale.
+- **Firebase sync supports multiple users (2026-04-29):** `firebase-sync.js` activates the localStorage→RTDB mirror when `userName.toLowerCase()` is in `SYNC_USERS = { charlie: "devo-sync", karla: "devo-sync-karla" }`. Each user has their own RTDB path so devotions/notes/reflections stay private. Charlie's path stays at the legacy `devo-sync` for back-compat. Window globals: `activateSyncForUser(name)` / `deactivateSync()`, plus `activateCharlieSync` / `activateKarlaSync` shims.
+- **Bible JSON files are large** (~10 MB total): `nasb2020.json`, `easy2024.json`. Lazy-loaded.
+- **No build step:** Vanilla JS, edit and reload.
+- **Verse rendering:** `#output > .verse > .verse-header > .verse-content` with `.verse-num`.
+- **AI payload contract:** `window.__aiPayload = { book, chapter, isSingle?, versesText }` set before AI calls.
+- **PostToolUse hook is active** — edits here will be flagged in `.claude/knowledge-stale.md` if they touch files referenced in any knowledge MD.
