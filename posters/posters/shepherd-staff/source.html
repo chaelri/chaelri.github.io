@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Shepherd Staff Posters</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Playball&display=swap" rel="stylesheet">
+<style>
+:root{--page:#EFE8DC;--ink:#2A1D18;--mute:#5E5048;--sans:system-ui,-apple-system,'Segoe UI',sans-serif;
+  --serif:'Cinzel','Trajan Pro',Georgia,serif;--script:'Playball','Snell Roundhand',cursive}
+*{box-sizing:border-box;margin:0}
+html{background:var(--page)}
+@media(min-width:1024px){html{zoom:.8}}
+body{background:var(--page);color:var(--ink);font:400 16px/1.4 var(--sans)}
+.page{min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:64px 16px}
+@media(min-width:1024px){.page{min-height:calc(100vh / .8)}}
+h1{font:700 24px/1.2 var(--sans);letter-spacing:-.01em;text-transform:lowercase;text-align:center;margin-bottom:40px}
+.grid{display:grid;gap:40px;grid-template-columns:1fr;max-width:1400px;margin:0 auto;width:100%}
+@media(min-width:1024px){h1{font-size:38px}.grid{grid-template-columns:repeat(3,1fr)}}
+figure{display:flex;flex-direction:column;gap:16px}
+.poster{container-type:inline-size;aspect-ratio:4/5;border-radius:13px;overflow:hidden;position:relative}
+.cap{display:grid;gap:8px}
+.cap b{font:700 24px/1 var(--sans);text-transform:lowercase}
+.cap span{color:var(--mute);max-width:44ch}
+
+/* ---------- artwork, 1080 x 1350 base ---------- */
+.art{--p:calc(100cqw / 1080);--gold:#E2BE6A;--cream:#F6EBD3;--red:#B3202A;--pine:#1E5A3C;
+  position:absolute;inset:0;overflow:hidden;font-family:var(--serif);color:var(--cream)}
+.art>svg{position:absolute;inset:0;width:100%;height:100%}
+.ab{position:absolute;white-space:nowrap;line-height:1}
+.mid{left:0;right:0;text-align:center}
+.kick{font-size:calc(var(--p)*24);font-weight:700;letter-spacing:.24em;color:var(--gold)}
+.org{font-size:calc(var(--p)*61);font-weight:900;letter-spacing:.02em}
+.thx{font-size:calc(var(--p)*38);font-weight:500;letter-spacing:.3em;color:var(--gold)}
+.scr{font-family:var(--script);font-size:calc(var(--p)*160);line-height:.9;letter-spacing:-.01em}
+.tag{font-family:var(--script);font-size:calc(var(--p)*38);line-height:1.2}
+.when{left:calc(var(--p)*96);bottom:calc(var(--p)*96);display:flex;flex-direction:column;gap:calc(var(--p)*16);line-height:1}
+.when b{font-size:calc(var(--p)*38);font-weight:700;letter-spacing:.04em}
+.when span{font-size:calc(var(--p)*24);font-weight:700;letter-spacing:.12em;color:var(--gold)}
+
+/* A: the tree (red) */
+.A{background:#7A0F17}
+.A .kick{top:calc(var(--p)*96)}
+.A .org{top:calc(var(--p)*150)}
+.A .thx{top:calc(var(--p)*251)}
+.A .s1{top:calc(var(--p)*300)}
+.A .s2{top:calc(var(--p)*440)}
+.A .tag{top:calc(var(--p)*672);color:#7A0F17}
+
+/* B: the star (navy) */
+.B{background:#0E1A30}
+.B .kick{top:calc(var(--p)*400)}
+.B .org{top:calc(var(--p)*446)}
+.B .thx{top:calc(var(--p)*540)}
+.B .s1{top:calc(var(--p)*588)}
+.B .s2{top:calc(var(--p)*728)}
+.B .tag{top:calc(var(--p)*912);color:var(--gold)}
+
+/* C: the gift (pine) */
+.C{background:#173F2E}
+.C .ab:not(.when){left:calc(var(--p)*96)}
+.C .kick{top:calc(var(--p)*96)}
+.C .org{top:calc(var(--p)*376)}
+.C .thx{top:calc(var(--p)*469)}
+.C .s1{top:calc(var(--p)*518);left:calc(var(--p)*80)!important}
+.C .s2{top:calc(var(--p)*658);left:calc(var(--p)*200)!important}
+.C .tag{top:calc(var(--p)*860);color:var(--gold)}
+
+.tex{mix-blend-mode:soft-light;opacity:.5;pointer-events:none}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+ <filter id="grain" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".8" numOctaves="2" seed="3" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/></filter>
+</defs></svg>
+<div class="page">
+  <h1>shepherd staff christmas party, 3 takes</h1>
+  <div class="grid">
+
+    <figure data-take="a">
+      <div class="poster"><div class="art A">
+        <svg id="art-a" viewBox="0 0 1080 1350" aria-hidden="true"></svg>
+        <div class="ab mid kick">CCF EAST ORTIGAS</div>
+        <div class="ab mid org">SHEPHERD STAFF</div>
+        <div class="ab mid thx">THANKSGIVING</div>
+        <div class="ab mid scr s1">Christmas</div>
+        <div class="ab mid scr s2">Party</div>
+        <div class="ab mid tag">Thank God for His<br>grace and faithfulness</div>
+        <div class="ab when"><b>DECEMBER 4, 2026</b><span>FRIDAY · 1:00 – 6:00 PM</span><span>MAIN HALL</span></div>
+        <svg class="tex" viewBox="0 0 1080 1350" aria-hidden="true"><rect width="1080" height="1350" filter="url(#grain)"/></svg>
+      </div></div>
+      <figcaption class="cap"><b>a · the tree</b><span>Closest to Tito Frank's sample: red, gold script, a ribbon banner for the verse line, a tree and a gift.</span></figcaption>
+    </figure>
+
+    <figure data-take="b">
+      <div class="poster"><div class="art B">
+        <svg id="art-b" viewBox="0 0 1080 1350" aria-hidden="true"></svg>
+        <div class="ab mid kick">CCF EAST ORTIGAS</div>
+        <div class="ab mid org">SHEPHERD STAFF</div>
+        <div class="ab mid thx">THANKSGIVING</div>
+        <div class="ab mid scr s1">Christmas</div>
+        <div class="ab mid scr s2">Party</div>
+        <div class="ab mid tag">Thank God for His grace and faithfulness</div>
+        <div class="ab when"><b>DECEMBER 4, 2026</b><span>FRIDAY · 1:00 – 6:00 PM</span><span>MAIN HALL</span></div>
+        <svg class="tex" viewBox="0 0 1080 1350" aria-hidden="true"><rect width="1080" height="1350" filter="url(#grain)"/></svg>
+      </div></div>
+      <figcaption class="cap"><b>b · the star</b><span>Night sky, the star of Bethlehem and the stable. Joseph holds a shepherd's staff.</span></figcaption>
+    </figure>
+
+    <figure data-take="c">
+      <div class="poster"><div class="art C">
+        <svg id="art-c" viewBox="0 0 1080 1350" aria-hidden="true"></svg>
+        <div class="ab kick">CCF EAST ORTIGAS</div>
+        <div class="ab org">SHEPHERD STAFF</div>
+        <div class="ab thx">THANKSGIVING</div>
+        <div class="ab scr s1">Christmas</div>
+        <div class="ab scr s2">Party</div>
+        <div class="ab tag">Thank God for His<br>grace and faithfulness</div>
+        <div class="ab when"><b>DECEMBER 4, 2026</b><span>FRIDAY · 1:00 – 6:00 PM</span><span>MAIN HALL</span></div>
+        <svg class="tex" viewBox="0 0 1080 1350" aria-hidden="true"><rect width="1080" height="1350" filter="url(#grain)"/></svg>
+      </div></div>
+      <figcaption class="cap"><b>c · the gift</b><span>The whole poster is a wrapped present: gold ribbon and bow on pine green.</span></figcaption>
+    </figure>
+
+  </div>
+</div>
+
+<script>
+const NS='http://www.w3.org/2000/svg';
+function el(t,a,p){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);p&&p.appendChild(e);return e}
+const P=(g,pts,fill,extra={})=>el('polygon',Object.assign({points:pts,fill},extra),g);
+function star(g,cx,cy,R,r,n,fill){const pts=[];for(let i=0;i<n*2;i++){const a=Math.PI*i/n-Math.PI/2,d=i%2?r:R;pts.push((cx+Math.cos(a)*d).toFixed(1)+','+(cy+Math.sin(a)*d).toFixed(1))}return P(g,pts.join(' '),fill)}
+function spark(g,cx,cy,s,fill){P(g,`${cx},${cy-s} ${cx+s*.22},${cy-s*.22} ${cx+s},${cy} ${cx+s*.22},${cy+s*.22} ${cx},${cy+s} ${cx-s*.22},${cy+s*.22} ${cx-s},${cy} ${cx-s*.22},${cy-s*.22}`,fill)}
+const G='var(--gold)',C='var(--cream)',R='var(--red)',PN='var(--pine)';
+
+// ---------- A: tree ----------
+(()=>{const s=document.getElementById('art-a');
+  // ribbon banner behind the tagline
+  P(s,'120,656 236,656 216,716 236,776 120,776 150,716','#C79A45');
+  P(s,'960,656 844,656 864,716 844,776 960,776 930,716','#C79A45');
+  P(s,'196,640 884,640 884,792 196,792',C);
+  // tree
+  const t=el('g',{transform:'translate(860 846)'},s);
+  el('rect',{x:-22,y:372,width:44,height:56,fill:'#4A2A1A'},t);
+  P(t,'0,40 -100,168 100,168',PN);P(t,'0,110 -136,270 136,270',PN);P(t,'0,200 -170,380 170,380',PN);
+  el('polyline',{points:'-70,150 60,118',stroke:G,'stroke-width':6,fill:'none'},t);
+  el('polyline',{points:'-110,252 96,206',stroke:G,'stroke-width':6,fill:'none'},t);
+  el('polyline',{points:'-150,362 136,302',stroke:G,'stroke-width':6,fill:'none'},t);
+  [[-30,190,R],[40,160,C],[-60,300,C],[70,240,R],[10,330,R],[-110,340,G],[110,350,C]].forEach(([x,y,f])=>P(t,`${x},${y-14} ${x+10},${y} ${x},${y+14} ${x-10},${y}`,f));
+  star(t,0,24,44,18,5,G);
+  // gift at the base
+  const b=el('g',{transform:'translate(700 1206)'},s);
+  el('rect',{x:0,y:0,width:110,height:84,fill:R},b);el('rect',{x:47,y:0,width:16,height:84,fill:G},b);el('rect',{x:-6,y:-18,width:122,height:22,fill:'#94161F'},b);el('rect',{x:47,y:-18,width:16,height:22,fill:G},b);
+  P(b,'55,-18 22,-46 30,-18',G);P(b,'55,-18 88,-46 80,-18',G);
+})();
+
+// ---------- B: star + stable ----------
+(()=>{const s=document.getElementById('art-b');
+  // star of Bethlehem
+  const g=el('g',{transform:'translate(540 206)'},s);
+  P(g,'0,-130 14,-14 0,150 -14,-14',G);P(g,'-124,0 -12,-12 124,0 -12,12',G);
+  P(g,'-62,-62 6,-6 62,62 -6,6',G,{opacity:.55});P(g,'62,-62 6,6 -62,62 -6,-6',G,{opacity:.55});
+  // sparkles, away from the text
+  [[140,140,14],[250,300,9],[90,420,10],[940,150,14],[830,310,9],[990,420,10],[170,620,8],[960,640,8],[300,90,7],[780,80,7]].forEach(([x,y,r])=>spark(s,x,y,r,C));
+  // hill
+  el('path',{d:'M560 1350 C640 1240 760 1215 1080 1200 V1350Z',fill:'#16284A'},s);
+  // stable
+  const t=el('g',{transform:'translate(850 1000)'},s);
+  el('rect',{x:-130,y:96,width:260,height:150,fill:'#E2BE6A'},t);
+  el('rect',{x:-150,y:90,width:20,height:160,fill:'#3A2616'},t);el('rect',{x:130,y:90,width:20,height:160,fill:'#3A2616'},t);
+  P(t,'0,0 -190,104 -170,116 0,24 170,116 190,104','#5A3A22');
+  // figures (navy silhouettes in the lit stable)
+  const N='#0E1A30';
+  P(t,'-92,246 -86,186 -74,160 -60,156 -50,170 -44,206 -24,222 -20,246',N);P(t,'-74,160 -68,138 -54,136 -50,154',N); // Mary kneeling
+  P(t,'-28,246 -24,218 28,218 32,246',N);P(t,'-36,214 36,214 28,226 -28,226','#94161F'); // manger + cloth
+  P(t,'56,246 60,166 70,138 92,138 100,166 102,246',N);P(t,'68,138 72,116 88,114 92,136',N); // Joseph
+  el('path',{d:'M118 246 V124 C118 104 136 98 142 112',stroke:N,'stroke-width':6,fill:'none','stroke-linecap':'round'},t); // staff
+})();
+
+// ---------- C: gift ----------
+(()=>{const s=document.getElementById('art-c');
+  el('rect',{x:832,y:0,width:80,height:1350,fill:G},s);
+  el('rect',{x:0,y:232,width:1080,height:80,fill:G},s);
+  el('rect',{x:832,y:232,width:80,height:80,fill:'#C79A45'},s);
+  const b=el('g',{transform:'translate(872 272)'},s);
+  P(b,'0,0 -150,-96 -176,-30 -120,40','#C79A45');P(b,'0,0 -136,-80 -156,-28 -112,30',G);
+  P(b,'0,0 150,-96 176,-30 120,40','#C79A45');P(b,'0,0 136,-80 156,-28 112,30',G);
+  P(b,'-10,10 -40,130 -16,112 4,140','#C79A45');P(b,'10,10 40,130 16,112 -4,140','#C79A45');
+  P(b,'-26,-26 26,-26 26,26 -26,26',R);
+  // tag on a string
+  el('line',{x1:900,y1:412,x2:964,y2:560,stroke:C,'stroke-width':3},s);
+  const tg=el('g',{transform:'translate(964 560) rotate(-12)'},s);
+  P(tg,'-40,0 40,0 40,140 -40,140',C);P(tg,'-40,0 0,-30 40,0',C);
+  el('rect',{x:-6,y:-12,width:12,height:12,fill:'#173F2E'},tg);
+  star(tg,0,76,30,12,5,R);
+})();
+</script>
+</body>
+</html>
