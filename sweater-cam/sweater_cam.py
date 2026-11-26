@@ -93,6 +93,33 @@ def paint_sweater(frame, mask, tex):
     return (frame.astype(np.float32) * (1 - a) + sweater * a).clip(0, 255).astype(np.uint8)
 
 
+_GRAIN = None
+
+
+def finish(frame, up, mask, n):
+    """Full-res composite that hides the seams: grow the edge over leftover fringe,
+    strip green spill next to it, and give the sweater the webcam's grain + fine knit."""
+    global _GRAIN
+    h, w = mask.shape
+    if _GRAIN is None or _GRAIN[0].shape != (h, w):
+        rng = np.random.default_rng(3)
+        xs = np.arange(w, dtype=np.float32)[None, :]
+        knit = 1.6 * np.sin(xs * 2 * np.pi / 3.2) * np.ones((h, 1), np.float32)
+        _GRAIN = [cv2.GaussianBlur(rng.normal(0, 3.0, (h, w)).astype(np.float32), (0, 0), 0.7) + knit
+                  for _ in range(4)]
+    k = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9))
+    a = cv2.GaussianBlur(cv2.dilate(mask, k), (0, 0), 1.6)  # ~4px bigger, soft edge
+    # green spill / skin halo ring just outside: pull green down to the other channels
+    ring = np.clip(cv2.GaussianBlur(cv2.dilate(a, k, iterations=2), (0, 0), 3) - a, 0, 1)[..., None]
+    f = frame.astype(np.float32)
+    desp = f.copy()
+    desp[..., 1] = np.minimum(f[..., 1], np.maximum(f[..., 0], f[..., 2]))
+    f = f * (1 - ring) + desp * ring
+    sweater = up.astype(np.float32) + _GRAIN[n % 4][..., None]
+    a = a[..., None]
+    return (f * (1 - a) + sweater * a).clip(0, 255).astype(np.uint8)
+
+
 class TryOn:
     """Warp a real sweater photo onto the body from pose shoulder landmarks."""
 
@@ -264,9 +291,8 @@ def main():
                             else:
                                 ai.submit(out_s, worn.last_mask)
                                 out_s = ai.apply(out_s, worn.last_mask)
-                        a = cv2.resize(worn.last_mask, (w, h), interpolation=cv2.INTER_LINEAR)[..., None]
                         up = cv2.resize(out_s, (w, h), interpolation=cv2.INTER_LINEAR)
-                        out = (frame * (1 - a) + up * a).astype(np.uint8)
+                        out = finish(frame, up, cv2.resize(worn.last_mask, (w, h)), frames)
                 elif (sleeves or tryon) and (frames % 3 == 1 or hands_cache is None):
                     hands_cache = hand_mask(hands_lm, rgb, ts, (small_h, small_w))
                 if worn is None:
