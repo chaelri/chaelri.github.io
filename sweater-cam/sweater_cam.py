@@ -116,8 +116,17 @@ def finish(frame, up, mask, n):
     desp[..., 1] = np.minimum(f[..., 1], np.maximum(f[..., 0], f[..., 2]))
     f = f * (1 - ring) + desp * ring
     sweater = up.astype(np.float32) + _GRAIN[n % 4][..., None]
+    finish.alpha = a
     a = a[..., None]
     return (f * (1 - a) + sweater * a).clip(0, 255).astype(np.uint8)
+
+
+def replace_background(out, bg, bg_conf, sweater_a):
+    """Swap the room for `bg`; you + the (wider) sweater stay in front."""
+    person = np.clip((1.0 - bg_conf - 0.3) / 0.4, 0, 1)
+    person = cv2.GaussianBlur(person, (0, 0), 1.5)
+    fg = np.maximum(person, sweater_a)[..., None]
+    return (bg * (1 - fg) + out.astype(np.float32) * fg).astype(np.uint8)
 
 
 class TryOn:
@@ -199,6 +208,9 @@ def main():
     ap.add_argument("--image", help="use this image file instead of the camera (with --snapshot)")
     ap.add_argument("--paint-only", action="store_true", help="old mode: only darken your own clothes")
     ap.add_argument("--photo", action="store_true", help="old mode: paste the sweater photo on the shoulders")
+    ap.add_argument("--bg", default=os.path.join(HERE, "backgrounds", "warm-study.jpg"),
+                    help="background image behind you (default: warm study)")
+    ap.add_argument("--no-bg", action="store_true", help="keep your real room")
     ap.add_argument("--no-ai", action="store_true", help="skip the SD-Turbo pass (procedural sweater only)")
     ap.add_argument("--ai-strength", type=float, default=0.6, help="how much the AI redraws (0.3-0.8)")
     args = ap.parse_args()
@@ -229,6 +241,7 @@ def main():
 
     tryon = TryOn(SWEATER) if args.photo else None
     from worn import Worn
+    bg = None if args.no_bg else cv2.resize(cv2.imread(args.bg), (w, h), interpolation=cv2.INTER_AREA).astype(np.float32)
     hw, hh = w // 2, h // 2  # sweater maths at half res; face/background stay full res
     worn = None if (args.paint_only or args.photo) else Worn(SWEATER, (hh, hw))
     ai = None
@@ -293,6 +306,8 @@ def main():
                                 out_s = ai.apply(out_s, worn.last_mask, worn.anchor)
                         up = cv2.resize(out_s, (w, h), interpolation=cv2.INTER_LINEAR)
                         out = finish(frame, up, cv2.resize(worn.last_mask, (w, h)), frames)
+                        if bg is not None:
+                            out = replace_background(out, bg, cv2.resize(prev[BG], (w, h)), finish.alpha)
                 elif (sleeves or tryon) and (frames % 3 == 1 or hands_cache is None):
                     hands_cache = hand_mask(hands_lm, rgb, ts, (small_h, small_w))
                 if worn is None:
