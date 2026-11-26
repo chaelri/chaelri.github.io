@@ -110,7 +110,7 @@ def finish(frame, up, mask, n):
     k = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9))
     a = cv2.GaussianBlur(cv2.dilate(mask, k), (0, 0), 1.6)  # ~4px bigger, soft edge
     # green spill / skin halo ring just outside: pull green down to the other channels
-    ring = np.clip(cv2.GaussianBlur(cv2.dilate(a, k, iterations=2), (0, 0), 3) - a, 0, 1)[..., None]
+    ring = np.clip(cv2.GaussianBlur(cv2.dilate(a, k, iterations=4), (0, 0), 3) - a, 0, 1)[..., None]
     f = frame.astype(np.float32)
     desp = f.copy()
     desp[..., 1] = np.minimum(f[..., 1], np.maximum(f[..., 0], f[..., 2]))
@@ -121,10 +121,17 @@ def finish(frame, up, mask, n):
     return (f * (1 - a) + sweater * a).clip(0, 255).astype(np.uint8)
 
 
-def replace_background(out, bg, bg_conf, sweater_a):
-    """Swap the room for `bg`; you + the (wider) sweater stay in front."""
-    person = np.clip((1.0 - bg_conf - 0.3) / 0.4, 0, 1)
-    person = cv2.GaussianBlur(person, (0, 0), 1.5)
+def replace_background(out, bg, bg_conf, sweater_a, frame):
+    """Swap the room for `bg`; you + the (wider) sweater stay in front.
+
+    The segmentation is low-res, so its edge is snapped to the real hair/headphone
+    edges with a guided filter on the full-res camera frame, then pulled in ~1px so
+    no wall glow rims the head.
+    """
+    guide = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY).astype(np.float32) / 255.0
+    person = (1.0 - bg_conf).astype(np.float32)
+    person = cv2.ximgproc.guidedFilter(guide, person, 6, 1e-3)
+    person = np.clip((person - 0.45) / 0.25, 0, 1)
     fg = np.maximum(person, sweater_a)[..., None]
     return (bg * (1 - fg) + out.astype(np.float32) * fg).astype(np.uint8)
 
@@ -307,7 +314,8 @@ def main():
                         up = cv2.resize(out_s, (w, h), interpolation=cv2.INTER_LINEAR)
                         out = finish(frame, up, cv2.resize(worn.last_mask, (w, h)), frames)
                         if bg is not None:
-                            out = replace_background(out, bg, cv2.resize(prev[BG], (w, h)), finish.alpha)
+                            # current mask, not the smoothed one: smoothing lags and shows the room
+                            out = replace_background(out, bg, cv2.resize(full[BG], (w, h)), finish.alpha, frame)
                 elif (sleeves or tryon) and (frames % 3 == 1 or hands_cache is None):
                     hands_cache = hand_mask(hands_lm, rgb, ts, (small_h, small_w))
                 if worn is None:
