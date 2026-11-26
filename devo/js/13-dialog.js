@@ -145,9 +145,6 @@
     w.querySelector(".dlgm-mount").addEventListener("click", (e) => e.stopPropagation());
     w.querySelectorAll(".dlgm-act").forEach((a) => a.addEventListener("click", (e) => {
       e.stopPropagation();
-      const was = a.classList.contains("on");
-      w.querySelectorAll(".dlgm-act").forEach((x) => x.classList.remove("on"));
-      a.classList.toggle("on", !was);
       runAction(a.dataset.act, i);
     }));
     if (instant) box.querySelectorAll(".dlgm-c").forEach((c) => c.classList.add("on"));
@@ -163,7 +160,11 @@
   function focus(i) {
     f = i;
     boxes.forEach((b, j) => b.classList.toggle("old", j !== i));
-    wraps.forEach((w, j) => w.classList.toggle("lit", j === i));
+    wraps.forEach((w, j) => {
+      w.classList.toggle("lit", j === i);
+      // Moving on closes any Context / Ask left open on another verse.
+      if (j !== i && w.querySelector(".dlgm-mount").dataset.k) closeMount(w, j);
+    });
     const n = i + 1, total = data.verses.length;
     $("dlgmSect").textContent = headingFor(i);
     $("dlgmProg").textContent = `verse ${data.verses[i].verse} of ${total}`;
@@ -196,15 +197,60 @@
   }
 
   // ── Context / Ask under the verse ──
-  function runAction(act, i) {
-    const v = data.verses[i], mount = wraps[i].querySelector(".dlgm-mount");
-    if (i !== f) focus(i);
-    if (act === "context") {
-      if (mount.querySelector(".inline-ai-card")) { mount.innerHTML = ""; return; }
-      fetchInlineQuickContext({ book: bookName(), chapter: v.chapter, verse: v.verse, text: v.text }, mount);
-    } else {
-      toggleVerseChat(keyOf(v.book_id, v.chapter, v.verse), bookName(), v.chapter, v.verse, v.text, mount);
+  // Opens as a white speech bubble whose tail points at the pressed button and
+  // pops out of it; closes back into it (Charlie picked this, 2026-11-26).
+  // Web Animations API so it plays with the OS reduce-motion setting on.
+  function tailX(w, act) {
+    const btn = w.querySelector(`.dlgm-act[data-act="${act}"]`), m = w.querySelector(".dlgm-mount");
+    return btn.offsetLeft + btn.offsetWidth / 2 - m.offsetLeft;
+  }
+  async function closeMount(w, i) {
+    const m = w.querySelector(".dlgm-mount"), k = m.dataset.k, card = m.firstElementChild;
+    if (card) {
+      card.style.transformOrigin = `${tailX(w, k)}px -8px`;
+      await card.animate([{ transform: "none", opacity: 1 }, { transform: "scale(.85)", opacity: 0 }],
+        { duration: 160, easing: "ease-in", fill: "forwards" }).finished;
     }
+    m.innerHTML = "";
+    delete m.dataset.k;
+    w.querySelectorAll(".dlgm-act").forEach((b) => b.classList.remove("on"));
+    if (k === "ask") {
+      // Same reset toggleVerseChat does on close: every reopen starts fresh.
+      const v = data.verses[i], key = keyOf(v.book_id, v.chapter, v.verse);
+      delete verseChatHistories[key];
+      if (window._chatSuggestions) delete window._chatSuggestions[key];
+      if (window._chatFollowups) delete window._chatFollowups[key];
+    }
+  }
+  async function runAction(act, i) {
+    const v = data.verses[i], w = wraps[i], m = w.querySelector(".dlgm-mount");
+    if (w._busy) return;
+    w._busy = true;
+    if (i !== f) focus(i);
+    const cur = m.dataset.k;
+    if (cur) await closeMount(w, i);
+    if (cur !== act) {
+      const x = tailX(w, act);
+      m.style.setProperty("--tail", `${x - 8}px`);
+      m.dataset.k = act;
+      if (act === "context") {
+        fetchInlineQuickContext({ book: bookName(), chapter: v.chapter, verse: v.verse, text: v.text }, m);
+      } else {
+        toggleVerseChat(keyOf(v.book_id, v.chapter, v.verse), bookName(), v.chapter, v.verse, v.text, m);
+        m.querySelector(".verse-chat-wrapper")?.insertAdjacentHTML("afterbegin",
+          `<div class="ai-card-header"><span class="ai-card-label">Ask</span><button class="ai-card-close" title="Close">✕</button></div>`);
+      }
+      const close = m.querySelector(".ai-card-close");
+      if (close) close.onclick = (e) => { e.stopPropagation(); runAction(act, i); };
+      const card = m.firstElementChild;
+      if (card) {
+        card.style.transformOrigin = `${x}px -8px`;
+        card.animate([{ transform: "scale(.2)", opacity: 0 }, { transform: "none", opacity: 1 }],
+          { duration: 420, easing: "cubic-bezier(.2,1.3,.4,1)" });
+      }
+    }
+    w.querySelectorAll(".dlgm-act").forEach((b) => b.classList.toggle("on", b.dataset.act === m.dataset.k));
+    w._busy = false;
   }
 
   // ── open / close (curtain rise with a curved top, like the loader) ──

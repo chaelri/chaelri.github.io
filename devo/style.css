@@ -11795,11 +11795,11 @@ body.font-system .dlgm-box { font-family: -apple-system, BlinkMacSystemFont, "Se
 /* Speech: darker ink than the narration, no extra colour (Charlie, 2026-11-26). #2b2318 on cream 10:1. */
 .dlgm-box .quote-style, .dlgm-box .quote-style-nested { color: #2b2318; }
 .dlgm-box.old { background: #283052; color: #cfc8b4; box-shadow: none; font-size: max(12px, calc(var(--verse-fs, 16px) - 4px)); padding: 16px 24px; margin: 0 8px; }
-.dlgm-box.old .dlgm-n { color: #f472b6; }
+.dlgm-box.old .dlgm-n { color: #db2777; }
 .dlgm-box.old .quote-style, .dlgm-box.old .quote-style-nested { color: #f3eee0; }
 /* Names and places: the same pink (Charlie picked pink over teal, 2026-11-26). */
 .dlgm-name { color: #be185d; }
-.dlgm-box.old .dlgm-name { color: #f472b6; }
+.dlgm-box.old .dlgm-name { color: #db2777; }
 body.light .dlgm-box.old .dlgm-name { color: #be185d; }
 .dlgm-box.new { animation: dlgmPop .32s cubic-bezier(.2,1.4,.4,1); }
 @keyframes dlgmPop { from { transform: translateY(16px) scale(.96); opacity: 0; } }
@@ -11812,7 +11812,38 @@ body.light .dlgm-box.old .dlgm-name { color: #be185d; }
 .dlgm-act { height: 40px; padding: 0 16px; border-radius: 999px; border: 0; background: #be185d; color: #fff; font: 700 15px/1 "Fredoka", "Nunito", sans-serif; display: inline-flex; align-items: center; cursor: pointer; }
 .dlgm-act.on { background: #fff; color: #be185d; }
 .dlgm-act:focus-visible { outline: 3px solid #be185d; outline-offset: 2px; }
-.dlgm-mount:not(:empty) { margin-top: 8px; cursor: auto; user-select: text; -webkit-user-select: text; }
+.dlgm-mount:not(:empty) { padding: 16px 0 8px; cursor: auto; user-select: text; -webkit-user-select: text; }
+/* The real Quick Context card and Ask chat, restyled as a white speech bubble whose
+   tail sits under the pressed button (--tail set in 13-dialog.js). No Dig Deeper here.
+   Khaki #6b5f45 on white 6.3:1, pink #be185d on white 6:1, deep ink on cream 10:1. */
+.dlgm-mount > .inline-ai-card, .dlgm-mount > .verse-chat-wrapper { position: relative; margin: 0; max-width: none; overflow: visible; background: #fff; border: 0; border-radius: 21px; padding: 16px 24px 24px; color: #6b5f45; box-shadow: 0 8px 24px rgba(0,0,0,.4); animation: none; }
+.dlgm-mount > .inline-ai-card::before, .dlgm-mount > .verse-chat-wrapper::before { content: ""; position: absolute; top: -8px; left: var(--tail, 40px); width: 16px; height: 16px; background: #fff; border-radius: 3px; transform: rotate(45deg); }
+.dlgm-mount .ai-card-gradient { background: none; padding: 0; }
+.dlgm-mount .ai-card-header { display: flex; justify-content: space-between; align-items: center; margin: 0 0 8px; padding: 0; }
+.dlgm-mount .ai-card-label { font: 700 15px/1 "Fredoka", "Nunito", sans-serif; letter-spacing: 0; text-transform: none; color: #be185d; }
+.dlgm-mount .ai-card-close { width: 32px; height: 32px; margin-right: -8px; display: grid; place-items: center; border: 0; background: none; color: #6b5f45; font-size: 15px; cursor: pointer; }
+.dlgm-mount .ai-md-content, .dlgm-mount .ai-md-content p { color: #6b5f45; font-size: 14px; line-height: 1.55; }
+.dlgm-mount .ai-md-content strong, .dlgm-mount .ai-md-content em { color: #2b2318; }
+.dlgm-mount .inline-ai-dig-footer { display: none; }
+.dlgm-mount .sparkle-loader .sparkle-text { color: #6b5f45; }
+.dlgm-mount .chat-empty-state { padding: 0 0 16px; align-items: stretch; }
+.dlgm-mount .chat-empty-state > .material-icons, .dlgm-mount .chat-empty-text { display: none; }
+.dlgm-mount .chat-suggestions { margin-top: 0; }
+.dlgm-mount .chat-suggestion-chip, .dlgm-mount .chat-followup-chip { min-height: 40px; padding: 8px 16px; border: 0; border-radius: 21px; background: #ece8d9; color: #2b2318; font: 600 14px/1.4 "Fredoka", "Nunito", sans-serif; }
+.dlgm-mount .chat-suggestion-chip:hover, .dlgm-mount .chat-followup-chip:hover { background: #e2dcc8; }
+.dlgm-mount .chat-followups { padding: 0 0 16px; }
+.dlgm-mount .chat-followups-label { color: #6b5f45; }
+.dlgm-mount .chat-history { padding: 0 0 16px; }
+.dlgm-mount .chat-msg { font-size: 14px; line-height: 1.55; }
+.dlgm-mount .chat-msg.bot, .dlgm-mount .chat-msg.bot strong, .dlgm-mount .chat-msg.bot em { background: #ece8d9; border: 0; color: #2b2318; }
+.dlgm-mount .chat-msg.bot strong, .dlgm-mount .chat-msg.bot em { background: none; }
+.dlgm-mount .chat-msg.user { background: #be185d; box-shadow: none; }
+.dlgm-mount .chat-typing .sparkle-text { color: #6b5f45; }
+.dlgm-mount .chat-input-area { padding: 0; border-top: 0; }
+.dlgm-mount .chat-input-area textarea { background: #ece8d9; border: 0; color: #2b2318; font-size: 15px; }
+.dlgm-mount .chat-input-area textarea::placeholder { color: #6b5f45; }
+.dlgm-mount .chat-input-area .chat-send-btn { border-radius: 50%; background: #ece8d9; color: #6b5f45; box-shadow: none; }
+.dlgm-mount .chat-input-area .chat-send-btn.active { background: #be185d; color: #fff; }
 .dlgm-end { text-align: center; color: #a9b0c0; font: 700 16px/1.4 "Fredoka", "Nunito", sans-serif; margin-top: 24px; }
 
 /* split: landscape phone + desktop */
