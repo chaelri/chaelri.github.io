@@ -56,6 +56,66 @@ const MODEL_WHITELIST = new Set([
 const DEFAULT_MODEL = "gemini-3.1-flash-lite";
 const FALLBACK_MODEL = "gemini-3.5-flash-lite";
 
+// Hedged requests for the default model (2026-11-26). Benchmark through this
+// proxy, 5 runs each: 3.1-flash-lite median 1.3s but spikes to 12s;
+// flash-lite-latest median 1.2s; 3.5-flash-lite 4.1s; flash 5.7s; 3.5-flash 8.2s.
+// The slowness people feel is the spikes, so: if the default model hasn't
+// answered in HEDGE_MS, also ask HEDGE_MODEL and use whichever answers first
+// (the loser is aborted). Any error response launches FALLBACK_MODEL at once
+// (covers the 503 "high demand" case). Free tier, so a duplicate request only
+// costs quota, and only on slow calls.
+const HEDGE_MODEL = "gemini-flash-lite-latest";
+const HEDGE_MS = 3000;
+
+function hedgedCall(callGemini, primary, plainBody) {
+  return new Promise((resolve, reject) => {
+    const ctrls = [];
+    let done = false, pending = 0, lastRes = null, lastErr = null, fellBack = false, hedged = false;
+    const finish = (r) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      ctrls.forEach((c) => c.abort());
+      resolve(r);
+    };
+    const settleIfIdle = () => {
+      if (done || pending > 0 || !hedged) return;
+      done = true;
+      lastRes ? resolve(lastRes) : reject(lastErr);
+    };
+    const launch = (m, body) => {
+      const ac = new AbortController();
+      ctrls.push(ac);
+      pending++;
+      callGemini(m, body, ac.signal).then(
+        (r) => {
+          pending--;
+          if (done) return;
+          if (r.ok) { ctrls.splice(ctrls.indexOf(ac), 1); return finish(r); }
+          console.warn(`${m} returned ${r.status}`);
+          lastRes = r;
+          if (!fellBack) { fellBack = true; hedged = true; launch(FALLBACK_MODEL, plainBody); }
+          settleIfIdle();
+        },
+        (e) => {
+          pending--;
+          if (done) return;
+          lastErr = e;
+          if (!fellBack) { fellBack = true; hedged = true; launch(FALLBACK_MODEL, plainBody); }
+          settleIfIdle();
+        }
+      );
+    };
+    launch(primary);
+    const timer = setTimeout(() => {
+      if (done || hedged) return;
+      hedged = true;
+      console.warn(`${primary} slow (>${HEDGE_MS}ms), hedging on ${HEDGE_MODEL}`);
+      launch(HEDGE_MODEL, plainBody);
+    }, HEDGE_MS);
+  });
+}
+
 app.post("/", async (req, res) => {
   try {
     const { task, stream, model: rawModel, ...geminiBody } = req.body || {};
@@ -83,25 +143,33 @@ app.post("/", async (req, res) => {
     geminiBody.generationConfig = baseGenConfig;
 
     const endpoint = stream ? "streamGenerateContent?alt=sse&" : "generateContent?";
-    const callGemini = (m, body = geminiBody) =>
+    const callGemini = (m, body = geminiBody, signal) =>
       fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${m}:${endpoint}key=${process.env.GEMINI_API_KEY}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
+          signal,
         }
       );
+    // 3.5 / -latest models may reject thinkingBudget (400 INVALID_ARGUMENT), so
+    // backups go without it.
+    const { thinkingConfig: _tc, ...plainGenConfig } = geminiBody.generationConfig || {};
+    const plainBody = { ...geminiBody, generationConfig: plainGenConfig };
 
-    let r = await callGemini(model);
-    // Google sometimes returns 503 "high demand" for one model while others
-    // are fine (2026-11-25: 3.1-flash-lite down, 3.5-flash-lite up). Retry
-    // once on a fallback model so apps keep working.
-    if (r.status === 503 && model !== FALLBACK_MODEL) {
-      console.warn(`${model} returned 503, retrying on ${FALLBACK_MODEL}`);
-      // 3.5 models reject thinkingBudget (400 INVALID_ARGUMENT), so drop it.
-      const { thinkingConfig, ...genConfig } = geminiBody.generationConfig || {};
-      r = await callGemini(FALLBACK_MODEL, { ...geminiBody, generationConfig: genConfig });
+    let r;
+    if (isDefaultModel) {
+      r = await hedgedCall(callGemini, model, plainBody);
+    } else {
+      r = await callGemini(model);
+      // Google sometimes returns 503 "high demand" for one model while others
+      // are fine (2026-11-25: 3.1-flash-lite down, 3.5-flash-lite up). Retry
+      // once on a fallback model so apps keep working.
+      if (r.status === 503 && model !== FALLBACK_MODEL) {
+        console.warn(`${model} returned 503, retrying on ${FALLBACK_MODEL}`);
+        r = await callGemini(FALLBACK_MODEL, plainBody);
+      }
     }
 
     if (stream) {
