@@ -70,6 +70,11 @@ figure{display:flex;flex-direction:column;gap:16px}
 .C .s2{top:calc(var(--p)*658);left:calc(var(--p)*200)!important}
 .C .tag{top:calc(var(--p)*860);color:var(--gold)}
 
+html.still{zoom:1!important}
+html.still .page{padding:0;min-height:0;display:block}
+html.still h1,html.still figcaption,html.still figure:not(.pick){display:none}
+html.still .grid{display:block;max-width:none}
+html.still .poster{width:1080px;border-radius:0}
 .tex{mix-blend-mode:soft-light;opacity:.5;pointer-events:none}
 </style>
 </head>
@@ -228,6 +233,7 @@ const G='var(--gold)',C='var(--cream)',R='var(--red)',PN='var(--pine)';
   el('rect',{x:-6,y:-12,width:12,height:12,fill:'#173F2E'},tg);
   star(tg,0,76,30,12,5,R);
 })();
+{const q=new URLSearchParams(location.search).get('still');if(q){document.documentElement.classList.add('still');document.querySelector(`[data-take="${q}"]`).classList.add('pick')}}
 </script>
 </body>
 </html>
