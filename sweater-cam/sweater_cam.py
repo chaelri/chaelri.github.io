@@ -171,6 +171,7 @@ def main():
     ap.add_argument("--snapshot", help="process one frame, save before|after to this path, exit")
     ap.add_argument("--image", help="use this image file instead of the camera (with --snapshot)")
     ap.add_argument("--paint-only", action="store_true", help="old mode: only darken your own clothes")
+    ap.add_argument("--photo", action="store_true", help="old mode: paste the sweater photo on the shoulders")
     args = ap.parse_args()
 
     if args.image:
@@ -197,7 +198,9 @@ def main():
         base_options=mp_python.BaseOptions(model_asset_path=HAND_MODEL),
         running_mode=vision.RunningMode.VIDEO, num_hands=2))
 
-    tryon = None if args.paint_only else TryOn(SWEATER)
+    tryon = TryOn(SWEATER) if args.photo else None
+    from worn import Worn
+    worn = None if (args.paint_only or args.photo) else Worn(SWEATER, frame.shape)
     small_w = 512
     small_h = int(h * small_w / w)
     tex = knit_texture(h, w)
@@ -234,25 +237,32 @@ def main():
                 rgb = cv2.cvtColor(cv2.resize(frame, (small_w, small_h)), cv2.COLOR_BGR2RGB)
                 res = seg.segment_for_video(mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb), ts)
                 conf = [np.squeeze(m.numpy_view()).astype(np.float32) for m in res.confidence_masks]
-                if (sleeves or tryon) and (frames % 3 == 1 or hands_cache is None):
+                if worn is not None:
+                    if frames % 3 == 1 or hands_cache is None:
+                        hands_cache = hand_mask(hands_lm, rgb, ts, (small_h, small_w))
+                    full = [cv2.resize(c, (w, h), interpolation=cv2.INTER_LINEAR) for c in conf + [hands_cache]]
+                    prev = full if prev is None else [0.6 * a + 0.4 * b for a, b in zip(full, prev)]
+                    out = worn.render(frame, prev[:6], prev[6])
+                elif (sleeves or tryon) and (frames % 3 == 1 or hands_cache is None):
                     hands_cache = hand_mask(hands_lm, rgb, ts, (small_h, small_w))
-                hands = hands_cache if (sleeves or tryon) else 0.0
-                m = build_mask(conf, sleeves, hands)
-                m = cv2.resize(m, (w, h), interpolation=cv2.INTER_LINEAR)
-                prev = m if prev is None else 0.55 * m + 0.45 * prev  # less flicker
-                soft = cv2.GaussianBlur(prev, (0, 0), 3)
-                soft = np.clip((soft - 0.25) / 0.3, 0, 1)  # tighten edge, keep feather
-                out = paint_sweater(frame, soft, tex)
-                if tryon and (frames % 2 == 1 or pts_cache is None):
-                    pts_cache = tryon.shoulders(rgb, ts, w, h)
-                pts = pts_cache if tryon else None
-                if pts is not None:
-                    keep = np.maximum(np.maximum(conf[FACE_SKIN], conf[HAIR]), hands)
-                    keep = cv2.resize(keep, (w, h), interpolation=cv2.INTER_LINEAR)
-                    keep = np.clip((cv2.GaussianBlur(keep, (0, 0), 2) - 0.3) / 0.4, 0, 1)
-                    skin = cv2.resize(conf[BODY_SKIN], (w, h), interpolation=cv2.INTER_LINEAR)
-                    skin = np.clip((cv2.GaussianBlur(skin, (0, 0), 2) - 0.3) / 0.4, 0, 1)
-                    out = tryon.render(out, pts, keep, skin)
+                if worn is None:
+                    hands = hands_cache if (sleeves or tryon) else 0.0
+                    m = build_mask(conf, sleeves, hands)
+                    m = cv2.resize(m, (w, h), interpolation=cv2.INTER_LINEAR)
+                    prev = m if prev is None else 0.55 * m + 0.45 * prev  # less flicker
+                    soft = cv2.GaussianBlur(prev, (0, 0), 3)
+                    soft = np.clip((soft - 0.25) / 0.3, 0, 1)  # tighten edge, keep feather
+                    out = paint_sweater(frame, soft, tex)
+                    if tryon and (frames % 2 == 1 or pts_cache is None):
+                        pts_cache = tryon.shoulders(rgb, ts, w, h)
+                    pts = pts_cache if tryon else None
+                    if pts is not None:
+                        keep = np.maximum(np.maximum(conf[FACE_SKIN], conf[HAIR]), hands)
+                        keep = cv2.resize(keep, (w, h), interpolation=cv2.INTER_LINEAR)
+                        keep = np.clip((cv2.GaussianBlur(keep, (0, 0), 2) - 0.3) / 0.4, 0, 1)
+                        skin = cv2.resize(conf[BODY_SKIN], (w, h), interpolation=cv2.INTER_LINEAR)
+                        skin = np.clip((cv2.GaussianBlur(skin, (0, 0), 2) - 0.3) / 0.4, 0, 1)
+                        out = tryon.render(out, pts, keep, skin)
 
             if args.snapshot:
                 cv2.imwrite(args.snapshot, np.hstack([frame, out]))
