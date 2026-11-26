@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Shepherd Staff Posters v4</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Jost:wght@500&family=Playball&display=swap" rel="stylesheet">
+<style>
+:root{--page:#EFE8DC;--ink:#2A1D18;--mute:#5E5048;--sans:system-ui,-apple-system,'Segoe UI',sans-serif;
+  --serif:'Cinzel','Trajan Pro',Georgia,serif;--script:'Playball','Snell Roundhand',cursive}
+*{box-sizing:border-box;margin:0}
+html{background:var(--page)}
+@media(min-width:1024px){html{zoom:.8}}
+body{background:var(--page);color:var(--ink);font:400 16px/1.4 var(--sans)}
+.page{min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:64px 16px}
+@media(min-width:1024px){.page{min-height:calc(100vh / .8)}}
+h1{font:700 24px/1.2 var(--sans);letter-spacing:-.01em;text-transform:lowercase;text-align:center;margin-bottom:40px}
+.grid{display:grid;gap:40px;grid-template-columns:1fr;max-width:1400px;margin:0 auto;width:100%}
+@media(min-width:1024px){h1{font-size:38px}.grid{grid-template-columns:repeat(3,1fr)}}
+figure{display:flex;flex-direction:column;gap:16px}
+.poster{container-type:inline-size;aspect-ratio:4/5;border-radius:13px;overflow:hidden;position:relative;background:#111}
+.cap{display:grid;gap:8px}
+.cap b{font:700 24px/1 var(--sans);text-transform:lowercase}
+.cap span{color:var(--mute);max-width:44ch}
+
+/* ---------- artwork, 1080 x 1350 base ---------- */
+.art{--p:calc(100cqw / 1080);--gold:#EBC97C;--white:#FFFFFF;position:absolute;inset:0;overflow:hidden;font-family:var(--serif);color:var(--white);
+  background-repeat:no-repeat}
+.ab{position:absolute;white-space:nowrap;line-height:1;text-shadow:0 calc(var(--p)*2) calc(var(--p)*16) rgba(0,0,0,.55)}
+.mid{left:0;right:0;text-align:center}
+.lock{display:flex;align-items:center;gap:calc(var(--p)*24);color:var(--white)}
+.mid.lock{justify-content:center}
+.lock i{display:block;width:calc(var(--p)*80);height:calc(var(--p)*80);background:currentColor;-webkit-mask:url(ccf-logo.png) center/contain no-repeat;mask:url(ccf-logo.png) center/contain no-repeat}
+.lock span{font-family:'Futura','Jost',sans-serif;font-weight:500;font-size:calc(var(--p)*38);letter-spacing:.16em}
+.org{font-size:calc(var(--p)*61);font-weight:900;letter-spacing:.02em}
+.thx{font-size:calc(var(--p)*38);font-weight:500;letter-spacing:.3em;color:var(--gold)}
+.ttl{line-height:.9}
+.scr{display:block;font-family:var(--script);font-size:calc(var(--p)*160);letter-spacing:-.01em}
+.tag{font-family:var(--script);font-size:calc(var(--p)*38);line-height:1.2;color:var(--gold)}
+.when{left:calc(var(--p)*96);bottom:calc(var(--p)*96);display:flex;flex-direction:column;gap:calc(var(--p)*16);line-height:1}
+.when b{font-size:calc(var(--p)*38);font-weight:700;letter-spacing:.04em}
+.when span{font-size:calc(var(--p)*24);font-weight:700;letter-spacing:.12em;color:var(--gold)}
+
+/* A: tree on the right, text on the dark bokeh */
+.A{background-image:linear-gradient(90deg,rgba(6,8,10,.92) 0%,rgba(6,8,10,.78) 48%,rgba(6,8,10,.25) 80%,rgba(6,8,10,0) 100%),
+  linear-gradient(0deg,rgba(6,8,10,.7) 0%,rgba(6,8,10,0) 30%),url(photos/724375.jpg);background-size:cover,cover,cover;background-position:center,center,62% 40%}
+.A .ab:not(.when){left:calc(var(--p)*96)}
+.A .lock{top:calc(var(--p)*96)}
+.A .org{top:calc(var(--p)*380)}
+.A .thx{top:calc(var(--p)*473)}
+.A .ttl{top:calc(var(--p)*527)}
+.A .ttl .scr+.scr{padding-left:calc(var(--p)*120)}
+.A .tag{top:calc(var(--p)*855)}
+
+/* two-tier tagline */
+.tag2{display:flex;flex-direction:column;gap:calc(var(--p)*12);line-height:1}
+.tag2 .t1{font-family:var(--script);font-size:calc(var(--p)*61);color:var(--white)}
+.tag2 .t2{font-family:var(--serif);font-weight:700;font-size:calc(var(--p)*38);letter-spacing:.16em;color:var(--gold)}
+.A .tag2{top:calc(var(--p)*843)}
+
+/* ribbon banner */
+.rib{position:absolute;left:calc(var(--p)*150);right:calc(var(--p)*150);height:calc(var(--p)*160);text-shadow:none}
+.rib .tl,.rib .tr{position:absolute;top:calc(var(--p)*28);width:calc(var(--p)*130);height:calc(var(--p)*132);background:var(--rib2);clip-path:polygon(0 0,100% 0,100% 100%,0 100%,28% 50%)}
+.rib .tl{left:calc(var(--p)*-80)}
+.rib .tr{right:calc(var(--p)*-80);transform:scaleX(-1)}
+.rib .fl,.rib .fr{position:absolute;top:calc(var(--p)*132);width:calc(var(--p)*30);height:calc(var(--p)*28);background:var(--rib3)}
+.rib .fl{left:0;clip-path:polygon(0 0,100% 0,100% 100%)}
+.rib .fr{right:0;clip-path:polygon(0 0,100% 0,0 100%)}
+.rib .face{position:absolute;inset:0 0 calc(var(--p)*28) 0;background:var(--rib1);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(var(--p)*8)}
+.rib .t1{font-family:var(--script);font-size:calc(var(--p)*38);color:var(--ribink)}
+.rib .t2{font-family:var(--serif);font-weight:700;font-size:calc(var(--p)*38);letter-spacing:.12em;color:var(--ribink2)}
+.cut{position:absolute;display:block;filter:drop-shadow(0 calc(var(--p)*18) calc(var(--p)*22) rgba(0,0,0,.5))}
+.tex{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+
+/* B: red, Mary + gifts, cream ribbon */
+.B{background:#7A0F17;--rib1:#F6EBD3;--rib2:#D9C59B;--rib3:#A8916A;--ribink:#7A0F17;--ribink2:#7A0F17}
+.B .mid{left:0;right:0;text-align:center}
+.B .lock{top:calc(var(--p)*96);justify-content:center;left:0;right:0}
+.B .org{top:calc(var(--p)*196)}
+.B .thx{top:calc(var(--p)*289)}
+.B .ttl{top:calc(var(--p)*340)}
+.B .rib{top:calc(var(--p)*648)}
+.B .glory{top:calc(var(--p)*840);font-family:var(--script);font-size:calc(var(--p)*38);color:var(--gold)}
+.B .mary{left:calc(var(--p)*660);top:calc(var(--p)*848);height:calc(var(--p)*560)}
+.B .gifts{left:calc(var(--p)*600);top:calc(var(--p)*1168);width:calc(var(--p)*300)}
+
+/* C: green, garland, Bible + gifts, red ribbon */
+.C{background:radial-gradient(ellipse at 50% 55%,#1C4B34 0%,#123524 55%,#0A2116 100%);--rib1:#A3161F;--rib2:#7A0F17;--rib3:#4E0A0F;--ribink:#FBF1DC;--ribink2:#EBC97C}
+.C .mid{left:0;right:0;text-align:center}
+.C .garland{left:calc(var(--p)*-20);top:calc(var(--p)*-196);width:calc(var(--p)*1120);filter:drop-shadow(0 calc(var(--p)*10) calc(var(--p)*14) rgba(0,0,0,.5))}
+.C .lock{top:calc(var(--p)*288);justify-content:center;left:0;right:0}
+.C .org{top:calc(var(--p)*400)}
+.C .thx{top:calc(var(--p)*493)}
+.C .ttl{top:calc(var(--p)*540)}
+.C .rib{top:calc(var(--p)*848);left:calc(var(--p)*170);right:calc(var(--p)*170)}
+.C .gifts{left:calc(var(--p)*790);top:calc(var(--p)*1030);width:calc(var(--p)*260)}
+.C .bible{left:calc(var(--p)*560);top:calc(var(--p)*1150);width:calc(var(--p)*480)}
+
+html.still{zoom:1!important}
+html.still .page{padding:0;min-height:0;display:block}
+html.still h1,html.still figcaption,html.still figure:not(.pick){display:none}
+html.still .grid{display:block;max-width:none}
+html.still .poster{width:1080px;border-radius:0}
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>shepherd staff christmas party, v4</h1>
+  <div class="grid">
+
+    <figure data-take="a">
+      <div class="poster"><div class="art A">
+        <div class="ab lock"><i role="img" aria-label="CCF"></i><span>EAST ORTIGAS</span></div>
+        <div class="ab org">SHEPHERD STAFF</div>
+        <div class="ab thx">THANKSGIVING</div>
+        <div class="ab ttl"><span class="scr">Christmas</span><span class="scr">Party</span></div>
+        <div class="ab tag2"><span class="t1">Thank God for His</span><span class="t2">GRACE &amp; FAITHFULNESS</span></div>
+        <div class="ab when"><b>DECEMBER 4, 2026</b><span>FRIDAY · 1:00 – 6:00 PM</span><span>MAIN HALL</span></div>
+      </div></div>
+      <figcaption class="cap"><b>a · the tree</b><span>Real tree with gold baubles on the right, text on the dark bokeh.</span></figcaption>
+    </figure>
+
+    <figure data-take="b">
+      <div class="poster"><div class="art B">
+        <svg class="tex" viewBox="0 0 1080 1350" preserveAspectRatio="none" aria-hidden="true"><defs><filter id="gb"><feTurbulence type="fractalNoise" baseFrequency=".8" numOctaves="2" seed="3" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/></filter><pattern id="latb" width="72" height="72" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><path d="M0 0H72M0 0V72" stroke="#86141C" stroke-width="2" fill="none"/><rect x="33" y="33" width="6" height="6" fill="#86141C"/></pattern></defs><rect width="1080" height="1350" fill="url(#latb)"/><rect width="1080" height="1350" filter="url(#gb)" opacity=".35" style="mix-blend-mode:soft-light"/></svg>
+        <img class="cut mary" src="cut/6128762.png" alt="">
+        <div class="ab lock"><i role="img" aria-label="CCF"></i><span>EAST ORTIGAS</span></div>
+        <div class="ab mid org">SHEPHERD STAFF</div>
+        <div class="ab mid thx">THANKSGIVING</div>
+        <div class="ab mid ttl"><span class="scr">Christmas</span><span class="scr">Party</span></div>
+        <div class="rib"><i class="tl"></i><i class="tr"></i><i class="fl"></i><i class="fr"></i><div class="face"><span class="t1">Thank God for His</span><span class="t2">GRACE &amp; FAITHFULNESS</span></div></div>
+        <div class="ab mid glory">To God be all the glory!</div>
+        <div class="ab when"><b>DECEMBER 4, 2026</b><span>FRIDAY · 1:00 – 6:00 PM</span><span>MAIN HALL</span></div>
+      </div></div>
+      <figcaption class="cap"><b>b · the manger</b><span>Red like Tito Frank's sample: ribbon banner for the verse, "To God be all the glory", Mary praying, cut out of a real photo.</span></figcaption>
+    </figure>
+
+    <figure data-take="c">
+      <div class="poster"><div class="art C">
+        <svg class="tex" viewBox="0 0 1080 1350" preserveAspectRatio="none" aria-hidden="true"><defs><filter id="gc"><feTurbulence type="fractalNoise" baseFrequency=".8" numOctaves="2" seed="3" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/></filter></defs><rect width="1080" height="1350" filter="url(#gc)" opacity=".35" style="mix-blend-mode:soft-light"/></svg>
+        <img class="cut garland" src="cut/290220.png" alt="">
+        <img class="cut gifts" src="cut/6087540.png" alt="">
+        <img class="cut bible" src="cut/6186376.png" alt="">
+        <div class="ab lock"><i role="img" aria-label="CCF"></i><span>EAST ORTIGAS</span></div>
+        <div class="ab mid org">SHEPHERD STAFF</div>
+        <div class="ab mid thx">THANKSGIVING</div>
+        <div class="ab mid ttl"><span class="scr">Christmas</span><span class="scr">Party</span></div>
+        <div class="rib"><i class="tl"></i><i class="tr"></i><i class="fl"></i><i class="fr"></i><div class="face"><span class="t1">Thank God for His</span><span class="t2">GRACE &amp; FAITHFULNESS</span></div></div>
+        <div class="ab when"><b>DECEMBER 4, 2026</b><span>FRIDAY · 1:00 – 6:00 PM</span><span>MAIN HALL</span></div>
+      </div></div>
+      <figcaption class="cap"><b>c · the word</b><span>Thanksgiving: an open Bible and gifts under a candy-cane garland, red ribbon for the verse.</span></figcaption>
+    </figure>
+
+  </div>
+</div>
+<script>
+{const q=new URLSearchParams(location.search).get('still');if(q){document.documentElement.classList.add('still');document.querySelector(`[data-take="${q}"]`).classList.add('pick')}}
+</script>
+</body>
+</html>
