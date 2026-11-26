@@ -131,9 +131,18 @@
     if (h) { const el = document.createElement("div"); el.className = "dlgm-head"; el.textContent = h; log.appendChild(el); }
     const w = document.createElement("div");
     w.className = "dlgm-vw";
-    w.innerHTML = `<div class="dlgm-box"></div><div class="dlgm-acts"><button type="button" class="dlgm-act" data-act="context">context</button><button type="button" class="dlgm-act" data-act="ask">ask</button></div><div class="dlgm-mount"></div>`;
+    w.innerHTML = `<div class="dlgm-box"></div><div class="dlgm-mount"></div>`;
     const box = w.querySelector(".dlgm-box");
     box.appendChild(verseHTML(v, quoteStack));
+    // Context / Ask stay tucked away behind a faint grab line at the bottom of
+    // the lit box; tapping it opens the row inside the box (Charlie, 2026-11-26).
+    box.insertAdjacentHTML("beforeend", `<div class="dlgm-acts" hidden><button type="button" class="dlgm-act" data-act="context">context</button><button type="button" class="dlgm-act" data-act="ask">ask</button></div><button type="button" class="dlgm-grip" aria-label="Context and ask" aria-expanded="false"><i></i></button>`);
+    box.querySelector(".dlgm-grip").addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (i !== f) return focus(i);
+      setActs(w, i, box.querySelector(".dlgm-acts").hidden);
+    });
+    box.querySelector(".dlgm-acts").addEventListener("click", (e) => e.stopPropagation());
     log.appendChild(w);
     boxes.push(box);
     wraps.push(w);
@@ -163,7 +172,10 @@
     wraps.forEach((w, j) => {
       w.classList.toggle("lit", j === i);
       // Moving on closes any Context / Ask left open on another verse.
-      if (j !== i && w.querySelector(".dlgm-mount").dataset.k) closeMount(w, j);
+      if (j !== i) {
+        if (w.querySelector(".dlgm-mount").dataset.k) closeMount(w, j);
+        if (!w.querySelector(".dlgm-acts").hidden) setActs(w, j, false, true);
+      }
     });
     const n = i + 1, total = data.verses.length;
     $("dlgmSect").textContent = headingFor(i);
@@ -201,8 +213,39 @@
   // pops out of it; closes back into it (Charlie picked this, 2026-11-26).
   // Web Animations API so it plays with the OS reduce-motion setting on.
   function tailX(w, act) {
+    // Buttons sit inside the box (their offsetParent); the mount sits beside it.
     const btn = w.querySelector(`.dlgm-act[data-act="${act}"]`), m = w.querySelector(".dlgm-mount");
-    return btn.offsetLeft + btn.offsetWidth / 2 - m.offsetLeft;
+    return btn.offsetParent.offsetLeft + btn.offsetLeft + btn.offsetWidth / 2 - m.offsetLeft;
+  }
+  // Open/close the Context / Ask row inside the box. The row's height grows
+  // first with the pills held invisible, then they pop in once (no double
+  // render); closing fades them, then shrinks the row. Web Animations API.
+  async function setActs(w, i, open, instant) {
+    const acts = w.querySelector(".dlgm-acts"), grip = w.querySelector(".dlgm-grip");
+    if (acts._busy && !instant) return;
+    acts.getAnimations({ subtree: true }).forEach((a) => a.cancel());
+    grip.classList.toggle("open", open);
+    grip.setAttribute("aria-expanded", open);
+    const pills = [...acts.children];
+    if (instant) { acts.hidden = !open; return; }
+    acts._busy = true;
+    if (open) {
+      acts.hidden = false;
+      const h = acts.offsetHeight;
+      pills.forEach((p, k) => p.animate([{ opacity: 0, transform: "translateY(8px) scale(.8)" }, { opacity: 1, transform: "none" }],
+        { duration: 320, delay: 160 + k * 60, easing: "cubic-bezier(.2,1.3,.4,1)", fill: "backwards" }));
+      await acts.animate([{ height: "0px", marginTop: "0px" }, { height: `${h}px`, marginTop: "16px" }],
+        { duration: 300, easing: "cubic-bezier(.2,.8,.2,1)" }).finished.catch(() => {});
+    } else {
+      if (w.querySelector(".dlgm-mount").dataset.k) closeMount(w, i);
+      const h = acts.offsetHeight;
+      await Promise.all(pills.map((p) => p.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 120, fill: "forwards" }).finished.catch(() => {})));
+      await acts.animate([{ height: `${h}px`, marginTop: "16px" }, { height: "0px", marginTop: "0px" }],
+        { duration: 240, easing: "cubic-bezier(.4,0,.2,1)", fill: "forwards" }).finished.catch(() => {});
+      acts.hidden = true;
+      acts.getAnimations({ subtree: true }).forEach((a) => a.cancel());
+    }
+    acts._busy = false;
   }
   async function closeMount(w, i) {
     const m = w.querySelector(".dlgm-mount"), k = m.dataset.k, card = m.firstElementChild;

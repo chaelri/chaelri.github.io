@@ -11805,13 +11805,19 @@ body.light .dlgm-box.old .dlgm-name { color: #be185d; }
 @keyframes dlgmPop { from { transform: translateY(16px) scale(.96); opacity: 0; } }
 .dlgm-c { opacity: 0; }
 .dlgm-c.on { opacity: 1; }
-/* Context / Ask: solid name-pink pills, text only, under the lit verse (Charlie, 2026-11-26).
-   White on #be185d 6:1; pressed = white pill, pink text. */
-.dlgm-acts { display: none; gap: 8px; margin: 8px 0 0 8px; }
-.dlgm-vw.lit .dlgm-acts { display: flex; }
+/* Context / Ask: hidden behind a faint grab line at the bottom of the lit box; tapping it
+   opens a centred row of solid name-pink pills inside the box (Charlie picked T2, 2026-11-26).
+   White on #be185d 6:1; pressed = white pill, pink text. Animation lives in 13-dialog.js. */
+.dlgm-acts { display: flex; justify-content: center; gap: 8px; margin-top: 16px; overflow: hidden; }
+.dlgm-acts[hidden], .dlgm-box.old .dlgm-acts { display: none; }
+.dlgm-grip { position: relative; display: block; width: 100%; height: 24px; margin: 8px 0 -16px; padding: 0; border: 0; background: none; cursor: pointer; }
+.dlgm-grip i { position: absolute; left: 50%; top: 50%; width: 40px; height: 4px; margin: -2px 0 0 -20px; border-radius: 2px; background: rgba(107,95,69,.35); transition: width .3s, margin .3s, background .3s; }
+.dlgm-grip.open i { width: 24px; margin-left: -12px; background: rgba(107,95,69,.6); }
+.dlgm-grip:focus-visible { outline: 3px solid #be185d; outline-offset: -3px; border-radius: 8px; }
+.dlgm-box.old .dlgm-grip { display: none; }
 .dlgm-act { height: 40px; padding: 0 16px; border-radius: 999px; border: 0; background: #be185d; color: #fff; font: 700 15px/1 "Fredoka", "Nunito", sans-serif; display: inline-flex; align-items: center; cursor: pointer; }
 .dlgm-act.on { background: #fff; color: #be185d; }
-.dlgm-act:focus-visible { outline: 3px solid #be185d; outline-offset: 2px; }
+.dlgm-act:focus-visible { outline: 3px solid #fff; outline-offset: -5px; }
 .dlgm-mount:not(:empty) { padding: 16px 0 8px; cursor: auto; user-select: text; -webkit-user-select: text; }
 /* The real Quick Context card and Ask chat, restyled as a white speech bubble whose
    tail sits under the pressed button (--tail set in 13-dialog.js). No Dig Deeper here.
