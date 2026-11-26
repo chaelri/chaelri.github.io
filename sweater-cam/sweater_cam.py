@@ -63,8 +63,16 @@ def build_mask(conf, sleeves, hands):
     skin = conf[BODY_SKIN].copy()
     if len(rows):
         top, bottom = rows[0], rows[-1]
-        collar = int(bottom + 0.30 * (bottom - top))  # crew neck just under the jaw
-        skin[: max(collar, 0)] = 0
+        cols = np.where(face.any(axis=0))[0]
+        fh, fw = bottom - top, cols[-1] - cols[0]
+        cx = (cols[0] + cols[-1]) // 2
+        skin[:bottom] = 0  # head stays as is
+        # crew neck: keep a rounded neck opening under the chin, cover the rest
+        neck = np.zeros_like(skin)
+        cv2.ellipse(neck, (int(cx), int(bottom)), (int(fw * 0.34), int(fh * 0.38)),
+                    0, 0, 360, 1.0, -1)
+        neck = cv2.GaussianBlur(neck, (0, 0), max(fw * 0.04, 1))
+        skin *= 1.0 - neck
     # no face found: don't guess, leave skin alone
     else:
         skin[:] = 0
@@ -89,7 +97,7 @@ def main():
     ap.add_argument("--width", type=int, default=1280)
     ap.add_argument("--height", type=int, default=720)
     ap.add_argument("--fps", type=int, default=30)
-    ap.add_argument("--sleeves", action="store_true", help="also cover bare arms (long sleeves)")
+    ap.add_argument("--no-sleeves", dest="sleeves", action="store_false", help="only recolour clothes, leave bare arms")
     ap.add_argument("--no-vcam", action="store_true", help="preview only, don't start the virtual camera")
     ap.add_argument("--no-preview", action="store_true", help="no preview window")
     ap.add_argument("--snapshot", help="process one frame, save before|after to this path, exit")
