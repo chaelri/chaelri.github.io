@@ -593,3 +593,32 @@
   applyFlow();
   applyAlign();
 })();
+
+// Phones: the reader dock stays tucked off the right edge until the pink tab is tapped.
+// It tucks again on a tap outside it, on scroll, or after 4s without a tap on it.
+(() => {
+  const tab = document.getElementById("dockTab");
+  const dock = document.getElementById("readerDock");
+  if (!tab || !dock) return;
+  const phone = window.matchMedia("(max-width: 1023px)");
+  let idle;
+  const arm = () => { clearTimeout(idle); idle = setTimeout(tuck, 4000); };
+  function tuck() {
+    clearTimeout(idle);
+    document.body.classList.remove("dock-open");
+    tab.setAttribute("aria-expanded", "false");
+  }
+  function show() {
+    document.body.classList.add("dock-open");
+    tab.setAttribute("aria-expanded", "true");
+    arm();
+  }
+  tab.addEventListener("click", (e) => { e.stopPropagation(); show(); });
+  dock.addEventListener("pointerdown", () => { if (document.body.classList.contains("dock-open")) arm(); });
+  document.addEventListener("pointerdown", (e) => {
+    if (!phone.matches || !document.body.classList.contains("dock-open")) return;
+    if (e.target.closest("#readerDock, #dockTab")) return;
+    tuck();
+  }, true);
+  window.addEventListener("scroll", () => { if (document.body.classList.contains("dock-open")) tuck(); }, { passive: true, capture: true });
+})();

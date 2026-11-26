@@ -11845,3 +11845,13 @@ body.light .dlgm-box.old { background: #e6e0d2; color: #5c5139; }
 body.light .dlgm-box.old .dlgm-n { color: #be185d; }
 body.light .dlgm-box.old .quote-style, body.light .dlgm-box.old .quote-style-nested { color: #2b2318; }
 body.light .dlgm-act { background: #e6e0d2; color: #be185d; }
+/* phones: the dock tucks off the right edge; a thin pink tab brings it back (hides again on outside tap, scroll or 4s idle) */
+.dock-tab { display: none; }
+@media (max-width: 1023px) {
+  .dock-tab { display: grid; place-items: center end; position: fixed; z-index: 801; right: 0; bottom: 72px; width: 32px; height: 80px; padding: 0 4px 0 0; border: 0; background: transparent; cursor: pointer; transition: opacity .2s ease, bottom .2s ease; }
+  .dock-tab i { display: block; width: 6px; height: 56px; border-radius: 999px; background: #db2777; opacity: .85; }
+  .dock-tab:focus-visible { outline: 3px solid #db2777; outline-offset: -4px; }
+  .reader-dock[hidden] + .dock-tab, body.dock-open .dock-tab, body.verse-card-open .dock-tab, body.tts-sheet-open .dock-tab, body:has(.mt-sheet:not([hidden])) .dock-tab, body:has(.bc-sheet:not([hidden])) .dock-tab { opacity: 0; pointer-events: none; }
+  body.notes-open .dock-tab { bottom: calc(var(--notes-h, 50dvh) + var(--kb, 0px) + 72px); }
+  body:not(.dock-open) .reader-dock { transform: translateX(calc(100% + 40px)) !important; opacity: 0; pointer-events: none; }
+}
