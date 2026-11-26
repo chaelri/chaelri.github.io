@@ -70,12 +70,16 @@ figure{display:flex;flex-direction:column;gap:16px}
 .C .s2{top:calc(var(--p)*658);left:calc(var(--p)*200)!important}
 .C .tag{top:calc(var(--p)*860);color:var(--gold)}
 
-.tex{mix-blend-mode:soft-light;opacity:.5;pointer-events:none}
+.tex{mix-blend-mode:soft-light;opacity:.8;pointer-events:none}
 </style>
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
  <filter id="grain" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".8" numOctaves="2" seed="3" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/></filter>
+ <filter id="fib" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".012 .6" numOctaves="3" seed="9"/><feColorMatrix type="saturate" values="0"/></filter>
+ <filter id="spk" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".5" numOctaves="3" seed="21"/><feColorMatrix type="matrix" values="0 0 0 0 .13  0 0 0 0 .2  0 0 0 0 .36  24 0 0 0 -15.6"/></filter>
+ <pattern id="lat" width="72" height="72" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><path d="M0 0H72M0 0V72" stroke="#8C1A22" stroke-width="3" fill="none"/><rect x="33" y="33" width="6" height="6" fill="#8C1A22"/></pattern>
+ <pattern id="wrap" width="120" height="120" patternUnits="userSpaceOnUse"><polygon points="30,14 34,26 46,26 36,33 40,45 30,38 20,45 24,33 14,26 26,26" fill="#1D4C38"/><polygon points="90,70 96,80 90,90 84,80" fill="#1D4C38"/></pattern>
 </defs></svg>
 <div class="page">
   <h1>shepherd staff christmas party, 3 takes</h1>
@@ -91,7 +95,7 @@ figure{display:flex;flex-direction:column;gap:16px}
         <div class="ab mid scr s2">Party</div>
         <div class="ab mid tag">Thank God for His<br>grace and faithfulness</div>
         <div class="ab when"><b>DECEMBER 4, 2026</b><span>FRIDAY · 1:00 – 6:00 PM</span><span>MAIN HALL</span></div>
-        <svg class="tex" viewBox="0 0 1080 1350" aria-hidden="true"><rect width="1080" height="1350" filter="url(#grain)"/></svg>
+        <svg class="tex" viewBox="0 0 1080 1350" aria-hidden="true"><rect width="1080" height="1350" filter="url(#grain)"/><rect width="1080" height="1350" filter="url(#fib)" opacity=".5"/></svg>
       </div></div>
       <figcaption class="cap"><b>a · the tree</b><span>Closest to Tito Frank's sample: red, gold script, a ribbon banner for the verse line, a tree and a gift.</span></figcaption>
     </figure>
@@ -106,7 +110,7 @@ figure{display:flex;flex-direction:column;gap:16px}
         <div class="ab mid scr s2">Party</div>
         <div class="ab mid tag">Thank God for His grace and faithfulness</div>
         <div class="ab when"><b>DECEMBER 4, 2026</b><span>FRIDAY · 1:00 – 6:00 PM</span><span>MAIN HALL</span></div>
-        <svg class="tex" viewBox="0 0 1080 1350" aria-hidden="true"><rect width="1080" height="1350" filter="url(#grain)"/></svg>
+        <svg class="tex" viewBox="0 0 1080 1350" aria-hidden="true"><rect width="1080" height="1350" filter="url(#grain)"/><rect width="1080" height="1350" filter="url(#fib)" opacity=".5"/></svg>
       </div></div>
       <figcaption class="cap"><b>b · the star</b><span>Night sky, the star of Bethlehem and the stable. Joseph holds a shepherd's staff.</span></figcaption>
     </figure>
@@ -121,7 +125,7 @@ figure{display:flex;flex-direction:column;gap:16px}
         <div class="ab scr s2">Party</div>
         <div class="ab tag">Thank God for His<br>grace and faithfulness</div>
         <div class="ab when"><b>DECEMBER 4, 2026</b><span>FRIDAY · 1:00 – 6:00 PM</span><span>MAIN HALL</span></div>
-        <svg class="tex" viewBox="0 0 1080 1350" aria-hidden="true"><rect width="1080" height="1350" filter="url(#grain)"/></svg>
+        <svg class="tex" viewBox="0 0 1080 1350" aria-hidden="true"><rect width="1080" height="1350" filter="url(#grain)"/><rect width="1080" height="1350" filter="url(#fib)" opacity=".5"/></svg>
       </div></div>
       <figcaption class="cap"><b>c · the gift</b><span>The whole poster is a wrapped present: gold ribbon and bow on pine green.</span></figcaption>
     </figure>
@@ -139,6 +143,7 @@ const G='var(--gold)',C='var(--cream)',R='var(--red)',PN='var(--pine)';
 
 // ---------- A: tree ----------
 (()=>{const s=document.getElementById('art-a');
+  el('rect',{width:1080,height:1350,fill:'url(#lat)'},s);
   // ribbon banner behind the tagline
   P(s,'120,712 236,712 216,772 236,832 120,832 150,772','#C79A45');
   P(s,'960,712 844,712 864,772 844,832 960,832 930,772','#C79A45');
@@ -160,6 +165,7 @@ const G='var(--gold)',C='var(--cream)',R='var(--red)',PN='var(--pine)';
 
 // ---------- B: star + stable ----------
 (()=>{const s=document.getElementById('art-b');
+  el('rect',{width:1080,height:1350,filter:'url(#spk)',opacity:.7},s);
   // star of Bethlehem
   const g=el('g',{transform:'translate(540 190) scale(.85)'},s);
   P(g,'0,-130 14,-14 0,150 -14,-14',G);P(g,'-124,0 -12,-12 124,0 -12,12',G);
@@ -183,6 +189,7 @@ const G='var(--gold)',C='var(--cream)',R='var(--red)',PN='var(--pine)';
 
 // ---------- C: gift ----------
 (()=>{const s=document.getElementById('art-c');
+  el('rect',{width:1080,height:1350,fill:'url(#wrap)'},s);
   el('rect',{x:832,y:0,width:80,height:1350,fill:G},s);
   el('rect',{x:0,y:232,width:1080,height:80,fill:G},s);
   el('rect',{x:832,y:232,width:80,height:80,fill:'#C79A45'},s);
