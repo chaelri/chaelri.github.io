@@ -10085,19 +10085,26 @@ body.cfg-sheet-open.light .bc-picker-btn .material-symbols-outlined { color: rgb
   opacity: 0.7;
 }
 .ai-offline-msg { flex: 1 1 180px; }
+/* Solid name-pink pill, always one line (Charlie, 2026-11-26: the faint two-line
+   "Try / again" blob was unreadable). White on #be185d 6:1. */
 .ai-offline-retry {
+  flex: none;
   margin-left: auto;
+  height: 40px;
+  padding: 0 16px;
   border: none;
   border-radius: 999px;
-  padding: 6px 14px;
+  white-space: nowrap;
   font: inherit;
-  font-weight: 600;
-  font-size: 12px;
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 1;
   cursor: pointer;
-  color: var(--pink-ink);
-  background: rgba(219, 39, 119, 0.12);
+  color: #fff;
+  background: #be185d;
 }
-.ai-offline-retry:hover { background: rgba(219, 39, 119, 0.2); }
+.ai-offline-retry:hover { background: #a3154f; }
+.ai-offline-retry:focus-visible { outline: 3px solid #be185d; outline-offset: 2px; }
 .light .ai-offline-note {
   background: rgba(15, 23, 42, 0.04);
   border-color: rgba(15, 23, 42, 0.08);
@@ -11822,7 +11829,7 @@ body.light .dlgm-box.old .dlgm-name { color: #be185d; }
 /* The real Quick Context card and Ask chat, restyled as a second game-dialog box: navy like a
    read verse, a pink name tag on its top edge, ✕ top right, no Dig Deeper (Charlie picked
    this, 2026-11-26). #cfc8b4 on #283052 well over 7:1, white on #be185d 6:1. */
-.dlgm-mount > .inline-ai-card, .dlgm-mount > .verse-chat-wrapper { position: relative; margin: 0 8px; max-width: none; overflow: visible; background: #283052; border: 0; border-radius: 34px; padding: 32px 24px 24px; color: #cfc8b4; box-shadow: none; animation: none; }
+.dlgm-mount > .inline-ai-card, .dlgm-mount > .verse-chat-wrapper { position: relative; margin: 0; max-width: none; overflow: visible; background: #283052; border: 0; border-radius: 34px; padding: 32px 24px 24px; color: #cfc8b4; box-shadow: none; animation: none; }
 .dlgm-mount .ai-card-gradient { background: none; padding: 0; }
 .dlgm-mount .ai-card-header { margin: 0; padding: 0; height: 0; }
 .dlgm-mount .ai-card-label { position: absolute; left: 24px; top: -16px; height: 32px; padding: 0 16px; border-radius: 999px; background: #be185d; color: #fff; font: 700 15px/32px "Fredoka", "Nunito", sans-serif; letter-spacing: 0; text-transform: none; }
