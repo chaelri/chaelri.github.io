@@ -117,13 +117,12 @@ class AsyncAI:
             if r is None:
                 continue
             prev = self.result
-            if prev is not None and prev[0][0][2] == r[0][2]:
+            if prev is not None and prev[0][0][2] == r[0][2] and \
+                    abs(prev[0][0][0] - r[0][0]) + abs(prev[0][0][1] - r[0][1]) <= 4:
                 # blend with the previous result so folds settle instead of popping
                 old_box, old_img = prev[0]
-                dx, dy = int(old_box[0] - r[0][0]), int(old_box[1] - r[0][1])
-                M = np.float32([[1, 0, dx], [0, 1, dy]])
-                old = cv2.warpAffine(old_img, M, (r[0][2], r[0][2]), borderMode=cv2.BORDER_REPLICATE)
-                r = (r[0], (0.6 * r[1] + 0.4 * old).astype(np.uint8))
+                # only blend when the crop barely moved; a shifted blend smeared streaks
+                r = (r[0], (0.6 * r[1] + 0.4 * prev[0][1]).astype(np.uint8))
             self.result = (r, job[2])
 
     def _still(self, job, move_px=6.0, min_iou=0.96):

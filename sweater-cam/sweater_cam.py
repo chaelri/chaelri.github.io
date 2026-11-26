@@ -115,7 +115,12 @@ def finish(frame, up, mask, n):
     desp = f.copy()
     desp[..., 1] = np.minimum(f[..., 1], np.maximum(f[..., 0], f[..., 2]))
     f = f * (1 - ring) + desp * ring
-    sweater = up.astype(np.float32) + _GRAIN[n % 4][..., None]
+    # the edge of `up` still holds the real (light) room; spread the dark knit outward over it
+    # so the grown edge is black, not a white outline against the new background
+    dark = cv2.erode(up, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15, 15)))
+    wcore = np.clip((mask - 0.55) / 0.35, 0, 1)[..., None]
+    up = up.astype(np.float32) * wcore + dark.astype(np.float32) * (1 - wcore)
+    sweater = up + _GRAIN[n % 4][..., None]
     finish.alpha = a
     a = a[..., None]
     return (f * (1 - a) + sweater * a).clip(0, 255).astype(np.uint8)

@@ -48,7 +48,7 @@ class Worn:
             return self.geom
         top, chin = rows[0], rows[-1]
         fh, fw = chin - top, cols[-1] - cols[0]
-        g = np.array([(cols[0] + cols[-1]) / 2, chin + 0.04 * fh, 0.55 * fw, 0.22 * fh, fh], np.float32)
+        g = np.array([(cols[0] + cols[-1]) / 2, chin + 0.16 * fh, 0.58 * fw, 0.26 * fh, fh], np.float32)  # lower collar = neck room
         self.geom = g if self.geom is None else 0.5 * g + 0.5 * self.geom
         return self.geom
 
@@ -70,7 +70,7 @@ class Worn:
         top_layer = np.maximum(np.maximum(conf_full[FACE_SKIN], conf_full[HAIR]), hands)
         body = np.clip((person - top_layer - 0.35) / 0.3, 0, 1)
         # whatever you're wearing is always covered below the chin; bare skin only below the neckline
-        clothes = np.clip((conf_full[CLOTHES] + conf_full[OTHER] - 0.3) / 0.3, 0, 1) * (self.yy > ny - rise)
+        clothes = np.clip((conf_full[CLOTHES] + conf_full[OTHER] - 0.3) / 0.3, 0, 1) * (self.yy > ny - rise - 0.12 * fh)
         mask = np.maximum(body * below, clothes * (1 - top_layer))
         core = mask > 0.5  # the real body, used for shading
         # looser fit: a sweater sits wider than skin, mostly sideways (arms, flanks)
@@ -105,7 +105,7 @@ class Worn:
         d = self.yy - edge_y
         band = ((d > 0) & (d < band_h) & (np.abs(self.xx - cx) < rx * 1.05)).astype(np.float32)
         band = cv2.GaussianBlur(band, (0, 0), 1.0)
-        rib = 3.5 * self.ribs + 4.0 * np.clip(1 - d / band_h, 0, 1)  # rolled top edge catches light
+        rib = 2.0 * self.ribs + 1.5 * np.clip(1 - d / band_h, 0, 1)  # subtle roll; collar stays black
         seam = np.exp(-((d - band_h) ** 2) / (2 * 1.2 ** 2)) * -9.0  # dark seam under the band
         val = val + band * rib + seam * (np.abs(self.xx - cx) < rx * 1.05)
 
