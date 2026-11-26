@@ -105,5 +105,6 @@ class Worn:
         shadow = 1 - 0.35 * above * (1 - top_layer)
         base = frame.astype(np.float32) * shadow[..., None]
 
+        self.last_mask = mask
         a = mask[..., None]
         return (base * (1 - a) + sweater * a).clip(0, 255).astype(np.uint8)
