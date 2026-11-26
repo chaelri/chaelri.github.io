@@ -210,6 +210,19 @@ Charlie loved this look and wants it reused for any "how much is left / how full
 
 **Pitfalls we hit**: the colour-mix helper must accept both hex strings and [r,g,b] arrays; the liquid cap ring must use the same half-step offset as the top side ring or dark slivers appear; scale = min(height/span, width/2.35) so wide shapes never clip; with a `<script type="module">` expose the object on `window` for inline onclick; never animate through the OS reduce-motion setting; a coloured left-edge stripe on the legend rows was rejected (section 6).
 
+## 18. Photo-real posters: how we build them (Charlie, 2026-11-26, Shepherd Staff Christmas Party)
+
+Charlie's preferred poster method. Flat vector takes read "plain", canvas fake-3D (foil text, glossy spheres, satin) read "AI-sh", photo + gradient alone read "plain" too. What he approved (`posters/posters/shepherd-staff/v7.html`):
+
+1. **Brief checklist first.** From the request + any reference the requester sent (e.g. Tito Frank's sample): obviously the occasion at thumbnail size, faith context (CCF is Christian, not Catholic: star of Bethlehem, Bible, cross; never Mary/saint figures), real-not-AI look, ties to the reference, readable, three takes that each have a different vibe.
+2. **Real photos from Pexels** (free, no credit). In Chrome on pexels.com, `fetch('/search/<q>/')` and regex `images.pexels.com/photos/(\d+)/` for ids; curl `?w=240` previews into a contact sheet, pick by eye, then curl `?auto=compress&cs=tinysrgb&w=2160`. Prefer photos with built-in copy space: dark bokeh beside a subject, a flat lay with an empty centre, a blank card or paper to print on.
+3. **Cut-outs as elements:** `swiftc posters/tools/cutout.swift -o cutout && ./cutout in.jpg out.png` (Apple Vision subject lift). Works on plain or shallow-focus backgrounds, fails on busy scenes; key out leftover white wall by colour if needed. Match perspective (no side-view objects on a top-down flat lay), scale and light (warm `sepia`/`brightness` filter, a glow under them so they sit on something), or drop them.
+4. **Three distinct vibes**, e.g. A dark photo + text on the dark side (the tree), B real object as the medium: the event printed on a real invitation card with `mix-blend-mode:multiply`, C bright centred flat lay with ink type. Never two takes with the same layout and mood.
+5. **Type**: flat, no foil or gloss. Cinzel caps (org, THANKSGIVING, details) + Playball script (title), logo lockup = CCF logo mask + Futura caps. Verse = two-tier: script line + gold caps key words (GRACE & FAITHFULNESS). Lockup white on dark photos; on light/printed surfaces use the surface ink colour. **No pill or shape behind the lockup, no flat CSS ribbon banners**: find a clean spot in the photo or print it on the object.
+6. **Still**: no hover parallax, no animation.
+7. **Judge every render** (section 13 item 12) and run `contrast.py` on light backgrounds (gold on beige needed darkening to #7E5C16). When he rejects a treatment, remove it from every take.
+8. **Deliver**: `?still=x` export at 2160x2700 via headless Chrome, Desktop folder, posters gallery entry; keep earlier simple versions as options when he asks.
+
 ## 14. Reusable pieces (copy these, Charlie likes them)
 
 **Loading-screen curtain (screen change).** Reference implementation: `gif-maker/index.html` (search `#curtain` and `async function go`).
