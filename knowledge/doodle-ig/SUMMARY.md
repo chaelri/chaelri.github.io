@@ -9,6 +9,7 @@ Copy the approach of `@easy_drawing_ideas__` (3.3M followers, all AI doodle imag
 ## Pages (local, open with `python3 -m http.server --bind 127.0.0.1` from `doodle-ig/`)
 - `doodle-ig/index.html`: the chosen combo plan (sample feed, 4 name options, 3 first-book options, first 30 posts, funnel)
 - `doodle-ig/niches.html`: the research + all niche options (6 family-life niches + the 15 topics from Charlie's video, scored)
+- `doodle-ig/profile.html`: Instagram profile mock (bio, highlights, 12-post grid, tap a post for its carousel, caption, dummy comments); name buttons swap the handle. Serve with `tools/tlw/serve.py doodle-ig`
 
 ## Research findings (100 posts, Oct 4 to Nov 25 2026)
 - About 2 posts/day, still images only, Instagram tags them "AI content" and they still go viral.

@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>First Years Profile Mock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Nunito+Sans:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+/* layout: an Instagram profile (bio, highlights, grid) in the doodle palette; posts open in a carousel with caption + comments */
+:root{
+  --paper:#FBF3EC; --ink:#3B2A25; --muted:#7A5F57; --primary:#B4483C; --deep:#8C2F25; --shape:#F7DCD3; --accent:#E2A63A;
+  --card:#FFF8F3; --pink:#F3C9C0; --peach:#FBE6CF; --line:#E9D6CC; --scrim:rgba(40,26,22,.72);
+  --hand:'Patrick Hand','Comic Sans MS',cursive;
+  --font:'Nunito Sans',system-ui,sans-serif;
+  --r1:8px; --r2:13px; --r3:21px;
+}
+@media(min-width:1024px){html{zoom:.8}}
+*{box-sizing:border-box;margin:0}
+body{background:var(--paper);color:var(--ink);font:400 16px/1.45 var(--font)}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.wrap{max-width:936px;margin:0 auto;padding:40px 16px 104px}
+
+/* name picker */
+.names{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:40px}
+.names span{font-size:15px;color:var(--muted);margin-right:8px}
+.names button{min-height:40px;padding:8px 16px;border:2px solid var(--ink);border-radius:999px;font-size:15px;font-weight:700;background:var(--card)}
+.names button.on{background:var(--ink);color:var(--paper)}
+
+/* profile header */
+.prof{display:grid;grid-template-columns:160px minmax(0,1fr);gap:40px;align-items:start}
+.av{width:160px;height:160px;border-radius:999px;background:var(--pink);border:2px solid var(--ink);display:flex;align-items:flex-end;justify-content:center;overflow:hidden;padding:0}
+.av svg{width:118%;height:auto;flex:none}
+.row1{display:flex;flex-wrap:wrap;align-items:center;gap:16px}
+.handle{font-size:24px;font-weight:400}
+.btn{min-height:40px;padding:8px 24px;border-radius:var(--r1);font-weight:800;font-size:15px}
+.btn.solid{background:var(--primary);color:#fff}
+.btn.soft{background:var(--shape)}
+.stats{display:flex;gap:40px;margin-top:24px;font-size:16px}
+.stats b{font-weight:800}
+.bio{grid-column:2;margin-top:-24px;font-size:15px;line-height:1.45}
+.bio .nm{font-weight:800}
+.bio .cat{color:var(--muted)}
+.bio a{color:var(--deep);font-weight:800;text-decoration:none}
+
+/* highlights */
+.hls{display:flex;gap:40px;margin-top:40px;overflow-x:auto;padding:8px 0}
+.hl{display:flex;flex-direction:column;align-items:center;gap:8px;flex:none}
+.hl i{width:80px;height:80px;border-radius:999px;border:2px solid var(--ink);box-shadow:0 0 0 4px var(--paper),0 0 0 6px var(--line);display:flex;align-items:center;justify-content:center;font:400 24px/1 var(--hand);font-style:normal}
+.hl span{font-size:12px;font-weight:700}
+
+/* tabs + grid */
+.tabs{display:flex;justify-content:center;gap:64px;margin-top:40px;border-top:2px solid var(--line)}
+.tabs span{padding:16px 0;font-size:12px;font-weight:800;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);border-top:2px solid transparent;margin-top:-2px}
+.tabs span.on{color:var(--ink);border-color:var(--ink)}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.tile{position:relative;display:block;width:100%;padding:0;border-radius:0;overflow:hidden}
+.tile .ov{position:absolute;inset:0;background:var(--scrim);color:#fff;display:flex;align-items:center;justify-content:center;gap:24px;font-weight:800;opacity:0;transition:opacity .15s}
+.tile:hover .ov,.tile:focus-visible .ov{opacity:1}
+.tile .ov span{display:flex;align-items:center;gap:8px}
+.tile .ov svg{width:24px;height:24px;fill:#fff}
+.badge{position:absolute;top:8px;right:8px;width:24px;height:24px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.35))}
+.badge svg{width:100%;height:100%;fill:#fff}
+.endnote{margin-top:40px;text-align:center;font-size:15px;color:var(--muted)}
+
+/* the slide artwork (same component in the grid and the post view) */
+.slide{container-type:inline-size;width:100%;aspect-ratio:4/5;flex:none}
+.sl{position:relative;width:100%;height:100%;background:var(--pink);padding:7cqw;display:flex;flex-direction:column;gap:3cqw;overflow:hidden;color:var(--ink);text-align:left}
+.sl.peach{background:var(--peach)} .sl.light{background:var(--card)} .sl.blush{background:var(--shape)}
+.sl .say{font:400 8.6cqw/1.02 var(--hand)}
+.sl .say.big{font-size:11cqw}
+.sl em{font-style:normal;color:var(--deep)}
+.sl .sub{font:400 5.6cqw/1.2 var(--hand);color:var(--muted)}
+.sl .n{width:14cqw;height:14cqw;border-radius:999px;background:var(--ink);color:var(--paper);display:flex;align-items:center;justify-content:center;font:400 8cqw/1 var(--hand);flex:none}
+.sl .foot{margin-top:auto;font:400 4.6cqw/1.1 var(--hand);color:var(--ink)}
+.sl .art{position:relative;margin-top:auto;align-self:center;width:52cqw}
+.sl .art svg.c{width:100%;height:auto;display:block}
+.sl .art svg.ic{position:absolute;width:16cqw;height:16cqw;top:-10cqw;right:-12cqw}
+.sl .bubs{display:flex;flex-direction:column;gap:3cqw}
+.sl .bub{font:400 7.6cqw/1 var(--hand);background:var(--card);border:.5cqw solid var(--ink);border-radius:5cqw;padding:2.5cqw 4cqw;align-self:flex-start;max-width:80%}
+.sl .bub.r{align-self:flex-end}
+.sl .bub.dim{color:var(--muted)}
+.sl .half{flex:1;display:flex;flex-direction:column;justify-content:center}
+.sl .half + .half{border-top:.5cqw dashed var(--ink)}
+.sl .lines{display:flex;flex-direction:column;gap:4cqw;margin-top:2cqw}
+.sl .lines b{font:400 5.6cqw/1 var(--hand);color:var(--muted);font-weight:400}
+.sl .lines i{display:block;height:6cqw;border-bottom:.4cqw solid var(--ink)}
+.sl .book{flex:1;margin:0 6cqw;background:var(--card);border:.6cqw solid var(--ink);border-radius:2cqw;box-shadow:2cqw 2cqw 0 var(--ink);padding:6cqw;display:flex;flex-direction:column;gap:3cqw;transform:rotate(-2deg)}
+.sl .book .say{font-size:8cqw}
+.sl .book .art{width:44cqw}
+.sl .top{display:flex;align-items:center;gap:4cqw}
+
+/* post view */
+#post{position:fixed;inset:0;z-index:50;background:var(--scrim);display:flex;align-items:center;justify-content:center;padding:40px}
+#post[hidden]{display:none}
+.pv{display:grid;grid-template-columns:minmax(0,1fr) 400px;width:min(1100px,100%);height:min(86vh,760px);background:var(--card);border-radius:var(--r1);overflow:hidden}
+.media{position:relative;background:var(--ink);display:flex;align-items:center;justify-content:center;overflow:hidden;min-height:0}
+.frame{height:100%;aspect-ratio:4/5;max-width:100%;overflow:hidden;position:relative}
+.track{display:flex;height:100%;transition:transform .3s cubic-bezier(.4,0,.2,1)}
+.track .slide{width:100%;height:100%;aspect-ratio:auto}
+.nav{position:absolute;top:50%;transform:translateY(-50%);width:40px;height:40px;border-radius:999px;background:rgba(255,248,243,.92);display:flex;align-items:center;justify-content:center}
+.nav svg{width:16px;height:16px;stroke:var(--ink);fill:none;stroke-width:3}
+.nav.prev{left:16px} .nav.next{right:16px}
+.nav[hidden]{display:none}
+.dots{position:absolute;bottom:16px;left:0;right:0;display:flex;justify-content:center;gap:8px}
+.dots i{width:8px;height:8px;border-radius:999px;background:rgba(59,42,37,.25)}
+.dots i.on{background:var(--ink)}
+.heartpop{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
+.heartpop svg{width:120px;height:120px;fill:#fff;opacity:0}
+.side{display:flex;flex-direction:column;min-height:0;border-left:2px solid var(--line)}
+.side header{display:flex;align-items:center;gap:16px;padding:16px;border-bottom:2px solid var(--line)}
+.mini{width:40px;height:40px;border-radius:999px;flex:none;background:var(--pink);border:2px solid var(--ink);overflow:hidden;display:flex;align-items:flex-end;justify-content:center;padding:0}
+.mini svg{width:118%;height:auto;flex:none}
+.side header b{font-weight:800;font-size:15px}
+.side header .follow{margin-left:auto;color:var(--primary);font-weight:800;font-size:15px;min-height:40px;padding:0 8px}
+.scroll{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:24px;min-height:0}
+.cm{display:grid;grid-template-columns:40px minmax(0,1fr) 24px;gap:16px;align-items:start;font-size:15px}
+.cm.cap{grid-template-columns:40px minmax(0,1fr)}
+.cm .u{width:40px;height:40px;border-radius:999px;display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--ink)}
+.cm b{font-weight:800;margin-right:8px}
+.cm small{display:flex;gap:16px;margin-top:8px;font-size:12px;color:var(--muted);font-weight:700}
+.cm .lk{width:24px;height:24px;display:flex;align-items:center;justify-content:center;margin-top:8px}
+.cm .lk svg{width:16px;height:16px;stroke:var(--muted);fill:none;stroke-width:2}
+.cm .lk.on svg{fill:var(--primary);stroke:var(--primary)}
+.cm.reply{margin-left:56px}
+.acts{border-top:2px solid var(--line);padding:16px}
+.acts .icons{display:flex;gap:16px}
+.acts .icons button{width:40px;height:40px;display:flex;align-items:center;justify-content:center;margin-left:-8px}
+.acts .icons .save{margin-left:auto;margin-right:-8px}
+.acts svg{width:24px;height:24px;stroke:var(--ink);fill:none;stroke-width:2;stroke-linejoin:round}
+.acts .liked svg{fill:var(--primary);stroke:var(--primary)}
+.acts .saved svg{fill:var(--ink)}
+.acts p{font-size:15px;margin-top:8px}
+.acts .when{font-size:12px;color:var(--muted);margin-top:8px;letter-spacing:.05em;text-transform:uppercase;font-weight:700}
+.close{position:fixed;top:16px;right:16px;width:48px;height:48px;border-radius:999px;display:flex;align-items:center;justify-content:center;z-index:60}
+.close svg{width:24px;height:24px;stroke:#fff;stroke-width:3}
+
+@media(max-width:1023.98px){
+  .wrap{padding:24px 16px 104px}
+  .prof{grid-template-columns:88px minmax(0,1fr);gap:24px}
+  .av{width:88px;height:88px;padding:0 8px}
+  .handle{font-size:24px}
+  .row1{gap:8px}
+  .row1 .btn{flex:1;text-align:center}
+  .stats{gap:24px;margin-top:16px;font-size:15px}
+  .bio{grid-column:1/-1;margin-top:0}
+  .hls{gap:16px;margin-top:24px}
+  .hl i{width:64px;height:64px;font-size:15px}
+  .tabs{gap:40px;margin-top:24px}
+  .grid{gap:4px}
+  .tile .ov{display:none}
+  #post{padding:0;align-items:stretch}
+  .pv{grid-template-columns:minmax(0,1fr);height:100%;width:100%;border-radius:0;display:flex;flex-direction:column;overflow-y:auto}
+  .side{display:contents}
+  .side header{order:1;padding:8px 16px;padding-right:72px}
+  .media{order:2;flex:none}
+  .frame{width:100%;height:auto;aspect-ratio:4/5}
+  .nav{display:none}
+  .acts{order:3;border-top:0;padding:8px 16px 0}
+  .scroll{order:4;flex:none;overflow:visible;padding:16px 16px 40px}
+  .close{top:8px;right:8px;background:var(--ink)}
+  .btn,.names button,.side header .follow{min-height:48px}
+  .cm{grid-template-columns:40px minmax(0,1fr) 48px}
+  .cm .lk{width:48px;height:48px;margin-top:0}
+  .acts .icons button{width:48px;height:48px}
+}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="couple" viewBox="0 0 200 110">
+      <g stroke="#3B2A25" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M58 108 L64 62 Q78 54 92 62 L98 108 Z" fill="#B4483C"/>
+        <circle cx="78" cy="36" r="17" fill="#FBE6CF"/>
+        <path d="M58 66 Q54 30 62 20 Q78 6 94 20 Q102 30 98 66 Q93 50 94 34 Q86 26 78 26 Q68 26 62 34 Q63 50 58 66 Z" fill="#3B2A25"/>
+        <path d="M71 40 h1 M84 40 h1 M74 47 Q78 50 82 47" fill="none"/>
+        <path d="M104 108 L110 60 Q126 52 142 60 L148 108 Z" fill="#E2A63A"/>
+        <circle cx="126" cy="33" r="17" fill="#FBE6CF"/>
+        <path d="M109 30 Q112 12 128 14 Q144 15 143 30 Q134 22 120 24 Q114 25 109 30 Z" fill="#3B2A25"/>
+        <path d="M119 37 h1 M132 37 h1 M122 44 Q126 47 130 44" fill="none"/>
+        <path d="M95 80 Q101 84 108 80" fill="none"/>
+      </g>
+    </symbol>
+    <symbol id="i-bird" viewBox="0 0 40 40"><path d="M4 20 Q12 10 20 20 Q28 10 36 20" fill="none" stroke="#3B2A25" stroke-width="3" stroke-linecap="round"/></symbol>
+    <symbol id="i-heart" viewBox="0 0 40 40"><path d="M20 34 C4 24 4 10 13 8 C17 7 20 11 20 13 C20 11 23 7 27 8 C36 10 36 24 20 34Z" fill="#B4483C" stroke="#3B2A25" stroke-width="3" stroke-linejoin="round"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 40 40"><circle cx="20" cy="20" r="15" fill="#FFF8F3" stroke="#3B2A25" stroke-width="3"/><path d="M20 11v9l6 4" fill="none" stroke="#3B2A25" stroke-width="3" stroke-linecap="round"/></symbol>
+    <symbol id="i-cloud" viewBox="0 0 40 40"><path d="M10 28 Q2 28 4 20 Q6 14 13 16 Q15 7 24 9 Q32 10 31 18 Q38 19 36 26 Q35 28 30 28Z" fill="#FFF8F3" stroke="#3B2A25" stroke-width="3" stroke-linejoin="round"/></symbol>
+    <symbol id="i-pan" viewBox="0 0 40 40"><circle cx="16" cy="22" r="11" fill="#3B2A25"/><path d="M26 18 L38 10" stroke="#3B2A25" stroke-width="4" stroke-linecap="round"/></symbol>
+    <symbol id="i-star" viewBox="0 0 40 40"><path d="M20 4 L24 15 L36 16 L27 24 L30 36 L20 29 L10 36 L13 24 L4 16 L16 15Z" fill="#E2A63A" stroke="#3B2A25" stroke-width="3" stroke-linejoin="round"/></symbol>
+    <symbol id="ui-heart" viewBox="0 0 24 24"><path d="M12 20.5 C5 16 2.5 12 2.5 8.6 C2.5 5.8 4.7 3.8 7.2 3.8 C9.2 3.8 10.9 5 12 6.6 C13.1 5 14.8 3.8 16.8 3.8 C19.3 3.8 21.5 5.8 21.5 8.6 C21.5 12 19 16 12 20.5Z"/></symbol>
+    <symbol id="ui-comment" viewBox="0 0 24 24"><path d="M20.5 11.5 A8.5 8.5 0 1 1 16.6 4.4 A8.5 8.5 0 0 1 20.5 11.5 Z M20.5 11.5 L21.5 20.5 L15 18.5"/></symbol>
+    <symbol id="ui-send" viewBox="0 0 24 24"><path d="M21.5 3 L10 13.5 M21.5 3 L14.5 21 L10 13.5 L2.5 9.5 Z"/></symbol>
+    <symbol id="ui-save" viewBox="0 0 24 24"><path d="M5 3 H19 V21 L12 15.5 L5 21 Z"/></symbol>
+    <symbol id="ui-album" viewBox="0 0 24 24"><path d="M7 2h13a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Zm-4 5v14a1 1 0 0 0 1 1h14v-2H5V7Z"/></symbol>
+    <symbol id="ui-pin" viewBox="0 0 24 24"><path d="M14.5 2 L22 9.5 L19.5 10.5 L15.5 14.5 L15.5 19 L13 21.5 L9 17.5 L3.5 23 L1 23 L1 20.5 L6.5 15 L2.5 11 L5 8.5 L9.5 8.5 L13.5 4.5 Z"/></symbol>
+  </defs>
+</svg>
+
+<div class="wrap">
+  <div class="names" aria-label="try a name">
+    <span>try the name:</span>
+    <button data-pick="1" data-n="0" class="on">1 · first.years.drawn</button>
+    <button data-pick="2" data-n="1">2 · married.mind</button>
+    <button data-pick="3" data-n="2">3 · tiny.marriage.lessons</button>
+    <button data-pick="4" data-n="3">4 · us.in.doodles</button>
+  </div>
+
+  <section class="prof">
+    <div class="av"><svg viewBox="0 0 200 110"><use href="#couple"/></svg></div>
+    <div>
+      <div class="row1"><h1 class="handle" id="handle">first.years.drawn</h1><button class="btn solid" id="followBtn">Follow</button><button class="btn soft">Message</button></div>
+      <div class="stats"><span><b>186</b> posts</span><span><b>48.6K</b> followers</span><span><b>0</b> following</span></div>
+    </div>
+    <p class="bio"><span class="nm" id="dname">First Years, Drawn</span><br>
+      <span class="cat">Artist</span><br>
+      The psychology of the first years of marriage, illustrated.<br>
+      One small idea a day for newlyweds.<br>
+      52 Questions for the First Years, out now<br>
+      <a href="#" id="link">firstyearsdrawn.com/52-questions</a></p>
+  </section>
+
+  <div class="hls" id="hls"></div>
+
+  <div class="tabs"><span class="on">posts</span><span>reels</span><span>tagged</span></div>
+  <div class="grid" id="grid"></div>
+  <p class="endnote">A mock profile about 3 months in. Tap any post.</p>
+</div>
+
+<div id="post" hidden role="dialog" aria-modal="true" aria-label="post">
+  <button class="close" id="closeBtn" aria-label="close"><svg viewBox="0 0 24 24"><path d="M5 5 L19 19 M19 5 L5 19"/></svg></button>
+  <div class="pv">
+    <div class="media">
+      <div class="frame" id="frame"><div class="track" id="track"></div><div class="heartpop"><svg id="pop"><use href="#ui-heart"/></svg></div></div>
+      <button class="nav prev" id="prev" aria-label="previous slide"><svg viewBox="0 0 16 16"><path d="M11 2 L5 8 L11 14"/></svg></button>
+      <button class="nav next" id="next" aria-label="next slide"><svg viewBox="0 0 16 16"><path d="M5 2 L11 8 L5 14"/></svg></button>
+      <div class="dots" id="dots"></div>
+    </div>
+    <aside class="side">
+      <header><span class="mini"><svg viewBox="0 0 200 110"><use href="#couple"/></svg></span><b class="h2">first.years.drawn</b><button class="follow">Follow</button></header>
+      <div class="scroll" id="cmts"></div>
+      <div class="acts">
+        <div class="icons">
+          <button id="likeBtn" aria-label="like"><svg><use href="#ui-heart"/></svg></button>
+          <button aria-label="comment"><svg><use href="#ui-comment"/></svg></button>
+          <button aria-label="share"><svg><use href="#ui-send"/></svg></button>
+          <button class="save" id="saveBtn" aria-label="save"><svg><use href="#ui-save"/></svg></button>
+        </div>
+        <p><b id="likes">0</b> <b>likes</b> · <span id="ncm"></span></p>
+        <p class="when" id="when"></p>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<script>
+const NAMES=[
+  {h:'first.years.drawn',n:'First Years, Drawn',l:'firstyearsdrawn.com/52-questions'},
+  {h:'married.mind',n:'Married Mind',l:'marriedmind.com/52-questions'},
+  {h:'tiny.marriage.lessons',n:'Tiny Marriage Lessons',l:'tinymarriagelessons.com/book'},
+  {h:'us.in.doodles',n:'Us, in Doodles',l:'usindoodles.com/52-questions'}];
+let H=NAMES[0].h;
+
+/* art + slide rendering */
+const art=ic=>`<div class="art"><svg class="c" viewBox="0 0 200 110"><use href="#couple"/></svg>${ic?`<svg class="ic" viewBox="0 0 40 40"><use href="#i-${ic}"/></svg>`:''}</div>`;
+function slide(s,bg){
+  const c=s.bg||bg||'';
+  let x='';
+  if(s.k==='say') x=`<p class="say ${s.big?'big':''}">${s.t}</p>${s.sub?`<p class="sub">${s.sub}</p>`:''}${s.noart?'':art(s.ic)}${s.foot?`<p class="foot">${s.foot}</p>`:''}`;
+  if(s.k==='bub') x=`<div class="bubs">${s.b.map(b=>`<span class="bub ${b[1]||''}">${b[0]}</span>`).join('')}</div>${s.sub?`<p class="sub">${s.sub}</p>`:''}${art(s.ic)}`;
+  if(s.k==='split') x=`<div class="half"><p class="say">${s.a}</p></div><div class="half"><p class="say">${s.b}</p></div>`;
+  if(s.k==='list') x=`<div class="top"><span class="n">${s.n}</span></div><p class="say">${s.t}</p><p class="sub">${s.sub}</p>${art(s.ic)}`;
+  if(s.k==='lines') x=`<p class="say">${s.t}</p><div class="lines"><b>his answer</b><i></i><i></i><b>her answer</b><i></i><i></i></div><p class="foot">${s.foot}</p>`;
+  if(s.k==='cover') x=`<div class="book"><p class="say">52 Questions<br>for the <em>First Years</em></p>${art('heart')}</div><p class="foot">${s.foot}</p>`;
+  return `<div class="slide"><div class="sl ${c}">${x}</div></div>`;
+}
+
+/* posts: newest first */
+const P=[
+ {id:'flood',bg:'light',likes:'31.4K',when:'2 days ago',cap:"Nobody wins a fight they can't hear. Take the 20. Come back.",
+  s:[{k:'say',t:'Heart racing mid-fight? Take <em>20 minutes</em>.',ic:'clock'},
+     {k:'say',t:'Past about <em>100 beats a minute</em>, your body thinks it\'s in danger.',sub:'Psychologists call it flooding. Listening shuts down.',ic:'heart'},
+     {k:'say',t:'Say: "I\'m flooded. I love you. <em>20 minutes</em>, then let\'s finish this."',noart:true,foot:'not "I\'m done." not silence.'},
+     {k:'say',t:'Then come back. The break only works if you <em>return</em>.',ic:'heart'}],
+  c:[['marites.writes','"I\'m flooded, I love you" is going on our fridge','2d',412],['jun_and_bea','we did the 20 min thing last night and it actually worked??','2d',230],['first.years.drawn','So proud of you two. The coming back part is the hard part.','1d',88,1],['lazy.sunday.dad','my smartwatch about to start mediating our arguments','2d',190],['ninacooks.ph','sent to husband. he replied "flooded." lol','1d',64]]},
+ {id:'book',bg:'peach',pin:1,likes:'12.8K',when:'4 days ago',cap:"Question 12, from our book. Answer it tonight, then tell us what you said.\n\n52 Questions for the First Years, link in bio.",
+  s:[{k:'say',t:'Q12: What small thing makes you <em>feel loved</em>?',ic:'heart',foot:'52 questions inside · link in bio'},
+     {k:'lines',t:'Q12: What small thing makes you feel loved?',foot:'page 24 of 52'},
+     {k:'cover',bg:'blush',foot:'out now · link in bio'}],
+  c:[['karen.and.lito','him: "when you save me the last piece." me: crying','4d',502],['aya.reads','bought it for my sister\'s wedding gift','4d',211],['first.years.drawn','That\'s the best kind of gift. Thank you!','3d',40,1],['miggy.ok','is there a printed version?','3d',33],['joyfulhome.co','we do one question every sunday breakfast now','2d',97]]},
+ {id:'yr',bg:'pink',likes:'54.0K',when:'5 days ago',cap:"Fighting less was never the goal. Fixing faster is.",
+  s:[{k:'split',a:'year 1: "we never fight."',b:'year 2: "we <em>fight better</em>."'},
+     {k:'say',t:'Happy couples still fight. They just <em>repair</em> sooner.',ic:'heart'},
+     {k:'say',t:'Repair phrase: "Can we <em>start that over</em>?"',ic:'star'}],
+  c:[['tess.and.raf','year 1 us was lying','5d',1204],['mark_daddyof2','year 7: "we fight about the thermostat only"','5d',688],['hel.lo.mia','"can we start that over" saved my marriage this week','4d',356],['first.years.drawn','We love a reset button.','4d',91,1]]},
+ {id:'anx',bg:'peach',pin:1,likes:'88.2K',when:'1 week ago',cap:"Anxious isn't needy. It's a heart that learned love can leave. Save this for the next time they ask \"are we okay?\"",
+  s:[{k:'say',t:'5 signs your spouse is <em>anxiously</em> attached',ic:'cloud'},
+     {k:'list',n:1,t:'They text twice when you go quiet.',sub:'Reply with one line. It\'s enough.',ic:'cloud'},
+     {k:'list',n:2,t:'They ask "are we okay?" after small fights.',sub:'Say yes, out loud, and say why.',ic:'heart'},
+     {k:'list',n:3,t:'They read your tone, not your words.',sub:'Name your mood: "I\'m tired, not mad."',ic:'cloud'},
+     {k:'list',n:4,t:'Plans calm them more than surprises.',sub:'Tell them when you\'ll be home.',ic:'clock'},
+     {k:'list',n:5,t:'They apologise first, even when it\'s not on them.',sub:'Notice it. Thank them.',ic:'heart'},
+     {k:'say',t:'Anxious isn\'t needy. It\'s a heart that learned love <em>can leave</em>.',sub:'Be the steady one.',ic:'heart'}],
+  c:[['rina.is.trying','number 3 is literally me','1w',3210],['jp.and.cams','sending this to my husband so he understands me','1w',1802],['dr.claire.counsels','Lovely and accurate. Consistency is the medicine.','6d',944],['first.years.drawn','Thank you, coming from a counsellor that means a lot.','6d',120,1],['big.ben.energy','avoidant version next please','6d',611],['luna.bakes','the "tired, not mad" line is gold','5d',402]]},
+ {id:'dish',bg:'light',likes:'122K',when:'1 week ago',cap:"Send this to the one who leaves the pan \"to soak.\"",
+  s:[{k:'say',t:'You\'re not fighting about the dishes. You\'re fighting about <em>feeling unseen</em>.',ic:'pan'},
+     {k:'say',t:'The dishes are just the place it <em>shows up</em>.',ic:'pan'},
+     {k:'say',t:'Try: "I don\'t need help with the plates. I need you to <em>notice me</em>."',ic:'heart'}],
+  c:[['the.soaking.pan','why am I being attacked','1w',8820],['kat.reyes.art','the dishes are just the place it shows up. oof.','1w',2390],['marco.and.lea','he washed them before I even finished reading this','6d',1903],['first.years.drawn','Marco, you\'re doing great.','6d',612,1],['mommy.ellie','sending to my sister and her husband lol','6d',344]]},
+ {id:'bids',bg:'pink',pin:1,likes:'176K',when:'2 weeks ago',cap:"He doesn't care about the bird. He cares that you looked.\n\nSave this one.",
+  s:[{k:'bub',b:[['look, a bird.'],['wait, where?','r']],ic:'bird'},
+     {k:'say',t:'That\'s called a <em>bid</em>. A tiny "notice me."',ic:'bird'},
+     {k:'bub',b:[['look, a bird.'],['mm.','r dim']],sub:'that\'s turning away.',ic:'bird'},
+     {k:'say',t:'Couples still married 6 years later turned toward <em>86%</em> of bids.',sub:'Couples who divorced: 33%.',ic:'heart'},
+     {k:'say',t:'So look up. Say <em>"where?"</em>',ic:'bird',big:1}],
+  c:[['dan.the.husband','i said "mm" ONE time','2w',14200],['mika.and.jo','86% vs 33% is actually wild','2w',6120],['first.years.drawn','From Dr. John Gottman\'s study of newlyweds. Small moments add up.','2w',2210,1],['ate.joyce','me pointing at every bird for the next month','2w',4380],['ralph.makes.coffee','this is why I always say "where"','1w',1880],['shy.newlywed','crying at a doodle at 2am','1w',960]]},
+ {id:'5to1',bg:'blush',likes:'40.6K',when:'2 weeks ago',cap:"Not perfect. Just more good than hard.",
+  s:[{k:'say',t:'Happy couples have <em>5 good moments</em> for every hard one.',ic:'star'},
+     {k:'say',t:'A joke. A touch. A "thank you." They all count.',ic:'heart'}],
+  c:[['ivy.and.ken','we\'re at like 5:3 this week, working on it','2w',420],['first.years.drawn','5:3 and honest about it is a great start.','2w',96,1],['papa.rj','the "thank you" one is so underrated','2w',210]]},
+ {id:'mad',bg:'pink',likes:'97.5K',when:'3 weeks ago',cap:"\"No.\" (She was mad.)",
+  s:[{k:'bub',b:[['are you mad?','r'],['no.'],['...okay.','r']],ic:'cloud'},
+     {k:'say',t:'Try instead: "You seem quiet. I\'m <em>here</em> when you want to talk."',ic:'heart'}],
+  c:[['jen.reads.books','the "no." is so real','3w',5100],['carlo.bakes','i have been the "...okay." for 2 years','3w',3320],['first.years.drawn','The second slide is for you, Carlo.','3w',800,1]]},
+ {id:'pan',bg:'peach',likes:'22.3K',when:'3 weeks ago',cap:"Year one: one pan, three opinions about it.",
+  s:[{k:'say',t:'First year married: we own <em>one pan</em> and three opinions about it.',ic:'pan'}],
+  c:[['mara.and.tj','ours is a rice cooker and it is a war','3w',640],['newlyhed.nikki','the pan has a name in our house','3w',220]]},
+ {id:'map',bg:'light',likes:'35.9K',when:'4 weeks ago',cap:"A love map is everything you know about their inner world. Update it often.",
+  s:[{k:'say',t:'Know their <em>worries</em>, not just their coffee order.',ic:'cloud'},
+     {k:'say',t:'Ask tonight: "What\'s on your mind <em>this week</em>?"',ic:'heart'}],
+  c:[['kris.and.ana','asked this and we talked for 2 hours','4w',512],['first.years.drawn','That\'s the whole point. Love that.','4w',77,1]]},
+ {id:'8020',bg:'blush',likes:'64.1K',when:'1 month ago',cap:"Some days you carry. Some days you get carried.",
+  s:[{k:'say',t:'Marriage isn\'t 50/50. Some days it\'s <em>80/20</em>, and you take turns.',ic:'heart'}],
+  c:[['ella.mae','needed this today','1mo',1320],['bong.and.trish','she\'s carrying this month, I\'ve got next month','1mo',880]]},
+ {id:'hello',bg:'pink',likes:'5.2K',when:'3 months ago',cap:"Hi! We're a newly married couple drawing what we learn about the first years. One small idea a day. Start here.",
+  s:[{k:'say',t:'Hi. We just got <em>married</em>.',ic:'heart'},{k:'say',t:'We\'re drawing what we learn, <em>one idea a day</em>.',ic:'star'}],
+  c:[['first.follower','here from day one','3mo',88],['mika.and.jo','cutest page','3mo',41]]}
+];
+/* pinned first, like IG */
+const ORDER=[...P.filter(p=>p.pin),...P.filter(p=>!p.pin)];
+const ncom=p=>{const n=p.c.reduce((a,c)=>a+Math.round(c[3]/9)+1,0);return n>999?(n/1000).toFixed(1)+'K':n};
+
+const HL=[['start here','hello','pink','hi'],['bids','bids','peach','?'],['fights','yr','blush','1·2'],['the book','book','light','52'],['attach','anx','pink','5']];
+document.getElementById('hls').innerHTML=HL.map(h=>`<button class="hl" data-open="${h[1]}"><i style="background:var(--${h[2]==='light'?'card':h[2]})">${h[3]}</i><span>${h[0]}</span></button>`).join('');
+
+const grid=document.getElementById('grid');
+function drawGrid(){
+  grid.innerHTML=ORDER.map(p=>`<button class="tile" data-open="${p.id}" aria-label="open post">${slide(p.s[0],p.bg)}
+    ${p.pin?`<span class="badge"><svg viewBox="0 0 24 24"><use href="#ui-pin"/></svg></span>`:p.s.length>1?`<span class="badge"><svg viewBox="0 0 24 24"><use href="#ui-album"/></svg></span>`:''}
+    <span class="ov"><span><svg viewBox="0 0 24 24"><use href="#ui-heart"/></svg>${p.likes}</span><span><svg viewBox="0 0 24 24"><use href="#ui-comment"/></svg>${ncom(p)}</span></span></button>`).join('');
+}
+drawGrid();
+
+/* post view */
+const $=id=>document.getElementById(id);
+let cur=null, idx=0;
+const colors=['#F3C9C0','#FBE6CF','#F7DCD3','#E9D6CC'];
+function openPost(id){
+  cur=P.find(p=>p.id===id); idx=0;
+  $('track').innerHTML=cur.s.map(s=>slide(s,cur.bg)).join('');
+  $('dots').innerHTML=cur.s.length>1?cur.s.map(()=>'<i></i>').join(''):'';
+  $('likes').textContent=cur.likes; $('ncm').textContent=ncom(cur)+' comments'; $('when').textContent=cur.when;
+  $('likeBtn').classList.remove('liked'); $('saveBtn').classList.remove('saved');
+  const capHtml=cur.cap.replace(/\n/g,'<br>');
+  $('cmts').innerHTML=`<div class="cm cap"><span class="mini"><svg viewBox="0 0 200 110"><use href="#couple"/></svg></span><div><b>${H}</b>${capHtml}<small><span>${cur.when}</span></small></div></div>`+
+    cur.c.map((c,i)=>{const me=c[0]==='first.years.drawn';const u=me?H:c[0];
+      return `<div class="cm ${c[4]?'reply':''}">${me?`<span class="mini"><svg viewBox="0 0 200 110"><use href="#couple"/></svg></span>`:`<span class="u" style="background:${colors[i%4]}">${u[0].toUpperCase()}</span>`}<div><b>${u}</b>${c[1]}<small><span>${c[2]}</span><span>${c[3].toLocaleString()} likes</span><span>Reply</span></small></div><button class="lk" aria-label="like comment"><svg viewBox="0 0 24 24"><use href="#ui-heart"/></svg></button></div>`}).join('');
+  $('post').hidden=false; document.body.style.overflow='hidden';
+  go(0); $('closeBtn').focus();
+}
+function go(i){
+  if(!cur) return;
+  idx=Math.max(0,Math.min(cur.s.length-1,i));
+  $('track').style.transform=`translateX(${-idx*100}%)`;
+  [...$('dots').children].forEach((d,j)=>d.classList.toggle('on',j===idx));
+  $('prev').hidden=idx===0; $('next').hidden=idx===cur.s.length-1;
+}
+function closePost(){ $('post').hidden=true; document.body.style.overflow=''; cur=null; }
+
+document.addEventListener('click',e=>{
+  const o=e.target.closest('[data-open]'); if(o){ openPost(o.dataset.open); return; }
+  const lk=e.target.closest('.lk'); if(lk){ lk.classList.toggle('on'); return; }
+  const n=e.target.closest('[data-n]'); if(n){ setName(+n.dataset.n); }
+});
+$('prev').onclick=()=>go(idx-1); $('next').onclick=()=>go(idx+1);
+$('closeBtn').onclick=closePost;
+$('post').addEventListener('click',e=>{ if(e.target.id==='post') closePost(); });
+$('likeBtn').onclick=()=>$('likeBtn').classList.toggle('liked');
+$('saveBtn').onclick=()=>$('saveBtn').classList.toggle('saved');
+$('followBtn').onclick=e=>{const b=e.target;const f=b.textContent==='Follow';b.textContent=f?'Following':'Follow';b.classList.toggle('solid',!f);b.classList.toggle('soft',f);};
+document.addEventListener('keydown',e=>{ if(!cur) return; if(e.key==='Escape') closePost(); if(e.key==='ArrowRight') go(idx+1); if(e.key==='ArrowLeft') go(idx-1); });
+
+/* double-tap to like, swipe on phones */
+$('frame').addEventListener('dblclick',()=>{
+  $('likeBtn').classList.add('liked');
+  $('pop').animate([{opacity:0,transform:'scale(.6)'},{opacity:.95,transform:'scale(1.1)',offset:.3},{opacity:.95,transform:'scale(1)',offset:.7},{opacity:0,transform:'scale(1)'}],{duration:800});
+});
+let sx=null;
+$('frame').addEventListener('pointerdown',e=>{sx=e.clientX});
+$('frame').addEventListener('pointerup',e=>{ if(sx===null) return; const d=e.clientX-sx; if(Math.abs(d)>40) go(idx+(d<0?1:-1)); sx=null; });
+
+function setName(i){
+  const N=NAMES[i]; H=N.h;
+  $('handle').textContent=N.h; $('dname').textContent=N.n; $('link').textContent=N.l;
+  document.querySelectorAll('.side header .h2').forEach(x=>x.textContent=N.h);
+  document.querySelectorAll('[data-n]').forEach(b=>b.classList.toggle('on',+b.dataset.n===i));
+}
+</script>
+<script src="/tlw.js"></script>
+</body>
+</html>
