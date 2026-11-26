@@ -1,0 +1,563 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <base target="_top" />
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
+    />
+
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+
+    <title>Devotion</title>
+    <!-- Preconnect to Gemini proxy so TLS handshake + DNS are done before
+         the first AI call fires. Shaves ~200-400ms off initial latency. -->
+    <link rel="preconnect" href="https://gemini-proxy-668755364170.asia-southeast1.run.app" crossorigin />
+    <link rel="dns-prefetch" href="https://gemini-proxy-668755364170.asia-southeast1.run.app" />
+    <link rel="manifest" href="manifest.json" />
+    <link rel="icon" type="image/png" href="icons/favicon-64.png" />
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+    <meta name="theme-color" content="#0b1220" />
+
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wght@6..144,1..1000&family=Monsieur+La+Doulaise&family=Fredoka:wght@300..700&family=Nunito:ital,wght@0,300..900;1,300..900&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/icon?family=Material+Icons"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="layout layout-unset">
+      <div id="app-splash" class="splash-screen">
+        <div class="splash-logo">devotion.</div>
+      </div>
+      <div class="main">
+        <div id="topActions" class="top-actions-bar">
+          <div id="dashBrandRow" class="dash-brand-row" hidden>
+            <div id="dashBrand" class="dash-brand">devotion.</div>
+            <div class="dash-brand-actions">
+              <button id="dashThemeBtn" class="dash-browse-btn" aria-label="Toggle light/dark theme" title="Toggle light/dark theme">
+                <span class="material-symbols-outlined">light_mode</span>
+              </button>
+              
+              <button id="dashBrowseBtn" class="dash-browse-btn" aria-label="Browse Bible passages" title="Browse Bible passages">
+                <span class="material-symbols-outlined">menu_book</span>
+              </button>
+            </div>
+          </div>
+          <div class="top-actions-reading">
+            <button id="homeBtn" class="secondary" hidden>
+              <span class="material-symbols-outlined">arrow_back_ios</span> Home
+            </button>
+            <div class="mt-actions" id="mtActions" hidden>
+              <button class="mt-action mt-listen" id="mtListen">
+                <span class="material-symbols-outlined">headphones</span>
+                Listen
+              </button>
+              
+              <button class="mt-overflow" id="mtOverflow" aria-label="More actions">
+                <span class="material-symbols-outlined">more_horiz</span>
+              </button>
+            </div>
+          </div>
+        </div>
+        <!-- Revamped compact toolbar. Proxies to the (now hidden) full controls. -->
+        <div class="mt-bar" id="mtBar">
+          <button class="mt-prev" id="mtPrev" aria-label="Previous chapter" hidden>
+            <span class="material-symbols-outlined">navigate_before</span>
+          </button>
+          <button class="mt-passage" id="mtPassage">
+            <span id="mtPassageText">Select passage</span>
+            <span class="material-symbols-outlined mt-chev">expand_more</span>
+          </button>
+          <button class="mt-next" id="mtNext" aria-label="Next chapter" hidden>
+            <span class="material-symbols-outlined">navigate_next</span>
+          </button>
+        </div>
+        <!-- Overflow sheet (theme, bible search, notes toggle, translation) -->
+        <div class="mt-sheet" id="mtOverflowSheet" hidden>
+          <div class="mt-sheet-backdrop" id="mtOverflowBackdrop"></div>
+          <div class="mt-sheet-panel">
+            <div class="mt-sheet-row">
+              <div class="mt-sheet-row-left">
+                <span class="material-symbols-outlined">translate</span>
+                Translation
+              </div>
+              <div class="mt-sheet-version" id="mtSheetVersion">
+                <button class="mt-sheet-ver" data-ver="NASB">NASB</button>
+                <button class="mt-sheet-ver" data-ver="EASY">EASY</button>
+              </div>
+            </div>
+            <div class="mt-sheet-row">
+              <div class="mt-sheet-row-left">
+                <span class="material-symbols-outlined">text_fields</span>
+                Font
+              </div>
+              <div class="mt-sheet-version" id="mtSheetFont">
+                <button class="mt-sheet-ver" data-font="system">System</button>
+                <button class="mt-sheet-ver" data-font="nunito">Fredoka</button>
+              </div>
+            </div>
+            <div class="mt-sheet-row mt-sheet-textsize">
+              <label class="mt-sheet-row-left" for="mtTextSize">
+                <span class="material-symbols-outlined">format_size</span>
+                Text size
+              </label>
+              <div class="mt-textsize-ctl">
+                <span class="mt-textsize-a mt-textsize-a--sm" aria-hidden="true">A</span>
+                <input type="range" id="mtTextSize" min="15" max="24" step="1" value="16" aria-label="Verse text size">
+                <span class="mt-textsize-a mt-textsize-a--lg" aria-hidden="true">A</span>
+              </div>
+            </div>
+            <button class="mt-sheet-item" id="mtThemeToggle">
+              <span class="material-symbols-outlined">contrast</span>
+              Theme
+              <span class="mt-sheet-state" id="mtThemeState">Dark</span>
+              <span class="mt-theme-seg" aria-hidden="true"><b data-t="dark">Dark</b><b data-t="light">Light</b></span>
+            </button>
+            </div>
+        </div>
+
+        <div class="controls smart-header">
+          <div class="control">
+            <div class="control-label">Book</div>
+            <select id="book"></select>
+            <button type="button" class="bc-picker-btn" id="bookPickerBtn">
+              <span id="bookPickerText">Select book</span>
+              <span class="material-symbols-outlined">expand_more</span>
+            </button>
+          </div>
+
+          <div class="control">
+            <div class="control-label">Chapter</div>
+            <select id="chapter"></select>
+            <button type="button" class="bc-picker-btn" id="chapterPickerBtn">
+              <span id="chapterPickerText">1</span>
+              <span class="material-symbols-outlined">expand_more</span>
+            </button>
+          </div>
+
+          <!-- Verse selector kept in DOM for JS that reads verseEl.value
+               (defaults to "" = all verses). Hidden visually per UX decision
+               — chapter is the meaningful navigation unit. -->
+          <div class="control" hidden>
+            <div class="control-label">Verse</div>
+            <select id="verse">
+              <option value="">All verses</option>
+            </select>
+          </div>
+
+          <button id="load" class="primary">Search</button>
+
+          <div class="controls-toolbar">
+            <select id="versionSelect" hidden>
+              <option value="NASB">NASB 2020</option>
+              <option value="EASY">EASY 2024</option>
+            </select>
+            <div class="version-pill-group" id="versionPillGroup">
+              <button class="version-pill" data-ver="NASB">NASB</button>
+              <button class="version-pill" data-ver="EASY">EASY</button>
+            </div>
+            <button id="prevChapterBtn" class="ctrl-icon-btn hidden">
+              <span class="material-symbols-outlined">navigate_before</span>
+            </button>
+            <button id="nextChapterBtn" class="ctrl-icon-btn hidden">
+              <span class="material-symbols-outlined">navigate_next</span>
+            </button>
+            <button id="ttsPlayBtn" class="ctrl-icon-btn hidden">
+              <span class="material-symbols-outlined">headphones</span>
+            </button>
+            <div id="mode-toggle" class="mode-toggle">
+              <span class="material-symbols-outlined">light_mode</span>
+            </div>
+            <button id="bibleSearchBtn" class="ctrl-icon-btn" title="Search Bible">
+              <span class="material-symbols-outlined">search</span>
+            </button>
+          </div>
+
+
+        </div>
+
+        <!-- Book Picker bottom sheet -->
+        <div class="bc-sheet" id="bookPickerSheet" hidden>
+          <div class="bc-sheet-backdrop" data-close-bc></div>
+          <div class="bc-sheet-panel bc-sheet-book">
+            <div class="bc-sheet-header">
+              <div class="bc-sheet-title">Choose a book</div>
+              <button class="bc-sheet-close" type="button" data-close-bc aria-label="Close">
+                <span class="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            <button type="button" class="bc-current-passage" id="bookPickerCurrent" hidden>
+              <div class="bc-current-header">
+                <span class="material-icons bc-current-icon">book</span>
+                <span class="bc-current-label">Currently Reading</span>
+              </div>
+              <div class="bc-current-body">
+                <span class="bc-current-ref" id="bookPickerCurrentRef">—</span>
+                <span class="material-icons bc-current-chev">arrow_forward</span>
+              </div>
+            </button>
+            <div class="bc-search">
+              <span class="material-symbols-outlined bc-search-icon">search</span>
+              <input type="text" id="bookPickerSearch" placeholder="Search books…" autocomplete="off">
+            </div>
+            <div class="bc-tabs" id="bookPickerTabs">
+              <button class="bc-tab" data-tab="OT">Old Testament</button>
+              <button class="bc-tab" data-tab="NT">New Testament</button>
+            </div>
+            <div class="bc-book-list" id="bookPickerList"></div>
+          </div>
+        </div>
+
+        <!-- Chapter Picker bottom sheet -->
+        <div class="bc-sheet" id="chapterPickerSheet" hidden>
+          <div class="bc-sheet-backdrop" data-close-bc></div>
+          <div class="bc-sheet-panel bc-sheet-chapter">
+            <div class="bc-sheet-header">
+              <div class="bc-sheet-label" id="chapterPickerLabel">SELECT CHAPTER</div>
+              <button class="bc-sheet-close" type="button" data-close-bc aria-label="Close">
+                <span class="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            <div class="bc-chapter-grid" id="chapterPickerGrid"></div>
+          </div>
+        </div>
+
+        <!-- Bible Search Modal — lives outside .controls.smart-header so it's
+             not killed by the parent's display:none in the revamped toolbar. -->
+        <div id="bibleSearchModal" class="bible-search-modal" hidden>
+          <div class="bible-search-bar">
+            <span class="material-symbols-outlined bible-search-icon">search</span>
+            <input type="search" id="bibleSearchInput" class="bible-search-input" placeholder="Search verse, keyword, or reference…" autocomplete="off" />
+            <button id="bibleSearchClose" class="bible-search-close">Cancel</button>
+          </div>
+          <div class="bible-search-hint" id="bibleSearchHint">Type at least 3 characters to search all verses</div>
+          <div class="bible-search-results" id="bibleSearchResults"></div>
+        </div>
+
+        <div id="storyReflectRow" class="action-section hidden">
+          <div class="action-left">
+            <div class="passage-title-row">
+              <button type="button" id="passageTitle" class="passage-title" aria-label="Change passage"></button>
+              <div class="passage-nav-row">
+                <button class="passage-nav-btn" id="passageTitlePrev" aria-label="Previous chapter">
+                  <span class="material-symbols-outlined">navigate_before</span>
+                </button>
+                <button class="passage-nav-btn" id="passageTitleNext" aria-label="Next chapter">
+                  <span class="material-symbols-outlined">navigate_next</span>
+                </button>
+              </div>
+            </div>
+          </div>
+          <!-- Story button removed — used image generation via Gemini. -->
+
+        </div>
+
+        <div id="output" class="bible"></div>
+      </div>
+
+      <aside class="summary">
+        <div id="aiContextSummary" hidden></div>
+        <button id="toggleReflectionBtn" hidden></button>
+        <div id="summaryTitle" class="summary-title" hidden></div>
+
+        <div id="summaryContent" hidden></div>
+        <!-- Reflection Q&A renders inline here, directly below summaryContent,
+             so the user sees questions immediately without a click. -->
+        <div class="reflect-actions-row" id="sidebarActionsRow" hidden>
+          <button id="shareDevoBtn" class="share-devo-btn" type="button">Save to notes</button>
+          <button id="copyNotesBtn" class="devo-copy-btn" type="button">Copy</button>
+        </div>
+        <div id="notesCopyStatus" hidden></div>
+      </aside>
+    </div>
+    <div id="readProgressBar" class="read-progress-bar" aria-hidden="true">
+      <div id="readProgressFill" class="read-progress-fill"></div>
+    </div>
+
+    <!-- NOTES APP -->
+    
+
+    <!-- NAME PROMPT SCREEN -->
+    <div id="namePromptScreen" class="name-prompt-screen" hidden>
+      <div class="name-prompt-card">
+        <div class="name-prompt-logo">devotion.</div>
+        <h2 class="name-prompt-title">Welcome</h2>
+        <p class="name-prompt-sub">What should we call you?</p>
+        <input id="namePromptInput" class="name-prompt-input" type="text" placeholder="Your name" maxlength="32" autocomplete="off" />
+        <button id="namePromptSubmit" class="name-prompt-btn primary">Continue</button>
+      </div>
+    </div>
+
+    <!-- CUSTOM CONFIRM DIALOG -->
+    <div id="confirmDialog" class="confirm-dialog" hidden>
+      <div class="confirm-card">
+        <p class="confirm-message" id="confirmMessage"></p>
+        <div class="confirm-actions">
+          <button class="confirm-cancel" id="confirmCancel">Cancel</button>
+          <button class="confirm-ok" id="confirmOk">Delete</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="modalOverlay" class="modal-overlay" hidden>
+      <div class="modal-card">
+        <button id="modalClose" class="modal-close">✕</button>
+        <div id="modalContent"></div>
+      </div>
+    </div>
+
+    <div id="ttsPlayer" class="tts-player" hidden>
+      <button type="button" class="tts-sheet-grab" id="ttsSheetGrab" aria-label="Hide player controls"></button>
+      <button type="button" class="tts-sheet-down" id="ttsSheetDown" aria-label="Hide player controls"><span class="material-symbols-outlined" aria-hidden="true">expand_more</span></button>
+      <div id="ttsProgressBar" class="tts-progress-bar"></div>
+      <div class="tts-sheet-label">Listening</div>
+      <button type="button" id="ttsPassage" class="tts-passage" aria-label="Open Listen"></button>
+      <div class="tts-sheet-prog"><i></i></div>
+      <div class="tts-controls">
+        <button id="ttsPrevBtn" class="tts-btn">
+          <span class="material-symbols-outlined">skip_previous</span>
+        </button>
+        <button id="ttsPauseBtn" class="tts-btn">
+          <span class="material-symbols-outlined">pause</span>
+        </button>
+        <button id="ttsNextBtn" class="tts-btn">
+          <span class="material-symbols-outlined">skip_next</span>
+        </button>
+        <span id="ttsStatus"></span>
+        <button id="ttsCloseBtn" class="tts-btn tts-close">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- TTS IMMERSIVE OVERLAY -->
+    <div id="ttsImmersive" class="tts-immersive" hidden>
+      <!-- Top bar -->
+      <div class="tts-imm-bar">
+        <div class="tts-imm-header-info">
+          <div class="tts-imm-title" id="ttsImmTitle"></div>
+          <div class="tts-imm-range" id="ttsImmRange"></div>
+        </div>
+        <div class="tts-imm-bar-actions">
+          <button id="ttsImmReflectBtn" class="tts-imm-reflect-btn" hidden><span class="material-icons">volunteer_activism</span></button>
+          <button class="tts-imm-close-btn" id="ttsImmCloseBtn" aria-label="Minimize">
+            <span class="material-symbols-outlined">keyboard_arrow_down</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Verse stage -->
+      <div class="tts-imm-stage">
+        <div class="tts-imm-slot tts-imm-slot-prev" id="ttsImmSlotPrev">
+          <span class="tts-imm-slot-num" id="ttsImmPrevNum"></span>
+          <p class="tts-imm-slot-text" id="ttsImmPrevText"></p>
+        </div>
+        <div class="tts-imm-slot tts-imm-slot-cur" id="ttsImmSlotCur">
+          <div class="tts-imm-slot-header">
+            <span class="tts-imm-slot-num" id="ttsImmCurNum"></span>
+            <div class="tts-imm-fav-badge" id="ttsImmFavBadge">
+              <span class="material-icons">favorite</span>
+              <span>Liked</span>
+            </div>
+          </div>
+          <p class="tts-imm-slot-text" id="ttsImmCurText"></p>
+          <div class="tts-imm-heart" id="ttsImmHeart">
+            <span class="material-icons">favorite</span>
+          </div>
+        </div>
+        <div class="tts-imm-slot tts-imm-slot-next" id="ttsImmSlotNext">
+          <span class="tts-imm-slot-num" id="ttsImmNextNum"></span>
+          <p class="tts-imm-slot-text" id="ttsImmNextText"></p>
+        </div>
+      </div>
+
+      <!-- Pause quick-actions panel (in flex flow, above footer) -->
+      <div id="ttsImmPausePanel" class="tts-imm-pause-panel" hidden>
+        <div class="tts-imm-pause-actions">
+          <button class="tts-imm-pause-action-btn" id="ttsImmPauseContext"><span class="material-icons">auto_awesome</span><span>Context</span></button>
+          <button class="tts-imm-pause-action-btn" id="ttsImmPauseAsk"><span class="material-icons">chat_bubble_outline</span><span>Ask</span></button>
+        </div>
+        <div class="tts-imm-pause-content" id="ttsImmPauseContent"></div>
+      </div>
+
+      <!-- Footer: load bar + scrubber + controls -->
+      <div class="tts-imm-footer">
+        <div class="tts-imm-load-bar-wrap">
+          <div class="tts-imm-load-bar" id="ttsImmLoadBar"></div>
+        </div>
+        <div class="tts-imm-scrubber-wrap">
+          <div class="tts-imm-scrubber" id="ttsImmScrubber"></div>
+        </div>
+        <div class="tts-imm-progress" aria-hidden="true">
+          <div class="tts-imm-prog-track"><div class="tts-imm-prog-fill" id="ttsImmProgFill"></div></div>
+          <div class="tts-imm-times"><span id="ttsImmElapsed">0:00</span><span id="ttsImmTotal">0:00</span></div>
+        </div>
+        <div class="tts-imm-controls">
+          <button class="tts-imm-btn tts-imm-speed" id="ttsImmSpeedBtn" aria-label="Playback speed">1x</button>
+          <button class="tts-imm-btn" id="ttsImmPrevBtn" aria-label="Previous verse">
+            <span class="material-symbols-outlined">skip_previous</span>
+          </button>
+          <button class="tts-imm-btn tts-imm-btn-play" id="ttsImmPauseBtn">
+            <span class="material-symbols-outlined">pause</span>
+          </button>
+          <button class="tts-imm-btn" id="ttsImmNextBtn" aria-label="Next verse">
+            <span class="material-symbols-outlined">skip_next</span>
+          </button>
+        </div>
+<div class="tts-imm-hint" id="ttsImmStatusEl"></div>
+        <div id="ttsImmAutoReflBar" class="tts-imm-auto-refl-bar" hidden>
+          <div class="tts-imm-auto-refl-fill" id="ttsImmAutoReflFill"></div>
+        </div>
+      </div>
+
+      <!-- Context intro panel (shown before TTS starts) -->
+      <div id="ttsImmContextPanel" class="tts-imm-context-panel" hidden>
+        <div class="tts-imm-context-scroll">
+          <div id="ttsImmContextContent"></div>
+        </div>
+        <button id="ttsImmContextStart" class="tts-imm-context-start-btn">Start Reading →</button>
+      </div>
+
+      <!-- Verse reference popup -->
+      <div id="ttsImmVersePopup" class="tts-imm-verse-popup" hidden>
+        <div class="tts-imm-verse-popup-backdrop" id="ttsImmVersePopupBackdrop"></div>
+        <div class="tts-imm-verse-popup-card">
+          <button class="tts-imm-verse-popup-close" id="ttsImmVersePopupClose">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+          <div class="tts-imm-verse-popup-content" id="ttsImmVersePopupContent"></div>
+        </div>
+      </div>
+
+      <!-- Reflection panel (replaces stage+footer when open) -->
+      <div id="ttsImmReflPanel" class="tts-imm-refl-panel" hidden>
+        <div class="tts-imm-refl-top">
+          <div class="tts-imm-refl-progress" id="ttsImmReflProgress"></div>
+        </div>
+        <div class="tts-imm-refl-question" id="ttsImmReflQuestion"></div>
+        <textarea class="tts-imm-refl-area" id="ttsImmReflArea" placeholder="Write your thoughts here..."></textarea>
+        <div class="tts-imm-refl-actions">
+          <button class="tts-imm-refl-back-btn" id="ttsImmReflBack">← Back</button>
+          <button class="tts-imm-refl-next-btn" id="ttsImmReflNext">Next →</button>
+          <button class="tts-imm-refl-copy-btn" id="ttsImmReflCopy" hidden>Copy</button>
+          <button class="tts-imm-refl-done-btn" id="ttsImmReflDone" hidden>
+            <span class="material-symbols-outlined">check_circle</span>
+          </button>
+        </div>
+        <div class="tts-imm-refl-status" id="ttsImmReflStatus"></div>
+      </div>
+    </div>
+
+    <!-- Modals — at body root so position:fixed works on all viewports -->
+    <div id="storyModal" class="story-modal" hidden>
+      <div class="story-modal-inner">
+        <div class="story-progress-bar" id="storyProgressBar"></div>
+        <button class="story-close-btn" onclick="closeStoryModal()">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+        <div class="story-content" id="storyContent"></div>
+        <div class="story-nav-bar">
+          <button class="story-nav-btn story-nav-prev" id="storyPrevBtn" onclick="storyPrev()">
+            <span class="material-symbols-outlined">arrow_back</span>
+            <span>Back</span>
+          </button>
+          <div class="story-counter" id="storyCounter"></div>
+          <button class="story-nav-btn story-nav-next" id="storyNextBtn" onclick="storyNext()">
+            <span>Next</span>
+            <span class="material-symbols-outlined">arrow_forward</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- IMAGE CREATOR PANEL -->
+    <div id="imgCreatorPanel" class="imgcr-panel" hidden>
+      <div class="imgcr-bar">
+        <button class="imgcr-back" id="imgCreatorBack">
+          <span class="material-symbols-outlined">arrow_back_ios</span>
+        </button>
+        <span class="imgcr-bar-title" id="imgCreatorTitle">Create Scene</span>
+      </div>
+      <div class="imgcr-scroll">
+        <!-- Mode toggle -->
+        <div class="imgcr-mode-row">
+          <button class="imgcr-mode-btn active" data-mode="scene" id="imgcrModeScene">
+            <span class="material-icons">landscape</span> Scene
+          </button>
+          <button class="imgcr-mode-btn" data-mode="verse" id="imgcrModeVerse">
+            <span class="material-icons">format_quote</span> Verse Card
+          </button>
+        </div>
+
+        <!-- Passage selector -->
+        <div class="imgcr-passage-row">
+          <select class="imgcr-select" id="imgcrBook"></select>
+          <select class="imgcr-select" id="imgcrChapter"></select>
+          <select class="imgcr-select" id="imgcrVerse">
+            <option value="">Whole chapter</option>
+          </select>
+        </div>
+
+        <!-- Aspect ratio (scene only) -->
+        <div class="imgcr-aspect-row" id="imgcrAspectRow">
+          <button class="imgcr-aspect-btn active" data-ratio="9:16">9:16</button>
+          <button class="imgcr-aspect-btn" data-ratio="1:1">1:1</button>
+          <button class="imgcr-aspect-btn" data-ratio="16:9">16:9</button>
+        </div>
+
+        <!-- Generate -->
+        <button class="imgcr-gen-btn" id="imgcrGenBtn">
+          <span class="material-icons">auto_awesome</span>
+          Generate
+        </button>
+
+        <!-- Preview -->
+        <div class="imgcr-preview" id="imgcrPreview"></div>
+
+        <!-- Actions (hidden until image is generated) -->
+        <div class="imgcr-actions" id="imgcrActions" hidden>
+          <button class="imgcr-action-btn" id="imgcrDownload">
+            <span class="material-icons">download</span> Save
+          </button>
+          <button class="imgcr-action-btn" id="imgcrShare">
+            <span class="material-icons">share</span> Share
+          </button>
+        </div>
+      </div>
+    </div>
+
+
+
+    
+
+
+    <button type="button" id="ttsChip" class="tts-chip" aria-label="Show player controls"><span id="ttsChipText"></span><span class="material-symbols-outlined" aria-hidden="true">expand_less</span></button>
+    <div id="ttsSheetScrim" class="tts-sheet-scrim"></div>
+    <nav id="readerDock" class="reader-dock" hidden aria-label="Reader actions">
+      <button type="button" data-dock="dialog" aria-label="Dialog mode" title="Dialog mode"><span class="material-symbols-outlined" aria-hidden="true">forum</span></button>
+      <button type="button" data-dock="note" aria-label="Notes" title="Notes"><span class="material-symbols-outlined" aria-hidden="true">edit_note</span></button>
+      <button type="button" data-dock="stop" aria-label="Stop audio" title="Stop audio"><span class="material-symbols-outlined" aria-hidden="true">stop</span></button>
+      <button type="button" data-dock="listen" aria-label="Listen" title="Listen"><svg class="dock-ring" viewBox="0 0 56 56" aria-hidden="true"><circle class="dock-ring-track" cx="28" cy="28" r="26"/><circle class="dock-ring-fill" cx="28" cy="28" r="26"/></svg><span class="material-symbols-outlined dock-ic-listen" aria-hidden="true">headphones</span><span class="material-symbols-outlined dock-ic-pause" aria-hidden="true">pause</span><span class="material-symbols-outlined dock-ic-play" aria-hidden="true">play_arrow</span></button>
+    </nav>
+    <button type="button" id="dockTab" class="dock-tab" aria-label="Show reader actions" aria-expanded="false"><i aria-hidden="true"></i></button>
+
+    <script src="config.js" onerror="void 0"></script>
+    <script src="bible-meta.js"></script>
+    <!-- firebase-sync.js bootstraps Charlie's pure-Firebase mode and then
+         dynamically injects the js/*.js chunks (formerly one script.js,
+         now split into 10 ordered files). For non-Charlie users it injects
+         them immediately and stays out of the way. -->
+    <script src="firebase-sync.js"></script>
+  </body>
+</html>
