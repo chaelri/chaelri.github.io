@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Shepherd Staff Posters</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Playball&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Jost:wght@500&family=Playball&display=swap" rel="stylesheet">
 <style>
 :root{--page:#EFE8DC;--ink:#2A1D18;--mute:#5E5048;--sans:system-ui,-apple-system,'Segoe UI',sans-serif;
   --serif:'Cinzel','Trajan Pro',Georgia,serif;--script:'Playball','Snell Roundhand',cursive}
@@ -30,7 +30,10 @@ figure{display:flex;flex-direction:column;gap:16px}
 .art>svg{position:absolute;inset:0;width:100%;height:100%}
 .ab{position:absolute;white-space:nowrap;line-height:1}
 .mid{left:0;right:0;text-align:center}
-.kick{font-size:calc(var(--p)*24);font-weight:700;letter-spacing:.24em;color:var(--gold)}
+.lock{display:flex;align-items:center;gap:calc(var(--p)*24);color:var(--gold)}
+.mid.lock{justify-content:center}
+.lock i{display:block;width:calc(var(--p)*80);height:calc(var(--p)*80);background:currentColor;-webkit-mask:url(ccf-logo.png) center/contain no-repeat;mask:url(ccf-logo.png) center/contain no-repeat}
+.lock span{font-family:'Futura','Jost',sans-serif;font-weight:500;font-size:calc(var(--p)*38);letter-spacing:.16em}
 .org{font-size:calc(var(--p)*61);font-weight:900;letter-spacing:.02em}
 .thx{font-size:calc(var(--p)*38);font-weight:500;letter-spacing:.3em;color:var(--gold)}
 .scr{font-family:var(--script);font-size:calc(var(--p)*160);line-height:.9;letter-spacing:-.01em}
@@ -41,26 +44,26 @@ figure{display:flex;flex-direction:column;gap:16px}
 
 /* A: the tree (red) */
 .A{background:#7A0F17}
-.A .kick{top:calc(var(--p)*96)}
-.A .org{top:calc(var(--p)*150)}
-.A .thx{top:calc(var(--p)*251)}
-.A .s1{top:calc(var(--p)*300)}
-.A .s2{top:calc(var(--p)*440)}
-.A .tag{top:calc(var(--p)*672);color:#7A0F17}
+.A .lock{top:calc(var(--p)*96)}
+.A .org{top:calc(var(--p)*214)}
+.A .thx{top:calc(var(--p)*307)}
+.A .s1{top:calc(var(--p)*356)}
+.A .s2{top:calc(var(--p)*496)}
+.A .tag{top:calc(var(--p)*728);color:#7A0F17}
 
 /* B: the star (navy) */
 .B{background:#0E1A30}
-.B .kick{top:calc(var(--p)*400)}
-.B .org{top:calc(var(--p)*446)}
-.B .thx{top:calc(var(--p)*540)}
-.B .s1{top:calc(var(--p)*588)}
-.B .s2{top:calc(var(--p)*728)}
-.B .tag{top:calc(var(--p)*912);color:var(--gold)}
+.B .lock{top:calc(var(--p)*350)}
+.B .org{top:calc(var(--p)*462)}
+.B .thx{top:calc(var(--p)*556)}
+.B .s1{top:calc(var(--p)*604)}
+.B .s2{top:calc(var(--p)*744)}
+.B .tag{top:calc(var(--p)*928);color:var(--gold)}
 
 /* C: the gift (pine) */
 .C{background:#173F2E}
 .C .ab:not(.when){left:calc(var(--p)*96)}
-.C .kick{top:calc(var(--p)*96)}
+.C .lock{top:calc(var(--p)*96)}
 .C .org{top:calc(var(--p)*376)}
 .C .thx{top:calc(var(--p)*469)}
 .C .s1{top:calc(var(--p)*518);left:calc(var(--p)*80)!important}
@@ -81,7 +84,7 @@ figure{display:flex;flex-direction:column;gap:16px}
     <figure data-take="a">
       <div class="poster"><div class="art A">
         <svg id="art-a" viewBox="0 0 1080 1350" aria-hidden="true"></svg>
-        <div class="ab mid kick">CCF EAST ORTIGAS</div>
+        <div class="ab mid lock"><i role="img" aria-label="CCF"></i><span>EAST ORTIGAS</span></div>
         <div class="ab mid org">SHEPHERD STAFF</div>
         <div class="ab mid thx">THANKSGIVING</div>
         <div class="ab mid scr s1">Christmas</div>
@@ -96,7 +99,7 @@ figure{display:flex;flex-direction:column;gap:16px}
     <figure data-take="b">
       <div class="poster"><div class="art B">
         <svg id="art-b" viewBox="0 0 1080 1350" aria-hidden="true"></svg>
-        <div class="ab mid kick">CCF EAST ORTIGAS</div>
+        <div class="ab mid lock"><i role="img" aria-label="CCF"></i><span>EAST ORTIGAS</span></div>
         <div class="ab mid org">SHEPHERD STAFF</div>
         <div class="ab mid thx">THANKSGIVING</div>
         <div class="ab mid scr s1">Christmas</div>
@@ -111,7 +114,7 @@ figure{display:flex;flex-direction:column;gap:16px}
     <figure data-take="c">
       <div class="poster"><div class="art C">
         <svg id="art-c" viewBox="0 0 1080 1350" aria-hidden="true"></svg>
-        <div class="ab kick">CCF EAST ORTIGAS</div>
+        <div class="ab lock"><i role="img" aria-label="CCF"></i><span>EAST ORTIGAS</span></div>
         <div class="ab org">SHEPHERD STAFF</div>
         <div class="ab thx">THANKSGIVING</div>
         <div class="ab scr s1">Christmas</div>
@@ -137,11 +140,11 @@ const G='var(--gold)',C='var(--cream)',R='var(--red)',PN='var(--pine)';
 // ---------- A: tree ----------
 (()=>{const s=document.getElementById('art-a');
   // ribbon banner behind the tagline
-  P(s,'120,656 236,656 216,716 236,776 120,776 150,716','#C79A45');
-  P(s,'960,656 844,656 864,716 844,776 960,776 930,716','#C79A45');
-  P(s,'196,640 884,640 884,792 196,792',C);
+  P(s,'120,712 236,712 216,772 236,832 120,832 150,772','#C79A45');
+  P(s,'960,712 844,712 864,772 844,832 960,832 930,772','#C79A45');
+  P(s,'196,696 884,696 884,848 196,848',C);
   // tree
-  const t=el('g',{transform:'translate(860 846)'},s);
+  const t=el('g',{transform:'translate(860 896)'},s);
   el('rect',{x:-22,y:372,width:44,height:56,fill:'#4A2A1A'},t);
   P(t,'0,40 -100,168 100,168',PN);P(t,'0,110 -136,270 136,270',PN);P(t,'0,200 -170,380 170,380',PN);
   el('polyline',{points:'-70,150 60,118',stroke:G,'stroke-width':6,fill:'none'},t);
@@ -150,7 +153,7 @@ const G='var(--gold)',C='var(--cream)',R='var(--red)',PN='var(--pine)';
   [[-30,190,R],[40,160,C],[-60,300,C],[70,240,R],[10,330,R],[-110,340,G],[110,350,C]].forEach(([x,y,f])=>P(t,`${x},${y-14} ${x+10},${y} ${x},${y+14} ${x-10},${y}`,f));
   star(t,0,24,44,18,5,G);
   // gift at the base
-  const b=el('g',{transform:'translate(700 1206)'},s);
+  const b=el('g',{transform:'translate(700 1246)'},s);
   el('rect',{x:0,y:0,width:110,height:84,fill:R},b);el('rect',{x:47,y:0,width:16,height:84,fill:G},b);el('rect',{x:-6,y:-18,width:122,height:22,fill:'#94161F'},b);el('rect',{x:47,y:-18,width:16,height:22,fill:G},b);
   P(b,'55,-18 22,-46 30,-18',G);P(b,'55,-18 88,-46 80,-18',G);
 })();
@@ -158,7 +161,7 @@ const G='var(--gold)',C='var(--cream)',R='var(--red)',PN='var(--pine)';
 // ---------- B: star + stable ----------
 (()=>{const s=document.getElementById('art-b');
   // star of Bethlehem
-  const g=el('g',{transform:'translate(540 206)'},s);
+  const g=el('g',{transform:'translate(540 190) scale(.85)'},s);
   P(g,'0,-130 14,-14 0,150 -14,-14',G);P(g,'-124,0 -12,-12 124,0 -12,12',G);
   P(g,'-62,-62 6,-6 62,62 -6,6',G,{opacity:.55});P(g,'62,-62 6,6 -62,62 -6,-6',G,{opacity:.55});
   // sparkles, away from the text
@@ -166,7 +169,7 @@ const G='var(--gold)',C='var(--cream)',R='var(--red)',PN='var(--pine)';
   // hill
   el('path',{d:'M560 1350 C640 1240 760 1215 1080 1200 V1350Z',fill:'#16284A'},s);
   // stable
-  const t=el('g',{transform:'translate(850 1000)'},s);
+  const t=el('g',{transform:'translate(850 1024)'},s);
   el('rect',{x:-130,y:96,width:260,height:150,fill:'#E2BE6A'},t);
   el('rect',{x:-150,y:90,width:20,height:160,fill:'#3A2616'},t);el('rect',{x:130,y:90,width:20,height:160,fill:'#3A2616'},t);
   P(t,'0,0 -190,104 -170,116 0,24 170,116 190,104','#5A3A22');
