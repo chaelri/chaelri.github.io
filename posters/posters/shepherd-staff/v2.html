@@ -313,7 +313,7 @@ function C(art){seed=37;
 }
 
 const DRAW={A,B,C};
-function run(){document.querySelectorAll('.art').forEach(a=>DRAW[a.dataset.draw](a));if(!STILL)parallax();document.documentElement.dataset.ready=1}
+function run(){document.querySelectorAll('.art').forEach(a=>DRAW[a.dataset.draw](a));document.documentElement.dataset.ready=1}
 document.fonts.ready.then(run);
 
 // ---------- parallax: layers drift with the pointer ----------
