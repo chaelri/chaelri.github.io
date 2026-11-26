@@ -289,8 +289,8 @@ def main():
                             if args.snapshot:
                                 out_s = ai.render(out_s, worn.last_mask)
                             else:
-                                ai.submit(out_s, worn.last_mask)
-                                out_s = ai.apply(out_s, worn.last_mask)
+                                ai.submit(out_s, worn.last_mask, worn.anchor)
+                                out_s = ai.apply(out_s, worn.last_mask, worn.anchor)
                         up = cv2.resize(out_s, (w, h), interpolation=cv2.INTER_LINEAR)
                         out = finish(frame, up, cv2.resize(worn.last_mask, (w, h)), frames)
                 elif (sleeves or tryon) and (frames % 3 == 1 or hands_cache is None):

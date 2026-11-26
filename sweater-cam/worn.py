@@ -72,14 +72,26 @@ class Worn:
         # whatever you're wearing is always covered below the chin; bare skin only below the neckline
         clothes = np.clip((conf_full[CLOTHES] + conf_full[OTHER] - 0.3) / 0.3, 0, 1) * (self.yy > ny - rise)
         mask = np.maximum(body * below, clothes * (1 - top_layer))
+        core = mask > 0.5  # the real body, used for shading
+        # looser fit: a sweater sits wider than skin, mostly sideways (arms, flanks)
+        kx, ky = int(0.16 * fh) | 1, int(0.05 * fh) | 1
+        loose = cv2.dilate(mask, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kx, ky)))
+        mask = np.maximum(mask, loose * below * (1 - top_layer))
         mask = cv2.GaussianBlur(mask, (0, 0), 2.2)
+        self.anchor = np.array([cx, ny], np.float32)
 
         # shading from your own body, blurred so the shirt underneath doesn't print through
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY).astype(np.float32)
         inside = mask > 0.5
         if not inside.any():
             return frame
-        blur = cv2.GaussianBlur(gray, (0, 0), 14)
+        # shading spread outward from the body only (the wider fit must not pick up the wall)
+        src = core.astype(np.float32)
+        q = (w // 4, h // 4)  # heavy blur -> do it at quarter size, same look, much cheaper
+        num = cv2.GaussianBlur(cv2.resize(gray * src, q, interpolation=cv2.INTER_AREA), (0, 0), 3.5)
+        den = cv2.GaussianBlur(cv2.resize(src, q, interpolation=cv2.INTER_AREA), (0, 0), 3.5)
+        fill = gray[core].mean() if core.any() else 0.0
+        blur = cv2.resize(np.where(den > 0.02, num / (den + 1e-3), fill).astype(np.float32), (w, h))
         shade = (blur - blur[inside].mean()) / (blur[inside].std() + 1e-6)
 
         # edges of the body fall into shadow (fabric turning away from the light)

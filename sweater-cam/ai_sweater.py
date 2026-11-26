@@ -59,17 +59,20 @@ class AISweater:
         return (bx, by, side), cv2.resize(cv2.cvtColor(np.array(out), cv2.COLOR_RGB2BGR), (side, side))
 
     @staticmethod
-    def composite(worn_frame, mask, result):
-        """Paste an AI crop back through the current sweater mask."""
+    def composite(worn_frame, mask, result, shift=(0, 0)):
+        """Paste an AI crop back through the current sweater mask, moved by `shift` px."""
         if result is None:
             return worn_frame
         (bx, by, side), out = result
+        bx, by = int(round(bx + shift[0])), int(round(by + shift[1]))
         h, w = worn_frame.shape[:2]
-        side = min(side, w - bx, h - by)
-        a = cv2.GaussianBlur(mask[by:by + side, bx:bx + side], (0, 0), 2)[..., None]
+        x0, y0, x1, y1 = max(bx, 0), max(by, 0), min(bx + side, w), min(by + side, h)
+        if x1 <= x0 or y1 <= y0:
+            return worn_frame
+        piece = out[y0 - by:y1 - by, x0 - bx:x1 - bx].astype(np.float32)
+        a = cv2.GaussianBlur(mask, (0, 0), 2)[y0:y1, x0:x1, None]
         res = worn_frame.copy()
-        crop = res[by:by + side, bx:bx + side].astype(np.float32)
-        res[by:by + side, bx:bx + side] = (crop * (1 - a) + out[:side, :side] * a).astype(np.uint8)
+        res[y0:y1, x0:x1] = (res[y0:y1, x0:x1] * (1 - a) + piece * a).astype(np.uint8)
         return res
 
     def render(self, worn_frame, mask):
@@ -87,9 +90,9 @@ class AsyncAI:
         self.last_ms = 0.0
         threading.Thread(target=self._loop, daemon=True).start()
 
-    def submit(self, worn_frame, mask):
+    def submit(self, worn_frame, mask, anchor):
         with self.cv:
-            self.job = (worn_frame.copy(), mask.copy())  # keep only the newest frame
+            self.job = (worn_frame.copy(), mask.copy(), np.array(anchor, np.float32))  # newest only
             self.cv.notify()
 
     def _loop(self):
@@ -99,13 +102,27 @@ class AsyncAI:
                     self.cv.wait()
                 job, self.job = self.job, None
             t = time.time()
-            r = self.ai.render_crop(*job)
+            r = self.ai.render_crop(job[0], job[1])
             self.last_ms = (time.time() - t) * 1000
-            if r is not None:
-                self.result = r
+            if r is None:
+                continue
+            prev = self.result
+            if prev is not None and prev[0][0][2] == r[0][2]:
+                # blend with the previous result so folds settle instead of popping
+                old_box, old_img = prev[0]
+                dx, dy = int(old_box[0] - r[0][0]), int(old_box[1] - r[0][1])
+                M = np.float32([[1, 0, dx], [0, 1, dy]])
+                old = cv2.warpAffine(old_img, M, (r[0][2], r[0][2]), borderMode=cv2.BORDER_REPLICATE)
+                r = (r[0], (0.6 * r[1] + 0.4 * old).astype(np.uint8))
+            self.result = (r, job[2])
 
-    def apply(self, worn_frame, mask):
-        return AISweater.composite(worn_frame, mask, self.result)
+    def apply(self, worn_frame, mask, anchor):
+        """Use the latest AI sweater, moved along with your body since it was made."""
+        if self.result is None:
+            return worn_frame
+        r, made_at = self.result
+        shift = np.clip(np.array(anchor, np.float32) - made_at, -60, 60)
+        return AISweater.composite(worn_frame, mask, r, shift)
 
 
 if __name__ == "__main__":
