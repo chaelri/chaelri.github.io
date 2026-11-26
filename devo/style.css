@@ -11833,7 +11833,8 @@ body.light .dlgm-box.old .dlgm-name { color: #be185d; }
 .dlgm-mount .ai-card-gradient { background: none; padding: 0; }
 .dlgm-mount .ai-card-header { margin: 0; padding: 0; height: 0; }
 .dlgm-mount .ai-card-label { position: absolute; left: 24px; top: -16px; height: 32px; padding: 0 16px; border-radius: 999px; background: #be185d; color: #fff; font: 700 15px/32px "Fredoka", "Nunito", sans-serif; letter-spacing: 0; text-transform: none; }
-.dlgm-mount .ai-card-close { position: absolute; right: 16px; top: 8px; width: 32px; height: 32px; display: grid; place-items: center; border: 0; background: none; color: #cfc8b4; font-size: 15px; cursor: pointer; }
+/* No ✕ here: tapping the pressed context / ask pill closes it (Charlie, 2026-11-26). */
+.dlgm-mount .ai-card-close { display: none; }
 .dlgm-mount .ai-md-content, .dlgm-mount .ai-md-content p { color: #cfc8b4; font-size: 14px; line-height: 1.55; }
 .dlgm-mount .ai-md-content strong, .dlgm-mount .ai-md-content em { color: #f3eee0; }
 .dlgm-mount .ai-md-content a { color: #f9a8d4; }

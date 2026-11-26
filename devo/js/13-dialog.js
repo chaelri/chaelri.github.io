@@ -293,10 +293,8 @@
       } else {
         toggleVerseChat(keyOf(v.book_id, v.chapter, v.verse), bookName(), v.chapter, v.verse, v.text, m);
         m.querySelector(".verse-chat-wrapper")?.insertAdjacentHTML("afterbegin",
-          `<div class="ai-card-header"><span class="ai-card-label">Ask</span><button class="ai-card-close" title="Close">✕</button></div>`);
+          `<div class="ai-card-header"><span class="ai-card-label">Ask</span></div>`);
       }
-      const close = m.querySelector(".ai-card-close");
-      if (close) close.onclick = (e) => { e.stopPropagation(); runAction(act, i); };
       // Answer = a second dialog box with a pink name tag: it slides up with a
       // spring, the tag pops, and the Quick Context text types out when it lands
       // (Charlie picked this, 2026-11-26).
