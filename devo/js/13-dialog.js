@@ -115,7 +115,7 @@
     let i = 0, t;
     const step = () => {
       cs[i++]?.classList.add("on");
-      if (i < cs.length) t = setTimeout(step, /[,.;:”’]/.test(cs[i - 1].textContent) ? 110 : 18);
+      if (i < cs.length) t = setTimeout(step, /[,.;:”’]/.test(cs[i - 1].textContent) ? 60 : 9);
     };
     step();
     return {

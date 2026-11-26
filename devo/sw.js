@@ -64,7 +64,7 @@ const CDN_ASSETS = [
   "https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js",
   "https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js",
   "https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0",
-  "https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wght@6..144,1..1000&family=Monsieur+La+Doulaise&family=Nunito:ital,wght@0,300..900;1,300..900&display=swap",
+  "https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wght@6..144,1..1000&family=Monsieur+La+Doulaise&family=Fredoka:wght@300..700&family=Nunito:ital,wght@0,300..900;1,300..900&display=swap",
   "https://fonts.googleapis.com/icon?family=Material+Icons",
 ];
 const CDN_HOSTS = new Set(["fonts.googleapis.com", "fonts.gstatic.com", "www.gstatic.com"]);

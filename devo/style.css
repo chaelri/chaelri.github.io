@@ -27,7 +27,7 @@ body {
      default lives here rather than in JS so there's no flash of the wrong
      font before the scripts run. */
   font-family:
-    "Nunito",
+    "Fredoka", "Nunito",
     system-ui,
     -apple-system,
     BlinkMacSystemFont,
@@ -10921,9 +10921,9 @@ body.light .dv { --dv-card: #ffffff; --dv-ink: #16130f; --dv-mute: #6b6a66; --dv
 .dv-ref { margin-top: 56px; font: italic 24px/1 var(--dv-serif); text-transform: uppercase; color: #db2777; }
 .dv-pg h2 { margin: 16px 0 0; font: italic 38px/1.1 var(--dv-serif); color: var(--dv-paper-ink); position: relative; z-index: 1; }
 .dv-num { position: absolute; right: 16px; bottom: 0; font: italic 120px/.8 var(--dv-serif); color: rgba(219,39,119,.18); pointer-events: none; }
-.dv-book .dash-continue-recap { margin: 0 !important; padding: 0 !important; color: #4a4339 !important; font: 700 16px/1.4 "Nunito", sans-serif !important; opacity: 1 !important; max-width: 34ch; -webkit-line-clamp: unset !important; }
+.dv-book .dash-continue-recap { margin: 0 !important; padding: 0 !important; color: #4a4339 !important; font: 700 16px/1.4 "Fredoka", "Nunito", sans-serif !important; opacity: 1 !important; max-width: 34ch; -webkit-line-clamp: unset !important; }
 .dv-book .dash-continue-recap:empty { display: none; }
-.dv-go { height: 48px; padding: 0 24px; border-radius: 999px; border: 0; background: #db2777; color: #fff; font: 800 16px "Nunito", sans-serif; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+.dv-go { height: 48px; padding: 0 24px; border-radius: 999px; border: 0; background: #db2777; color: #fff; font: 800 16px "Fredoka", "Nunito", sans-serif; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
 .dv-go .material-symbols-outlined { font-size: 24px; color: #fff !important; }
 .dv-go:focus-visible, .dv .dash-journal-link:focus-visible { outline: 3px solid #db2777; outline-offset: 2px; }
 
@@ -10931,9 +10931,9 @@ body.light .dv { --dv-card: #ffffff; --dv-ink: #16130f; --dv-mute: #6b6a66; --dv
 .dv .dash-journal-link { position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start; gap: 16px; text-align: left;
   min-height: 104px !important; padding: 16px !important; border-radius: 21px !important; border: 0 !important; background: var(--dv-card) !important; box-shadow: none !important; opacity: 1 !important; color: var(--dv-ink) !important; cursor: pointer; }
 .dv .dash-journal-link .material-symbols-outlined { font-size: 32px !important; color: #db2777 !important; }
-.dv .dash-journal-link .dv-tl { font: 800 15px "Nunito", sans-serif; }
+.dv .dash-journal-link .dv-tl { font: 800 15px "Fredoka", "Nunito", sans-serif; }
 .dv .dash-journal-link i { position: absolute; right: -8px; top: -24px; font: italic 99px/1 var(--dv-serif); color: rgba(219,39,119,.14); pointer-events: none; }
-.dv .dash-journal-count { position: absolute; right: 16px; bottom: 16px; font: 800 15px "Nunito", sans-serif; color: var(--dv-mute); }
+.dv .dash-journal-count { position: absolute; right: 16px; bottom: 16px; font: 800 15px "Fredoka", "Nunito", sans-serif; color: var(--dv-mute); }
 .dv .dash-journal-count:empty { display: none; }
 
 @media (min-width: 861px) {
@@ -10955,7 +10955,7 @@ body.light .dv { --dv-card: #ffffff; --dv-ink: #16130f; --dv-mute: #6b6a66; --dv
 .dv-sec h3 > span { font: italic 24px/1 var(--dv-serif); }
 @media (min-width: 861px) { .dv-sec { margin-top: 64px !important; } .dv-sec h3, .dv-sec h3 > span { font-size: 38px !important; } }
 .dv .dash-fav-nav { display: flex; align-items: center; gap: 8px; }
-.dv .dash-fav-nav-page { font: 400 15px "Nunito", sans-serif; color: var(--dv-mute); }
+.dv .dash-fav-nav-page { font: 400 15px "Fredoka", "Nunito", sans-serif; color: var(--dv-mute); }
 .dv .dash-fav-nav-btn { width: 44px; height: 44px; border-radius: 999px; border: 0; background: var(--dv-card); color: var(--dv-ink); display: grid; place-items: center; }
 .dv .dash-fav-nav-btn:disabled { opacity: .4; }
 .dv .dash-notes-open-btn { color: var(--dv-mute) !important; }
@@ -10963,9 +10963,9 @@ body.light .dv { --dv-card: #ffffff; --dv-ink: #16130f; --dv-mute: #6b6a66; --dv
 /* favorites: one big quote + small cards */
 .dv .dash-fav-list { display: grid; grid-template-columns: 1fr; gap: 16px; margin: 0; padding: 0; }
 .dv .dash-fav-row { position: relative; overflow: hidden; background: var(--dv-card) !important; border: 0 !important; border-radius: 21px !important; padding: 24px !important; box-shadow: none !important; display: flex; flex-direction: column; gap: 8px; cursor: pointer; color: var(--dv-ink) !important; }
-.dv .dash-fav-row-ref { font: 800 12px "Nunito", sans-serif !important; letter-spacing: .12em; text-transform: uppercase; color: #db2777 !important; }
+.dv .dash-fav-row-ref { font: 800 12px "Fredoka", "Nunito", sans-serif !important; letter-spacing: .12em; text-transform: uppercase; color: #db2777 !important; }
 .dv .dash-fav-row-chev { display: none !important; }
-.dv .dash-fav-row-text { font: 600 15px/1.5 "Nunito", sans-serif !important; color: var(--dv-ink) !important; opacity: 1 !important; display: block !important; -webkit-line-clamp: unset !important; }
+.dv .dash-fav-row-text { font: 600 15px/1.5 "Fredoka", "Nunito", sans-serif !important; color: var(--dv-ink) !important; opacity: 1 !important; display: block !important; -webkit-line-clamp: unset !important; }
 .dv .dash-fav-row:first-child { padding: 24px !important; }
 .dv .dash-fav-row:first-child .dash-fav-row-ref { order: 2; font-size: 15px !important; margin-top: 8px; }
 .dv .dash-fav-row:first-child .dash-fav-row-text { order: 1; font: italic 24px/1.2 var(--dv-serif) !important; max-width: 24ch; position: relative; }
@@ -10984,17 +10984,17 @@ body.light .dv { --dv-card: #ffffff; --dv-ink: #16130f; --dv-mute: #6b6a66; --dv
 .dv .dash-notes-card { display: grid !important; grid-template-columns: 48px 32px 1fr; align-items: start; padding: 16px 0 !important; background: none !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; cursor: pointer; margin: 0 !important; }
 .dv .dv-d { text-align: right; }
 .dv .dv-d b { display: block; font: italic 24px/1 var(--dv-serif); color: var(--dv-ink); }
-.dv .dv-d span { font: 800 12px "Nunito", sans-serif; letter-spacing: .12em; text-transform: uppercase; color: var(--dv-mute); }
+.dv .dv-d span { font: 800 12px "Fredoka", "Nunito", sans-serif; letter-spacing: .12em; text-transform: uppercase; color: var(--dv-mute); }
 .dv .dv-dot { width: 14px; height: 14px; border-radius: 50%; background: var(--dv-bg); border: 3px solid #db2777; margin: 8px 0 0 12px; position: relative; z-index: 1; }
-.dv .dv-nb em.dash-notes-type-label { display: block; font: 800 12px "Nunito", sans-serif; letter-spacing: .12em; text-transform: uppercase; color: #db2777; font-style: normal; margin: 0 0 4px; background: none; padding: 0; }
-.dv .dash-notes-card-preview { font: 400 16px/1.5 "Nunito", sans-serif !important; color: var(--dv-ink) !important; max-width: 68ch; opacity: 1 !important; }
+.dv .dv-nb em.dash-notes-type-label { display: block; font: 800 12px "Fredoka", "Nunito", sans-serif; letter-spacing: .12em; text-transform: uppercase; color: #db2777; font-style: normal; margin: 0 0 4px; background: none; padding: 0; }
+.dv .dash-notes-card-preview { font: 400 16px/1.5 "Fredoka", "Nunito", sans-serif !important; color: var(--dv-ink) !important; max-width: 68ch; opacity: 1 !important; }
 @media (min-width: 861px) { .dv .dash-notes-list::before { left: 79px; } .dv .dash-notes-card { grid-template-columns: 64px 32px 1fr; } .dv .dv-d b { font-size: 38px; } .dv .dv-dot { margin-top: 12px; } }
 .dv .dash-greeting { margin-top: 24px !important; } .dv .dash-greeting-msg { margin-top: 0; font-family: "Editors Note", Georgia, serif; font-style: italic; font-size: 24px; line-height: 1.2; color: var(--dv-ink) !important; max-width: 40ch; } .dv .dash-greeting-msg:empty { display: none; }
 @media (min-width: 1024px) { .dv .dash-greeting { margin-top: 32px !important; } }
 .dv .dv-go { height: 48px !important; min-height: 48px !important; padding: 0 24px !important; border-radius: 999px !important; background: #db2777 !important; color: #fff !important; border: 0 !important; box-shadow: none !important; }
 .dv .dv-pg h2, .dv .dv-ref { letter-spacing: 0 !important; }
 .dv .dv-nb { padding-left: 8px; }
-.dv .dash-notes-open-btn { font: 400 15px "Nunito", sans-serif !important; }
+.dv .dash-notes-open-btn { font: 400 15px "Fredoka", "Nunito", sans-serif !important; }
 .dv .dv-mid { margin-top: 32px; }
 /* desktop: tiles sit in a compact row under the book (not stretched beside it) */
 @media (min-width: 861px) {
@@ -11071,12 +11071,12 @@ body.light .dv { --dv-card: #ffffff; --dv-ink: #16130f; --dv-mute: #6b6a66; --dv
 .dv .dv-fv-card::after { content: none !important; }
 .dv .dv-fv-card.dv-fv-first { background: #db2777 !important; color: #fff !important; }
 .dv .dv-fv-card:focus-visible { outline: 3px solid #db2777; outline-offset: 2px; }
-.dv .dv-fv-book { display: block; font: 800 24px/1 "Nunito", sans-serif; color: #db2777; margin-bottom: 16px; }
+.dv .dv-fv-book { display: block; font: 800 24px/1 "Fredoka", "Nunito", sans-serif; color: #db2777; margin-bottom: 16px; }
 .dv .dv-fv-first .dv-fv-book { color: #fff; }
 .dv .dv-fv-num { display: block; font: italic 50cqw/.8 var(--dv-serif); letter-spacing: -.02em; white-space: nowrap; color: rgba(255,255,255,.2); margin-left: -4px; }
 body.light .dv .dv-fv-num { color: rgba(0,0,0,.1); }
 .dv .dv-fv-first .dv-fv-num, body.light .dv .dv-fv-first .dv-fv-num { color: rgba(255,255,255,.4); }
-.dv .dv-fv-text { margin: 0; font: 600 15px/1.5 "Nunito", sans-serif !important; color: inherit !important; display: -webkit-box !important; -webkit-box-orient: vertical; -webkit-line-clamp: 5 !important; overflow: hidden; }
+.dv .dv-fv-text { margin: 0; font: 600 15px/1.5 "Fredoka", "Nunito", sans-serif !important; color: inherit !important; display: -webkit-box !important; -webkit-box-orient: vertical; -webkit-line-clamp: 5 !important; overflow: hidden; }
 @media (min-width: 861px) {
   .dv .dash-fav-list.dv-fv-strip { margin: 0; padding: 0 0 8px; }
   .dv .dv-fv-card, .dv .dash-fav-row.dv-fv-card:nth-child(n) { flex: 0 0 calc((100% - 64px) / 5); }
@@ -11087,7 +11087,7 @@ body.light .dv .dv-fv-num { color: rgba(0,0,0,.1); }
 }
 .dv .dash-fav-row.dv-fv-card.dv-fv-first:nth-child(n) { background: #db2777 !important; color: #fff !important; }
 /* Continue book: the passage is the hero, the prompt is the small line */
-.dv .dv-ref { font: 800 12px/1 "Nunito", sans-serif !important; letter-spacing: .12em !important; text-transform: uppercase; color: #db2777; }
+.dv .dv-ref { font: 800 12px/1 "Fredoka", "Nunito", sans-serif !important; letter-spacing: .12em !important; text-transform: uppercase; color: #db2777; }
 .dv .dv-pg h2 { font: italic 38px/1.05 var(--dv-serif) !important; margin-top: 8px; }
 @media (min-width: 861px) { .dv .dv-pg h2 { font-size: 61px !important; } .dv .dv-ref { font-size: 12px !important; margin-top: 32px; } }
 .dv .dv-pg h2 { text-transform: none !important; letter-spacing: 0 !important; }
@@ -11152,14 +11152,14 @@ body:has(.dv) #scrollTopBtn { display: none !important; }
 /* Reflect panel: a writing desk, not a card */
 #reflectContent li, #aiReflection ol > li, body:not(.light) #reflectContent li, body:not(.light) #aiReflection ol > li { background: none !important; border: 0 !important; border-radius: 0 !important; padding: 0 !important; margin: 0 !important; }
 #aiReflection ol, #reflectContent ol { padding: 0 !important; margin: 0 !important; list-style: none; }
-#reflectContent li::before, #aiReflection ol > li::before, body:not(.light) #aiReflection ol > li::before { content: "Question to ponder" !important; display: block !important; position: static !important; margin: 0 0 24px !important; font: 800 12px/1 "Nunito", sans-serif !important; letter-spacing: .12em !important; text-transform: uppercase !important; color: #db2777 !important; }
+#reflectContent li::before, #aiReflection ol > li::before, body:not(.light) #aiReflection ol > li::before { content: "Question to ponder" !important; display: block !important; position: static !important; margin: 0 0 24px !important; font: 800 12px/1 "Fredoka", "Nunito", sans-serif !important; letter-spacing: .12em !important; text-transform: uppercase !important; color: #db2777 !important; }
 #aiReflection .refl-obs, #reflectContent .refl-obs { font: italic 24px/1.15 "Editors Note", Georgia, serif !important; color: #e6edf7 !important; margin: 0 0 24px !important; }
 .light #aiReflection .refl-obs, .light #reflectContent .refl-obs { color: #16130f !important; }
 @media (min-width: 1024px) { #aiReflection .refl-obs { font-size: 38px !important; } }
 #aiReflection .refl-obs a, #reflectContent .refl-obs a { display: none !important; }
-#aiReflection .refl-q, #reflectContent .refl-q, body:not(.light) #aiReflection ol > li p.refl-q { font: 400 16px/1.5 "Nunito", sans-serif !important; color: #a9b0c0 !important; margin: 0 0 24px !important; }
+#aiReflection .refl-q, #reflectContent .refl-q, body:not(.light) #aiReflection ol > li p.refl-q { font: 400 16px/1.5 "Fredoka", "Nunito", sans-serif !important; color: #a9b0c0 !important; margin: 0 0 24px !important; }
 .light #aiReflection .refl-q, .light #reflectContent .refl-q { color: #6b6a66 !important; }
-#aiReflection textarea, #reflectContent textarea, body:not(.light) #aiReflection textarea, body:not(.light) #reflectContent textarea { background: repeating-linear-gradient(transparent 0 31px, rgba(255,255,255,.1) 31px 32px) !important; border: 0 !important; border-radius: 0 !important; padding: 0 !important; font: 400 16px/32px "Nunito", sans-serif !important; color: #e6edf7 !important; min-height: 192px; resize: none; box-shadow: none !important; }
+#aiReflection textarea, #reflectContent textarea, body:not(.light) #aiReflection textarea, body:not(.light) #reflectContent textarea { background: repeating-linear-gradient(transparent 0 31px, rgba(255,255,255,.1) 31px 32px) !important; border: 0 !important; border-radius: 0 !important; padding: 0 !important; font: 400 16px/32px "Fredoka", "Nunito", sans-serif !important; color: #e6edf7 !important; min-height: 192px; resize: none; box-shadow: none !important; }
 .light #aiReflection textarea, .light #reflectContent textarea, body.light #aiReflection textarea { background: repeating-linear-gradient(transparent 0 31px, rgba(0,0,0,.12) 31px 32px) !important; color: #16130f !important; }
 #aiReflection textarea:focus, #reflectContent textarea:focus { outline: none !important; box-shadow: none !important; }
 #aiReflection textarea:focus-visible, #reflectContent textarea:focus-visible { outline: 2px solid #db2777 !important; outline-offset: 4px !important; }
@@ -11189,10 +11189,10 @@ aside.summary .summary-title { display: none !important; }
 #aiReflection ol > li::before { display: flex !important; align-items: center; height: 44px; margin: 0 0 16px !important; }
 /* reflection header: label and refresh button in one centred row; question in the normal font */
 .refl-head { display: flex; justify-content: space-between; align-items: center; min-height: 44px; margin: 0 0 16px; }
-.refl-label { font: 800 12px/1 "Nunito", sans-serif; letter-spacing: .12em; text-transform: uppercase; color: #db2777; }
+.refl-label { font: 800 12px/1 "Fredoka", "Nunito", sans-serif; letter-spacing: .12em; text-transform: uppercase; color: #db2777; }
 #aiReflection .refl-head .ai-refl-retry, #reflectContent .refl-head .ai-refl-retry { position: static !important; margin: 0 !important; flex: none !important; }
 #aiReflection:has(.refl-head) ol > li::before, #reflectContent:has(.refl-head) li::before { display: none !important; }
-#aiReflection .refl-q, #reflectContent .refl-q, body:not(.light) #aiReflection ol > li p.refl-q { font: 700 24px/1.3 "Nunito", sans-serif !important; letter-spacing: 0 !important; }
+#aiReflection .refl-q, #reflectContent .refl-q, body:not(.light) #aiReflection ol > li p.refl-q { font: 700 24px/1.3 "Fredoka", "Nunito", sans-serif !important; letter-spacing: 0 !important; }
 @media (min-width: 1024px) { #aiReflection .refl-q, body:not(.light) #aiReflection ol > li p.refl-q { font-size: 24px !important; } }
 /* the descender of "g" in "Kings" was being clipped */
 .passage-title-row { overflow: visible !important; }
@@ -11206,7 +11206,7 @@ html body #aiReflection:has(.refl-head) ol > li::before, html body #reflectConte
 }
 .verse-hover-pop { position: fixed; z-index: 9000; display: flex; gap: 4px; padding: 4px; border-radius: 999px; background: #1b2238; border: 1px solid rgba(255,255,255,.1); color: #e6edf7; }
 .verse-hover-pop[hidden] { display: none; }
-.verse-hover-pop button { height: 40px; padding: 0 16px; border-radius: 999px; border: 0; background: transparent; color: inherit; font: 600 15px/1 "Nunito", sans-serif; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+.verse-hover-pop button { height: 40px; padding: 0 16px; border-radius: 999px; border: 0; background: transparent; color: inherit; font: 600 15px/1 "Fredoka", "Nunito", sans-serif; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
 .verse-hover-pop button .material-icons { font-size: 16px; color: #db2777; }
 .verse-hover-pop button:hover, .verse-hover-pop button:focus-visible { background: rgba(255,255,255,.1); outline: none; }
 .verse-hover-pop button.on { color: #f7a8d0; }
@@ -11227,7 +11227,7 @@ body.light .verse-hover-pop button.on { color: #db2777; }
 #mtListen { display: none !important; }              /* Listen lives in the dock now */
 .reader-dock { position: fixed; z-index: 900; left: 50%; bottom: 24px; transform: translateX(-50%); display: flex; gap: 4px; padding: 4px; border-radius: 999px; background: rgba(27,34,56,.95); border: 1px solid rgba(255,255,255,.1); }
 .reader-dock[hidden] { display: none; }
-.reader-dock button { height: 44px; padding: 0 24px; border-radius: 999px; border: 0; background: transparent; color: #a9b0c0; font: 800 15px/1 "Nunito", sans-serif; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+.reader-dock button { height: 44px; padding: 0 24px; border-radius: 999px; border: 0; background: transparent; color: #a9b0c0; font: 800 15px/1 "Fredoka", "Nunito", sans-serif; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
 .reader-dock button .material-symbols-outlined { font-size: 20px; color: #db2777; }
 .reader-dock button:hover { background: rgba(255,255,255,.08); color: #e6edf7; }
 .reader-dock button:focus-visible { outline: 3px solid #db2777; outline-offset: 2px; }
@@ -11300,7 +11300,7 @@ body.tts-mini .reader-dock { bottom: 90px !important; }
 #mtThemeToggle { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 #mtThemeToggle .mt-sheet-state { display: none; }
 #mtThemeToggle .mt-theme-seg { margin-left: auto; display: flex; padding: 4px; border-radius: 999px; background: rgba(255,255,255,.06); }
-#mtThemeToggle .mt-theme-seg b { font: 800 12px/1 "Nunito", sans-serif; color: #a9b0c0; height: 32px; padding: 0 16px; border-radius: 999px; display: grid; place-items: center; }
+#mtThemeToggle .mt-theme-seg b { font: 800 12px/1 "Fredoka", "Nunito", sans-serif; color: #a9b0c0; height: 32px; padding: 0 16px; border-radius: 999px; display: grid; place-items: center; }
 body:not(.light) #mtThemeToggle b[data-t="dark"], body.light #mtThemeToggle b[data-t="light"] { background: #db2777; color: #fff; }
 body.light #mtThemeToggle .mt-theme-seg { background: rgba(0,0,0,.06); }
 /* Continue -> reading: the passage slides in from the right (the dashboard slides out left) */
@@ -11336,7 +11336,7 @@ body.tts-mini .dock-ic-listen { display: none !important; }
 body.tts-mini:not(.tts-paused) .dock-ic-pause, body.tts-mini.tts-paused .dock-ic-play { display: inline-block !important; }
 body.tts-mini .reader-dock { bottom: 24px !important; }
 
-.tts-chip { position: fixed; z-index: 800; left: 50%; bottom: 96px; transform: translateX(-50%); display: none; align-items: center; gap: 4px; height: 36px; max-width: calc(100vw - 32px); padding: 0 8px 0 16px; border: 0; border-radius: 999px; background: #1b2238; color: #e6edf7; font: 800 14px/1 "Nunito", sans-serif; white-space: nowrap; box-shadow: 0 8px 24px rgba(0,0,0,.4); cursor: pointer; }
+.tts-chip { position: fixed; z-index: 800; left: 50%; bottom: 96px; transform: translateX(-50%); display: none; align-items: center; gap: 4px; height: 36px; max-width: calc(100vw - 32px); padding: 0 8px 0 16px; border: 0; border-radius: 999px; background: #1b2238; color: #e6edf7; font: 800 14px/1 "Fredoka", "Nunito", sans-serif; white-space: nowrap; box-shadow: 0 8px 24px rgba(0,0,0,.4); cursor: pointer; }
 #ttsChipText { overflow: hidden; text-overflow: ellipsis; }
 .tts-chip .material-symbols-outlined { font-size: 20px; color: rgba(255,255,255,.55); }
 body.light .tts-chip { background: #fff; color: #16130f; box-shadow: 0 8px 24px rgba(0,0,0,.12); }
@@ -11483,12 +11483,12 @@ body.notes-dragging .notes-sheet, body.notes-dragging .layout { transition: none
 .notes-grab { flex: none; height: 32px; display: grid; place-items: center; cursor: ns-resize; touch-action: none; }
 .notes-grab i { width: 40px; height: 4px; border-radius: 2px; background: #2b3554; }
 .notes-head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-bottom: 8px; }
-.notes-title { font: 800 15px/1.2 "Nunito", sans-serif; color: #e6edf7; }
+.notes-title { font: 800 15px/1.2 "Fredoka", "Nunito", sans-serif; color: #e6edf7; }
 .notes-acts { display: flex; gap: 8px; }
 .notes-ib { width: 36px; height: 36px; border-radius: 50%; border: 0; background: #1b2238; color: #e6edf7; display: grid; place-items: center; cursor: pointer; flex: none; }
 .notes-ib .material-symbols-outlined { font-size: 20px; }
 .notes-ib:active { transform: scale(.95); }
-.notes-text { flex: 1; min-height: 0; width: 100%; resize: none; border: 0; outline: 0; background: rgba(17,26,47,.9); color: #e6edf7; border-radius: 12px; padding: 16px; font: 400 16px/1.6 "Nunito", sans-serif; box-sizing: border-box; }
+.notes-text { flex: 1; min-height: 0; width: 100%; resize: none; border: 0; outline: 0; background: rgba(17,26,47,.9); color: #e6edf7; border-radius: 12px; padding: 16px; font: 400 16px/1.6 "Fredoka", "Nunito", sans-serif; box-sizing: border-box; }
 .notes-text::placeholder { color: rgba(255,255,255,.5); }
 body.light .notes-sheet { background: #fff; box-shadow: 0 -12px 32px rgba(0,0,0,.12); }
 body.light .notes-grab i { background: rgba(0,0,0,.15); }
@@ -11533,7 +11533,7 @@ body.light.flow-read #output .verse.verse-sel { background: rgba(219,39,119,.16)
 .verse-bar { position: fixed; z-index: 810; left: 12px; right: 96px; bottom: 24px; max-width: 420px; margin: 0 auto; display: flex; justify-content: space-around; align-items: center; padding: 6px; border-radius: 999px; background: #1b2238; box-shadow: 0 8px 24px rgba(0,0,0,.45); opacity: 0; transform: translateY(12px) scale(.97); transition: opacity .2s, transform .28s cubic-bezier(.22,1,.36,1); }
 .verse-bar[hidden] { display: none; }
 .verse-bar.on { opacity: 1; transform: none; }
-.verse-bar button { border: 0; background: none; color: #e6edf7; font: 800 14px/1 "Nunito", sans-serif; height: 44px; padding: 0 12px; border-radius: 999px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+.verse-bar button { border: 0; background: none; color: #e6edf7; font: 800 14px/1 "Fredoka", "Nunito", sans-serif; height: 44px; padding: 0 12px; border-radius: 999px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
 .verse-bar button .material-symbols-outlined { color: #db2777; font-size: 20px; }
 .verse-bar button:hover { background: rgba(255,255,255,.08); }
 .verse-bar button.is-fav .material-symbols-outlined { color: #db2777; }
@@ -11550,9 +11550,9 @@ body.notes-open .verse-bar { bottom: calc(var(--notes-h, 50dvh) + var(--kb, 0px)
 @media (min-width: 1024px) { .verse-card { left: calc(50% - 420px); right: calc(50% - 420px + 88px); max-width: none; } }
 .vc-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; position: sticky; top: -12px; background: #121829; padding: 4px 0; z-index: 1; }
 .vc-tabs { display: flex; gap: 4px; background: rgba(17,26,47,.9); border-radius: 999px; padding: 4px; }
-.vc-tabs button { border: 0; background: none; color: rgba(255,255,255,.6); font: 800 13px/1 "Nunito", sans-serif; height: 32px; padding: 0 16px; border-radius: 999px; cursor: pointer; }
+.vc-tabs button { border: 0; background: none; color: rgba(255,255,255,.6); font: 800 13px/1 "Fredoka", "Nunito", sans-serif; height: 32px; padding: 0 16px; border-radius: 999px; cursor: pointer; }
 .vc-tabs button.on { background: #2b3554; color: #e6edf7; }
-.vc-ref { flex: 1; text-align: right; font: 700 12px/1 "Nunito", sans-serif; letter-spacing: 1.5px; text-transform: uppercase; color: rgba(255,255,255,.55); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vc-ref { flex: 1; text-align: right; font: 700 12px/1 "Fredoka", "Nunito", sans-serif; letter-spacing: 1.5px; text-transform: uppercase; color: rgba(255,255,255,.55); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .vc-pane[hidden] { display: none; }
 .vc-pane .ai-card-close, .vc-pane .ai-card-header { display: none; }
 .vc-pane .inline-ai-card, .vc-pane .ai-card-gradient { background: none; box-shadow: none; border: 0; padding-left: 0; padding-right: 0; }
@@ -11567,14 +11567,14 @@ body.light .vc-tabs button.on { background: #fff; color: #16130f; box-shadow: 0 
 .archive-view.on { opacity: 1; transform: none; }
 .ar-bar { width: min(100%, 640px); box-sizing: border-box; display: flex; align-items: center; gap: 16px; padding: calc(16px + env(safe-area-inset-top, 0px)) 16px 8px; flex: none; }
 .ar-title { flex: 1; font: italic 34px/1.1 "Editors Note", Georgia, serif; color: #e6edf7; }
-.ar-dl { height: 36px; padding: 0 16px; border-radius: 999px; border: 1px solid rgba(255,255,255,.2); background: none; color: #e6edf7; font: 800 13px/1 "Nunito", sans-serif; cursor: pointer; }
+.ar-dl { height: 36px; padding: 0 16px; border-radius: 999px; border: 1px solid rgba(255,255,255,.2); background: none; color: #e6edf7; font: 800 13px/1 "Fredoka", "Nunito", sans-serif; cursor: pointer; }
 .ar-list { width: min(100%, 640px); box-sizing: border-box; flex: 1; min-height: 0; overflow-y: auto; padding: 8px 16px 48px; display: flex; flex-direction: column; gap: 12px; }
-.ar-card { display: flex; flex-direction: column; gap: 4px; text-align: left; width: 100%; border: 0; background: #1b2238; color: #e6edf7; border-radius: 14px; padding: 16px; cursor: pointer; font-family: "Nunito", sans-serif; }
+.ar-card { display: flex; flex-direction: column; gap: 4px; text-align: left; width: 100%; border: 0; background: #1b2238; color: #e6edf7; border-radius: 14px; padding: 16px; cursor: pointer; font-family: "Fredoka", "Nunito", sans-serif; }
 .ar-card:active { transform: scale(.99); }
-.ar-ref { font: 700 12px/1.2 "Nunito", sans-serif; letter-spacing: 1.5px; text-transform: uppercase; color: rgba(255,255,255,.55); }
-.ar-q { font: 600 14px/1.4 "Nunito", sans-serif; color: rgba(255,255,255,.6); }
-.ar-text { font: 400 15px/1.55 "Nunito", sans-serif; white-space: pre-wrap; word-break: break-word; }
-.ar-time { font: 400 12px/1.2 "Nunito", sans-serif; color: rgba(255,255,255,.5); margin-top: 4px; }
+.ar-ref { font: 700 12px/1.2 "Fredoka", "Nunito", sans-serif; letter-spacing: 1.5px; text-transform: uppercase; color: rgba(255,255,255,.55); }
+.ar-q { font: 600 14px/1.4 "Fredoka", "Nunito", sans-serif; color: rgba(255,255,255,.6); }
+.ar-text { font: 400 15px/1.55 "Fredoka", "Nunito", sans-serif; white-space: pre-wrap; word-break: break-word; }
+.ar-time { font: 400 12px/1.2 "Fredoka", "Nunito", sans-serif; color: rgba(255,255,255,.5); margin-top: 4px; }
 .ar-empty { color: rgba(255,255,255,.6); text-align: center; padding: 48px 0; }
 body.light .archive-view { background: #f7f7fb; }
 body.light .ar-title, body.light .ar-card { color: #16130f; }
@@ -11685,7 +11685,7 @@ body.flow-read #output .verse { transition: none !important; }
 .verse-card .chat-empty-state { padding: 0; align-items: stretch; gap: 0; }
 .verse-card .chat-empty-state > .material-icons, .verse-card .chat-empty-state .chat-empty-text { display: none; }
 .verse-card .chat-suggestions { margin-top: 0; gap: 0; }
-.verse-card .chat-suggestions::before { content: "Or try"; font: 700 12px/1 "Nunito", sans-serif; letter-spacing: 1.5px; text-transform: uppercase; color: rgba(255,255,255,.55); margin-bottom: 8px; }
+.verse-card .chat-suggestions::before { content: "Or try"; font: 700 12px/1 "Fredoka", "Nunito", sans-serif; letter-spacing: 1.5px; text-transform: uppercase; color: rgba(255,255,255,.55); margin-bottom: 8px; }
 .verse-card .chat-suggestion-chip { border: 0 !important; border-radius: 0; padding: 9px 0; font-size: 16px; line-height: 1.4; color: #e6edf7; background: none !important; display: flex; gap: 10px; align-items: flex-start; }
 .verse-card .chat-suggestion-chip::before { content: "subdirectory_arrow_right"; font-family: "Material Icons"; font-size: 18px; line-height: 1.4; letter-spacing: normal; text-transform: none; color: #db2777; flex: none; }
 .verse-card .chat-suggestion-chip:hover { color: #f7a8d0; }
@@ -11704,7 +11704,7 @@ body.tts-mini .reader-dock { padding: 14px !important; gap: 12px !important; bor
 /* Ask card header, option C: field first, tabs as small text switches under it */
 .verse-card { display: flex; flex-direction: column; }
 .vc-tabs { background: none !important; padding: 0 !important; gap: 16px !important; }
-.vc-tabs button { height: auto !important; padding: 0 !important; background: none !important; color: rgba(255,255,255,.6); font: 700 13px/1 "Nunito", sans-serif !important; border-radius: 0; box-shadow: none !important; }
+.vc-tabs button { height: auto !important; padding: 0 !important; background: none !important; color: rgba(255,255,255,.6); font: 700 13px/1 "Fredoka", "Nunito", sans-serif !important; border-radius: 0; box-shadow: none !important; }
 .vc-tabs button.on { color: #db2777 !important; }
 body.light .vc-tabs button { color: rgba(22,19,15,.6); }
 .verse-card #vcClose { background: none !important; color: rgba(255,255,255,.6); width: 32px; height: 32px; }
@@ -11774,7 +11774,7 @@ body.tts-mini .reader-dock button[data-dock="listen"] .material-symbols-outlined
 body.dialog-open { overflow: hidden; }
 body.dialog-open .reader-dock, body.dialog-open .tts-chip { display: none !important; }
 .dlgm-top { position: absolute; left: 24px; right: 24px; top: calc(16px + env(safe-area-inset-top)); display: grid; grid-template-columns: 1fr auto; grid-template-areas: "back back" "title title"; align-items: center; row-gap: 16px; z-index: 2; }
-.dlgm-back { grid-area: back; justify-self: start; display: inline-flex; align-items: center; gap: 0; min-height: 44px; padding: 0 8px 0 0; background: none; border: 0; color: #a9b0c0; font: 700 19px/1 "Nunito", sans-serif; cursor: pointer; }
+.dlgm-back { grid-area: back; justify-self: start; display: inline-flex; align-items: center; gap: 0; min-height: 44px; padding: 0 8px 0 0; background: none; border: 0; color: #a9b0c0; font: 700 19px/1 "Fredoka", "Nunito", sans-serif; cursor: pointer; }
 .dlgm-back .material-symbols-outlined { font-size: 24px; }
 .dlgm-more { grid-area: more; width: 48px; height: 48px; border-radius: 50%; border: 0; background: rgba(255,255,255,.06); color: #cbd2e0; display: grid; place-items: center; cursor: pointer; }
 .dlgm-title { grid-area: title; margin: 0; font: 400 38px/1.1 "Editors Note", Georgia, serif; color: #cbd2e0; }
@@ -11783,7 +11783,7 @@ body.dialog-open .reader-dock, body.dialog-open .tts-chip { display: none !impor
   -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 48px, #000 calc(100% - 64px), transparent);
           mask-image: linear-gradient(to bottom, transparent 0, #000 48px, #000 calc(100% - 64px), transparent); }
 .dlgm-log::-webkit-scrollbar { display: none; }
-.dlgm-head { font: 800 16px/1.4 "Nunito", sans-serif; color: #e2e8f0; margin: 24px 0 16px; }
+.dlgm-head { font: 700 16px/1.4 "Fredoka", "Nunito", sans-serif; color: #e2e8f0; margin: 24px 0 16px; }
 .dlgm-head:first-child { margin-top: 0; }
 .dlgm-vw { position: relative; margin-bottom: 8px; touch-action: pan-y; }
 .dlgm-box { position: relative; background: #ece8d9; color: #6b5f45; font: 600 var(--verse-fs, 16px)/1.55 "Fredoka", "Nunito", sans-serif; border-radius: 34px; padding: 24px; box-shadow: 0 8px 24px rgba(0,0,0,.4); cursor: pointer;
@@ -11811,15 +11811,15 @@ body.light .dlgm-box.old .dlgm-name { color: #be185d; }
 .dlgm-act .material-icons { font-size: 22px; }
 .dlgm-vw.armed .dlgm-act { background: #db2777; color: #fff; }
 .dlgm-mount:not(:empty) { margin-top: 8px; cursor: auto; user-select: text; -webkit-user-select: text; }
-.dlgm-end { text-align: center; color: #a9b0c0; font: 700 16px/1.4 "Nunito", sans-serif; margin-top: 24px; }
+.dlgm-end { text-align: center; color: #a9b0c0; font: 700 16px/1.4 "Fredoka", "Nunito", sans-serif; margin-top: 24px; }
 
 /* split: landscape phone + desktop */
 .dlgm.split .dlgm-top { left: calc(32px + env(safe-area-inset-left)); right: auto; width: calc(36% - 48px); top: 24px; bottom: 24px; display: flex; flex-direction: column; align-items: flex-start; }
 .dlgm.split .dlgm-title { margin-top: auto; }
 .dlgm.split .dlgm-side { display: block; width: 100%; margin-top: 16px; margin-bottom: auto; }
 .dlgm.split .dlgm-more { margin-top: auto; }
-.dlgm-sect { font: 800 16px/1.4 "Nunito", sans-serif; color: #e2e8f0; }
-.dlgm-prog { font: 700 15px/1.4 "Nunito", sans-serif; color: #a9b0c0; margin-top: 8px; }
+.dlgm-sect { font: 700 16px/1.4 "Fredoka", "Nunito", sans-serif; color: #e2e8f0; }
+.dlgm-prog { font: 700 15px/1.4 "Fredoka", "Nunito", sans-serif; color: #a9b0c0; margin-top: 8px; }
 .dlgm-bar { height: 4px; border-radius: 2px; background: #263050; margin-top: 8px; overflow: hidden; }
 .dlgm-bar i { display: block; height: 100%; width: 0; background: #db2777; transition: width .3s; }
 .dlgm.split .dlgm-log { top: 0; left: 36%; right: env(safe-area-inset-right); padding: 50vh 32px 50vh 0;
