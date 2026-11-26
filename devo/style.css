@@ -11805,13 +11805,13 @@ body.light .dlgm-box.old .dlgm-name { color: #be185d; }
 @keyframes dlgmPop { from { transform: translateY(16px) scale(.96); opacity: 0; } }
 .dlgm-c { opacity: 0; }
 .dlgm-c.on { opacity: 1; }
-/* Context / Ask: outline buttons under the lit verse only (Charlie picked this over the swipe, 2026-11-26). */
+/* Context / Ask: solid name-pink pills, text only, under the lit verse (Charlie, 2026-11-26).
+   White on #be185d 6:1; pressed = white pill, pink text. */
 .dlgm-acts { display: none; gap: 8px; margin: 8px 0 0 8px; }
 .dlgm-vw.lit .dlgm-acts { display: flex; }
-.dlgm-act { height: 40px; padding: 0 16px; border-radius: 999px; border: 1px solid rgba(244,114,182,.45); background: none; color: #f472b6; font: 700 15px/1 "Fredoka", "Nunito", sans-serif; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
-.dlgm-act .material-icons { font-size: 18px; }
-.dlgm-act.on { background: #db2777; border-color: #db2777; color: #fff; }
-.dlgm-act:focus-visible { outline: 3px solid #db2777; outline-offset: 2px; }
+.dlgm-act { height: 40px; padding: 0 16px; border-radius: 999px; border: 0; background: #be185d; color: #fff; font: 700 15px/1 "Fredoka", "Nunito", sans-serif; display: inline-flex; align-items: center; cursor: pointer; }
+.dlgm-act.on { background: #fff; color: #be185d; }
+.dlgm-act:focus-visible { outline: 3px solid #be185d; outline-offset: 2px; }
 .dlgm-mount:not(:empty) { margin-top: 8px; cursor: auto; user-select: text; -webkit-user-select: text; }
 .dlgm-end { text-align: center; color: #a9b0c0; font: 700 16px/1.4 "Fredoka", "Nunito", sans-serif; margin-top: 24px; }
 
@@ -11846,8 +11846,7 @@ body.light .dlgm-box { background: #fffdf7; box-shadow: 0 8px 24px rgba(107,95,6
 body.light .dlgm-box.old { background: #e6e0d2; color: #5c5139; }
 body.light .dlgm-box.old .dlgm-n { color: #be185d; }
 body.light .dlgm-box.old .quote-style, body.light .dlgm-box.old .quote-style-nested { color: #2b2318; }
-body.light .dlgm-act { border-color: rgba(190,24,93,.45); color: #be185d; }
-body.light .dlgm-act.on { background: #be185d; border-color: #be185d; color: #fff; }
+body.light .dlgm-act.on { background: #fffdf7; color: #be185d; box-shadow: inset 0 0 0 1px #be185d; }
 /* phones: the dock tucks off the right edge; a thin pink tab brings it back (hides again on outside tap, scroll or 4s idle) */
 .dock-tab { display: none; }
 @media (max-width: 1023px) {

@@ -131,7 +131,7 @@
     if (h) { const el = document.createElement("div"); el.className = "dlgm-head"; el.textContent = h; log.appendChild(el); }
     const w = document.createElement("div");
     w.className = "dlgm-vw";
-    w.innerHTML = `<div class="dlgm-box"></div><div class="dlgm-acts"><button type="button" class="dlgm-act" data-act="context"><span class="material-icons" aria-hidden="true">auto_awesome</span>context</button><button type="button" class="dlgm-act" data-act="ask"><span class="material-icons" aria-hidden="true">chat_bubble_outline</span>ask</button></div><div class="dlgm-mount"></div>`;
+    w.innerHTML = `<div class="dlgm-box"></div><div class="dlgm-acts"><button type="button" class="dlgm-act" data-act="context">context</button><button type="button" class="dlgm-act" data-act="ask">ask</button></div><div class="dlgm-mount"></div>`;
     const box = w.querySelector(".dlgm-box");
     box.appendChild(verseHTML(v, quoteStack));
     log.appendChild(w);
