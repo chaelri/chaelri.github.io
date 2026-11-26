@@ -11876,11 +11876,13 @@ body.light .dlgm-mount .chat-suggestion-chip, body.light .dlgm-mount .chat-follo
 .dlgm.split .dlgm-log { top: 0; left: 36%; right: env(safe-area-inset-right); padding: 50vh 32px 50vh 0;
   -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 48px, #000 calc(100% - 48px), transparent);
           mask-image: linear-gradient(to bottom, transparent 0, #000 48px, #000 calc(100% - 48px), transparent); }
-/* Desktop: one centred 1200px frame (panel 320px + gap 48px + log), equal side margins. */
+/* Split (landscape phone + desktop): the verse column is at most 400px wide (Charlie, 2026-11-26). */
+.dlgm.split .dlgm-log > * { max-width: 400px; }
+/* Desktop: panel 320px + gap 48px + 400px column = one 768px group centred on screen. */
 @media (min-width: 1024px) {
-  .dlgm.split { --dlgm-l: max(32px, calc((100% - 1200px) / 2)); }
+  .dlgm.split { --dlgm-l: max(32px, calc((100% - 768px) / 2)); }
   .dlgm.split .dlgm-top { left: var(--dlgm-l); width: 320px; }
-  .dlgm.split .dlgm-log { left: calc(var(--dlgm-l) + 368px); right: var(--dlgm-l); padding-right: 8px; }
+  .dlgm.split .dlgm-log { left: calc(var(--dlgm-l) + 368px); right: auto; width: 408px; padding-right: 8px; }
 }
 
 /* light theme */
