@@ -1,6 +1,6 @@
 ---
 name: house-style
-description: Build or restyle any web page/app in Charlie's devo house style (navy cards, Nunito, Editors Note headings, pink used sparingly, soft rise motion, mobile-first). Use whenever Charlie asks to create a website/page/UI, says "gandahan mo", "make it nice", "devo style", or a page looks plain/"sakit sa mata".
+description: Build or restyle any web page/app in Charlie's devo house style (navy cards, Fredoka, Editors Note headings, pink used sparingly, soft rise motion, mobile-first). Use whenever Charlie asks to create a website/page/UI, says "gandahan mo", "make it nice", "devo style", or a page looks plain/"sakit sa mata".
 ---
 
 # House style (from devo, the reference app)
@@ -29,7 +29,7 @@ Same design system, swap only the tokens. Colours: dark brown `#2A1A14`, cream `
 Ask which palette when Charlie doesn't say; default to devo navy.
 
 ## Type
-- Body: **Nunito** 400/600/700/800 from Google Fonts, `15px/22px`.
+- Body: **Fredoka** (variable, `wght@300..700`) from Google Fonts, `15px/22px`, with Nunito as fallback. Max weight is 700; long-form recaps stay 400 (Charlie, 2026-11-26: switched from Nunito).
 - Display heading: **Editors Note italic** (`devo/assets/EditorsNote-Italic.ttf`, load with `@font-face` via a relative path), ~34px, one word in pink: `Hi <b>Karla</b>`.
 - Labels: `11px`, weight 700, `letter-spacing:1.5px`, uppercase, `--label` colour. Short nouns (PAY, HOURS, QUICK CONTEXT).
 - Card title 18/24 weight 800; secondary line 14px `--mute`.
@@ -60,7 +60,7 @@ Ask which palette when Charlie doesn't say; default to devo navy.
 - Text is plain and warm; Taglish only where the app already uses it.
 
 ## Checklist before shipping
-1. Tokens + Nunito + Editors Note wired; body has the radial navy background.
+1. Tokens + Fredoka + Editors Note wired; body has the radial navy background.
 2. No borders on cards; one primary action per card; labels in spaced caps.
 3. Loading, empty, and error states designed (not blank).
 4. Dark AND light mode checked; 375px width checked.
