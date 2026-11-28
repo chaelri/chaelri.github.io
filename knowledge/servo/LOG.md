@@ -14,6 +14,10 @@ Chronological notes for ongoing work in `servo/`. **Newest first.** Append-only 
 
 ---
 
+## 2026-11-28 — GFiber retired, WoL board on CharLa
+
+GFiber is gone, and the PC is now on CharLa too (192.168.1.45), so the subnet problem from 11-09 no longer applies. Reflashed `wol-power.ino` with CharLa as the only network. On boot it connected (RSSI -35), saw the PC was on and opened the Firebase stream.
+
 ## 2026-11-09 — Router reboot fixed it
 
 After Charlie power-cycled the GFiber router, the board connected to Firebase within ~2 min and published `state: true`. So the stalled Firebase connects (here and probably on 11-04) were a router-side fault, not the firmware. If the board goes deaf again with WiFi up, reboot the GFiber router first.
